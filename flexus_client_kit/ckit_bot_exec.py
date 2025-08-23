@@ -213,7 +213,7 @@ class BotsCollection:
         self,
         fgroup_id: str,
         marketable_name: str,
-        marketable_version: str,
+        marketable_version: int,
         inprocess_tools: List[ckit_cloudtool.CloudTool],
         bot_main_loop: Callable[[ckit_client.FlexusClient, RobotContext], Awaitable[None]],
     ):
@@ -236,7 +236,7 @@ async def subscribe_and_produce_callbacks(
 
     async with ws_client as ws:
         async for r in ws.subscribe(
-            gql.gql(f"""subscription KarenThreads($fgroup_id: String!, $marketable_name: String!, $marketable_version: String!, $inprocess_tool_names: [String!]!) {{
+            gql.gql(f"""subscription KarenThreads($fgroup_id: String!, $marketable_name: String!, $marketable_version: Int!, $inprocess_tool_names: [String!]!) {{
                 bot_threads_and_calls_subs(fgroup_id: $fgroup_id, marketable_name: $marketable_name, marketable_version: $marketable_version, inprocess_tool_names: $inprocess_tool_names, max_threads: {MAX_THREADS}, want_personas: true, want_threads: true, want_messages: true) {{
                     {gql_utils.gql_fields(FBotThreadsAndCallsSubs)}
                 }}
@@ -411,7 +411,7 @@ async def run_bots_in_this_group(
     *,
     fgroup_id: str,
     marketable_name: str,
-    marketable_version: str,
+    marketable_version: int,
     inprocess_tools: List[ckit_cloudtool.CloudTool],
     bot_main_loop: Callable[[ckit_client.FlexusClient, RobotContext], Awaitable[None]],
 ) -> None:
