@@ -25,7 +25,7 @@ class FPersonaOutput:
     persona_id: str
     persona_name: str
     persona_marketable_name: str
-    persona_marketable_version: str
+    persona_marketable_version: int
     persona_discounts: Any
     persona_setup: Any
     persona_created_ts: float
@@ -58,7 +58,7 @@ def official_setup_mixing_procedure(marketable_setup_default, persona_setup) -> 
     """
     result = dict()
     minimal_set = set(["bs_type", "bs_default", "bs_group", "bs_name"])
-    full_set = minimal_set | set(["bs_description", "bs_order", "bs_placeholder"])
+    full_set = minimal_set | set(["bs_description", "bs_order", "bs_placeholder", "bs_importance"])
     types = {"string_short": str, "string_long": str, "string_multiline": str, "bool": bool, "int": int, "float": float, "list_dict": list}
     for d in marketable_setup_default:
         k = d["bs_name"]

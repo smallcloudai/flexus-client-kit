@@ -11,7 +11,7 @@ from flexus_client_kit import ckit_client, gql_utils
 @dataclass
 class FBotInstallOutput:
     marketable_name: str
-    marketable_version: str
+    marketable_version: int
 
 @dataclass
 class InstallationResult:
@@ -36,6 +36,7 @@ async def marketplace_upsert_dev_bot(
     marketable_title1: str,
     marketable_title2: str,
     marketable_author: str,
+    marketable_occupation: str,
     marketable_description: str,
     marketable_typical_group: str,
     marketable_github_repo: str,
@@ -57,7 +58,7 @@ async def marketplace_upsert_dev_bot(
     http = await client.use_http()
     async with http as h:
         r = await h.execute(
-            gql.gql(f"""mutation InstallBot($ws: String!, $name: String!, $ver: String!, $title1: String!, $title2: String!, $author: String!, $desc: String!, $typical_group: String!, $repo: String!, $run: String!, $setup: String!, $model: String!, $daily: Int!, $inbox: Int!, $ed: FMarketplaceExpertInput!, $schedule: String!, $et: FMarketplaceExpertInput, $eu: FMarketplaceExpertInput, $ec: FMarketplaceExpertInput, $big: String!, $small: String!, $tags: [String!]!, $stage: String!) {{
+            gql.gql(f"""mutation InstallBot($ws: String!, $name: String!, $ver: String!, $title1: String!, $title2: String!, $author: String!, $occupation: String!, $desc: String!, $typical_group: String!, $repo: String!, $run: String!, $setup: String!, $model: String!, $daily: Int!, $inbox: Int!, $ed: FMarketplaceExpertInput!, $schedule: String!, $et: FMarketplaceExpertInput, $eu: FMarketplaceExpertInput, $ec: FMarketplaceExpertInput, $big: String!, $small: String!, $tags: [String!]!, $stage: String!) {{
                 marketplace_upsert_dev_bot(
                     ws_id: $ws,
                     marketable_name: $name,
@@ -65,6 +66,7 @@ async def marketplace_upsert_dev_bot(
                     marketable_title1: $title1,
                     marketable_title2: $title2,
                     marketable_author: $author,
+                    marketable_occupation: $occupation,
                     marketable_description: $desc,
                     marketable_typical_group: $typical_group,
                     marketable_github_repo: $repo,
@@ -93,6 +95,7 @@ async def marketplace_upsert_dev_bot(
                 "title1": marketable_title1,
                 "title2": marketable_title2,
                 "author": marketable_author,
+                "occupation": marketable_occupation,
                 "desc": marketable_description,
                 "typical_group": marketable_typical_group,
                 "repo": marketable_github_repo,
@@ -123,13 +126,13 @@ async def bot_install_from_marketplace(
     persona_name: str,
     new_setup: Dict[str, Union[str, int, bool]],
     inside_fgroup: Optional[str] = None,
-    specific_version: Optional[str] = None,
+    specific_version: Optional[int] = None,
     install_dev_version: bool = False,
 ) -> InstallationResult:
     http = await client.use_http()
     async with http as h:
         r = await h.execute(
-            gql.gql("""mutation PersonaUpsert($ws: String!, $g: String, $mn: String!, $id: String!, $name: String!, $setup: String!, $v: String, $dev: Boolean!) {
+            gql.gql("""mutation PersonaUpsert($ws: String!, $g: String, $mn: String!, $id: String!, $name: String!, $setup: String!, $v: Int, $dev: Boolean!) {
                 bot_install_from_marketplace(
                     ws_id: $ws,
                     inside_fgroup: $g,
