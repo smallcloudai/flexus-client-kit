@@ -1,6 +1,7 @@
 import json
 import os
 import logging
+import re
 from typing import Dict, Any, Optional
 
 from flexus_client_kit import ckit_cloudtool
@@ -65,7 +66,8 @@ async def handle_localfile(
         try:
             line_range = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "lines_range", "1:")
             safety_valve = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "safety_valve", "10k")
-            return format_cat_output(path, file_data, line_range, safety_valve)
+            pattern = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "pattern", "")
+            return format_cat_output(path, file_data, line_range, safety_valve, pattern)
 
         except Exception as e:
             logger.error(f"Cat failed: {e}", exc_info=True)
@@ -80,6 +82,7 @@ def format_cat_output(
     file_data: bytes | str | list | dict,  # XXX bad idea, pick one type
     line_range: str,
     safety_valve: str,
+    pattern: str = "",
     truncate_lines: bool = False,
 ) -> str:
     if safety_valve.lower().endswith('k'):
@@ -111,6 +114,13 @@ def format_cat_output(
     start = max(1, start) - 1
     end = min(len(lines), end)
 
+    compiled_pattern = None
+    if pattern:
+        try:
+            compiled_pattern = re.compile(pattern)
+        except re.error as e:
+            return f"Error: Invalid regex pattern '{pattern}': {e}"
+    
     total_chars = 0
 
     header1 = "File: %s (total %d lines, %d bytes)" % (path, len(lines), len(file_data))
@@ -118,10 +128,15 @@ def format_cat_output(
     result = []
     for i in range(start, end):
         line = lines[i]
+        if compiled_pattern and not compiled_pattern.search(line):
+            continue
         if truncate_lines and safety_valve_int - total_chars < len(line):
             truncate_idx = max(0, safety_valve_int - total_chars)
             line = line[:truncate_idx] + "..."
-        result.append(line)
+        if compiled_pattern:
+            result.append(f"{i+1:4d}: {line}")
+        else:
+            result.append(line)
         total_chars += len(line) + 1
         if total_chars + len(line) > safety_valve_int:
             header2 = "Showing lines %d:%d, because safety_valve limit was hit\n" % (start+1, i+1)
