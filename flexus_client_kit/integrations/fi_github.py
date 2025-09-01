@@ -3,11 +3,10 @@ import asyncio
 import logging
 import subprocess
 import time
-import datetime as _dt
 from dataclasses import dataclass
 from typing import Dict, Any, List, Optional, Tuple
 
-from github import GithubIntegration, Auth
+import gql
 
 from flexus_client_kit import ckit_cloudtool, ckit_client, ckit_bot_exec
 
@@ -37,75 +36,50 @@ GITHUB_TOOL = ckit_cloudtool.CloudTool(
 
 @dataclass
 class IntegrationGitHub:
-    def _normalize_private_key(self, private_key: str) -> str:
-        """Normalize private key format by ensuring proper newlines"""
-        if not private_key.strip():
-            return private_key
-        
-        # If the key doesn't have newlines but has the expected structure, restore them
-        key = private_key.strip()
-        if '-----BEGIN' in key and '-----END' in key and '\n' not in key:
-            # Key is on one line with spaces, restore proper formatting
-            import re
-            # Replace spaces between base64 chunks with newlines, but preserve header/footer
-            key = re.sub(r'(-----BEGIN[^-]+-----)\s+', r'\1\n', key)
-            key = re.sub(r'\s+(-----END[^-]+-----)', r'\n\1', key)
-            # Add newlines every 64 characters in the middle section
-            lines = key.split('\n')
-            if len(lines) >= 2:
-                # Process the middle content (between header and footer)
-                middle_content = ''.join(lines[1:-1])
-                # Remove any existing spaces
-                middle_content = middle_content.replace(' ', '')
-                # Split into 64-character lines
-                formatted_lines = [lines[0]]  # header
-                for i in range(0, len(middle_content), 64):
-                    formatted_lines.append(middle_content[i:i+64])
-                formatted_lines.append(lines[-1])  # footer
-                key = '\n'.join(formatted_lines)
-        
-        return key
-
-    def __init__(self, fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.RobotContext, GITHUB_APP_ID: str, GITHUB_INSTALLATION_ID: str, GITHUB_APP_PRIVATE_KEY: str, GITHUB_REPO: str):
+    def __init__(self, fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.RobotContext, GITHUB_CREDENTIAL_ID: Optional[str] = None):
         self.fclient = fclient
         self.rcx = rcx
-        self.GITHUB_APP_ID = GITHUB_APP_ID
-        self.GITHUB_INSTALLATION_ID = GITHUB_INSTALLATION_ID
-        self.GITHUB_APP_PRIVATE_KEY = self._normalize_private_key(GITHUB_APP_PRIVATE_KEY)
-        self.GITHUB_REPO = GITHUB_REPO
+        self.PREFERRED_AUTH_ID = (GITHUB_CREDENTIAL_ID or "") or None
         self.problems_other = []
         # Token cache
         self._cached_token: Optional[str] = None
         self._cached_token_exp: Optional[float] = None
-        # Do not call network on init: tokens are minted lazily
-        try:
-            int(self.GITHUB_APP_ID)
-            int(self.GITHUB_INSTALLATION_ID)
-        except Exception as e:
-            logger.error(f"GitHub App configuration invalid: {type(e).__name__} {e}")
-            self.problems_other.append(f"Invalid GitHub App configuration: {type(e).__name__} {e}")
+        self._cached_for_repo: Optional[str] = None
 
-    async def _mint_installation_token(self) -> Tuple[Optional[str], Optional[str]]:
+    async def _mint_installation_token(self, repo_full_name: Optional[str] = "") -> Tuple[Optional[str], Optional[str]]:
         now = time.time()
         if self._cached_token and self._cached_token_exp and now < self._cached_token_exp - 300:
-            return self._cached_token, None
+            if (self._cached_for_repo is None) or (repo_full_name == self._cached_for_repo):
+                return self._cached_token, None
         try:
-            app_id = int(self.GITHUB_APP_ID)
-            installation_id = int(self.GITHUB_INSTALLATION_ID)
-            app_auth = Auth.AppAuth(app_id, self.GITHUB_APP_PRIVATE_KEY)
-            gi = GithubIntegration(auth=app_auth)
-            tok = gi.get_access_token(installation_id)
-            token = tok.token
-            exp = tok.expires_at
-            if isinstance(exp, str):
-                try:
-                    exp_dt = _dt.datetime.fromisoformat(exp.replace('Z', '+00:00'))
-                except Exception:
-                    exp_dt = _dt.datetime.utcnow() + _dt.timedelta(minutes=50)
-            else:
-                exp_dt = exp
+            http = await self.fclient.use_http()
+            async with http as session:
+                r = await session.execute(
+                    gql.gql(
+                        """
+                        mutation Mint($ws: String!, $pref: String, $repo: String) {
+                          external_service_auth_mint_github_token(ws_id: $ws, preferred_auth_id: $pref, repo_full_name: $repo) {
+                            access_token
+                            expires_at
+                            installation_id
+                          }
+                        }
+                        """
+                    ),
+                    variable_values={
+                        "ws": self.rcx.persona.ws_id,
+                        "pref": self.PREFERRED_AUTH_ID,
+                        "repo": repo_full_name,
+                    },
+                )
+            out = r["external_service_auth_mint_github_token"]
+            token = out["access_token"]
+            exp_ts = float(out.get("expires_at") or 0.0)
+            if not token:
+                return None, "empty token from server"
             self._cached_token = token
-            self._cached_token_exp = exp_dt.timestamp() if hasattr(exp_dt, 'timestamp') else (now + 3600)
+            self._cached_token_exp = (exp_ts or (now + 3600))
+            self._cached_for_repo = repo_full_name
             return token, None
         except Exception as e:
             msg = f"Failed to mint installation token: {type(e).__name__} {e}"
@@ -113,17 +87,16 @@ class IntegrationGitHub:
             self.problems_other.append(msg)
             return None, msg
 
-    async def _prepare_gh_env(self) -> Tuple[Optional[dict], Optional[str]]:
+    async def _prepare_gh_env(self, repo_full_name: Optional[str] = "") -> Tuple[Optional[dict], Optional[str]]:
         env = os.environ.copy()
         token = env.get("GH_TOKEN") or env.get("GITHUB_TOKEN")
         if not token:
-            token, err = await self._mint_installation_token()
+            token, err = await self._mint_installation_token(repo_full_name)
             if not token:
                 return None, err or "Failed to obtain GH token"
         env["GH_TOKEN"] = token
         env["GITHUB_TOKEN"] = token
-        if self.GITHUB_REPO:
-            env["GH_REPO"] = self.GITHUB_REPO
+
         try:
             chk = subprocess.run(["gh", "auth", "status"], env=env, capture_output=True, text=True, timeout=TIMEOUT_S)
             if chk.returncode != 0:
