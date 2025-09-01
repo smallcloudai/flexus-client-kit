@@ -36,12 +36,11 @@ GITHUB_TOOL = ckit_cloudtool.CloudTool(
 
 @dataclass
 class IntegrationGitHub:
-    def __init__(self, fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.RobotContext, GITHUB_CREDENTIAL_ID: Optional[str] = None):
+    def __init__(self, fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.RobotContext, AUTH_ID: str):
         self.fclient = fclient
         self.rcx = rcx
-        self.AUTH_ID = (GITHUB_CREDENTIAL_ID or "") or None
+        self.AUTH_ID = AUTH_ID
         self.problems_other = []
-        # Token cache
         self._cached_token: Optional[str] = None
         self._cached_token_exp: Optional[float] = None
 
@@ -73,7 +72,7 @@ class IntegrationGitHub:
             if not token:
                 return None, "empty token from server"
             self._cached_token = token
-            self._cached_token_exp = (now + 3600 - 60)
+            self._cached_token_exp = now + 3600
             return token, None
         except Exception as e:
             msg = f"Failed to mint installation token: {type(e).__name__} {e}"
@@ -81,23 +80,12 @@ class IntegrationGitHub:
             self.problems_other.append(msg)
             return None, msg
 
-    async def _prepare_gh_env(self) -> Tuple[Optional[dict], Optional[str]]:
+    async def _prepare_gh_env(self) -> Tuple[Optional[Dict[str, str]], Optional[str]]:
         env = os.environ.copy()
-        token = env.get("GH_TOKEN") or env.get("GITHUB_TOKEN")
+        token, err = await self._mint_installation_token()
         if not token:
-            token, err = await self._mint_installation_token()
-            if not token:
-                return None, err or "Failed to obtain GH token"
-        env["GH_TOKEN"] = token
+            return None, err
         env["GITHUB_TOKEN"] = token
-        try:
-            chk = subprocess.run(["gh", "auth", "status"], env=env, capture_output=True, text=True, timeout=TIMEOUT_S)
-            if chk.returncode != 0:
-                return None, (chk.stderr or chk.stdout)
-        except subprocess.TimeoutExpired:
-            return None, "Timeout during gh auth check"
-        except Exception as e:
-            return None, f"Auth check error: {e}"
         return env, None
 
     async def called_by_model(self, toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, List[str]]) -> str:
