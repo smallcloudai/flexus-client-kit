@@ -55,7 +55,7 @@ class IntegrationGitHub:
                 r = await session.execute(
                     gql.gql(
                         """
-                        mutation Mint($ws: String!, $auth_id: String) {
+                        mutation Mint($ws: String!, $auth_id: String!) {
                           external_service_auth_mint_github_token(ws_id: $ws, auth_id: $auth_id) {
                             access_token
                             installation_id
