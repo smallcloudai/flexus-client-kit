@@ -9,8 +9,10 @@ from zoneinfo import ZoneInfo
 from pymongo.collection import Collection
 
 from flexus_client_kit import ckit_cloudtool, ckit_mongo
-from .report_registry import list_available_reports, load_report_config
-from .report_validator import validate_html_content, sanitize_html, validate_json_content
+from flexus_client_kit.integrations.report.report_registry import list_available_reports, load_report_config
+from flexus_client_kit.integrations.report.report_validator import (
+    validate_html_content, sanitize_html, validate_json_content
+)
 
 logger = logging.getLogger("report")
 
@@ -556,13 +558,13 @@ async def handle_report_status_tool(
             types_list = "\n".join([f"  - {t[0]}: {t[1]}" for t in available])
             return f"""[{current_time} in {tz}]
 
-        No reports found in the database.
+No reports found in the database.
 
-        Create a new report with:
-          create_report(name=<report_name>, entities='["entity1", "entity2"]', report_type=<type>)
+Create a new report with:
+  create_report(name=<report_name>, entities='["entity1", "entity2"]', report_type=<type>)
 
-        Available report types:
-        {types_list}"""
+Available report types:
+{types_list}"""
 
         result = [
             f"[{current_time} in {tz}]\n",
