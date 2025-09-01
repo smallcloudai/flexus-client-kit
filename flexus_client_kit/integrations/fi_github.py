@@ -1,4 +1,3 @@
-import datetime
 import os
 import asyncio
 import logging
@@ -6,6 +5,7 @@ import subprocess
 import time
 from dataclasses import dataclass
 from typing import Dict, Any, List, Optional, Tuple
+from datetime import datetime
 
 import gql
 
@@ -71,7 +71,7 @@ class IntegrationGitHub:
                 return None, "empty token from server"
             self._cached_token = token
             self._cached_token_exp = datetime.fromisoformat(out["expires_at"].replace("Z", "+00:00")).timestamp()
-            return token
+            return token, None
         except Exception as e:
             msg = f"Failed to mint installation token: {type(e).__name__} {e}"
             logger.error(msg, exc_info=True)
