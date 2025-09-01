@@ -1,3 +1,4 @@
+import datetime
 import os
 import asyncio
 import logging
@@ -8,7 +9,7 @@ from typing import Dict, Any, List, Optional, Tuple
 
 import gql
 
-from flexus_client_kit import ckit_cloudtool, ckit_client, ckit_bot_exec
+from flexus_client_kit import ckit_cloudtool, ckit_client, ckit_bot_exec, gql_utils
 
 
 logger = logging.getLogger("github")
@@ -35,11 +36,16 @@ GITHUB_TOOL = ckit_cloudtool.CloudTool(
 
 
 @dataclass
+class FGitHubMintTokenOutput:
+    token: str
+    expires_at: str
+    installation_id: str
+
+
 class IntegrationGitHub:
-    def __init__(self, fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.RobotContext, AUTH_ID: str):
+    def __init__(self, fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.RobotContext):
         self.fclient = fclient
         self.rcx = rcx
-        self.AUTH_ID = AUTH_ID
         self.problems_other = []
         self._cached_token: Optional[str] = None
         self._cached_token_exp: Optional[float] = None
@@ -51,29 +57,21 @@ class IntegrationGitHub:
         try:
             http = await self.fclient.use_http()
             async with http as session:
-                r = await session.execute(
-                    gql.gql(
-                        """
-                        mutation Mint($ws: String!, $auth_id: String!) {
-                          external_service_auth_mint_github_token(ws_id: $ws, auth_id: $auth_id) {
-                            access_token
-                            installation_id
-                          }
-                        }
-                        """
-                    ),
-                    variable_values={
-                        "ws": self.rcx.persona.ws_id,
-                        "auth_id": self.AUTH_ID
-                    },
+                r = await session.execute(gql.gql(f"""
+                    mutation MintGithubToken($ws: String!) {{
+                        external_service_auth_mint_github_token(ws_id: $ws) {{
+                            {gql_utils.gql_fields(FGitHubMintTokenOutput)}
+                        }}
+                    }}"""),
+                    variable_values={"ws": self.rcx.persona.ws_id},
                 )
             out = r["external_service_auth_mint_github_token"]
-            token = out["access_token"]
+            token = out["token"]
             if not token:
                 return None, "empty token from server"
             self._cached_token = token
-            self._cached_token_exp = now + 3600
-            return token, None
+            self._cached_token_exp = datetime.fromisoformat(out["expires_at"].replace("Z", "+00:00")).timestamp()
+            return token
         except Exception as e:
             msg = f"Failed to mint installation token: {type(e).__name__} {e}"
             logger.error(msg, exc_info=True)
