@@ -130,7 +130,7 @@ async def bot_install_from_marketplace(
     persona_id: str,
     persona_name: str,
     new_setup: Dict[str, Union[str, int, bool]],
-    inside_fgroup: Optional[str] = None,
+    inside_fgroup_id: Optional[str] = None,
     specific_version: Optional[int] = None,
     install_dev_version: bool = False,
 ) -> InstallationResult:
@@ -154,7 +154,7 @@ async def bot_install_from_marketplace(
             }"""),
             variable_values={
                 "ws": ws_id,
-                "g": inside_fgroup,
+                "g": inside_fgroup_id,
                 "mn": persona_marketable_name,
                 "id": persona_id,
                 "name": persona_name,
