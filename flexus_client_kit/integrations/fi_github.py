@@ -39,28 +39,25 @@ class IntegrationGitHub:
     def __init__(self, fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.RobotContext, GITHUB_CREDENTIAL_ID: Optional[str] = None):
         self.fclient = fclient
         self.rcx = rcx
-        self.PREFERRED_AUTH_ID = (GITHUB_CREDENTIAL_ID or "") or None
+        self.AUTH_ID = (GITHUB_CREDENTIAL_ID or "") or None
         self.problems_other = []
         # Token cache
         self._cached_token: Optional[str] = None
         self._cached_token_exp: Optional[float] = None
-        self._cached_for_repo: Optional[str] = None
 
-    async def _mint_installation_token(self, repo_full_name: Optional[str] = "") -> Tuple[Optional[str], Optional[str]]:
+    async def _mint_installation_token(self) -> Tuple[Optional[str], Optional[str]]:
         now = time.time()
         if self._cached_token and self._cached_token_exp and now < self._cached_token_exp - 300:
-            if (self._cached_for_repo is None) or (repo_full_name == self._cached_for_repo):
-                return self._cached_token, None
+            return self._cached_token, None
         try:
             http = await self.fclient.use_http()
             async with http as session:
                 r = await session.execute(
                     gql.gql(
                         """
-                        mutation Mint($ws: String!, $pref: String, $repo: String) {
-                          external_service_auth_mint_github_token(ws_id: $ws, preferred_auth_id: $pref, repo_full_name: $repo) {
+                        mutation Mint($ws: String!, $auth_id: String) {
+                          external_service_auth_mint_github_token(ws_id: $ws, auth_id: $auth_id) {
                             access_token
-                            expires_at
                             installation_id
                           }
                         }
@@ -68,18 +65,15 @@ class IntegrationGitHub:
                     ),
                     variable_values={
                         "ws": self.rcx.persona.ws_id,
-                        "pref": self.PREFERRED_AUTH_ID,
-                        "repo": repo_full_name,
+                        "auth_id": self.AUTH_ID
                     },
                 )
             out = r["external_service_auth_mint_github_token"]
             token = out["access_token"]
-            exp_ts = float(out.get("expires_at") or 0.0)
             if not token:
                 return None, "empty token from server"
             self._cached_token = token
-            self._cached_token_exp = (exp_ts or (now + 3600))
-            self._cached_for_repo = repo_full_name
+            self._cached_token_exp = (now + 3600 - 60)
             return token, None
         except Exception as e:
             msg = f"Failed to mint installation token: {type(e).__name__} {e}"
@@ -87,16 +81,15 @@ class IntegrationGitHub:
             self.problems_other.append(msg)
             return None, msg
 
-    async def _prepare_gh_env(self, repo_full_name: Optional[str] = "") -> Tuple[Optional[dict], Optional[str]]:
+    async def _prepare_gh_env(self) -> Tuple[Optional[dict], Optional[str]]:
         env = os.environ.copy()
         token = env.get("GH_TOKEN") or env.get("GITHUB_TOKEN")
         if not token:
-            token, err = await self._mint_installation_token(repo_full_name)
+            token, err = await self._mint_installation_token()
             if not token:
                 return None, err or "Failed to obtain GH token"
         env["GH_TOKEN"] = token
         env["GITHUB_TOKEN"] = token
-
         try:
             chk = subprocess.run(["gh", "auth", "status"], env=env, capture_output=True, text=True, timeout=TIMEOUT_S)
             if chk.returncode != 0:
