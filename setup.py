@@ -4,23 +4,12 @@ setup(
     name="flexus-client-kit",
     version="0.1.0",
     packages=find_packages(),
-    package_data={
-        "flexus_client_kit.integrations": [
-            "assets/*.svg",
-            "fonts/*.ttf",
-            "fonts/*.otf",
-        ],
-    },
-    include_package_data=True,
     install_requires=[
         "gql",
         "httpx",
         "websockets",
         "pydantic",
         "aiohttp",
-        "fpdf2",
-        "lxml",
-        "mistletoe",
         "pymongo",
     ],
     extras_require={
