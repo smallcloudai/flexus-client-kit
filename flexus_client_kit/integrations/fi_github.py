@@ -59,13 +59,13 @@ class IntegrationGitHub:
             async with http as session:
                 r = await session.execute(gql.gql(f"""
                     mutation MintGithubToken($ws: String!) {{
-                        external_service_auth_mint_github_token(ws_id: $ws) {{
+                        external_auth_mint_github_token(ws_id: $ws) {{
                             {gql_utils.gql_fields(FGitHubMintTokenOutput)}
                         }}
                     }}"""),
                     variable_values={"ws": self.rcx.persona.ws_id},
                 )
-            out = r["external_service_auth_mint_github_token"]
+            out = r["external_auth_mint_github_token"]
             token = out["token"]
             if not token:
                 return None, "empty token from server"

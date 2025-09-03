@@ -130,7 +130,7 @@ async def bot_install_from_marketplace(
     persona_id: str,
     persona_name: str,
     new_setup: Dict[str, Union[str, int, bool]],
-    inside_fgroup: Optional[str] = None,
+    inside_fgroup_id: Optional[str] = None,
     specific_version: Optional[int] = None,
     install_dev_version: bool = False,
 ) -> InstallationResult:
@@ -140,7 +140,7 @@ async def bot_install_from_marketplace(
             gql.gql("""mutation PersonaUpsert($ws: String!, $g: String, $mn: String!, $id: String!, $name: String!, $setup: String!, $v: Int, $dev: Boolean!) {
                 bot_install_from_marketplace(
                     ws_id: $ws,
-                    inside_fgroup: $g,
+                    inside_fgroup_id: $g,
                     persona_marketable_name: $mn,
                     persona_id: $id,
                     persona_name: $name,
@@ -154,7 +154,7 @@ async def bot_install_from_marketplace(
             }"""),
             variable_values={
                 "ws": ws_id,
-                "g": inside_fgroup,
+                "g": inside_fgroup_id,
                 "mn": persona_marketable_name,
                 "id": persona_id,
                 "name": persona_name,
