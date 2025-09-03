@@ -366,6 +366,10 @@ async def subscribe_and_produce_callbacks(
                         bc.fgroup_id, bc.marketable_name, bc.marketable_version
                     ))
                 handled = True
+            elif upd.news_action == "SUPERTEST":
+                ckit_shutdown.shutdown_event.set()
+                logger.info(f"Super test is passed with msg: {upd.news_payload_id}")
+                handled = True
 
             if not handled:
                 logger.warning("Subscription has sent me something I can't understand:\n%s\n" % upd)
