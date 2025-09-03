@@ -14,6 +14,7 @@ setup(
         "requests",
         "slack_bolt",
         "python-dotenv",
+        "jinja2"
     ],
     extras_require={
         "discord": [

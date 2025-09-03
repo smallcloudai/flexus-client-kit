@@ -6,6 +6,7 @@ from datetime import datetime
 from typing import Dict, Any, List, Optional
 from zoneinfo import ZoneInfo
 
+from jinja2 import Template
 from pymongo.collection import Collection
 
 from flexus_client_kit import ckit_cloudtool, ckit_mongo
@@ -88,6 +89,18 @@ REPORT_TOOLS = [
     REPORT_STATUS_TOOL,
     LOAD_METADATA_TOOL
 ]
+
+
+def _extract_entity_from_section_name(section_name: str, entities: List[str]) -> Optional[str]:
+    """Extract entity name from a section name like 'company_overview_box_GANNI'."""
+    for entity in entities:
+        if section_name.endswith(f"_{entity}"):
+            return entity
+    for entity in entities:
+        entity_normalized = entity.replace(" ", "_").replace("-", "_")
+        if entity_normalized in section_name:
+            return entity
+    return None
 
 
 def _fix_unicode_corruption(text: str) -> str:
@@ -190,15 +203,16 @@ Description: {formatted_desc}"""
                 task_text += "\nDependencies will be loaded from completed sections."
             if formatted_example:
                 task_text += f"\n\n=== Expected Format ===\n{formatted_example}"
+            extra_instructions = config.get("extra_instructions", [])
             task_text += f"\n\n=== Instructions ===\n"
-            if is_meta:
-                task_text += "1. Gather/scrape necessary data\n"
-                task_text += "2. Use load_report_metadata() for historical comparison if needed\n"
-                task_text += "3. Create the content matching the expected format\n"
-            else:
-                task_text += "1. Create the content matching the expected format\n"
-                task_text += "2. Keep it concise and follow the example structure\n"
-            task_text += f"4. Call: fill_report_section(report_id='{report_id}', section_name='{section_name}', content=<your_content>)"
+            if extra_instructions:
+                for idx, instruction in enumerate(extra_instructions, 1):
+                    formatted_instruction = instruction
+                    for key, value in combo.items():
+                        formatted_instruction = formatted_instruction.replace(f"{{{key}}}", str(value))
+                    task_text += f"{formatted_instruction}\n"
+
+            task_text += f"\nCall: fill_report_section(report_id='{report_id}', section_name='{section_name}', content=<your_content>)"
             tasks.append({
                 "section_name": section_name,
                 "section_config": config,
@@ -232,38 +246,63 @@ async def _export_report_tool(
             f"Please complete them first.")
 
     report_data = report_doc["json"]
-    _, template_html = load_report_config(report_doc["json"]["report_type"])
+    sections_config, template_html = load_report_config(report_doc["json"]["report_type"])
 
     template_data = {
         "analysis_date": datetime.now(tz).strftime("%B %d, %Y"),
         "entities": report_data.get("entities", []),
-        "datetime": template_datetime
+        "datetime": template_datetime,
+        "sections": {},  # All sections by their full name
     }
+    
+    for section_name, section in report_data["sections"].items():
+        placeholder = section["cfg"].get("placeholder")
+        if placeholder:
+            template_data["sections"][section_name] = {
+                "content": section["content"],
+                "placeholder": placeholder,
+                "name": section_name
+            }
+            
+            # For non-iterated sections (no iteration in config), add directly to template_data
+            # Check if this section's config has no iteration pattern
+            section_base_id = section_name.split("_")[0]
+            section_config = sections_config.get(section_base_id, {})
+            
+            if not section_config.get("iteration"):
+                # This is a non-iterated section, add it directly by placeholder name
+                if placeholder not in template_data:
+                    template_data[placeholder] = section["content"]
+                else:
+                    # If multiple sections have same placeholder, concatenate
+                    existing = template_data[placeholder]
+                    if isinstance(existing, str):
+                        template_data[placeholder] = existing + "\n\n" + section["content"]
+    
+    if report_data.get("entities"):
+        template_data["entities_data"] = {}
+        
+        for entity in report_data["entities"]:
+            template_data["entities_data"][entity] = {}
+            
+            for section_name, section_info in template_data["sections"].items():
+                entity_from_name = _extract_entity_from_section_name(section_name, report_data["entities"])
+                if entity_from_name == entity:
+                    placeholder = section_info["placeholder"]
+                    template_data["entities_data"][entity][placeholder] = section_info["content"]
+    
+    providers = set()
+    for section_id, config in sections_config.items():
+        if iterators := config.get("iterators", {}):
+            if provider_list := iterators.get("provider"):
+                if isinstance(provider_list, list):
+                    providers.update(provider_list)
+    
+    if providers:
+        template_data["providers"] = sorted(list(providers))
 
-    # For backward compatibility with "competitors"
-    if "competitors" in template_html:
-        template_data["competitors"] = report_data.get("entities", [])
-
-    # Add all sections with placeholders
-    for name, section in report_data["sections"].items():
-        if "placeholder" in section["cfg"]:
-            template_data[section["cfg"]["placeholder"]] = section["content"]
-
-    for key, val in template_data.items():
-        join_pattern = "{{" + key + "|join(', ')}}"
-        if join_pattern in template_html:
-            if isinstance(val, list):
-                joined_value = ", ".join(str(v) for v in val)
-                template_html = template_html.replace(join_pattern, joined_value)
-            else:
-                template_html = template_html.replace(join_pattern, str(val))
-
-        simple_pattern = "{{" + key + "}}"
-        if simple_pattern in template_html:
-            if isinstance(val, list):
-                template_html = template_html.replace(simple_pattern, ", ".join(str(v) for v in val))
-            else:
-                template_html = template_html.replace(simple_pattern, str(val))
+    jinja_template = Template(template_html)
+    template_html = jinja_template.render(**template_data)
 
     report_name = f"report_{report_id}.html"
     await ckit_mongo.store_file(mongo_collection, report_name, template_html.encode('utf-8'))
