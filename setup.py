@@ -11,6 +11,9 @@ setup(
         "pydantic",
         "aiohttp",
         "pymongo",
+        "requests",
+        "slack_bolt",
+        "python-dotenv",
     ],
     extras_require={
         "discord": [
