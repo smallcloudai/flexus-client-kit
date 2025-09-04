@@ -110,6 +110,9 @@ slack(op="post", args={"channel_slash_thread": "channel_name", "localfile_path":
 
 slack(op="uncapture")
     If you don't want to talk anymore, call this instead of answering.
+
+slack(op="skip")
+    Ignore the most recent message but keep capturing the thread. Useful for unrelated messages (e.g. from other participants).
 """ + FORMATTING
 
 
@@ -404,6 +407,13 @@ class IntegrationSlack:
                 r += "Uncaptured successfully. This thread is no longer connected to Slack.\n"
             except Exception as e:
                 r += "ERROR: %s %s\n" % (type(e).__name__, e)
+
+        elif op == "skip":
+            captured_thread = self.rcx.latest_threads.get(toolcall.fcall_ft_id, None)
+            if not captured_thread or not captured_thread.thread_fields.ft_app_searchable or not captured_thread.thread_fields.ft_app_searchable.startswith("slack/"):
+                return "This thread is not capturing any Slack conversation. Use 'capture' first to start capturing a thread."
+            
+            r += "Skipped the most recent message. Thread capture continues - next relevant message will be processed.\n"
 
         else:
             r += "Unknown operation %r, try \"help\"\n\n" % op
