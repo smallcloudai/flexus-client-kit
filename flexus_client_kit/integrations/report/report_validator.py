@@ -69,8 +69,6 @@ def validate_html_content(
 
     # Check for dangerous content
     dangerous_patterns = [
-        r'<script[^>]*>.*?</script>',
-        r'javascript:',
         r'on\w+\s*=',  # onclick, onload, etc.
         r'<iframe[^>]*>',
     ]
