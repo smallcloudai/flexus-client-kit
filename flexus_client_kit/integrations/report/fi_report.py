@@ -429,6 +429,9 @@ async def handle_create_report_tool(
 
     total_tasks = len(todo_queue)
     current_time = datetime.now(tz).strftime("%Y-%m-%d %H:%M:%S %Z")
+    
+    available = list_available_reports()
+    types_list = "\n".join([f"  - {t[0]}: {t[1]}" for t in available])
 
     return f"""[{current_time} in {tz}]
 
@@ -437,7 +440,10 @@ Type: {report_type}
 Entities: {', '.join(entities_list)}
 Total tasks to complete: {total_tasks}
 
-Use get_next_report_task(report_id="{report_id}") to start filling sections."""
+Use get_next_report_task(report_id="{report_id}") to start filling sections.
+
+Available report types:
+{types_list}"""
 
 
 async def handle_get_next_task_tool(
@@ -645,6 +651,13 @@ Available report types:
             result.append(
                 "Use get_report_status(report_id=<report_id>) to get detailed status for a specific report."
             )
+        
+        # Add available report types
+        result.append("")
+        available = list_available_reports()
+        types_list = "\n".join([f"  - {t[0]}: {t[1]}" for t in available])
+        result.append("Available report types:")
+        result.append(types_list)
 
         return "\n".join(result)
 
@@ -692,6 +705,13 @@ Available report types:
         result.append(f"🚀 Continue with: get_next_report_task(report_id='{report_id}')")
     else:
         result.append("🎉 All tasks completed!")
+    
+    # Add available report types
+    result.append("")
+    available = list_available_reports()
+    types_list = "\n".join([f"  - {t[0]}: {t[1]}" for t in available])
+    result.append("Available report types:")
+    result.append(types_list)
 
     return "\n".join(result)
 
