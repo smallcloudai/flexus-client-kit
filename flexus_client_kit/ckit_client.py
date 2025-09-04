@@ -98,6 +98,7 @@ class FWorkspaceOutput:
     have_admin: bool
     have_coins_exactly: int
     have_coins_enough: bool
+    is_running_on_low_balance: bool
 
 
 @dataclass
