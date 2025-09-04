@@ -5,7 +5,7 @@ from typing import Dict, Any, Optional
 from pymongo.collection import Collection
 
 from flexus_client_kit import ckit_cloudtool, ckit_mongo
-from flexus_client_kit.integrations.fi_localfile import format_cat_output
+from flexus_client_kit.format_utils import format_cat_output
 
 logger = logging.getLogger("mongo_store")
 
@@ -24,7 +24,7 @@ MONGO_STORE_TOOL = ckit_cloudtool.CloudTool(
                 "type": "object",
                 "description": "Operation-specific arguments. For 'upload'/'download'/'delete'/'cat': requires 'path'. "
                                "For 'list': optional 'path' for prefix filtering. "
-                               "For 'cat': optional 'line_range' (e.g., '13:37') and 'safety_valve' (e.g., '10k') for large files"
+                               "For 'cat': optional 'safety_valve' (e.g., '50k') for large file truncation"
             },
         },
         "required": ["op", "args"],
@@ -43,16 +43,14 @@ mongo_store(op="download", args={"path": "folder1/something_20250803.json"})
 mongo_store(op="list", args={"path": "folder1/"})
     Lists files in MongoDB with the given prefix.
 
-mongo_store(op="cat", args={"path": "folder1/something_20250803.json", "line_range": "13:37", "safety_valve": "10k"})
-    Open the file and print what's inside. The line_range and safety_valve are there to
-    prevent large files from clogging your context window. A good strategy is to call
-    cat without range/safety_valve, you'll get default range "1:" and safety_valve of 10k chars.
-    Most files will fit that, and in case your file doesn't this tool will provide all the
-    line numbers for the next call.
+mongo_store(op="cat", args={"path": "folder1/something_20250803.json", "safety_valve": "50k"})
+    Open the file and print what's inside. The safety_valve parameter (default 50k) prevents 
+    large files from clogging your context window.
 
 mongo_store(op="delete", args={"path": "folder1/something_20250803.json"})
     Deletes the specified file from MongoDB. No wildcards, deletes only the exact path.
 """
+
 
 async def handle_mongo_store(
     workdir: str,
@@ -148,9 +146,8 @@ async def handle_mongo_store(
             return f"Error: File {path} not found in MongoDB"
         file_data = document.get("data", document.get("json", None))
 
-        line_range = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "line_range", "1:")
-        safety_valve = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "safety_valve", "10k")
-        return format_cat_output(path, file_data, line_range, str(safety_valve))
+        safety_valve = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "safety_valve", "50k")
+        return format_cat_output(path, file_data, str(safety_valve))
 
     elif op == "delete":
         if not path:
