@@ -537,7 +537,7 @@ async def handle_fill_section_tool(
         try:
             content = json.loads(content)
         except Exception as e:
-            return f"Error decoding JSON: {e}"
+            return f"Error decoding JSON: {e}. Please fix the JSON and try again."
         if not is_valid:
             return f"Error: JSON validation failed:\n" + "\n".join(errors) + "\n\nPlease fix the JSON and try again."
     elif validation_rules := todo["section_config"].get("html_validation", {}):
