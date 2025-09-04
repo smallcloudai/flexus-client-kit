@@ -14,6 +14,18 @@ from PIL import Image
 
 import gql
 
+# Needs testing:
+# join the right channels, leaving wrong channels (useless?)
+# slack message -> callback (pictures, files?)
+# dm -> callback
+# post to channel (too easy?)
+# post to dm (might not be so easy?)
+# capture -> thread_app_capture_patch()
+# message in slack captured thread -> post_into_captured_thread_as_user
+# assistant posts in captured thread -> slack.chat_postMessage()
+
+
+
 from flexus_client_kit import ckit_cloudtool
 from flexus_client_kit import ckit_client
 from flexus_client_kit import ckit_ask_model
@@ -319,7 +331,7 @@ class IntegrationSlack:
             try:
                 web_api_client: AsyncWebClient = self.reactive_slack.client
                 thirty_minutes_ago = str(int(time.time() - 30*60))
-                
+
                 text_content = ""
                 image_parts = []
                 file_summaries = []
@@ -331,7 +343,7 @@ class IntegrationSlack:
                         else:
                             author_name = "unknown_user"
                         text_content += f"👤{author_name}\n\n{text}\n\n"
-                    
+
                     files = msg.get('files', [])
                     for file_info in files[:2]:  # Limit to 2 files per message to avoid overwhelming
                         try:
@@ -347,17 +359,17 @@ class IntegrationSlack:
                                     file_summaries.append(f"[Binary file: {filename} ({len(file_bytes)} bytes)]")
                         except Exception as e:
                             logger.error(f"Error processing file during capture: {e}")
-                
+
                 all_message_parts = []
                 if text_content:
                     all_message_parts.append({"m_type": "text", "m_content": text_content.strip()})
-                
+
                 if file_summaries:
                     files_text = "\n📎 Attached files:\n" + "\n".join(file_summaries)
                     all_message_parts.append({"m_type": "text", "m_content": files_text})
-                
+
                 all_message_parts.extend(image_parts)
-                
+
                 logger.info("Successful capture %s <-> %s, posting %d parts into the captured thread" % (something_id_slash_thread, toolcall.fcall_ft_id, len(all_message_parts)))
                 http = await self.fclient.use_http()
                 if all_message_parts:
@@ -503,7 +515,7 @@ class IntegrationSlack:
             user_name = await self.get_user_name(web_api_client, user_id)
             text = text.replace(f'<@{user_id}>', f'@{user_name}')
             mention_looked_up[user_id] = user_name
-        
+
         file_contents = []
         files = slack_event.get('files', [])
         image_count = 0
@@ -524,11 +536,11 @@ class IntegrationSlack:
             except Exception as e:
                 logger.error(f"Error processing file {file_info.get('name', 'unknown')}: {e}")
                 text_files.append(f"[File processing error: {file_info.get('name', 'unknown')}]")
-        
+
         if text_files:
             combined_text = "\n📎 Files:\n" + "\n".join(text_files)
             file_contents.append({"m_type": "text", "m_content": combined_text})
-        
+
         t3 = time.time()
         logger.info("slack activity timing %0.3fs %0.3fs %0.3fs" % (t1 - t0, t2 - t1, t3 - t2))
 
@@ -565,7 +577,7 @@ class IntegrationSlack:
 
         if captured_thread is not None:
             http = await self.fclient.use_http()
-            
+
             content = [{"m_type": "text", "m_content": f"👤{a.message_author_name}\n\n{a.message_text}"}]
             if a.file_contents:
                 content.extend(a.file_contents)
@@ -574,7 +586,7 @@ class IntegrationSlack:
                 image_parts = [c for c in content if c.get('m_type', '').startswith('image/')][:2]
                 combined_text = "\n\n".join(p['m_content'] for p in text_parts)
                 content = [{"m_type": "text", "m_content": combined_text}] + image_parts
-            
+
             logger.info("Captured slack->db ft_id=%s ft_app_searchable=%s sending=%d parts" % (captured_thread.thread_fields.ft_id, expected_app_seachable, len(content)))
             user_pref = json.dumps({"reopen_task_instruction": 1})
             try:
@@ -697,7 +709,7 @@ class IntegrationSlack:
         if not url:
             logger.warning(f"No download URL for file: {file_info.get('name', 'unknown')}")
             return None, None
-        
+
         headers = {'Authorization': f'Bearer {self.SLACK_BOT_TOKEN}'}
         try:
             async with httpx.AsyncClient() as client:
