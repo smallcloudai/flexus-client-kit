@@ -67,17 +67,12 @@ SLACK_TOOL = ckit_cloudtool.CloudTool(
     },
 )
 
-def parse_channel_slash_thread(channel_slash_thread: str) -> tuple[Optional[str], Optional[str]]:
-    if not isinstance(channel_slash_thread, str):
+def parse_channel_slash_thread(s: str) -> tuple[Optional[str], Optional[str]]:
+    if not isinstance(s, str):
         return None, None
-    match = re.match(r'^#?([^/]+)(?:/(.+))?$', channel_slash_thread)
-    if not match:
-        return None, None
-    channel_name = match.group(1)
-    identifier = match.group(2)
-    if identifier:
-        return channel_name, identifier
-    return channel_name, None
+    s = s[1:] if s.startswith("#") else s
+    parts = s.split("/", 1)
+    return parts[0], parts[1] if len(parts) > 1 else None
 
 FORMATTING = """
 In slack messages, formatting is *bold* _italic_ ~strikeout~. Tables and headers don't work.
@@ -144,6 +139,7 @@ class IntegrationSlack:
             self.reactive_slack = AsyncApp(token=SLACK_BOT_TOKEN)
             self._setup_event_handlers()
         except Exception as e:
+            logger.error(f"Failed to connect and setup event handlers: {type(e).__name__} {e}")
             self.problems_other.append("%s %s" % (type(e).__name__, e))
             self.reactive_slack = None
         self.activity_callback: Optional[Callable[[ActivitySlack, bool], Awaitable[None]]] = None
@@ -164,6 +160,7 @@ class IntegrationSlack:
             self.socket_mode_something = AsyncSocketModeHandler(self.reactive_slack, self.SLACK_APP_TOKEN)
             self.reactive_task = asyncio.create_task(self.socket_mode_something.start_async())
         except Exception as e:
+            logger.error(f"Failed to start socket mode: {type(e).__name__} {e}")
             self.problems_other.append("%s %s" % (type(e).__name__, e))
             self.socket_mode_something = None
 
@@ -412,7 +409,7 @@ class IntegrationSlack:
             captured_thread = self.rcx.latest_threads.get(toolcall.fcall_ft_id, None)
             if not captured_thread or not captured_thread.thread_fields.ft_app_searchable or not captured_thread.thread_fields.ft_app_searchable.startswith("slack/"):
                 return "This thread is not capturing any Slack conversation. Use 'capture' first to start capturing a thread."
-            
+
             r += "Skipped the most recent message. Thread capture continues - next relevant message will be processed.\n"
 
         else:
@@ -497,22 +494,18 @@ class IntegrationSlack:
 
         event_type = slack_event["type"]
         thread_ts = slack_event.get("thread_ts", "")
+
         if event_type == "app_mention":
             what_happened = "i_was_mentioned"
         elif event_type == "message":
-            if slack_event["channel_type"] == "channel":
-                what_happened = "message/channel"
-            elif slack_event["channel_type"] == "im":
-                what_happened = "message/im"
-            elif slack_event["channel_type"] == "group":
-                what_happened = "message/group"
-            elif slack_event["channel_type"] == "mpim":
-                what_happened = "messsage/mpim"
+            channel_type = slack_event["channel_type"]
+            if channel_type in {"channel", "im", "group", "mpim"}:
+                what_happened = f"message/{channel_type}"
             else:
-                logger.info("🚩 unknown channel_type %r" % slack_event["channel_type"])
+                logger.info("🚩 unknown channel_type %r", channel_type)
                 return None
         else:
-            logger.info("🚩 unknown type %r" % event_type)
+            logger.info("🚩 unknown type %r", event_type)
             return None
 
         t1 = time.time()
