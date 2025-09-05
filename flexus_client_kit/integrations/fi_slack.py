@@ -15,11 +15,7 @@ from PIL import Image
 import gql
 
 # Needs testing:
-# join the right channels, leaving wrong channels (useless?)
-# slack message -> callback (pictures, files?)
-# dm -> callback
-# post to channel (too easy?)
-# post to dm (might not be so easy?)
+# post to dm (might not be so easy?) (inprogress)
 # capture -> thread_app_capture_patch()
 # message in slack captured thread -> post_into_captured_thread_as_user
 # assistant posts in captured thread -> slack.chat_postMessage()

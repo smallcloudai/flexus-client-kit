@@ -1,23 +1,26 @@
 import asyncio
+import json
 import os
 import time
 import pytest
 from PIL import Image
 from slack_sdk.web.async_client import AsyncWebClient
-from flexus_client_kit import ckit_bot_exec, ckit_client
+from flexus_client_kit import ckit_bot_exec, ckit_client, ckit_cloudtool
 from flexus_client_kit.integrations.fi_slack import ActivitySlack, IntegrationSlack
 
 
 def _create_test_files():
-    os.makedirs('generated_test_files', exist_ok=True)
+    test_dir = f'/tmp/bot_workspace/persona_id'
+    os.makedirs(test_dir, exist_ok=True)
     img1 = Image.new('RGB', (100, 100), color='red')
-    img1.save('generated_test_files/1.png')
+    img1.save(f'{test_dir}/1.png')
     img2 = Image.new('RGB', (100, 100), color='blue')
-    img2.save('generated_test_files/2.png')
-    with open('generated_test_files/1.txt', 'w') as f:
+    img2.save(f'{test_dir}/2.png')
+    with open(f'{test_dir}/1.txt', 'w') as f:
         f.write('This is test file 1\nWith multiple lines\nFor testing file attachments')
-    with open('generated_test_files/2.json', 'w') as f:
+    with open(f'{test_dir}/2.json', 'w') as f:
         f.write('{"test": "data", "file": "2", "content": "json test file"}')
+    return test_dir
 
 
 def _create_slack_bot() -> IntegrationSlack:
@@ -32,7 +35,7 @@ def _create_slack_bot() -> IntegrationSlack:
         skip_logger_init=True,
     )
     persona = ckit_bot_exec.FPersonaOutput(
-        owner_fuser_id="test", located_fgroup_id="test", persona_id="test",
+        owner_fuser_id="test", located_fgroup_id="test", persona_id="persona_id",
         persona_name="test", persona_marketable_name="test", persona_marketable_version=1,
         persona_discounts=None, persona_setup={}, persona_created_ts=0.0,
         ws_id="test", ws_timezone="UTC"
@@ -42,9 +45,9 @@ def _create_slack_bot() -> IntegrationSlack:
 
 
 async def _setup_slack_test():
-    _create_test_files()
+    test_dir = _create_test_files()
     slack_bot = _create_slack_bot()
-    result = {"activity": None, "event": asyncio.Event()}
+    result = {"activity": None, "event": asyncio.Event(), "test_dir": test_dir}
 
     async def callback(activity: ActivitySlack, already_posted_to_captured_thread: bool):
         assert isinstance(activity, ActivitySlack) and already_posted_to_captured_thread == False
@@ -95,7 +98,8 @@ async def test_message_dm_calls_callback_with_images():
         dm = await user_client.conversations_open(users=bot_info["user_id"])
         dm_message = f"dm_test_{time.time()}"
 
-        await _upload_files(user_client, dm["channel"]["id"], ['generated_test_files/1.png', 'generated_test_files/2.png'], dm_message)
+        test_dir = result["test_dir"]
+        await _upload_files(user_client, dm["channel"]["id"], [f'{test_dir}/1.png', f'{test_dir}/2.png'], dm_message)
 
         await asyncio.wait_for(result["event"].wait(), timeout=30)
 
@@ -115,7 +119,8 @@ async def test_message_in_channel_calls_callback_with_text_files():
         tests_channel_id = slack_bot.channels_name2id.get("tests")
         channel_message = f"channel_test_{time.time()}"
 
-        await _upload_files(user_client, tests_channel_id, ['generated_test_files/1.txt', 'generated_test_files/2.json'], channel_message)
+        test_dir = result["test_dir"]
+        await _upload_files(user_client, tests_channel_id, [f'{test_dir}/1.txt', f'{test_dir}/2.json'], channel_message)
 
         await asyncio.wait_for(result["event"].wait(), timeout=30)
 
@@ -130,6 +135,57 @@ async def test_message_in_channel_calls_callback_with_text_files():
         await bot_cleanup()
 
 
+@pytest.mark.asyncio
+async def test_post_operation_with_files():
+    _ = _create_test_files()
+    slack_bot, _, _, _, bot_cleanup = await _setup_slack_test()
+
+    try:
+        text_args = {
+            "op": "post",
+            "args": {
+                "channel_slash_thread": "@flexus.testing",
+                "text": "Test post with files"
+            }
+        }
+        tcall1 = ckit_cloudtool.FCloudtoolCall(
+            caller_fuser_id="test_user", located_fgroup_id="test_group",
+            fcall_id="test_call_id_1", fcall_ft_id="test_thread_id",
+            fcall_ftm_alt=100, fcall_called_ftm_num=1, fcall_call_n=0,
+            fcall_name="slack", fcall_arguments=json.dumps(text_args),
+            fcall_created_ts=time.time(), connected_persona_id="persona_id",
+            ws_id="test_ws", subgroups_list=[]
+        )
+        result1 = await slack_bot.called_by_model(toolcall=tcall1, model_produced_args=text_args)
+        print("text result:", result1)
+        assert "success" in result1.lower(), f"Text post should succeed: {result1}"
+
+        file_args = {
+            "op": "post",
+            "args": {
+                "channel_slash_thread": "@flexus.testing",
+                "localfile_path": "1.txt"
+            }
+        }
+        tcall2 = ckit_cloudtool.FCloudtoolCall(
+            caller_fuser_id="test_user", located_fgroup_id="test_group",
+            fcall_id="test_call_id_2", fcall_ft_id="test_thread_id",
+            fcall_ftm_alt=100, fcall_called_ftm_num=2, fcall_call_n=1,
+            fcall_name="slack", fcall_arguments=json.dumps(file_args),
+            fcall_created_ts=time.time(), connected_persona_id="persona_id",
+            ws_id="test_ws", subgroups_list=[]
+        )
+        result2 = await slack_bot.called_by_model(toolcall=tcall2, model_produced_args=file_args)
+        print("file result:", result2)
+        assert "success" in result2.lower(), f"File post should succeed: {result2}"
+
+        print("✓ Post operation test passed (text + file)")
+    finally:
+        await asyncio.sleep(1)
+        await bot_cleanup()
+
+
 if __name__ == "__main__":
     asyncio.run(test_message_dm_calls_callback_with_images())
     asyncio.run(test_message_in_channel_calls_callback_with_text_files())
+    asyncio.run(test_post_operation_with_files())
