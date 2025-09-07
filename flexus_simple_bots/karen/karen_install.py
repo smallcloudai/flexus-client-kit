@@ -6,6 +6,8 @@ from pathlib import Path
 
 from flexus_client_kit import ckit_client
 from flexus_client_kit import ckit_bot_install
+from flexus_client_kit.integrations import fi_slack
+
 
 from flexus_simple_bots.karen import karen_bot, karen_prompts
 
@@ -15,7 +17,7 @@ karen_setup_default = [
         "bs_name": "escalate_policy",
         "bs_type": "string_multiline",
         "bs_default": karen_prompts.escalate_policy,
-        "bs_group": "policy",
+        "bs_group": "Policy",
         "bs_order": 1,
         "bs_importance": 0,
         "bs_description": "Tell the robot what issues should escalate to a human engineer",
@@ -24,37 +26,16 @@ karen_setup_default = [
         "bs_name": "escalate_technical_person",
         "bs_type": "string_short",
         "bs_default": "",
-        "bs_group": "policy",
+        "bs_group": "Policy",
         "bs_placeholder": "tell Alice via slack",
         "bs_order": 2,
         "bs_importance": 0,
         "bs_description": "Name or contact information of the technical person to escalate unresolved issues",
     },
-    {
-        "bs_name": "SLACK_BOT_TOKEN",
-        "bs_type": "string_long",
-        "bs_default": "",
-        "bs_group": "slack",
-        "bs_importance": 0,
-        "bs_description": "Bot User OAuth Token from Slack app settings (starts with xoxb-)",
-    },
-    {
-        "bs_name": "SLACK_APP_TOKEN",
-        "bs_type": "string_long",
-        "bs_default": "",
-        "bs_group": "slack",
-        "bs_importance": 0,
-        "bs_description": "App-Level Token from Slack app settings (starts with xapp-)",
-    },
-    {
-        "bs_name": "slack_should_join",
-        "bs_type": "string_long",
-        "bs_default": "#general,#random,#support",
-        "bs_group": "slack",
-        "bs_importance": 0,
-        "bs_description": "Comma-separated list of Slack channels the bot should automatically join",
-    },
 ]
+
+karen_setup_default += fi_slack.SLACK_SETUP_SCHEMA
+
 
 KAREN_BUDGET_WARNING = f"""
 warning_text = "💿 Token budget is running low. Wrap up your current work, summarize the current chat thread, include what the original user's request was and the current status, and what to do next. Then call kanban_restart() with this summary to refresh context"
@@ -106,7 +87,7 @@ async def install(
         ),
         marketable_expert_setup=ckit_bot_install.FMarketplaceExpertInput(
             fexp_name="karen_setup",
-            fexp_system_prompt=karen_prompts.short_prompt,
+            fexp_system_prompt=karen_prompts.karen_setup,
             fexp_python_kernel=KAREN_BUDGET_WARNING,
             fexp_block_tools="",
             fexp_allow_tools="",

@@ -107,6 +107,34 @@ slack(op="skip")
 """ + FORMATTING
 
 
+SLACK_SETUP_SCHEMA = [
+   {
+        "bs_name": "SLACK_BOT_TOKEN",
+        "bs_type": "string_long",
+        "bs_default": "",
+        "bs_group": "Slack",
+        "bs_importance": 0,
+        "bs_description": "Bot User OAuth Token from Slack app settings (starts with xoxb-)",
+    },
+    {
+        "bs_name": "SLACK_APP_TOKEN",
+        "bs_type": "string_long",
+        "bs_default": "",
+        "bs_group": "Slack",
+        "bs_importance": 0,
+        "bs_description": "App-Level Token from Slack app settings (starts with xapp-)",
+    },
+    {
+        "bs_name": "slack_should_join",
+        "bs_type": "string_long",
+        "bs_default": "#general,#random,#support",
+        "bs_group": "Slack",
+        "bs_importance": 0,
+        "bs_description": "Comma-separated list of Slack channels the bot should automatically join",
+    },
+]
+
+
 @dataclass
 class ActivitySlack:
     what_happened: str
@@ -135,7 +163,7 @@ class IntegrationSlack:
             self.reactive_slack = AsyncApp(token=SLACK_BOT_TOKEN)
             self._setup_event_handlers()
         except Exception as e:
-            logger.error(f"Failed to connect and setup event handlers: {type(e).__name__} {e}")
+            logger.info(f"Failed to connect and setup event handlers: {type(e).__name__} {e}")
             self.problems_other.append("%s %s" % (type(e).__name__, e))
             self.reactive_slack = None
         self.activity_callback: Optional[Callable[[ActivitySlack, bool], Awaitable[None]]] = None
@@ -406,7 +434,7 @@ class IntegrationSlack:
             if not captured_thread or not captured_thread.thread_fields.ft_app_searchable or not captured_thread.thread_fields.ft_app_searchable.startswith("slack/"):
                 return "This thread is not capturing any Slack conversation. Use 'capture' first to start capturing a thread."
 
-            r += "Skipped the most recent message. Thread capture continues - next relevant message will be processed.\n"
+            r += "Great, other people are talking, thread is still captured, any new messages will appear in this thread.\n"
 
         else:
             r += "Unknown operation %r, try \"help\"\n\n" % op
