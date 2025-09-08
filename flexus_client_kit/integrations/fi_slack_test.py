@@ -282,6 +282,36 @@ async def test_capture_thread():
         result2 = await slack_bot.called_by_model(toolcall=tcall2, model_produced_args=args)
         assert "already captured" in result2.lower()
 
+        assistant_content = "Test assistant response"
+        assistant_msg = ckit_ask_model.FThreadMessageOutput(
+            ftm_belongs_to_ft_id=ft_id,
+            ftm_role="assistant",
+            ftm_content=assistant_content,
+            ftm_num=3,
+            ftm_alt=100,
+            ftm_usage=None,
+            ftm_tool_calls=[],
+            ftm_app_specific=None,
+            ftm_created_ts=time.time(),
+        )
+
+        slack_bot.rcx.latest_threads[ft_id].thread_fields.ft_app_specific = {
+            "last_posted_assistant_ts": time.time() - 60
+        }
+
+        result = await slack_bot.look_assistant_might_have_posted_something(assistant_msg)
+        assert result is True
+
+        await asyncio.sleep(1)
+        found = False
+        async for msg in slack_bot.get_history(slack_bot.reactive_slack.client, "tests", thread_ts, str(int(time.time() - 60)), 10):
+            if msg.get('text') == assistant_content:
+                found = True
+                break
+        assert found
+
+        print("✓ Assistant post test passed")
+
         uncapture_args = {"op": "uncapture", "args": {"channel_slash_thread": f"tests/{thread_ts}"}}
         tcall3 = await _create_toolcall(slack_bot, "uncapture_call", ft_id, uncapture_args, called_ftm_num=3)
         result3 = await slack_bot.called_by_model(toolcall=tcall3, model_produced_args=uncapture_args)

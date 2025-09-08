@@ -11,13 +11,7 @@ from dataclasses import dataclass, field
 from typing import Dict, Any, Optional, Callable, Awaitable, List
 import httpx
 from PIL import Image
-
 import gql
-
-# Needs testing:
-# assistant posts in captured thread -> slack.chat_postMessage()
-
-
 
 from flexus_client_kit import ckit_cloudtool
 from flexus_client_kit import ckit_client
