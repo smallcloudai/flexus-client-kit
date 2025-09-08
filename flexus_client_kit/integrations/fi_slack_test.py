@@ -335,6 +335,12 @@ async def test_capture_thread():
         assert any("test message 1" in json.dumps(m) for m in messages)
         assert any("test message 2" in json.dumps(m) for m in messages)
         assert not any("test message 3" in json.dumps(m) for m in messages)
+
+        async with http as h:
+            await h.execute(
+                gql.gql("""mutation PatchThread($id: String!, $patch: FThreadPatch!) { thread_patch(id: $id, patch: $patch) { ft_id } }"""),
+                variable_values={"id": ft_id, "patch": {"ft_archived_ts": time.time()}}
+            )
     finally:
         await bot_cleanup()
 
