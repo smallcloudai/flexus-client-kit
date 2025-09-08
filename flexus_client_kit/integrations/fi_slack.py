@@ -15,8 +15,6 @@ from PIL import Image
 import gql
 
 # Needs testing:
-# capture -> thread_app_capture_patch()
-# message in slack captured thread -> post_into_captured_thread_as_user
 # assistant posts in captured thread -> slack.chat_postMessage()
 
 
