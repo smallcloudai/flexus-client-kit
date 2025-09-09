@@ -175,7 +175,7 @@ class IntegrationSlack:
             self.socket_mode_something = AsyncSocketModeHandler(self.reactive_slack, self.SLACK_APP_TOKEN)
             self.reactive_task = asyncio.create_task(self.socket_mode_something.start_async())
         except Exception as e:
-            logger.error(f"Failed to start socket mode: {type(e).__name__} {e}")
+            logger.exception("Failed to start socket mode")
             self.problems_other.append("%s %s" % (type(e).__name__, e))
             self.socket_mode_something = None
 
@@ -373,7 +373,7 @@ class IntegrationSlack:
                                 else:
                                     file_summaries.append(f"[Binary file: {filename} ({len(file_bytes)} bytes)]")
                         except Exception as e:
-                            logger.error(f"Error processing file during capture: {e}")
+                            logger.exception("Error processing file during capture")
 
                 all_message_parts = []
                 if text_content:
@@ -552,7 +552,7 @@ class IntegrationSlack:
                     else:
                         text_files.append(f"[Binary file: {filename} ({len(file_bytes)} bytes)]")
             except Exception as e:
-                logger.error(f"Error processing file {file_info.get('name', 'unknown')}: {e}")
+                logger.exception(f"Error processing file {file_info.get('name', 'unknown')}")
                 text_files.append(f"[File processing error: {file_info.get('name', 'unknown')}]")
 
         if text_files:
@@ -665,10 +665,10 @@ class IntegrationSlack:
                 )
             logger.info(f"Successfully posted assistant message to channel {something_id!r} thread_ts {thread_ts!r}")
         except SlackApiError as e:
-            logger.error(f"Failed to post message to channel {something_id!r} thread_ts {thread_ts!r}: {e}")
+            logger.exception(f"Failed to post message to channel {something_id!r} thread_ts {thread_ts!r}")
             return False
         except Exception as e:
-            logger.error(f"Unexpected error posting message to Slack: {type(e).__name__}: {e}", exc_info=True)
+            logger.exception("Unexpected error posting message to Slack")
             return False
 
         http = await self.fclient.use_http()
@@ -710,7 +710,7 @@ class IntegrationSlack:
             image_base64 = base64.b64encode(buffer.read()).decode('utf-8')
             return {"m_type": "image/jpeg", "m_content": image_base64}
         except Exception as e:
-            logger.error(f"Failed to process image: {e}")
+            logger.exception("Failed to process image")
             return {"m_type": "text", "m_content": f"[Image processing failed: {e}]"}
 
     async def process_slack_text_file(self, file_bytes: bytes, filename: str) -> dict:
@@ -738,7 +738,7 @@ class IntegrationSlack:
                     logger.error(f"Failed to download file, status: {response.status_code}")
                     return None, None
         except Exception as e:
-            logger.error(f"Error downloading file from Slack: {e}")
+            logger.exception("Error downloading file from Slack")
             return None, None
 
     # - - other stuff like joining the right channels - -
@@ -775,7 +775,7 @@ class IntegrationSlack:
                     logger.info("ratelimit")
                     await asyncio.sleep(10)
                     continue
-                logger.error(f"Slack API error in get_history: {e}")
+                logger.exception("Slack API error in get_history")
                 raise
 
             for msg in messages_response["messages"]:
@@ -803,7 +803,7 @@ class IntegrationSlack:
                     self.users_name2id[user_name] = user_id
                     logger.info(f"👤 User {user_name} -> {user_id}")
         except SlackApiError as e:
-            logger.error(f"Failed to list users: {type(e).__name__} {e}")
+            logger.exception("Failed to list users")
             self.problems_other.append(f"Failed to list users: {type(e).__name__} {e}")
 
         try:
@@ -822,7 +822,7 @@ class IntegrationSlack:
                 else:
                     logger.error(f"User {user_id} not found in users_id2name, cannot map DM channel {dm_channel_id}")
         except SlackApiError as e:
-            logger.error(f"Failed to list DMs: {type(e).__name__} {e}")
+            logger.exception("Failed to list DMs")
             self.problems_other.append(f"Failed to list DMs: {type(e).__name__} {e}")
 
         try:
@@ -854,7 +854,7 @@ class IntegrationSlack:
                     except SlackApiError as e:
                         self.problems_joining.append("%s %s" % (type(e).__name__, e))
         except SlackApiError as e:
-            logger.error(f"Failed to list channels: {type(e).__name__} {e}")
+            logger.exception("Failed to list channels")
             self.problems_other.append(f"Failed to list channels: {type(e).__name__} {e}")
 
         # async for msg in self.get_history(web_api_client, channel["id"], long_ago):
