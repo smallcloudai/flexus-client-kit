@@ -366,7 +366,9 @@ async def subscribe_and_produce_callbacks(
                         bc.fgroup_id, bc.marketable_name, bc.marketable_version
                     ))
                 handled = True
+
             elif upd.news_action == "SUPERTEST":
+                # This is simple startup-shutdown test as a part of CI, to catch simple problems earlier
                 ckit_shutdown.shutdown_event.set()
                 logger.info(f"Super test is passed with msg: {upd.news_payload_id}")
                 handled = True
