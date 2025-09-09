@@ -2,6 +2,7 @@ import logging
 import asyncio
 from typing import Callable
 
+import gql.transport.exceptions
 import websockets
 
 from flexus_client_kit import ckit_client, ckit_shutdown
@@ -21,7 +22,10 @@ async def run_typical_single_subscription_with_restart_on_network_errors(fclient
             finally:
                 ckit_shutdown.take_away_ws_client(fclient.service_name)
 
-        except (websockets.exceptions.ConnectionClosedError, OSError, asyncio.exceptions.TimeoutError) as e:
+        except (websockets.exceptions.ConnectionClosedError,
+                OSError,
+                gql.transport.exceptions.TransportConnectionFailed,
+                asyncio.exceptions.TimeoutError) as e:
             if ckit_shutdown.shutdown_event.is_set():
                 break
             logger.info("got %s, sleep 60..." % (type(e).__name__,))
