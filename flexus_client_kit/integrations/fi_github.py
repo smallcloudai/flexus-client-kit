@@ -74,7 +74,7 @@ class IntegrationGitHub:
         env = os.environ.copy()
         token = await self._mint_installation_token()
         env["GITHUB_TOKEN"] = token
-        return env, None
+        return env
 
     async def called_by_model(self, toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, List[str]]) -> str:
         env = await self._prepare_gh_env()
