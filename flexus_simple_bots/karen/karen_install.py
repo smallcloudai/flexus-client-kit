@@ -71,7 +71,7 @@ async def install(
         marketable_occupation="Customer Support",
         marketable_description="## Karen - AI Customer Support Assistant\n\nA patient AI assistant that automates customer support workflows. Karen integrates with Slack and Discord to help users with technical issues, manages tasks through Kanban boards, and escalates complex problems to human engineers.\n\n**Key Features:**\n- **Multi-platform support**: Responds to users on Slack and Discord\n- **Smart task management**: Automatically sorts and prioritizes support requests\n- **Knowledge integration**: Searches company documentation to provide accurate solutions\n- **Issue tracking**: Files Jira tickets for bugs and complex problems\n- **Scheduled automation**: Processes inbox tasks every 15 minutes, works on assigned tasks every 5 minutes\n\n**Setup Requirements:**\n- Slack bot and app tokens for integration\n- Access to company knowledge base and Jira\n\nPerfect for teams looking to streamline their customer support process while maintaining a human touch.",
         marketable_typical_group="Development / Documentation",
-        marketable_github_repo="https://github.com/smallcloudai/flexus-simple-bots.git",
+        marketable_github_repo="https://github.com/smallcloudai/flexus-client-kit.git",
         marketable_run_this="python -m flexus_simple_bots.karen.karen_bot",
         marketable_setup_default=karen_setup_default,
         marketable_preferred_model_default="gpt-5-mini",
