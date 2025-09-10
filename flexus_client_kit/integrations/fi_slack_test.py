@@ -60,10 +60,12 @@ def _create_test_files():
     open(f'{TEST_DIR}/2.json', 'w').write('{"test": "data", "file": "2", "content": "json test file"}')
 
 
-async def _create_slack_bot() -> IntegrationSlack:
-    required = ["SLACK_BOT_TOKEN", "SLACK_APP_TOKEN", "FLEXUS_API_KEY"]
+async def _create_slack_bot(is_fake: bool = False):
+    required = ["FLEXUS_API_KEY"]
+    if not is_fake:
+        required += ["SLACK_BOT_TOKEN", "SLACK_APP_TOKEN"]
     if not all(os.getenv(env) for env in required):
-        pytest.skip(f"Missing: {', '.join(required)}")
+            pytest.skip(f"Missing: {', '.join(required)}")
 
     fclient = get_fclient()
     bs = await ckit_client.query_basic_stuff(fclient)
@@ -81,12 +83,18 @@ async def _create_slack_bot() -> IntegrationSlack:
         ws_timezone="UTC",
     )
     rcx = ckit_bot_exec.RobotContext(fclient, persona)
-    return IntegrationSlack(fclient, rcx, os.getenv("SLACK_BOT_TOKEN"), os.getenv("SLACK_APP_TOKEN"), should_join="tests")
+    rcx.workdir = TEST_DIR
+
+    if not is_fake:
+        return IntegrationSlack(fclient, rcx, os.getenv("SLACK_BOT_TOKEN"), os.getenv("SLACK_APP_TOKEN"), should_join="tests")
+    else:
+        from flexus_client_kit.integrations.fi_slack_fake import IntegrationSlackFake
+        return IntegrationSlackFake(fclient, rcx, should_join="tests")
 
 
 async def _setup_slack_test():
     _create_test_files()
-    slack_bot = await _create_slack_bot()
+    slack_bot = await _create_slack_bot(is_fake=False)
     activity_queue: asyncio.Queue[tuple[ActivitySlack, bool]] = asyncio.Queue()
 
     async def callback(activity: ActivitySlack, already_posted_to_captured_thread: bool):

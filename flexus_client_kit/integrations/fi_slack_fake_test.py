@@ -15,38 +15,15 @@ from flexus_client_kit.integrations.fi_slack_fake import (
 from flexus_client_kit.integrations.fi_slack_test import (
     TEST_GROUP_ID,
     TEST_PERSONA_ID,
-    TEST_DIR,
-    get_fclient,
-    get_ws_id,
     _create_toolcall,
     _create_test_files,
+    _create_slack_bot,
 )
-
-
-async def _create_fake_slack_bot() -> IntegrationSlackFake:
-    fclient = get_fclient()
-    bs = await ckit_client.query_basic_stuff(fclient)
-    persona = ckit_bot_exec.FPersonaOutput(
-        owner_fuser_id=bs.fuser_id,
-        located_fgroup_id=TEST_GROUP_ID,
-        persona_id=TEST_PERSONA_ID,
-        persona_name="test",
-        persona_marketable_name="test",
-        persona_marketable_version=1,
-        persona_discounts=None,
-        persona_setup={},
-        persona_created_ts=0.0,
-        ws_id=await get_ws_id(),
-        ws_timezone="UTC",
-    )
-    rcx = ckit_bot_exec.RobotContext(fclient, persona)
-    rcx.workdir = TEST_DIR
-    return IntegrationSlackFake(fclient, rcx, should_join="tests")
 
 
 async def _setup_slack_fake_test():
     _create_test_files()
-    slack_bot = await _create_fake_slack_bot()
+    slack_bot = await _create_slack_bot(is_fake=True)
     activity_queue: asyncio.Queue[tuple[ActivitySlack, bool]] = asyncio.Queue()
 
     async def callback(activity: ActivitySlack, posted: bool):
