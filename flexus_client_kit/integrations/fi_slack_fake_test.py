@@ -12,48 +12,19 @@ from flexus_client_kit.integrations.fi_slack_fake import (
     IntegrationSlackFake,
     post_fake_slack_message,
 )
-
-TEST_GROUP_ID = "NqeZnN9aLE"
-TEST_PERSONA_ID = "G1JzW4WA7W"
-TEST_DIR = f"/tmp/bot_workspace/{TEST_PERSONA_ID}"
-
-
-_fclient = None
-async def get_fclient() -> ckit_client.FlexusClient:
-    global _fclient
-    if _fclient is None:
-        if not os.getenv("FLEXUS_API_KEY"):
-            pytest.skip("Missing FLEXUS_API_KEY")
-        _fclient = ckit_client.FlexusClient(
-            service_name=None,
-            base_url=os.getenv("FLEXUS_URL", "https://flexus.team"),
-            api_key=os.getenv("FLEXUS_API_KEY"),
-        )
-    return _fclient
-
-_ws_id = None
-async def get_ws_id() -> str:
-    global _ws_id
-    if _ws_id is None:
-        fclient = await get_fclient()
-        http = await fclient.use_http()
-        async with http as h:
-            r = await h.execute(
-                gql.gql("""query GetGroup($id:String!){ group_get(fgroup_id:$id){ ws_id }}"""),
-                variable_values={"id": TEST_GROUP_ID},
-            )
-        _ws_id = r["group_get"]["ws_id"]
-    return _ws_id
-
-def _create_test_files():
-    os.makedirs(TEST_DIR, exist_ok=True)
-    Image.new("RGB", (10, 10), color="red").save(f"{TEST_DIR}/1.png")
-    Image.new("RGB", (10, 10), color="blue").save(f"{TEST_DIR}/2.png")
-    open(f"{TEST_DIR}/1.txt", "w").write("hello from text file")
+from flexus_client_kit.integrations.fi_slack_test import (
+    TEST_GROUP_ID,
+    TEST_PERSONA_ID,
+    TEST_DIR,
+    get_fclient,
+    get_ws_id,
+    _create_toolcall,
+    _create_test_files,
+)
 
 
 async def _create_fake_slack_bot() -> IntegrationSlackFake:
-    fclient = await get_fclient()
+    fclient = get_fclient()
     bs = await ckit_client.query_basic_stuff(fclient)
     persona = ckit_bot_exec.FPersonaOutput(
         owner_fuser_id=bs.fuser_id,
@@ -91,25 +62,6 @@ async def _setup_slack_fake_test():
     return slack_bot, activity_queue, cleanup
 
 
-async def _create_toolcall(slack_bot: IntegrationSlackFake, call_id: str, ft_id: str, args: dict, called_ftm_num: int = 1):
-    ws_id = await get_ws_id()
-    return ckit_cloudtool.FCloudtoolCall(
-        caller_fuser_id=slack_bot.rcx.persona.owner_fuser_id,
-        located_fgroup_id=TEST_GROUP_ID,
-        fcall_id=call_id,
-        fcall_ft_id=ft_id,
-        fcall_ftm_alt=100,
-        fcall_called_ftm_num=called_ftm_num,
-        fcall_call_n=0,
-        fcall_name="slack",
-        fcall_arguments=json.dumps(args),
-        fcall_created_ts=time.time(),
-        connected_persona_id=TEST_PERSONA_ID,
-        ws_id=ws_id,
-        subgroups_list=[],
-    )
-
-
 @pytest.mark.asyncio
 async def test_fake_message_dm_calls_callback_with_images():
     slack_bot, activity_queue, cleanup = await _setup_slack_fake_test()
@@ -134,7 +86,7 @@ async def test_fake_message_in_channel_calls_callback_with_text_files():
         await post_fake_slack_message("tests", "channel_msg", localfile_path="1.txt")
         activity, posted = await asyncio.wait_for(activity_queue.get(), timeout=3)
         assert activity.message_text == "channel_msg"
-        assert "hello" in activity.file_contents[0]["m_content"]
+        assert "This is test file 1" in activity.file_contents[0]["m_content"]
         assert not posted
         print("✓ Channel file test passed")
     finally:
