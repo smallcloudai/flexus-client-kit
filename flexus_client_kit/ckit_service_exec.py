@@ -8,6 +8,8 @@ import websockets
 from flexus_client_kit import ckit_client, ckit_shutdown
 logger = logging.getLogger("stexe")
 
+assert "TransportConnectionFailed" in dir(gql.transport.exceptions), "pip install -U gql websockets"
+
 
 async def run_typical_single_subscription_with_restart_on_network_errors(fclient: ckit_client.FlexusClient, subscribe_and_do_something: Callable, *func_args, **func_kwargs):
     ckit_shutdown.setup_signals()
