@@ -18,7 +18,7 @@ logger = logging.getLogger("bot_karen")
 
 
 BOT_NAME = "karen"
-BOT_VERSION = "0.1.13"
+BOT_VERSION = "0.1.14"
 
 
 FILE_JIRA_TOOL = ckit_cloudtool.CloudTool(
