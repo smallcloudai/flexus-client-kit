@@ -1,47 +1,22 @@
 import asyncio
 import json
-import os
 import time
 import pytest
 import gql
-from PIL import Image
 
-from flexus_client_kit import ckit_bot_exec, ckit_client, ckit_cloudtool, ckit_ask_model
-from flexus_client_kit.integrations.fi_slack_fake import (
-    ActivitySlack,
-    IntegrationSlackFake,
-    post_fake_slack_message,
-)
+from flexus_client_kit import ckit_bot_exec, ckit_ask_model
+from flexus_client_kit.integrations.fi_slack_fake import post_fake_slack_message
 from flexus_client_kit.integrations.fi_slack_test import (
     TEST_GROUP_ID,
     TEST_PERSONA_ID,
     _create_toolcall,
-    _create_test_files,
-    _create_slack_bot,
+    _setup_slack_test,
 )
-
-
-async def _setup_slack_fake_test():
-    _create_test_files()
-    slack_bot = await _create_slack_bot(is_fake=True)
-    activity_queue: asyncio.Queue[tuple[ActivitySlack, bool]] = asyncio.Queue()
-
-    async def callback(activity: ActivitySlack, posted: bool):
-        await activity_queue.put((activity, posted))
-
-    slack_bot.set_activity_callback(callback)
-    await slack_bot.join_channels()
-    await slack_bot.start_reactive()
-
-    async def cleanup():
-        await slack_bot.close()
-
-    return slack_bot, activity_queue, cleanup
 
 
 @pytest.mark.asyncio
 async def test_fake_message_dm_calls_callback_with_images():
-    slack_bot, activity_queue, cleanup = await _setup_slack_fake_test()
+    _slack_bot, activity_queue, _, cleanup = await _setup_slack_test(is_fake=True)
     try:
         await post_fake_slack_message("@tester", "dm1", localfile_path="1.png")
         await post_fake_slack_message("@tester", "dm2", localfile_path="2.png")
@@ -58,7 +33,7 @@ async def test_fake_message_dm_calls_callback_with_images():
 
 @pytest.mark.asyncio
 async def test_fake_message_in_channel_calls_callback_with_text_files():
-    slack_bot, activity_queue, cleanup = await _setup_slack_fake_test()
+    _slack_bot, activity_queue, _, cleanup = await _setup_slack_test(is_fake=True)
     try:
         await post_fake_slack_message("tests", "channel_msg", localfile_path="1.txt")
         activity, posted = await asyncio.wait_for(activity_queue.get(), timeout=3)
@@ -72,7 +47,7 @@ async def test_fake_message_in_channel_calls_callback_with_text_files():
 
 @pytest.mark.asyncio
 async def test_fake_post_operation_with_files():
-    slack_bot, _, cleanup = await _setup_slack_fake_test()
+    slack_bot, _, _, cleanup = await _setup_slack_test(is_fake=True)
     try:
         text_args = {"op": "post", "args": {"channel_slash_thread": "tests", "text": "hi"}}
         tcall1 = await _create_toolcall(slack_bot, "call1", "ft1", text_args)
@@ -90,7 +65,7 @@ async def test_fake_post_operation_with_files():
 
 @pytest.mark.asyncio
 async def test_fake_capture_thread():
-    slack_bot, activity_queue, cleanup = await _setup_slack_fake_test()
+    slack_bot, activity_queue, _, cleanup = await _setup_slack_test(is_fake=True)
     try:
         await post_fake_slack_message("tests", "please capture this thread")
         first_activity, posted1 = await asyncio.wait_for(activity_queue.get(), timeout=3)
