@@ -1,4 +1,4 @@
-from typing import Dict, Any, Type, TypeVar, get_type_hints, Union, Callable, Awaitable
+from typing import Dict, Any, Type, TypeVar, get_type_hints, Union, Callable, Awaitable, List
 import pydantic
 import dataclasses
 import logging
@@ -6,6 +6,20 @@ import aiohttp.client_exceptions
 from flexus_client_kit import ckit_shutdown
 
 T = TypeVar('T')
+
+
+@dataclasses.dataclass
+class SetupMissing:
+    group: str
+    importance: int
+
+
+@dataclasses.dataclass
+class MarketableAction:
+    id: str
+    label: str
+    prompt: str
+    required_setup_groups: List[str]
 
 
 def strawberry_from_prisma(prisma_obj: pydantic.BaseModel, strawberry_class: Type[T]) -> T:

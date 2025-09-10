@@ -5,7 +5,7 @@ import argparse
 from pathlib import Path
 
 from flexus_client_kit import ckit_client
-from flexus_client_kit import ckit_bot_install
+from flexus_client_kit import ckit_bot_install, gql_utils
 from flexus_client_kit.integrations import fi_slack
 
 
@@ -107,6 +107,14 @@ async def install(
                 "sched_when": "EVERY:1m",
                 "sched_first_question": "Work on the assigned task.",
             },
+        ],
+        marketable_actions=[
+            gql_utils.MarketableAction(
+                id="slack_setup",
+                label="Manage your Slack integration",
+                prompt="Help user to set up Slack integration, start from easiest. Guide them through creating a Slack app, getting bot tokens, and configuring channel access.",
+                required_setup_groups=["Slack"]
+            )
         ]
     )
 

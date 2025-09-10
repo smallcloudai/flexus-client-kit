@@ -53,11 +53,12 @@ async def marketplace_upsert_dev_bot(
     marketable_expert_subchat: Optional[FMarketplaceExpertInput] = None,
     marketable_tags: List[str] = [],
     marketable_stage: str = "MARKETPLACE_DEV",
+    marketable_actions: Optional[List[gql_utils.MarketableAction]] = None,
 ) -> FBotInstallOutput:
     http = await client.use_http()
     async with http as h:
         r = await h.execute(
-            gql.gql(f"""mutation InstallBot($ws: String!, $name: String!, $ver: String!, $title1: String!, $title2: String!, $author: String!, $occupation: String!, $desc: String!, $typical_group: String!, $repo: String!, $run: String!, $setup: String!, $model: String!, $daily: Int!, $inbox: Int!, $e1: FMarketplaceExpertInput!, $e2: FMarketplaceExpertInput, $e3: FMarketplaceExpertInput, $e4: FMarketplaceExpertInput, $schedule: String!, $big: String!, $small: String!, $tags: [String!]!, $stage: String!) {{
+            gql.gql(f"""mutation InstallBot($ws: String!, $name: String!, $ver: String!, $title1: String!, $title2: String!, $author: String!, $occupation: String!, $desc: String!, $typical_group: String!, $repo: String!, $run: String!, $setup: String!, $model: String!, $daily: Int!, $inbox: Int!, $ed: FMarketplaceExpertInput!, $schedule: String!, $et: FMarketplaceExpertInput, $eu: FMarketplaceExpertInput, $ec: FMarketplaceExpertInput, $big: String!, $small: String!, $tags: [String!]!, $stage: String!, $actions: String) {{
                 marketplace_upsert_dev_bot(
                     ws_id: $ws,
                     marketable_name: $name,
@@ -82,7 +83,8 @@ async def marketplace_upsert_dev_bot(
                     marketable_picture_big_b64: $big,
                     marketable_picture_small_b64: $small,
                     marketable_stage: $stage,
-                    marketable_tags: $tags
+                    marketable_tags: $tags,
+                    marketable_actions: $actions
                 ) {{
                     {gql_utils.gql_fields(FBotInstallOutput)}
                 }}
@@ -112,6 +114,7 @@ async def marketplace_upsert_dev_bot(
                 "stage": marketable_stage,
                 "big": marketable_picture_big_b64,
                 "small": marketable_picture_small_b64,
+                "actions": json.dumps([dataclasses.asdict(action) for action in marketable_actions]) if marketable_actions else None,
             },
         )
         return gql_utils.dataclass_from_dict(r["marketplace_upsert_dev_bot"], FBotInstallOutput)
