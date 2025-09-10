@@ -92,9 +92,9 @@ async def _create_slack_bot(is_fake: bool = False):
         return IntegrationSlackFake(fclient, rcx, should_join="tests")
 
 
-async def _setup_slack_test():
+async def _setup_slack_test(is_fake: bool = False):
     _create_test_files()
-    slack_bot = await _create_slack_bot(is_fake=False)
+    slack_bot = await _create_slack_bot(is_fake=is_fake)
     activity_queue: asyncio.Queue[tuple[ActivitySlack, bool]] = asyncio.Queue()
 
     async def callback(activity: ActivitySlack, already_posted_to_captured_thread: bool):
@@ -104,17 +104,18 @@ async def _setup_slack_test():
     await slack_bot.join_channels()
     await slack_bot.start_reactive()
 
-    user_client = AsyncWebClient(token=os.environ["SLACK_USER_TOKEN"])
+    user_client = AsyncWebClient(token=os.environ["SLACK_USER_TOKEN"]) if not is_fake else None
 
     async def bot_cleanup():
-        for channel_name in slack_bot.actually_joined:
-            channel_id = slack_bot.channels_name2id.get(channel_name)
-            if channel_id:
-                try:
-                    await slack_bot.reactive_slack.client.conversations_leave(channel=channel_id)
-                    print(f"✓ Bot left #{channel_name}")
-                except Exception as e:
-                    print(f"⚠️  Failed to leave #{channel_name}: {e}")
+        if not is_fake:
+            for channel_name in slack_bot.actually_joined:
+                channel_id = slack_bot.channels_name2id.get(channel_name)
+                if channel_id:
+                    try:
+                        await slack_bot.reactive_slack.client.conversations_leave(channel=channel_id)
+                        print(f"✓ Bot left #{channel_name}")
+                    except Exception as e:
+                        print(f"⚠️  Failed to leave #{channel_name}: {e}")
         await slack_bot.close()
 
     return slack_bot, activity_queue, user_client, bot_cleanup
@@ -136,7 +137,7 @@ async def _upload_files(user_client: AsyncWebClient, channel_id: str, file_paths
 
 @pytest.mark.asyncio
 async def test_message_dm_calls_callback_with_images():
-    slack_bot, activity_queue, user_client, bot_cleanup = await _setup_slack_test()
+    slack_bot, activity_queue, user_client, bot_cleanup = await _setup_slack_test(is_fake=False)
 
     try:
         bot_info = await slack_bot.reactive_slack.client.auth_test()
@@ -157,7 +158,7 @@ async def test_message_dm_calls_callback_with_images():
 
 @pytest.mark.asyncio
 async def test_message_in_channel_calls_callback_with_text_files():
-    slack_bot, activity_queue, user_client, bot_cleanup = await _setup_slack_test()
+    slack_bot, activity_queue, user_client, bot_cleanup = await _setup_slack_test(is_fake=False)
 
     try:
         tests_channel_id = slack_bot.channels_name2id.get("tests")
@@ -179,8 +180,43 @@ async def test_message_in_channel_calls_callback_with_text_files():
 
 
 @pytest.mark.asyncio
+async def test_post_operation_with_files():
+    slack_bot, _, _, bot_cleanup = await _setup_slack_test(is_fake=False)
+
+    try:
+        text_args = {
+            "op": "post",
+            "args": {
+                "channel_slash_thread": "@flexus.testing",
+                "text": "Test post with files"
+            }
+        }
+        tcall1 = await _create_toolcall(slack_bot, "test_call_id_1", "test_thread_id", text_args)
+        result1 = await slack_bot.called_by_model(toolcall=tcall1, model_produced_args=text_args)
+        print("text result:", result1)
+        assert "success" in result1.lower(), f"Text post should succeed: {result1}"
+
+        file_args = {
+            "op": "post",
+            "args": {
+                "channel_slash_thread": "@flexus.testing",
+                "localfile_path": "1.txt"
+            }
+        }
+        tcall2 = await _create_toolcall(slack_bot, "test_call_id_2", "test_thread_id", file_args, called_ftm_num=2)
+        result2 = await slack_bot.called_by_model(toolcall=tcall2, model_produced_args=file_args)
+        print("file result:", result2)
+        assert "success" in result2.lower(), f"File post should succeed: {result2}"
+
+        print("✓ Post operation test passed (text + file)")
+    finally:
+        await asyncio.sleep(1)
+        await bot_cleanup()
+
+
+@pytest.mark.asyncio
 async def test_capture_thread():
-    slack_bot, activity_queue, user_client, bot_cleanup = await _setup_slack_test()
+    slack_bot, activity_queue, user_client, bot_cleanup = await _setup_slack_test(is_fake=False)
 
     try:
         tests_channel_id = slack_bot.channels_name2id.get("tests")
