@@ -115,7 +115,7 @@ async def thread_add_user_message(
 ) -> None:
     random_ftm_num = -random.randint(1, 2**31 - 1)
     assert role in ["user", "cd_instruction"]
-    
+
     if isinstance(content, str):
         # For backward compatibility, wrap plain strings
         ftm_content = json.dumps(content)
@@ -123,7 +123,7 @@ async def thread_add_user_message(
         ftm_content = json.dumps(content)
     else:
         ftm_content = json.dumps(str(content))
-    
+
     async with http as h:
         await h.execute(
             gql.gql(f"""mutation {who_is_asking}CreateMessages($input: FThreadMultipleMessagesInput!) {{
@@ -161,7 +161,6 @@ async def bot_activate(
     first_question: str,
     first_calls: Any = None,
     title: str = "",
-    localtools: Optional[List[Callable]] = None,
     sched_id: str = "",
 ) -> str:
     assert activation_type in ["default", "todo", "setup", "subchat"]
@@ -171,8 +170,8 @@ async def bot_activate(
     http = await client.use_http()
     async with http as h:
         r = await h.execute(
-            gql.gql(f"""mutation {camel_case_for_logs}BotActivate($who_is_asking: String!, $persona_id: String!, $activation_type: String!, $first_question: String!, $first_calls: String!, $title: String!, $localtools: String!, $sched_id: String!) {{
-                bot_activate(who_is_asking: $who_is_asking, persona_id: $persona_id, activation_type: $activation_type, first_question: $first_question, first_calls: $first_calls, title: $title, localtools: $localtools, sched_id: $sched_id) {{ ft_id }}
+            gql.gql(f"""mutation {camel_case_for_logs}BotActivate($who_is_asking: String!, $persona_id: String!, $activation_type: String!, $first_question: String!, $first_calls: String!, $title: String!, $sched_id: String!) {{
+                bot_activate(who_is_asking: $who_is_asking, persona_id: $persona_id, activation_type: $activation_type, first_question: $first_question, first_calls: $first_calls, title: $title, sched_id: $sched_id) {{ ft_id }}
             }}"""),
             variable_values={
                 "who_is_asking": who_is_asking,
@@ -181,12 +180,44 @@ async def bot_activate(
                 "first_question": first_question,
                 "first_calls": json.dumps(first_calls),
                 "title": title,
-                "localtools": json.dumps([ckit_localtool.openai_style_function_description(f) for f in localtools]) if (localtools is not None) else "null",
                 "sched_id": sched_id,
             },
         )
         ft_id = r["bot_activate"]["ft_id"]
     return ft_id
+
+
+async def bot_subchat_create_multiple(
+    client: ckit_client.FlexusClient,
+    who_is_asking: str,
+    persona_id: str,
+    first_question: List[str],
+    first_calls: List[str],
+    title: List[str],
+    subchat_dest_ft_id: str,
+    subchat_dest_ftm_alt: int,
+    subchat_dest_ftm_num: int,
+) -> None:
+    assert re.match(r'^[a-z0-9_]+$', who_is_asking)
+    camel_case_for_logs = "".join(word.capitalize() for word in who_is_asking.split("_"))
+    http = await client.use_http()
+    async with http as h:
+        await h.execute(
+            gql.gql(f"""mutation {camel_case_for_logs}BotSubchatCreateMultiple($who_is_asking: String!, $persona_id: String!, $first_question: [String!]!, $first_calls: [String!]!, $title: [String!]!, $subchat_dest_ft_id: String!, $subchat_dest_ftm_alt: Int!, $subchat_dest_ftm_num: Int!) {{
+                bot_subchat_create_multiple(who_is_asking: $who_is_asking, persona_id: $persona_id, first_question: $first_question, first_calls: $first_calls, title: $title, subchat_dest_ft_id: $subchat_dest_ft_id, subchat_dest_ftm_alt: $subchat_dest_ftm_alt, subchat_dest_ftm_num: $subchat_dest_ftm_num)
+            }}"""),
+            variable_values={
+                "who_is_asking": who_is_asking,
+                "persona_id": persona_id,
+                "activation_type": "subchat",
+                "first_question": first_question,
+                "first_calls": first_calls,
+                "title": title,
+                "subchat_dest_ft_id": subchat_dest_ft_id,
+                "subchat_dest_ftm_alt": subchat_dest_ftm_alt,
+                "subchat_dest_ftm_num": subchat_dest_ftm_num,
+            },
+        )
 
 
 async def wait_until_thread_stops(

@@ -55,7 +55,6 @@ async def run_scenario():
         activation_type="default",
         first_question="Check out Inbox, move trash to Failed column, move several one or several messages that look like you have to answer them to Todo.",
         first_calls=None,
-        localtools=[],
     )
     ass = await ckit_ask_model.wait_until_thread_stops(
         client,
