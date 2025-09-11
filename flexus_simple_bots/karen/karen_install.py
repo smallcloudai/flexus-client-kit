@@ -4,8 +4,7 @@ import base64
 import argparse
 from pathlib import Path
 
-from flexus_client_kit import ckit_client
-from flexus_client_kit import ckit_bot_install, gql_utils
+from flexus_client_kit import ckit_client, ckit_bot_install
 from flexus_client_kit.integrations import fi_slack
 
 
@@ -108,14 +107,28 @@ async def install(
                 "sched_first_question": "Work on the assigned task.",
             },
         ],
-        marketable_actions=[
-            gql_utils.MarketableAction(
+        marketable_featured_actions=[
+            ckit_bot_install.FeaturedAction(
+                id="generate_task_report",
+                label="Generate task completion report",  
+                prompt="Generate a comprehensive report showing all completed tasks, their status, and performance metrics.",
+                required_setup_groups=["Slack"],
+                icon="file-pdf",
+                icon_color="#ffffff",
+                icon_bg_color="#22c55e"
+            )
+        ],
+        marketable_featured_setup_categories=[
+            ckit_bot_install.FeaturedSetupCategory(
                 id="slack_setup",
                 label="Manage your Slack integration",
                 prompt="Help user to set up Slack integration, start from easiest. Guide them through creating a Slack app, getting bot tokens, and configuring channel access.",
-                required_setup_groups=["Slack"]
+                icon="slack",
+                icon_color="#ffffff",
+                icon_bg_color="#4A154B"
             )
-        ]
+        ],
+        marketable_intro_message="Hey, happy to join your team!\nI'm ready to help you manage tasks and generate reports.\nLet me know what you need:\n• Set up your Slack integration to get started\n• I can help organize your team's workflow"
     )
 
 

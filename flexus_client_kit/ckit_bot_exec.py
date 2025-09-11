@@ -31,7 +31,9 @@ class FPersonaOutput:
     persona_created_ts: float
     ws_id: str
     ws_timezone: str
-    marketable_actions: Optional[List[gql_utils.MarketableAction]] = None
+    marketable_intro_message: str
+    marketable_featured_actions: Optional[List] = None
+    marketable_featured_setup_categories: Optional[List] = None
     setup_quest_missing: Optional[List[gql_utils.SetupMissing]] = None
 
 

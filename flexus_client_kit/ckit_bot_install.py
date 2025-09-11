@@ -28,11 +28,23 @@ class FMarketplaceExpertInput:
 
 
 @dataclass
-class MarketableAction:
+class FeaturedAction:
     id: str
     label: str
     prompt: str
     required_setup_groups: List[str]
+    icon: str
+    icon_color: str
+    icon_bg_color: str
+
+@dataclass
+class FeaturedSetupCategory:
+    id: str
+    label: str
+    prompt: str
+    icon: str
+    icon_color: str
+    icon_bg_color: str
 
 async def marketplace_upsert_dev_bot(
     client: ckit_client.FlexusClient,
@@ -54,18 +66,20 @@ async def marketplace_upsert_dev_bot(
     marketable_default_inbox_default: int,
     marketable_picture_big_b64: str,
     marketable_picture_small_b64: str,
+    marketable_intro_message: str,
     marketable_expert_default: FMarketplaceExpertInput,
     marketable_expert_todo: Optional[FMarketplaceExpertInput] = None,
     marketable_expert_setup: Optional[FMarketplaceExpertInput] = None,
     marketable_expert_subchat: Optional[FMarketplaceExpertInput] = None,
     marketable_tags: List[str] = [],
     marketable_stage: str = "MARKETPLACE_DEV",
-    marketable_actions: List[MarketableAction] = [],
+    marketable_featured_actions: List[FeaturedAction] = [],
+    marketable_featured_setup_categories: List[FeaturedSetupCategory] = [],
 ) -> FBotInstallOutput:
     http = await client.use_http()
     async with http as h:
         r = await h.execute(
-            gql.gql(f"""mutation InstallBot($ws: String!, $name: String!, $ver: String!, $title1: String!, $title2: String!, $author: String!, $occupation: String!, $desc: String!, $typical_group: String!, $repo: String!, $run: String!, $setup: String!, $model: String!, $daily: Int!, $inbox: Int!, $ed: FMarketplaceExpertInput!, $schedule: String!, $et: FMarketplaceExpertInput, $eu: FMarketplaceExpertInput, $ec: FMarketplaceExpertInput, $big: String!, $small: String!, $tags: [String!]!, $stage: String!, $actions: [FMarketableActionInput!]!) {{
+            gql.gql(f"""mutation InstallBot($ws: String!, $name: String!, $ver: String!, $title1: String!, $title2: String!, $author: String!, $occupation: String!, $desc: String!, $typical_group: String!, $repo: String!, $run: String!, $setup: String!, $model: String!, $daily: Int!, $inbox: Int!, $ed: FMarketplaceExpertInput!, $schedule: String!, $et: FMarketplaceExpertInput, $eu: FMarketplaceExpertInput, $ec: FMarketplaceExpertInput, $big: String!, $small: String!, $tags: [String!]!, $stage: String!, $featured_actions: [FFeaturedActionInput!]!, $featured_setup_categories: [FFeaturedSetupCategoryInput!]!, $intro_message: String!) {{
                 marketplace_upsert_dev_bot(
                     ws_id: $ws,
                     marketable_name: $name,
@@ -91,7 +105,9 @@ async def marketplace_upsert_dev_bot(
                     marketable_picture_small_b64: $small,
                     marketable_stage: $stage,
                     marketable_tags: $tags,
-                    marketable_actions: $actions
+                    marketable_featured_actions: $featured_actions,
+                    marketable_featured_setup_categories: $featured_setup_categories,
+                    marketable_intro_message: $intro_message
                 ) {{
                     {gql_utils.gql_fields(FBotInstallOutput)}
                 }}
@@ -121,7 +137,9 @@ async def marketplace_upsert_dev_bot(
                 "stage": marketable_stage,
                 "big": marketable_picture_big_b64,
                 "small": marketable_picture_small_b64,
-                "actions": [dataclasses.asdict(action) for action in marketable_actions],
+                "featured_actions": [dataclasses.asdict(action) for action in marketable_featured_actions],
+                "featured_setup_categories": [dataclasses.asdict(category) for category in marketable_featured_setup_categories],
+                "intro_message": marketable_intro_message,
             },
         )
         return gql_utils.dataclass_from_dict(r["marketplace_upsert_dev_bot"], FBotInstallOutput)
