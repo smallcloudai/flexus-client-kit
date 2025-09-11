@@ -14,12 +14,7 @@ class SetupMissing:
     importance: int
 
 
-@dataclasses.dataclass
-class MarketableAction:
-    id: str
-    label: str
-    prompt: str
-    required_setup_groups: List[str]
+
 
 
 def strawberry_from_prisma(prisma_obj: pydantic.BaseModel, strawberry_class: Type[T]) -> T:
