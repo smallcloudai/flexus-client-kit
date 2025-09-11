@@ -95,7 +95,7 @@ async def test_fake_capture_thread():
         args = {"op": "capture", "args": {"channel_slash_thread": f"tests/{thread_ts}"}}
         tcall = await _create_toolcall(slack_bot, "cap1", ft_id, args)
         result = await slack_bot.called_by_model(toolcall=tcall, model_produced_args=args)
-        assert "capturing" in result.lower()
+        assert "captured" in result.lower()
 
         slack_bot.rcx.latest_threads[ft_id] = ckit_bot_exec.FThreadWithMessages(
             TEST_PERSONA_ID,

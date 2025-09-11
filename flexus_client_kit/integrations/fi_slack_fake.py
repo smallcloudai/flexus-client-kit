@@ -2,6 +2,7 @@ import os
 import time
 import json
 import mimetypes
+import asyncio
 from typing import Dict, Any, Optional, Callable, Awaitable, List
 
 from flexus_client_kit import ckit_cloudtool, ckit_client, ckit_bot_exec, ckit_ask_model
@@ -26,7 +27,9 @@ class IntegrationSlackFake:
         self,
         fclient: ckit_client.FlexusClient,
         rcx: ckit_bot_exec.RobotContext,
-        should_join: str,
+        SLACK_BOT_TOKEN: str = "",  # not needed, added to match create method of real
+        SLACK_APP_TOKEN: str = "",
+        should_join: str = "",
     ):
         self.fclient = fclient
         self.rcx = rcx
@@ -259,7 +262,10 @@ class IntegrationSlackFake:
             await ckit_ask_model.thread_app_capture_patch(
                 http, toolcall.fcall_ft_id, ft_app_searchable=searchable
             )
-            return f"capturing #{channel}/{thread}"
+            return (
+                "Captured! The next thing you write will be visible in Slack. "
+                f"Don't comment on that fact and think about what do you want to say in '{channel}'."
+            )
 
         if op == "uncapture":
             if self.captured_ft_id:
@@ -269,10 +275,13 @@ class IntegrationSlackFake:
                 )
             self.captured = None
             self.captured_ft_id = None
-            return "uncaptured"
+            return "Uncaptured successfully. This thread is no longer connected to Slack."
 
         if op == "skip":
-            return "skipped"
+            return (
+                "Great, other people are talking, thread is still captured, "
+                "any new messages will appear in this thread."
+            )
 
         if op == "post":
             channel, thread = parse_channel_slash_thread(channel_slash_thread)
@@ -339,7 +348,13 @@ class IntegrationSlackFake:
                 )
                 await self.activity_callback(activity, True)
 
-            return "success"
+            if localfile_path:
+                return (
+                    "File upload success (thread)" if thread else "File upload success (channel)"
+                )
+            return (
+                "Post success (thread in channel)" if thread else "Post success (channel)"
+            )
 
         return f"Error: Unknown op {op}"
 
@@ -359,3 +374,33 @@ async def post_fake_slack_message(
         await inst._receive_fake_message(
             channel, thread_ts, ts, text, user, localfile_path
         )
+    return {"ts": ts, "thread_ts": thread_ts}
+
+
+async def wait_for_bot_message(channel_slash_thread: str, timeout_seconds: int = 400, slack_instance=None) -> List[Dict[str, Any]]:
+    loop = asyncio.get_running_loop()
+    start = loop.time()
+
+    if not slack_instance:
+        while not FAKE_SLACK_INSTANCES:
+            if loop.time() - start > timeout_seconds:
+                raise RuntimeError("No fake Slack instances available")
+            await asyncio.sleep(0.1)
+
+    fi_slack = slack_instance or FAKE_SLACK_INSTANCES[0]
+    channel, thread = parse_channel_slash_thread(channel_slash_thread)
+
+    def bot_msgs(msgs):
+        return [m for m in msgs if m.get("user") == "bot" and (not thread or m.get("thread_ts") == thread)]
+
+    initial_msgs = bot_msgs(fi_slack.messages.get(channel, []))
+
+    while True:
+        current_msgs = bot_msgs(fi_slack.messages.get(channel, []))
+        if len(current_msgs) > len(initial_msgs):
+            return current_msgs[len(initial_msgs):]
+
+        if loop.time() - start > timeout_seconds:
+            raise RuntimeError("bot did not respond")
+
+        await asyncio.sleep(0.2)
