@@ -256,7 +256,7 @@ async def subscribe_and_produce_callbacks(
             upd = gql_utils.dataclass_from_dict(r["bot_threads_and_calls_subs"], FBotThreadsAndCallsSubs)
             handled = False
             reassign_threads = False
-            logger.info("subs %s %s %s" % (upd.news_action, upd.news_about, upd.news_payload_id))
+            logger.debug("subs %s %s %s" % (upd.news_action, upd.news_about, upd.news_payload_id))
 
             if upd.news_about == "flexus_persona":
                 if upd.news_action in ["INSERT", "UPDATE"]:
