@@ -56,9 +56,9 @@ async def install(
     ws_id: str,
 ):
     bot_internal_tools = json.dumps([t.openai_style_tool() for t in karen_bot.TOOLS])
-    with open(Path(__file__).with_name("karen-1024x1536.jpg"), "rb") as f:
+    with open(Path(__file__).with_name("karen-1024x1536.webp"), "rb") as f:
         big = base64.b64encode(f.read()).decode("ascii")
-    with open(Path(__file__).with_name("karen-256x256.png"), "rb") as f:
+    with open(Path(__file__).with_name("karen-256x256.webp"), "rb") as f:
         small = base64.b64encode(f.read()).decode("ascii")
     await ckit_bot_install.marketplace_upsert_dev_bot(
         client,
