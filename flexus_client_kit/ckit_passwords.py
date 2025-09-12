@@ -57,4 +57,7 @@ async def get_superuser_token_from_vault(endpoint: str, force: bool = False) -> 
     return _superpassword_curr[endpoint], _superpassword_prev[endpoint]
 
 async def get_flexus_ws_ticket(service_name: str):
-    return open(f"/tmp/{service_name}_flexus_ticket", "r").read().strip()
+    ticket_path = f"/tmp/{service_name}_flexus_ticket"
+    if os.path.exists(ticket_path):
+        return open(ticket_path, "r").read().strip()
+    return os.environ['FLEXUS_WS_TICKET']
