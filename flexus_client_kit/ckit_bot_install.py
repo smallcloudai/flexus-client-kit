@@ -63,7 +63,7 @@ async def marketplace_upsert_dev_bot(
     http = await client.use_http()
     async with http as h:
         r = await h.execute(
-            gql.gql(f"""mutation InstallBot($ws: String!, $name: String!, $ver: String!, $title1: String!, $title2: String!, $author: String!, $occupation: String!, $desc: String!, $typical_group: String!, $repo: String!, $run: String!, $setup: String!, $model: String!, $daily: Int!, $inbox: Int!, $ed: FMarketplaceExpertInput!, $schedule: String!, $et: FMarketplaceExpertInput, $eu: FMarketplaceExpertInput, $ec: FMarketplaceExpertInput, $big: String!, $small: String!, $tags: [String!]!, $stage: String!) {{
+            gql.gql(f"""mutation InstallBot($ws: String!, $name: String!, $ver: String!, $title1: String!, $title2: String!, $author: String!, $occupation: String!, $desc: String!, $typical_group: String!, $repo: String!, $run: String!, $setup: String!, $model: String!, $daily: Int!, $inbox: Int!, $e1: FMarketplaceExpertInput!, $e2: FMarketplaceExpertInput, $e3: FMarketplaceExpertInput, $e4: FMarketplaceExpertInput, $schedule: String!, $big: String!, $small: String!, $tags: [String!]!, $stage: String!) {{
                 marketplace_upsert_dev_bot(
                     ws_id: $ws,
                     marketable_name: $name,
@@ -80,10 +80,10 @@ async def marketplace_upsert_dev_bot(
                     marketable_preferred_model_default: $model,
                     marketable_daily_budget_default: $daily,
                     marketable_default_inbox_default: $inbox,
-                    marketable_expert_default: $ed,
-                    marketable_expert_todo: $et,
-                    marketable_expert_setup: $eu,
-                    marketable_expert_subchat: $ec,
+                    marketable_expert_default: $e1,
+                    marketable_expert_todo: $e2,
+                    marketable_expert_setup: $e3,
+                    marketable_expert_subchat: $e4,
                     marketable_schedule: $schedule,
                     marketable_picture_big_b64: $big,
                     marketable_picture_small_b64: $small,
@@ -109,10 +109,10 @@ async def marketplace_upsert_dev_bot(
                 "model": marketable_preferred_model_default,
                 "daily": marketable_daily_budget_default,
                 "inbox": marketable_default_inbox_default,
-                "ed": dataclasses.asdict(marketable_expert_default),
-                "et": dataclasses.asdict(marketable_expert_todo) if marketable_expert_todo else None,
-                "eu": dataclasses.asdict(marketable_expert_setup) if marketable_expert_setup else None,
-                "ec": dataclasses.asdict(marketable_expert_subchat) if marketable_expert_subchat else None,
+                "e1": dataclasses.asdict(marketable_expert_default),
+                "e2": dataclasses.asdict(marketable_expert_todo) if marketable_expert_todo else None,
+                "e3": dataclasses.asdict(marketable_expert_setup) if marketable_expert_setup else None,
+                "e4": dataclasses.asdict(marketable_expert_subchat) if marketable_expert_subchat else None,
                 "schedule": json.dumps(marketable_schedule),
                 "tags": marketable_tags,
                 "stage": marketable_stage,

@@ -53,18 +53,11 @@ frog_setup_default = [
 ]
 
 
-FROG_BUDGET_WARNING = f"""
-warning_text = "💿 Token budget is running low. Wrap up your current work, summarize the current chat thread, include what the original user's request was and the current status, and what to do next. Then call kanban_restart() with this summary to refresh context"
-
-if coins > budget * 0.5 and not messages[-1]["tool_calls"]:
-    for i, msg in enumerate(messages):
-        warning_already_sent = False
-        if msg["role"] == "kernel" and msg.get("content") and warning_text in str(msg["content"]):
-            warning_already_sent = True
-            break
-    if not warning_already_sent:
-        post_content = warning_text
+FROG_SUBCHAT_LARK = f"""
+print("Ribbit!")     # will be visible in lark logs
+subchat_result = "Insect!"
 """
+# if coins > budget * 0.5 and not messages[-1]["tool_calls"]:
 
 
 async def install(
@@ -72,10 +65,8 @@ async def install(
     ws_id: str,
 ):
     bot_internal_tools = json.dumps([t.openai_style_tool() for t in frog_bot.TOOLS])
-    with open(Path(__file__).with_name("frog-1024x1536.webp"), "rb") as f:
-        big = base64.b64encode(f.read()).decode("ascii")
-    with open(Path(__file__).with_name("frog-256x256.webp"), "rb") as f:
-        small = base64.b64encode(f.read()).decode("ascii")
+    pic_big = base64.b64encode(open(Path(__file__).with_name("frog-1024x1536.webp"), "rb").read()).decode("ascii")
+    pic_small = base64.b64encode(open(Path(__file__).with_name("frog-256x256.webp"), "rb").read()).decode("ascii")
     await ckit_bot_install.marketplace_upsert_dev_bot(
         client,
         ws_id=ws_id,
@@ -96,7 +87,7 @@ async def install(
         marketable_expert_default=ckit_bot_install.FMarketplaceExpertInput(
             fexp_name="frog_default",
             fexp_system_prompt=frog_prompts.short_prompt,
-            fexp_python_kernel=FROG_BUDGET_WARNING,
+            fexp_python_kernel="",
             fexp_block_tools="*setup*",
             fexp_allow_tools="",
             fexp_app_capture_tools=bot_internal_tools,
@@ -104,14 +95,22 @@ async def install(
         marketable_expert_setup=ckit_bot_install.FMarketplaceExpertInput(
             fexp_name="frog_setup",
             fexp_system_prompt=frog_prompts.frog_setup,
-            fexp_python_kernel=FROG_BUDGET_WARNING,
+            fexp_python_kernel="",
             fexp_block_tools="",
             fexp_allow_tools="",
             fexp_app_capture_tools=bot_internal_tools,
         ),
+        marketable_expert_subchat=ckit_bot_install.FMarketplaceExpertInput(
+            fexp_name="frog_subchat",
+            fexp_system_prompt=frog_prompts.frog_setup,
+            fexp_python_kernel=FROG_SUBCHAT_LARK,
+            fexp_block_tools="*setup*,frog_catch_insects",
+            fexp_allow_tools="",
+            fexp_app_capture_tools=bot_internal_tools,
+        ),
         marketable_tags=["fun", "simple", "motivational"],
-        marketable_picture_big_b64=big,
-        marketable_picture_small_b64=small,
+        marketable_picture_big_b64=pic_big,
+        marketable_picture_small_b64=pic_small,
         marketable_schedule=[
             {
                 "sched_type": "SCHED_TASK_SORT",

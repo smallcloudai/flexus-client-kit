@@ -90,6 +90,7 @@ def try_best_to_find_argument(args: dict, args_dict_from_model: Any, param_name:
 
     return default_value
 
+
 async def call_python_function_and_save_result(
     call: FCloudtoolCall,
     the_python_function: Callable[[FCloudtoolCall, Any], Awaitable[tuple[str, str]]],
@@ -112,25 +113,21 @@ async def call_python_function_and_save_result(
 
 
 async def cloudtool_post_result(client: ckit_client.FlexusClient, c: FCloudtoolCall, content: str, prov: str):
-    try:
-        http_client = await client.use_http()
-        async with http_client as http:
-            await http.execute(
-                gql.gql("""mutation CloudtoolPost($input: CloudtoolResultInput!) {
-                    cloudtool_post_result(input: $input)
-                }"""),
-                variable_values={
-                    "input": {
-                        "fcall_id": c.fcall_id,
-                        "ftm_content": content,
-                        "ftm_provenance": prov,
-                        "dollars": 0.0,
-                    }
-                },
-            )
-    except Exception as e:
-        # cloudtool_post_result doesn't throw anything logical, only socket errors here
-        logger.error("post result failed: %s" % e)
+    http_client = await client.use_http()
+    async with http_client as http:
+        await http.execute(
+            gql.gql("""mutation CloudtoolPost($input: CloudtoolResultInput!) {
+                cloudtool_post_result(input: $input)
+            }"""),
+            variable_values={
+                "input": {
+                    "fcall_id": c.fcall_id,
+                    "ftm_content": content,
+                    "ftm_provenance": prov,
+                    "dollars": 0.0,
+                }
+            },
+        )
 
 
 async def i_am_still_alive(

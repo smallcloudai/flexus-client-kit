@@ -183,8 +183,9 @@ class RobotContext:
             logger.error("Tool call %s failed: %s" % (toolcall.fcall_id, e), exc_info=True)  # full error and stack for the author of the bot
             tool_result = "Tool error, see logs for details"  # Not too much visible for end user
         prov = json.dumps({"system": fclient.service_name})
-        tool_result = json.dumps(tool_result)
-        await ckit_cloudtool.cloudtool_post_result(fclient, toolcall, tool_result, prov)
+        if tool_result != "WAIT_SUBCHATS":
+            tool_result = json.dumps(tool_result)
+            await ckit_cloudtool.cloudtool_post_result(fclient, toolcall, tool_result, prov)
 
 
 class BotInstance(NamedTuple):
@@ -325,7 +326,8 @@ async def subscribe_and_produce_callbacks(
                             logger.info("Thread %s is about persona=%s which is not running here." % (message.ftm_belongs_to_ft_id, persona_id))
                     else:
                         logger.info("Thread %s not found for the new message arrived, most likely ok because server side sends messages again when it sees a new untracked thread." % message.ftm_belongs_to_ft_id)
-
+                    if message.ftm_role == "kernel" and "logs" in message.ftm_provenance and message.ftm_provenance["logs"]:
+                        logger.info("Lark logs in %s:%03d:%03d:\n%s" % (message.ftm_belongs_to_ft_id, message.ftm_alt, message.ftm_num, "\n".join(message.ftm_provenance["logs"])))
                 elif upd.news_action == "DELETE":
                     # messages are never deleted as well
                     handled = True

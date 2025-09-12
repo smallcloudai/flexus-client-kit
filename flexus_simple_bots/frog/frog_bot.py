@@ -89,21 +89,22 @@ async def frog_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.R
         first_calls = ["null" for _ in range(N)]
         titles = [f"Catching insect #{i+1}" for i in range(N)]
 
-        # await ckit_ask_model.bot_subchat_create_multiple(
-        #     fclient,
-        #     "frog_catch_insects",
-        #     rcx.persona.persona_id,
-        #     first_questions,
-        #     first_calls,
-        #     titles,
-        #     toolcall.fcall_ft_id,
-        #     toolcall.fcall_ftm_alt,
-        #     toolcall.fcall_called_ftm_num,
-        # )
-
-        summary = f"Successfully launched {N} parallel insect-catching subchats!"
-        logger.info(f"Frog started {N} parallel insect catches")
-        return summary
+        if 1:
+            await ckit_ask_model.bot_subchat_create_multiple(
+                fclient,
+                "frog_catch_insects",
+                rcx.persona.persona_id,
+                first_questions,
+                first_calls,
+                titles,
+                toolcall.fcall_ft_id,
+                toolcall.fcall_ftm_alt,
+                toolcall.fcall_called_ftm_num,
+                toolcall.fcall_call_n,
+            )
+            return "WAIT_SUBCHATS"
+        else:
+            return f"Unsuccessfully launched {N} parallel insect-catching subchats!"
 
     try:
         while not ckit_shutdown.shutdown_event.is_set():
