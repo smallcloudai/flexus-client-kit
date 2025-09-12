@@ -26,25 +26,20 @@ class FMarketplaceExpertInput:
     fexp_allow_tools: str
     fexp_app_capture_tools: str = ""
 
-
-@dataclass
-class FeaturedAction:
-    id: str
+@dataclass 
+class FeaturedItemBase:
     label: str
-    prompt: str
+    prompt: Optional[str] = None
+    icon: str
+    icon_color: str
+    icon_bg_color: str
+@dataclass
+class FeaturedAction(FeaturedItemBase):
     required_setup_groups: List[str]
-    icon: str
-    icon_color: str
-    icon_bg_color: str
 
 @dataclass
-class FeaturedSetupCategory:
-    id: str
-    label: str
-    prompt: str
-    icon: str
-    icon_color: str
-    icon_bg_color: str
+class FeaturedSetupCategory(FeaturedItemBase):
+    pass
 
 async def marketplace_upsert_dev_bot(
     client: ckit_client.FlexusClient,
