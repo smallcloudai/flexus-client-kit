@@ -92,7 +92,7 @@ def try_best_to_find_argument(args: dict, args_dict_from_model: Any, param_name:
 
 async def call_python_function_and_save_result(
     call: FCloudtoolCall,
-    the_python_function: Callable[[FCloudtoolCall, Any], Awaitable[tuple[str, str]]],
+    the_python_function: Callable[[FCloudtoolCall, Any], Awaitable[Tuple[str, str] | Tuple[None, None]]],
     service_name: str,
     client: ckit_client.FlexusClient,
 ) -> None:
@@ -171,7 +171,7 @@ async def run_cloudtool_service_real(
     service_name: str,
     endpoint,
     tools: List[CloudTool],
-    the_python_function: Callable[[FCloudtoolCall, Any], Awaitable[tuple[str, str]]],  # should return tuple of tool result ftm_content as serialized json, and ftm_provenance as serialized json
+    the_python_function: Callable[[FCloudtoolCall, Any], Awaitable[Tuple[str, str] | Tuple[None, None]]],  # should return tuple of tool result ftm_content as serialized json, and ftm_provenance as serialized json
     max_tasks: int,
     fgroup_id: Optional[str],
     fuser_id: Optional[str],
@@ -257,7 +257,8 @@ async def run_cloudtool_service(
     service_name: str,
     endpoint: str,
     tools: List[CloudTool],
-    the_python_function: Callable[[FCloudtoolCall, Any], Awaitable[Optional[Tuple[str, str]]]],  # should return tuple of tool result ftm_content as serialized json, and ftm_provenance as serialized json
+    # should return tuple of tool result ftm_content as serialized json, and ftm_provenance as serialized json or tuple of None for delayed returns
+    the_python_function: Callable[[FCloudtoolCall, Any], Awaitable[Tuple[str, str] | Tuple[None, None]]],
     max_tasks: int = 64,
     fgroup_id: Optional[str] = None,
     fuser_id: Optional[str] = None,
