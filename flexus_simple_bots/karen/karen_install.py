@@ -113,8 +113,7 @@ async def install(
                 prompt="Generate a comprehensive report showing all completed tasks, their status, and performance metrics.",
                 required_setup_groups=["Slack"],
                 icon="file-pdf",
-                icon_color="#ffffff",
-                icon_bg_color="#22c55e"
+                theme="success"
             )
         ],
         marketable_featured_setup_categories=[
@@ -122,8 +121,7 @@ async def install(
                 label="Manage your Slack integration",
                 prompt="Help user to set up Slack integration, start from easiest. Guide them through creating a Slack app, getting bot tokens, and configuring channel access.",
                 icon="slack",
-                icon_color="#ffffff",
-                icon_bg_color="#4A154B"
+                theme="integration"
             )
         ],
         marketable_intro_message="Hey, happy to join your team!\nI'm ready to help you manage tasks and generate reports.\nLet me know what you need:\n• Set up your Slack integration to get started\n• I can help organize your team's workflow"

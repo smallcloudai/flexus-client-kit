@@ -29,13 +29,12 @@ class FMarketplaceExpertInput:
 @dataclass 
 class FeaturedItemBase:
     label: str
+    icon: str # PrimeVue.js icon key
+    theme: str
     prompt: Optional[str] = None
-    icon: str
-    icon_color: str
-    icon_bg_color: str
 @dataclass
 class FeaturedAction(FeaturedItemBase):
-    required_setup_groups: List[str]
+    required_setup_groups: Optional[List[str]] = None
 
 @dataclass
 class FeaturedSetupCategory(FeaturedItemBase):
