@@ -20,7 +20,7 @@ def get_fclient() -> ckit_client.FlexusClient:
     global _fclient
     if _fclient is None:
         _fclient = ckit_client.FlexusClient(
-            service_name=None,
+            service_name="fi_slack_test",
             base_url=os.getenv("FLEXUS_URL", "https://flexus.team"),
             api_key=os.getenv("FLEXUS_API_KEY"),
         )
