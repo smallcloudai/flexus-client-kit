@@ -255,10 +255,23 @@ class IntegrationSlackFake:
             self.channels_name2id.setdefault(channel, chan_id)
             self.channels_id2name.setdefault(chan_id, channel)
             self.messages.setdefault(chan_id, [])
+
+            something_id_slash_thread = f"{chan_id}/{thread}"
+            searchable = f"slack/{something_id_slash_thread}"
+            already_captured_by = None
+            for t in self.rcx.latest_threads.values():
+                if t.thread_fields.ft_app_searchable == searchable:
+                    already_captured_by = t
+                    break
+            if already_captured_by:
+                if already_captured_by.thread_fields.ft_id == toolcall.fcall_ft_id:
+                    return "Already captured"
+                else:
+                    return f"Some other chat is already capturing {something_id_slash_thread}"
+
             self.captured = (chan_id, thread)
             self.captured_ft_id = toolcall.fcall_ft_id
             http = await self.fclient.use_http()
-            searchable = f"slack/{chan_id}/{thread}"
             await ckit_ask_model.thread_app_capture_patch(
                 http, toolcall.fcall_ft_id, ft_app_searchable=searchable
             )
