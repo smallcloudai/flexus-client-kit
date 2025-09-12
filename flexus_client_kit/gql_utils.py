@@ -7,16 +7,6 @@ from flexus_client_kit import ckit_shutdown
 
 T = TypeVar('T')
 
-
-@dataclasses.dataclass
-class SetupMissing:
-    group: str
-    importance: int
-
-
-
-
-
 def strawberry_from_prisma(prisma_obj: pydantic.BaseModel, strawberry_class: Type[T]) -> T:
     """
     Prisma models are pydantic.BaseModel.
