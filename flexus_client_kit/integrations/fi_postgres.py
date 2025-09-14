@@ -15,7 +15,7 @@ POSTGRES_TOOL = ckit_cloudtool.CloudTool(
         "properties": {
             "query": {
                 "type": "string",
-                "description": "SQL query to execute, if there's data then it's on your to escape it according to SQL rules, this does not go via shell so no shell escape necessary."
+                "description": "SQL query to execute, if there's data then it's on your to escape it according to SQL rules. This does not go via shell so no shell escape necessary."
             }
         },
         "required": ["query"]
@@ -27,7 +27,7 @@ class IntegrationPostgres:
     async def execute_query(self, query: str) -> str:
         try:
             cmd = ["psql", "-c", query]
-            logger.info("Running", query[:30])   # Maybe there is user data so we cut it short
+            logger.info("Running %s", query[:30])   # Maybe there is user data so we cut it short
 
             proc = await asyncio.create_subprocess_exec(
                 *cmd,
@@ -52,9 +52,9 @@ class IntegrationPostgres:
             return "Internal error, more information in the bot logs :/"
 
     async def called_by_model(
-            self,
-            toolcall: ckit_cloudtool.FCloudtoolCall,
-            model_produced_args: Dict[str, Any],
+        self,
+        toolcall: ckit_cloudtool.FCloudtoolCall,
+        model_produced_args: Dict[str, Any],
     ) -> str:
         query = model_produced_args.get("query")
         if not query:

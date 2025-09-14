@@ -30,7 +30,7 @@ Frog is designed to be lightweight and easy to understand - ideal for learning h
 """
 
 
-frog_setup_default = [
+frog_setup_schema = [
     {
         "bs_name": "greeting_style",
         "bs_type": "string_short",
@@ -79,7 +79,7 @@ async def install(
         marketable_typical_group="Fun / Testing",
         marketable_github_repo="https://github.com/smallcloudai/flexus-client-kit.git",
         marketable_run_this="python -m flexus_simple_bots.frog.frog_bot",
-        marketable_setup_default=frog_setup_default,
+        marketable_setup_default=frog_setup_schema,
         marketable_preferred_model_default="grok-code-fast-1",
         marketable_daily_budget_default=100_000,
         marketable_default_inbox_default=10_000,
