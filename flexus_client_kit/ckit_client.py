@@ -1,9 +1,11 @@
 import os
 import asyncio
+import logging
 from dataclasses import dataclass
 from typing import Optional, Any, List
 
 import gql
+import re
 from gql.transport.websockets import WebsocketsTransport
 from gql.transport.aiohttp import AIOHTTPTransport
 
@@ -11,28 +13,39 @@ from flexus_client_kit import ckit_logs
 from flexus_client_kit import ckit_passwords, gql_utils
 
 
+FLEXUS_API_BASEURL_DEFAULT = "https://flexus.team/"
+
+
+logger = logging.getLogger("client")
+
+
+def bot_service_name(bot_name: str, bot_version: int, operating_in_group: str):
+    assert isinstance(bot_version, int)
+    return f"{bot_name}_{bot_version}_{operating_in_group}"
+
+
 class FlexusClient:
     def __init__(self,
         service_name: str,
         *,
         api_key: str = None,
-        use_ws_ticket: bool = False,
-        base_url: Optional[str] = None,
+        base_url: Optional[str] = None,   # "http://localhost:8008" if you have local flexus deployment
         endpoint: str = "/v1/graphql",
         skip_logger_init: bool = False,
     ):
         if not skip_logger_init:
             ckit_logs.setup_logger()
-        self.api_key = api_key
-        self.use_ws_ticket = use_ws_ticket
-        self.base_url_http = base_url or os.getenv("FLEXUS_API_BASEURL", "http://localhost:8008")
+        self.api_key = api_key or os.getenv("FLEXUS_API_KEY")
+        self.use_ws_ticket = os.getenv("FLEXUS_WS_TICKET") is not None
+        self.base_url_http = base_url or os.getenv("FLEXUS_API_BASEURL", FLEXUS_API_BASEURL_DEFAULT)
         self.base_url_ws = self.base_url_http.replace("https://", "wss://").replace("http://", "ws://")
         self.http_url = self.base_url_http.rstrip("/") + endpoint
         self.websocket_url = self.base_url_ws.rstrip("/") + endpoint
         self.endpoint = endpoint
         self.service_name = service_name
-        if api_key is None:
-            assert endpoint != "/v1/graphql", "Without API Key, you probably mean to access a superuser endpoint, not a regular user endpoint?"
+        logger.info("FlexusClient api_key=%s %s", ("..." + self.api_key[-4:]) if self.api_key else "None", self.http_url)
+        if self.api_key is None:
+            assert endpoint != "/v1/graphql", "Set FLEXUS_API_KEY you can generate on personal profile page."
 
     async def use_http(self) -> gql.Client:
         if self.api_key is not None:
@@ -75,6 +88,13 @@ class FlexusClient:
             }
         transport = WebsocketsTransport(url=self.websocket_url, init_payload=payload)
         return gql.Client(transport=transport, fetch_schema_from_transport=False)
+
+
+def marketplace_version_as_int(v: str) -> int:
+    if not re.match(r'^\d{1,4}\.\d{1,4}\.\d{1,4}$', v):
+        raise ValueError('bad version')
+    a, b, c = [int(x) for x in v.split('.')]
+    return a * 100_000_000 + b * 10_000 + c
 
 
 @dataclass

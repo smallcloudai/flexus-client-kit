@@ -18,7 +18,7 @@ logger = logging.getLogger("bot_karen")
 
 
 BOT_NAME = "karen"
-BOT_VERSION = "0.1.14"
+BOT_VERSION_INT = ckit_client.marketplace_version_as_int("0.1.14")
 
 
 FILE_JIRA_TOOL = ckit_cloudtool.CloudTool(
@@ -109,23 +109,13 @@ async def karen_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.
 def main():
     import argparse
     parser = argparse.ArgumentParser()
-    parser.add_argument("--baseurl", default="", help="Base URL for the Flexus API")
     parser.add_argument("--group", type=str, required=True, help="Flexus group ID where the bot will run, take it from the address bar in the browser when you are looking on something inside a group.")
-    parser.add_argument("--apikey", type=str, help="Your personal API key is suitable for a dev bot")
     args = parser.parse_args()
-    ENCODED_BOT_VERSION = ckit_bot_install.encode_market_version(BOT_VERSION)
-    fclient = ckit_client.FlexusClient(
-        f"{BOT_NAME}_{ENCODED_BOT_VERSION}_{args.group}",
-        base_url=args.baseurl,
-        endpoint="/v1/superuser-bot",
-        api_key=args.apikey,
-        use_ws_ticket=args.apikey is None
-    )
-
+    fclient = ckit_client.FlexusClient(ckit_client.bot_service_name(BOT_NAME, BOT_VERSION_INT, args.group), endpoint="/v1/jailed-bot")
     asyncio.run(ckit_bot_exec.run_bots_in_this_group(
         fclient,
         marketable_name=BOT_NAME,
-        marketable_version=ENCODED_BOT_VERSION,
+        marketable_version=BOT_VERSION_INT,
         fgroup_id=args.group,
         bot_main_loop=karen_main_loop,
         inprocess_tools=TOOLS,

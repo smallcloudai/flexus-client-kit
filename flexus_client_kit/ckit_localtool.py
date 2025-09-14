@@ -212,7 +212,7 @@ async def test(super: bool):
             "ckit_test",
         )
     else:
-        fclient = ckit_client.FlexusClient("ckit_test", endpoint="/v1/superuser-bot")
+        fclient = ckit_client.FlexusClient("ckit_test", endpoint="/v1/jailed-bot")
         # this will create a global expert
         fexp_id = await ckit_expert.make_sure_have_expert(
             fclient,

@@ -24,7 +24,6 @@ A simple and friendly bot that adds some fun to your workspace. Frog responds wi
 **Perfect for:**
 - Testing bot functionality
 - Adding fun to team interactions
-- Simple task tracking
 - Morale boosting
 
 Frog is designed to be lightweight and easy to understand - ideal for learning how Flexus bots work or just bringing some joy to your workspace!
@@ -128,9 +127,7 @@ async def install(
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--baseurl", default="", help="Base URL for the Flexus API")
-    parser.add_argument("--apikey", default="sk_alice_123456", help="API key for authentication")
     parser.add_argument("--ws", default="solarsystem", help="Workspace ID")
     args = parser.parse_args()
-    client = ckit_client.FlexusClient("frog_install", base_url=args.baseurl, api_key=args.apikey)
+    client = ckit_client.FlexusClient("frog_install")
     asyncio.run(install(client, ws_id=args.ws))
