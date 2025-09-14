@@ -167,7 +167,8 @@ async def i_am_still_alive(
 
 async def run_cloudtool_service_real(
     service_name: str,
-    endpoint,
+    endpoint: str,
+    superuser: bool,
     tools: List[CloudTool],
     the_python_function: Callable[[FCloudtoolCall, Any], Awaitable[Tuple[str, str] | Tuple[None, None]]],  # should return tuple of tool result ftm_content as serialized json, and ftm_provenance as serialized json
     max_tasks: int,
@@ -178,6 +179,7 @@ async def run_cloudtool_service_real(
     client = ckit_client.FlexusClient(
         service_name,
         endpoint=endpoint,
+        superuser=superuser,
     )
 
     workset: Set[asyncio.Task] = set()
@@ -252,6 +254,7 @@ async def run_cloudtool_service_real(
 async def run_cloudtool_service(
     service_name: str,
     endpoint: str,
+    superuser: bool,
     tools: List[CloudTool],
     # should return tuple of tool result ftm_content as serialized json, and ftm_provenance as serialized json or tuple of None for delayed returns
     the_python_function: Callable[[FCloudtoolCall, Any], Awaitable[Tuple[str, str] | Tuple[None, None]]],
@@ -265,6 +268,7 @@ async def run_cloudtool_service(
             await run_cloudtool_service_real(
                 service_name,
                 endpoint,
+                superuser,
                 tools,
                 the_python_function,
                 max_tasks,

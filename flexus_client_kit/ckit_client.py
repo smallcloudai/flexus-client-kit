@@ -16,7 +16,7 @@ from flexus_client_kit import ckit_passwords, gql_utils
 FLEXUS_API_BASEURL_DEFAULT = "https://flexus.team/"
 
 
-logger = logging.getLogger("client")
+logger = logging.getLogger("fclnt")
 
 
 def bot_service_name(bot_name: str, bot_version: int, operating_in_group: str):
@@ -36,7 +36,14 @@ class FlexusClient:
     ):
         if not skip_logger_init:
             ckit_logs.setup_logger()
-        self.api_key = (api_key or os.getenv("FLEXUS_API_KEY")) if not superuser else None
+        have_api_key = api_key or os.getenv("FLEXUS_API_KEY")
+        if superuser:
+            assert endpoint != "/v1/graphql", "Whoops superuser set but it's regular endpoint"
+            self.api_key = None
+        else:
+            assert have_api_key, "Set FLEXUS_API_KEY you can generate on your personal profile page."
+            assert "superuser" not in endpoint
+            self.api_key = have_api_key
         self.use_ws_ticket = os.getenv("FLEXUS_WS_TICKET") is not None
         self.base_url_http = base_url or os.getenv("FLEXUS_API_BASEURL", FLEXUS_API_BASEURL_DEFAULT)
         self.base_url_ws = self.base_url_http.replace("https://", "wss://").replace("http://", "ws://")
@@ -45,8 +52,6 @@ class FlexusClient:
         self.endpoint = endpoint
         self.service_name = service_name
         logger.info("FlexusClient api_key=%s %s", ("..." + self.api_key[-4:]) if self.api_key else "None", self.http_url)
-        if self.api_key is None:
-            assert endpoint != "/v1/graphql", "Set FLEXUS_API_KEY you can generate on personal profile page."
 
     async def use_http(self) -> gql.Client:
         if self.api_key is not None:
