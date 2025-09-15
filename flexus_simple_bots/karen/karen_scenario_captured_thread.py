@@ -106,7 +106,7 @@ async def run_scenario() -> None:
     bot_task = None
     try:
         bot_client = ckit_client.FlexusClient(
-            f"karen_test_{karen_bot.BOT_VERSION_INT}_{test_group_id}",
+            ckit_client.bot_service_name(karen_bot.KAREN_NAME, karen_bot.BOT_VERSION_INT, test_group_id),
             endpoint="/v1/jailed-bot"
         )
 
