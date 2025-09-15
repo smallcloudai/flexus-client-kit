@@ -9,7 +9,7 @@ from zoneinfo import ZoneInfo
 from jinja2 import Template
 from pymongo.collection import Collection
 
-from flexus_client_kit import ckit_cloudtool, ckit_mongo
+from flexus_client_kit import ckit_cloudtool, ckit_mongo, ckit_ask_model
 from flexus_client_kit.integrations.report.report_registry import list_available_reports, load_report_config
 from flexus_client_kit.integrations.report.report_validator import (
     validate_html_content, sanitize_html, validate_json_content
@@ -31,9 +31,9 @@ CREATE_REPORT_TOOL = ckit_cloudtool.CloudTool(
     },
 )
 
-GET_NEXT_TASK_TOOL = ckit_cloudtool.CloudTool(
-    name="get_next_report_task",
-    description="Get the next section to fill with example and context",
+PROCESS_REPORT_TOOL = ckit_cloudtool.CloudTool(
+    name="process_report",
+    description="Process all sections in the next incomplete phase using parallel subchats",
     parameters={
         "type": "object",
         "properties": {
@@ -84,7 +84,7 @@ LOAD_METADATA_TOOL = ckit_cloudtool.CloudTool(
 
 REPORT_TOOLS = [
     CREATE_REPORT_TOOL,
-    GET_NEXT_TASK_TOOL,
+    PROCESS_REPORT_TOOL,
     FILL_SECTION_TOOL,
     REPORT_STATUS_TOOL,
     LOAD_METADATA_TOOL
@@ -440,60 +440,11 @@ Type: {report_type}
 Entities: {', '.join(entities_list)}
 Total tasks to complete: {total_tasks}
 
-Use get_next_report_task(report_id="{report_id}") to start filling sections.
+Use process_report(report_id="{report_id}") to start processing phases.
 
 Available report types:
 {types_list}"""
 
-
-async def handle_get_next_task_tool(
-        ws_timezone: str,
-        mongo_collection: Collection,
-        *,
-        report_id: Optional[str] = None,
-) -> str:
-    if report_id is None:
-        return "Error: No report_id provided"
-
-    report_id = _fix_unicode_corruption(report_id)
-
-    tz = ZoneInfo(ws_timezone)
-    current_time = datetime.now(tz).strftime("%Y-%m-%d %H:%M:%S %Z")
-
-    try:
-        report_doc = await _get_report_doc_by_report_id(mongo_collection, ws_timezone, report_id)
-    except Exception as e:
-        return f"{e}"
-
-    if len(report_doc["json"]["todo_queue"]) > 0:
-        todo = report_doc["json"]["todo_queue"][0]
-        task = todo["task"]
-        if "depends_on" in todo and todo["depends_on"]:
-            dependant_sections = []
-            for s in report_doc["json"]["sections"].values():
-                if s["name"] in todo["depends_on"]:
-                    section_output = [
-                        f"📌 **{s['name']}**",
-                        "─" * 50
-                    ]
-                    if s.get("scraped_data_files"):
-                        section_output.append(f"📁 Scraped data: {s['scraped_data_files']}")
-                    if isinstance(s['content'], dict):
-                        section_output.append("📊 Content:")
-                        section_output.append(json.dumps(s['content'], indent=2))
-                    else:
-                        section_output.append("📝 Content:")
-                        section_output.append(str(s['content']))
-                    section_output.append("")
-                    dependant_sections.append("\n".join(section_output))
-            if dependant_sections:
-                formatted_dependencies = "\n".join(dependant_sections)
-                task = task.replace("Dependencies will be loaded from completed sections.",
-                                    f"=== Dependency Data ===\n{formatted_dependencies}")
-
-        return f"[{current_time} in {tz}]\n\n{task}"
-    else:
-        return f"[{current_time} in {tz}]\n\nAll tasks completed for report {report_id}."
 
 
 async def handle_fill_section_tool(
@@ -577,7 +528,8 @@ async def handle_fill_section_tool(
         result.append(export_result)
     else:
         result.append(
-            f'Call bot_kanban(op=restart, args={{"chat_summary": "Continue filling the {report_id} report"}})'
+            f"Remaining tasks: {len(report_data['todo_queue'])}. "
+            f"Use process_report(report_id='{report_id}') to process the next phase."
         )
     return "\n".join(result)
 
@@ -702,7 +654,7 @@ Available report types:
         if len(report_data["todo_queue"]) > 10:
             result.append(f"  ... and {len(report_data['todo_queue']) - 10} more tasks")
         result.append("")
-        result.append(f"🚀 Continue with: get_next_report_task(report_id='{report_id}')")
+        result.append(f"🚀 Continue with: process_report(report_id='{report_id}')")
     else:
         result.append("🎉 All tasks completed!")
     
@@ -776,3 +728,71 @@ async def handle_load_metadata_tool(
         output += "\n... [truncated - increase safety_valve to see more]"
 
     return output
+
+
+async def handle_process_report_tool(
+        ws_timezone: str,
+        mongo_collection: Collection,
+        fclient,
+        persona_id: str,
+        toolcall,
+        *,
+        report_id: Optional[str] = None,
+) -> str:
+    from collections import defaultdict
+    
+    if report_id is None:
+        return "Error: No report_id provided"
+
+    report_id = _fix_unicode_corruption(report_id)
+    
+    tz = ZoneInfo(ws_timezone)
+    current_time = datetime.now(tz).strftime("%Y-%m-%d %H:%M:%S %Z")
+
+    try:
+        report_doc = await _get_report_doc_by_report_id(mongo_collection, ws_timezone, report_id)
+    except Exception as e:
+        return f"{e}"
+
+    report_data = report_doc["json"]
+    todo = report_data.get("todo_queue", [])
+    
+    if not todo:
+        return f"[{current_time} in {tz}]\n\nReport {report_id} is already complete."
+
+    sections_config, _ = load_report_config(report_data["report_type"])
+    phases = defaultdict(list)
+    for task in todo:
+        section_base = task["section_name"].split("_")[0]
+        phase_num = sections_config.get(section_base, {}).get("phase", 1)
+        phases[phase_num].append(task)
+
+    # Find the next phase to process
+    next_phase = min(phases.keys())
+    tasks_in_phase = phases[next_phase]
+    
+    # Prepare subchat data
+    first_questions = []
+    first_calls = []
+    titles = []
+    
+    for task in tasks_in_phase:
+        first_questions.append(task["task"])
+        first_calls.append("null")
+        titles.append(f"Report {report_id}: {task['section_name']}")
+
+    # Create subchats
+    await ckit_ask_model.bot_subchat_create_multiple(
+        fclient,
+        "adspy_process_report",
+        persona_id,
+        first_questions,
+        first_calls,
+        titles,
+        toolcall.fcall_ft_id,
+        toolcall.fcall_ftm_alt,
+        toolcall.fcall_called_ftm_num,
+        toolcall.fcall_call_n,
+    )
+
+    return "WAIT_SUBCHATS"
