@@ -354,7 +354,7 @@ class IntegrationSlack:
                     if text := msg.get('text', None):
                         user_id = msg.get('user')
                         if user_id:
-                            author_name = await self.get_user_name(web_api_client, user_id)
+                            author_name = await self._get_user_name(web_api_client, user_id)
                         else:
                             author_name = "unknown_user"
                         text_content += f"👤{author_name}\n\n{text}\n\n"
@@ -526,13 +526,13 @@ class IntegrationSlack:
             return None
 
         t1 = time.time()
-        author_username = await self.get_user_name(web_api_client, user_id)
+        author_username = await self._get_user_name(web_api_client, user_id)
         t2 = time.time()
 
         user_mentions = re.findall(r'<@([A-Z0-9]+)>', text)
         mention_looked_up = dict()
         for user_id in user_mentions:
-            user_name = await self.get_user_name(web_api_client, user_id)
+            user_name = await self._get_user_name(web_api_client, user_id)
             text = text.replace(f'<@{user_id}>', f'@{user_name}')
             mention_looked_up[user_id] = user_name
 
@@ -864,7 +864,7 @@ class IntegrationSlack:
         #     text = msg.get('text', '')[:50].replace("\n", "\\n")
         #     logger.info(f"  {ts.strftime('%Y%m%d %H:%M')}: {text}")
 
-    async def get_user_name(self, web_api_client: AsyncWebClient, user_id: str) -> str:
+    async def _get_user_name(self, web_api_client: AsyncWebClient, user_id: str) -> str:
         if user_id in self.users_id2name:
             return self.users_id2name[user_id]
         try:
