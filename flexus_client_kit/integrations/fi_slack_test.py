@@ -57,12 +57,6 @@ def _create_test_files():
 
 
 async def _create_slack_bot(is_fake: bool = False):
-    required = ["FLEXUS_API_KEY"]
-    if not is_fake:
-        required += ["SLACK_BOT_TOKEN", "SLACK_APP_TOKEN"]
-    if not all(os.getenv(env) for env in required):
-            pytest.skip(f"Missing: {', '.join(required)}")
-
     fclient = get_fclient()
     bs = await ckit_client.query_basic_stuff(fclient)
     persona = ckit_bot_exec.FPersonaOutput(
@@ -82,7 +76,7 @@ async def _create_slack_bot(is_fake: bool = False):
     rcx.workdir = TEST_DIR
 
     if not is_fake:
-        return IntegrationSlack(fclient, rcx, os.getenv("SLACK_BOT_TOKEN"), os.getenv("SLACK_APP_TOKEN"), should_join="tests")
+        return IntegrationSlack(fclient, rcx, os.environ["SLACK_BOT_TOKEN"], os.environ["SLACK_APP_TOKEN"], should_join="tests")
     else:
         from flexus_client_kit.integrations.fi_slack_fake import IntegrationSlackFake
         return IntegrationSlackFake(fclient, rcx, should_join="tests")
