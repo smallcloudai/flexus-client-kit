@@ -18,11 +18,11 @@ MONGO_STORE_TOOL = ckit_cloudtool.CloudTool(
         "properties": {
             "op": {
                 "type": "string",
-                "description": "upload, download, list, cat, delete or help"
+                "description": "upload, list, cat, delete or help"
             },
             "args": {
                 "type": "object",
-                "description": "Operations upload, download, delete, cat require 'path'. "
+                "description": "Operations upload, delete, cat require 'path'. "
                                "Operation 'list' uses optional 'path' for prefix filtering. "
                                "Operation 'cat' has optional 'safety_valve' in bytes to prevent a large file from clogging context. Use op=help for details."
             },
@@ -36,9 +36,6 @@ Help:
 
 mongo_store(op="upload", args={"path": "folder1/something_20250803.json"})
     Uploads file from local path to MongoDB, stores as "folder1/something_20250803.json".
-
-mongo_store(op="download", args={"path": "folder1/something_20250803.json"})
-    Downloads file from MongoDB to local file "folder1/something_20250803.json".
 
 mongo_store(op="list", args={"path": "folder1/"})
     Lists files in MongoDB with the given prefix.
@@ -91,31 +88,6 @@ async def handle_mongo_store(
         if was_overwritten:
             result_msg += " [OVERWRITTEN existing file]"
         return result_msg
-
-    elif op == "download":
-        if not path:
-            return f"Error: path parameter required for download operation\n\n{HELP}"
-        path_error = validate_path(path)
-        if path_error:
-            return f"Error: {path_error}"
-        document = await ckit_mongo.retrieve_file(mongo_collection, path)
-        if not document:
-            return f"Error: File {path} not found in MongoDB"
-        local_path = os.path.join(workdir, path)
-        resolved_path = os.path.abspath(local_path)
-        if not resolved_path.startswith(os.path.abspath(workdir) + "/"):
-            return f"Error: Path resolves outside workspace: {path}"
-        os.makedirs(os.path.dirname(resolved_path), exist_ok=True)
-        resolved_path = os.path.abspath(local_path)
-        if "data" in document:
-            with open(resolved_path, 'wb') as f:
-                f.write(document["data"])
-        elif "json" in document:
-            with open(resolved_path, 'w') as f:
-                json.dump(document["json"], f, indent=2)
-        else:
-            return f"Error: File {path} has unknown format, cannot save it"
-        return f"Downloaded {path} -> local file"
 
     elif op in ["list", "ls"]:
         if not path:
@@ -181,3 +153,26 @@ def validate_path(path: str, allow_empty: bool = False) -> Optional[str]:
     if ".." in path or path.startswith("/") or "\\" in path:
         return "Path contains traversal sequences"
     return None
+
+
+async def download_file(mongo_collection, path, local_path):
+    if not path:
+        raise RuntimeError(f"Error: path parameter required for download operation\n\n{HELP}")
+    path_error = validate_path(path)
+    if path_error:
+        raise RuntimeError(f"Error: {path_error}")
+    document = await ckit_mongo.retrieve_file(mongo_collection, path)
+    if not document:
+        raise RuntimeError(f"Error: File {path} not found in MongoDB")
+    resolved_path = os.path.abspath(local_path)
+    os.makedirs(os.path.dirname(resolved_path), exist_ok=True)
+    resolved_path = os.path.abspath(local_path)
+    if "data" in document:
+        with open(resolved_path, 'wb') as f:
+            f.write(document["data"])
+    elif "json" in document:
+        with open(resolved_path, 'w') as f:
+            json.dump(document["json"], f, indent=2)
+    else:
+        raise RuntimeError("Error: File {path} has unknown format, cannot save it")
+    return path

@@ -6,7 +6,6 @@ Flexus Client Kit (ckit)
 
 fi_discord.py
 fi_gmail.py
-fi_localfile.py
 fi_mongo_store.py
 fi_report.py
 fi_slack.py
