@@ -416,6 +416,8 @@ class IntegrationSlack:
                     }),
                 )
                 r += "Captured! The next thing you write will be visible in Slack. Don't comment on that fact and think about what do you want to say in %r.\n" % (something_name,)
+                r += "Don't use op=post because now anything you say is visible on Slack automatically.\n"
+                # XXX reject op=post
 
             except SlackApiError as e:
                 r += "ERROR: %s %s\n" % (type(e).__name__, e)
