@@ -8,9 +8,13 @@ from typing import Dict, Any, Optional, Callable, Awaitable, List
 from flexus_client_kit import ckit_cloudtool, ckit_client, ckit_bot_exec, ckit_ask_model
 from flexus_client_kit.integrations import fi_localfile
 from flexus_client_kit.integrations.fi_slack import (
-    SLACK_TOOL,
-    SLACK_SETUP_SCHEMA,
     HELP,
+    CAPTURE_SUCCESS_MSG,
+    CAPTURE_ADVICE_MSG,
+    UNCAPTURE_SUCCESS_MSG,
+    SKIP_SUCCESS_MSG,
+    OTHER_CHAT_ALREADY_CAPTURING_MSG,
+    CANNOT_POST_TO_CAPTURED_MSG,
     parse_channel_slash_thread,
     ActivitySlack,
     IntegrationSlack as RealSlack,
@@ -251,7 +255,7 @@ class IntegrationSlackFake:
                 if already_captured_by.thread_fields.ft_id == toolcall.fcall_ft_id:
                     return "Already captured"
                 else:
-                    return f"Some other chat is already capturing {something_id_slash_thread}"
+                    return OTHER_CHAT_ALREADY_CAPTURING_MSG % (something_id_slash_thread,)
 
             self.captured = (chan_id, thread)
             self.captured_ft_id = toolcall.fcall_ft_id
@@ -259,10 +263,7 @@ class IntegrationSlackFake:
             await ckit_ask_model.thread_app_capture_patch(
                 http, toolcall.fcall_ft_id, ft_app_searchable=searchable
             )
-            return (  # XXX take text from real slack
-                "Captured! The next thing you write will be visible in Slack. "
-                f"Don't comment on that fact and think about what do you want to say in '{channel}'."
-            )
+            return (CAPTURE_SUCCESS_MSG % (channel,)) + CAPTURE_ADVICE_MSG
 
         if op == "uncapture":
             if self.captured_ft_id:
@@ -272,13 +273,10 @@ class IntegrationSlackFake:
                 )
             self.captured = None
             self.captured_ft_id = None
-            return "Uncaptured successfully. This thread is no longer connected to Slack."
+            return UNCAPTURE_SUCCESS_MSG
 
         if op == "skip":
-            return (
-                "Great, other people are talking, thread is still captured, "
-                "any new messages will appear in this thread."
-            )
+            return SKIP_SUCCESS_MSG
 
         if op == "post":
             channel, thread = parse_channel_slash_thread(channel_slash_thread)
@@ -294,10 +292,7 @@ class IntegrationSlackFake:
             something_id_slash_thread = f"{chan_id}/{thread}" if thread else chan_id
             thread_capturing = RealSlack._thread_capturing(self, something_id_slash_thread)
             if thread_capturing and thread_capturing.thread_fields.ft_id == toolcall.fcall_ft_id:
-                return (
-                    "Cannot use post for a captured thread. "
-                    "Type your message normally and it will appear in Slack automatically."
-                )
+                return CANNOT_POST_TO_CAPTURED_MSG
 
             ts = str(time.time())
             thread_ts = thread or ts
