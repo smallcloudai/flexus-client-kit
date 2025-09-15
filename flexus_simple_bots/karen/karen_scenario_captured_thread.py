@@ -1,7 +1,6 @@
 import asyncio
 import contextlib
 import json
-import os
 import uuid
 
 import gql
@@ -16,13 +15,12 @@ from flexus_client_kit.integrations.fi_slack_fake import (
 )
 
 
-# XXX use query_basic_stuff(), look for have_admin=True
-PARENT_FGROUP_ID = "solar_root"
-
 karen_bot.fi_slack.IntegrationSlack = IntegrationSlackFake
 
 
 async def setup_test(client: ckit_client.FlexusClient) -> tuple[str, str, str]:
+    ws = (await ckit_client.query_basic_stuff(client)).workspaces
+    parent_id = next((w.ws_root_group_id for w in ws if w.have_admin), ws[0].ws_root_group_id)
     http = await client.use_http()
 
     test_group_name = f"aws-docs-test-{str(uuid.uuid4())[:8]}"
@@ -37,7 +35,7 @@ async def setup_test(client: ckit_client.FlexusClient) -> tuple[str, str, str]:
             variable_values={
                 "input": {
                     "fgroup_name": test_group_name,
-                    "fgroup_parent_id": PARENT_FGROUP_ID
+                    "fgroup_parent_id": parent_id
                 }
             },
         )
