@@ -14,6 +14,7 @@ from flexus_client_kit.integrations.fi_slack import (
     parse_channel_slash_thread,
     ActivitySlack,
     IntegrationSlack as RealSlack,
+    logger,
 )
 
 
@@ -72,19 +73,22 @@ class IntegrationSlackFake:
             self.actually_joined.add(name)
 
     async def post_into_captured_thread_as_user(self, a: ActivitySlack, chan_id: str) -> bool:
-        if self.captured == (chan_id, a.thread_ts) and self.captured_ft_id:
-            content = [{"m_type": "text", "m_content": f"👤{a.message_author_name}\n\n{a.message_text}"}]
-            if a.file_contents:
-                content.extend(a.file_contents)
-            try:
-                http = await self.fclient.use_http()
-                await ckit_ask_model.thread_add_user_message(
-                    http, self.captured_ft_id, content, "slack_fake", ftm_alt=100
-                )
-                return True
-            except Exception:
-                return False
-        return False
+        something_id_slash_thread = f"{chan_id}/{a.thread_ts}" if a.thread_ts else chan_id
+        thread_capturing = RealSlack._thread_capturing(self, something_id_slash_thread)
+        if not thread_capturing:
+            return False
+        content = [{"m_type": "text", "m_content": f"👤{a.message_author_name}\n\n{a.message_text}"}]
+        if a.file_contents:
+            content.extend(a.file_contents)
+        try:
+            http = await self.fclient.use_http()
+            await ckit_ask_model.thread_add_user_message(
+                http, thread_capturing.thread_fields.ft_id, content, "slack_fake", ftm_alt=100
+            )
+            return True
+        except Exception:
+            logger.exception(f"Failed to post message into captured ft_id={thread_capturing.thread_fields.ft_id}")
+            return False
 
     async def _receive_fake_message(
         self,
@@ -242,11 +246,7 @@ class IntegrationSlackFake:
 
             something_id_slash_thread = f"{chan_id}/{thread}"
             searchable = f"slack/{something_id_slash_thread}"
-            already_captured_by = None
-            for t in self.rcx.latest_threads.values():
-                if t.thread_fields.ft_app_searchable == searchable:
-                    already_captured_by = t
-                    break
+            already_captured_by = RealSlack._thread_capturing(self, something_id_slash_thread)
             if already_captured_by:
                 if already_captured_by.thread_fields.ft_id == toolcall.fcall_ft_id:
                     return "Already captured"
@@ -291,6 +291,14 @@ class IntegrationSlackFake:
             self.users_id2name.setdefault("bot", "bot")
             self.users_name2id.setdefault("bot", "bot")
 
+            something_id_slash_thread = f"{chan_id}/{thread}" if thread else chan_id
+            thread_capturing = RealSlack._thread_capturing(self, something_id_slash_thread)
+            if thread_capturing and thread_capturing.thread_fields.ft_id == toolcall.fcall_ft_id:
+                return (
+                    "Cannot use post for a captured thread. "
+                    "Type your message normally and it will appear in Slack automatically."
+                )
+
             ts = str(time.time())
             thread_ts = thread or ts
             msg: Dict[str, Any] = {
@@ -329,10 +337,7 @@ class IntegrationSlackFake:
 
             self.messages[chan_id].append(msg)
 
-            if (
-                self.activity_callback
-                and self.captured == (chan_id, thread_ts)
-            ):
+            if self.activity_callback and thread_capturing and thread_capturing.thread_fields.ft_id == toolcall.fcall_ft_id:
                 activity = ActivitySlack(
                     what_happened="post",
                     channel_name=self.channels_id2name[chan_id],

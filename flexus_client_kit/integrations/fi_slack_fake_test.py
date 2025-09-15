@@ -112,6 +112,11 @@ async def test_fake_capture_thread():
             {},
         )
 
+        post_args = {"op": "post", "args": {"channel_slash_thread": f"tests/{thread_ts}", "text": "blocked"}}
+        tcall_post = await _create_toolcall(slack_bot, "postfail", ft_id, post_args)
+        result_post = await slack_bot.called_by_model(toolcall=tcall_post, model_produced_args=post_args)
+        assert "captured thread" in result_post.lower()
+
         await post_fake_slack_message(f"tests/{thread_ts}", "captured msg")
         act_after, posted_after = await asyncio.wait_for(activity_queue.get(), timeout=3)
         assert posted_after and act_after.message_text == "captured msg"
