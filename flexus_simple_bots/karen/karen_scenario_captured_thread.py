@@ -8,7 +8,6 @@ import gql
 
 from flexus_simple_bots.karen import karen_bot
 from flexus_client_kit import ckit_bot_exec, ckit_bot_install, ckit_client
-from flexus_client_kit.ckit_bot_install import encode_market_version
 from flexus_client_kit.integrations.fi_slack_fake import (
     FAKE_SLACK_INSTANCES,
     IntegrationSlackFake,
@@ -17,7 +16,8 @@ from flexus_client_kit.integrations.fi_slack_fake import (
 )
 
 
-PARENT_FGROUP_ID = "LMpe5F2Puu"
+# XXX use query_basic_stuff(), look for have_admin=True
+PARENT_FGROUP_ID = "solar_root"
 
 karen_bot.fi_slack.IntegrationSlack = IntegrationSlackFake
 
@@ -58,6 +58,7 @@ async def setup_test(client: ckit_client.FlexusClient) -> tuple[str, str, str]:
                     "mcp_command": "uvx awslabs.aws-documentation-mcp-server@latest",
                     "mcp_description": "https://awslabs.github.io/mcp/servers/aws-documentation-mcp-server/",
                     "mcp_enabled": True,
+                    "mcp_preinstall_script": "",
                     "owner_shared": True,
                     "mcp_env_vars": json.dumps({
                         "FASTMCP_LOG_LEVEL": "ERROR",
@@ -73,7 +74,7 @@ async def setup_test(client: ckit_client.FlexusClient) -> tuple[str, str, str]:
         client,
         ws_id=ws_id,
         inside_fgroup=test_group_id,
-        persona_marketable_name="karen_test",
+        persona_marketable_name="karen",
         persona_id=persona_id,
         persona_name="Karen AWS Docs Test",
         new_setup={
@@ -120,39 +121,31 @@ async def run_scenario() -> None:
             marketable_version=karen_bot.BOT_VERSION_INT,
             inprocess_tools=karen_bot.TOOLS,
             bot_main_loop=karen_bot.karen_main_loop,
-        ))
+        ))   # take rcx
 
+        # XXX wait for MCP
         while not FAKE_SLACK_INSTANCES:
             await asyncio.sleep(0.1)
 
-        first_msg = await post_fake_slack_message(
-            "support",
-            "Which service of AWS offers me inference of big models like anthropic models?",
-            user="user",
-        )
+        first_msg = await post_fake_slack_message("support", "Which service of AWS offers me inference of big models like anthropic models?")
         await wait_for_bot_message("support")
+        assert "ts" in first_msg
+        thread_ts = first_msg["ts"]
 
-        thread_ts = first_msg.get("ts") if first_msg else None
-
-        await post_fake_slack_message(
-            f"support/{thread_ts}",
-            "Is there rust SDK for it?",
-            user="user",
-        )
+        await post_fake_slack_message(f"support/{thread_ts}", "Is there rust SDK for it?")
         await wait_for_bot_message(f"support/{thread_ts}")
-
-        await post_fake_slack_message(
-            f"support/{thread_ts}",
-            "Give me example of how to invoke model in python to ask it a simple prompt and get result",
-            user="user",
-        )
+        await post_fake_slack_message(f"support/{thread_ts}", "Give me example of how to invoke model in python to ask it a simple prompt and get result")
         await wait_for_bot_message(f"support/{thread_ts}")
 
         print("Test completed successfully. Waiting 5 minutes before cleanup...")
         await asyncio.sleep(300)
 
+    except TimeoutError:
+        print("Timed out, no answer :/")
+
     except KeyboardInterrupt:
         print("Test interrupted by user. Starting cleanup...")
+
     finally:
         if bot_task:
             bot_task.cancel()
