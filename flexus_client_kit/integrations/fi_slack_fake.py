@@ -237,15 +237,23 @@ class IntegrationSlackFake:
             args, model_produced_args, "localfile_path", ""
         )
 
-        if not op or "help" in op:
-            return HELP
+        print_help = not op or "help" in op
+        print_status = not op or "status" in op
 
-        if op == "status":
+        result = ""
+        if print_status:
             joined = ", ".join(sorted(self.actually_joined)) or "none"
             if self.captured:
                 ch = self.channels_id2name.get(self.captured[0], self.captured[0])
-                return f"fake slack: joined [{joined}], capturing #{ch}/{self.captured[1]}"
-            return f"fake slack: joined [{joined}], not capturing"
+                result += f"fake slack: joined [{joined}], capturing #{ch}/{self.captured[1]}\n"
+            else:
+                result += f"fake slack: joined [{joined}], not capturing\n"
+
+        if print_help:
+            result += HELP
+
+        if print_status or print_help:
+            return result
 
         if op == "capture":
             channel, thread = parse_channel_slash_thread(channel_slash_thread)
