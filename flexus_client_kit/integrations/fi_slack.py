@@ -362,13 +362,13 @@ class IntegrationSlack:
                     files = msg.get('files', [])
                     for file_info in files[:2]:  # Limit to 2 files per message to avoid overwhelming
                         try:
-                            file_bytes, mimetype = await self.download_slack_file(file_info)
+                            file_bytes, mimetype = await self._download_slack_file(file_info)
                             if file_bytes:
                                 filename = file_info.get('name', 'unknown')
                                 if mimetype and mimetype.startswith('image/') and len(image_parts) < 3:  # Max 3 images total
-                                    image_parts.append(await self.process_slack_image(file_bytes, mimetype))
-                                elif self.is_text_file(file_bytes):
-                                    processed = await self.process_slack_text_file(file_bytes, filename)
+                                    image_parts.append(await self._process_slack_image(file_bytes, mimetype))
+                                elif self._is_text_file(file_bytes):
+                                    processed = await self._process_slack_text_file(file_bytes, filename)
                                     file_summaries.append(processed['m_content'])
                                 else:
                                     file_summaries.append(f"[Binary file: {filename} ({len(file_bytes)} bytes)]")
@@ -542,14 +542,14 @@ class IntegrationSlack:
         text_files = []
         for file_info in files[:5]:  # Process up to 5 files
             try:
-                file_bytes, mimetype = await self.download_slack_file(file_info)
+                file_bytes, mimetype = await self._download_slack_file(file_info)
                 if file_bytes:
                     filename = file_info.get('name', 'unknown')
                     if mimetype and mimetype.startswith('image/') and image_count < 2:  # Max 2 images
-                        file_contents.append(await self.process_slack_image(file_bytes, mimetype))
+                        file_contents.append(await self._process_slack_image(file_bytes, mimetype))
                         image_count += 1
-                    elif self.is_text_file(file_bytes):
-                        processed = await self.process_slack_text_file(file_bytes, filename)
+                    elif self._is_text_file(file_bytes):
+                        processed = await self._process_slack_text_file(file_bytes, filename)
                         text_files.append(processed['m_content'])
                     else:
                         text_files.append(f"[Binary file: {filename} ({len(file_bytes)} bytes)]")
@@ -686,64 +686,6 @@ class IntegrationSlack:
         return True
 
 
-    def is_text_file(self, data: bytes) -> bool:
-        if not data:
-            return True
-        if b'\x00' in data[:1024]:  # Check first 1KB for null bytes
-            return False
-        sample_size = min(1024, len(data))
-        try:
-            sample_text = data[:sample_size].decode('utf-8')
-        except UnicodeDecodeError:
-            return False
-        printable_chars = sum(1 for c in sample_text if c.isprintable() or c.isspace())
-        printable_ratio = printable_chars / len(sample_text) if sample_text else 1.0
-        return printable_ratio > 0.8
-
-    async def process_slack_image(self, file_bytes: bytes, mimetype: str) -> dict:
-        try:
-            img = Image.open(io.BytesIO(file_bytes))
-            img.thumbnail((600, 600), Image.Resampling.LANCZOS)
-            buffer = io.BytesIO()
-            if img.mode == "RGBA":
-                img = img.convert("RGB")
-            img.save(buffer, format='JPEG', quality=80, optimize=True)
-            buffer.seek(0)
-            image_base64 = base64.b64encode(buffer.read()).decode('utf-8')
-            return {"m_type": "image/jpeg", "m_content": image_base64}
-        except Exception as e:
-            logger.exception("Failed to process image")
-            return {"m_type": "text", "m_content": f"[Image processing failed: {e}]"}
-
-    async def process_slack_text_file(self, file_bytes: bytes, filename: str) -> dict:
-        formatted = format_cat_output(
-            path=filename,
-            file_data=file_bytes,
-            line_range="1:",
-            safety_valve="10k"  # Limit to 10KB
-        )
-        return {"m_type": "text", "m_content": f"📎 {formatted}"}
-
-    async def download_slack_file(self, file_info: dict) -> tuple[Optional[bytes], Optional[str]]:
-        url = file_info.get('url_private_download')
-        if not url:
-            logger.warning(f"No download URL for file: {file_info.get('name', 'unknown')}")
-            return None, None
-
-        headers = {'Authorization': f'Bearer {self.SLACK_BOT_TOKEN}'}
-        try:
-            async with httpx.AsyncClient() as client:
-                response = await client.get(url, headers=headers, timeout=30.0)
-                if response.status_code == 200:
-                    return response.content, file_info.get('mimetype', 'application/octet-stream')
-                else:
-                    logger.error(f"Failed to download file, status: {response.status_code}")
-                    return None, None
-        except Exception as e:
-            logger.exception("Error downloading file from Slack")
-            return None, None
-
-    # - - other stuff like joining the right channels - -
 
     async def join_channels(self):
         if not self.reactive_slack:
@@ -863,6 +805,63 @@ class IntegrationSlack:
             cursor = messages_response.get("response_metadata", {}).get("next_cursor")
             if not messages_response.get("has_more") or not cursor:
                 break
+
+    def _is_text_file(self, data: bytes) -> bool:
+        if not data:
+            return True
+        if b'\x00' in data[:1024]:  # Check first 1KB for null bytes
+            return False
+        sample_size = min(1024, len(data))
+        try:
+            sample_text = data[:sample_size].decode('utf-8')
+        except UnicodeDecodeError:
+            return False
+        printable_chars = sum(1 for c in sample_text if c.isprintable() or c.isspace())
+        printable_ratio = printable_chars / len(sample_text) if sample_text else 1.0
+        return printable_ratio > 0.8
+
+    async def _process_slack_image(self, file_bytes: bytes, mimetype: str) -> dict:
+        try:
+            img = Image.open(io.BytesIO(file_bytes))
+            img.thumbnail((600, 600), Image.Resampling.LANCZOS)
+            buffer = io.BytesIO()
+            if img.mode == "RGBA":
+                img = img.convert("RGB")
+            img.save(buffer, format='JPEG', quality=80, optimize=True)
+            buffer.seek(0)
+            image_base64 = base64.b64encode(buffer.read()).decode('utf-8')
+            return {"m_type": "image/jpeg", "m_content": image_base64}
+        except Exception as e:
+            logger.exception("Failed to process image")
+            return {"m_type": "text", "m_content": f"[Image processing failed: {e}]"}
+
+    async def _process_slack_text_file(self, file_bytes: bytes, filename: str) -> dict:
+        formatted = format_cat_output(
+            path=filename,
+            file_data=file_bytes,
+            line_range="1:",
+            safety_valve="10k"  # Limit to 10KB
+        )
+        return {"m_type": "text", "m_content": f"📎 {formatted}"}
+
+    async def _download_slack_file(self, file_info: dict) -> tuple[Optional[bytes], Optional[str]]:
+        url = file_info.get('url_private_download')
+        if not url:
+            logger.warning(f"No download URL for file: {file_info.get('name', 'unknown')}")
+            return None, None
+
+        headers = {'Authorization': f'Bearer {self.SLACK_BOT_TOKEN}'}
+        try:
+            async with httpx.AsyncClient() as client:
+                response = await client.get(url, headers=headers, timeout=30.0)
+                if response.status_code == 200:
+                    return response.content, file_info.get('mimetype', 'application/octet-stream')
+                else:
+                    logger.error(f"Failed to download file, status: {response.status_code}")
+                    return None, None
+        except Exception as e:
+            logger.exception("Error downloading file from Slack")
+            return None, None
 
     async def _get_user_name(self, web_api_client: AsyncWebClient, user_id: str) -> str:
         if user_id in self.users_id2name:
