@@ -120,25 +120,25 @@ async def marketplace_upsert_dev_bot(
 async def bot_install_from_marketplace(
     client: ckit_client.FlexusClient,
     ws_id: str,
+    inside_fgroup: Optional[str],
     persona_marketable_name: str,
-    persona_id: str,
     persona_name: str,
     new_setup: Dict[str, Union[str, int, bool]],
-    inside_fgroup: Optional[str] = None,
-    specific_version: Optional[int] = None,
     install_dev_version: bool = False,
+    persona_id: Optional[str] = None,
+    specific_version: Optional[int] = None,
 ) -> InstallationResult:
     http = await client.use_http()
     async with http as h:
         r = await h.execute(
-            gql.gql("""mutation PersonaUpsert($ws: String!, $g: String, $mn: String!, $id: String!, $name: String!, $setup: String!, $v: Int, $dev: Boolean!) {
+            gql.gql("""mutation PersonaUpsert($ws: String!, $g: String, $mn: String!, $id: String, $name: String!, $setup: String!, $v: Int, $dev: Boolean!) {
                 bot_install_from_marketplace(
                     ws_id: $ws,
                     inside_fgroup_id: $g,
                     persona_marketable_name: $mn,
                     persona_id: $id,
                     persona_name: $name,
-                    new_setup: $setup
+                    new_setup: $setup,
                     specific_version: $v,
                     install_dev_version: $dev,
                 ) {

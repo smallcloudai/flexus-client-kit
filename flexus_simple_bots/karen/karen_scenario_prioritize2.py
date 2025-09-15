@@ -10,7 +10,7 @@ async def init(client: ckit_client.FlexusClient, ws_id: str, fgroup_id: str, per
     await ckit_bot_install.bot_install_from_marketplace(
         client,
         ws_id=ws_id,
-        inside_fgroup_id=fgroup_id,
+        inside_fgroup=fgroup_id,
         persona_marketable_name=karen_bot.BOT_NAME,
         persona_id=persona_id,
         persona_name="Karen Superbot 3",
