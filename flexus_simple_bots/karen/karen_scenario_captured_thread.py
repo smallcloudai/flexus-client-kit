@@ -71,7 +71,7 @@ async def setup_test(client: ckit_client.FlexusClient) -> tuple[str, str, str]:
         client,
         ws_id=ws_id,
         inside_fgroup=test_group_id,
-        persona_marketable_name="karen",
+        persona_marketable_name=karen_bot.BOT_NAME,
         persona_name="Karen AWS Docs Test",
         new_setup={
             "SLACK_BOT_TOKEN": "fake_bot_token",
@@ -106,7 +106,7 @@ async def run_scenario() -> None:
     bot_task = None
     try:
         bot_client = ckit_client.FlexusClient(
-            f"karen_test_{karen_bot.BOT_VERSION_INT}_{test_group_id}",
+            ckit_client.bot_service_name(karen_bot.BOT_NAME, karen_bot.BOT_VERSION_INT, test_group_id),
             endpoint="/v1/jailed-bot"
         )
 
