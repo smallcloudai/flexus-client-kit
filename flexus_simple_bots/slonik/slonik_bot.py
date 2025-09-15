@@ -50,7 +50,7 @@ async def slonik_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec
     @rcx.on_tool_call(fi_postgres.POSTGRES_TOOL.name)
     async def toolcall_postgres(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
         have_human_confirmation = False
-        return await postgres.called_by_model(toolcall, model_produced_args, have_human_confirmation)
+        return await postgres.called_by_model(toolcall, model_produced_args)
 
     @rcx.on_tool_call(fi_mongo_store.MONGO_STORE_TOOL.name)
     async def toolcall_mongo_store(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:

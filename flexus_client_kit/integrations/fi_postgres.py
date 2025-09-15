@@ -105,12 +105,11 @@ class IntegrationPostgres:
         self,
         toolcall: ckit_cloudtool.FCloudtoolCall,
         model_produced_args: Dict[str, Any],
-        have_human_confirmation: bool,
     ) -> str:
         query = model_produced_args.get("query")
         if not query:
             return "Error: specify `query` parameter"
-        return await self.execute_query(query, have_human_confirmation)
+        return await self.execute_query(query, toolcall.confirmed_by_human)
 
 
 if __name__ == "__main__":
