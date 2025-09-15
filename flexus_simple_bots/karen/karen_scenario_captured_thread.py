@@ -25,7 +25,6 @@ karen_bot.fi_slack.IntegrationSlack = IntegrationSlackFake
 async def setup_test(client: ckit_client.FlexusClient) -> tuple[str, str, str]:
     http = await client.use_http()
 
-    test_group_name = f"aws-docs-test-{str(uuid.uuid4())[:8]}"
     async with http as h:
         create_resp = await h.execute(
             gql.gql("""mutation CreateGroup($input: FlexusGroupInput!) {
@@ -36,7 +35,7 @@ async def setup_test(client: ckit_client.FlexusClient) -> tuple[str, str, str]:
             }"""),
             variable_values={
                 "input": {
-                    "fgroup_name": test_group_name,
+                    "fgroup_name": f"scenario-captured-thread-{str(uuid.uuid4())[:6]}",
                     "fgroup_parent_id": PARENT_FGROUP_ID
                 }
             },
@@ -82,10 +81,10 @@ async def setup_test(client: ckit_client.FlexusClient) -> tuple[str, str, str]:
         install_dev_version=True,
     )
 
-    return test_group_id, install_result.persona_id, mcp_id
+    return test_group_id
 
 
-async def _cleanup(client: ckit_client.FlexusClient, persona_id: str, group_id: str, mcp_id: str) -> None:
+async def _cleanup(client: ckit_client.FlexusClient, group_id: str) -> None:
     http = await client.use_http()
     async with http as h:
         await h.execute(
@@ -101,8 +100,8 @@ async def _cleanup(client: ckit_client.FlexusClient, persona_id: str, group_id: 
 async def run_scenario() -> None:
     regular_client = ckit_client.FlexusClient("scenario")
 
-    test_group_id, persona_id, mcp_id = await setup_test(regular_client)
-    print(f"Created test group {test_group_id}, with persona {persona_id} and mcp {mcp_id}")
+    test_group_id = await setup_test(regular_client)
+    print(f"Created test group {test_group_id}")
 
     bot_task = None
     try:
@@ -149,7 +148,7 @@ async def run_scenario() -> None:
             with contextlib.suppress(asyncio.CancelledError):
                 await bot_task
         try:
-            await _cleanup(regular_client, persona_id, test_group_id, mcp_id)
+            await _cleanup(regular_client, test_group_id)
             print("Cleanup completed successfully.")
         except Exception as e:
             print(f"Cleanup failed: {e}")
