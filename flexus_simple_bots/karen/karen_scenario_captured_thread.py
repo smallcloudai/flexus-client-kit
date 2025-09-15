@@ -109,65 +109,60 @@ async def run_scenario() -> None:
     test_group_id, persona_id, mcp_id = await setup_test(regular_client)
     print(f"Created test group {test_group_id}, with persona {persona_id} and mcp {mcp_id}")
 
-    bot_client = ckit_client.FlexusClient(
-        f"karen_test_{encode_market_version(karen_bot.BOT_VERSION)}_{test_group_id}",
-        api_key=api_key,
-        base_url=base_url,
-        endpoint="/v1/superuser-bot"
-    )
-
-    async def test_scenario():
-        try:
-            while not FAKE_SLACK_INSTANCES:
-                await asyncio.sleep(0.1)
-
-            first_msg = await post_fake_slack_message(
-                "support",
-                "Which service of AWS offers me inference of big models like anthropic models?",
-                user="user",
-            )
-            await wait_for_bot_message("support")
-
-            thread_ts = first_msg.get("ts") if first_msg else None
-
-            await post_fake_slack_message(
-                f"support/{thread_ts}",
-                "Is there rust SDK for it?",
-                user="user",
-            )
-            await wait_for_bot_message(f"support/{thread_ts}")
-
-            await post_fake_slack_message(
-                f"support/{thread_ts}",
-                "Give me example of how to invoke model in python to ask it a simple prompt and get result",
-                user="user",
-            )
-            await wait_for_bot_message(f"support/{thread_ts}")
-
-            print("Test completed successfully. Waiting 5 minutes before cleanup...")
-            await asyncio.sleep(300)
-
-        except KeyboardInterrupt:
-            print("Test interrupted by user. Starting cleanup...")
-
-    bot_task = asyncio.create_task(ckit_bot_exec.run_bots_in_this_group(
-        bot_client,
-        fgroup_id=test_group_id,
-        marketable_name="karen_test",
-        marketable_version=encode_market_version(karen_bot.BOT_VERSION),
-        inprocess_tools=karen_bot.TOOLS,
-        bot_main_loop=karen_bot.karen_main_loop,
-    ))
-    test_task = asyncio.create_task(test_scenario())
-
+    bot_task = None
     try:
-        await test_task
+        bot_client = ckit_client.FlexusClient(
+            f"karen_test_{karen_bot.BOT_VERSION_INT}_{test_group_id}",
+            api_key=api_key,
+            base_url=base_url,
+            endpoint="/v1/jailed-bot"
+        )
+
+        bot_task = asyncio.create_task(ckit_bot_exec.run_bots_in_this_group(
+            bot_client,
+            fgroup_id=test_group_id,
+            marketable_name=karen_bot.BOT_NAME,
+            marketable_version=karen_bot.BOT_VERSION_INT,
+            inprocess_tools=karen_bot.TOOLS,
+            bot_main_loop=karen_bot.karen_main_loop,
+        ))
+
+        while not FAKE_SLACK_INSTANCES:
+            await asyncio.sleep(0.1)
+
+        first_msg = await post_fake_slack_message(
+            "support",
+            "Which service of AWS offers me inference of big models like anthropic models?",
+            user="user",
+        )
+        await wait_for_bot_message("support")
+
+        thread_ts = first_msg.get("ts") if first_msg else None
+
+        await post_fake_slack_message(
+            f"support/{thread_ts}",
+            "Is there rust SDK for it?",
+            user="user",
+        )
+        await wait_for_bot_message(f"support/{thread_ts}")
+
+        await post_fake_slack_message(
+            f"support/{thread_ts}",
+            "Give me example of how to invoke model in python to ask it a simple prompt and get result",
+            user="user",
+        )
+        await wait_for_bot_message(f"support/{thread_ts}")
+
+        print("Test completed successfully. Waiting 5 minutes before cleanup...")
+        await asyncio.sleep(300)
+
     except KeyboardInterrupt:
         print("Test interrupted by user. Starting cleanup...")
     finally:
-        bot_task.cancel()
-        with contextlib.suppress(asyncio.CancelledError):
-            await bot_task
+        if bot_task:
+            bot_task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await bot_task
         try:
             await _cleanup(regular_client, persona_id, test_group_id, mcp_id)
             print("Cleanup completed successfully.")
