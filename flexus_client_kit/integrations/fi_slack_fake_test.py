@@ -16,7 +16,7 @@ from flexus_client_kit.integrations.fi_slack_test import (
 
 @pytest.mark.asyncio
 async def test_fake_message_dm_calls_callback_with_images():
-    _slack_bot, activity_queue, _, cleanup = await _setup_slack_test(is_fake=True)
+    _slack_bot, _ws_id, activity_queue, _, cleanup = await _setup_slack_test(is_fake=True)
     try:
         await post_fake_slack_message("@tester", "dm1", localfile_path="1.png")
         await post_fake_slack_message("@tester", "dm2", localfile_path="2.png")
@@ -33,7 +33,7 @@ async def test_fake_message_dm_calls_callback_with_images():
 
 @pytest.mark.asyncio
 async def test_fake_message_in_channel_calls_callback_with_text_files():
-    _slack_bot, activity_queue, _, cleanup = await _setup_slack_test(is_fake=True)
+    _slack_bot, _ws_id, activity_queue, _, cleanup = await _setup_slack_test(is_fake=True)
     try:
         await post_fake_slack_message("tests", "channel_msg", localfile_path="1.txt")
         activity, posted = await asyncio.wait_for(activity_queue.get(), timeout=3)
@@ -47,14 +47,14 @@ async def test_fake_message_in_channel_calls_callback_with_text_files():
 
 @pytest.mark.asyncio
 async def test_fake_post_operation_with_files():
-    slack_bot, _, _, cleanup = await _setup_slack_test(is_fake=True)
+    slack_bot, ws_id, _, _, cleanup = await _setup_slack_test(is_fake=True)
     try:
         text_args = {"op": "post", "args": {"channel_slash_thread": "tests", "text": "hi"}}
-        tcall1 = await _create_toolcall(slack_bot, "call1", "ft1", text_args)
+        tcall1 = _create_toolcall(slack_bot, ws_id, "call1", "ft1", text_args)
         result1 = await slack_bot.called_by_model(toolcall=tcall1, model_produced_args=text_args)
         assert "success" in result1.lower()
         file_args = {"op": "post", "args": {"channel_slash_thread": "tests", "localfile_path": "1.txt"}}
-        tcall2 = await _create_toolcall(slack_bot, "call2", "ft1", file_args, called_ftm_num=2)
+        tcall2 = _create_toolcall(slack_bot, ws_id, "call2", "ft1", file_args, called_ftm_num=2)
         result2 = await slack_bot.called_by_model(toolcall=tcall2, model_produced_args=file_args)
         assert "success" in result2.lower()
         print("text result:", result1)
@@ -65,7 +65,7 @@ async def test_fake_post_operation_with_files():
 
 @pytest.mark.asyncio
 async def test_fake_capture_thread():
-    slack_bot, activity_queue, _, cleanup = await _setup_slack_test(is_fake=True)
+    slack_bot, ws_id, activity_queue, _, cleanup = await _setup_slack_test(is_fake=True)
     try:
         await post_fake_slack_message("tests", "please capture this thread")
         first_activity, posted1 = await asyncio.wait_for(activity_queue.get(), timeout=3)
@@ -93,7 +93,7 @@ async def test_fake_capture_thread():
         await ckit_ask_model.thread_add_user_message(http, ft_id, first_activity.message_text, "fi_slack_fake_test", ftm_alt=100, user_preferences=user_pref)
 
         args = {"op": "capture", "args": {"channel_slash_thread": f"tests/{thread_ts}"}}
-        tcall = await _create_toolcall(slack_bot, "cap1", ft_id, args)
+        tcall = _create_toolcall(slack_bot, ws_id, "cap1", ft_id, args)
         result = await slack_bot.called_by_model(toolcall=tcall, model_produced_args=args)
         assert "captured" in result.lower()
 
@@ -139,7 +139,7 @@ async def test_fake_capture_thread():
         assert assistant_activity.message_text == "assistant reply" and assistant_posted
 
         uncapture_args = {"op": "uncapture", "args": {"channel_slash_thread": f"tests/{thread_ts}"}}
-        tcall2 = await _create_toolcall(slack_bot, "cap2", ft_id, uncapture_args, called_ftm_num=2)
+        tcall2 = _create_toolcall(slack_bot, ws_id, "cap2", ft_id, uncapture_args, called_ftm_num=2)
         await slack_bot.called_by_model(toolcall=tcall2, model_produced_args=uncapture_args)
 
         if ft_id in slack_bot.rcx.latest_threads:
