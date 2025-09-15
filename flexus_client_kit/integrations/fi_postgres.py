@@ -33,7 +33,7 @@ _STRIP_SQL_LITERALS = re.compile(r"""
     (/\*.*?\*/)                                     # block comments (non-nesting)
 """, re.IGNORECASE | re.DOTALL | re.VERBOSE)
 
-_WRITE_VERBS = re.compile(r"\b(?:INSERT|UPDATE|DELETE)\b", re.IGNORECASE)
+_WRITE_VERBS = re.compile(r"\b(?:INSERT|UPDATE|DELETE|MERGE|CREATE|DROP|ALTER|TRUNCATE|COPY\s+FROM|VACUUM)\b", re.IGNORECASE)
 
 def _is_write_sql(query: str) -> bool:
     cleaned = _STRIP_SQL_LITERALS.sub(" ", query)
