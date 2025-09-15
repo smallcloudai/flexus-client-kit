@@ -211,9 +211,6 @@ class IntegrationSlackFake:
             if cnt >= limit_cnt:
                 break
 
-    async def get_user_name(self, web_api_client: Any, user_id: str) -> str:
-        return self.users_id2name.get(user_id, user_id)
-
     async def called_by_model(
         self,
         toolcall: ckit_cloudtool.FCloudtoolCall,
