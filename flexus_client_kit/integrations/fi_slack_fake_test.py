@@ -113,7 +113,7 @@ async def test_fake_capture_thread():
         )
 
         post_args = {"op": "post", "args": {"channel_slash_thread": f"tests/{thread_ts}", "text": "blocked"}}
-        tcall_post = await _create_toolcall(slack_bot, "postfail", ft_id, post_args)
+        tcall_post = _create_toolcall(slack_bot, ws_id, "postfail", ft_id, post_args)
         result_post = await slack_bot.called_by_model(toolcall=tcall_post, model_produced_args=post_args)
         assert "captured thread" in result_post.lower()
 
@@ -130,12 +130,14 @@ async def test_fake_capture_thread():
             ftm_usage=None,
             ftm_tool_calls=[],
             ftm_app_specific=None,
+            ftm_provenance=json.dumps({}),
             ftm_created_ts=time.time(),
         )
         assert await slack_bot.look_assistant_might_have_posted_something(assistant_msg)
         found = False
-        async for m in slack_bot.get_history(None, "tests", thread_ts, str(int(time.time() - 60)), 10):
-            if m.get("text") == "assistant reply":
+        chan_id = slack_bot.channels_name2id.get("tests", "tests")
+        for m in slack_bot.messages.get(chan_id, []):
+            if m.get("text") == "assistant reply" and m.get("thread_ts") == thread_ts:
                 found = True
                 break
         assert found

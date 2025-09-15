@@ -128,11 +128,11 @@ class IntegrationSlackFake:
                         data = f.read()
                     mime, _ = mimetypes.guess_type(localfile_path)
                     if mime and mime.startswith("image/"):
-                        processed = await RealSlack.process_slack_image(self, data, mime)
+                        processed = await RealSlack._process_slack_image(self, data, mime)
                         file_contents.append(processed)
                         msg["file"] = f"[image {localfile_path}]"
-                    elif RealSlack.is_text_file(self, data):
-                        processed = await RealSlack.process_slack_text_file(self, data, localfile_path)
+                    elif RealSlack._is_text_file(self, data):
+                        processed = await RealSlack._process_slack_text_file(self, data, localfile_path)
                         file_contents.append(processed)
                         msg["file"] = processed["m_content"]
                     else:
@@ -316,11 +316,11 @@ class IntegrationSlackFake:
                         data = f.read()
                     mime, _ = mimetypes.guess_type(localfile_path)
                     if mime and mime.startswith("image/"):
-                        processed = await RealSlack.process_slack_image(self, data, mime)
+                        processed = await RealSlack._process_slack_image(self, data, mime)
                         file_contents.append(processed)
                         msg["file"] = f"[image {localfile_path}]"
-                    elif RealSlack.is_text_file(self, data):
-                        processed = await RealSlack.process_slack_text_file(self, data, localfile_path)
+                    elif RealSlack._is_text_file(self, data):
+                        processed = await RealSlack._process_slack_text_file(self, data, localfile_path)
                         file_contents.append(processed)
                         msg["file"] = processed["m_content"]
                     else:

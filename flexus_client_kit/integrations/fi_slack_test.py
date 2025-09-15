@@ -279,6 +279,7 @@ async def test_capture_thread():
             ftm_tool_calls=[],
             ftm_app_specific=None,
             ftm_created_ts=time.time(),
+            ftm_provenance=json.dumps({}),
         )
 
         slack_bot.rcx.latest_threads[ft_id].thread_fields.ft_app_specific = {
@@ -290,7 +291,7 @@ async def test_capture_thread():
 
         await asyncio.sleep(1)
         found = False
-        async for msg in slack_bot.get_history(slack_bot.reactive_slack.client, "tests", thread_ts, str(int(time.time() - 60)), 10):
+        async for msg in slack_bot._get_history(slack_bot.reactive_slack.client, "tests", thread_ts, str(int(time.time() - 60)), 10):
             if msg.get('text') == assistant_content:
                 found = True
                 break
