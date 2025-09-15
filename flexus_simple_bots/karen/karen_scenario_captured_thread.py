@@ -101,10 +101,7 @@ async def _cleanup(client: ckit_client.FlexusClient, persona_id: str, group_id: 
 
 
 async def run_scenario() -> None:
-    api_key = os.environ["FLEXUS_API_KEY"]
-    base_url = os.environ.get("FLEXUS_URL")
-
-    regular_client = ckit_client.FlexusClient("scenario", api_key=api_key, base_url=base_url)
+    regular_client = ckit_client.FlexusClient("scenario")
 
     test_group_id, persona_id, mcp_id = await setup_test(regular_client)
     print(f"Created test group {test_group_id}, with persona {persona_id} and mcp {mcp_id}")
@@ -113,8 +110,6 @@ async def run_scenario() -> None:
     try:
         bot_client = ckit_client.FlexusClient(
             f"karen_test_{karen_bot.BOT_VERSION_INT}_{test_group_id}",
-            api_key=api_key,
-            base_url=base_url,
             endpoint="/v1/jailed-bot"
         )
 
