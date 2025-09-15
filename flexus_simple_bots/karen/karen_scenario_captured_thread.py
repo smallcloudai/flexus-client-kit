@@ -68,14 +68,11 @@ async def setup_test(client: ckit_client.FlexusClient) -> tuple[str, str, str]:
             }
         )
     mcp_id = mcp_resp["mcp_server_create"]["mcp_id"]
-
-    persona_id = str(uuid.uuid4())[:8]
-    await ckit_bot_install.bot_install_from_marketplace(
+    install_result = await ckit_bot_install.bot_install_from_marketplace(
         client,
         ws_id=ws_id,
         inside_fgroup=test_group_id,
         persona_marketable_name="karen",
-        persona_id=persona_id,
         persona_name="Karen AWS Docs Test",
         new_setup={
             "SLACK_BOT_TOKEN": "fake_bot_token",
@@ -85,7 +82,7 @@ async def setup_test(client: ckit_client.FlexusClient) -> tuple[str, str, str]:
         install_dev_version=True,
     )
 
-    return test_group_id, persona_id, mcp_id
+    return test_group_id, install_result.persona_id, mcp_id
 
 
 async def _cleanup(client: ckit_client.FlexusClient, persona_id: str, group_id: str, mcp_id: str) -> None:
