@@ -283,7 +283,7 @@ class IntegrationSlackFake:
             await ckit_ask_model.thread_app_capture_patch(
                 http, toolcall.fcall_ft_id, ft_app_searchable=searchable
             )
-            return (
+            return (  # XXX take text from real slack
                 "Captured! The next thing you write will be visible in Slack. "
                 f"Don't comment on that fact and think about what do you want to say in '{channel}'."
             )
@@ -405,7 +405,7 @@ async def wait_for_bot_message(channel_slash_thread: str, timeout_seconds: int =
     if not slack_instance:
         while not FAKE_SLACK_INSTANCES:
             if loop.time() - start > timeout_seconds:
-                raise RuntimeError("No fake Slack instances available")
+                raise TimeoutError("No fake Slack instances available")
             await asyncio.sleep(0.1)
 
     fi_slack = slack_instance or FAKE_SLACK_INSTANCES[0]
@@ -422,6 +422,6 @@ async def wait_for_bot_message(channel_slash_thread: str, timeout_seconds: int =
             return current_msgs[len(initial_msgs):]
 
         if loop.time() - start > timeout_seconds:
-            raise RuntimeError("bot did not respond")
+            raise TimeoutError("bot did not respond")
 
         await asyncio.sleep(0.2)
