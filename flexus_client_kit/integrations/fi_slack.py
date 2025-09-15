@@ -2,6 +2,7 @@ import os
 import asyncio
 import logging
 import re
+import tempfile
 import time
 import json
 import base64
@@ -17,9 +18,9 @@ from flexus_client_kit import ckit_cloudtool
 from flexus_client_kit import ckit_client
 from flexus_client_kit import ckit_ask_model
 from flexus_client_kit import ckit_bot_exec
-from flexus_client_kit.integrations import fi_localfile
-from flexus_client_kit.integrations.fi_localfile import format_cat_output
+from flexus_client_kit.format_utils import format_cat_output
 
+from pymongo.collection import Collection
 
 # This uses Bolt SDK, a thin wrapper over Events & Web API
 from slack_bolt.async_app import AsyncApp
@@ -31,6 +32,7 @@ from slack_sdk.errors import SlackApiError
 # This uses Socket Mode, good for local dev; for prod marketplace use HTTPS Events
 from slack_bolt.adapter.socket_mode.async_handler import AsyncSocketModeHandler
 
+from flexus_client_kit.integrations.fi_mongo_store import validate_path, download_file
 
 logger = logging.getLogger("slack")
 
@@ -86,9 +88,9 @@ slack(op="post", args={"channel_slash_thread": "@username/thread_ts", "text": "H
     If you send to @username that will post a DM, not in any channel.
     If you want to talk to a user, don't call "post", call "capture" instead!
 
-slack(op="post", args={"channel_slash_thread": "channel_name", "localfile_path": "folder1/output.pdf"})
-    Upload a file, localfile_path must be a path valid for the localfile tool (no absolute paths, no spaces in paths,
-    no traversal). The file is read from the same workdir used when calling localfile.
+slack(op="post", args={"channel_slash_thread": "channel_name", "path": "folder1/output.pdf"})
+    Upload a file, path must be a path valid for the mongo tool (no absolute paths, no spaces in paths,
+    no traversal).
 
 slack(op="uncapture")
     If you don't want to talk anymore, call this instead of answering.
@@ -139,12 +141,20 @@ class ActivitySlack:
 
 
 class IntegrationSlack:
-    def __init__(self, fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.RobotContext, SLACK_BOT_TOKEN: str, SLACK_APP_TOKEN: str, should_join: str):
+    def __init__(
+            self,
+            fclient: ckit_client.FlexusClient,
+            rcx: ckit_bot_exec.RobotContext,
+            SLACK_BOT_TOKEN: str, SLACK_APP_TOKEN: str,
+            should_join: str,
+            mongo_collection: Optional[Collection] = None,
+    ):
         self.fclient = fclient
         self.rcx = rcx
         self.SLACK_BOT_TOKEN = SLACK_BOT_TOKEN
         self.SLACK_APP_TOKEN = SLACK_APP_TOKEN
         self.should_join = [x.strip() for x in should_join.split(",") if x.strip()]
+        self.mongo_collection = mongo_collection
         self.actually_joined = set()
         self.problems_joining = list()
         self.problems_other = list()
@@ -244,7 +254,7 @@ class IntegrationSlack:
         elif op == "post":
             text = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "text", None)
             channel_slash_thread = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "channel_slash_thread", "")
-            attach_file = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "localfile_path", None)
+            attach_file = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "path", None)
             something_name, thread_ts = parse_channel_slash_thread(channel_slash_thread)
             if not something_name:
                 return "Missing or invalid channel_slash_thread parameter"
@@ -265,15 +275,17 @@ class IntegrationSlack:
                         return f"ERROR: Channel {something_name!r} not found in channels_name2id"
 
                 if attach_file:
-                    perr = fi_localfile.validate_path(attach_file)
-                    if perr:
-                        return f"ERROR: {perr}"
-                    abs_path = os.path.abspath(os.path.join(self.rcx.workdir, attach_file))
-                    if not abs_path.startswith(os.path.abspath(self.rcx.workdir) + os.sep):
-                        return "ERROR: Path resolves outside workspace"
-                    if not os.path.exists(abs_path):
-                        return f"ERROR: File {attach_file} does not exist"
-                    with open(abs_path, 'rb') as f:
+                    from flexus_client_kit import ckit_mongo
+
+                    if self.mongo_collection is None:
+                        return "ERROR: Attaching file is not available. You should setup the slack tool with mongo collection"
+
+                    local_path = os.path.join(tempfile.gettempdir(), os.path.basename(attach_file))
+                    try:
+                        await download_file(self.mongo_collection, attach_file, download_file)
+                    except Exception as e:
+                        return f"ERROR: Failed to download file from mongo: {e}. Cannot attach it"
+                    with open(local_path, 'rb') as f:
                         file_bytes = f.read()
                     filename = os.path.basename(attach_file)
                     kwargs = {
@@ -717,8 +729,7 @@ class IntegrationSlack:
         formatted = format_cat_output(
             path=filename,
             file_data=file_bytes,
-            line_range="1:",
-            safety_valve="10k"  # Limit to 10KB
+            safety_valve="10k"
         )
         return {"m_type": "text", "m_content": f"📎 {formatted}"}
 

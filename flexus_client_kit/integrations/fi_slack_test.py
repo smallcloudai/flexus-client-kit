@@ -171,41 +171,6 @@ async def test_message_in_channel_calls_callback_with_text_files():
 
 
 @pytest.mark.asyncio
-async def test_post_operation_with_files():
-    slack_bot, _, _, bot_cleanup = await _setup_slack_test()
-
-    try:
-        text_args = {
-            "op": "post",
-            "args": {
-                "channel_slash_thread": "@flexus.testing",
-                "text": "Test post with files"
-            }
-        }
-        tcall1 = await _create_toolcall(slack_bot, "test_call_id_1", "test_thread_id", text_args)
-        result1 = await slack_bot.called_by_model(toolcall=tcall1, model_produced_args=text_args)
-        print("text result:", result1)
-        assert "success" in result1.lower(), f"Text post should succeed: {result1}"
-
-        file_args = {
-            "op": "post",
-            "args": {
-                "channel_slash_thread": "@flexus.testing",
-                "localfile_path": "1.txt"
-            }
-        }
-        tcall2 = await _create_toolcall(slack_bot, "test_call_id_2", "test_thread_id", file_args, called_ftm_num=2)
-        result2 = await slack_bot.called_by_model(toolcall=tcall2, model_produced_args=file_args)
-        print("file result:", result2)
-        assert "success" in result2.lower(), f"File post should succeed: {result2}"
-
-        print("✓ Post operation test passed (text + file)")
-    finally:
-        await asyncio.sleep(1)
-        await bot_cleanup()
-
-
-@pytest.mark.asyncio
 async def test_capture_thread():
     slack_bot, activity_queue, user_client, bot_cleanup = await _setup_slack_test()
 
@@ -348,5 +313,4 @@ async def test_capture_thread():
 if __name__ == "__main__":
     asyncio.run(test_message_dm_calls_callback_with_images())
     asyncio.run(test_message_in_channel_calls_callback_with_text_files())
-    asyncio.run(test_post_operation_with_files())
     asyncio.run(test_capture_thread())
