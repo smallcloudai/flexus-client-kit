@@ -189,30 +189,6 @@ class IntegrationSlackFake:
         fthread.thread_fields.ft_app_specific = {"last_posted_assistant_ts": msg.ftm_created_ts}
         return True
 
-    async def get_history(
-        self,
-        web_api_client: Any,
-        channel_name: str,
-        thread_ts: Optional[str],
-        long_ago: str,
-        limit_cnt: int,
-    ):
-        chan_id = self.channels_name2id.get(channel_name, channel_name.lstrip("#"))
-        msgs = self.messages.get(chan_id, [])
-        oldest = float(long_ago) if long_ago else 0.0
-        cnt = 0
-        for m in msgs:
-            if float(m["ts"]) < oldest:
-                continue
-            if thread_ts and m["thread_ts"] != thread_ts:
-                continue
-            yield m
-            cnt += 1
-            if cnt >= limit_cnt:
-                break
-
-    async def get_user_name(self, web_api_client: Any, user_id: str) -> str:
-        return self.users_id2name.get(user_id, user_id)
 
     async def called_by_model(
         self,
