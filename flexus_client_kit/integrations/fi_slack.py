@@ -362,7 +362,7 @@ class IntegrationSlack:
                 text_content = ""
                 image_parts = []
                 file_summaries = []
-                async for msg in self.get_history(web_api_client, something_name, thread_ts, thirty_minutes_ago, 10):
+                async for msg in self._get_history(web_api_client, something_name, thread_ts, thirty_minutes_ago, 10):
                     if text := msg.get('text', None):
                         user_id = msg.get('user')
                         if user_id:
@@ -756,48 +756,6 @@ class IntegrationSlack:
 
     # - - other stuff like joining the right channels - -
 
-    async def get_history(self, web_api_client: AsyncWebClient, channel_name: str, thread_ts: Optional[str], long_ago: str, limit_cnt: int):
-        if channel_name.startswith('@'):
-            channel_id = self.users_name2id.get(channel_name.lstrip("@"))
-            if not channel_id:
-                raise ValueError(f"User {channel_name} not found in users_name2id")
-        else:
-            channel_id = self.channels_name2id.get(channel_name)
-            if not channel_id:
-                raise ValueError(f"Channel {channel_name} not found in channels_name2id")
-
-        logger.info(f"get_history: channel_name={channel_name}, thread_ts={thread_ts!r}, channel_id={channel_id}")
-
-        cursor = None
-        while True:
-            try:
-                if thread_ts and thread_ts.strip():
-                    # Get replies in a thread
-                    logger.info(f"Using conversations_replies with ts={thread_ts}")
-                    messages_response = await web_api_client.conversations_replies(
-                        channel=channel_id, ts=thread_ts, oldest=long_ago, limit=limit_cnt, cursor=cursor
-                    )
-                else:
-                    # Get channel history
-                    logger.info(f"Using conversations_history (no thread)")
-                    messages_response = await web_api_client.conversations_history(
-                        channel=channel_id, oldest=long_ago, limit=limit_cnt, cursor=cursor
-                    )
-            except SlackApiError as e:
-                if "ratelimited" in str(e):
-                    logger.info("ratelimit")
-                    await asyncio.sleep(10)
-                    continue
-                logger.exception("Slack API error in get_history")
-                raise
-
-            for msg in messages_response["messages"]:
-                yield msg
-
-            cursor = messages_response.get("response_metadata", {}).get("next_cursor")
-            if not messages_response.get("has_more") or not cursor:
-                break
-
     async def join_channels(self):
         if not self.reactive_slack:
             return
@@ -874,6 +832,48 @@ class IntegrationSlack:
         #     ts = datetime.fromtimestamp(float(msg['ts']))
         #     text = msg.get('text', '')[:50].replace("\n", "\\n")
         #     logger.info(f"  {ts.strftime('%Y%m%d %H:%M')}: {text}")
+
+    async def _get_history(self, web_api_client: AsyncWebClient, channel_name: str, thread_ts: Optional[str], long_ago: str, limit_cnt: int):
+        if channel_name.startswith('@'):
+            channel_id = self.users_name2id.get(channel_name.lstrip("@"))
+            if not channel_id:
+                raise ValueError(f"User {channel_name} not found in users_name2id")
+        else:
+            channel_id = self.channels_name2id.get(channel_name)
+            if not channel_id:
+                raise ValueError(f"Channel {channel_name} not found in channels_name2id")
+
+        logger.info(f"get_history: channel_name={channel_name}, thread_ts={thread_ts!r}, channel_id={channel_id}")
+
+        cursor = None
+        while True:
+            try:
+                if thread_ts and thread_ts.strip():
+                    # Get replies in a thread
+                    logger.info(f"Using conversations_replies with ts={thread_ts}")
+                    messages_response = await web_api_client.conversations_replies(
+                        channel=channel_id, ts=thread_ts, oldest=long_ago, limit=limit_cnt, cursor=cursor
+                    )
+                else:
+                    # Get channel history
+                    logger.info(f"Using conversations_history (no thread)")
+                    messages_response = await web_api_client.conversations_history(
+                        channel=channel_id, oldest=long_ago, limit=limit_cnt, cursor=cursor
+                    )
+            except SlackApiError as e:
+                if "ratelimited" in str(e):
+                    logger.info("ratelimit")
+                    await asyncio.sleep(10)
+                    continue
+                logger.exception("Slack API error in get_history")
+                raise
+
+            for msg in messages_response["messages"]:
+                yield msg
+
+            cursor = messages_response.get("response_metadata", {}).get("next_cursor")
+            if not messages_response.get("has_more") or not cursor:
+                break
 
     async def _get_user_name(self, web_api_client: AsyncWebClient, user_id: str) -> str:
         if user_id in self.users_id2name:
