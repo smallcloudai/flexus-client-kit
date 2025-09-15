@@ -274,6 +274,14 @@ class IntegrationSlack:
                     if not channel_id:
                         return f"ERROR: Channel {something_name!r} not found in channels_name2id"
 
+                something_id_slash_thread = channel_id + ("/" + thread_ts if thread_ts else "")
+                thread_capturing = self._thread_capturing(something_id_slash_thread)
+                if thread_capturing and thread_capturing.thread_fields.ft_id == toolcall.fcall_ft_id:
+                    return (
+                        "Cannot use post for a captured thread. "
+                        "Type your message normally and it will appear in Slack automatically."
+                    )
+
                 if attach_file:
                     from flexus_client_kit import ckit_mongo
 
@@ -344,11 +352,7 @@ class IntegrationSlack:
             something_id_slash_thread = something_id + ("/" + thread_ts if thread_ts else "")
 
             searchable = "slack/" + something_id_slash_thread
-            already_captured_by = None
-            for t in self.rcx.latest_threads.values():
-                if t.thread_fields.ft_app_searchable == searchable:
-                    already_captured_by = t
-                    break
+            already_captured_by = self._thread_capturing(something_id_slash_thread)
             if already_captured_by:
                 if already_captured_by.thread_fields.ft_id == toolcall.fcall_ft_id:
                     return "Already captured"
@@ -592,22 +596,19 @@ class IntegrationSlack:
             await self.activity_callback(a, already_posted_to_captured_thread=really_posted)
 
     async def post_into_captured_thread_as_user(self, a: ActivitySlack, something_id: str) -> bool:
-        captured_thread = None
-        expected_app_seachable = "slack/" + something_id
-        if a.thread_ts:
-            expected_app_seachable += "/" + a.thread_ts
-        for t in self.rcx.latest_threads.values():
-            # print("COMPARE\n  %s\n  %s" % (t.thread_fields.ft_app_searchable, expected_app_seachable))
-            if t.thread_fields.ft_app_searchable == expected_app_seachable:
-                captured_thread = t
-        if captured_thread is None:
-            logger.info("None of recent threads match ft_app_searchable=%s, so I'll let bot handle this message." % (expected_app_seachable,))
+        something_id_slash_thread = something_id + ("/" + a.thread_ts if a.thread_ts else "")
+        thread_capturing = self._thread_capturing(something_id_slash_thread)
+        if thread_capturing is None:
+            logger.info(
+                "None of recent threads match ft_app_searchable=slack/%s, so I'll let bot handle this message.",
+                something_id_slash_thread,
+            )
             return False
-        if captured_thread.thread_fields.ft_error is not None:
-            logger.info("post_into_captured_thread_as_user() thread ft_app_searchable=%s matches, but it has error so I'll let bot handle this message" % (captured_thread.thread_fields.ft_app_searchable,))
+        if thread_capturing.thread_fields.ft_error is not None:
+            logger.info("post_into_captured_thread_as_user() thread ft_app_searchable=%s matches, but it has error so I'll let bot handle this message" % (thread_capturing.thread_fields.ft_app_searchable,))
             return False
 
-        if captured_thread is not None:
+        if thread_capturing is not None:
             http = await self.fclient.use_http()
 
             content = [{"m_type": "text", "m_content": f"👤{a.message_author_name}\n\n{a.message_text}"}]
@@ -619,21 +620,26 @@ class IntegrationSlack:
                 combined_text = "\n\n".join(p['m_content'] for p in text_parts)
                 content = [{"m_type": "text", "m_content": combined_text}] + image_parts
 
-            logger.info("Captured slack->db ft_id=%s ft_app_searchable=%s sending=%d parts" % (captured_thread.thread_fields.ft_id, expected_app_seachable, len(content)))
+            logger.info(
+                "Captured slack->db ft_id=%s ft_app_searchable=%s sending=%d parts",
+                thread_capturing.thread_fields.ft_id,
+                thread_capturing.thread_fields.ft_app_searchable,
+                len(content),
+            )
             user_pref = json.dumps({"reopen_task_instruction": 1})
             try:
-                await ckit_ask_model.thread_add_user_message(http, captured_thread.thread_fields.ft_id, content, "karen_bot", ftm_alt=100, user_preferences=user_pref)
+                await ckit_ask_model.thread_add_user_message(http, thread_capturing.thread_fields.ft_id, content, "karen_bot", ftm_alt=100, user_preferences=user_pref)
                 return True
             except gql.transport.exceptions.TransportQueryError as e:
                 logger.info("A problem, probably because the captured thread over budget or something bad happened, will uncapture the thread: %s" % (str(e),))
                 await ckit_ask_model.thread_app_capture_patch(
                     http,
-                    captured_thread.thread_fields.ft_id,
+                    thread_capturing.thread_fields.ft_id,
                     ft_app_searchable="",
                 )
                 return False
 
-        logger.info("No captured thread for", expected_app_seachable)
+        logger.info("No captured thread for", something_id_slash_thread)
         return False
 
     async def look_assistant_might_have_posted_something(self, msg: ckit_ask_model.FThreadMessageOutput) -> bool:
@@ -775,6 +781,13 @@ class IntegrationSlack:
         #     ts = datetime.fromtimestamp(float(msg['ts']))
         #     text = msg.get('text', '')[:50].replace("\n", "\\n")
         #     logger.info(f"  {ts.strftime('%Y%m%d %H:%M')}: {text}")
+
+    def _thread_capturing(self, something_id_slash_thread: str):
+        searchable = "slack/" + something_id_slash_thread
+        for t in self.rcx.latest_threads.values():
+            if t.thread_fields.ft_app_searchable == searchable:
+                return t
+        return None
 
     async def _get_history(self, web_api_client: AsyncWebClient, channel_name: str, thread_ts: Optional[str], long_ago: str, limit_cnt: int):
         if channel_name.startswith('@'):
