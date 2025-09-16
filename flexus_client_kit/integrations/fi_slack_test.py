@@ -39,47 +39,11 @@ async def _start_slack_test(slack_fake: bool = False) -> tuple[IntegrationSlack 
             )
         )["group_create"]["fgroup_id"]
 
-    setup = {
-        "SLACK_BOT_TOKEN": "" if slack_fake else os.environ["SLACK_BOT_TOKEN"],
-        "SLACK_APP_TOKEN": "" if slack_fake else os.environ["SLACK_APP_TOKEN"],
-        "slack_should_join": "tests",
-    }
-    persona_name = f"Karen Slack Test {fgroup_id[-4:]}"
-    install_args = dict(
-        client=fclient,
-        ws_id=ws.ws_id,
-        inside_fgroup=fgroup_id,
-        persona_marketable_name=karen_bot.BOT_NAME,
-        persona_name=persona_name,
-        new_setup=setup,
-    )
-    try:
-        install = await ckit_bot_install.bot_install_from_marketplace(
-            **install_args, install_dev_version=True
-        )
-    except Exception:
-        install = await ckit_bot_install.bot_install_from_marketplace(
-            **install_args,
-            install_dev_version=False,
-            specific_version=karen_bot.BOT_VERSION_INT,
-        )
-
-    persona = ckit_bot_exec.FPersonaOutput(
-        owner_fuser_id=bs.fuser_id,
-        located_fgroup_id=fgroup_id,
-        persona_id=install.persona_id,
-        persona_name=persona_name,
-        persona_marketable_name=karen_bot.BOT_NAME,
-        persona_marketable_version=karen_bot.BOT_VERSION_INT,
-        persona_discounts=None,
-        persona_setup=dict(setup),
-        persona_created_ts=time.time(),
-        ws_id=ws.ws_id,
-        ws_timezone="UTC",
-    )
+    persona = await _install_test_persona(fclient, bs, ws, fgroup_id, slack_fake)
     rcx = ckit_bot_exec.RobotContext(fclient, persona)
     rcx.workdir = f"/tmp/bot_workspace/{persona.persona_id}"
 
+    # Create test files
     os.makedirs(rcx.workdir, exist_ok=True)
     Image.new('RGB', (100, 100), color='red').save(f'{rcx.workdir}/1.png')
     Image.new('RGB', (100, 100), color='blue').save(f'{rcx.workdir}/2.png')
@@ -87,10 +51,15 @@ async def _start_slack_test(slack_fake: bool = False) -> tuple[IntegrationSlack 
     open(f'{rcx.workdir}/2.json', 'w').write('{"test": "data", "file": "2", "content": "json test file"}')
 
     if slack_fake:
-        slack_bot = IntegrationSlackFake(fclient, rcx, "", "", should_join=setup["slack_should_join"])
+        slack_bot = IntegrationSlackFake(fclient, rcx, "", "", should_join=persona.persona_setup["slack_should_join"])
         user_client = None
     else:
-        slack_bot = IntegrationSlack(fclient, rcx, setup["SLACK_BOT_TOKEN"], setup["SLACK_APP_TOKEN"], should_join=setup["slack_should_join"])
+        slack_bot = IntegrationSlack(
+            fclient, rcx,
+            persona.persona_setup["SLACK_BOT_TOKEN"],
+            persona.persona_setup["SLACK_APP_TOKEN"],
+            should_join=persona.persona_setup["slack_should_join"]
+        )
         user_client = AsyncWebClient(token=os.environ["SLACK_USER_TOKEN"])
     activity_queue: asyncio.Queue[tuple[ActivitySlack, bool]] = asyncio.Queue()
 
@@ -124,6 +93,53 @@ async def _start_slack_test(slack_fake: bool = False) -> tuple[IntegrationSlack 
                 print(f"⚠️ Failed to delete test group {fgroup_id}: {e}")
 
     return slack_bot, activity_queue, user_client, cleanup
+
+
+async def _install_test_persona(
+    fclient: ckit_client.FlexusClient,
+    bs: ckit_client.BasicStuff,
+    ws: ckit_client.Workspace,
+    fgroup_id: str,
+    slack_fake: bool = False
+) -> ckit_bot_exec.FPersonaOutput:
+    setup = {
+        "SLACK_BOT_TOKEN": "" if slack_fake else os.environ["SLACK_BOT_TOKEN"],
+        "SLACK_APP_TOKEN": "" if slack_fake else os.environ["SLACK_APP_TOKEN"],
+        "slack_should_join": "tests",
+    }
+    persona_name = f"Karen Slack Test {fgroup_id[-4:]}"
+    install_args = dict(
+        client=fclient,
+        ws_id=ws.ws_id,
+        inside_fgroup=fgroup_id,
+        persona_marketable_name=karen_bot.BOT_NAME,
+        persona_name=persona_name,
+        new_setup=setup,
+    )
+    try:
+        install = await ckit_bot_install.bot_install_from_marketplace(
+            **install_args, install_dev_version=True
+        )
+    except Exception:
+        install = await ckit_bot_install.bot_install_from_marketplace(
+            **install_args,
+            install_dev_version=False,
+            specific_version=karen_bot.BOT_VERSION_INT,
+        )
+
+    return ckit_bot_exec.FPersonaOutput(
+        owner_fuser_id=bs.fuser_id,
+        located_fgroup_id=fgroup_id,
+        persona_id=install.persona_id,
+        persona_name=persona_name,
+        persona_marketable_name=karen_bot.BOT_NAME,
+        persona_marketable_version=karen_bot.BOT_VERSION_INT,
+        persona_discounts=None,
+        persona_setup=dict(setup),
+        persona_created_ts=time.time(),
+        ws_id=ws.ws_id,
+        ws_timezone="UTC",
+    )
 
 
 def _create_toolcall(slack_bot: IntegrationSlack, call_id: str, ft_id: str, args: dict, called_ftm_num: int = 1):
@@ -185,14 +201,11 @@ async def test_message_in_channel_calls_callback_with_text_files(
     while not activity_queue.empty():
         activity_queue.get_nowait()
 
-    tests_channel_id = slack_bot.channels_name2id.get("tests")
     channel_message = f"channel_test_{time.time()}"
-
-    workdir = slack_bot.rcx.workdir
     await _upload_files(
         user_client,
-        tests_channel_id,
-        [f"{workdir}/1.txt", f"{workdir}/2.json"],
+        slack_bot.channels_name2id.get("tests"),
+        [f"{slack_bot.rcx.workdir}/1.txt", f"{slack_bot.rcx.workdir}/2.json"],
         channel_message,
     )
 
@@ -221,7 +234,6 @@ async def test_post_operation_with_files(
     }
     tcall1 = _create_toolcall(slack_bot, "test_call_id_1", "test_thread_id", text_args)
     result1 = await slack_bot.called_by_model(toolcall=tcall1, model_produced_args=text_args)
-    print("text result:", result1)
     assert "success" in result1.lower(), f"Text post should succeed: {result1}"
 
     file_args = {
@@ -233,7 +245,6 @@ async def test_post_operation_with_files(
     }
     tcall2 = _create_toolcall(slack_bot, "test_call_id_2", "test_thread_id", file_args, called_ftm_num=2)
     result2 = await slack_bot.called_by_model(toolcall=tcall2, model_produced_args=file_args)
-    print("file result:", result2)
     assert "success" in result2.lower(), f"File post should succeed: {result2}"
 
     print("✓ Post operation test passed (text + file)")
