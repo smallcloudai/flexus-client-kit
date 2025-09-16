@@ -215,6 +215,7 @@ Description: {formatted_desc}"""
             task_text += f"\nCall: fill_report_section(report_id='{report_id}', section_name='{section_name}', content=<your_content>)"
             tasks.append({
                 "section_name": section_name,
+                "section_id": section_id,
                 "section_config": config,
                 "depends_on": depends_on,
                 "is_meta_section": is_meta,
@@ -264,17 +265,13 @@ async def _export_report_tool(
                 "name": section_name
             }
             
-            # For non-iterated sections (no iteration in config), add directly to template_data
-            # Check if this section's config has no iteration pattern
-            section_base_id = section_name.split("_")[0]
+            section_base_id = section.get("section_id", section_name)
             section_config = sections_config.get(section_base_id, {})
             
             if not section_config.get("iteration"):
-                # This is a non-iterated section, add it directly by placeholder name
                 if placeholder not in template_data:
                     template_data[placeholder] = section["content"]
                 else:
-                    # If multiple sections have same placeholder, concatenate
                     existing = template_data[placeholder]
                     if isinstance(existing, str):
                         template_data[placeholder] = existing + "\n\n" + section["content"]
@@ -500,6 +497,7 @@ async def handle_fill_section_tool(
         "content": content,
         "name": section_name,
         "cfg": todo["section_config"],
+        "section_id": todo.get("section_id", section_name),
         "task": todo["task"],
         "depends_on": todo.get("depends_on", []),
         "is_meta_section": todo.get("is_meta_section", False),
@@ -763,15 +761,13 @@ async def handle_process_report_tool(
     sections_config, _ = load_report_config(report_data["report_type"])
     phases = defaultdict(list)
     for task in todo:
-        section_base = task["section_name"].split("_")[0]
+        section_base = task["section_id"]
         phase_num = sections_config.get(section_base, {}).get("phase", 1)
         phases[phase_num].append(task)
 
-    # Find the next phase to process
     next_phase = min(phases.keys())
     tasks_in_phase = phases[next_phase]
     
-    # Prepare subchat data
     first_questions = []
     first_calls = []
     titles = []
@@ -781,7 +777,6 @@ async def handle_process_report_tool(
         first_calls.append("null")
         titles.append(f"Report {report_id}: {task['section_name']}")
 
-    # Create subchats
     await ckit_ask_model.bot_subchat_create_multiple(
         fclient,
         "adspy_process_report",
