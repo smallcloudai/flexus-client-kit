@@ -311,8 +311,7 @@ Report ID: {report_id}
 Saved as: {report_name}
 Size: {len(template_html.encode('utf-8'))} bytes
 
-Download and send the report:
-mongo_store(op="download", args={{"path": "{report_name}"}})
+Send the report to clients
 """
 
 
@@ -650,7 +649,7 @@ Available report types:
     ]
     if html_exists:
         result.append(f"📄 **HTML Report Available**: {html_report_name}")
-        result.append(f"   Download with: mongo_store(op=\"download\", args={{\"path\": \"{html_report_name}\"}})")
+        result.append(f"   You can access the report using the path: {html_report_name}, i.e. send it to clients")
         result.append("")
 
     if report_data["sections"]:
