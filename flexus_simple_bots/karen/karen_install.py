@@ -110,7 +110,6 @@ async def install(
         marketable_featured_actions=[
             ckit_bot_install.FeaturedAction(
                 label="Generate task completion report",  
-                prompt="Generate a comprehensive report showing all completed tasks, their status, and performance metrics.",
                 required_setup_groups=["Slack"],
                 icon="file-pdf",
                 theme="success"
@@ -119,7 +118,6 @@ async def install(
         marketable_featured_setup_categories=[
             ckit_bot_install.FeaturedSetupCategory(
                 label="Manage your Slack integration",
-                prompt="Help user to set up Slack integration, start from easiest. Guide them through creating a Slack app, getting bot tokens, and configuring channel access.",
                 icon="slack",
                 theme="integration"
             )

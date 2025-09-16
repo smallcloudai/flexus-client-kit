@@ -31,7 +31,6 @@ class FeaturedItemBase:
     label: str
     icon: str # PrimeVue.js icon key
     theme: str
-    prompt: Optional[str] = None
 @dataclass
 class FeaturedAction(FeaturedItemBase):
     required_setup_groups: Optional[List[str]] = None
@@ -73,7 +72,7 @@ async def marketplace_upsert_dev_bot(
     http = await client.use_http()
     async with http as h:
         r = await h.execute(
-            gql.gql(f"""mutation InstallBot($ws: String!, $name: String!, $ver: String!, $title1: String!, $title2: String!, $author: String!, $occupation: String!, $desc: String!, $typical_group: String!, $repo: String!, $run: String!, $setup: String!, $model: String!, $daily: Int!, $inbox: Int!, $ed: FMarketplaceExpertInput!, $schedule: String!, $et: FMarketplaceExpertInput, $eu: FMarketplaceExpertInput, $ec: FMarketplaceExpertInput, $big: String!, $small: String!, $tags: [String!]!, $stage: String!, $featured_actions: [FFeaturedActionInput!]!, $featured_setup_categories: [FFeaturedSetupCategoryInput!]!, $intro_message: String!) {{
+            gql.gql(f"""mutation InstallBot($ws: String!, $name: String!, $ver: String!, $title1: String!, $title2: String!, $author: String!, $occupation: String!, $desc: String!, $typical_group: String!, $repo: String!, $run: String!, $setup: String!, $model: String!, $daily: Int!, $inbox: Int!, $e1: FMarketplaceExpertInput!, $e2: FMarketplaceExpertInput, $e3: FMarketplaceExpertInput, $e4: FMarketplaceExpertInput, $schedule: String!, $big: String!, $small: String!, $tags: [String!]!, $stage: String!, $featured_actions: [FFeaturedActionInput!]!, $featured_setup_categories: [FFeaturedSetupCategoryInput!]!, $intro_message: String!) {{
                 marketplace_upsert_dev_bot(
                     ws_id: $ws,
                     marketable_name: $name,
