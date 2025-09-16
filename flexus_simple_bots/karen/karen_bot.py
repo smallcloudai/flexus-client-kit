@@ -18,7 +18,7 @@ logger = logging.getLogger("bot_karen")
 
 
 BOT_NAME = "karen"
-BOT_VERSION = "0.1.14"
+BOT_VERSION = "0.1.15"
 BOT_VERSION_INT = ckit_client.marketplace_version_as_int(BOT_VERSION)
 
 
