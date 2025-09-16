@@ -282,7 +282,7 @@ class IntegrationSlack:
 
                     local_path = os.path.join(tempfile.gettempdir(), os.path.basename(attach_file))
                     try:
-                        await download_file(self.mongo_collection, attach_file, download_file)
+                        await download_file(self.mongo_collection, attach_file, local_path)
                     except Exception as e:
                         return f"ERROR: Failed to download file from mongo: {e}. Cannot attach it"
                     with open(local_path, 'rb') as f:
