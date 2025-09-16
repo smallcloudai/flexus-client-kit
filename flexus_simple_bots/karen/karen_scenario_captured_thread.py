@@ -20,7 +20,50 @@ karen_bot.fi_slack.IntegrationSlack = IntegrationSlackFake
 
 async def setup_test(client: ckit_client.FlexusClient) -> tuple[str, str, str]:
     ws = (await ckit_client.query_basic_stuff(client)).workspaces
-    parent_id = next((w.ws_root_group_id for w in ws if w.have_admin), ws[0].ws_root_group_id)
+
+    parent_id = None
+    karen_dev_available = False
+
+    for w in ws:
+        if w.have_admin:
+            try:
+                http = await client.use_http()
+                async with http as h:
+                    details = await h.execute(gql.gql("""query MarketplaceDetails($ws_id: String!, $marketable_name: String!) {
+                        marketplace_details(ws_id: $ws_id, marketable_name: $marketable_name) {
+                            dev_version_details {
+                                marketable_version
+                                marketable_stage
+                            }
+                            versions {
+                                marketable_version
+                                marketable_stage
+                            }
+                        }
+                    }"""), variable_values={"ws_id": w.ws_id, "marketable_name": karen_bot.BOT_NAME})
+
+                    versions = details["marketplace_details"]["versions"]
+                    dev_stages = ["MARKETPLACE_DEV", "MARKETPLACE_WAITING_IMAGE", "MARKETPLACE_FAILED_IMAGE_BUILD"]
+
+                    for version in versions:
+                        if (version["marketable_version"] == karen_bot.BOT_VERSION_INT and
+                            version["marketable_stage"] in dev_stages):
+                            parent_id = w.ws_root_group_id
+                            karen_dev_available = True
+                            break
+
+                    if karen_dev_available:
+                        break
+
+            except:
+                continue
+
+    if not karen_dev_available:
+        raise RuntimeError(f"Karen dev version {karen_bot.BOT_VERSION_INT} not found in any workspace. "
+                          "There must be a dev version available with stage MARKETPLACE_DEV, MARKETPLACE_WAITING_IMAGE, or MARKETPLACE_FAILED_IMAGE_BUILD")
+
+    if parent_id is None:
+        parent_id = next((w.ws_root_group_id for w in ws if w.have_admin), ws[0].ws_root_group_id)
     http = await client.use_http()
 
     async with http as h:
