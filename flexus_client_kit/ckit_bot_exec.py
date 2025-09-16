@@ -156,7 +156,7 @@ class RobotContext:
         bg_calls = []
         for c in mycalls:
             did_anything = True
-            if turn_tool_calls_into_tasks:
+            if not turn_tool_calls_into_tasks:  # run immediately and wait
                 try:
                     await self._local_tool_call(self.fclient, c)
                 except Exception as e:
