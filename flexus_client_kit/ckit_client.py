@@ -37,14 +37,16 @@ class FlexusClient:
         if not skip_logger_init:
             ckit_logs.setup_logger()
         have_api_key = api_key or os.getenv("FLEXUS_API_KEY")
+        self.use_ws_ticket = os.getenv("FLEXUS_WS_TICKET") is not None
         if superuser:
             assert endpoint != "/v1/graphql", "Whoops superuser set but it's regular endpoint"
             self.api_key = None
+        elif self.use_ws_ticket:
+            pass
         else:
             assert have_api_key, "Set FLEXUS_API_KEY you can generate on your personal profile page."
             assert "superuser" not in endpoint
             self.api_key = have_api_key
-        self.use_ws_ticket = os.getenv("FLEXUS_WS_TICKET") is not None
         self.base_url_http = base_url or os.getenv("FLEXUS_API_BASEURL", FLEXUS_API_BASEURL_DEFAULT)
         self.base_url_ws = self.base_url_http.replace("https://", "wss://").replace("http://", "ws://")
         self.http_url = self.base_url_http.rstrip("/") + endpoint
