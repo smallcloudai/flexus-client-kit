@@ -163,7 +163,7 @@ class RobotContext:
             return done, pending
         return set(), set()
 
-    async def unpark_collected_events(self, sleep_if_no_work: float):
+    async def unpark_collected_events(self, sleep_if_no_work: float, turn_tool_calls_into_tasks: bool = False) -> List[asyncio.Task]:
         # logger.info("%s unpark_collected_events() started %d %d %d" % (self.persona.persona_id, len(self._parked_messages), len(self._parked_threads), len(self._parked_toolcalls)))
         did_anything = False
         self._parked_anything_new.clear()
@@ -173,26 +173,41 @@ class RobotContext:
             msg = self._parked_messages.pop(k)
             did_anything = True
             if self._handler_updated_message:
-                self._spawn(self._safe_handler_call(self._handler_updated_message, msg))
+                try:
+                    await self._handler_updated_message(msg)
+                except Exception as e:
+                    logger.error("%s error in handler_updated_message handler: %s\n%s", self.persona.persona_id, type(e).__name__, e, exc_info=e)
 
         todo = list(self._parked_threads.keys())
         for k in todo:
             thread = self._parked_threads.pop(k)
             did_anything = True
             if self._handler_upd_thread:
-                self._spawn(self._safe_handler_call(self._handler_upd_thread, thread))
+                try:
+                    await self._handler_upd_thread(thread)
+                except Exception as e:
+                    logger.error("%s error in on_updated_thread handler: %s\n%s", self.persona.persona_id, type(e).__name__, e, exc_info=e)
 
         mycalls = list(self._parked_toolcalls)
         self._parked_toolcalls.clear()
+        bg_calls = []
         for c in mycalls:
             did_anything = True
-            self._spawn(self._local_tool_call(self.fclient, c))
+            if turn_tool_calls_into_tasks:
+                try:
+                    await self._local_tool_call(self.fclient, c)
+                except Exception as e:
+                    logger.error("%s error in on_tool_call() handler: %s\n%s", self.persona.persona_id, type(e).__name__, e, exc_info=e)
+            else:
+                bg_calls.append(asyncio.create_task(self._local_tool_call(self.fclient, c)))
 
         if not did_anything:
             try:
                 await asyncio.wait_for(self._parked_anything_new.wait(), timeout=sleep_if_no_work)
             except asyncio.TimeoutError:
                 pass
+
+        return bg_calls   # empty if not turn_tool_calls_into_tasks (most regular bots)
 
 
     async def _local_tool_call(self, fclient: ckit_client.FlexusClient, toolcall: ckit_cloudtool.FCloudtoolCall) -> None:
@@ -454,7 +469,7 @@ async def shutdown_bots(
         for bot in still_running:
             bot.atask.cancel()
         await asyncio.gather(*[bot.atask for bot in still_running], return_exceptions=True)
-    
+
     for bot in bc.bots_running.values():
         if bot.eventgen._background_tasks:
             logger.info(f"Waiting for {len(bot.eventgen._background_tasks)} background tasks in {bot.eventgen.persona.persona_id}")
@@ -469,7 +484,7 @@ async def shutdown_bots(
                 for task in bot.eventgen._background_tasks:
                     task.cancel()
                 await asyncio.gather(*bot.eventgen._background_tasks, return_exceptions=True)
-    
+
     logger.info("shutdown_bots success")
 
 
