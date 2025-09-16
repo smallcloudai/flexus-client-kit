@@ -13,7 +13,7 @@ from flexus_client_kit import ckit_logs
 from flexus_client_kit import ckit_passwords, gql_utils
 
 
-FLEXUS_API_BASEURL_DEFAULT = os.getenv("FLEXUS_BASE_API_URL") or "http://localhost:8008"
+FLEXUS_API_BASEURL_DEFAULT = "https://flexus.team/"
 
 
 logger = logging.getLogger("fclnt")
