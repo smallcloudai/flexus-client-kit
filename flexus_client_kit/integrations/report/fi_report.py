@@ -751,24 +751,12 @@ def _format_dependency_content(dependency_sections: List[str], completed_section
         return ""
     
     dependency_text = "\n\n=== DEPENDENCY DATA ===\n"
-    dependency_text += "The following data from completed sections is available for your reference:\n\n"
     
     for dep_name in dependency_sections:
         if dep_name in completed_sections:
             section_data = completed_sections[dep_name]
             content = section_data.get("content", "")
-            if section_data.get("is_meta_section", False):
-                try:
-                    if isinstance(content, str):
-                        content = json.loads(content)
-                    formatted_content = json.dumps(content, indent=2)
-                except:
-                    formatted_content = str(content)
-            else:
-                formatted_content = str(content)
-
-            dependency_text += f"--- {dep_name} ---\n"
-            dependency_text += f"{formatted_content}\n\n"
+            dependency_text += f"\n--- {dep_name} ---\n{content}\n"
     
     return dependency_text
 
@@ -821,11 +809,9 @@ async def handle_process_report_tool(
     for task in tasks_in_phase:
         task_text = task["task"]
         if task.get("depends_on"):
-            dependency_content = _format_dependency_content(
-                task["depends_on"],
-                completed_sections
-            )
-            task_text = task_text.replace("\nDependencies will be loaded from completed sections.", dependency_content)
+            dependency_placeholder = f"\nDependencies: {', '.join(task['depends_on'])} (content will be provided when processing)"
+            dependency_content = _format_dependency_content(task["depends_on"], completed_sections)
+            task_text = task_text.replace(dependency_placeholder, dependency_content)
         first_questions.append(task_text)
         first_calls.append("null")
         titles.append(f"Report {report_id}: {task['section_name']}")
