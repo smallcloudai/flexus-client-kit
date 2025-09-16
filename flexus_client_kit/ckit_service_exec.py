@@ -27,7 +27,9 @@ async def run_typical_single_subscription_with_restart_on_network_errors(fclient
         except (websockets.exceptions.ConnectionClosedError,
                 OSError,
                 gql.transport.exceptions.TransportConnectionFailed,
-                asyncio.exceptions.TimeoutError) as e:
+                gql.transport.exceptions.TransportQueryError,   # "Server disconnected without sending a response" goes here
+                asyncio.exceptions.TimeoutError,
+        ) as e:
             if ckit_shutdown.shutdown_event.is_set():
                 break
             logger.info("got %s, sleep 60..." % (type(e).__name__,))
