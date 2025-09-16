@@ -5,7 +5,8 @@ import time
 import gql
 
 from flexus_client_kit import ckit_ask_model, ckit_bot_exec
-from flexus_client_kit.integrations.fi_slack_fake import post_fake_slack_message
+from flexus_client_kit.integrations.fi_slack import ActivitySlack
+from flexus_client_kit.integrations.fi_slack_fake import IntegrationSlackFake, post_fake_slack_message
 from flexus_client_kit.integrations.fi_slack_test import (
     _clear_queue,
     _create_toolcall,
@@ -13,8 +14,10 @@ from flexus_client_kit.integrations.fi_slack_test import (
 )
 
 
-async def test_fake_message_dm_calls_callback_with_images(fake_slack_env):
-    slack_bot, activity_queue = fake_slack_env
+async def test_fake_message_dm_calls_callback_with_images(
+    slack_bot: IntegrationSlackFake,
+    activity_queue: asyncio.Queue[tuple[ActivitySlack, bool]]
+) -> None:
     _reset(slack_bot, activity_queue)
 
     await post_fake_slack_message("@tester", "dm1", localfile_path="1.png")
@@ -28,8 +31,10 @@ async def test_fake_message_dm_calls_callback_with_images(fake_slack_env):
     print(f"✓ DM image test processed {len(act1.file_contents)+len(act2.file_contents)} files")
 
 
-async def test_fake_message_in_channel_calls_callback_with_text_files(fake_slack_env):
-    slack_bot, activity_queue = fake_slack_env
+async def test_fake_message_in_channel_calls_callback_with_text_files(
+    slack_bot: IntegrationSlackFake,
+    activity_queue: asyncio.Queue[tuple[ActivitySlack, bool]]
+) -> None:
     _reset(slack_bot, activity_queue)
 
     await post_fake_slack_message("tests", "channel_msg", localfile_path="1.txt")
@@ -40,8 +45,10 @@ async def test_fake_message_in_channel_calls_callback_with_text_files(fake_slack
     print("✓ Channel file test passed")
 
 
-async def test_fake_post_operation_with_files(fake_slack_env):
-    slack_bot, activity_queue = fake_slack_env
+async def test_fake_post_operation_with_files(
+    slack_bot: IntegrationSlackFake,
+    activity_queue: asyncio.Queue[tuple[ActivitySlack, bool]]
+) -> None:
     _reset(slack_bot, activity_queue)
 
     text_args = {"op": "post", "args": {"channel_slash_thread": "tests", "text": "hi"}}
@@ -61,8 +68,10 @@ async def test_fake_post_operation_with_files(fake_slack_env):
     print("file result:", result2)
 
 
-async def test_fake_capture_thread(fake_slack_env):
-    slack_bot, activity_queue = fake_slack_env
+async def test_fake_capture_thread(
+    slack_bot: IntegrationSlackFake,
+    activity_queue: asyncio.Queue[tuple[ActivitySlack, bool]]
+) -> None:
     _reset(slack_bot, activity_queue)
 
     await post_fake_slack_message("tests", "please capture this thread")
@@ -184,12 +193,11 @@ def _reset(slack_bot, queue):
 if __name__ == "__main__":
     async def _main():
         slack_bot, activity_queue, _user_client, cleanup = await _start_slack_test(slack_fake=True)
-        env = (slack_bot, activity_queue)
         try:
-            await test_fake_message_dm_calls_callback_with_images(env)
-            await test_fake_message_in_channel_calls_callback_with_text_files(env)
-            await test_fake_post_operation_with_files(env)
-            await test_fake_capture_thread(env)
+            await test_fake_message_dm_calls_callback_with_images(slack_bot, activity_queue)
+            await test_fake_message_in_channel_calls_callback_with_text_files(slack_bot, activity_queue)
+            await test_fake_post_operation_with_files(slack_bot, activity_queue)
+            await test_fake_capture_thread(slack_bot, activity_queue)
         finally:
             await cleanup()
 
