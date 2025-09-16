@@ -53,7 +53,7 @@ class FlexusClient:
         self.websocket_url = self.base_url_ws.rstrip("/") + endpoint
         self.endpoint = endpoint
         self.service_name = service_name
-        logger.info("FlexusClient api_key=%s %s", ("..." + self.api_key[-4:]) if self.api_key else "None", self.http_url)
+        logger.info("FlexusClient service_name=%s api_key=%s %s", self.service_name, ("..." + self.api_key[-4:]) if self.api_key else "None", self.http_url)
 
     async def use_http(self) -> gql.Client:
         if self.api_key is not None:
