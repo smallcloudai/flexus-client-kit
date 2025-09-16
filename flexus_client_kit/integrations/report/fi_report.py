@@ -547,6 +547,8 @@ async def handle_report_status_tool(
     async def _generate_reports_list(error_msg: str = "", max_reports=50) -> str:
         all_files = await ckit_mongo.list_files(mongo_collection)
         report_files = [f for f in all_files if f["path"].startswith("report_") and f["path"].endswith(".json")]
+        html_reports = {f["path"].replace(".html", "").replace("report_", ""): f
+                        for f in all_files if f["path"].startswith("report_") and f["path"].endswith(".html")}
 
         if not report_files:
             available = list_available_reports()
@@ -579,13 +581,17 @@ Available report types:
             completion_pct = (filled_count / total_tasks * 100) if total_tasks > 0 else 0
 
             status_emoji = "✅" if status == "completed" else "🔄" if status == "in_progress" else "❓"
+            html_exists = report_name in html_reports
+            html_indicator = " 📄" if html_exists else ""
 
-            result.append(f"📊 {report_name}")
+            result.append(f"📊 {report_name}{html_indicator}")
             result.append(f"   Type: {report_type}")
             result.append(f"   Status: {status_emoji} {status}")
             result.append(f"   Progress: {filled_count}/{total_tasks} tasks ({completion_pct:.1f}%)")
             result.append(f"   Entities: {', '.join(entities) if entities else 'None'}")
             result.append(f"   Created: {created}")
+            if html_exists:
+                result.append(f"   📄 HTML: report_{report_name}.html")
             result.append("")
 
         if len(report_files) > max_reports:
@@ -625,6 +631,12 @@ Available report types:
     total_tasks = filled_count + len(report_data["todo_queue"])
     completion_pct = (filled_count / total_tasks * 100) if total_tasks > 0 else 0
 
+    html_report_name = f"report_{report_id}.html"
+    html_exists = await ckit_mongo.retrieve_file(mongo_collection, html_report_name)
+    if report_data['status'] == "completed" and not html_exists:
+        await _export_report_tool(ws_timezone, mongo_collection, report_id=report_id)
+        html_exists = await ckit_mongo.retrieve_file(mongo_collection, html_report_name)
+
     status_emoji = "✅" if report_data['status'] == "completed" else "🔄"
     result = [
         f"[{current_time} in {tz}]\n",
@@ -636,6 +648,10 @@ Available report types:
         f"Entities: {', '.join(report_data.get('entities', []))}",
         f"Progress: {filled_count}/{total_tasks} tasks ({completion_pct:.1f}%)\n"
     ]
+    if html_exists:
+        result.append(f"📄 **HTML Report Available**: {html_report_name}")
+        result.append(f"   Download with: mongo_store(op=\"download\", args={{\"path\": \"{html_report_name}\"}})")
+        result.append("")
 
     if report_data["sections"]:
         result.append("✅ Completed sections:")
@@ -655,6 +671,8 @@ Available report types:
         result.append(f"🚀 Continue with: process_report(report_id='{report_id}')")
     else:
         result.append("🎉 All tasks completed!")
+        if not html_exists:
+            result.append("⚠️ Note: HTML export may have failed. Check logs for details.")
     
     # Add available report types
     result.append("")
