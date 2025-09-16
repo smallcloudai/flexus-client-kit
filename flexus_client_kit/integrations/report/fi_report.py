@@ -76,7 +76,7 @@ LOAD_METADATA_TOOL = ckit_cloudtool.CloudTool(
         "type": "object",
         "properties": {
             "report_id": {"type": "string"},
-            "safety_valve": {"type": "integer", "description": "Max output size in KB (default 200KB)"},
+            "safety_valve": {"type": "integer", "description": "Max output size in KB (default 20KB)"},
         },
         "required": ["report_id"],
     },
@@ -200,7 +200,7 @@ def _create_todo_queue(report_id: str, entities: List[str], sections: Dict[str, 
 Section: {section_name}
 Description: {formatted_desc}"""
             if depends_on:
-                task_text += "\nDependencies will be loaded from completed sections."
+                task_text += f"\nDependencies: {', '.join(depends_on)} (content will be provided when processing)"
             if formatted_example:
                 task_text += f"\n\n=== Expected Format ===\n{formatted_example}"
             extra_instructions = config.get("extra_instructions", [])
@@ -728,6 +728,33 @@ async def handle_load_metadata_tool(
     return output
 
 
+def _format_dependency_content(dependency_sections: List[str], completed_sections: Dict[str, Any]) -> str:
+    if not dependency_sections:
+        return ""
+    
+    dependency_text = "\n\n=== DEPENDENCY DATA ===\n"
+    dependency_text += "The following data from completed sections is available for your reference:\n\n"
+    
+    for dep_name in dependency_sections:
+        if dep_name in completed_sections:
+            section_data = completed_sections[dep_name]
+            content = section_data.get("content", "")
+            if section_data.get("is_meta_section", False):
+                try:
+                    if isinstance(content, str):
+                        content = json.loads(content)
+                    formatted_content = json.dumps(content, indent=2)
+                except:
+                    formatted_content = str(content)
+            else:
+                formatted_content = str(content)
+
+            dependency_text += f"--- {dep_name} ---\n"
+            dependency_text += f"{formatted_content}\n\n"
+    
+    return dependency_text
+
+
 async def handle_process_report_tool(
         ws_timezone: str,
         mongo_collection: Collection,
@@ -767,13 +794,21 @@ async def handle_process_report_tool(
 
     next_phase = min(phases.keys())
     tasks_in_phase = phases[next_phase]
+    completed_sections = report_data.get("sections", {})
     
     first_questions = []
     first_calls = []
     titles = []
     
     for task in tasks_in_phase:
-        first_questions.append(task["task"])
+        task_text = task["task"]
+        if task.get("depends_on"):
+            dependency_content = _format_dependency_content(
+                task["depends_on"],
+                completed_sections
+            )
+            task_text = task_text.replace("\nDependencies will be loaded from completed sections.", dependency_content)
+        first_questions.append(task_text)
         first_calls.append("null")
         titles.append(f"Report {report_id}: {task['section_name']}")
 
