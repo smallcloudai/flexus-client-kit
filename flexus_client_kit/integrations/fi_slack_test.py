@@ -150,17 +150,13 @@ async def _upload_files(user_client: AsyncWebClient, channel_id: str, file_paths
     )
 
 
-def _clear_queue(queue: asyncio.Queue):
-    while not queue.empty():
-        try:
-            queue.get_nowait()
-        except asyncio.QueueEmpty:
-            break
-
-
-async def test_message_dm_calls_callback_with_images(slack_env):
-    slack_bot, activity_queue, user_client = slack_env
-    _clear_queue(activity_queue)
+async def test_message_dm_calls_callback_with_images(
+    slack_bot: IntegrationSlack,
+    activity_queue: asyncio.Queue[tuple[ActivitySlack, bool]],
+    user_client: AsyncWebClient
+) -> None:
+    while not activity_queue.empty():
+        activity_queue.get_nowait()
 
     bot_info = await slack_bot.reactive_slack.client.auth_test()
     dm = await user_client.conversations_open(users=bot_info["user_id"])
@@ -175,16 +171,19 @@ async def test_message_dm_calls_callback_with_images(slack_env):
     )
 
     activity, posted = await asyncio.wait_for(activity_queue.get(), timeout=30)
-    assert activity.message_text == dm_message
-    assert posted is False
+    assert activity.message_text == dm_message and posted is False
     assert len(activity.file_contents) == 2, "Should have 2 image files"
 
     print(f"✓ DM image test passed with {len(activity.file_contents)} files")
 
 
-async def test_message_in_channel_calls_callback_with_text_files(slack_env):
-    slack_bot, activity_queue, user_client = slack_env
-    _clear_queue(activity_queue)
+async def test_message_in_channel_calls_callback_with_text_files(
+    slack_bot: IntegrationSlack,
+    activity_queue: asyncio.Queue[tuple[ActivitySlack, bool]],
+    user_client: AsyncWebClient
+) -> None:
+    while not activity_queue.empty():
+        activity_queue.get_nowait()
 
     tests_channel_id = slack_bot.channels_name2id.get("tests")
     channel_message = f"channel_test_{time.time()}"
@@ -198,8 +197,7 @@ async def test_message_in_channel_calls_callback_with_text_files(slack_env):
     )
 
     activity, posted = await asyncio.wait_for(activity_queue.get(), timeout=30)
-    assert activity.message_text == channel_message
-    assert posted is False
+    assert activity.message_text == channel_message and posted is False
     file_contents = activity.file_contents[0]["m_content"]
     assert "1.txt" in file_contents and "This is test file 1" in file_contents, "Should contain 1.txt"
     assert "2.json" in file_contents and '\"content\": \"json test file\"' in file_contents, "Should contain 2.json"
@@ -207,9 +205,12 @@ async def test_message_in_channel_calls_callback_with_text_files(slack_env):
     print("✓ Channel text file test passed")
 
 
-async def test_post_operation_with_files(slack_env):
-    slack_bot, activity_queue, _ = slack_env
-    _clear_queue(activity_queue)
+async def test_post_operation_with_files(
+    slack_bot: IntegrationSlack,
+    activity_queue: asyncio.Queue[tuple[ActivitySlack, bool]]
+) -> None:
+    while not activity_queue.empty():
+        activity_queue.get_nowait()
 
     text_args = {
         "op": "post",
@@ -239,9 +240,13 @@ async def test_post_operation_with_files(slack_env):
     await asyncio.sleep(1)
 
 
-async def test_capture_thread(slack_env):
-    slack_bot, activity_queue, user_client = slack_env
-    _clear_queue(activity_queue)
+async def test_capture_thread(
+    slack_bot: IntegrationSlack,
+    activity_queue: asyncio.Queue[tuple[ActivitySlack, bool]],
+    user_client: AsyncWebClient
+) -> None:
+    while not activity_queue.empty():
+        activity_queue.get_nowait()
 
     tests_channel_id = slack_bot.channels_name2id.get("tests")
     initial_msg = "please capture this thread"
@@ -249,13 +254,11 @@ async def test_capture_thread(slack_env):
     thread_ts = resp["ts"]
 
     activity1, posted1 = await asyncio.wait_for(activity_queue.get(), timeout=30)
-    assert activity1.message_text == initial_msg
-    assert posted1 is False
+    assert activity1.message_text == initial_msg and posted1 is False
 
     await user_client.chat_postMessage(channel=tests_channel_id, thread_ts=thread_ts, text="test message 1")
     activity_pre, posted_pre = await asyncio.wait_for(activity_queue.get(), timeout=30)
-    assert activity_pre.message_text == "test message 1"
-    assert posted_pre is False
+    assert activity_pre.message_text == "test message 1" and posted_pre is False
 
     http = await slack_bot.fclient.use_http()
     async with http as h:
@@ -313,9 +316,7 @@ async def test_capture_thread(slack_env):
 
     await user_client.chat_postMessage(channel=tests_channel_id, thread_ts=thread_ts, text="test message 2")
     activity_after, posted_after = await asyncio.wait_for(activity_queue.get(), timeout=30)
-
-    assert posted_after
-    assert activity_after.message_text == "test message 2"
+    assert posted_after and activity_after.message_text == "test message 2"
 
     tcall2 = _create_toolcall(slack_bot, "capture_call_2", ft_id, args, called_ftm_num=2)
     result2 = await slack_bot.called_by_model(toolcall=tcall2, model_produced_args=args)
@@ -373,21 +374,21 @@ async def test_capture_thread(slack_env):
             variable_values={"ft_id": ft_id},
         )
     messages = resp["thread_messages_list"]
-    print("Messages:", messages)
     assert any("test message 1" in json.dumps(m) for m in messages)
     assert any("test message 2" in json.dumps(m) for m in messages)
     assert not any("test message 3" in json.dumps(m) for m in messages)
+
+    print("✓ Capture thread test passed")
 
 
 if __name__ == "__main__":
     async def _main():
         slack_bot, activity_queue, user_client, cleanup = await _start_slack_test()
-        env = (slack_bot, activity_queue, user_client)
         try:
-            await test_message_dm_calls_callback_with_images(env)
-            await test_message_in_channel_calls_callback_with_text_files(env)
-            await test_post_operation_with_files(env)
-            await test_capture_thread(env)
+            await test_message_dm_calls_callback_with_images(slack_bot, activity_queue, user_client)
+            await test_message_in_channel_calls_callback_with_text_files(slack_bot, activity_queue, user_client)
+            await test_post_operation_with_files(slack_bot, activity_queue)
+            await test_capture_thread(slack_bot, activity_queue, user_client)
         finally:
             print("Waiting 5mins before cleanup")
             await asyncio.sleep(300)
