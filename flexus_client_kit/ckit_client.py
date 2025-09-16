@@ -42,7 +42,7 @@ class FlexusClient:
             assert endpoint != "/v1/graphql", "Whoops superuser set but it's regular endpoint"
             self.api_key = None
         elif self.use_ws_ticket:
-            pass
+            self.api_key = None
         else:
             assert have_api_key, "Set FLEXUS_API_KEY you can generate on your personal profile page."
             assert "superuser" not in endpoint
