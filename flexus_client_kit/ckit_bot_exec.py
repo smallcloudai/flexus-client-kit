@@ -101,7 +101,6 @@ class RobotContext:
         self._parked_threads: Dict[str, ckit_ask_model.FThreadOutput] = {}
         self._parked_toolcalls: List[ckit_cloudtool.FCloudtoolCall] = []
         self._parked_anything_new = asyncio.Event()
-        self._background_tasks: Set[asyncio.Task] = set()
         # These fields are designed for direct access:
         self.fclient = fclient
         self.persona = p
@@ -126,42 +125,6 @@ class RobotContext:
 
     def ready(self):
         self._ready = True
-
-    def _spawn(self, coro: Awaitable) -> asyncio.Task:
-        task = asyncio.create_task(coro)
-        self._background_tasks.add(task)
-        task.add_done_callback(lambda t: self._background_tasks.discard(t))
-        return task
-
-    async def _safe_handler_call(self, handler: Callable, *args) -> Any:
-        try:
-            return await handler(*args)
-        except Exception as e:
-            logger.error("%s error in handler %s: %s\n%s" % (
-                self.persona.persona_id,
-                handler.__name__ if hasattr(handler, '__name__') else 'unknown',
-                type(e).__name__,
-                e
-            ), exc_info=True)
-
-    async def wait_for_background_tasks(self, timeout: Optional[float] = None):
-        if self._background_tasks:
-            logger.info("%s waiting for %d background tasks to complete" % (
-                self.persona.persona_id,
-                len(self._background_tasks)
-            ))
-            done, pending = await asyncio.wait(
-                self._background_tasks,
-                timeout=timeout,
-                return_when=asyncio.ALL_COMPLETED
-            )
-            if pending:
-                logger.warning("%s still have %d pending tasks after timeout" % (
-                    self.persona.persona_id,
-                    len(pending)
-                ))
-            return done, pending
-        return set(), set()
 
     async def unpark_collected_events(self, sleep_if_no_work: float, turn_tool_calls_into_tasks: bool = False) -> List[asyncio.Task]:
         # logger.info("%s unpark_collected_events() started %d %d %d" % (self.persona.persona_id, len(self._parked_messages), len(self._parked_threads), len(self._parked_toolcalls)))
@@ -256,14 +219,6 @@ async def crash_boom_bang(fclient: ckit_client.FlexusClient, rcx: RobotContext, 
         logger.error("Bot main loop: %s %s" % (type(e).__name__, e), exc_info=True)
 
     finally:
-        if rcx._background_tasks:
-            logger.info("%s cleaning up %d background tasks" % (
-                rcx.persona.persona_id,
-                len(rcx._background_tasks)
-            ))
-            for task in rcx._background_tasks:
-                task.cancel()
-            await asyncio.gather(*rcx._background_tasks, return_exceptions=True)
         logger.info("%s STOP" % rcx.persona.persona_id)
 
 
@@ -469,21 +424,6 @@ async def shutdown_bots(
         for bot in still_running:
             bot.atask.cancel()
         await asyncio.gather(*[bot.atask for bot in still_running], return_exceptions=True)
-
-    for bot in bc.bots_running.values():
-        if bot.eventgen._background_tasks:
-            logger.info(f"Waiting for {len(bot.eventgen._background_tasks)} background tasks in {bot.eventgen.persona.persona_id}")
-            try:
-                await asyncio.wait_for(
-                    bot.eventgen.wait_for_background_tasks(),
-                    timeout=2.0  # Give background tasks 2 seconds to complete
-                )
-            except asyncio.TimeoutError:
-                logger.warning(f"Background tasks timeout for {bot.eventgen.persona.persona_id}")
-                # Cancel remaining tasks
-                for task in bot.eventgen._background_tasks:
-                    task.cancel()
-                await asyncio.gather(*bot.eventgen._background_tasks, return_exceptions=True)
 
     logger.info("shutdown_bots success")
 
