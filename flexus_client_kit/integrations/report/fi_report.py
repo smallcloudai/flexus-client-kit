@@ -255,7 +255,7 @@ async def _export_report_tool(
         "datetime": template_datetime,
         "sections": {},  # All sections by their full name
     }
-    
+
     for section_name, section in report_data["sections"].items():
         placeholder = section["cfg"].get("placeholder")
         if placeholder:
@@ -264,10 +264,10 @@ async def _export_report_tool(
                 "placeholder": placeholder,
                 "name": section_name
             }
-            
+
             section_base_id = section.get("section_id", section_name)
             section_config = sections_config.get(section_base_id, {})
-            
+
             if not section_config.get("iteration"):
                 if placeholder not in template_data:
                     template_data[placeholder] = section["content"]
@@ -275,26 +275,26 @@ async def _export_report_tool(
                     existing = template_data[placeholder]
                     if isinstance(existing, str):
                         template_data[placeholder] = existing + "\n\n" + section["content"]
-    
+
     if report_data.get("entities"):
         template_data["entities_data"] = {}
-        
+
         for entity in report_data["entities"]:
             template_data["entities_data"][entity] = {}
-            
+
             for section_name, section_info in template_data["sections"].items():
                 entity_from_name = _extract_entity_from_section_name(section_name, report_data["entities"])
                 if entity_from_name == entity:
                     placeholder = section_info["placeholder"]
                     template_data["entities_data"][entity][placeholder] = section_info["content"]
-    
+
     providers = set()
     for section_id, config in sections_config.items():
         if iterators := config.get("iterators", {}):
             if provider_list := iterators.get("provider"):
                 if isinstance(provider_list, list):
                     providers.update(provider_list)
-    
+
     if providers:
         template_data["providers"] = sorted(list(providers))
 
@@ -358,7 +358,7 @@ Error: Report '{report_id}' not found.
 
 No reports available. Create a new report with:
   create_report(name=<report_name>, entities='["entity1", "entity2"]', report_type=<type>)
-  
+
 Available report types:
 {types_list}""")
 
@@ -425,7 +425,7 @@ async def handle_create_report_tool(
 
     total_tasks = len(todo_queue)
     current_time = datetime.now(tz).strftime("%Y-%m-%d %H:%M:%S %Z")
-    
+
     available = list_available_reports()
     types_list = "\n".join([f"  - {t[0]}: {t[1]}" for t in available])
 
@@ -471,7 +471,7 @@ async def handle_fill_section_tool(
         return f"{e}"
 
     todo_infos = [todo for todo in report_doc["json"]["todo_queue"] if todo["section_name"] == section_name]
-    assert len(todo_infos) <= 1, f"Problem we the config, non-unique name in sections:\n{todo_infos}"
+    assert len(todo_infos) <= 1, f"Problem in the config, non-unique name in sections:\n{todo_infos}"
     if len(todo_infos) == 0:
         sections = ", ".join([todo["section_name"] for todo in report_doc["json"]["todo_queue"]])
         return f"Error: Section '{section_name}' not found in the report '{report_id}'. Available sections:\n{sections}"
@@ -606,7 +606,7 @@ Available report types:
             result.append(
                 "Use get_report_status(report_id=<report_id>) to get detailed status for a specific report."
             )
-        
+
         # Add available report types
         result.append("")
         available = list_available_reports()
@@ -672,7 +672,7 @@ Available report types:
         result.append("🎉 All tasks completed!")
         if not html_exists:
             result.append("⚠️ Note: HTML export may have failed. Check logs for details.")
-    
+
     # Add available report types
     result.append("")
     available = list_available_reports()
@@ -748,15 +748,15 @@ async def handle_load_metadata_tool(
 def _format_dependency_content(dependency_sections: List[str], completed_sections: Dict[str, Any]) -> str:
     if not dependency_sections:
         return ""
-    
+
     dependency_text = "\n\n=== DEPENDENCY DATA ===\n"
-    
+
     for dep_name in dependency_sections:
         if dep_name in completed_sections:
             section_data = completed_sections[dep_name]
             content = section_data.get("content", "")
             dependency_text += f"\n--- {dep_name} ---\n{content}\n"
-    
+
     return dependency_text
 
 
@@ -770,12 +770,12 @@ async def handle_process_report_tool(
         report_id: Optional[str] = None,
 ) -> str:
     from collections import defaultdict
-    
+
     if report_id is None:
         return "Error: No report_id provided"
 
     report_id = _fix_unicode_corruption(report_id)
-    
+
     tz = ZoneInfo(ws_timezone)
     current_time = datetime.now(tz).strftime("%Y-%m-%d %H:%M:%S %Z")
 
@@ -786,7 +786,7 @@ async def handle_process_report_tool(
 
     report_data = report_doc["json"]
     todo = report_data.get("todo_queue", [])
-    
+
     if not todo:
         return f"[{current_time} in {tz}]\n\nReport {report_id} is already complete."
 
@@ -800,11 +800,11 @@ async def handle_process_report_tool(
     next_phase = min(phases.keys())
     tasks_in_phase = phases[next_phase]
     completed_sections = report_data.get("sections", {})
-    
+
     first_questions = []
     first_calls = []
     titles = []
-    
+
     for task in tasks_in_phase:
         task_text = task["task"]
         if task.get("depends_on"):
