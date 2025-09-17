@@ -1,21 +1,17 @@
 import asyncio
 import json
 import os
+import signal
 import time
-import uuid
 
 import gql
-from PIL import Image
 from slack_sdk.web.async_client import AsyncWebClient
-from pymongo import AsyncMongoClient
 
 from flexus_client_kit import (
     ckit_ask_model,
     ckit_bot_exec,
-    ckit_bot_install,
-    ckit_client,
     ckit_cloudtool,
-    ckit_mongo,
+    ckit_scenario_setup,
 )
 from flexus_client_kit.integrations.fi_slack import ActivitySlack, IntegrationSlack
 from flexus_client_kit.integrations.fi_slack_fake import IntegrationSlackFake
@@ -23,102 +19,29 @@ from flexus_simple_bots.karen import karen_bot
 
 
 async def _start_slack_test(slack_fake: bool = False) -> tuple[IntegrationSlack | IntegrationSlackFake, asyncio.Queue, AsyncWebClient, asyncio.Task]:
-    fclient = ckit_client.FlexusClient(service_name="fi_slack_test")
-    bot_fclient = ckit_client.FlexusClient(service_name="fi_slack_test_bot", endpoint="/v1/jailed-bot")
-    bs = await ckit_client.query_basic_stuff(fclient)
-
-    ws = None
-    karen_available = False
-    for w in bs.workspaces:
-        if w.have_admin:
-            try:
-                http = await fclient.use_http()
-                async with http as h:
-                    details = await h.execute(gql.gql("""query MarketplaceDetails($ws_id: String!, $marketable_name: String!) {
-                        marketplace_details(ws_id: $ws_id, marketable_name: $marketable_name) {
-                            dev_version_details {
-                                marketable_version
-                                marketable_stage
-                            }
-                            versions {
-                                marketable_version
-                                marketable_stage
-                            }
-                        }
-                    }"""), variable_values={"ws_id": w.ws_id, "marketable_name": karen_bot.BOT_NAME})
-
-                    versions = details["marketplace_details"]["versions"]
-                    dev_stages = ["MARKETPLACE_DEV", "MARKETPLACE_WAITING_IMAGE", "MARKETPLACE_FAILED_IMAGE_BUILD"]
-
-                    for version in versions:
-                        if (version["marketable_version"] == karen_bot.BOT_VERSION_INT and
-                            version["marketable_stage"] in dev_stages):
-                            ws = w
-                            karen_available = True
-                            break
-
-                    if karen_available:
-                        break
-
-            except:
-                continue
-
-    if not karen_available:
-        raise RuntimeError(f"Karen dev version {karen_bot.BOT_VERSION_INT} not found in any workspace. "
-                          "There must be a dev version available with stage MARKETPLACE_DEV, MARKETPLACE_WAITING_IMAGE, or MARKETPLACE_FAILED_IMAGE_BUILD")
-
-    if ws is None:
-        ws = next((w for w in bs.workspaces if w.have_admin), bs.workspaces[0])
-    async with (await fclient.use_http()) as http:
-        fgroup_id = (
-            await http.execute(
-                gql.gql(
-                    """mutation($input: FlexusGroupInput!){group_create(input:$input){fgroup_id}}"""
-                ),
-                variable_values={
-                    "input": {
-                        "fgroup_name": f"slack-test-{uuid.uuid4().hex[:6]}",
-                        "fgroup_parent_id": ws.ws_root_group_id,
-                    }
-                },
-            )
-        )["group_create"]["fgroup_id"]
-
-    persona = await _install_test_persona(fclient, bs, ws, fgroup_id, slack_fake)
-    rcx = ckit_bot_exec.RobotContext(bot_fclient, persona)
-    rcx.workdir = f"/tmp/bot_workspace/{persona.persona_id}"
-
-    # Create test files
-    os.makedirs(rcx.workdir, exist_ok=True)
-    Image.new('RGB', (100, 100), color='red').save(f'{rcx.workdir}/1.png')
-    Image.new('RGB', (100, 100), color='blue').save(f'{rcx.workdir}/2.png')
-    open(f'{rcx.workdir}/1.txt', 'w').write('This is test file 1\nWith multiple lines\nFor testing file attachments')
-    open(f'{rcx.workdir}/2.json', 'w').write('{"test": "data", "file": "2", "content": "json test file"}')
-
-    mongo_conn_str = await ckit_mongo.get_mongodb_creds(rcx.fclient, persona.persona_id)
-    mongo = AsyncMongoClient(mongo_conn_str)
-    dbname = persona.persona_id + "_db"
-    mydb = mongo[dbname]
-    mongo_collection = mydb["files"]
-
-    for filename in ['1.png', '2.png', '1.txt', '2.json']:
-        file_path = f'{rcx.workdir}/{filename}'
-        with open(file_path, 'rb') as f:
-            file_data = f.read()
-        await ckit_mongo.store_file(mongo_collection, filename, file_data)
+    scenario_setup = ckit_scenario_setup.ScenarioSetup("fi_slack_test")
+    karen_setup = {
+        "SLACK_BOT_TOKEN": "" if slack_fake else os.environ["SLACK_BOT_TOKEN"],
+        "SLACK_APP_TOKEN": "" if slack_fake else os.environ["SLACK_APP_TOKEN"],
+        "slack_should_join": "tests",
+    }
+    rcx, mongo_collection = await scenario_setup.setup(
+        karen_bot.BOT_NAME, karen_setup, require_dev=True, prefix="slack-test"
+    )
 
     if slack_fake:
-        slack_bot = IntegrationSlackFake(fclient, rcx, "", "", should_join=persona.persona_setup["slack_should_join"], mongo_collection=mongo_collection)
+        slack_bot = IntegrationSlackFake(scenario_setup.fclient, rcx, "", "", should_join=rcx.persona.persona_setup["slack_should_join"], mongo_collection=mongo_collection)
         user_client = None
     else:
         slack_bot = IntegrationSlack(
-            fclient, rcx,
-            persona.persona_setup["SLACK_BOT_TOKEN"],
-            persona.persona_setup["SLACK_APP_TOKEN"],
-            should_join=persona.persona_setup["slack_should_join"],
+            scenario_setup.fclient, rcx,
+            rcx.persona.persona_setup["SLACK_BOT_TOKEN"],
+            rcx.persona.persona_setup["SLACK_APP_TOKEN"],
+            should_join=rcx.persona.persona_setup["slack_should_join"],
             mongo_collection=mongo_collection
         )
         user_client = AsyncWebClient(token=os.environ["SLACK_USER_TOKEN"])
+
     activity_queue: asyncio.Queue[tuple[ActivitySlack, bool]] = asyncio.Queue()
 
     async def callback(activity: ActivitySlack, already_posted_to_captured_thread: bool):
@@ -134,70 +57,14 @@ async def _start_slack_test(slack_fake: bool = False) -> tuple[IntegrationSlack 
                 channel_id = slack_bot.channels_name2id.get(channel_name)
                 if channel_id:
                     try:
-                        await slack_bot.reactive_slack.client.conversations_leave(
-                            channel=channel_id
-                        )
+                        await slack_bot.reactive_slack.client.conversations_leave(channel=channel_id)
                         print(f"✓ Bot left #{channel_name}")
                     except Exception as e:
                         print(f"⚠️  Failed to leave #{channel_name}: {e}")
         await slack_bot.close()
-        async with (await fclient.use_http()) as http:
-            try:
-                await http.execute(
-                    gql.gql("""mutation($id:String!){group_delete(fgroup_id:$id)}"""),
-                    variable_values={"id": fgroup_id},
-                )
-            except Exception as e:
-                print(f"⚠️ Failed to delete test group {fgroup_id}: {e}")
+        await scenario_setup.cleanup()
 
     return slack_bot, activity_queue, user_client, cleanup
-
-
-async def _install_test_persona(
-    fclient: ckit_client.FlexusClient,
-    bs: ckit_client.BasicStuffOutput,
-    ws: ckit_client.FWorkspaceOutput,
-    fgroup_id: str,
-    slack_fake: bool = False
-) -> ckit_bot_exec.FPersonaOutput:
-    setup = {
-        "SLACK_BOT_TOKEN": "" if slack_fake else os.environ["SLACK_BOT_TOKEN"],
-        "SLACK_APP_TOKEN": "" if slack_fake else os.environ["SLACK_APP_TOKEN"],
-        "slack_should_join": "tests",
-    }
-    persona_name = f"Karen Slack Test {fgroup_id[-4:]}"
-    install_args = dict(
-        client=fclient,
-        ws_id=ws.ws_id,
-        inside_fgroup=fgroup_id,
-        persona_marketable_name=karen_bot.BOT_NAME,
-        persona_name=persona_name,
-        new_setup=setup,
-    )
-    try:
-        install = await ckit_bot_install.bot_install_from_marketplace(
-            **install_args, install_dev_version=True
-        )
-    except Exception:
-        install = await ckit_bot_install.bot_install_from_marketplace(
-            **install_args,
-            install_dev_version=False,
-            specific_version=karen_bot.BOT_VERSION_INT,
-        )
-
-    return ckit_bot_exec.FPersonaOutput(
-        owner_fuser_id=bs.fuser_id,
-        located_fgroup_id=fgroup_id,
-        persona_id=install.persona_id,
-        persona_name=persona_name,
-        persona_marketable_name=karen_bot.BOT_NAME,
-        persona_marketable_version=karen_bot.BOT_VERSION_INT,
-        persona_discounts=None,
-        persona_setup=dict(setup),
-        persona_created_ts=time.time(),
-        ws_id=ws.ws_id,
-        ws_timezone="UTC",
-    )
 
 
 def _create_toolcall(slack_bot: IntegrationSlack, call_id: str, ft_id: str, args: dict, called_ftm_num: int = 1):
@@ -248,7 +115,6 @@ async def test_message_dm_calls_callback_with_images(
     assert activity.message_text == dm_message and posted is False
     assert len(activity.file_contents) == 2, "Should have 2 image files"
 
-    print(f"✓ DM image test passed with {len(activity.file_contents)} files")
 
 
 async def test_message_in_channel_calls_callback_with_text_files(
@@ -273,7 +139,6 @@ async def test_message_in_channel_calls_callback_with_text_files(
     assert "1.txt" in file_contents and "This is test file 1" in file_contents, "Should contain 1.txt"
     assert "2.json" in file_contents and '\"content\": \"json test file\"' in file_contents, "Should contain 2.json"
 
-    print("✓ Channel text file test passed")
 
 
 async def test_post_operation_with_files(
@@ -305,7 +170,6 @@ async def test_post_operation_with_files(
     result2 = await slack_bot.called_by_model(toolcall=tcall2, model_produced_args=file_args)
     assert "success" in result2.lower(), f"File post should succeed: {result2}"
 
-    print("✓ Post operation test passed (text + file)")
     await asyncio.sleep(1)
 
 
@@ -420,7 +284,6 @@ async def test_capture_thread(
             break
     assert found
 
-    print("✓ Assistant post test passed")
 
     uncapture_args = {"op": "uncapture", "args": {"channel_slash_thread": f"tests/{thread_ts}"}}
     tcall3 = _create_toolcall(slack_bot, "uncapture_call", ft_id, uncapture_args, called_ftm_num=3)
@@ -447,20 +310,30 @@ async def test_capture_thread(
     assert any("test message 2" in json.dumps(m) for m in messages)
     assert not any("test message 3" in json.dumps(m) for m in messages)
 
-    print("✓ Capture thread test passed")
 
 
 if __name__ == "__main__":
     async def _main():
         slack_bot, activity_queue, user_client, cleanup = await _start_slack_test()
         try:
+            print(f"Starting tests with user_client: {type(user_client)}")
             await test_message_dm_calls_callback_with_images(slack_bot, activity_queue, user_client)
+            print("✓ DM test passed")
             await test_message_in_channel_calls_callback_with_text_files(slack_bot, activity_queue, user_client)
+            print("✓ Channel test passed")
             await test_post_operation_with_files(slack_bot, activity_queue)
+            print("✓ Post operation test passed")
             await test_capture_thread(slack_bot, activity_queue, user_client)
-        finally:
-            print("Waiting 5mins before cleanup")
+            print("✓ All tests passed!")
+            print("Waiting 5mins before cleanup (Ctrl+C to cleanup immediately)")
             await asyncio.sleep(300)
+        except KeyboardInterrupt:
+            print("\nCleaning up immediately...")
+        except Exception as e:
+            print(f"Test failed: {e}")
+            import traceback
+            traceback.print_exc()
+        finally:
             await cleanup()
 
     asyncio.run(_main())
