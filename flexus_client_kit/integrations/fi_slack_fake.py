@@ -9,39 +9,21 @@ from pymongo.collection import Collection
 from flexus_client_kit import ckit_cloudtool, ckit_client, ckit_bot_exec, ckit_ask_model
 from flexus_client_kit.integrations.fi_mongo_store import validate_path, download_file
 from flexus_client_kit.integrations.fi_slack import (
-    HELP,
-    CAPTURE_SUCCESS_MSG,
-    CAPTURE_ADVICE_MSG,
-    UNCAPTURE_SUCCESS_MSG,
-    SKIP_SUCCESS_MSG,
-    OTHER_CHAT_ALREADY_CAPTURING_MSG,
-    CANNOT_POST_TO_CAPTURED_MSG,
-    parse_channel_slash_thread,
-    ActivitySlack,
-    IntegrationSlack as RealSlack,
-    logger,
+    HELP, CAPTURE_SUCCESS_MSG, CAPTURE_ADVICE_MSG, UNCAPTURE_SUCCESS_MSG, SKIP_SUCCESS_MSG,
+    OTHER_CHAT_ALREADY_CAPTURING_MSG, CANNOT_POST_TO_CAPTURED_MSG, parse_channel_slash_thread,
+    ActivitySlack, IntegrationSlack as RealSlack, logger
 )
 
 
 class IntegrationSlackFake:
-    """In-memory fake Slack implementation for local testing."""
-
-    def __init__(
-        self,
-        fclient: ckit_client.FlexusClient,
-        rcx: ckit_bot_exec.RobotContext,
-        SLACK_BOT_TOKEN: str = "",  # not needed, added to match create method of real
-        SLACK_APP_TOKEN: str = "",
-        should_join: str = "",
-        mongo_collection: Optional[Collection] = None,
-    ):
+    def __init__(self, fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.RobotContext,
+                 SLACK_BOT_TOKEN: str = "", SLACK_APP_TOKEN: str = "", should_join: str = "",
+                 mongo_collection: Optional[Collection] = None):
         self.fclient = fclient
         self.rcx = rcx
         self.should_join = [x.strip() for x in should_join.split(",") if x.strip()]
         self.actually_joined = set()
-        self.activity_callback: Optional[
-            Callable[[ActivitySlack, bool], Awaitable[None]]
-        ] = None
+        self.activity_callback: Optional[Callable[[ActivitySlack, bool], Awaitable[None]]] = None
         self.channels_id2name: Dict[str, str] = {}
         self.channels_name2id: Dict[str, str] = {}
         self.users_id2name: Dict[str, str] = {}
@@ -52,9 +34,7 @@ class IntegrationSlackFake:
         self.reactive_running = False
         self.mongo_collection = mongo_collection
 
-    def set_activity_callback(
-        self, cb: Callable[[ActivitySlack, bool], Awaitable[None]]
-    ):
+    def set_activity_callback(self, cb: Callable[[ActivitySlack, bool], Awaitable[None]]):
         self.activity_callback = cb
 
     async def start_reactive(self):
@@ -94,28 +74,14 @@ class IntegrationSlackFake:
             logger.exception(f"Failed to post message into captured ft_id={thread_capturing.thread_fields.ft_id}")
             return False
 
-    async def _receive_fake_message(
-        self,
-        channel: str,
-        thread_ts: str,
-        ts: str,
-        text: str,
-        user: str,
-        path: Optional[str] = None,
-    ):
+    async def _receive_fake_message(self, channel: str, thread_ts: str, ts: str, text: str, user: str, path: Optional[str] = None):
         chan_id = self.channels_name2id.get(channel, channel)
         self.channels_name2id.setdefault(channel, chan_id)
         self.channels_id2name.setdefault(chan_id, channel)
         self.messages.setdefault(chan_id, [])
         self.users_id2name.setdefault(user, user)
         self.users_name2id.setdefault(user, user)
-        msg = {
-            "ts": ts,
-            "thread_ts": thread_ts,
-            "user": user,
-            "text": text,
-            "file": None,
-        }
+        msg = {"ts": ts, "thread_ts": thread_ts, "user": user, "text": text, "file": None}
         file_contents: List[Dict[str, str]] = []
         if path:
             if self.mongo_collection is None:
@@ -142,7 +108,7 @@ class IntegrationSlackFake:
                             summary = f"[Binary file: {path} ({len(data)} bytes)]"
                             file_contents.append({"m_type": "text", "m_content": summary})
                             msg["file"] = summary
-                        os.unlink(local_path)  # Clean up temp file
+                        os.unlink(local_path)
                     except Exception as e:
                         print(f"Debug: Exception in _receive_fake_message: {e}")
                         import traceback
@@ -152,14 +118,8 @@ class IntegrationSlackFake:
                     msg["file"] = f"(invalid path {path})"
         self.messages[chan_id].append(msg)
         activity = ActivitySlack(
-            what_happened="message",
-            channel_name=self.channels_id2name[chan_id],
-            thread_ts=thread_ts,
-            message_ts=ts,
-            message_text=text,
-            message_author_name=user,
-            mention_looked_up={},
-            file_contents=file_contents,
+            what_happened="message", channel_name=self.channels_id2name[chan_id], thread_ts=thread_ts,
+            message_ts=ts, message_text=text, message_author_name=user, mention_looked_up={}, file_contents=file_contents
         )
         posted = await self.post_into_captured_thread_as_user(activity, chan_id)
         if self.activity_callback:
@@ -181,7 +141,8 @@ class IntegrationSlackFake:
         self.messages.setdefault(chan_id, [])
         self.channels_id2name.setdefault(chan_id, chan_id)
         self.channels_name2id.setdefault(chan_id, chan_id)
-        entry = {"ts": ts, "thread_ts": thread_ts or ts, "user": "bot", "text": msg.ftm_content, "file": None, "metadata": {"ft_id": msg.ftm_belongs_to_ft_id}}
+        entry = {"ts": ts, "thread_ts": thread_ts or ts, "user": "bot", "text": msg.ftm_content,
+                 "file": None, "metadata": {"ft_id": msg.ftm_belongs_to_ft_id}}
         self.messages[chan_id].append(entry)
         if self.activity_callback:
             activity = ActivitySlack(
@@ -218,15 +179,9 @@ class IntegrationSlackFake:
         if args_error:
             return args_error
 
-        channel_slash_thread = ckit_cloudtool.try_best_to_find_argument(
-            args, model_produced_args, "channel_slash_thread", ""
-        )
-        text = ckit_cloudtool.try_best_to_find_argument(
-            args, model_produced_args, "text", ""
-        )
-        attach_file = ckit_cloudtool.try_best_to_find_argument(
-            args, model_produced_args, "path", ""
-        )
+        channel_slash_thread = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "channel_slash_thread", "")
+        text = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "text", "")
+        attach_file = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "path", "")
 
         print_help = not op or "help" in op
         print_status = not op or "status" in op
@@ -304,12 +259,8 @@ class IntegrationSlackFake:
             ts = str(time.time())
             thread_ts = thread or ts
             msg: Dict[str, Any] = {
-                "ts": ts,
-                "thread_ts": thread_ts,
-                "user": "bot",
-                "text": text,
-                "file": None,
-                "metadata": {"ft_id": toolcall.fcall_ft_id},
+                "ts": ts, "thread_ts": thread_ts, "user": "bot", "text": text,
+                "file": None, "metadata": {"ft_id": toolcall.fcall_ft_id}
             }
             file_contents: List[Dict[str, str]] = []
             if attach_file:
@@ -339,7 +290,7 @@ class IntegrationSlackFake:
                         summary = f"[Binary file: {attach_file} ({len(data)} bytes)]"
                         file_contents.append({"m_type": "text", "m_content": summary})
                         msg["file"] = summary
-                    os.unlink(local_path)  # Clean up temp file
+                    os.unlink(local_path)
                 except Exception as e:
                     print(f"Debug: Exception in post operation: {e}")
                     import traceback
@@ -362,12 +313,8 @@ class IntegrationSlackFake:
                 await self.activity_callback(activity, True)
 
             if attach_file:
-                return (
-                    "File upload success (thread)" if thread else "File upload success (channel)"
-                )
-            return (
-                "Post success (thread in channel)" if thread else "Post success (channel)"
-            )
+                return "File upload success (thread)" if thread else "File upload success (channel)"
+            return "Post success (thread in channel)" if thread else "Post success (channel)"
 
         return f"Error: Unknown op {op}"
 
@@ -375,21 +322,14 @@ class IntegrationSlackFake:
 FAKE_SLACK_INSTANCES: List[IntegrationSlackFake] = []
 
 
-async def post_fake_slack_message(
-    channel_slash_thread: str,
-    text: str,
-    user: str = "user",
-    path: Optional[str] = None,
-):
+async def post_fake_slack_message(channel_slash_thread: str, text: str, user: str = "user", path: Optional[str] = None):
     channel, thread = parse_channel_slash_thread(channel_slash_thread)
     if not channel:
         return
     ts = str(time.time())
     thread_ts = thread or ts
     for inst in list(FAKE_SLACK_INSTANCES):
-        await inst._receive_fake_message(
-            channel, thread_ts, ts, text, user, path
-        )
+        await inst._receive_fake_message(channel, thread_ts, ts, text, user, path)
     return {"ts": ts, "thread_ts": thread_ts}
 
 
