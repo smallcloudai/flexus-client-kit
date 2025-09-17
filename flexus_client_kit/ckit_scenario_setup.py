@@ -182,6 +182,30 @@ class ScenarioSetup:
         print("⚠️ MCP server failed to start within timeout")
         return False
 
+    async def print_captured_thread(self) -> None:
+        if not self.fgroup_id:
+            return
+        async with (await self.fclient.use_http()) as http:
+            threads = await http.execute(gql.gql("""
+                query ListThreads($fgroup_id: String!) {
+                    thread_list(located_fgroup_id: $fgroup_id, skip: 0, limit: 10) { ft_id ft_app_searchable }
+                }"""), variable_values={"fgroup_id": self.fgroup_id})
+
+            for thread in threads["thread_list"]:
+                if thread["ft_app_searchable"].startswith("slack/"):
+                    messages = await http.execute(gql.gql("""
+                        query ThreadMessages($ft_id: String!) {
+                            thread_messages_list(ft_id: $ft_id) { ftm_role ftm_content ftm_alt }
+                        }"""), variable_values={"ft_id": thread["ft_id"]})
+
+                    print(f"\n📝 {thread['ft_app_searchable']}")
+                    colors = {"user": "\033[94m", "assistant": "\033[92m", "system": "\033[93m", "tool": "\033[95m", "kernel": "\033[96m"}
+                    for msg in messages["thread_messages_list"][:8]:
+                        if msg["ftm_alt"] == 100:
+                            content = str(msg["ftm_content"])[:300] + "..." if len(str(msg["ftm_content"])) > 300 else str(msg["ftm_content"])
+                            color = colors.get(msg['ftm_role'], "\033[0m")
+                            print(f"  {color}{msg['ftm_role']}\033[0m: {content}")
+
     async def cleanup(self) -> None:
         if self.fgroup_id:
             await cleanup_test_group(self.fclient, self.fgroup_id)
