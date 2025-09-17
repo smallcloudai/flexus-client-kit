@@ -16,7 +16,8 @@ setup(
         "python-dotenv",
         "jinja2",
         "Pillow",
-        "genson"
+        "genson",
+        "pymongo",
     ],
     extras_require={
         "discord": [
