@@ -53,10 +53,21 @@ frog_setup_schema = [
 
 
 FROG_SUBCHAT_LARK = f"""
-print("Ribbit!")     # will be visible in lark logs
+print("Ribbit in logs")     # will be visible in lark logs
 subchat_result = "Insect!"
 """
-# if coins > budget * 0.5 and not messages[-1]["tool_calls"]:
+
+FROG_DEFAULT_LARK = f"""
+print("I see %d messages" % len(messages))
+msg = messages[-1]
+if msg["role"] == "assistant":
+    assistant_says1 = str(msg["content"]  )  # assistant produces only text
+    assistant_says2 = str(msg["tool_calls"]) # that might be a big json but it still converts to string, good enough for a frog
+    print("assistant_says1", assistant_says1)
+    print("assistant_says2", assistant_says2)
+    if "snake" in assistant_says1.lower() or "snake" in assistant_says2.lower():
+        post_content = "OMG dive down!!!"
+"""
 
 
 async def install(
@@ -86,7 +97,7 @@ async def install(
         marketable_expert_default=ckit_bot_install.FMarketplaceExpertInput(
             fexp_name="frog_default",
             fexp_system_prompt=frog_prompts.short_prompt,
-            fexp_python_kernel="",
+            fexp_python_kernel=FROG_DEFAULT_LARK,
             fexp_block_tools="*setup*",
             fexp_allow_tools="",
             fexp_app_capture_tools=bot_internal_tools,
@@ -94,7 +105,7 @@ async def install(
         marketable_expert_setup=ckit_bot_install.FMarketplaceExpertInput(
             fexp_name="frog_setup",
             fexp_system_prompt=frog_prompts.frog_setup,
-            fexp_python_kernel="",
+            fexp_python_kernel=FROG_DEFAULT_LARK,
             fexp_block_tools="",
             fexp_allow_tools="",
             fexp_app_capture_tools=bot_internal_tools,
