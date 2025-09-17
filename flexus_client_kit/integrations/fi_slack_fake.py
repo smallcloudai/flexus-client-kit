@@ -4,9 +4,10 @@ import json
 import mimetypes
 import asyncio
 from typing import Dict, Any, Optional, Callable, Awaitable, List
+from pymongo.collection import Collection
 
 from flexus_client_kit import ckit_cloudtool, ckit_client, ckit_bot_exec, ckit_ask_model
-from flexus_client_kit.integrations import fi_localfile
+from flexus_client_kit.integrations.fi_mongo_store import validate_path, download_file
 from flexus_client_kit.integrations.fi_slack import (
     HELP,
     CAPTURE_SUCCESS_MSG,
@@ -35,6 +36,7 @@ class IntegrationSlackFake:
         SLACK_BOT_TOKEN: str = "",  # not needed, added to match create method of real
         SLACK_APP_TOKEN: str = "",
         should_join: str = "",
+        mongo_collection: Optional[Collection] = None,
     ):
         self.fclient = fclient
         self.rcx = rcx
@@ -51,6 +53,7 @@ class IntegrationSlackFake:
         self.captured: Optional[tuple[str, str]] = None
         self.captured_ft_id: Optional[str] = None
         self.reactive_running = False
+        self.mongo_collection = mongo_collection
 
     def set_activity_callback(
         self, cb: Callable[[ActivitySlack, bool], Awaitable[None]]
@@ -101,7 +104,7 @@ class IntegrationSlackFake:
         ts: str,
         text: str,
         user: str,
-        localfile_path: Optional[str] = None,
+        path: Optional[str] = None,
     ):
         chan_id = self.channels_name2id.get(channel, channel)
         self.channels_name2id.setdefault(channel, chan_id)
@@ -117,32 +120,39 @@ class IntegrationSlackFake:
             "file": None,
         }
         file_contents: List[Dict[str, str]] = []
-        if localfile_path:
-            perr = fi_localfile.validate_path(localfile_path)
-            if not perr:
-                path = os.path.join(
-                    getattr(self.rcx, "workdir", "/tmp/slack_fake"), localfile_path
-                )
-                try:
-                    with open(path, "rb") as f:
-                        data = f.read()
-                    mime, _ = mimetypes.guess_type(localfile_path)
-                    if mime and mime.startswith("image/"):
-                        processed = await RealSlack._process_slack_image(self, data, mime)
-                        file_contents.append(processed)
-                        msg["file"] = f"[image {localfile_path}]"
-                    elif RealSlack._is_text_file(self, data):
-                        processed = await RealSlack._process_slack_text_file(self, data, localfile_path)
-                        file_contents.append(processed)
-                        msg["file"] = processed["m_content"]
-                    else:
-                        summary = f"[Binary file: {localfile_path} ({len(data)} bytes)]"
-                        file_contents.append({"m_type": "text", "m_content": summary})
-                        msg["file"] = summary
-                except Exception:
-                    msg["file"] = f"(failed to read {localfile_path})"
+        if path:
+            if self.mongo_collection is None:
+                msg["file"] = f"(mongo collection not available for {path})"
             else:
-                msg["file"] = f"(invalid path {localfile_path})"
+                perr = validate_path(path)
+                if not perr:
+                    try:
+                        import tempfile
+                        local_path = os.path.join(tempfile.gettempdir(), os.path.basename(path))
+                        await download_file(self.mongo_collection, path, local_path)
+                        with open(local_path, "rb") as f:
+                            data = f.read()
+                        mime, _ = mimetypes.guess_type(path)
+                        if mime and mime.startswith("image/"):
+                            processed = await RealSlack._process_slack_image(self, data, mime)
+                            file_contents.append(processed)
+                            msg["file"] = f"[image {path}]"
+                        elif RealSlack._is_text_file(self, data):
+                            processed = await RealSlack._process_slack_text_file(self, data, path)
+                            file_contents.append(processed)
+                            msg["file"] = processed["m_content"]
+                        else:
+                            summary = f"[Binary file: {path} ({len(data)} bytes)]"
+                            file_contents.append({"m_type": "text", "m_content": summary})
+                            msg["file"] = summary
+                        os.unlink(local_path)  # Clean up temp file
+                    except Exception as e:
+                        print(f"Debug: Exception in _receive_fake_message: {e}")
+                        import traceback
+                        traceback.print_exc()
+                        msg["file"] = f"(failed to read {path}: {e})"
+                else:
+                    msg["file"] = f"(invalid path {path})"
         self.messages[chan_id].append(msg)
         activity = ActivitySlack(
             what_happened="message",
@@ -217,8 +227,8 @@ class IntegrationSlackFake:
         text = ckit_cloudtool.try_best_to_find_argument(
             args, model_produced_args, "text", ""
         )
-        localfile_path = ckit_cloudtool.try_best_to_find_argument(
-            args, model_produced_args, "localfile_path", ""
+        attach_file = ckit_cloudtool.try_best_to_find_argument(
+            args, model_produced_args, "path", ""
         )
 
         print_help = not op or "help" in op
@@ -304,31 +314,39 @@ class IntegrationSlackFake:
                 "file": None,
             }
             file_contents: List[Dict[str, str]] = []
-            if localfile_path:
-                perr = fi_localfile.validate_path(localfile_path)
+            if attach_file:
+                if self.mongo_collection is None:
+                    return "ERROR: Attaching file is not available. You should setup the slack tool with mongo collection"
+
+                perr = validate_path(attach_file)
                 if perr:
                     return f"Error: {perr}"
-                path = os.path.join(
-                    getattr(self.rcx, "workdir", "/tmp/slack_fake"), localfile_path
-                )
+
                 try:
-                    with open(path, "rb") as f:
+                    import tempfile
+                    local_path = os.path.join(tempfile.gettempdir(), os.path.basename(attach_file))
+                    await download_file(self.mongo_collection, attach_file, local_path)
+                    with open(local_path, "rb") as f:
                         data = f.read()
-                    mime, _ = mimetypes.guess_type(localfile_path)
+                    mime, _ = mimetypes.guess_type(attach_file)
                     if mime and mime.startswith("image/"):
                         processed = await RealSlack._process_slack_image(self, data, mime)
                         file_contents.append(processed)
-                        msg["file"] = f"[image {localfile_path}]"
+                        msg["file"] = f"[image {attach_file}]"
                     elif RealSlack._is_text_file(self, data):
-                        processed = await RealSlack._process_slack_text_file(self, data, localfile_path)
+                        processed = await RealSlack._process_slack_text_file(self, data, attach_file)
                         file_contents.append(processed)
                         msg["file"] = processed["m_content"]
                     else:
-                        summary = f"[Binary file: {localfile_path} ({len(data)} bytes)]"
+                        summary = f"[Binary file: {attach_file} ({len(data)} bytes)]"
                         file_contents.append({"m_type": "text", "m_content": summary})
                         msg["file"] = summary
-                except Exception:
-                    msg["file"] = f"(failed to read {localfile_path})"
+                    os.unlink(local_path)  # Clean up temp file
+                except Exception as e:
+                    print(f"Debug: Exception in post operation: {e}")
+                    import traceback
+                    traceback.print_exc()
+                    return f"ERROR: Failed to download file from mongo: {e}. Cannot attach it"
 
             self.messages[chan_id].append(msg)
 
@@ -345,7 +363,7 @@ class IntegrationSlackFake:
                 )
                 await self.activity_callback(activity, True)
 
-            if localfile_path:
+            if attach_file:
                 return (
                     "File upload success (thread)" if thread else "File upload success (channel)"
                 )
@@ -360,7 +378,7 @@ async def post_fake_slack_message(
     channel_slash_thread: str,
     text: str,
     user: str = "user",
-    localfile_path: Optional[str] = None,
+    path: Optional[str] = None,
 ):
     channel, thread = parse_channel_slash_thread(channel_slash_thread)
     if not channel:
@@ -369,7 +387,7 @@ async def post_fake_slack_message(
     thread_ts = thread or ts
     for inst in list(FAKE_SLACK_INSTANCES):
         await inst._receive_fake_message(
-            channel, thread_ts, ts, text, user, localfile_path
+            channel, thread_ts, ts, text, user, path
         )
     return {"ts": ts, "thread_ts": thread_ts}
 

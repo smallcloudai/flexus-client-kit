@@ -8,7 +8,6 @@ from flexus_client_kit import ckit_ask_model, ckit_bot_exec
 from flexus_client_kit.integrations.fi_slack import ActivitySlack
 from flexus_client_kit.integrations.fi_slack_fake import IntegrationSlackFake, post_fake_slack_message
 from flexus_client_kit.integrations.fi_slack_test import (
-    _clear_queue,
     _create_toolcall,
     _start_slack_test,
 )
@@ -20,8 +19,8 @@ async def test_fake_message_dm_calls_callback_with_images(
 ) -> None:
     _reset(slack_bot, activity_queue)
 
-    await post_fake_slack_message("@tester", "dm1", localfile_path="1.png")
-    await post_fake_slack_message("@tester", "dm2", localfile_path="2.png")
+    await post_fake_slack_message("@tester", "dm1", path="1.png")
+    await post_fake_slack_message("@tester", "dm2", path="2.png")
 
     act1, posted1 = await asyncio.wait_for(activity_queue.get(), timeout=3)
     act2, posted2 = await asyncio.wait_for(activity_queue.get(), timeout=3)
@@ -37,7 +36,7 @@ async def test_fake_message_in_channel_calls_callback_with_text_files(
 ) -> None:
     _reset(slack_bot, activity_queue)
 
-    await post_fake_slack_message("tests", "channel_msg", localfile_path="1.txt")
+    await post_fake_slack_message("tests", "channel_msg", path="1.txt")
     activity, posted = await asyncio.wait_for(activity_queue.get(), timeout=3)
     assert activity.message_text == "channel_msg"
     assert "This is test file 1" in activity.file_contents[0]["m_content"]
@@ -58,7 +57,7 @@ async def test_fake_post_operation_with_files(
 
     file_args = {
         "op": "post",
-        "args": {"channel_slash_thread": "tests", "localfile_path": "1.txt"},
+        "args": {"channel_slash_thread": "tests", "path": "1.txt"},
     }
     tcall2 = _create_toolcall(slack_bot, "call2", "ft1", file_args, called_ftm_num=2)
     result2 = await slack_bot.called_by_model(toolcall=tcall2, model_produced_args=file_args)
@@ -184,7 +183,8 @@ async def test_fake_capture_thread(
 
 
 def _reset(slack_bot, queue):
-    _clear_queue(queue)
+    while not queue.empty():
+        queue.get_nowait()
     slack_bot.messages.clear()
     slack_bot.captured = None
     slack_bot.captured_ft_id = None
