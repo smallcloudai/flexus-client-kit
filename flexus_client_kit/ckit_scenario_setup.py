@@ -161,7 +161,8 @@ class ScenarioSetup:
             )
         return resp["mcp_server_create"]["mcp_id"]
 
-    async def wait_for_mcp(self, mcp_id: str, timeout: int = 60) -> bool:
+    async def wait_for_mcp(self, mcp_id: str, timeout: int = 600) -> bool:
+        print("Waiting for MCP server to be ready...")
         start_time = time.time()
         while time.time() - start_time < timeout:
             try:
@@ -173,10 +174,12 @@ class ScenarioSetup:
                         variable_values={"id": mcp_id}
                     )
                 if resp["mcp_server_get"]["mcp_status"] == "RUNNING":
+                    print("✓ MCP server is ready")
                     return True
             except:
                 pass
             await asyncio.sleep(2)
+        print("⚠️ MCP server failed to start within timeout")
         return False
 
     async def cleanup(self) -> None:

@@ -1,10 +1,7 @@
 import asyncio
 import contextlib
-import json
 import sys
 import traceback
-
-import gql
 
 from flexus_simple_bots.karen import karen_bot
 from flexus_client_kit import ckit_bot_exec, ckit_scenario_setup
@@ -19,8 +16,6 @@ from flexus_client_kit.integrations.fi_slack_fake import (
 karen_bot.fi_slack.IntegrationSlack = IntegrationSlackFake
 
 
-
-
 async def run_scenario(use_mcp: bool = False) -> None:
     setup = ckit_scenario_setup.ScenarioSetup("karen")
     karen_setup = {
@@ -31,7 +26,7 @@ async def run_scenario(use_mcp: bool = False) -> None:
 
     bot_task = None
     try:
-        rcx, _mongo_collection = await setup.setup(karen_bot.BOT_NAME, karen_setup, require_dev=True, prefix="scenario-captured-thread")
+        await setup.setup(karen_bot.BOT_NAME, karen_setup, require_dev=True, prefix="scenario-captured-thread")
 
         if use_mcp:
             mcp_id = await setup.create_mcp(
@@ -40,15 +35,9 @@ async def run_scenario(use_mcp: bool = False) -> None:
                 "https://awslabs.github.io/mcp/servers/aws-documentation-mcp-server/",
                 {"FASTMCP_LOG_LEVEL": "ERROR", "AWS_DOCUMENTATION_PARTITION": "aws"}
             )
-            print(f"Created test group {setup.fgroup_id} with MCP {mcp_id}")
+            await setup.wait_for_mcp(mcp_id)
 
-            print("Waiting for MCP server to be ready...")
-            if not await setup.wait_for_mcp(mcp_id):
-                print("⚠️ MCP server failed to start within timeout")
-            else:
-                print("✓ MCP server is ready")
-        else:
-            print(f"Created test group {setup.fgroup_id} without MCP")
+        print(f"Created test group {setup.fgroup_id}")
 
         bot_task = asyncio.create_task(ckit_bot_exec.run_bots_in_this_group(
             setup.bot_fclient,
@@ -58,11 +47,9 @@ async def run_scenario(use_mcp: bool = False) -> None:
             inprocess_tools=karen_bot.TOOLS,
             bot_main_loop=karen_bot.karen_main_loop,
         ))
+        bot_task.add_done_callback(lambda t: t.exception() and traceback.print_exception(type(t.exception()), t.exception(), t.exception().__traceback__))
 
         while not FAKE_SLACK_INSTANCES:
-            if bot_task.done():
-                exc = bot_task.exception()
-                exc and traceback.print_exception(type(exc), exc, exc.__traceback__) or bot_task.result()
             await asyncio.sleep(0.1)
 
         first_msg = await post_fake_slack_message("support", "Which service of AWS offers me inference of big models like anthropic models?")
