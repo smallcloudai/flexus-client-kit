@@ -106,7 +106,7 @@ SLACK_SETUP_SCHEMA = [
         "bs_type": "string_long",
         "bs_default": "",
         "bs_group": "Slack",
-        "bs_importance": 1,
+        "bs_importance": 0,
         "bs_description": "Bot User OAuth Token from Slack app settings (starts with xoxb-)",
     },
     {
@@ -114,7 +114,7 @@ SLACK_SETUP_SCHEMA = [
         "bs_type": "string_long",
         "bs_default": "",
         "bs_group": "Slack",
-        "bs_importance": 1,
+        "bs_importance": 0,
         "bs_description": "App-Level Token from Slack app settings (starts with xapp-)",
     },
     {
@@ -122,7 +122,7 @@ SLACK_SETUP_SCHEMA = [
         "bs_type": "string_long",
         "bs_default": "#general,#random,#support",
         "bs_group": "Slack",
-        "bs_importance": 1,
+        "bs_importance": 0,
         "bs_description": "Comma-separated list of Slack channels the bot should automatically join",
     },
 ]
