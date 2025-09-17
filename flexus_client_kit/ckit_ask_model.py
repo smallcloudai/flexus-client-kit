@@ -163,6 +163,7 @@ async def bot_activate(
     first_calls: Any = None,
     title: str = "",
     sched_id: str = "",
+    fexp_id: str = "",
 ) -> str:
     assert activation_type in ["default", "todo", "setup", "subchat"]
     title = title or (activation_type + " " + time.strftime("%Y%m%d %H:%M:%S"))
@@ -171,8 +172,8 @@ async def bot_activate(
     http = await client.use_http()
     async with http as h:
         r = await h.execute(
-            gql.gql(f"""mutation {camel_case_for_logs}BotActivate($who_is_asking: String!, $persona_id: String!, $activation_type: String!, $first_question: String!, $first_calls: String!, $title: String!, $sched_id: String!) {{
-                bot_activate(who_is_asking: $who_is_asking, persona_id: $persona_id, activation_type: $activation_type, first_question: $first_question, first_calls: $first_calls, title: $title, sched_id: $sched_id) {{ ft_id }}
+            gql.gql(f"""mutation {camel_case_for_logs}BotActivate($who_is_asking: String!, $persona_id: String!, $activation_type: String!, $first_question: String!, $first_calls: String!, $title: String!, $sched_id: String!, $fexp_id: String!) {{
+                bot_activate(who_is_asking: $who_is_asking, persona_id: $persona_id, activation_type: $activation_type, first_question: $first_question, first_calls: $first_calls, title: $title, sched_id: $sched_id, fexp_id: $fexp_id) {{ ft_id }}
             }}"""),
             variable_values={
                 "who_is_asking": who_is_asking,
@@ -182,6 +183,7 @@ async def bot_activate(
                 "first_calls": json.dumps(first_calls),
                 "title": title,
                 "sched_id": sched_id,
+                "fexp_id": fexp_id,
             },
         )
         ft_id = r["bot_activate"]["ft_id"]
