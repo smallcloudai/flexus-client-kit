@@ -435,11 +435,7 @@ class IntegrationSlack:
         elif op == "uncapture":
             try:
                 http = await self.fclient.use_http()
-                await ckit_ask_model.thread_app_capture_patch(
-                    http,
-                    toolcall.fcall_ft_id,
-                    ft_app_searchable="",
-                )
+                await ckit_ask_model.thread_app_capture_patch(http, toolcall.fcall_ft_id, ft_app_searchable="")
                 r += UNCAPTURE_SUCCESS_MSG
             except Exception as e:
                 r += "ERROR: %s %s\n" % (type(e).__name__, e)
@@ -448,7 +444,6 @@ class IntegrationSlack:
             captured_thread = self.rcx.latest_threads.get(toolcall.fcall_ft_id, None)
             if not captured_thread or not captured_thread.thread_fields.ft_app_searchable or not captured_thread.thread_fields.ft_app_searchable.startswith("slack/"):
                 return NOT_CAPTURING_THREAD_MSG
-
             r += SKIP_SUCCESS_MSG
 
         else:
@@ -678,17 +673,10 @@ class IntegrationSlack:
         logger.info("look_assistant_might_have_posted_something() captured assistant->slack ft_id=%s ft_app_searchable=%s, sending %r" % (msg.ftm_belongs_to_ft_id, searchable, msg.ftm_content[:20].replace("\n", "\\n")))
         web_api_client: AsyncWebClient = self.reactive_slack.client
         try:
+            kwargs = {"channel": something_id, "text": msg.ftm_content}
             if thread_ts:
-                await web_api_client.chat_postMessage(
-                    channel=something_id,
-                    text=msg.ftm_content,
-                    thread_ts=thread_ts,
-                )
-            else:
-                await web_api_client.chat_postMessage(
-                    channel=something_id,
-                    text=msg.ftm_content,
-                )
+                kwargs["thread_ts"] = thread_ts
+            await web_api_client.chat_postMessage(**kwargs)
             logger.info(f"Successfully posted assistant message to channel {something_id!r} thread_ts {thread_ts!r}")
         except SlackApiError as e:
             logger.exception(f"Failed to post message to channel {something_id!r} thread_ts {thread_ts!r}")
@@ -708,8 +696,6 @@ class IntegrationSlack:
         }
         logger.info("/look_assistant_might_have_posted_something() success")
         return True
-
-
 
     async def join_channels(self):
         if not self.reactive_slack:
@@ -783,11 +769,6 @@ class IntegrationSlack:
             logger.exception("Failed to list channels")
             self.problems_other.append(f"Failed to list channels: {type(e).__name__} {e}")
 
-        # async for msg in self.get_history(web_api_client, channel["id"], long_ago):
-        #     ts = datetime.fromtimestamp(float(msg['ts']))
-        #     text = msg.get('text', '')[:50].replace("\n", "\\n")
-        #     logger.info(f"  {ts.strftime('%Y%m%d %H:%M')}: {text}")
-
     def _thread_capturing(self, something_id_slash_thread: str):
         searchable = "slack/" + something_id_slash_thread
         for t in self.rcx.latest_threads.values():
@@ -811,13 +792,11 @@ class IntegrationSlack:
         while True:
             try:
                 if thread_ts and thread_ts.strip():
-                    # Get replies in a thread
                     logger.info(f"Using conversations_replies with ts={thread_ts}")
                     messages_response = await web_api_client.conversations_replies(
                         channel=channel_id, ts=thread_ts, oldest=long_ago, limit=limit_cnt, cursor=cursor
                     )
                 else:
-                    # Get channel history
                     logger.info(f"Using conversations_history (no thread)")
                     messages_response = await web_api_client.conversations_history(
                         channel=channel_id, oldest=long_ago, limit=limit_cnt, cursor=cursor
@@ -870,7 +849,7 @@ class IntegrationSlack:
         formatted = format_cat_output(
             path=filename,
             file_data=file_bytes,
-            safety_valve="10k"  # Limit to 10KB
+            safety_valve="10k",
         )
         return {"m_type": "text", "m_content": f"📎 {formatted}"}
 
@@ -907,21 +886,3 @@ class IntegrationSlack:
             author_name = f"user_{user_id}"
             self.users_id2name[user_id] = author_name
             return author_name
-
-
-async def test():
-    should_join = ["general", "random", "karen-test"]
-    bot = IntegrationSlack(
-        SLACK_BOT_TOKEN=os.environ.get("SLACK_BOT_TOKEN"),
-        SLACK_APP_TOKEN=os.environ.get("SLACK_APP_TOKEN"),
-        should_join=should_join,
-    )
-    await bot.join_channels()
-    await bot.start()
-
-
-if __name__ == "__main__":
-    from flexus_client_kit import ckit_logs
-    ckit_logs.setup_logger()
-    asyncio.run(test())
-
