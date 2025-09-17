@@ -23,9 +23,6 @@ from flexus_client_kit.integrations.fi_slack import (
 )
 
 
-FAKE_SLACK_INSTANCES: List[Any] = []
-
-
 class IntegrationSlackFake:
     """In-memory fake Slack implementation for local testing."""
 
@@ -184,7 +181,7 @@ class IntegrationSlackFake:
         self.messages.setdefault(chan_id, [])
         self.channels_id2name.setdefault(chan_id, chan_id)
         self.channels_name2id.setdefault(chan_id, chan_id)
-        entry = {"ts": ts, "thread_ts": thread_ts or ts, "user": "bot", "text": msg.ftm_content, "file": None}
+        entry = {"ts": ts, "thread_ts": thread_ts or ts, "user": "bot", "text": msg.ftm_content, "file": None, "metadata": {"ft_id": msg.ftm_belongs_to_ft_id}}
         self.messages[chan_id].append(entry)
         if self.activity_callback:
             activity = ActivitySlack(
@@ -312,6 +309,7 @@ class IntegrationSlackFake:
                 "user": "bot",
                 "text": text,
                 "file": None,
+                "metadata": {"ft_id": toolcall.fcall_ft_id},
             }
             file_contents: List[Dict[str, str]] = []
             if attach_file:
@@ -372,6 +370,9 @@ class IntegrationSlackFake:
             )
 
         return f"Error: Unknown op {op}"
+
+
+FAKE_SLACK_INSTANCES: List[IntegrationSlackFake] = []
 
 
 async def post_fake_slack_message(

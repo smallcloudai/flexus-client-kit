@@ -62,6 +62,14 @@ async def run_scenario(use_mcp: bool = False) -> None:
         await post_fake_slack_message(f"support/{thread_ts}", "Give me example of how to invoke model in python to ask it a simple prompt and get result")
         await wait_for_bot_message(f"support/{thread_ts}")
 
+        slack_instance = FAKE_SLACK_INSTANCES[0]
+        assert slack_instance.captured and slack_instance.captured[1] == thread_ts, f"Wrong or no thread captured, expected support/{thread_ts}, got {slack_instance.captured}"
+
+        all_messages = [msg for msgs in slack_instance.messages.values() for msg in msgs]
+        msgs_from_fthreads = [msg for msg in all_messages if 'ft_id' in msg.get('metadata', {})]
+        fthreads_posting = {msg['metadata']['ft_id'] for msg in msgs_from_fthreads if msg.get('thread_ts') == thread_ts}
+        assert len(fthreads_posting) <= 1, f"Multiple flexus threads posted to same slack thread: {fthreads_posting}"
+
         print("Test completed successfully. Waiting 5 minutes before cleanup...")
         await asyncio.sleep(300)
 
