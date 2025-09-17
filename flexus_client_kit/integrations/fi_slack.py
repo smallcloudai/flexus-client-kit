@@ -870,7 +870,6 @@ class IntegrationSlack:
         formatted = format_cat_output(
             path=filename,
             file_data=file_bytes,
-            line_range="1:",
             safety_valve="10k"  # Limit to 10KB
         )
         return {"m_type": "text", "m_content": f"📎 {formatted}"}
