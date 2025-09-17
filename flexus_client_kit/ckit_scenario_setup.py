@@ -1,6 +1,8 @@
 import tempfile
 import time
 import uuid
+import json
+import asyncio
 from typing import Optional
 
 import gql
@@ -129,6 +131,53 @@ class ScenarioSetup:
         persona = await install_persona(self.fclient, bs, ws, self.fgroup_id, persona_name, setup=setup, require_dev=require_dev)
         rcx = ckit_bot_exec.RobotContext(self.bot_fclient, persona)
         return rcx, await setup_test_files_in_mongo(self.bot_fclient, persona.persona_id, rcx.workdir)
+
+    async def create_mcp(
+        self,
+        name: str,
+        command: str,
+        description: str = "",
+        env_vars: Optional[dict] = None
+    ) -> str:
+        if not self.fgroup_id:
+            raise RuntimeError("Must call setup() first")
+        async with (await self.fclient.use_http()) as http:
+            resp = await http.execute(
+                gql.gql("""mutation CreateMCP($input: FMcpServerInput!) {
+                    mcp_server_create(input: $input) { mcp_id }
+                }"""),
+                variable_values={
+                    "input": {
+                        "located_fgroup_id": self.fgroup_id,
+                        "mcp_name": name,
+                        "mcp_command": command,
+                        "mcp_description": description,
+                        "mcp_enabled": True,
+                        "mcp_preinstall_script": "",
+                        "owner_shared": True,
+                        "mcp_env_vars": json.dumps(env_vars or {})
+                    }
+                }
+            )
+        return resp["mcp_server_create"]["mcp_id"]
+
+    async def wait_for_mcp(self, mcp_id: str, timeout: int = 60) -> bool:
+        start_time = time.time()
+        while time.time() - start_time < timeout:
+            try:
+                async with (await self.fclient.use_http()) as http:
+                    resp = await http.execute(
+                        gql.gql("""query GetMCP($id: String!) {
+                            mcp_server_get(id: $id) { mcp_status }
+                        }"""),
+                        variable_values={"id": mcp_id}
+                    )
+                if resp["mcp_server_get"]["mcp_status"] == "RUNNING":
+                    return True
+            except:
+                pass
+            await asyncio.sleep(2)
+        return False
 
     async def cleanup(self) -> None:
         if self.fgroup_id:
