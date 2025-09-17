@@ -70,8 +70,7 @@ async def run_scenario(use_mcp: bool = False) -> None:
         fthreads_posting = {msg['metadata']['ft_id'] for msg in msgs_from_fthreads if msg.get('thread_ts') == thread_ts}
         assert len(fthreads_posting) <= 1, f"Multiple flexus threads posted to same slack thread: {fthreads_posting}"
 
-        print("Test completed successfully. Waiting 5 minutes before cleanup...")
-        await asyncio.sleep(300)
+        print("Test completed successfully!")
 
     except TimeoutError:
         print("Timed out, no answer :/")
@@ -80,6 +79,12 @@ async def run_scenario(use_mcp: bool = False) -> None:
     except Exception as e:
         print(f"Test failed: {e}")
     finally:
+        await setup.print_captured_thread()
+        print("Waiting 5 minutes before cleanup... (Ctrl+C to cleanup immediately)")
+        try:
+            await asyncio.sleep(300)
+        except KeyboardInterrupt:
+            print("Cleaning up...")
         if bot_task:
             bot_task.cancel()
             with contextlib.suppress(asyncio.CancelledError):
