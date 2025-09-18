@@ -426,9 +426,6 @@ async def handle_create_report_tool(
     total_tasks = len(todo_queue)
     current_time = datetime.now(tz).strftime("%Y-%m-%d %H:%M:%S %Z")
 
-    available = list_available_reports()
-    types_list = "\n".join([f"  - {t[0]}: {t[1]}" for t in available])
-
     return f"""[{current_time} in {tz}]
 
 Created report: {report_id}
@@ -436,11 +433,7 @@ Type: {report_type}
 Entities: {', '.join(entities_list)}
 Total tasks to complete: {total_tasks}
 
-Use process_report(report_id="{report_id}") to start processing phases.
-
-Available report types:
-{types_list}"""
-
+Use process_report(report_id="{report_id}") to start processing phases."""
 
 
 async def handle_fill_section_tool(
