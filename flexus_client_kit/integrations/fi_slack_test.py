@@ -25,7 +25,7 @@ async def _start_slack_test(slack_fake: bool = False) -> tuple[IntegrationSlack 
         "slack_should_join": "tests",
     }
     rcx, mongo = await setup.setup(
-        karen_bot.BOT_NAME, karen_setup, require_dev=True, prefix="slack-test"
+        karen_bot.BOT_NAME, karen_setup, persona_require_dev=True, group_prefix="slack-test"
     )
 
     if slack_fake:

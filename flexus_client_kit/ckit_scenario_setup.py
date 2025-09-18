@@ -55,40 +55,40 @@ class ScenarioSetup:
     async def setup(
         self,
         persona_name: str,
-        setup: Optional[dict] = None,
-        require_dev: bool = False,
-        prefix: str = "test"
+        persona_setup: Optional[dict] = None,
+        persona_require_dev: bool = False,
+        group_prefix: str = "test"
     ) -> tuple[ckit_bot_exec.RobotContext, AsyncMongoClient]:
         self.bs = await ckit_client.query_basic_stuff(self.fclient)
-        self.ws = await select_workspace(self.fclient, self.bs, persona_name, require_dev)
-        await self.create_test_group(prefix)
-        await self.install_persona(persona_name, setup, require_dev)
+        self.ws = await select_workspace(self.fclient, self.bs, persona_name, persona_require_dev)
+        await self.create_test_group(group_prefix)
+        await self.install_persona(persona_name, persona_setup, persona_require_dev)
         await self.setup_mongo()
         return self.rcx, self.mongo_collection
 
-    async def create_test_group(self, prefix: str) -> None:
+    async def create_test_group(self, group_prefix: str) -> None:
         async with (await self.fclient.use_http()) as http:
             self.fgroup_id = (await http.execute(
                 gql.gql("""mutation($input: FlexusGroupInput!){group_create(input:$input){fgroup_id}}"""),
-                variable_values={"input": {"fgroup_name": f"{prefix}-{uuid.uuid4().hex[:6]}", "fgroup_parent_id": self.ws.ws_root_group_id}},
+                variable_values={"input": {"fgroup_name": f"{group_prefix}-{uuid.uuid4().hex[:6]}", "fgroup_parent_id": self.ws.ws_root_group_id}},
             ))["group_create"]["fgroup_id"]
 
     async def install_persona(
         self,
         persona_name: str,
-        setup: Optional[dict] = None,
-        require_dev: bool = False,
+        persona_setup: Optional[dict] = None,
+        persona_require_dev: bool = False,
     ) -> None:
         args = {
             "client": self.fclient, "ws_id": self.ws.ws_id, "inside_fgroup": self.fgroup_id,
-            "persona_marketable_name": persona_name, "new_setup": setup or {},
+            "persona_marketable_name": persona_name, "new_setup": persona_setup or {},
             "persona_name": f"{persona_name} Test {self.fgroup_id[-4:]}"
         }
 
         try:
             install = await ckit_bot_install.bot_install_from_marketplace(**args, install_dev_version=True)
         except Exception as e:
-            if require_dev:
+            if persona_require_dev:
                 raise e
             install = await ckit_bot_install.bot_install_from_marketplace(**args, install_dev_version=False)
 
@@ -104,7 +104,7 @@ class ScenarioSetup:
             owner_fuser_id=self.bs.fuser_id, located_fgroup_id=self.fgroup_id, persona_id=install.persona_id,
             persona_name=args["persona_name"], persona_marketable_name=persona_name,
             persona_marketable_version=persona_details["persona_get"]["persona_marketable_version"], persona_discounts=None,
-            persona_setup=dict(setup or {}), persona_created_ts=time.time(),
+            persona_setup=dict(persona_setup or {}), persona_created_ts=time.time(),
             ws_id=self.ws.ws_id, ws_timezone="UTC"
         )
         self.rcx = ckit_bot_exec.RobotContext(self.bot_fclient, self.persona)

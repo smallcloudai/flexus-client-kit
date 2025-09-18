@@ -26,7 +26,7 @@ async def run_scenario(use_mcp: bool = False) -> None:
 
     bot_task = None
     try:
-        await setup.setup(karen_bot.BOT_NAME, karen_setup, require_dev=True, prefix="scenario-captured-thread")
+        await setup.setup(karen_bot.BOT_NAME, karen_setup, persona_require_dev=True, group_prefix="scenario-captured-thread")
 
         if use_mcp:
             mcp_id = await setup.create_mcp(
