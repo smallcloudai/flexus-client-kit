@@ -13,6 +13,8 @@ from flexus_client_kit import ckit_bot_exec, ckit_bot_install, ckit_client, ckit
 
 logger = logging.getLogger("scenario")
 
+MARKETPLACE_DEV_STAGES = ["MARKETPLACE_DEV", "MARKETPLACE_WAITING_IMAGE", "MARKETPLACE_FAILED_IMAGE_BUILD"]
+
 
 async def select_workspace(
     fclient: ckit_client.FlexusClient,
@@ -21,7 +23,6 @@ async def select_workspace(
     require_dev: bool = False
 ) -> ckit_client.FWorkspaceOutput:
     if persona_name:
-        dev_stages = ["MARKETPLACE_DEV", "MARKETPLACE_WAITING_IMAGE", "MARKETPLACE_FAILED_IMAGE_BUILD"]
         for w in bs.workspaces:
             if w.have_admin:
                 try:
@@ -34,7 +35,7 @@ async def select_workspace(
                             }"""), variable_values={"ws_id": w.ws_id, "marketable_name": persona_name})
 
                         versions = details["marketplace_details"]["versions"]
-                        if require_dev and any(v["marketable_stage"] in dev_stages for v in versions):
+                        if require_dev and any(v["marketable_stage"] in MARKETPLACE_DEV_STAGES for v in versions):
                             return w
                         elif not require_dev and versions:
                             return w
@@ -60,12 +61,13 @@ class ScenarioSetup:
         persona_name: str,
         persona_setup: Optional[dict] = None,
         persona_require_dev: bool = False,
-        group_prefix: str = "test"
+        persona_marketable_version: Optional[int] = None,
+        group_prefix: str = "test",
     ) -> tuple[ckit_bot_exec.RobotContext, AsyncMongoClient]:
         self.bs = await ckit_client.query_basic_stuff(self.fclient)
         self.ws = await select_workspace(self.fclient, self.bs, persona_name, persona_require_dev)
         await self.create_test_group(group_prefix)
-        await self.install_persona(persona_name, persona_setup, persona_require_dev)
+        await self.install_persona(persona_name, persona_setup, persona_require_dev, persona_marketable_version)
         await self.setup_mongo()
         logger.info("Scenario setup completed in group %s", self.fgroup_name)
         return self.rcx, self.mongo_collection
@@ -83,6 +85,7 @@ class ScenarioSetup:
         persona_name: str,
         persona_setup: Optional[dict] = None,
         persona_require_dev: bool = False,
+        persona_marketable_version: Optional[int] = None,
     ) -> None:
         args = {
             "client": self.fclient, "ws_id": self.ws.ws_id, "inside_fgroup": self.fgroup_id,
@@ -95,6 +98,8 @@ class ScenarioSetup:
         except Exception as e:
             if persona_require_dev:
                 raise e
+            if persona_marketable_version:
+                args["specific_version"] = persona_marketable_version
             install = await ckit_bot_install.bot_install_from_marketplace(**args, install_dev_version=False)
 
         async with (await self.fclient.use_http()) as http:
@@ -104,11 +109,15 @@ class ScenarioSetup:
                         persona_marketable_version
                     }
                 }"""), variable_values={"id": install.persona_id})
+        installed_version = persona_details["persona_get"]["persona_marketable_version"]
+
+        if persona_marketable_version and installed_version != persona_marketable_version:
+            raise RuntimeError(f"Expected version {persona_marketable_version}, got {installed_version}")
 
         self.persona = ckit_bot_exec.FPersonaOutput(
             owner_fuser_id=self.bs.fuser_id, located_fgroup_id=self.fgroup_id, persona_id=install.persona_id,
             persona_name=args["persona_name"], persona_marketable_name=persona_name,
-            persona_marketable_version=persona_details["persona_get"]["persona_marketable_version"], persona_discounts=None,
+            persona_marketable_version=installed_version, persona_discounts=None,
             persona_setup=dict(persona_setup or {}), persona_created_ts=time.time(),
             ws_id=self.ws.ws_id, ws_timezone="UTC"
         )
