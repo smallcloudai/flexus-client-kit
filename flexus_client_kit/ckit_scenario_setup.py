@@ -3,13 +3,18 @@ import time
 import uuid
 import json
 import asyncio
-from typing import Optional
+import contextlib
+import traceback
+import logging
+from typing import Optional, Callable, Any
 
 import gql
 from PIL import Image
 from pymongo import AsyncMongoClient
 
-from flexus_client_kit import ckit_bot_exec, ckit_bot_install, ckit_client, ckit_mongo
+from flexus_client_kit import ckit_bot_exec, ckit_bot_install, ckit_client, ckit_mongo, ckit_shutdown
+
+logger = logging.getLogger("scenario")
 
 
 async def select_workspace(
@@ -46,6 +51,7 @@ class ScenarioSetup:
         self.fclient = ckit_client.FlexusClient(service_name=service_name)
         self.bot_fclient = ckit_client.FlexusClient(service_name=f"{service_name}_bot", endpoint="/v1/jailed-bot")
         self.fgroup_id: Optional[str] = None
+        self.fgroup_name: Optional[str] = None
         self.persona: Optional[ckit_bot_exec.FPersonaOutput] = None
         self.rcx: Optional[ckit_bot_exec.RobotContext] = None
         self.mongo_collection: Optional[AsyncMongoClient] = None
@@ -64,13 +70,15 @@ class ScenarioSetup:
         await self.create_test_group(group_prefix)
         await self.install_persona(persona_name, persona_setup, persona_require_dev)
         await self.setup_mongo()
+        logger.info("Scenario setup completed in group %s", self.fgroup_name)
         return self.rcx, self.mongo_collection
 
     async def create_test_group(self, group_prefix: str) -> None:
+        self.fgroup_name = f"{group_prefix}-{uuid.uuid4().hex[:6]}"
         async with (await self.fclient.use_http()) as http:
             self.fgroup_id = (await http.execute(
                 gql.gql("""mutation($input: FlexusGroupInput!){group_create(input:$input){fgroup_id}}"""),
-                variable_values={"input": {"fgroup_name": f"{group_prefix}-{uuid.uuid4().hex[:6]}", "fgroup_parent_id": self.ws.ws_root_group_id}},
+                variable_values={"input": {"fgroup_name": self.fgroup_name, "fgroup_parent_id": self.ws.ws_root_group_id}},
             ))["group_create"]["fgroup_id"]
 
     async def install_persona(
@@ -152,7 +160,7 @@ class ScenarioSetup:
         return resp["mcp_server_create"]["mcp_id"]
 
     async def wait_for_mcp(self, mcp_id: str, timeout: int = 600) -> bool:
-        print("Waiting for MCP server to be ready...")
+        logger.info("Waiting for MCP server to be ready...")
         start_time = time.time()
         while time.time() - start_time < timeout:
             try:
@@ -164,12 +172,12 @@ class ScenarioSetup:
                         variable_values={"id": mcp_id}
                     )
                 if resp["mcp_server_get"]["mcp_status"] == "RUNNING":
-                    print("✓ MCP server is ready")
+                    logger.info("✓ MCP server is ready")
                     return True
             except:
                 pass
             await asyncio.sleep(2)
-        print("⚠️ MCP server failed to start within timeout")
+        logger.warning("⚠️ MCP server failed to start within timeout")
         return False
 
     async def print_captured_thread(self) -> None:
@@ -185,16 +193,41 @@ class ScenarioSetup:
                 if thread["ft_app_searchable"].startswith("slack/"):
                     messages = await http.execute(gql.gql("""
                         query ThreadMessages($ft_id: String!) {
-                            thread_messages_list(ft_id: $ft_id) { ftm_role ftm_content ftm_alt }
+                            thread_messages_list(ft_id: $ft_id) { ftm_role ftm_content ftm_alt ftm_tool_calls }
                         }"""), variable_values={"ft_id": thread["ft_id"]})
 
-                    print(f"\n📝 {thread['ft_app_searchable']}")
+                    logger.info(f"\n📝 ft_id: {thread['ft_id']} captured_from: {thread['ft_app_searchable']}")
                     colors = {"user": "\033[94m", "assistant": "\033[92m", "system": "\033[93m", "tool": "\033[95m", "kernel": "\033[96m"}
-                    for msg in messages["thread_messages_list"][:8]:
+                    for msg in messages["thread_messages_list"]:
                         if msg["ftm_alt"] == 100:
                             content = str(msg["ftm_content"])[:300] + "..." if len(str(msg["ftm_content"])) > 300 else str(msg["ftm_content"])
                             color = colors.get(msg['ftm_role'], "\033[0m")
-                            print(f"  {color}{msg['ftm_role']}\033[0m: {content}")
+                            logger.info(f"  {color}{msg['ftm_role']}\033[0m: {content}")
+
+                            if msg['ftm_role'] == 'assistant' and msg.get('ftm_tool_calls'):
+                                for tool_call in msg['ftm_tool_calls']:
+                                    tool_name = tool_call.get('function', {}).get('name', 'unknown')
+                                    tool_args = str(tool_call.get('function', {}).get('arguments', ''))[:100] + "..." if len(str(tool_call.get('function', {}).get('arguments', ''))) > 100 else str(tool_call.get('function', {}).get('arguments', ''))
+                                    logger.info(f"    \033[96m🔧 {tool_name}\033[0m: {tool_args}")
+
+    async def run_scenario(self, scenario_func: Callable[..., None], cleanup_wait_secs: int = 300, **kwargs) -> None:
+        ckit_shutdown.setup_signals()
+        scenario_task = asyncio.create_task(scenario_func(self, **kwargs))
+        ckit_shutdown.give_task_to_cancel("scenario", scenario_task)
+        try:
+            await scenario_task
+            logger.info("Test completed successfully!")
+        except asyncio.CancelledError:
+            logger.info("Scenario cancelled")
+        except Exception as e:
+            logger.exception("\033[91mERROR\033[0m")
+        finally:
+            ckit_shutdown.take_away_task_to_cancel("scenario")
+            await self.print_captured_thread()
+            logger.info(f"Waiting {cleanup_wait_secs} seconds before cleanup... (Ctrl+C to cleanup immediately)")
+            await ckit_shutdown.wait(cleanup_wait_secs)
+            await self.cleanup()
+            logger.info("Cleanup completed.")
 
     async def cleanup(self) -> None:
         if self.fgroup_id:
@@ -202,4 +235,4 @@ class ScenarioSetup:
                 async with (await self.fclient.use_http()) as http:
                     await http.execute(gql.gql("""mutation($id:String!){group_delete(fgroup_id:$id)}"""), variable_values={"id": self.fgroup_id})
             except Exception as e:
-                print(f"⚠️ Failed to delete test group {self.fgroup_id}: {e}")
+                logger.warning(f"⚠️ Failed to delete test group {self.fgroup_name}: {e}")
