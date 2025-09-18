@@ -391,7 +391,7 @@ async def subscribe_and_produce_callbacks(
                 logger.warning("Subscription has sent me something I can't understand:\n%s\n" % upd)
 
             if reassign_threads:
-                assert len(bc.thread_tracker) <= MAX_THREADS, "backend should send STOP_TRACKING wtf"
+                assert len(bc.thread_tracker) <= MAX_THREADS, "backend should send STOP_TRACKING wtf"   # actually sometimes triggers after reconnect :/
                 # There we go, now it's O(1) because it's limited
                 for bot in bc.bots_running.values():
                     to_test = list(bot.eventgen.latest_threads.keys())
