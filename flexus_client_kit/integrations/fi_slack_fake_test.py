@@ -4,17 +4,14 @@ import time
 
 import gql
 
-from flexus_client_kit import ckit_ask_model, ckit_bot_exec
-from flexus_client_kit.integrations.fi_slack import ActivitySlack
-from flexus_client_kit.integrations.fi_slack_fake import IntegrationSlackFake, post_fake_slack_message
-from flexus_client_kit.integrations.fi_slack_test import _create_toolcall, _start_slack_test
+from flexus_client_kit import ckit_ask_model, ckit_bot_exec, ckit_scenario_setup
+from flexus_client_kit.integrations.fi_slack_fake import post_fake_slack_message
+from flexus_client_kit.integrations.fi_slack_test import setup_slack
 
 
-async def test_fake_message_dm_calls_callback_with_images(
-    slack_bot: IntegrationSlackFake,
-    queue: asyncio.Queue[tuple[ActivitySlack, bool]]
-) -> None:
-    _reset(slack_bot, queue)
+async def fake_dm_test(setup: ckit_scenario_setup.ScenarioSetup, slack_bot, queue, _user) -> None:
+    while not queue.empty():
+        queue.get_nowait()
 
     await post_fake_slack_message("@tester", "dm1", path="1.png")
     await post_fake_slack_message("@tester", "dm2", path="2.png")
@@ -24,47 +21,36 @@ async def test_fake_message_dm_calls_callback_with_images(
     assert a1.message_text == "dm1" and len(a1.file_contents) == 1
     assert a2.message_text == "dm2" and len(a2.file_contents) == 1
     assert not p1 and not p2
-    print(f"✓ DM image test processed {len(a1.file_contents)+len(a2.file_contents)} files")
+    print("✓ Fake DM test passed")
 
-
-async def test_fake_message_in_channel_calls_callback_with_text_files(
-    slack_bot: IntegrationSlackFake,
-    queue: asyncio.Queue[tuple[ActivitySlack, bool]]
-) -> None:
-    _reset(slack_bot, queue)
+async def fake_channel_test(setup: ckit_scenario_setup.ScenarioSetup, slack_bot, queue, _user) -> None:
+    while not queue.empty():
+        queue.get_nowait()
 
     await post_fake_slack_message("tests", "channel_msg", path="1.txt")
     activity, posted = await asyncio.wait_for(queue.get(), timeout=3)
     assert activity.message_text == "channel_msg"
     assert "This is test file 1" in activity.file_contents[0]["m_content"] and not posted
-    print("✓ Channel file test passed")
+    print("✓ Fake channel test passed")
 
-
-async def test_fake_post_operation_with_files(
-    slack_bot: IntegrationSlackFake,
-    queue: asyncio.Queue[tuple[ActivitySlack, bool]]
-) -> None:
-    _reset(slack_bot, queue)
+async def fake_post_test(setup: ckit_scenario_setup.ScenarioSetup, slack_bot, queue, _user) -> None:
+    while not queue.empty():
+        queue.get_nowait()
 
     text_args = {"op": "post", "args": {"channel_slash_thread": "tests", "text": "hi"}}
-    tcall1 = _create_toolcall(slack_bot, "call1", "ft1", text_args)
+    tcall1 = setup.create_toolcall_output("call1", "ft1", text_args)
     result1 = await slack_bot.called_by_model(toolcall=tcall1, model_produced_args=text_args)
     assert "success" in result1.lower()
 
     file_args = {"op": "post", "args": {"channel_slash_thread": "tests", "path": "1.txt"}}
-    tcall2 = _create_toolcall(slack_bot, "call2", "ft1", file_args, called_ftm_num=2)
+    tcall2 = setup.create_toolcall_output("call2", "ft1", file_args)
     result2 = await slack_bot.called_by_model(toolcall=tcall2, model_produced_args=file_args)
     assert "success" in result2.lower()
+    print("✓ Fake post test passed")
 
-    print("text result:", result1)
-    print("file result:", result2)
-
-
-async def test_fake_capture_thread(
-    slack_bot: IntegrationSlackFake,
-    queue: asyncio.Queue[tuple[ActivitySlack, bool]]
-) -> None:
-    _reset(slack_bot, queue)
+async def fake_capture_test(setup: ckit_scenario_setup.ScenarioSetup, slack_bot, queue, _user) -> None:
+    while not queue.empty():
+        queue.get_nowait()
 
     await post_fake_slack_message("tests", "please capture this thread")
     first_activity, posted1 = await asyncio.wait_for(queue.get(), timeout=3)
@@ -89,7 +75,7 @@ async def test_fake_capture_thread(
     )
 
     args = {"op": "capture", "args": {"channel_slash_thread": f"tests/{ts}"}}
-    tcall = _create_toolcall(slack_bot, "cap1", ft_id, args)
+    tcall = setup.create_toolcall_output("cap1", ft_id, args)
     result = await slack_bot.called_by_model(toolcall=tcall, model_produced_args=args)
     assert "captured" in result.lower()
 
@@ -103,7 +89,7 @@ async def test_fake_capture_thread(
     )
 
     post_args = {"op": "post", "args": {"channel_slash_thread": f"tests/{ts}", "text": "blocked"}}
-    tcall_post = _create_toolcall(slack_bot, "postfail", ft_id, post_args)
+    tcall_post = setup.create_toolcall_output("postfail", ft_id, post_args)
     result_post = await slack_bot.called_by_model(toolcall=tcall_post, model_produced_args=post_args)
     assert "captured thread" in result_post.lower()
 
@@ -129,7 +115,7 @@ async def test_fake_capture_thread(
     assert assistant_activity.message_text == "assistant reply" and assistant_posted
 
     uncapture_args = {"op": "uncapture", "args": {"channel_slash_thread": f"tests/{ts}"}}
-    tcall2 = _create_toolcall(slack_bot, "cap2", ft_id, uncapture_args, called_ftm_num=2)
+    tcall2 = setup.create_toolcall_output("cap2", ft_id, uncapture_args)
     await slack_bot.called_by_model(toolcall=tcall2, model_produced_args=uncapture_args)
 
     if ft_id in slack_bot.rcx.latest_threads:
@@ -139,27 +125,19 @@ async def test_fake_capture_thread(
     activity_not_captured, posted_last = await asyncio.wait_for(queue.get(), timeout=3)
     assert activity_not_captured.message_text == "not captured"
     assert not posted_last
+    print("✓ Fake capture test passed")
 
-    print("✓ Capture test passed")
-
-
-def _reset(slack_bot, queue):
-    while not queue.empty():
-        queue.get_nowait()
-    slack_bot.messages.clear()
-    slack_bot.captured = None
-    slack_bot.captured_ft_id = None
-
+async def fake_slack_test(setup: ckit_scenario_setup.ScenarioSetup) -> None:
+    slack_bot, queue, _user = await setup_slack(setup, slack_fake=True)
+    try:
+        await fake_dm_test(setup, slack_bot, queue, _user)
+        await fake_channel_test(setup, slack_bot, queue, _user)
+        await fake_post_test(setup, slack_bot, queue, _user)
+        await fake_capture_test(setup, slack_bot, queue, _user)
+        print("✓ All fake slack tests passed!")
+    finally:
+        await slack_bot.close()
 
 if __name__ == "__main__":
-    async def _main():
-        bot, queue, _user, cleanup = await _start_slack_test(slack_fake=True)
-        try:
-            await test_fake_message_dm_calls_callback_with_images(bot, queue)
-            await test_fake_message_in_channel_calls_callback_with_text_files(bot, queue)
-            await test_fake_post_operation_with_files(bot, queue)
-            await test_fake_capture_thread(bot, queue)
-        finally:
-            await cleanup()
-
-    asyncio.run(_main())
+    setup = ckit_scenario_setup.ScenarioSetup("fi_slack_fake_test")
+    asyncio.run(setup.run_scenario(fake_slack_test, cleanup_wait_secs=0))
