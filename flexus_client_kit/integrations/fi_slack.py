@@ -861,7 +861,7 @@ class IntegrationSlack:
 
         headers = {'Authorization': f'Bearer {self.SLACK_BOT_TOKEN}'}
         try:
-            async with httpx.AsyncClient() as client:
+            async with httpx.AsyncClient(follow_redirects=True) as client:
                 response = await client.get(url, headers=headers, timeout=30.0)
                 if response.status_code == 200:
                     return response.content, file_info.get('mimetype', 'application/octet-stream')

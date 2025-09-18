@@ -1,18 +1,15 @@
-import tempfile
 import time
 import uuid
 import json
 import asyncio
-import contextlib
-import traceback
 import logging
-from typing import Optional, Callable, Any
+from typing import Optional, Callable
 
 import gql
 from PIL import Image
 from pymongo import AsyncMongoClient
 
-from flexus_client_kit import ckit_bot_exec, ckit_bot_install, ckit_client, ckit_mongo, ckit_shutdown
+from flexus_client_kit import ckit_bot_exec, ckit_bot_install, ckit_client, ckit_mongo, ckit_shutdown, ckit_cloudtool
 
 logger = logging.getLogger("scenario")
 
@@ -228,6 +225,17 @@ class ScenarioSetup:
             await ckit_shutdown.wait(cleanup_wait_secs)
             await self.cleanup()
             logger.info("Cleanup completed.")
+
+    def create_toolcall_output(self, call_id: str, ft_id: str, args: dict) -> ckit_cloudtool.FCloudtoolCall:
+        if not self.persona:
+            raise RuntimeError("Must call setup() first")
+        return ckit_cloudtool.FCloudtoolCall(
+            caller_fuser_id=self.persona.owner_fuser_id, located_fgroup_id=self.persona.located_fgroup_id,
+            fcall_id=call_id, fcall_ft_id=ft_id, fcall_ftm_alt=100, fcall_called_ftm_num=1,
+            fcall_call_n=0, fcall_name="slack", fcall_arguments=json.dumps(args), fcall_created_ts=time.time(),
+            connected_persona_id=self.persona.persona_id, ws_id=self.persona.ws_id, subgroups_list=[],
+            fcall_untrusted_key="",
+        )
 
     async def cleanup(self) -> None:
         if self.fgroup_id:

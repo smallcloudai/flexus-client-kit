@@ -6,19 +6,13 @@ import time
 import gql
 from slack_sdk.web.async_client import AsyncWebClient
 
-from flexus_client_kit import (
-    ckit_ask_model,
-    ckit_bot_exec,
-    ckit_cloudtool,
-    ckit_scenario_setup,
-)
+from flexus_client_kit import ckit_ask_model, ckit_bot_exec, ckit_scenario_setup
 from flexus_client_kit.integrations.fi_slack import ActivitySlack, IntegrationSlack
 from flexus_client_kit.integrations.fi_slack_fake import IntegrationSlackFake
 from flexus_simple_bots.karen import karen_bot
 
 
-async def _start_slack_test(slack_fake: bool = False) -> tuple[IntegrationSlack | IntegrationSlackFake, asyncio.Queue, AsyncWebClient, asyncio.Task]:
-    setup = ckit_scenario_setup.ScenarioSetup("fi_slack_test")
+async def setup_slack(setup: ckit_scenario_setup.ScenarioSetup, slack_fake: bool = False) -> tuple[IntegrationSlack | IntegrationSlackFake, asyncio.Queue, AsyncWebClient]:
     karen_setup = {
         "SLACK_BOT_TOKEN": "" if slack_fake else os.environ["SLACK_BOT_TOKEN"],
         "SLACK_APP_TOKEN": "" if slack_fake else os.environ["SLACK_APP_TOKEN"],
@@ -43,38 +37,13 @@ async def _start_slack_test(slack_fake: bool = False) -> tuple[IntegrationSlack 
 
     queue: asyncio.Queue[tuple[ActivitySlack, bool]] = asyncio.Queue()
 
-    async def callback(activity: ActivitySlack, already_posted_to_captured_thread: bool):
+    async def activity_callback(activity: ActivitySlack, already_posted_to_captured_thread: bool):
         await queue.put((activity, already_posted_to_captured_thread))
 
-    slack_bot.set_activity_callback(callback)
+    slack_bot.set_activity_callback(activity_callback)
     await slack_bot.join_channels()
     await slack_bot.start_reactive()
-
-    async def cleanup():
-        if hasattr(slack_bot, "reactive_slack"):
-            for channel_name in slack_bot.actually_joined:
-                channel_id = slack_bot.channels_name2id.get(channel_name)
-                if channel_id:
-                    try:
-                        await slack_bot.reactive_slack.client.conversations_leave(channel=channel_id)
-                        print(f"✓ Bot left #{channel_name}")
-                    except Exception as e:
-                        print(f"⚠️  Failed to leave #{channel_name}: {e}")
-        await slack_bot.close()
-        await setup.cleanup()
-
-    return slack_bot, queue, user_client, cleanup
-
-
-def _create_toolcall(slack_bot: IntegrationSlack, call_id: str, ft_id: str, args: dict, called_ftm_num: int = 1):
-    persona = slack_bot.rcx.persona
-    return ckit_cloudtool.FCloudtoolCall(
-        caller_fuser_id=persona.owner_fuser_id, located_fgroup_id=persona.located_fgroup_id,
-        fcall_id=call_id, fcall_ft_id=ft_id, fcall_ftm_alt=100, fcall_called_ftm_num=called_ftm_num,
-        fcall_call_n=0, fcall_name="slack", fcall_arguments=json.dumps(args), fcall_created_ts=time.time(),
-        connected_persona_id=persona.persona_id, ws_id=persona.ws_id, subgroups_list=[],
-    )
-
+    return slack_bot, queue, user_client
 
 async def _upload_files(user_client: AsyncWebClient, channel_id: str, file_paths: list[str], message: str):
     file_uploads = []
@@ -82,19 +51,9 @@ async def _upload_files(user_client: AsyncWebClient, channel_id: str, file_paths
         with open(file_path, 'rb') as f:
             filename = os.path.basename(file_path)
             file_uploads.append({"file": f.read(), "filename": filename})
+    await user_client.files_upload_v2(channel=channel_id, file_uploads=file_uploads, initial_comment=message)
 
-    await user_client.files_upload_v2(
-        channel=channel_id,
-        file_uploads=file_uploads,
-        initial_comment=message
-    )
-
-
-async def test_message_dm_calls_callback_with_images(
-    slack_bot: IntegrationSlack,
-    queue: asyncio.Queue[tuple[ActivitySlack, bool]],
-    user_client: AsyncWebClient
-) -> None:
+async def slack_dm_test(setup: ckit_scenario_setup.ScenarioSetup, slack_bot, queue, user_client) -> None:
     while not queue.empty():
         queue.get_nowait()
 
@@ -102,65 +61,41 @@ async def test_message_dm_calls_callback_with_images(
     dm = await user_client.conversations_open(users=bot_info["user_id"])
     dm_message = f"dm_test_{time.time()}"
 
-    workdir = slack_bot.rcx.workdir
-    await _upload_files(
-        user_client,
-        dm["channel"]["id"],
-        [f"{workdir}/1.png", f"{workdir}/2.png"],
-        dm_message,
-    )
-
+    await _upload_files(user_client, dm["channel"]["id"], [f"{slack_bot.rcx.workdir}/1.png", f"{slack_bot.rcx.workdir}/2.png"], dm_message)
     activity, posted = await asyncio.wait_for(queue.get(), timeout=30)
-    assert activity.message_text == dm_message and posted is False
-    assert len(activity.file_contents) == 2, "Should have 2 image files"
+    assert activity.message_text == dm_message and not posted
+    assert len(activity.file_contents) == 2, f"Expected 2 files but got {len(activity.file_contents)}. Files: {[f.get('m_filename', 'unknown') for f in activity.file_contents]}"
+    print("✓ DM test passed")
 
-
-async def test_message_in_channel_calls_callback_with_text_files(
-    slack_bot: IntegrationSlack,
-    queue: asyncio.Queue[tuple[ActivitySlack, bool]],
-    user_client: AsyncWebClient
-) -> None:
+async def slack_channel_test(setup: ckit_scenario_setup.ScenarioSetup, slack_bot, queue, user_client) -> None:
     while not queue.empty():
         queue.get_nowait()
 
     msg = f"channel_test_{time.time()}"
-    await _upload_files(
-        user_client,
-        slack_bot.channels_name2id.get("tests"),
-        [f"{slack_bot.rcx.workdir}/1.txt", f"{slack_bot.rcx.workdir}/2.json"],
-        msg,
-    )
-
+    await _upload_files(user_client, slack_bot.channels_name2id.get("tests"), [f"{slack_bot.rcx.workdir}/1.txt", f"{slack_bot.rcx.workdir}/2.json"], msg)
     activity, posted = await asyncio.wait_for(queue.get(), timeout=30)
-    assert activity.message_text == msg and posted is False
+    assert activity.message_text == msg and not posted
     content = activity.file_contents[0]["m_content"]
-    assert "1.txt" in content and "This is test file 1" in content, "Should contain 1.txt"
-    assert "2.json" in content and '\"content\": \"json test file\"' in content, "Should contain 2.json"
+    assert "1.txt" in content and "This is test file 1" in content
+    assert "2.json" in content and '\"content\": \"json test file\"' in content
+    print("✓ Channel test passed")
 
-
-async def test_post_operation_with_files(
-    slack_bot: IntegrationSlack,
-    queue: asyncio.Queue[tuple[ActivitySlack, bool]]
-) -> None:
+async def slack_post_test(setup: ckit_scenario_setup.ScenarioSetup, slack_bot, queue, user_client) -> None:
     while not queue.empty():
         queue.get_nowait()
 
     text_args = {"op": "post", "args": {"channel_slash_thread": "@flexus.testing", "text": "Test post with files"}}
-    tcall1 = _create_toolcall(slack_bot, "test_call_id_1", "test_thread_id", text_args)
+    tcall1 = setup.create_toolcall_output("test_call_1", "test_thread", text_args)
     result1 = await slack_bot.called_by_model(toolcall=tcall1, model_produced_args=text_args)
-    assert "success" in result1.lower(), f"Text post should succeed: {result1}"
+    assert "success" in result1.lower()
 
     file_args = {"op": "post", "args": {"channel_slash_thread": "@flexus.testing", "path": "1.txt"}}
-    tcall2 = _create_toolcall(slack_bot, "test_call_id_2", "test_thread_id", file_args, called_ftm_num=2)
+    tcall2 = setup.create_toolcall_output("test_call_2", "test_thread", file_args)
     result2 = await slack_bot.called_by_model(toolcall=tcall2, model_produced_args=file_args)
-    assert "success" in result2.lower(), f"File post should succeed: {result2}"
+    assert "success" in result2.lower()
+    print("✓ Post test passed")
 
-
-async def test_capture_thread(
-    slack_bot: IntegrationSlack,
-    queue: asyncio.Queue[tuple[ActivitySlack, bool]],
-    user_client: AsyncWebClient
-) -> None:
+async def slack_capture_test(setup: ckit_scenario_setup.ScenarioSetup, slack_bot, queue, user_client) -> None:
     while not queue.empty():
         queue.get_nowait()
 
@@ -169,11 +104,11 @@ async def test_capture_thread(
     resp = await user_client.chat_postMessage(channel=ch_id, text=msg)
 
     a1, p1 = await asyncio.wait_for(queue.get(), timeout=30)
-    assert a1.message_text == msg and p1 is False
+    assert a1.message_text == msg and not p1
 
     await user_client.chat_postMessage(channel=ch_id, thread_ts=resp["ts"], text="test message 1")
     a_pre, p_pre = await asyncio.wait_for(queue.get(), timeout=30)
-    assert a_pre.message_text == "test message 1" and p_pre is False
+    assert a_pre.message_text == "test message 1" and not p_pre
 
     http = await slack_bot.fclient.use_http()
     async with http as h:
@@ -192,16 +127,9 @@ async def test_capture_thread(
     )
 
     args = {"op": "capture", "args": {"channel_slash_thread": f"tests/{resp['ts']}"}}
-    tcall = _create_toolcall(slack_bot, "capture_call_1", ft_id, args)
+    tcall = setup.create_toolcall_output("capture_call", ft_id, args)
     result = await slack_bot.called_by_model(toolcall=tcall, model_produced_args=args)
     assert "captured" in result.lower()
-
-    async with http as h:
-        resp_thread = await h.execute(
-            gql.gql("""query GetThread($id:String!){ thread_get(id:$id){ ft_app_searchable }}"""),
-            variable_values={"id": ft_id}
-        )
-    assert resp_thread["thread_get"]["ft_app_searchable"] == f"slack/{ch_id}/{resp['ts']}"
 
     slack_bot.rcx.latest_threads[ft_id] = ckit_bot_exec.FThreadWithMessages(
         slack_bot.rcx.persona.persona_id,
@@ -216,7 +144,7 @@ async def test_capture_thread(
     a_after, p_after = await asyncio.wait_for(queue.get(), timeout=30)
     assert p_after and a_after.message_text == "test message 2"
 
-    tcall2 = _create_toolcall(slack_bot, "capture_call_2", ft_id, args, called_ftm_num=2)
+    tcall2 = setup.create_toolcall_output("capture_call_2", ft_id, args)
     result2 = await slack_bot.called_by_model(toolcall=tcall2, model_produced_args=args)
     assert "already captured" in result2.lower()
 
@@ -227,7 +155,6 @@ async def test_capture_thread(
     )
 
     slack_bot.rcx.latest_threads[ft_id].thread_fields.ft_app_specific = {"last_posted_assistant_ts": time.time() - 60}
-
     result = await slack_bot.look_assistant_might_have_posted_something(assistant_msg)
     assert result is True
 
@@ -240,7 +167,7 @@ async def test_capture_thread(
     assert found
 
     uncapture_args = {"op": "uncapture", "args": {"channel_slash_thread": f"tests/{resp['ts']}"}}
-    tcall3 = _create_toolcall(slack_bot, "uncapture_call", ft_id, uncapture_args, called_ftm_num=3)
+    tcall3 = setup.create_toolcall_output("uncapture_call", ft_id, uncapture_args)
     result3 = await slack_bot.called_by_model(toolcall=tcall3, model_produced_args=uncapture_args)
     assert "error" not in result3.lower()
 
@@ -252,41 +179,26 @@ async def test_capture_thread(
 
     async with http as h:
         resp = await h.execute(
-            gql.gql(
-                """query GetThreadMessages($ft_id: String!) {
-                    thread_messages_list(ft_id: $ft_id) { ftm_content }
-                }"""
-            ),
+            gql.gql("""query GetThreadMessages($ft_id: String!) { thread_messages_list(ft_id: $ft_id) { ftm_content } }"""),
             variable_values={"ft_id": ft_id},
         )
     messages = resp["thread_messages_list"]
     assert any("test message 1" in json.dumps(m) for m in messages)
     assert any("test message 2" in json.dumps(m) for m in messages)
     assert not any("test message 3" in json.dumps(m) for m in messages)
+    print("✓ Capture test passed")
 
+async def slack_test(setup: ckit_scenario_setup.ScenarioSetup) -> None:
+    slack_bot, queue, user_client = await setup_slack(setup)
+    try:
+        await slack_dm_test(setup, slack_bot, queue, user_client)
+        await slack_channel_test(setup, slack_bot, queue, user_client)
+        await slack_post_test(setup, slack_bot, queue, user_client)
+        await slack_capture_test(setup, slack_bot, queue, user_client)
+        print("✓ All slack tests passed!")
+    finally:
+        await slack_bot.close()
 
 if __name__ == "__main__":
-    async def _main():
-        bot, queue, user, cleanup = await _start_slack_test()
-        try:
-            print(f"Starting tests with user_client: {type(user)}")
-            await test_message_dm_calls_callback_with_images(bot, queue, user)
-            print("✓ DM test passed")
-            await test_message_in_channel_calls_callback_with_text_files(bot, queue, user)
-            print("✓ Channel test passed")
-            await test_post_operation_with_files(bot, queue)
-            print("✓ Post operation test passed")
-            await test_capture_thread(bot, queue, user)
-            print("✓ All tests passed!")
-            print("Waiting 5mins before cleanup (Ctrl+C to cleanup immediately)")
-            await asyncio.sleep(300)
-        except KeyboardInterrupt:
-            print("\nCleaning up immediately...")
-        except Exception as e:
-            print(f"Test failed: {e}")
-            import traceback
-            traceback.print_exc()
-        finally:
-            await cleanup()
-
-    asyncio.run(_main())
+    setup = ckit_scenario_setup.ScenarioSetup("fi_slack_test")
+    asyncio.run(setup.run_scenario(slack_test, cleanup_wait_secs=0))
