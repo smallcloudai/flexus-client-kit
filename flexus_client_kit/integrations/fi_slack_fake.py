@@ -3,6 +3,7 @@ import time
 import json
 import mimetypes
 import asyncio
+import tempfile
 from typing import Dict, Any, Optional, Callable, Awaitable, List
 from pymongo.collection import Collection
 
@@ -40,13 +41,13 @@ class IntegrationSlackFake:
     async def start_reactive(self):
         if not self.reactive_running:
             self.reactive_running = True
-            FAKE_SLACK_INSTANCES.append(self)
+            fake_slack_instances.append(self)
 
     async def close(self):
         if self.reactive_running:
             self.reactive_running = False
-            if self in FAKE_SLACK_INSTANCES:
-                FAKE_SLACK_INSTANCES.remove(self)
+            if self in fake_slack_instances:
+                fake_slack_instances.remove(self)
 
     async def join_channels(self):
         for name in self.should_join:
@@ -90,7 +91,7 @@ class IntegrationSlackFake:
                 perr = validate_path(path)
                 if not perr:
                     try:
-                        import tempfile
+
                         local_path = os.path.join(tempfile.gettempdir(), os.path.basename(path))
                         await download_file(self.mongo_collection, path, local_path)
                         with open(local_path, "rb") as f:
@@ -272,7 +273,6 @@ class IntegrationSlackFake:
                     return f"Error: {perr}"
 
                 try:
-                    import tempfile
                     local_path = os.path.join(tempfile.gettempdir(), os.path.basename(attach_file))
                     await download_file(self.mongo_collection, attach_file, local_path)
                     with open(local_path, "rb") as f:
@@ -319,7 +319,7 @@ class IntegrationSlackFake:
         return f"Error: Unknown op {op}"
 
 
-FAKE_SLACK_INSTANCES: List[IntegrationSlackFake] = []
+fake_slack_instances: List[IntegrationSlackFake] = []
 
 
 async def post_fake_slack_message(channel_slash_thread: str, text: str, user: str = "user", path: Optional[str] = None):
@@ -328,7 +328,7 @@ async def post_fake_slack_message(channel_slash_thread: str, text: str, user: st
         return
     ts = str(time.time())
     thread_ts = thread or ts
-    for inst in list(FAKE_SLACK_INSTANCES):
+    for inst in list(fake_slack_instances):
         await inst._receive_fake_message(channel, thread_ts, ts, text, user, path)
     return {"ts": ts, "thread_ts": thread_ts}
 
@@ -338,12 +338,12 @@ async def wait_for_bot_message(channel_slash_thread: str, timeout_seconds: int =
     start = loop.time()
 
     if not slack_instance:
-        while not FAKE_SLACK_INSTANCES:
+        while not fake_slack_instances:
             if loop.time() - start > timeout_seconds:
                 raise TimeoutError("No fake Slack instances available")
             await asyncio.sleep(0.1)
 
-    fi_slack = slack_instance or FAKE_SLACK_INSTANCES[0]
+    fi_slack = slack_instance or fake_slack_instances[0]
     channel, thread = parse_channel_slash_thread(channel_slash_thread)
 
     def bot_msgs(msgs):
