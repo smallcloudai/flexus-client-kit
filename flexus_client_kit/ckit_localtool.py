@@ -62,7 +62,7 @@ async def call_local_functions_and_upload_results(
         tool_results.append({
             "ftm_belongs_to_ft_id": response.ftm_belongs_to_ft_id,
             "ftm_alt": response.ftm_alt,
-            "ftm_num": response.ftm_num + 2 + i,   # kernel in between assistant and tool
+            "ftm_num": response.ftm_num + 1 + i,   # no kernel space reservation
             "ftm_prev_alt": response.ftm_alt,
             "ftm_role": "tool",
             "ftm_content": json.dumps(result),
