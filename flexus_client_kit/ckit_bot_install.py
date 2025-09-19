@@ -26,13 +26,11 @@ class FMarketplaceExpertInput:
     fexp_allow_tools: str
     fexp_app_capture_tools: str = ""
 
-@dataclass 
-class FeaturedItemBase:
-    question: str
-    run_as_setup: Optional[bool] = True
 @dataclass
-class FeaturedAction(FeaturedItemBase):
-    depends_on_setup: Optional[List[str]] = None
+class FeaturedAction:
+    feat_question: str
+    feat_run_as_setup: bool
+    feat_depends_on_setup: List[str]
 
 async def marketplace_upsert_dev_bot(
     client: ckit_client.FlexusClient,
