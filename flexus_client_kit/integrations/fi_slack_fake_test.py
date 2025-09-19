@@ -38,12 +38,12 @@ async def fake_post_test(setup: ckit_scenario_setup.ScenarioSetup, slack_bot, qu
         queue.get_nowait()
 
     text_args = {"op": "post", "args": {"channel_slash_thread": "tests", "text": "hi"}}
-    tcall1 = setup.create_toolcall_output("call1", "ft1", text_args)
+    tcall1 = setup.create_fake_toolcall_output("call1", "ft1", text_args)
     result1 = await slack_bot.called_by_model(toolcall=tcall1, model_produced_args=text_args)
     assert "success" in result1.lower()
 
     file_args = {"op": "post", "args": {"channel_slash_thread": "tests", "path": "1.txt"}}
-    tcall2 = setup.create_toolcall_output("call2", "ft1", file_args)
+    tcall2 = setup.create_fake_toolcall_output("call2", "ft1", file_args)
     result2 = await slack_bot.called_by_model(toolcall=tcall2, model_produced_args=file_args)
     assert "success" in result2.lower()
     print("✓ Fake post test passed")
@@ -75,7 +75,7 @@ async def fake_capture_test(setup: ckit_scenario_setup.ScenarioSetup, slack_bot,
     )
 
     args = {"op": "capture", "args": {"channel_slash_thread": f"tests/{ts}"}}
-    tcall = setup.create_toolcall_output("cap1", ft_id, args)
+    tcall = setup.create_fake_toolcall_output("cap1", ft_id, args)
     result = await slack_bot.called_by_model(toolcall=tcall, model_produced_args=args)
     assert "captured" in result.lower()
 
@@ -89,7 +89,7 @@ async def fake_capture_test(setup: ckit_scenario_setup.ScenarioSetup, slack_bot,
     )
 
     post_args = {"op": "post", "args": {"channel_slash_thread": f"tests/{ts}", "text": "blocked"}}
-    tcall_post = setup.create_toolcall_output("postfail", ft_id, post_args)
+    tcall_post = setup.create_fake_toolcall_output("postfail", ft_id, post_args)
     result_post = await slack_bot.called_by_model(toolcall=tcall_post, model_produced_args=post_args)
     assert "captured thread" in result_post.lower()
 
@@ -115,7 +115,7 @@ async def fake_capture_test(setup: ckit_scenario_setup.ScenarioSetup, slack_bot,
     assert assistant_activity.message_text == "assistant reply" and assistant_posted
 
     uncapture_args = {"op": "uncapture", "args": {"channel_slash_thread": f"tests/{ts}"}}
-    tcall2 = setup.create_toolcall_output("cap2", ft_id, uncapture_args)
+    tcall2 = setup.create_fake_toolcall_output("cap2", ft_id, uncapture_args)
     await slack_bot.called_by_model(toolcall=tcall2, model_produced_args=uncapture_args)
 
     if ft_id in slack_bot.rcx.latest_threads:

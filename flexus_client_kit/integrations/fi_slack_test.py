@@ -19,7 +19,7 @@ async def setup_slack(setup: ckit_scenario_setup.ScenarioSetup, slack_fake: bool
         "slack_should_join": "tests",
     }
     rcx, mongo = await setup.setup(
-        karen_bot.BOT_NAME, karen_setup, persona_require_dev=True, group_prefix="slack-test"
+        karen_bot.BOT_NAME, None, karen_setup, group_prefix="slack-test"
     )
 
     if slack_fake:
@@ -85,12 +85,12 @@ async def slack_post_test(setup: ckit_scenario_setup.ScenarioSetup, slack_bot, q
         queue.get_nowait()
 
     text_args = {"op": "post", "args": {"channel_slash_thread": "@flexus.testing", "text": "Test post with files"}}
-    tcall1 = setup.create_toolcall_output("test_call_1", "test_thread", text_args)
+    tcall1 = setup.create_fake_toolcall_output("test_call_1", "test_thread", text_args)
     result1 = await slack_bot.called_by_model(toolcall=tcall1, model_produced_args=text_args)
     assert "success" in result1.lower()
 
     file_args = {"op": "post", "args": {"channel_slash_thread": "@flexus.testing", "path": "1.txt"}}
-    tcall2 = setup.create_toolcall_output("test_call_2", "test_thread", file_args)
+    tcall2 = setup.create_fake_toolcall_output("test_call_2", "test_thread", file_args)
     result2 = await slack_bot.called_by_model(toolcall=tcall2, model_produced_args=file_args)
     assert "success" in result2.lower()
     print("✓ Post test passed")
@@ -127,7 +127,7 @@ async def slack_capture_test(setup: ckit_scenario_setup.ScenarioSetup, slack_bot
     )
 
     args = {"op": "capture", "args": {"channel_slash_thread": f"tests/{resp['ts']}"}}
-    tcall = setup.create_toolcall_output("capture_call", ft_id, args)
+    tcall = setup.create_fake_toolcall_output("capture_call", ft_id, args)
     result = await slack_bot.called_by_model(toolcall=tcall, model_produced_args=args)
     assert "captured" in result.lower()
 
@@ -144,7 +144,7 @@ async def slack_capture_test(setup: ckit_scenario_setup.ScenarioSetup, slack_bot
     a_after, p_after = await asyncio.wait_for(queue.get(), timeout=30)
     assert p_after and a_after.message_text == "test message 2"
 
-    tcall2 = setup.create_toolcall_output("capture_call_2", ft_id, args)
+    tcall2 = setup.create_fake_toolcall_output("capture_call_2", ft_id, args)
     result2 = await slack_bot.called_by_model(toolcall=tcall2, model_produced_args=args)
     assert "already captured" in result2.lower()
 
@@ -167,7 +167,7 @@ async def slack_capture_test(setup: ckit_scenario_setup.ScenarioSetup, slack_bot
     assert found
 
     uncapture_args = {"op": "uncapture", "args": {"channel_slash_thread": f"tests/{resp['ts']}"}}
-    tcall3 = setup.create_toolcall_output("uncapture_call", ft_id, uncapture_args)
+    tcall3 = setup.create_fake_toolcall_output("uncapture_call", ft_id, uncapture_args)
     result3 = await slack_bot.called_by_model(toolcall=tcall3, model_produced_args=uncapture_args)
     assert "error" not in result3.lower()
 
