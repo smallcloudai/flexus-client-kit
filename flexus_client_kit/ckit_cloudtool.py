@@ -123,10 +123,10 @@ async def call_python_function_and_save_result(
         logger.warning("error processing call %s %s:%03d:%03d %+d: %s %s" % (call.fcall_id, call.fcall_ft_id, call.fcall_ftm_alt, call.fcall_called_ftm_num, call.fcall_call_n, type(e).__name__, e), exc_info=e)
         content, prov = json.dumps(f"{type(e).__name__} {e}"), json.dumps({"system": service_name})
     if content is not None:
-        await cloudtool_post_result(client, call, content, prov)
+        await cloudtool_post_result(client, call.fcall_id, call.fcall_untrusted_key, content, prov)
 
 
-async def cloudtool_post_result(client: ckit_client.FlexusClient, c: FCloudtoolCall, content: str, prov: str):
+async def cloudtool_post_result(client: ckit_client.FlexusClient, fcall_id: str, fcall_untrusted_key: str, content: str, prov: str):
     http_client = await client.use_http()
     async with http_client as http:
         await http.execute(
@@ -135,8 +135,8 @@ async def cloudtool_post_result(client: ckit_client.FlexusClient, c: FCloudtoolC
             }"""),
             variable_values={
                 "input": {
-                    "fcall_id": c.fcall_id,
-                    "fcall_untrusted_key": c.fcall_untrusted_key,
+                    "fcall_id": fcall_id,
+                    "fcall_untrusted_key": fcall_untrusted_key,
                     "ftm_content": content,
                     "ftm_provenance": prov,
                     "dollars": 0.0,

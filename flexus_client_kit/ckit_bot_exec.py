@@ -162,7 +162,7 @@ class RobotContext:
         prov = json.dumps({"system": fclient.service_name})
         if tool_result != "WAIT_SUBCHATS" and tool_result != "POSTED_NEED_CONFIRMATION":
             tool_result = json.dumps(tool_result)
-            await ckit_cloudtool.cloudtool_post_result(fclient, toolcall, tool_result, prov)
+            await ckit_cloudtool.cloudtool_post_result(fclient, toolcall.fcall_id, toolcall.fcall_untrusted_key, tool_result, prov)
 
 
 class BotInstance(NamedTuple):
