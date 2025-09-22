@@ -67,7 +67,7 @@ async def karen_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.
             channel_name_slash_thread = a.channel_name
             if a.thread_ts:
                 channel_name_slash_thread += "/" + a.thread_ts
-            title = "%s user=%r in %s\n%s" % (a.what_happened, a.message_author_name, channel_name_slash_thread, a.message_text)
+            title = "Slack %s user=%r in %s\n%s" % (a.what_happened, a.message_author_name, channel_name_slash_thread, a.message_text)
             if a.file_contents:
                 title += f"\n[{len(a.file_contents)} file(s) attached]"
             details = asdict(a)
@@ -82,17 +82,17 @@ async def karen_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.
             )
 
     async def discord_activity_callback(a: fi_discord2.ActivityDiscord, already_posted_to_captured_thread: bool):
-        logger.info(f"{rcx.persona.persona_id} 🔔 Discord {a.what_happened} {a.channel_name} by @{a.message_author_name}: {a.message_text}")
+        logger.info(f"{rcx.persona.persona_id} 🔔 Discord message in {a.channel_name} by @{a.message_author_name}: {a.message_text}")
         if not already_posted_to_captured_thread:
             channel_name_slash_thread = a.channel_name
             if a.thread_id:
                 channel_name_slash_thread += "/" + a.thread_id
-            title = "%s user=%r in %s\n%s" % (a.what_happened, a.message_author_name, channel_name_slash_thread, a.message_text)
-            if a.file_contents:
-                title += f"\n[{len(a.file_contents)} file(s) attached]"
+            title = "Discord user=%r in %s\n%s" % (a.message_author_name, channel_name_slash_thread, a.message_text)
+            if a.attachments:
+                title += f"\n[{len(a.attachments)} file(s) attached]"
             details = asdict(a)
-            if a.file_contents:
-                details['file_contents'] = f"{len(a.file_contents)} files attached"
+            if a.attachments:
+                details['attachments'] = f"{len(a.attachments)} files attached"
 
             await ckit_kanban.bot_kanban_post_into_inbox(
                 fclient,

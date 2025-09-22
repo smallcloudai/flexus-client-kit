@@ -115,7 +115,7 @@ class ActivityDiscord:
     message_author_name: str
     mention_looked_up: Dict[str, str]
     channel_key: str
-    file_contents: List[Dict[str, str]] = field(default_factory=list)
+    attachments: List[Dict[str, str]] = field(default_factory=list)
 
 
 class IntegrationDiscord:
@@ -431,7 +431,7 @@ class IntegrationDiscord:
 
         mention_lookup = {str(user.id): user.name for user in message.mentions}
 
-        file_contents: List[Dict[str, str]] = []
+        attachments: List[Dict[str, str]] = []
         text_file_summaries: List[str] = []
         image_parts: List[Dict[str, str]] = []
         for attachment in message.attachments[:5]:
@@ -452,8 +452,8 @@ class IntegrationDiscord:
                 text_file_summaries.append(f"[Binary file: {attachment.filename} ({len(data)} bytes)]")
 
         if text_file_summaries:
-            file_contents.append({"m_type": "text", "m_content": "\n".join(text_file_summaries)})
-        file_contents.extend(image_parts)
+            attachments.append({"m_type": "text", "m_content": "\n".join(text_file_summaries)})
+        attachments.extend(image_parts)
 
         activity = ActivityDiscord(
             what_happened="message/dm" if isinstance(channel, discord.DMChannel) else "message/channel",
@@ -464,7 +464,7 @@ class IntegrationDiscord:
             message_author_name=message.author.name,
             mention_looked_up=mention_lookup,
             channel_key=channel_key,
-            file_contents=file_contents,
+            attachments=attachments,
         )
 
         posted = await self.post_into_captured_thread_as_user(activity)
@@ -611,8 +611,8 @@ class IntegrationDiscord:
 
         http = await self.fclient.use_http()
         content = [{"m_type": "text", "m_content": f"👤{activity.message_author_name}\n\n{activity.message_text}"}]
-        if activity.file_contents:
-            content.extend(activity.file_contents)
+        if activity.attachments:
+            content.extend(activity.attachments)
         if len(content) > 5:
             text_parts = [c for c in content if c.get("m_type") == "text"]
             image_parts = [c for c in content if c.get("m_type", "").startswith("image/")][:2]
