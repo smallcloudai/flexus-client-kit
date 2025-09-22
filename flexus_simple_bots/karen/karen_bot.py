@@ -3,6 +3,7 @@ import json
 import logging
 from dataclasses import asdict
 from typing import Dict, Any
+from datetime import datetime
 
 from flexus_client_kit import ckit_client
 from flexus_client_kit import ckit_cloudtool
@@ -63,8 +64,36 @@ async def karen_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.
 
     @rcx.on_tool_call(FILE_JIRA_TOOL.name)
     async def toolcall_jira(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
-        print("wow a jira call %r" % model_produced_args)
-        return "successfully filed"
+        # Extract the issue title and description from the tool call
+        issue_title = model_produced_args.get("issue_title", "Untitled Issue")
+        issue_desc = model_produced_args.get("issue_desc", "No description provided")
+        
+        logger.info(f"Processing problem report: {issue_title}")
+        
+        try:
+            # Create a structured details object for the kanban system
+            details = {
+                "type": "problem_report",
+                "title": issue_title,
+                "description": issue_desc,
+                "reported_by": "user",
+                "timestamp": datetime.now().isoformat(),
+                "source": "jira_tool"
+            }
+            
+            # Post the issue to the kanban inbox for tracking and processing
+            await ckit_kanban.bot_kanban_post_into_inbox(
+                fclient,
+                rcx.persona.persona_id,
+                title=f"🐛 Problem Report: {issue_title}",
+                details_json=json.dumps(details),
+            )
+            
+            return f"Successfully filed problem report '{issue_title}' to support queue. Issue will be tracked and processed by the support team."
+            
+        except Exception as e:
+            logger.error(f"Failed to file problem report: {e}", exc_info=True)
+            return f"Error filing problem report: {str(e)}. Please try again or contact support directly."
 
     @rcx.on_tool_call(fi_slack.SLACK_TOOL.name)
     async def toolcall_slack(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
