@@ -7,6 +7,7 @@ from pathlib import Path
 from flexus_client_kit import ckit_client
 from flexus_client_kit import ckit_bot_install
 from flexus_client_kit.integrations import fi_slack
+from flexus_client_kit.integrations import fi_discord2
 
 from flexus_simple_bots.karen import karen_bot, karen_prompts
 
@@ -34,6 +35,7 @@ karen_setup_default = [
 ]
 
 karen_setup_default += fi_slack.SLACK_SETUP_SCHEMA
+karen_setup_default += fi_discord2.DISCORD_SETUP_SCHEMA
 
 
 KAREN_DESC = """

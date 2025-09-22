@@ -119,7 +119,7 @@ async def install(
             fexp_allow_tools="",
             fexp_app_capture_tools=bot_internal_tools,
         ),
-        marketable_tags=["fun", "simple", "motivational"],
+        marketable_tags=["Fun", "Simple", "Motivational"],
         marketable_picture_big_b64=pic_big,
         marketable_picture_small_b64=pic_small,
         marketable_schedule=[

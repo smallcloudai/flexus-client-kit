@@ -11,6 +11,7 @@ from flexus_client_kit import ckit_bot_exec
 from flexus_client_kit import ckit_shutdown
 from flexus_client_kit import ckit_ask_model
 from flexus_client_kit.integrations import fi_slack
+from flexus_client_kit.integrations import fi_discord2
 from flexus_simple_bots.karen import karen_install
 
 logger = logging.getLogger("bot_karen")
@@ -22,7 +23,7 @@ BOT_VERSION_INT = ckit_client.marketplace_version_as_int(BOT_VERSION)
 
 ACCENT_COLOR = "#23CCCC"
 
-TOOLS = [fi_slack.SLACK_TOOL]
+TOOLS = [fi_slack.SLACK_TOOL, fi_discord2.DISCORD_TOOL]
 
 
 async def karen_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.RobotContext) -> None:
@@ -34,11 +35,18 @@ async def karen_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.
         SLACK_APP_TOKEN=setup["SLACK_APP_TOKEN"],
         should_join=setup["slack_should_join"],
     )
+    discord = fi_discord2.IntegrationDiscord(
+        fclient,
+        rcx,
+        DISCORD_BOT_TOKEN=setup["DISCORD_BOT_TOKEN"],
+        watch_channels=setup["discord_watch_channels"],
+    )
 
     @rcx.on_updated_message
     async def updated_message_in_db(msg: ckit_ask_model.FThreadMessageOutput):
         # print("%s WOW A MESSAGE!!! msg.ftm_num=%d msg.ftm_content=%r" % (rcx.persona.persona_id, msg.ftm_num, str(msg.ftm_content)[:20].replace("\n", "\\n")))
         await slack.look_assistant_might_have_posted_something(msg)
+        await discord.look_assistant_might_have_posted_something(msg)
 
     @rcx.on_updated_thread
     async def updated_thread_in_db(th: ckit_ask_model.FThreadOutput):
@@ -48,6 +56,10 @@ async def karen_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.
     @rcx.on_tool_call(fi_slack.SLACK_TOOL.name)
     async def toolcall_slack(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
         return await slack.called_by_model(toolcall, model_produced_args)
+
+    @rcx.on_tool_call(fi_discord2.DISCORD_TOOL.name)
+    async def toolcall_discord(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
+        return await discord.called_by_model(toolcall, model_produced_args)
 
     async def slack_activity_callback(a: fi_slack.ActivitySlack, already_posted_to_captured_thread: bool):
         logger.info(f"{rcx.persona.persona_id} 🔔 what_happened={a.what_happened} {a.channel_name} by @{a.message_author_name}: {a.message_text}")
@@ -69,11 +81,34 @@ async def karen_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.
                 details_json=json.dumps(details),
             )
 
+    async def discord_activity_callback(a: fi_discord2.ActivityDiscord, already_posted_to_captured_thread: bool):
+        logger.info(f"{rcx.persona.persona_id} 🔔 Discord {a.what_happened} {a.channel_name} by @{a.message_author_name}: {a.message_text}")
+        if not already_posted_to_captured_thread:
+            channel_name_slash_thread = a.channel_name
+            if a.thread_id:
+                channel_name_slash_thread += "/" + a.thread_id
+            title = "%s user=%r in %s\n%s" % (a.what_happened, a.message_author_name, channel_name_slash_thread, a.message_text)
+            if a.file_contents:
+                title += f"\n[{len(a.file_contents)} file(s) attached]"
+            details = asdict(a)
+            if a.file_contents:
+                details['file_contents'] = f"{len(a.file_contents)} files attached"
+
+            await ckit_kanban.bot_kanban_post_into_inbox(
+                fclient,
+                rcx.persona.persona_id,
+                title=title,
+                details_json=json.dumps(details),
+            )
+
     slack.set_activity_callback(slack_activity_callback)
+    discord.set_activity_callback(discord_activity_callback)
     await slack.join_channels()
+    await discord.join_channels()
 
     try:
         await slack.start_reactive()
+        await discord.start_reactive()
 
         while not ckit_shutdown.shutdown_event.is_set():
             await rcx.unpark_collected_events(sleep_if_no_work=10.0)  # calls all your rcx.on_* inside and catches exceptions
@@ -84,6 +119,7 @@ async def karen_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.
 
     finally:
         await slack.close()
+        await discord.close()
         logger.info("%s exit" % (rcx.persona.persona_id,))
 
 
