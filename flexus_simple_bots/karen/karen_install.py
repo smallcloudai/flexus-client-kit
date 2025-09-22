@@ -47,7 +47,7 @@ if coins > budget * 0.5 and not messages[-1]["tool_calls"]:
             warning_already_sent = True
             break
     if not warning_already_sent:
-        post_content = warning_text
+        post_cd_instruction = warning_text
 """
 
 
