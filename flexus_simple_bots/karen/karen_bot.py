@@ -20,6 +20,8 @@ BOT_NAME = "karen"
 BOT_VERSION = "0.1.16"
 BOT_VERSION_INT = ckit_client.marketplace_version_as_int(BOT_VERSION)
 
+ACCENT_COLOR = "#23CCCC"
+
 TOOLS = [fi_slack.SLACK_TOOL]
 
 

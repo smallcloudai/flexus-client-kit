@@ -35,6 +35,7 @@ async def marketplace_upsert_dev_bot(
     marketable_title1: str,
     marketable_title2: str,
     marketable_author: str,
+    marketable_accent_color: str,
     marketable_occupation: str,
     marketable_description: str,
     marketable_typical_group: str,
@@ -57,7 +58,7 @@ async def marketplace_upsert_dev_bot(
     http = await client.use_http()
     async with http as h:
         r = await h.execute(
-            gql.gql(f"""mutation InstallBot($ws: String!, $name: String!, $ver: String!, $title1: String!, $title2: String!, $author: String!, $occupation: String!, $desc: String!, $typical_group: String!, $repo: String!, $run: String!, $setup: String!, $model: String!, $daily: Int!, $inbox: Int!, $e1: FMarketplaceExpertInput!, $e2: FMarketplaceExpertInput, $e3: FMarketplaceExpertInput, $e4: FMarketplaceExpertInput, $schedule: String!, $big: String!, $small: String!, $tags: [String!]!, $stage: String!) {{
+            gql.gql(f"""mutation InstallBot($ws: String!, $name: String!, $ver: String!, $title1: String!, $title2: String!, $author: String!, $accent_color: String!, $occupation: String!, $desc: String!, $typical_group: String!, $repo: String!, $run: String!, $setup: String!, $model: String!, $daily: Int!, $inbox: Int!, $e1: FMarketplaceExpertInput!, $e2: FMarketplaceExpertInput, $e3: FMarketplaceExpertInput, $e4: FMarketplaceExpertInput, $schedule: String!, $big: String!, $small: String!, $tags: [String!]!, $stage: String!) {{
                 marketplace_upsert_dev_bot(
                     ws_id: $ws,
                     marketable_name: $name,
@@ -65,6 +66,7 @@ async def marketplace_upsert_dev_bot(
                     marketable_title1: $title1,
                     marketable_title2: $title2,
                     marketable_author: $author,
+                    marketable_accent_color: $accent_color,
                     marketable_occupation: $occupation,
                     marketable_description: $desc,
                     marketable_typical_group: $typical_group,
