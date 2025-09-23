@@ -27,6 +27,7 @@ async def scenario(setup: ckit_scenario_setup.ScenarioSetup, use_mcp: bool = Fal
         persona_marketable_name=karen_bot.BOT_NAME,
         persona_marketable_version=karen_bot.BOT_VERSION_INT,
         persona_setup=karen_setup,
+        inprocess_tools=karen_bot.TOOLS,
         group_prefix="scenario-captured-thread"
     )
 
@@ -56,17 +57,15 @@ async def scenario(setup: ckit_scenario_setup.ScenarioSetup, use_mcp: bool = Fal
         await asyncio.sleep(0.1)
 
     first_msg = await post_fake_slack_message("support", "Which service of AWS offers me inference of big models like anthropic models?")
-    messages_queue = await setup.subscribe_to_thread_messages(karen_bot.TOOLS)
-    capture_msg = await setup.wait_for_toolcall(messages_queue, "slack", None, {"op": "capture"})
+    capture_msg = await setup.wait_for_toolcall("slack", None, {"op": "capture"})
 
     ft_id = capture_msg.ftm_belongs_to_ft_id
     setup.main_thread_id = ft_id
-
     thread_ts = first_msg["ts"]
-    await wait_for_bot_message("support")
 
     await post_fake_slack_message(f"support/{thread_ts}", "Is there rust SDK for it?")
     await wait_for_bot_message(f"support/{thread_ts}")
+
     await post_fake_slack_message(f"support/{thread_ts}", "Give me an example of how to invoke model in python to ask it a simple prompt and get result")
     await wait_for_bot_message(f"support/{thread_ts}")
 

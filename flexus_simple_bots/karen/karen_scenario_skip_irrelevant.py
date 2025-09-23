@@ -27,7 +27,8 @@ async def scenario(setup: ckit_scenario_setup.ScenarioSetup, use_mcp: bool = Fal
             "SLACK_APP_TOKEN": "fake_app_token",
             "slack_should_join": "support",
         },
-        group_prefix="scenario-skip-mentions",
+        inprocess_tools=karen_bot.TOOLS,
+        group_prefix="scenario-skip-irrelevant",
     )
 
     bot_task = asyncio.create_task(
@@ -47,23 +48,20 @@ async def scenario(setup: ckit_scenario_setup.ScenarioSetup, use_mcp: bool = Fal
 
     first_message = await post_fake_slack_message(
         "support",
-        "Hey Karen, which AWS service should I use for managed PostgreSQL? (capture this thread)",
+        "Hey Karen, which AWS service should I use for managed PostgreSQL?",
         user="Alice",
     )
-    messages_queue = await setup.subscribe_to_thread_messages(karen_bot.TOOLS)
-    capture_msg = await setup.wait_for_toolcall(messages_queue, "slack", None, {"op": "capture"})
+    capture_msg = await setup.wait_for_toolcall("slack", None, {"op": "capture"})
 
     expected_channel = f"support/{first_message['ts']}"
     ft_id = capture_msg.ftm_belongs_to_ft_id
     setup.main_thread_id = ft_id
 
-    await wait_for_bot_message(expected_channel)
-
     await post_fake_slack_message(expected_channel, "@Claire drop the onboarding checklist here?", user="Bob")
-    await setup.wait_for_toolcall(messages_queue, "slack", ft_id, {"op": "skip"})
+    await setup.wait_for_toolcall("slack", ft_id, {"op": "skip"})
 
     await post_fake_slack_message(expected_channel, "Sure Bob, here's the checklist: welcome email, VPN setup.", user="Claire")
-    await setup.wait_for_toolcall(messages_queue, "slack", ft_id, {"op": "skip"})
+    await setup.wait_for_toolcall("slack", ft_id, {"op": "skip"})
 
     await post_fake_slack_message(expected_channel, "Alice here again—AWS docs for IAM permission boundaries?", user="Alice")
     await wait_for_bot_message(expected_channel)

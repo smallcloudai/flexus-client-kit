@@ -51,6 +51,7 @@ class ScenarioSetup:
         self.bs: Optional[ckit_client.BasicStuffOutput] = None
         self.ws: Optional[ckit_client.FWorkspaceOutput] = None
         self.main_thread_id: Optional[str] = None
+        self.inprocess_tools: list = []
         self._background_tasks: set = set()
 
     async def create_group_and_hire_bot(
@@ -58,8 +59,10 @@ class ScenarioSetup:
         persona_marketable_name: str,
         persona_marketable_version: Optional[int],
         persona_setup: dict,
+        inprocess_tools: list,
         group_prefix: str = "test",
     ) -> None:
+        self.inprocess_tools = inprocess_tools
         self.bs = await ckit_client.query_basic_stuff(self.fclient)
         self.ws = await select_workspace_for_scenario(self.fclient, self.bs, persona_marketable_name)
         await self.create_test_group(group_prefix)
@@ -183,65 +186,63 @@ class ScenarioSetup:
             fcall_untrusted_key="",
         )
 
-    async def subscribe_to_thread_messages(
-        self,
-        inprocess_tools: list,
-    ) -> asyncio.Queue[ckit_ask_model.FThreadMessageOutput]:
-        queue = asyncio.Queue()
-        async def _run() -> None:
-            ws_client = await self.bot_fclient.use_ws()
-            async with ws_client as ws:
-                async for r in ws.subscribe(
-                    gql.gql(f"""subscription ScenarioThreads($fgroup_id: String!, $marketable_name: String!, $marketable_version: Int!, $inprocess_tool_names: [String!]!) {{
-                        bot_threads_and_calls_subs(fgroup_id: $fgroup_id, marketable_name: $marketable_name, marketable_version: $marketable_version, inprocess_tool_names: $inprocess_tool_names, max_threads: 100, want_personas: false, want_threads: false, want_messages: true) {{
-                            {gql_utils.gql_fields(ckit_bot_exec.FBotThreadsAndCallsSubs)}
-                        }}
-                    }}"""),
-                    variable_values={
-                        "fgroup_id": self.fgroup_id,
-                        "marketable_name": self.persona.persona_marketable_name,
-                        "marketable_version": self.persona.persona_marketable_version,
-                        "inprocess_tool_names": [t.name for t in inprocess_tools],
-                    },
-                ):
-                    upd = gql_utils.dataclass_from_dict(r["bot_threads_and_calls_subs"], ckit_bot_exec.FBotThreadsAndCallsSubs)
-                    if upd.news_about == "flexus_thread_message" and upd.news_action in ["INSERT", "UPDATE"]:
-                        if upd.news_payload_thread_message:
-                            await queue.put(upd.news_payload_thread_message)
-
-        task = asyncio.create_task(_run())
-        task.add_done_callback(lambda t: ckit_utils.report_crash(t, logger))
-        task.add_done_callback(self._background_tasks.discard)
-        self._background_tasks.add(task)
-        return queue
-
     async def wait_for_toolcall(
         self,
-        queue: asyncio.Queue[ckit_ask_model.FThreadMessageOutput],
         fcall_name: str,
         ft_id: Optional[str],
         expected_params: Dict[str, Any],
         timeout_seconds: float = 120.0,
     ) -> ckit_ask_model.FThreadMessageOutput:
         deadline = asyncio.get_running_loop().time() + timeout_seconds
-        while not ckit_shutdown.shutdown_event.is_set():
-            remaining = deadline - asyncio.get_running_loop().time()
-            if remaining <= 0:
-                raise TimeoutError()
-            message = await asyncio.wait_for(queue.get(), timeout=remaining)
-            if ft_id is not None and message.ftm_belongs_to_ft_id != ft_id:
-                continue
-            for call in message.ftm_tool_calls or []:
-                try:
-                    args = json.loads(call["function"]["arguments"])
-                    if call["function"]["name"] == fcall_name and all(
-                        args.get(key) == value for key, value in expected_params.items()
-                    ):
-                        return message
-                except (json.JSONDecodeError, KeyError) as e:
-                    logger.warning("Failed to parse tool call arguments: %s", e)
-                    continue
-        raise TimeoutError()
+        initial_updates_over = False
+        message_with_the_tool_call = None
+        threads_tracked = {ft_id} if ft_id else set()
+        threads_stopped = set()
+
+        ws_client = await self.bot_fclient.use_ws()
+        async with ws_client as ws:
+            async for r in ws.subscribe(
+                gql.gql(f"""subscription ScenarioThreads($fgroup_id: String!, $marketable_name: String!, $marketable_version: Int!, $inprocess_tool_names: [String!]!) {{
+                    bot_threads_and_calls_subs(fgroup_id: $fgroup_id, marketable_name: $marketable_name, marketable_version: $marketable_version, inprocess_tool_names: $inprocess_tool_names, max_threads: 100, want_personas: false, want_threads: true, want_messages: true) {{
+                        {gql_utils.gql_fields(ckit_bot_exec.FBotThreadsAndCallsSubs)}
+                    }}
+                }}"""),
+                variable_values={
+                    "fgroup_id": self.fgroup_id,
+                    "marketable_name": self.persona.persona_marketable_name,
+                    "marketable_version": self.persona.persona_marketable_version,
+                    "inprocess_tool_names": [t.name for t in self.inprocess_tools],
+                },
+            ):
+                if asyncio.get_running_loop().time() > deadline or ckit_shutdown.shutdown_event.is_set():
+                    raise TimeoutError()
+                upd = gql_utils.dataclass_from_dict(r["bot_threads_and_calls_subs"], ckit_bot_exec.FBotThreadsAndCallsSubs)
+
+                initial_updates_over |= upd.news_action == "INITIAL_UPDATES_OVER"
+
+                if (thread := upd.news_payload_thread):
+                    if ft_id is None:
+                        threads_tracked.add(thread.ft_id)
+                    if thread.ft_need_user >= 0 and thread.ft_id in threads_tracked:
+                        threads_stopped.add(thread.ft_id)
+
+                        if message_with_the_tool_call and message_with_the_tool_call.ftm_belongs_to_ft_id == thread.ft_id:
+                            return message_with_the_tool_call
+                        if initial_updates_over and threads_stopped == threads_tracked:
+                            raise RuntimeError(f"Tool call {fcall_name} with parameters {expected_params} not found")
+
+                if initial_updates_over and (message := upd.news_payload_thread_message):
+                    if ft_id is None or message.ftm_belongs_to_ft_id == ft_id:
+                        for call in message.ftm_tool_calls or []:
+                            try:
+                                args = json.loads(call["function"]["arguments"])
+                                if call["function"]["name"] == fcall_name and all(
+                                    args.get(key) == value for key, value in expected_params.items()
+                                ) and message_with_the_tool_call is None:
+                                    message_with_the_tool_call = message
+                                    break
+                            except (json.JSONDecodeError, KeyError):
+                                pass
 
     async def cleanup(self) -> None:
         if self.fgroup_id:
