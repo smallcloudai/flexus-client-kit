@@ -18,7 +18,7 @@ async def setup_slack(setup: ckit_scenario_setup.ScenarioSetup, slack_fake: bool
         "SLACK_APP_TOKEN": "" if slack_fake else os.environ["SLACK_APP_TOKEN"],
         "slack_should_join": "tests",
     }
-    await setup.setup(
+    await setup.create_group_and_hire_bot(
         karen_bot.BOT_NAME, None, karen_setup, group_prefix="slack-test"
     )
     rcx = ckit_bot_exec.RobotContext(setup.bot_fclient, setup.persona)

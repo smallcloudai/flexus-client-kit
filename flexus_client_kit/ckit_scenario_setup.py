@@ -4,13 +4,13 @@ import json
 import asyncio
 import logging
 import os
-from typing import Optional, Callable
+from typing import Any, Dict, Optional, Callable
 
 import gql
 from PIL import Image
 from pymongo import AsyncMongoClient
 
-from flexus_client_kit import ckit_bot_exec, ckit_bot_install, ckit_client, ckit_mongo, ckit_shutdown, ckit_cloudtool
+from flexus_client_kit import ckit_bot_exec, ckit_bot_install, ckit_client, ckit_mongo, ckit_shutdown, ckit_cloudtool, ckit_ask_model, ckit_utils, gql_utils
 
 logger = logging.getLogger("scenario")
 
@@ -50,8 +50,9 @@ class ScenarioSetup:
         self.mongo_collection: Optional[AsyncMongoClient] = None
         self.bs: Optional[ckit_client.BasicStuffOutput] = None
         self.ws: Optional[ckit_client.FWorkspaceOutput] = None
+        self._background_tasks: set = set()
 
-    async def setup(
+    async def create_group_and_hire_bot(
         self,
         persona_marketable_name: str,
         persona_marketable_version: Optional[int],
@@ -61,7 +62,7 @@ class ScenarioSetup:
         self.bs = await ckit_client.query_basic_stuff(self.fclient)
         self.ws = await select_workspace_for_scenario(self.fclient, self.bs, persona_marketable_name)
         await self.create_test_group(group_prefix)
-        await self.install_persona(persona_marketable_name, persona_marketable_version, persona_setup)
+        await self.hire_bot(persona_marketable_name, persona_marketable_version, persona_setup)
         logger.info("Scenario setup completed in group %s", self.fgroup_name)
 
     async def create_test_group(self, group_prefix: str) -> None:
@@ -72,7 +73,7 @@ class ScenarioSetup:
                 variable_values={"input": {"fgroup_name": self.fgroup_name, "fgroup_parent_id": self.ws.ws_root_group_id}},
             ))["group_create"]["fgroup_id"]
 
-    async def install_persona(
+    async def hire_bot(
         self,
         persona_marketable_name: str,
         persona_marketable_version: Optional[int],
@@ -175,6 +176,66 @@ class ScenarioSetup:
             connected_persona_id=self.persona.persona_id, ws_id=self.persona.ws_id, subgroups_list=[],
             fcall_untrusted_key="",
         )
+
+    async def subscribe_to_thread_messages(
+        self,
+        inprocess_tools: list,
+    ) -> asyncio.Queue[ckit_ask_model.FThreadMessageOutput]:
+        queue = asyncio.Queue()
+        async def _run() -> None:
+            ws_client = await self.bot_fclient.use_ws()
+            async with ws_client as ws:
+                async for r in ws.subscribe(
+                    gql.gql(f"""subscription ScenarioThreads($fgroup_id: String!, $marketable_name: String!, $marketable_version: Int!, $inprocess_tool_names: [String!]!) {{
+                        bot_threads_and_calls_subs(fgroup_id: $fgroup_id, marketable_name: $marketable_name, marketable_version: $marketable_version, inprocess_tool_names: $inprocess_tool_names, max_threads: 100, want_personas: false, want_threads: false, want_messages: true) {{
+                            {gql_utils.gql_fields(ckit_bot_exec.FBotThreadsAndCallsSubs)}
+                        }}
+                    }}"""),
+                    variable_values={
+                        "fgroup_id": self.fgroup_id,
+                        "marketable_name": self.persona.persona_marketable_name,
+                        "marketable_version": self.persona.persona_marketable_version,
+                        "inprocess_tool_names": [t.name for t in inprocess_tools],
+                    },
+                ):
+                    upd = gql_utils.dataclass_from_dict(r["bot_threads_and_calls_subs"], ckit_bot_exec.FBotThreadsAndCallsSubs)
+                    if upd.news_about == "flexus_thread_message" and upd.news_action in ["INSERT", "UPDATE"]:
+                        if upd.news_payload_thread_message:
+                            await queue.put(upd.news_payload_thread_message)
+
+        task = asyncio.create_task(_run())
+        task.add_done_callback(lambda t: ckit_utils.report_crash(t, logger))
+        task.add_done_callback(self._background_tasks.discard)
+        self._background_tasks.add(task)
+        return queue
+
+    async def wait_for_toolcall(
+        self,
+        queue: asyncio.Queue[ckit_ask_model.FThreadMessageOutput],
+        fcall_name: str,
+        ft_id: Optional[str],
+        expected_params: Dict[str, Any],
+        timeout_seconds: float = 120.0,
+    ) -> ckit_ask_model.FThreadMessageOutput:
+        deadline = asyncio.get_running_loop().time() + timeout_seconds
+        while not ckit_shutdown.shutdown_event.is_set():
+            remaining = deadline - asyncio.get_running_loop().time()
+            if remaining <= 0:
+                raise TimeoutError()
+            message = await asyncio.wait_for(queue.get(), timeout=remaining)
+            if ft_id is not None and message.ftm_belongs_to_ft_id != ft_id:
+                continue
+            for call in message.ftm_tool_calls or []:
+                try:
+                    args = json.loads(call["function"]["arguments"])
+                    if call["function"]["name"] == fcall_name and all(
+                        args.get(key) == value for key, value in expected_params.items()
+                    ):
+                        return message
+                except (json.JSONDecodeError, KeyError) as e:
+                    logger.warning("Failed to parse tool call arguments: %s", e)
+                    continue
+        raise TimeoutError()
 
     async def cleanup(self) -> None:
         if self.fgroup_id:
