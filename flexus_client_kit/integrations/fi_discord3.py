@@ -126,12 +126,14 @@ class IntegrationDiscord:
         DISCORD_BOT_TOKEN: str,
         watch_channels: str,
         mongo_collection=None,
+        filter_all_bots: bool = True,
     ):
         self.fclient = fclient
         self.rcx = rcx
         self.DISCORD_BOT_TOKEN = DISCORD_BOT_TOKEN
         self.watch_channels = [x.strip().lstrip("#") for x in (watch_channels or "").split(",") if x.strip()]
         self.mongo_collection = mongo_collection
+        self.filter_all_bots = filter_all_bots
         self.activity_callback: Optional[Callable[[ActivityDiscord, bool], Awaitable[None]]] = None
         self.problems_joining: List[str] = []
         self.problems_other: List[str] = []
@@ -388,7 +390,10 @@ class IntegrationDiscord:
         if self._closing:
             return
         if message.author.bot:
-            return
+            if self.filter_all_bots:
+                return
+            elif message.author.id == self.bot.user.id:
+                return
         if not message.content and not message.attachments:
             return
         msg_id = str(message.id)
@@ -510,7 +515,10 @@ class IntegrationDiscord:
             if msg.created_at.timestamp() < cutoff:
                 break
             if msg.author.bot:
-                continue
+                if self.filter_all_bots:
+                    continue
+                elif msg.author.id == self.bot.user.id:
+                    continue
             messages.append(msg)
         messages.reverse()
 
