@@ -69,6 +69,8 @@ async def scenario(setup: ckit_scenario_setup.ScenarioSetup) -> None:
 
     expected_channel = f"support/{first_message['ts']}"
     ft_id = capture_msg.ftm_belongs_to_ft_id
+    setup.main_thread_id = ft_id
+
     await wait_for_bot_message(expected_channel)
 
     await send_reminder(setup, ft_id, "task123")
