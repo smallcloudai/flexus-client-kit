@@ -18,12 +18,14 @@ async def setup_slack(setup: ckit_scenario_setup.ScenarioSetup, slack_fake: bool
         "SLACK_APP_TOKEN": "" if slack_fake else os.environ["SLACK_APP_TOKEN"],
         "slack_should_join": "tests",
     }
-    rcx, mongo = await setup.setup(
+    await setup.setup(
         karen_bot.BOT_NAME, None, karen_setup, group_prefix="slack-test"
     )
+    rcx = ckit_bot_exec.RobotContext(setup.bot_fclient, setup.persona)
+    await setup.create_fake_files_and_upload_to_mongo(rcx.workdir)
 
     if slack_fake:
-        slack_bot = IntegrationSlackFake(setup.fclient, rcx, "", "", should_join=rcx.persona.persona_setup["slack_should_join"], mongo_collection=mongo)
+        slack_bot = IntegrationSlackFake(setup.fclient, rcx, "", "", should_join=rcx.persona.persona_setup["slack_should_join"], mongo_collection=setup.mongo_collection)
         user_client = None
     else:
         slack_bot = IntegrationSlack(
@@ -31,7 +33,7 @@ async def setup_slack(setup: ckit_scenario_setup.ScenarioSetup, slack_fake: bool
             rcx.persona.persona_setup["SLACK_BOT_TOKEN"],
             rcx.persona.persona_setup["SLACK_APP_TOKEN"],
             should_join=rcx.persona.persona_setup["slack_should_join"],
-            mongo_collection=mongo
+            mongo_collection=setup.mongo_collection
         )
         user_client = AsyncWebClient(token=os.environ["SLACK_USER_TOKEN"])
 
