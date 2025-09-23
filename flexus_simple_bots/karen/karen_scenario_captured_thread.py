@@ -23,7 +23,7 @@ async def scenario(setup: ckit_scenario_setup.ScenarioSetup, use_mcp: bool = Fal
         "slack_should_join": "support"
     }
 
-    await setup.setup(
+    await setup.create_group_and_hire_bot(
         persona_marketable_name=karen_bot.BOT_NAME,
         persona_marketable_version=karen_bot.BOT_VERSION_INT,
         persona_setup=karen_setup,
