@@ -16,8 +16,8 @@ async def setup_discord(setup: ckit_scenario_setup.ScenarioSetup) -> tuple[Integ
         "DISCORD_BOT_TOKEN": os.environ["DISCORD_TESTER1_BOT_TOKEN"],
         "discord_watch_channels": "tests",
     }
-    await setup.create_group_and_hire_bot(
-        karen_bot.BOT_NAME, None, karen_setup, group_prefix="discord-test"
+    await setup.create_group_hire_and_start_bot(
+        karen_bot.BOT_NAME, None, karen_setup, [], group_prefix="discord-test"
     )
     rcx = ckit_bot_exec.RobotContext(setup.bot_fclient, setup.persona)
     await setup.create_fake_files_and_upload_to_mongo(rcx.workdir)

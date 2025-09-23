@@ -16,10 +16,8 @@ logger = logging.getLogger("scenario")
 karen_bot.fi_slack.IntegrationSlack = IntegrationSlackFake
 
 
-async def scenario(setup: ckit_scenario_setup.ScenarioSetup, use_mcp: bool = False) -> None:
-    fake_slack_instances.clear()
-
-    await setup.create_group_and_hire_bot(
+async def scenario(setup: ckit_scenario_setup.ScenarioSetup) -> None:
+    await setup.create_group_hire_and_start_bot(
         persona_marketable_name=karen_bot.BOT_NAME,
         persona_marketable_version=karen_bot.BOT_VERSION_INT,
         persona_setup={
@@ -28,23 +26,9 @@ async def scenario(setup: ckit_scenario_setup.ScenarioSetup, use_mcp: bool = Fal
             "slack_should_join": "support",
         },
         inprocess_tools=karen_bot.TOOLS,
+        bot_main_loop=karen_bot.karen_main_loop,
         group_prefix="scenario-skip-irrelevant",
     )
-
-    bot_task = asyncio.create_task(
-        ckit_bot_exec.run_bots_in_this_group(
-            setup.bot_fclient,
-            fgroup_id=setup.fgroup_id,
-            marketable_name=karen_bot.BOT_NAME,
-            marketable_version=karen_bot.BOT_VERSION_INT,
-            inprocess_tools=karen_bot.TOOLS,
-            bot_main_loop=karen_bot.karen_main_loop,
-        )
-    )
-    bot_task.add_done_callback(lambda t: ckit_utils.report_crash(t, logger))
-
-    while not fake_slack_instances:
-        await asyncio.sleep(0.1)
 
     first_message = await post_fake_slack_message(
         "support",
@@ -72,15 +56,10 @@ async def scenario(setup: ckit_scenario_setup.ScenarioSetup, use_mcp: bool = Fal
     fthreads_posting = {msg['metadata']['ft_id'] for msg in slack_msgs_from_fthreads if msg.get('thread_ts') == first_message['ts']}
     assert len(fthreads_posting) <= 1, f"Multiple flexus threads posted to same slack thread: {fthreads_posting}"
 
-    slack_thread_messages = [msg for msg in all_slack_messages if msg.get('thread_ts') == first_message['ts']]
-    slack_thread_messages.sort(key=lambda x: float(x['ts']))
-    bob_idx = next(i for i, msg in enumerate(slack_thread_messages) if msg.get('user') == 'Bob')
-    alice_second_idx = next(i for i, msg in enumerate(slack_thread_messages) if msg.get('user') == 'Alice' and i > 0)
-    between_messages = slack_thread_messages[bob_idx+1:alice_second_idx]
-    bot_msgs_between = [msg for msg in between_messages if msg.get('user') == 'bot']
-    assert not bot_msgs_between, f"Bot messages found between Bob and Alice: {bot_msgs_between}, should have been just skipped"
-
-    # XXX maybe assert list ["Bob", "Claire", "Alice", "Karen"]
+    slack_thread_messages = sorted([msg for msg in all_slack_messages if msg.get('thread_ts') == first_message['ts']], key=lambda x: float(x['ts']))
+    slack_message_senders = [msg.get('user', 'unknown') for msg in slack_thread_messages]
+    expected = ["Bob", "Claire", "Alice", "bot"]
+    assert any(slack_message_senders[i:i+4] == expected for i in range(len(slack_message_senders) - len(expected) + 1)), f"Expected {expected} not found in {slack_message_senders}"
 
 
 if __name__ == "__main__":

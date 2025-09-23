@@ -23,11 +23,12 @@ async def scenario(setup: ckit_scenario_setup.ScenarioSetup, use_mcp: bool = Fal
         "slack_should_join": "support"
     }
 
-    await setup.create_group_and_hire_bot(
+    await setup.create_group_hire_and_start_bot(
         persona_marketable_name=karen_bot.BOT_NAME,
         persona_marketable_version=karen_bot.BOT_VERSION_INT,
         persona_setup=karen_setup,
         inprocess_tools=karen_bot.TOOLS,
+        bot_main_loop=karen_bot.karen_main_loop,
         group_prefix="scenario-captured-thread"
     )
 
@@ -43,18 +44,6 @@ async def scenario(setup: ckit_scenario_setup.ScenarioSetup, use_mcp: bool = Fal
         )
         await ckit_mcp_server.wait_for_mcp(setup.fclient, mcp_output.mcp_id)
 
-    bot_task = asyncio.create_task(ckit_bot_exec.run_bots_in_this_group(
-        setup.bot_fclient,
-        fgroup_id=setup.fgroup_id,
-        marketable_name=karen_bot.BOT_NAME,
-        marketable_version=karen_bot.BOT_VERSION_INT,
-        inprocess_tools=karen_bot.TOOLS,
-        bot_main_loop=karen_bot.karen_main_loop,
-    ))
-    bot_task.add_done_callback(lambda t: ckit_utils.report_crash(t, logger))
-
-    while not fake_slack_instances:
-        await asyncio.sleep(0.1)
 
     first_msg = await post_fake_slack_message("support", "Which service of AWS offers me inference of big models like anthropic models?")
     capture_msg = await setup.wait_for_toolcall("slack", None, {"op": "capture"})
@@ -79,6 +68,8 @@ async def scenario(setup: ckit_scenario_setup.ScenarioSetup, use_mcp: bool = Fal
 
 
 if __name__ == "__main__":
-    use_mcp = "--mcp" in sys.argv
-    setup = ckit_scenario_setup.ScenarioSetup("karen")
-    asyncio.run(setup.run_scenario(scenario, use_mcp=use_mcp))
+    parser = ckit_scenario_setup.ScenarioSetup.create_args_parser()
+    parser.add_argument("--mcp", action="store_true", help="Use MCP server")
+
+    setup = ckit_scenario_setup.ScenarioSetup("karen", parser=parser)
+    asyncio.run(setup.run_scenario(scenario, use_mcp=setup.args.mcp))

@@ -4,7 +4,8 @@ import json
 import asyncio
 import logging
 import os
-from typing import Any, Dict, Optional, Callable
+import argparse
+from typing import Any, Dict, Optional, Callable, Awaitable, List
 
 import gql
 from PIL import Image
@@ -41,7 +42,15 @@ async def select_workspace_for_scenario(
 
 
 class ScenarioSetup:
-    def __init__(self, service_name: str = "test_scenario"):
+    @staticmethod
+    def create_args_parser() -> argparse.ArgumentParser:
+        parser = argparse.ArgumentParser()
+        parser.add_argument("--no-cleanup", action="store_true", help="Skip cleanup of test group")
+        return parser
+
+    def __init__(self, service_name: str = "test_scenario", parser: argparse.ArgumentParser = create_args_parser()):
+        args = parser.parse_args()
+
         self.fclient = ckit_client.FlexusClient(service_name=service_name)
         self.bot_fclient = ckit_client.FlexusClient(service_name=f"{service_name}_bot", endpoint="/v1/jailed-bot")
         self.fgroup_id: Optional[str] = None
@@ -53,13 +62,16 @@ class ScenarioSetup:
         self.main_thread_id: Optional[str] = None
         self.inprocess_tools: list = []
         self._background_tasks: set = set()
+        self.should_cleanup = not args.no_cleanup
+        self.args = args
 
-    async def create_group_and_hire_bot(
+    async def create_group_hire_and_start_bot(
         self,
         persona_marketable_name: str,
         persona_marketable_version: Optional[int],
         persona_setup: dict,
-        inprocess_tools: list,
+        inprocess_tools: List[ckit_cloudtool.CloudTool],
+        bot_main_loop: Optional[Callable[[ckit_client.FlexusClient, ckit_bot_exec.RobotContext], Awaitable[None]]] = None,
         group_prefix: str = "test",
     ) -> None:
         self.inprocess_tools = inprocess_tools
@@ -68,6 +80,18 @@ class ScenarioSetup:
         await self.create_test_group(group_prefix)
         await self.hire_bot(persona_marketable_name, persona_marketable_version, persona_setup)
         logger.info("Scenario setup completed in group %s", self.fgroup_name)
+
+        if bot_main_loop is not None:
+            bot_task = asyncio.create_task(ckit_bot_exec.run_bots_in_this_group(
+                self.bot_fclient,
+                fgroup_id=self.fgroup_id,
+                marketable_name=persona_marketable_name,
+                marketable_version=persona_marketable_version,
+                inprocess_tools=inprocess_tools,
+                bot_main_loop=bot_main_loop,
+            ))
+            self._background_tasks.add(bot_task)
+            bot_task.add_done_callback(self._background_tasks.discard)
 
     async def create_test_group(self, group_prefix: str) -> None:
         self.fgroup_name = f"{group_prefix}-{uuid.uuid4().hex[:6]}"
@@ -170,10 +194,11 @@ class ScenarioSetup:
         finally:
             ckit_shutdown.take_away_task_to_cancel("scenario")
             await self.print_main_thread()
-            logger.info(f"Waiting {cleanup_wait_secs} seconds before cleanup... (Ctrl+C to cleanup immediately)")
-            await ckit_shutdown.wait(cleanup_wait_secs)
-            await self.cleanup()
-            logger.info("Cleanup completed.")
+            if self.should_cleanup:
+                await self.cleanup()
+                logger.info("Cleanup completed.")
+            else:
+                logger.info("Skipping cleanup (--no-cleanup flag set)")
 
     def create_fake_toolcall_output(self, call_id: str, ft_id: str, args: dict) -> ckit_cloudtool.FCloudtoolCall:
         if not self.persona:

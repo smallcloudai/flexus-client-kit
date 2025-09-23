@@ -18,8 +18,8 @@ async def setup_slack(setup: ckit_scenario_setup.ScenarioSetup, slack_fake: bool
         "SLACK_APP_TOKEN": "" if slack_fake else os.environ["SLACK_APP_TOKEN"],
         "slack_should_join": "tests",
     }
-    await setup.create_group_and_hire_bot(
-        karen_bot.BOT_NAME, None, karen_setup, group_prefix="slack-test"
+    await setup.create_group_hire_and_start_bot(
+        karen_bot.BOT_NAME, None, karen_setup, [], group_prefix="slack-test"
     )
     rcx = ckit_bot_exec.RobotContext(setup.bot_fclient, setup.persona)
     await setup.create_fake_files_and_upload_to_mongo(rcx.workdir)
@@ -205,4 +205,4 @@ async def slack_test(setup: ckit_scenario_setup.ScenarioSetup) -> None:
 
 if __name__ == "__main__":
     setup = ckit_scenario_setup.ScenarioSetup("fi_slack_test")
-    asyncio.run(setup.run_scenario(slack_test, cleanup_wait_secs=0))
+    asyncio.run(setup.run_scenario(slack_test))

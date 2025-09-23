@@ -31,9 +31,7 @@ async def send_reminder(setup, ft_id, task_id):
 
 
 async def scenario(setup: ckit_scenario_setup.ScenarioSetup) -> None:
-    fake_slack_instances.clear()
-
-    await setup.create_group_and_hire_bot(
+    await setup.create_group_hire_and_start_bot(
         persona_marketable_name=karen_bot.BOT_NAME,
         persona_marketable_version=karen_bot.BOT_VERSION_INT,
         persona_setup={
@@ -42,23 +40,9 @@ async def scenario(setup: ckit_scenario_setup.ScenarioSetup) -> None:
             "slack_should_join": "support",
         },
         inprocess_tools=karen_bot.TOOLS,
+        bot_main_loop=karen_bot.karen_main_loop,
         group_prefix="scenario-close-after-reminder",
     )
-
-    bot_task = asyncio.create_task(
-        ckit_bot_exec.run_bots_in_this_group(
-            setup.bot_fclient,
-            fgroup_id=setup.fgroup_id,
-            marketable_name=karen_bot.BOT_NAME,
-            marketable_version=karen_bot.BOT_VERSION_INT,
-            inprocess_tools=karen_bot.TOOLS,
-            bot_main_loop=karen_bot.karen_main_loop,
-        )
-    )
-    bot_task.add_done_callback(lambda t: ckit_utils.report_crash(t, logger))
-
-    while not fake_slack_instances:
-        await asyncio.sleep(0.1)
 
     first_message = await post_fake_slack_message(
         "support",
@@ -84,6 +68,7 @@ async def scenario(setup: ckit_scenario_setup.ScenarioSetup) -> None:
     slack_thread_messages_after = [msg for msgs in slack_instance.messages.values() for msg in msgs if msg.get('thread_ts') == first_message['ts']]
     bot_msgs_count_after = len([msg for msg in slack_thread_messages_after if msg.get('user') == 'bot'])
     assert bot_msgs_count_after == bot_msgs_count_before, f"Expected no new bot messages after kanban call, but found {bot_msgs_count_after - bot_msgs_count_before} more"
+
 
 if __name__ == "__main__":
     setup = ckit_scenario_setup.ScenarioSetup("karen")

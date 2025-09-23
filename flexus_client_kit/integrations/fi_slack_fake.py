@@ -349,6 +349,9 @@ fake_slack_instances: List[IntegrationSlackFake] = []
 
 
 async def post_fake_slack_message(channel_slash_thread: str, text: str, user: str = "user", path: Optional[str] = None):
+    while not fake_slack_instances:
+        await asyncio.sleep(0.1)
+
     channel, thread = parse_channel_slash_thread(channel_slash_thread)
     if not channel:
         return

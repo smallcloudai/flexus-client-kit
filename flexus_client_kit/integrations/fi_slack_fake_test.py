@@ -140,4 +140,4 @@ async def fake_slack_test(setup: ckit_scenario_setup.ScenarioSetup) -> None:
 
 if __name__ == "__main__":
     setup = ckit_scenario_setup.ScenarioSetup("fi_slack_fake_test")
-    asyncio.run(setup.run_scenario(fake_slack_test, cleanup_wait_secs=0))
+    asyncio.run(setup.run_scenario(fake_slack_test))
