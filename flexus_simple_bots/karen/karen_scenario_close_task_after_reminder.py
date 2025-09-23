@@ -41,6 +41,7 @@ async def scenario(setup: ckit_scenario_setup.ScenarioSetup) -> None:
             "SLACK_APP_TOKEN": "fake_app_token",
             "slack_should_join": "support",
         },
+        inprocess_tools=karen_bot.TOOLS,
         group_prefix="scenario-close-after-reminder",
     )
 
@@ -64,14 +65,11 @@ async def scenario(setup: ckit_scenario_setup.ScenarioSetup) -> None:
         "Hey Karen, I need AWS documentation about IAM roles.",
         user="Alice",
     )
-    messages_queue = await setup.subscribe_to_thread_messages(karen_bot.TOOLS)
-    capture_msg = await setup.wait_for_toolcall(messages_queue, "slack", None, {"op": "capture"})
+    capture_msg = await setup.wait_for_toolcall("slack", None, {"op": "capture"})
 
     expected_channel = f"support/{first_message['ts']}"
     ft_id = capture_msg.ftm_belongs_to_ft_id
     setup.main_thread_id = ft_id
-
-    await wait_for_bot_message(expected_channel)
 
     await send_reminder(setup, ft_id, "task123")
     await wait_for_bot_message(expected_channel)
@@ -81,10 +79,7 @@ async def scenario(setup: ckit_scenario_setup.ScenarioSetup) -> None:
     bot_msgs_count_before = len([msg for msg in slack_thread_messages_before if msg.get('user') == 'bot'])
 
     await send_reminder(setup, ft_id, "task123")
-    await setup.wait_for_toolcall(messages_queue, "flexus_bot_kanban", ft_id, {"op": "current_task_done"})
-
-    # XXX needs_user both in wait_for_toolcall and here
-    await asyncio.sleep(15) # give some time just in case bot spams after
+    await setup.wait_for_toolcall("flexus_bot_kanban", ft_id, {"op": "current_task_done"})
 
     slack_thread_messages_after = [msg for msgs in slack_instance.messages.values() for msg in msgs if msg.get('thread_ts') == first_message['ts']]
     bot_msgs_count_after = len([msg for msg in slack_thread_messages_after if msg.get('user') == 'bot'])
