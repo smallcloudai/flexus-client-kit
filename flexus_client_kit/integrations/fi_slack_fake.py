@@ -11,8 +11,8 @@ from flexus_client_kit import ckit_cloudtool, ckit_client, ckit_bot_exec, ckit_a
 from flexus_client_kit.integrations.fi_mongo_store import validate_path, download_file
 from flexus_client_kit.integrations.fi_slack import (
     HELP, CAPTURE_SUCCESS_MSG, CAPTURE_ADVICE_MSG, UNCAPTURE_SUCCESS_MSG, SKIP_SUCCESS_MSG,
-    OTHER_CHAT_ALREADY_CAPTURING_MSG, CANNOT_POST_TO_CAPTURED_MSG, parse_channel_slash_thread,
-    ActivitySlack, IntegrationSlack as RealSlack, logger
+    OTHER_CHAT_ALREADY_CAPTURING_MSG, CANNOT_POST_TO_CAPTURED_MSG, NOT_CAPTURING_THREAD_MSG,
+    parse_channel_slash_thread, ActivitySlack, IntegrationSlack as RealSlack, logger
 )
 
 
@@ -220,9 +220,32 @@ class IntegrationSlackFake:
                 else:
                     return OTHER_CHAT_ALREADY_CAPTURING_MSG % (something_id_slash_thread,)
 
+            all_message_parts = []
+            thread_messages = [msg for msg in self.messages.get(chan_id, []) if msg.get("thread_ts") == thread]
+
+            if thread_messages:
+                text_content = ""
+                for msg in thread_messages:
+                    author_name = msg.get("user", "unknown_user")
+                    text = msg.get("text", "")
+                    text_content += f"👤{author_name}\n\n{text}\n\n"
+
+                if text_content:
+                    all_message_parts.append({"m_type": "text", "m_content": text_content.strip()})
+
             self.captured = (chan_id, thread)
             self.captured_ft_id = toolcall.fcall_ft_id
             http = await self.fclient.use_http()
+
+            if all_message_parts:
+                await ckit_ask_model.thread_add_user_message(
+                    http,
+                    toolcall.fcall_ft_id,
+                    all_message_parts,
+                    "fi_slack_fake",
+                    ftm_alt=100,
+                )
+
             await ckit_ask_model.thread_app_capture_patch(
                 http, toolcall.fcall_ft_id, ft_app_searchable=searchable
             )
@@ -239,6 +262,9 @@ class IntegrationSlackFake:
             return UNCAPTURE_SUCCESS_MSG
 
         if op == "skip":
+            captured_thread = self.rcx.latest_threads.get(toolcall.fcall_ft_id, None)
+            if not captured_thread or not captured_thread.thread_fields.ft_app_searchable or not captured_thread.thread_fields.ft_app_searchable.startswith("slack/"):
+                return NOT_CAPTURING_THREAD_MSG
             return SKIP_SUCCESS_MSG
 
         if op == "post":
