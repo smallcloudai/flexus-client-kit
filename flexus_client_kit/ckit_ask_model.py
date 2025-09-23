@@ -4,7 +4,7 @@ import json
 import random
 import re
 from dataclasses import dataclass
-from typing import Optional, Any, List, Callable, Union
+from typing import Optional, Any, List, Callable, Union, Dict
 
 import gql
 
@@ -108,7 +108,7 @@ async def ask_model(
 async def thread_add_user_message(
     http: gql.Client,
     ft_id: str,
-    content: Union[str, list, dict],
+    content: Union[str, List[Dict[str, Any]]],
     who_is_asking: str,
     ftm_alt: int,
     user_preferences: str = "null",
@@ -118,12 +118,11 @@ async def thread_add_user_message(
     assert role in ["user", "cd_instruction"]
 
     if isinstance(content, str):
-        # For backward compatibility, wrap plain strings
         ftm_content = json.dumps(content)
-    elif isinstance(content, (list, dict)):
+    elif isinstance(content, list):
         ftm_content = json.dumps(content)
     else:
-        ftm_content = json.dumps(str(content))
+        assert 0, "bad type %s" % type(content)
 
     async with http as h:
         await h.execute(
