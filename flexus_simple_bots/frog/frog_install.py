@@ -66,7 +66,7 @@ if msg["role"] == "assistant":
     print("assistant_says1", assistant_says1)
     print("assistant_says2", assistant_says2)
     if "snake" in assistant_says1.lower() or "snake" in assistant_says2.lower():
-        post_content = "OMG dive down!!!"
+        post_cd_instruction = "OMG dive down!!!"
 """
 
 
