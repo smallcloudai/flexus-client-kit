@@ -56,9 +56,14 @@ async def scenario(setup: ckit_scenario_setup.ScenarioSetup, use_mcp: bool = Fal
         await asyncio.sleep(0.1)
 
     first_msg = await post_fake_slack_message("support", "Which service of AWS offers me inference of big models like anthropic models?")
-    await wait_for_bot_message("support")
-    assert "ts" in first_msg
+    messages_queue = await setup.subscribe_to_thread_messages(karen_bot.TOOLS)
+    capture_msg = await setup.wait_for_toolcall(messages_queue, "slack", None, {"op": "capture"})
+
+    ft_id = capture_msg.ftm_belongs_to_ft_id
+    setup.main_thread_id = ft_id
+
     thread_ts = first_msg["ts"]
+    await wait_for_bot_message("support")
 
     await post_fake_slack_message(f"support/{thread_ts}", "Is there rust SDK for it?")
     await wait_for_bot_message(f"support/{thread_ts}")

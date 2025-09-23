@@ -50,6 +50,7 @@ class ScenarioSetup:
         self.mongo_collection: Optional[AsyncMongoClient] = None
         self.bs: Optional[ckit_client.BasicStuffOutput] = None
         self.ws: Optional[ckit_client.FWorkspaceOutput] = None
+        self.main_thread_id: Optional[str] = None
         self._background_tasks: set = set()
 
     async def create_group_and_hire_bot(
@@ -117,35 +118,40 @@ class ScenarioSetup:
             with open(f'{workdir}/{filename}', 'rb') as f:
                 await ckit_mongo.store_file(self.mongo_collection, filename, f.read())
 
-    async def print_captured_thread(self) -> None:
-        if not self.fgroup_id:
+    async def print_main_thread(self) -> None:
+        if not self.main_thread_id:
+            logger.info("No main thread set (setup.main_thread_id is None)")
             return
+
         async with (await self.fclient.use_http()) as http:
-            threads = await http.execute(gql.gql("""
-                query ListThreads($fgroup_id: String!) {
-                    thread_list(located_fgroup_id: $fgroup_id, skip: 0, limit: 10) { ft_id ft_app_searchable }
-                }"""), variable_values={"fgroup_id": self.fgroup_id})
+            thread_info = await http.execute(gql.gql("""
+                query GetThread($id: String!) {
+                    thread_get(id: $id) { ft_id ft_app_searchable }
+                }"""), variable_values={"id": self.main_thread_id})
 
-            for thread in threads["thread_list"]:
-                if thread["ft_app_searchable"].startswith("slack/"):
-                    messages = await http.execute(gql.gql("""
-                        query ThreadMessages($ft_id: String!) {
-                            thread_messages_list(ft_id: $ft_id) { ftm_role ftm_content ftm_alt ftm_tool_calls }
-                        }"""), variable_values={"ft_id": thread["ft_id"]})
+            if not thread_info["thread_get"]:
+                logger.info(f"Main thread {self.main_thread_id} not found")
+                return
 
-                    logger.info(f"\n📝 ft_id: {thread['ft_id']} captured_from: {thread['ft_app_searchable']}")
-                    colors = {"user": "\033[94m", "assistant": "\033[92m", "system": "\033[93m", "tool": "\033[95m", "kernel": "\033[96m"}
-                    for msg in messages["thread_messages_list"]:
-                        if msg["ftm_alt"] == 100:
-                            content = str(msg["ftm_content"])[:300] + "..." if len(str(msg["ftm_content"])) > 300 else str(msg["ftm_content"])
-                            color = colors.get(msg['ftm_role'], "\033[0m")
-                            logger.info(f"  {color}{msg['ftm_role']}\033[0m: {content}")
+            messages = await http.execute(gql.gql("""
+                query ThreadMessages($ft_id: String!) {
+                    thread_messages_list(ft_id: $ft_id) { ftm_role ftm_content ftm_alt ftm_tool_calls }
+                }"""), variable_values={"ft_id": self.main_thread_id})
 
-                            if msg['ftm_role'] == 'assistant' and msg.get('ftm_tool_calls'):
-                                for tool_call in msg['ftm_tool_calls']:
-                                    tool_name = tool_call.get('function', {}).get('name', 'unknown')
-                                    tool_args = str(tool_call.get('function', {}).get('arguments', ''))[:100] + "..." if len(str(tool_call.get('function', {}).get('arguments', ''))) > 100 else str(tool_call.get('function', {}).get('arguments', ''))
-                                    logger.info(f"    \033[96m🔧 {tool_name}\033[0m: {tool_args}")
+            thread = thread_info["thread_get"]
+            logger.info(f"\n📝 Main Thread ft_id: {thread['ft_id']} captured_from: {thread.get('ft_app_searchable', 'N/A')}")
+            colors = {"user": "\033[94m", "assistant": "\033[92m", "system": "\033[93m", "tool": "\033[95m", "kernel": "\033[96m"}
+            for msg in messages["thread_messages_list"]:
+                if msg["ftm_alt"] == 100:
+                    content = str(msg["ftm_content"])[:300] + "..." if len(str(msg["ftm_content"])) > 300 else str(msg["ftm_content"])
+                    color = colors.get(msg['ftm_role'], "\033[0m")
+                    logger.info(f"  {color}{msg['ftm_role']}\033[0m: {content}")
+
+                    if msg['ftm_role'] == 'assistant' and msg.get('ftm_tool_calls'):
+                        for tool_call in msg['ftm_tool_calls']:
+                            tool_name = tool_call.get('function', {}).get('name', 'unknown')
+                            tool_args = str(tool_call.get('function', {}).get('arguments', ''))[:100] + "..." if len(str(tool_call.get('function', {}).get('arguments', ''))) > 100 else str(tool_call.get('function', {}).get('arguments', ''))
+                            logger.info(f"    \033[96m🔧 {tool_name}\033[0m: {tool_args}")
 
     async def run_scenario(self, scenario_func: Callable[..., None], cleanup_wait_secs: int = 300, **kwargs) -> None:
         ckit_shutdown.setup_signals()
@@ -160,7 +166,7 @@ class ScenarioSetup:
             logger.exception("\033[91mERROR\033[0m")
         finally:
             ckit_shutdown.take_away_task_to_cancel("scenario")
-            await self.print_captured_thread()
+            await self.print_main_thread()
             logger.info(f"Waiting {cleanup_wait_secs} seconds before cleanup... (Ctrl+C to cleanup immediately)")
             await ckit_shutdown.wait(cleanup_wait_secs)
             await self.cleanup()
