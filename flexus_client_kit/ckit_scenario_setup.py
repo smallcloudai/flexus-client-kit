@@ -47,7 +47,6 @@ class ScenarioSetup:
         self.fgroup_id: Optional[str] = None
         self.fgroup_name: Optional[str] = None
         self.persona: Optional[ckit_bot_exec.FPersonaOutput] = None
-        self.rcx: Optional[ckit_bot_exec.RobotContext] = None
         self.mongo_collection: Optional[AsyncMongoClient] = None
         self.bs: Optional[ckit_client.BasicStuffOutput] = None
         self.ws: Optional[ckit_client.FWorkspaceOutput] = None
@@ -58,14 +57,12 @@ class ScenarioSetup:
         persona_marketable_version: Optional[int],
         persona_setup: dict,
         group_prefix: str = "test",
-    ) -> tuple[ckit_bot_exec.RobotContext, AsyncMongoClient]:
+    ) -> None:
         self.bs = await ckit_client.query_basic_stuff(self.fclient)
         self.ws = await select_workspace_for_scenario(self.fclient, self.bs, persona_marketable_name)
         await self.create_test_group(group_prefix)
         await self.install_persona(persona_marketable_name, persona_marketable_version, persona_setup)
-        await self.create_fake_files_and_upload_to_mongo()
         logger.info("Scenario setup completed in group %s", self.fgroup_name)
-        return self.rcx, self.mongo_collection
 
     async def create_test_group(self, group_prefix: str) -> None:
         self.fgroup_name = f"{group_prefix}-{uuid.uuid4().hex[:6]}"
@@ -106,18 +103,17 @@ class ScenarioSetup:
             persona_setup=dict(persona_setup), persona_created_ts=time.time(),
             ws_id=self.ws.ws_id, ws_timezone="UTC"
         )
-        self.rcx = ckit_bot_exec.RobotContext(self.bot_fclient, self.persona)
 
-    async def create_fake_files_and_upload_to_mongo(self) -> None:
-        os.makedirs(self.rcx.workdir, exist_ok=True)
-        Image.new('RGB', (100, 100), color='red').save(f'{self.rcx.workdir}/1.png')
-        Image.new('RGB', (100, 100), color='blue').save(f'{self.rcx.workdir}/2.png')
-        open(f'{self.rcx.workdir}/1.txt', 'w').write('This is test file 1\nWith multiple lines\nFor testing file attachments')
-        open(f'{self.rcx.workdir}/2.json', 'w').write('{"test": "data", "file": "2", "content": "json test file"}')
+    async def create_fake_files_and_upload_to_mongo(self, workdir: str) -> None:
+        os.makedirs(workdir, exist_ok=True)
+        Image.new('RGB', (100, 100), color='red').save(f'{workdir}/1.png')
+        Image.new('RGB', (100, 100), color='blue').save(f'{workdir}/2.png')
+        open(f'{workdir}/1.txt', 'w').write('This is test file 1\nWith multiple lines\nFor testing file attachments')
+        open(f'{workdir}/2.json', 'w').write('{"test": "data", "file": "2", "content": "json test file"}')
 
         self.mongo_collection = AsyncMongoClient(await ckit_mongo.get_mongodb_creds(self.bot_fclient, self.persona.persona_id))[self.persona.persona_id + "_db"]["files"]
         for filename in ['1.png', '2.png', '1.txt', '2.json']:
-            with open(f'{self.rcx.workdir}/{filename}', 'rb') as f:
+            with open(f'{workdir}/{filename}', 'rb') as f:
                 await ckit_mongo.store_file(self.mongo_collection, filename, f.read())
 
     async def print_captured_thread(self) -> None:
