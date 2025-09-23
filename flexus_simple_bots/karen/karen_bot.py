@@ -10,7 +10,6 @@ from flexus_client_kit import ckit_kanban
 from flexus_client_kit import ckit_bot_exec
 from flexus_client_kit import ckit_shutdown
 from flexus_client_kit import ckit_ask_model
-from flexus_client_kit import ckit_bot_install
 from flexus_client_kit.integrations import fi_slack
 from flexus_simple_bots.karen import karen_install
 
@@ -18,25 +17,10 @@ logger = logging.getLogger("bot_karen")
 
 
 BOT_NAME = "karen"
-BOT_VERSION = "0.1.15"
+BOT_VERSION = "0.1.16"
 BOT_VERSION_INT = ckit_client.marketplace_version_as_int(BOT_VERSION)
 
-FILE_JIRA_TOOL = ckit_cloudtool.CloudTool(
-    name="file_jira_issue",
-    description="A quick way to report a problem.",
-    parameters={
-        "type": "object",
-        "properties": {
-            "issue_title": {"type": "string"},
-            "issue_desc": {"type": "string", "description": "Write sequence of actions that leads to the problem"},
-        },
-    },
-)
-
-TOOLS = [
-    FILE_JIRA_TOOL,
-    fi_slack.SLACK_TOOL,
-]
+TOOLS = [fi_slack.SLACK_TOOL]
 
 
 async def karen_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.RobotContext) -> None:
@@ -58,11 +42,6 @@ async def karen_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.
     async def updated_thread_in_db(th: ckit_ask_model.FThreadOutput):
         # logger.info("updated thread %s %s captured=%s" % (rcx.persona.persona_id, th.ft_id, th.ft_app_searchable))
         pass
-
-    @rcx.on_tool_call(FILE_JIRA_TOOL.name)
-    async def toolcall_jira(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
-        print("wow a jira call %r" % model_produced_args)
-        return "successfully filed"
 
     @rcx.on_tool_call(fi_slack.SLACK_TOOL.name)
     async def toolcall_slack(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
