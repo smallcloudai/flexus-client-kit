@@ -11,7 +11,7 @@ import gql
 from PIL import Image
 from pymongo import AsyncMongoClient
 
-from flexus_client_kit import ckit_bot_exec, ckit_bot_install, ckit_client, ckit_mongo, ckit_shutdown, ckit_cloudtool, ckit_ask_model, ckit_utils, gql_utils
+from flexus_client_kit import ckit_bot_exec, ckit_bot_install, ckit_client, ckit_mongo, ckit_shutdown, ckit_cloudtool, ckit_ask_model, ckit_utils, gql_utils, ckit_kanban
 
 logger = logging.getLogger("scenario")
 
@@ -59,7 +59,6 @@ class ScenarioSetup:
         self.mongo_collection: Optional[AsyncMongoClient] = None
         self.bs: Optional[ckit_client.BasicStuffOutput] = None
         self.ws: Optional[ckit_client.FWorkspaceOutput] = None
-        self.main_thread_id: Optional[str] = None
         self.inprocess_tools: list = []
         self._background_tasks: set = set()
         self.should_cleanup = not args.no_cleanup
@@ -118,6 +117,7 @@ class ScenarioSetup:
                 query PersonaGet($id: String!) {
                     persona_get(id: $id) {
                         persona_marketable_version
+                        persona_preferred_model
                     }
                 }"""), variable_values={"id": install.persona_id})
         installed_version = persona_details["persona_get"]["persona_marketable_version"]
@@ -125,12 +125,15 @@ class ScenarioSetup:
         if persona_marketable_version and installed_version != persona_marketable_version:
             raise RuntimeError(f"Expected version {persona_marketable_version}, got {installed_version}")
 
+        persona_get = persona_details["persona_get"]
+        preferred_model = persona_get["persona_preferred_model"]
+
         self.persona = ckit_bot_exec.FPersonaOutput(
             owner_fuser_id=self.bs.fuser_id, located_fgroup_id=self.fgroup_id, persona_id=install.persona_id,
             persona_name=f"{persona_marketable_name} Test {self.fgroup_id[-4:]}", persona_marketable_name=persona_marketable_name,
             persona_marketable_version=installed_version, persona_discounts=None,
             persona_setup=dict(persona_setup), persona_created_ts=time.time(),
-            ws_id=self.ws.ws_id, ws_timezone="UTC"
+            persona_preferred_model=preferred_model, ws_id=self.ws.ws_id, ws_timezone="UTC"
         )
 
     async def create_fake_files_and_upload_to_mongo(self, workdir: str) -> None:
@@ -145,40 +148,87 @@ class ScenarioSetup:
             with open(f'{workdir}/{filename}', 'rb') as f:
                 await ckit_mongo.store_file(self.mongo_collection, filename, f.read())
 
-    async def print_main_thread(self) -> None:
-        if not self.main_thread_id:
-            logger.info("No main thread set (setup.main_thread_id is None)")
-            return
-
+    async def print_personas_ktasks_and_threads(self) -> None:
         async with (await self.fclient.use_http()) as http:
-            thread_info = await http.execute(gql.gql("""
-                query GetThread($id: String!) {
-                    thread_get(id: $id) { ft_id ft_app_searchable }
-                }"""), variable_values={"id": self.main_thread_id})
+            threads = await http.execute(gql.gql(f"""
+                query GetGroupThreads($fgroup_id: String!) {{
+                    thread_list(located_fgroup_id: $fgroup_id, skip: 0, limit: 100) {{
+                        {gql_utils.gql_fields(ckit_ask_model.FThreadOutput)}
+                    }}
+                }}"""), variable_values={"fgroup_id": self.fgroup_id})
 
-            if not thread_info["thread_get"]:
-                logger.info(f"Main thread {self.main_thread_id} not found")
-                return
+            personas = await http.execute(gql.gql(f"""
+                query GetGroupPersonas($fgroup_id: String!) {{
+                    persona_list(located_fgroup_id: $fgroup_id, skip: 0, limit: 100) {{
+                        {gql_utils.gql_fields(ckit_bot_exec.FPersonaOutput)}
+                    }}
+                }}"""), variable_values={"fgroup_id": self.fgroup_id})
 
-            messages = await http.execute(gql.gql("""
-                query ThreadMessages($ft_id: String!) {
-                    thread_messages_list(ft_id: $ft_id) { ftm_role ftm_content ftm_alt ftm_tool_calls }
-                }"""), variable_values={"ft_id": self.main_thread_id})
+            print(f"\n👤 Personas in test group {self.fgroup_name}:")
+            for persona_dict in personas["persona_list"]:
+                persona = gql_utils.dataclass_from_dict(persona_dict, ckit_bot_exec.FPersonaOutput)
 
-            thread = thread_info["thread_get"]
-            logger.info(f"\n📝 Main Thread ft_id: {thread['ft_id']} captured_from: {thread.get('ft_app_searchable', 'N/A')}")
-            colors = {"user": "\033[94m", "assistant": "\033[92m", "system": "\033[93m", "tool": "\033[95m", "kernel": "\033[96m"}
-            for msg in messages["thread_messages_list"]:
-                if msg["ftm_alt"] == 100:
-                    content = str(msg["ftm_content"])[:300] + "..." if len(str(msg["ftm_content"])) > 300 else str(msg["ftm_content"])
-                    color = colors.get(msg['ftm_role'], "\033[0m")
-                    logger.info(f"  {color}{msg['ftm_role']}\033[0m: {content}")
+                def format_time(ts):
+                    return time.strftime("%H:%M:%S", time.localtime(float(ts)))
 
-                    if msg['ftm_role'] == 'assistant' and msg.get('ftm_tool_calls'):
-                        for tool_call in msg['ftm_tool_calls']:
-                            tool_name = tool_call.get('function', {}).get('name', 'unknown')
-                            tool_args = str(tool_call.get('function', {}).get('arguments', ''))[:100] + "..." if len(str(tool_call.get('function', {}).get('arguments', ''))) > 100 else str(tool_call.get('function', {}).get('arguments', ''))
-                            logger.info(f"    \033[96m🔧 {tool_name}\033[0m: {tool_args}")
+                print(f" id:{persona.persona_id} name:'{persona.persona_name}' marketplace:{persona.persona_marketable_name}@{persona.persona_marketable_version} created:{format_time(persona.persona_created_ts)} model:{persona.persona_preferred_model}")
+
+                kanban_tasks = await ckit_kanban.persona_kanban_list(self.fclient, persona.persona_id)
+                if kanban_tasks:
+                    print(f" 📋 Kanban tasks ({len(kanban_tasks)}):")
+                    for task in kanban_tasks:
+                        extras = []
+                        if task.ktask_resolution_code:
+                            extras.append(f"resolution_code:{task.ktask_resolution_code}")
+                        if task.ktask_resolution_summary:
+                            extras.append(f"resolution_summary:'{task.ktask_resolution_summary}'")
+                        if hasattr(task.ktask_details, 'get') and task.ktask_details and task.ktask_details.get('humanhours'):
+                            extras.append(f"humanhours:{task.ktask_details['humanhours']}")
+                        extra_str = f" {' '.join(extras)}" if extras else ""
+                        print(f"   {task.get_bucket()} id:{task.ktask_id} title:'{task.ktask_title}' budget:{task.ktask_budget} coins:{task.ktask_coins}{extra_str}")
+                else:
+                    print(f" 📋 No kanban tasks")
+
+            print(f"\n📝 All Threads in test group {self.fgroup_name}:")
+            for thread_dict in threads["thread_list"]:
+                thread = gql_utils.dataclass_from_dict(thread_dict, ckit_ask_model.FThreadOutput)
+
+                def format_time(ts):
+                    return time.strftime("%H:%M:%S", time.localtime(float(ts)))
+
+                a, t, u = thread.ft_need_assistant, thread.ft_need_tool_calls, thread.ft_need_user
+                need_str = f"ended_with need_assistant={a}" if a != -1 else f"ended_with need_tool_calls={t}" if t != -1 else f"ended_with need_user={u}"
+                ts_part = f"created:{format_time(thread.ft_created_ts)} updated:{format_time(thread.ft_updated_ts)}"
+                persona_id = thread.ft_persona_id or "N/A"
+                print(f" ft_id={thread.ft_id} title:'{thread.ft_title}' persona:{persona_id} exp:{thread.ft_fexp_id} budget:{thread.ft_budget} coins:{thread.ft_coins} {ts_part}")
+
+                tool_names = [tool['function']['name'] for tool in thread.ft_toolset] if thread.ft_toolset else []
+                error_part = f" error:{thread.ft_error}" if thread.ft_error else ""
+                print(f" searchable:{thread.ft_app_searchable} capture:{thread.ft_app_capture} {need_str} toolset:{tool_names}{error_part}")
+
+                messages = await http.execute(gql.gql(f"""
+                    query ThreadMessages($ft_id: String!) {{
+                        thread_messages_list(ft_id: $ft_id) {{ {gql_utils.gql_fields(ckit_ask_model.FThreadMessageOutput)} }}
+                    }}"""), variable_values={"ft_id": thread.ft_id})
+
+                colors = {"user": "\033[94m", "assistant": "\033[92m", "system": "\033[93m", "tool": "\033[95m", "kernel": "\033[96m"}
+                for msg_dict in messages["thread_messages_list"]:
+                    msg = gql_utils.dataclass_from_dict(msg_dict, ckit_ask_model.FThreadMessageOutput)
+                    if msg.ftm_alt == 100:
+                        content = str(msg.ftm_content).replace('\n', '\\n')[:120]
+                        if len(str(msg.ftm_content)) > 120:
+                            content += "..."
+                        color = colors.get(msg.ftm_role, "\033[0m")
+                        msg_time = format_time(msg.ftm_created_ts)
+                        print(f"    {color}{msg.ftm_role}\033[0m alt={msg.ftm_alt} num={msg.ftm_num} {msg_time}: {content}")
+
+                        if msg.ftm_role == 'assistant' and msg.ftm_tool_calls:
+                            for tool_call in msg.ftm_tool_calls:
+                                tool_name = tool_call.get('function', {}).get('name', 'unknown')
+                                tool_args = str(tool_call.get('function', {}).get('arguments', ''))[:60]
+                                if len(str(tool_call.get('function', {}).get('arguments', ''))) > 60:
+                                    tool_args += "..."
+                                print(f"      \033[96m🔧 {tool_name}\033[0m: {tool_args}")
 
     async def run_scenario(self, scenario_func: Callable[..., None], cleanup_wait_secs: int = 300, **kwargs) -> None:
         ckit_shutdown.setup_signals()
@@ -193,7 +243,7 @@ class ScenarioSetup:
             logger.exception("\033[91mERROR\033[0m")
         finally:
             ckit_shutdown.take_away_task_to_cancel("scenario")
-            await self.print_main_thread()
+            await self.print_personas_ktasks_and_threads()
             if self.should_cleanup:
                 await self.cleanup()
                 logger.info("Cleanup completed.")

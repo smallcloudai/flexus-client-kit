@@ -29,6 +29,7 @@ class FPersonaOutput:
     persona_discounts: Any
     persona_setup: Any
     persona_created_ts: float
+    persona_preferred_model: str
     ws_id: str
     ws_timezone: str
 
