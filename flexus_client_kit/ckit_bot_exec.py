@@ -51,6 +51,7 @@ class FThreadWithMessages:
     persona_id: str
     thread_fields: ckit_ask_model.FThreadOutput
     thread_messages: Dict[str, ckit_ask_model.FThreadMessageOutput] = field(default_factory=dict)
+    message_count_at_initial_updates_over: int = 0
 
 
 def official_setup_mixing_procedure(marketable_setup_default, persona_setup) -> Dict[str, Union[str, int, float, bool, list]]:
@@ -453,3 +454,5 @@ async def run_bots_in_this_group(
     await ckit_service_exec.run_typical_single_subscription_with_restart_on_network_errors(fclient, subscribe_and_produce_callbacks, bc)
     await shutdown_bots(bc)
     logger.info("run_bots_in_this_group exit")
+
+
