@@ -82,6 +82,7 @@ async def install(
         ws_id=ws_id,
         marketable_name=frog_bot.BOT_NAME,
         marketable_version=frog_bot.BOT_VERSION,
+        marketable_accent_color=frog_bot.ACCENT_COLOR,
         marketable_title1="Frog",
         marketable_title2="A cheerful frog bot that brings joy and positivity to your workspace.",
         marketable_author="Flexus",

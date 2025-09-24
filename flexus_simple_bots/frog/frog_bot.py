@@ -22,6 +22,8 @@ BOT_NAME = "frog"
 BOT_VERSION = "0.1.1"
 BOT_VERSION_INT = ckit_client.marketplace_version_as_int(BOT_VERSION)
 
+ACCENT_COLOR = "#228B22"
+
 
 RIBBIT_TOOL = ckit_cloudtool.CloudTool(
     name="ribbit",

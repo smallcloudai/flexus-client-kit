@@ -21,6 +21,8 @@ BOT_NAME = "slonik"
 BOT_VERSION = "0.1.0"
 BOT_VERSION_INT = ckit_client.marketplace_version_as_int(BOT_VERSION)
 
+ACCENT_COLOR = "#336791"
+
 
 TOOLS = [
     fi_postgres.POSTGRES_TOOL,

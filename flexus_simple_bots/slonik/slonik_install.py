@@ -33,6 +33,7 @@ async def install(client: ckit_client.FlexusClient, ws_id: str):
         ws_id=ws_id,
         marketable_name=slonik_bot.BOT_NAME,
         marketable_version=slonik_bot.BOT_VERSION,
+        marketable_accent_color=slonik_bot.ACCENT_COLOR,
         marketable_title1="Slonik",
         marketable_title2="Database assistant for PostgreSQL operations.",
         marketable_author="Flexus",
