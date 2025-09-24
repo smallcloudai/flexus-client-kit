@@ -81,11 +81,7 @@ async def fake_capture_test(setup: ckit_scenario_setup.ScenarioSetup, slack_bot,
 
     slack_bot.rcx.latest_threads[ft_id] = ckit_bot_exec.FThreadWithMessages(
         slack_bot.rcx.persona.persona_id,
-        ckit_ask_model.FThreadOutput(
-            ft_id=ft_id, ft_error=None, ft_need_tool_calls=-1, ft_need_user=-1,
-            ft_persona_id=slack_bot.rcx.persona.persona_id, ft_app_searchable=f"slack/{slack_bot.channels_name2id['tests']}/{ts}",
-            ft_app_specific=None, ft_updated_ts=time.time()
-        ), {}
+        setup.create_fake_fthread_output(ft_id, f"slack/{slack_bot.channels_name2id['tests']}/{ts}"), {}
     )
 
     post_args = {"op": "post", "args": {"channel_slash_thread": f"tests/{ts}", "text": "blocked"}}

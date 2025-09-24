@@ -261,6 +261,16 @@ class ScenarioSetup:
             fcall_untrusted_key="",
         )
 
+    def create_fake_fthread_output(self, ft_id: str, ft_app_searchable: str) -> ckit_ask_model.FThreadOutput:
+        if not self.persona:
+            raise RuntimeError("Must call setup() first")
+        return ckit_ask_model.FThreadOutput(
+            ft_id=ft_id, ft_error=None, ft_need_tool_calls=-1, ft_need_user=-1,
+            ft_persona_id=self.persona.persona_id, ft_app_searchable=ft_app_searchable, ft_app_specific=None, ft_updated_ts=time.time(),
+            ft_fexp_id="test_exp", ft_title="Test Thread", ft_toolset=[], ft_need_assistant=-1,
+            ft_app_capture=False, ft_created_ts=time.time(), ft_budget=100000, ft_coins=0,
+        )
+
     async def wait_for_toolcall(
         self,
         fcall_name: str,

@@ -155,11 +155,7 @@ async def discord_capture_test(setup: ckit_scenario_setup.ScenarioSetup, discord
 
     discord_bot.rcx.latest_threads[ft_id] = ckit_bot_exec.FThreadWithMessages(
         discord_bot.rcx.persona.persona_id,
-        ckit_ask_model.FThreadOutput(
-            ft_id=ft_id, ft_error=None, ft_need_tool_calls=-1, ft_need_user=-1,
-            ft_persona_id=discord_bot.rcx.persona.persona_id, ft_app_searchable=f"discord/thread/{thread.id}",
-            ft_app_specific=None, ft_updated_ts=time.time()
-        ), {}
+        setup.create_fake_fthread_output(ft_id, f"discord/thread/{thread.id}"), {}
     )
 
     await thread.send("test message 2")
