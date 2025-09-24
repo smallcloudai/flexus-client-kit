@@ -8,7 +8,6 @@ from flexus_client_kit import ckit_client
 from flexus_client_kit import ckit_bot_install
 from flexus_client_kit.integrations import fi_slack
 
-
 from flexus_simple_bots.karen import karen_bot, karen_prompts
 
 
@@ -37,7 +36,26 @@ karen_setup_default = [
 karen_setup_default += fi_slack.SLACK_SETUP_SCHEMA
 
 
-KAREN_BUDGET_WARNING = f"""
+KAREN_DESC = """
+### Job Description
+
+Karen runs customer support like the best hire you ever made. She answers with
+precision and full context, and turns user feedback into actionable weekly reports
+for your team. Don't ever call her a chatbot: Karen learns from every interaction
+and provides support that goes beyond scripts, making each customer feel valued.
+
+### Capabilities
+- Responds to support tickets instantly
+- Maintains full customer conversation history
+- Adjusts tone and replies based on customer sentiment
+- Guides users through your help center and knowledge base
+- Proactively detects patterns and flags repeated issues
+- Summarizes insights into weekly reports for product & dev teams
+- Learns from logs and user feedback to self-improve over time
+"""
+
+
+KAREN_BUDGET_KERNEL = f"""
 warning_text = "💿 Token budget is running low. Wrap up your current work, summarize the current chat thread, include what the original user's request was and the current status, and what to do next. Then call kanban_restart() with this summary to refresh context"
 
 if coins > budget * 0.5 and not messages[-1]["tool_calls"]:
@@ -70,7 +88,7 @@ async def install(
         marketable_title2="Your 24/7 customer support agent. Empathetic, accurate, and always keeps your users happy.",
         marketable_author="Flexus",
         marketable_occupation="Customer Support",
-        marketable_description="### Job Description\n\nKaren runs customer support like the best hire you ever made. She answers with precision and full context, and turns user feedback into actionable weekly reports for your team. Don’t ever call her a chatbot: Karen learns from every interaction and provides support that goes beyond scripts, making each customer feel valued.\n\n### Capabilities\n- Responds to support tickets instantly\n- Maintains full customer conversation history\n- Adjusts tone and replies based on customer sentiment\n- Guides users through your help center and knowledge base\n- Proactively detects patterns and flags repeated issues\n- Summarizes insights into weekly reports for product & dev teams\n- Learns from logs and user feedback to self‑improve over time",
+        marketable_description=KAREN_DESC,
         marketable_typical_group="Development / Documentation",
         marketable_github_repo="https://github.com/smallcloudai/flexus-client-kit.git",
         marketable_run_this="python -m flexus_simple_bots.karen.karen_bot",
@@ -81,7 +99,7 @@ async def install(
         marketable_expert_default=ckit_bot_install.FMarketplaceExpertInput(
             fexp_name="karen_default",
             fexp_system_prompt=karen_prompts.short_prompt,
-            fexp_python_kernel=KAREN_BUDGET_WARNING,
+            fexp_python_kernel=KAREN_BUDGET_KERNEL,
             fexp_block_tools="*setup*",
             fexp_allow_tools="",
             fexp_app_capture_tools=bot_internal_tools,
@@ -89,7 +107,7 @@ async def install(
         marketable_expert_setup=ckit_bot_install.FMarketplaceExpertInput(
             fexp_name="karen_setup",
             fexp_system_prompt=karen_prompts.karen_setup,
-            fexp_python_kernel=KAREN_BUDGET_WARNING,
+            fexp_python_kernel=KAREN_BUDGET_KERNEL,
             fexp_block_tools="",
             fexp_allow_tools="",
             fexp_app_capture_tools=bot_internal_tools,
