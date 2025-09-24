@@ -17,16 +17,10 @@ karen_bot.fi_slack.IntegrationSlack = IntegrationSlackFake
 
 
 async def scenario(setup: ckit_scenario_setup.ScenarioSetup, use_mcp: bool = False) -> None:
-    karen_setup = {
-        "SLACK_BOT_TOKEN": "fake_bot_token",
-        "SLACK_APP_TOKEN": "fake_app_token",
-        "slack_should_join": "support"
-    }
-
     await setup.create_group_hire_and_start_bot(
         persona_marketable_name=karen_bot.BOT_NAME,
         persona_marketable_version=karen_bot.BOT_VERSION_INT,
-        persona_setup=karen_setup,
+        persona_setup={"slack_should_join": "support"},
         inprocess_tools=karen_bot.TOOLS,
         bot_main_loop=karen_bot.karen_main_loop,
         group_prefix="scenario-captured-thread"

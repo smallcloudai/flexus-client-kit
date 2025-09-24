@@ -20,11 +20,7 @@ async def scenario(setup: ckit_scenario_setup.ScenarioSetup) -> None:
     await setup.create_group_hire_and_start_bot(
         persona_marketable_name=karen_bot.BOT_NAME,
         persona_marketable_version=karen_bot.BOT_VERSION_INT,
-        persona_setup={
-            "SLACK_BOT_TOKEN": "fake_bot_token",
-            "SLACK_APP_TOKEN": "fake_app_token",
-            "slack_should_join": "support",
-        },
+        persona_setup={"slack_should_join": "support"},
         inprocess_tools=karen_bot.TOOLS,
         bot_main_loop=karen_bot.karen_main_loop,
         group_prefix="scenario-skip-irrelevant",
@@ -32,7 +28,7 @@ async def scenario(setup: ckit_scenario_setup.ScenarioSetup) -> None:
 
     first_message = await post_fake_slack_message(
         "support",
-        "Hey Karen, which AWS service should I use for managed PostgreSQL? (capture this thread)",
+        "Hey Karen, which AWS service should I use for managed PostgreSQL?",
         user="Alice",
     )
     capture_msg = await setup.wait_for_toolcall("slack", None, {"op": "capture"})
