@@ -1,24 +1,13 @@
 import asyncio
 
 from flexus_simple_bots.karen import karen_bot
-from flexus_client_kit import ckit_bot_install, ckit_kanban
-from flexus_client_kit import ckit_client
-from flexus_client_kit import ckit_ask_model
+from flexus_client_kit import ckit_kanban, ckit_scenario_setup, ckit_client
+from flexus_client_kit.integrations import fi_slack_fake
+
+karen_bot.fi_slack.IntegrationSlack = fi_slack_fake.IntegrationSlackFake
 
 
-async def init(client: ckit_client.FlexusClient, ws_id: str, fgroup_id: str, persona_id: str) -> None:
-    await ckit_bot_install.bot_install_from_marketplace(
-        client,
-        ws_id=ws_id,
-        inside_fgroup=fgroup_id,
-        persona_marketable_name=karen_bot.BOT_NAME,
-        persona_id=persona_id,
-        persona_name="Karen Superbot 3",
-        new_setup={
-            "escalate_technical_person": "Bob",
-        },
-        install_dev_version=True,
-    )
+async def setup_kanban_tasks(client: ckit_client.FlexusClient, ws_id: str, persona_id: str) -> None:
     def d(user, chan, body):
         return "discord message from %s in #%s\n%s" % (user, chan, body)
 
@@ -40,29 +29,35 @@ async def init(client: ckit_client.FlexusClient, ws_id: str, fgroup_id: str, per
     await ckit_kanban.bot_arrange_kanban_situation2(client, ws_id, persona_id, tasks)
 
 
-async def run_scenario():
-    client = ckit_client.FlexusClient("scenario", api_key="sk_alice_123456")
-    ws_id = "solarsystem"
-    inside_fgroup = "innerplanets"
-    persona_id = "karen1337"
-    await init(client, ws_id, inside_fgroup, persona_id)
-    quit()
+async def scenario(setup: ckit_scenario_setup.ScenarioSetup) -> None:
+    await setup.create_group_hire_and_start_bot(
+        persona_marketable_name=karen_bot.BOT_NAME,
+        persona_marketable_version=karen_bot.BOT_VERSION_INT,
+        persona_setup={"escalate_technical_person": "Bob"},
+        inprocess_tools=karen_bot.TOOLS,
+        bot_main_loop=karen_bot.karen_main_loop,
+        group_prefix="scenario-prioritize2",
+    )
 
-    ft_id = await ckit_ask_model.bot_activate(
-        client,
-        who_is_asking="karen_scenario_prioritize2",
-        persona_id=persona_id,
-        activation_type="default",
-        first_question="Check out Inbox, move trash to Failed column, move several one or several messages that look like you have to answer them to Todo.",
-        first_calls=None,
-    )
-    ass = await ckit_ask_model.wait_until_thread_stops(
-        client,
-        ft_id,
-        localtools=[],
-    )
-    print("OVER", ass)
+    schedule = await setup.get_persona_schedule(setup.persona.persona_id)
+    if len(schedule) != 1 or schedule[0].get("sched_type") != "SCHED_TASK_SORT":
+        raise RuntimeError(f"Need karen dev with only SCHED_TASK_SORT schedule for this scenario. Current schedule: {schedule}")
+
+    await setup_kanban_tasks(setup.fclient, setup.ws.ws_id, setup.persona.persona_id)
+
+    kanban_msg = await setup.wait_for_toolcall("flexus_bot_kanban", None, {})
+    ft_id = kanban_msg.ftm_belongs_to_ft_id
+
+    threads_data = await setup.wait_until_bot_threads_stop(ft_id=ft_id)
+    thread_data = threads_data[ft_id]
+
+    msg_keys = sorted(thread_data.thread_messages.keys())
+    for msg_key in msg_keys[thread_data.message_count_at_initial_updates_over:]:
+        message = thread_data.thread_messages[msg_key]
+        print(f"  {message.ftm_role}: {str(message.ftm_content)[:100]}")
+    print("OVER")
 
 
 if __name__ == '__main__':
-    asyncio.run(run_scenario())
+    setup = ckit_scenario_setup.ScenarioSetup("karen_prioritize2")
+    asyncio.run(setup.run_scenario(scenario))
