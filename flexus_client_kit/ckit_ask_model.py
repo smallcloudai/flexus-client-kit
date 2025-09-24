@@ -42,13 +42,21 @@ class FThreadMessageOutput:
 @dataclass
 class FThreadOutput:
     ft_id: str
-    ft_error: Optional[Any]
+    ft_fexp_id: str
+    ft_title: str
+    ft_toolset: Any
+    ft_error: Any
+    ft_need_assistant: int
     ft_need_tool_calls: int
     ft_need_user: int
-    ft_persona_id: str
+    ft_app_capture: str
     ft_app_searchable: str
-    ft_app_specific: Optional[Any]
+    ft_app_specific: Any
+    ft_persona_id: Optional[str]
+    ft_created_ts: float
     ft_updated_ts: float
+    ft_budget: int
+    ft_coins: int
 
 
 @dataclass

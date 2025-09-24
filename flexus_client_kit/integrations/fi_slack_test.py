@@ -123,7 +123,6 @@ async def slack_capture_test(setup: ckit_scenario_setup.ScenarioSetup, slack_bot
             }}
         )
     ft_id = r["thread_create"]["ft_id"]
-    setup.main_thread_id = ft_id
 
     await ckit_ask_model.thread_add_user_message(
         http, ft_id, msg, "fi_slack_test", ftm_alt=100,

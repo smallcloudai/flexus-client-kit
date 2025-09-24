@@ -39,7 +39,6 @@ async def scenario(setup: ckit_scenario_setup.ScenarioSetup) -> None:
 
     expected_channel = f"support/{first_message['ts']}"
     ft_id = capture_msg.ftm_belongs_to_ft_id
-    setup.main_thread_id = ft_id
 
     await post_fake_slack_message(expected_channel, "@Claire drop the onboarding checklist here?", user="Bob")
     await setup.wait_for_toolcall("slack", ft_id, {"op": "skip"})

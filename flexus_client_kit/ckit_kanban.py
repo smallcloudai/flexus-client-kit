@@ -1,11 +1,11 @@
 import json
 from dataclasses import dataclass
 import dataclasses
-from typing import List, Tuple, Optional
+from typing import List, Tuple, Optional, Any
 
 import gql
 
-from flexus_client_kit import ckit_client
+from flexus_client_kit import ckit_client, gql_utils
 
 
 @dataclass
@@ -13,6 +13,44 @@ class FKanbanTaskInput:
     title: str
     state: str
     details_json: Optional[str] = None
+
+
+@dataclass
+class FPersonaKanbanTaskOutput:
+    persona_id: str
+    ktask_id: str
+    ktask_title: str
+    ktask_inbox_ts: float
+    ktask_inbox_provenance: Any
+    ktask_daily_timekey: str
+    ktask_coins: int
+    ktask_budget: int
+    ktask_todo_ts: float
+    ktask_inprogress_ts: float
+    ktask_inprogress_ft_id: Optional[str]
+    ktask_inprogress_activity_ts: float
+    ktask_done_ts: float
+    ktask_resolution_code: Optional[str]
+    ktask_resolution_summary: Optional[str]
+    ktask_details: Any
+    ktask_blocks_ktask_id: Optional[str]
+
+    def get_bucket(self) -> str:
+        if self.ktask_done_ts > 0:
+            return 'done'
+        if self.ktask_inprogress_ts > 0:
+            return 'inprogress'
+        if self.ktask_todo_ts > 0:
+            return 'todo'
+        return 'inbox'
+
+
+@dataclass
+class FPersonaKanbanSubs:
+    news_action: str
+    news_payload_id: str
+    news_payload_task: Optional[FPersonaKanbanTaskOutput]
+    bucket: str
 
 
 async def bot_arrange_kanban_situation(
@@ -35,6 +73,35 @@ async def bot_arrange_kanban_situation(
                 "tasks": [dataclasses.asdict(task) for task in tasks],
             },
         )
+
+
+async def persona_kanban_list(
+    client: ckit_client.FlexusClient,
+    persona_id: str,
+) -> List[FPersonaKanbanTaskOutput]:
+    tasks = {}
+    ws_client = await client.use_ws()
+    async with ws_client as ws:
+        async for r in ws.subscribe(
+            gql.gql(f"""subscription PersonaKanban($persona_id: String!) {{
+                persona_kanban_subs(persona_id: $persona_id, limit_inbox: 100, limit_done: 100) {{
+                    news_action
+                    news_payload_id
+                    news_payload_task {{ {gql_utils.gql_fields(FPersonaKanbanTaskOutput)} }}
+                    bucket
+                }}
+            }}"""),
+            variable_values={"persona_id": persona_id}
+        ):
+            upd = r["persona_kanban_subs"]
+            if upd["news_action"] == "INITIAL_UPDATES_OVER":
+                break
+            if upd["news_payload_task"]:
+                task = gql_utils.dataclass_from_dict(upd["news_payload_task"], FPersonaKanbanTaskOutput)
+                tasks[upd["news_payload_id"]] = task
+
+    bucket_order = {"inbox": 0, "todo": 1, "inprogress": 2, "done": 3}
+    return sorted(tasks.values(), key=lambda t: bucket_order.get(t.get_bucket(), 4))
 
 
 async def bot_arrange_kanban_situation2(

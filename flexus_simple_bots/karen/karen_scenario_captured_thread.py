@@ -49,7 +49,6 @@ async def scenario(setup: ckit_scenario_setup.ScenarioSetup, use_mcp: bool = Fal
     capture_msg = await setup.wait_for_toolcall("slack", None, {"op": "capture"})
 
     ft_id = capture_msg.ftm_belongs_to_ft_id
-    setup.main_thread_id = ft_id
     thread_ts = first_msg["ts"]
 
     await post_fake_slack_message(f"support/{thread_ts}", "Is there rust SDK for it?")
