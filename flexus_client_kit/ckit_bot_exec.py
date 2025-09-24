@@ -13,6 +13,7 @@ from flexus_client_kit import ckit_client, gql_utils, ckit_service_exec
 from flexus_client_kit import ckit_cloudtool
 from flexus_client_kit import ckit_ask_model
 from flexus_client_kit import ckit_shutdown
+from flexus_client_kit import ckit_utils
 
 
 logger = logging.getLogger("btexe")
@@ -411,7 +412,9 @@ async def subscribe_and_produce_callbacks(
                             ev._parked_messages.update(thread.thread_messages)
                             ev._parked_anything_new.set()
                     else:
-                        logger.info("Thread %s belongs to persona %s, but no bot is running for it, maybe a little async not a big deal." % (tid, persona_id))
+                        ckit_utils.log_with_throttle(logger.info,
+                            "Thread %s belongs to persona %s, but no bot is running for it, maybe a little async not a big deal.", tid, persona_id
+                        )
 
             if ckit_shutdown.shutdown_event.is_set():
                 break
