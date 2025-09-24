@@ -5,13 +5,13 @@ import asyncio
 import logging
 import os
 import argparse
-from typing import Any, Dict, Optional, Callable, Awaitable, List
+from typing import Any, Dict, Optional, Callable, Awaitable, List, Set
 
 import gql
 from PIL import Image
 from pymongo import AsyncMongoClient
 
-from flexus_client_kit import ckit_bot_exec, ckit_bot_install, ckit_client, ckit_mongo, ckit_shutdown, ckit_cloudtool, ckit_ask_model, ckit_utils, gql_utils, ckit_kanban
+from flexus_client_kit import ckit_bot_exec, ckit_bot_install, ckit_client, ckit_mongo, ckit_shutdown, ckit_cloudtool, ckit_ask_model, gql_utils, ckit_kanban, ckit_localtool
 
 logger = logging.getLogger("scenario")
 
@@ -126,14 +126,12 @@ class ScenarioSetup:
             raise RuntimeError(f"Expected version {persona_marketable_version}, got {installed_version}")
 
         persona_get = persona_details["persona_get"]
-        preferred_model = persona_get["persona_preferred_model"]
-
         self.persona = ckit_bot_exec.FPersonaOutput(
             owner_fuser_id=self.bs.fuser_id, located_fgroup_id=self.fgroup_id, persona_id=install.persona_id,
             persona_name=f"{persona_marketable_name} Test {self.fgroup_id[-4:]}", persona_marketable_name=persona_marketable_name,
             persona_marketable_version=installed_version, persona_discounts=None,
             persona_setup=dict(persona_setup), persona_created_ts=time.time(),
-            persona_preferred_model=preferred_model, ws_id=self.ws.ws_id, ws_timezone="UTC"
+            persona_preferred_model=persona_get["persona_preferred_model"], ws_id=self.ws.ws_id, ws_timezone="UTC"
         )
 
     async def create_fake_files_and_upload_to_mongo(self, workdir: str) -> None:
@@ -277,17 +275,50 @@ class ScenarioSetup:
         ft_id: Optional[str],
         expected_params: Dict[str, Any],
         timeout_seconds: float = 120.0,
+        allow_existing_toolcall: bool = False,
     ) -> ckit_ask_model.FThreadMessageOutput:
-        deadline = asyncio.get_running_loop().time() + timeout_seconds
+        threads_data = await self.wait_until_bot_threads_stop(
+            ft_id=ft_id, timeout=int(timeout_seconds)
+        )
+
+        for thread_id, thread_data in threads_data.items():
+            if ft_id is None or thread_id == ft_id:
+                for i, msg_key in enumerate(sorted(thread_data.thread_messages.keys())):
+                    if fcall_name == "flexus_bot_kanban":
+                        for call in thread_data.thread_messages[msg_key].ftm_tool_calls or []:
+                            if call["function"]["name"] == "flexus_bot_kanban":
+                                print("call in msg with key (1) ", msg_key, "and call", call)
+                    if allow_existing_toolcall or i >= thread_data.message_count_at_initial_updates_over:
+                        if fcall_name == "flexus_bot_kanban":
+                            for call in thread_data.thread_messages[msg_key].ftm_tool_calls or []:
+                                if call["function"]["name"] == "flexus_bot_kanban":
+                                    print("call in msg with key (2) ", msg_key, "and call", call)
+                        msg = thread_data.thread_messages[msg_key]
+                        for call in msg.ftm_tool_calls or []:
+                            try:
+                                args = json.loads(call["function"]["arguments"])
+                                if call["function"]["name"] == fcall_name and all(
+                                    args.get(key) == value for key, value in expected_params.items()
+                                ):
+                                    return msg
+                            except (json.JSONDecodeError, KeyError):
+                                pass
+
+        raise RuntimeError(f"Tool call {fcall_name} with parameters {expected_params} not found")
+
+    async def wait_until_bot_threads_stop(
+        self,
+        ft_id: Optional[str] = None,
+        timeout: int = 600,
+        localtools: Optional[List[Callable]] = None,
+    ) -> Dict[str, ckit_bot_exec.FThreadWithMessages]:
         initial_updates_over = False
-        message_with_the_tool_call = None
-        threads_tracked = {ft_id} if ft_id else set()
-        threads_stopped = set()
+        threads_data: Dict[str, ckit_bot_exec.FThreadWithMessages] = {}
 
         ws_client = await self.bot_fclient.use_ws()
         async with ws_client as ws:
             async for r in ws.subscribe(
-                gql.gql(f"""subscription ScenarioThreads($fgroup_id: String!, $marketable_name: String!, $marketable_version: Int!, $inprocess_tool_names: [String!]!) {{
+                gql.gql(f"""subscription BotThreadsStop($fgroup_id: String!, $marketable_name: String!, $marketable_version: Int!, $inprocess_tool_names: [String!]!) {{
                     bot_threads_and_calls_subs(fgroup_id: $fgroup_id, marketable_name: $marketable_name, marketable_version: $marketable_version, inprocess_tool_names: $inprocess_tool_names, max_threads: 100, want_personas: false, want_threads: true, want_messages: true) {{
                         {gql_utils.gql_fields(ckit_bot_exec.FBotThreadsAndCallsSubs)}
                     }}
@@ -299,35 +330,43 @@ class ScenarioSetup:
                     "inprocess_tool_names": [t.name for t in self.inprocess_tools],
                 },
             ):
-                if asyncio.get_running_loop().time() > deadline or ckit_shutdown.shutdown_event.is_set():
-                    raise TimeoutError()
+                if ckit_shutdown.shutdown_event.is_set():
+                    break
                 upd = gql_utils.dataclass_from_dict(r["bot_threads_and_calls_subs"], ckit_bot_exec.FBotThreadsAndCallsSubs)
 
-                initial_updates_over |= upd.news_action == "INITIAL_UPDATES_OVER"
+                if upd.news_action == "INITIAL_UPDATES_OVER":
+                    for thread_data in threads_data.values():
+                        thread_data.message_count_at_initial_updates_over = len(thread_data.thread_messages)
+                    initial_updates_over = True
 
-                if (thread := upd.news_payload_thread):
-                    if ft_id is None:
-                        threads_tracked.add(thread.ft_id)
-                    if thread.ft_need_user >= 0 and thread.ft_id in threads_tracked:
-                        threads_stopped.add(thread.ft_id)
+                if (ft := upd.news_payload_thread) and (ft_id is None or ft.ft_id == ft_id):
+                    threads_data[ft.ft_id] = threads_data.get(ft.ft_id, ckit_bot_exec.FThreadWithMessages(ft.ft_persona_id, ft, thread_messages=dict()))
+                    threads_data[ft.ft_id].thread_fields = ft
 
-                        if message_with_the_tool_call and message_with_the_tool_call.ftm_belongs_to_ft_id == thread.ft_id:
-                            return message_with_the_tool_call
-                        if initial_updates_over and threads_stopped == threads_tracked:
-                            raise RuntimeError(f"Tool call {fcall_name} with parameters {expected_params} not found")
+                if (msg := upd.news_payload_thread_message) and (ft_id is None or msg.ftm_belongs_to_ft_id == ft_id):
+                    threads_data[msg.ftm_belongs_to_ft_id].thread_messages[f"{msg.ftm_alt:03d}_{msg.ftm_num:03d}"] = msg
 
-                if initial_updates_over and (message := upd.news_payload_thread_message):
-                    if ft_id is None or message.ftm_belongs_to_ft_id == ft_id:
-                        for call in message.ftm_tool_calls or []:
-                            try:
-                                args = json.loads(call["function"]["arguments"])
-                                if call["function"]["name"] == fcall_name and all(
-                                    args.get(key) == value for key, value in expected_params.items()
-                                ) and message_with_the_tool_call is None:
-                                    message_with_the_tool_call = message
-                                    break
-                            except (json.JSONDecodeError, KeyError):
-                                pass
+                    if localtools and msg.ftm_tool_calls:
+                        await ckit_localtool.call_local_functions_and_upload_results(self.bot_fclient, msg, localtools)
+
+                if initial_updates_over and threads_data and all(threads_data[tid].thread_fields.ft_need_user >= 0 for tid in threads_data):
+                    return threads_data
+
+        raise RuntimeError(f"Timeout waiting for threads to stop after {timeout} seconds")
+
+    async def get_persona_schedule(self, persona_id: str) -> List[Dict[str, Any]]:
+        async with (await self.fclient.use_http()) as http:
+            schedule_details = await http.execute(gql.gql("""
+                query GetPersonaSchedule($persona_id: String!) {
+                    persona_schedule_list(persona_id: $persona_id) {
+                        scheds {
+                            sched_type
+                            sched_when
+                            sched_first_question
+                        }
+                    }
+                }"""), variable_values={"persona_id": persona_id})
+        return schedule_details["persona_schedule_list"]["scheds"]
 
     async def cleanup(self) -> None:
         if self.fgroup_id:

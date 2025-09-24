@@ -225,63 +225,6 @@ async def bot_subchat_create_multiple(
         )
 
 
-async def wait_until_thread_stops(
-    client: ckit_client.FlexusClient,
-    ft_id: str,
-    timeout: int = 600,
-    localtools: List[Callable] = [],
-) -> FThreadMessageOutput:
-    thread = None
-    messages = dict()
-    called_local_for = set()
-
-    def last_assistant(check_alt: int, no_calls_only: bool):
-        alt_only = [m for m in messages.values() if m.ftm_alt == check_alt]
-        alt_only.sort(key=lambda m: m.ftm_num)
-        i = len(alt_only) - 1
-        while i > 0:
-            if alt_only[i].ftm_role == "assistant" and (not no_calls_only or not alt_only[i].ftm_tool_calls):
-                return alt_only[i]
-            i -= 1
-        return None
-
-    async def _check_incoming_updates():
-        nonlocal messages, thread
-        ws_client = await client.use_ws()
-        async with ws_client as ws:
-            q = gql.gql(f"""subscription ClientKitAskModel($id: String!) {{
-                comprehensive_thread_subs(ft_id: $id, want_deltas: false) {{
-                    {gql_utils.gql_fields(FThreadComprehensiveSubs)}
-                }}
-            }}""")
-            async for res in ws.subscribe(q, variable_values={"id": ft_id}):
-                upd = gql_utils.dataclass_from_dict(res["comprehensive_thread_subs"], FThreadComprehensiveSubs)
-                if upd.news_payload_thread and upd.news_payload_thread.ft_error:
-                    raise RuntimeError(str(upd.news_payload_thread.ft_error))
-                if t := upd.news_payload_thread:
-                    thread = t
-                if m := upd.news_payload_thread_message:
-                    key = "%03d:%03d" % (m.ftm_alt, m.ftm_num)
-                    messages[key] = m
-                if (alt := thread.ft_need_tool_calls) > -1:
-                    if ass := last_assistant(alt, no_calls_only=False):
-                        key = "%03d:%03d" % (ass.ftm_alt, ass.ftm_num)
-                        if key not in called_local_for:
-                            called_local_for.add(key)
-                            await ckit_localtool.call_local_functions_and_upload_results(client, ass, localtools)
-                if (alt := thread.ft_need_user) > -1:
-                    if ass := last_assistant(alt, no_calls_only=True):
-                        for m in messages.values():
-                            print(m.ftm_num, m.ftm_role)
-                        return ass
-
-    try:
-        return await asyncio.wait_for(_check_incoming_updates(), timeout=timeout)
-    except asyncio.TimeoutError:
-        # XXX dump thread to logs
-        # logger.info(f"Hmm I hit a timeout"
-        raise RuntimeError(f"Timeout waiting for assistant response in ft_id=%s after %d seconds" % (ft_id, timeout))
-
 
 async def thread_app_capture_patch(
     http: gql.Client,
