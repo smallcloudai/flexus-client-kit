@@ -96,6 +96,7 @@ async def marketplace_upsert_dev_bot(
                 "title1": marketable_title1,
                 "title2": marketable_title2,
                 "author": marketable_author,
+                "accent_color": marketable_accent_color,
                 "occupation": marketable_occupation,
                 "desc": marketable_description,
                 "typical_group": marketable_typical_group,
