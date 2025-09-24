@@ -8,7 +8,7 @@ from flexus_client_kit.integrations.fi_slack_fake import (
     fake_slack_instances,
     IntegrationSlackFake,
     post_fake_slack_message,
-    wait_for_bot_message,
+    wait_for_bot_messages,
 )
 
 logger = logging.getLogger("scenario")
@@ -52,10 +52,10 @@ async def scenario(setup: ckit_scenario_setup.ScenarioSetup, use_mcp: bool = Fal
     thread_ts = first_msg["ts"]
 
     await post_fake_slack_message(f"support/{thread_ts}", "Is there rust SDK for it?")
-    await wait_for_bot_message(f"support/{thread_ts}")
+    assert len(await wait_for_bot_messages(setup, f"support/{thread_ts}")) > 0
 
     await post_fake_slack_message(f"support/{thread_ts}", "Give me an example of how to invoke model in python to ask it a simple prompt and get result")
-    await wait_for_bot_message(f"support/{thread_ts}")
+    assert len(await wait_for_bot_messages(setup, f"support/{thread_ts}")) > 0
 
     slack_instance = fake_slack_instances[0]
     assert slack_instance.captured and slack_instance.captured[1] == thread_ts, f"Wrong or no thread captured, expected support/{thread_ts}, got {slack_instance.captured}"

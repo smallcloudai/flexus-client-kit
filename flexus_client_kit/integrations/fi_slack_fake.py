@@ -7,7 +7,7 @@ import tempfile
 from typing import Dict, Any, Optional, Callable, Awaitable, List
 from pymongo.collection import Collection
 
-from flexus_client_kit import ckit_cloudtool, ckit_client, ckit_bot_exec, ckit_ask_model
+from flexus_client_kit import ckit_cloudtool, ckit_client, ckit_bot_exec, ckit_ask_model, ckit_scenario_setup
 from flexus_client_kit.integrations.fi_mongo_store import validate_path, download_file
 from flexus_client_kit.integrations.fi_slack import (
     HELP, CAPTURE_SUCCESS_MSG, CAPTURE_ADVICE_MSG, UNCAPTURE_SUCCESS_MSG, SKIP_SUCCESS_MSG,
@@ -362,17 +362,11 @@ async def post_fake_slack_message(channel_slash_thread: str, text: str, user: st
     return {"ts": ts, "thread_ts": thread_ts}
 
 
-async def wait_for_bot_message(channel_slash_thread: str, timeout_seconds: int = 400, slack_instance=None) -> List[Dict[str, Any]]:
-    loop = asyncio.get_running_loop()
-    start = loop.time()
+async def wait_for_bot_messages(setup: ckit_scenario_setup.ScenarioSetup, channel_slash_thread: str, timeout_seconds: int = 300) -> List[Dict[str, Any]]:
+    while not fake_slack_instances:
+        await asyncio.sleep(0.1)
+    fi_slack = fake_slack_instances[0]
 
-    if not slack_instance:
-        while not fake_slack_instances:
-            if loop.time() - start > timeout_seconds:
-                raise TimeoutError("No fake Slack instances available")
-            await asyncio.sleep(0.1)
-
-    fi_slack = slack_instance or fake_slack_instances[0]
     channel, thread = parse_channel_slash_thread(channel_slash_thread)
 
     def bot_msgs(msgs):
@@ -380,12 +374,11 @@ async def wait_for_bot_message(channel_slash_thread: str, timeout_seconds: int =
 
     initial_msgs = bot_msgs(fi_slack.messages.get(channel, []))
 
-    while True:
-        current_msgs = bot_msgs(fi_slack.messages.get(channel, []))
-        if len(current_msgs) > len(initial_msgs):
-            return current_msgs[len(initial_msgs):]
+    await setup.wait_until_bot_threads_stop(
+        timeout=int(timeout_seconds)
+    )
 
-        if loop.time() - start > timeout_seconds:
-            raise TimeoutError("bot did not respond")
+    current_msgs = bot_msgs(fi_slack.messages.get(channel, []))
+    return current_msgs[len(initial_msgs):]
 
-        await asyncio.sleep(0.2)
+

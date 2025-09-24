@@ -2,12 +2,12 @@ import asyncio
 import logging
 
 from flexus_simple_bots.karen import karen_bot
-from flexus_client_kit import ckit_bot_exec, ckit_scenario_setup, ckit_utils
+from flexus_client_kit import ckit_scenario_setup
 from flexus_client_kit.integrations.fi_slack_fake import (
     IntegrationSlackFake,
     fake_slack_instances,
     post_fake_slack_message,
-    wait_for_bot_message,
+    wait_for_bot_messages,
 )
 
 
@@ -32,7 +32,7 @@ async def scenario(setup: ckit_scenario_setup.ScenarioSetup) -> None:
 
     first_message = await post_fake_slack_message(
         "support",
-        "Hey Karen, which AWS service should I use for managed PostgreSQL?",
+        "Hey Karen, which AWS service should I use for managed PostgreSQL? (capture this thread)",
         user="Alice",
     )
     capture_msg = await setup.wait_for_toolcall("slack", None, {"op": "capture"})
@@ -47,7 +47,7 @@ async def scenario(setup: ckit_scenario_setup.ScenarioSetup) -> None:
     await setup.wait_for_toolcall("slack", ft_id, {"op": "skip"})
 
     await post_fake_slack_message(expected_channel, "Alice here again—AWS docs for IAM permission boundaries?", user="Alice")
-    await wait_for_bot_message(expected_channel)
+    assert len(await wait_for_bot_messages(setup, expected_channel)) > 0
 
     slack_instance = fake_slack_instances[0]
     all_slack_messages = [msg for msgs in slack_instance.messages.values() for msg in msgs]
