@@ -1,7 +1,7 @@
 import asyncio
 
 from flexus_simple_bots.karen import karen_bot
-from flexus_client_kit import ckit_kanban, ckit_scenario_setup, ckit_client
+from flexus_client_kit import ckit_kanban, ckit_scenario_setup, ckit_client, ckit_bot_query
 from flexus_client_kit.integrations import fi_slack_fake
 
 karen_bot.fi_slack.IntegrationSlack = fi_slack_fake.IntegrationSlackFake
@@ -39,17 +39,18 @@ async def scenario(setup: ckit_scenario_setup.ScenarioSetup) -> None:
         group_prefix="scenario-prioritize2",
     )
 
-    schedule = await setup.get_persona_schedule(setup.persona.persona_id)
-    if len(schedule) != 1 or schedule[0].get("sched_type") != "SCHED_TASK_SORT":
-        raise RuntimeError(f"Need karen dev with only SCHED_TASK_SORT schedule for this scenario. Current schedule: {schedule}")
+    schedules = await ckit_bot_query.persona_schedule_list(setup.fclient, setup.persona.persona_id)
+    if len(schedules) != 1 or schedules[0].sched_type != "SCHED_TASK_SORT":
+        raise RuntimeError(f"Need karen dev with only SCHED_TASK_SORT schedule for this scenario. Current schedules: {schedules}")
 
     await setup_kanban_tasks(setup.fclient, setup.ws.ws_id, setup.persona.persona_id)
 
     kanban_msg = await setup.wait_for_toolcall("flexus_bot_kanban", None, {})
     ft_id = kanban_msg.ftm_belongs_to_ft_id
 
-    threads_data = await setup.wait_until_bot_threads_stop(ft_id=ft_id)
-    thread_data = threads_data[ft_id]
+    thread_data = (await ckit_bot_query.wait_until_bot_threads_stop(
+        setup.bot_fclient, setup.persona, setup.inprocess_tools, only_ft_id=ft_id
+    ))[ft_id]
 
     msg_keys = sorted(thread_data.thread_messages.keys())
     for msg_key in msg_keys[thread_data.message_count_at_initial_updates_over:]:

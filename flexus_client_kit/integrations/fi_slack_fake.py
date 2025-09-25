@@ -7,7 +7,7 @@ import tempfile
 from typing import Dict, Any, Optional, Callable, Awaitable, List
 from pymongo.collection import Collection
 
-from flexus_client_kit import ckit_cloudtool, ckit_client, ckit_bot_exec, ckit_ask_model, ckit_scenario_setup
+from flexus_client_kit import ckit_cloudtool, ckit_client, ckit_bot_exec, ckit_ask_model, ckit_scenario_setup, ckit_bot_query
 from flexus_client_kit.integrations.fi_mongo_store import validate_path, download_file
 from flexus_client_kit.integrations.fi_slack import (
     HELP, CAPTURE_SUCCESS_MSG, CAPTURE_ADVICE_MSG, UNCAPTURE_SUCCESS_MSG, SKIP_SUCCESS_MSG,
@@ -374,8 +374,8 @@ async def wait_for_bot_messages(setup: ckit_scenario_setup.ScenarioSetup, channe
 
     initial_msgs = bot_msgs(fi_slack.messages.get(channel, []))
 
-    await setup.wait_until_bot_threads_stop(
-        timeout=int(timeout_seconds)
+    await ckit_bot_query.wait_until_bot_threads_stop(
+        setup.bot_fclient, setup.persona, setup.inprocess_tools, timeout=int(timeout_seconds)
     )
 
     current_msgs = bot_msgs(fi_slack.messages.get(channel, []))

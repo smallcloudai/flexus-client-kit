@@ -11,7 +11,7 @@ import gql
 from PIL import Image
 from pymongo import AsyncMongoClient
 
-from flexus_client_kit import ckit_bot_exec, ckit_bot_install, ckit_client, ckit_mongo, ckit_shutdown, ckit_cloudtool, ckit_ask_model, gql_utils, ckit_kanban, ckit_localtool
+from flexus_client_kit import ckit_bot_exec, ckit_bot_install, ckit_client, ckit_mongo, ckit_shutdown, ckit_cloudtool, ckit_ask_model, gql_utils, ckit_kanban, ckit_bot_query
 
 logger = logging.getLogger("scenario")
 
@@ -55,7 +55,7 @@ class ScenarioSetup:
         self.bot_fclient = ckit_client.FlexusClient(service_name=f"{service_name}_bot", endpoint="/v1/jailed-bot")
         self.fgroup_id: Optional[str] = None
         self.fgroup_name: Optional[str] = None
-        self.persona: Optional[ckit_bot_exec.FPersonaOutput] = None
+        self.persona: Optional[ckit_bot_query.FPersonaOutput] = None
         self.mongo_collection: Optional[AsyncMongoClient] = None
         self.bs: Optional[ckit_client.BasicStuffOutput] = None
         self.ws: Optional[ckit_client.FWorkspaceOutput] = None
@@ -111,28 +111,9 @@ class ScenarioSetup:
             persona_marketable_name=persona_marketable_name, new_setup=persona_setup,
             persona_name=f"{persona_marketable_name} Test {self.fgroup_id[-4:]}", install_dev_version=True,
         )
-
-        async with (await self.fclient.use_http()) as http:
-            persona_details = await http.execute(gql.gql("""
-                query PersonaGet($id: String!) {
-                    persona_get(id: $id) {
-                        persona_marketable_version
-                        persona_preferred_model
-                    }
-                }"""), variable_values={"id": install.persona_id})
-        installed_version = persona_details["persona_get"]["persona_marketable_version"]
-
-        if persona_marketable_version and installed_version != persona_marketable_version:
-            raise RuntimeError(f"Expected version {persona_marketable_version}, got {installed_version}")
-
-        persona_get = persona_details["persona_get"]
-        self.persona = ckit_bot_exec.FPersonaOutput(
-            owner_fuser_id=self.bs.fuser_id, located_fgroup_id=self.fgroup_id, persona_id=install.persona_id,
-            persona_name=f"{persona_marketable_name} Test {self.fgroup_id[-4:]}", persona_marketable_name=persona_marketable_name,
-            persona_marketable_version=installed_version, persona_discounts=None,
-            persona_setup=dict(persona_setup), persona_created_ts=time.time(),
-            persona_preferred_model=persona_get["persona_preferred_model"], ws_id=self.ws.ws_id, ws_timezone="UTC"
-        )
+        self.persona = await ckit_bot_query.persona_get(self.fclient, install.persona_id)
+        if persona_marketable_version and self.persona.persona_marketable_version != persona_marketable_version:
+            raise RuntimeError(f"Expected version {persona_marketable_version}, got {self.persona.persona_marketable_version}")
 
     async def create_fake_files_and_upload_to_mongo(self, workdir: str) -> None:
         os.makedirs(workdir, exist_ok=True)
@@ -155,17 +136,8 @@ class ScenarioSetup:
                     }}
                 }}"""), variable_values={"fgroup_id": self.fgroup_id})
 
-            personas = await http.execute(gql.gql(f"""
-                query GetGroupPersonas($fgroup_id: String!) {{
-                    persona_list(located_fgroup_id: $fgroup_id, skip: 0, limit: 100) {{
-                        {gql_utils.gql_fields(ckit_bot_exec.FPersonaOutput)}
-                    }}
-                }}"""), variable_values={"fgroup_id": self.fgroup_id})
-
             print(f"\n👤 Personas in test group {self.fgroup_name}:")
-            for persona_dict in personas["persona_list"]:
-                persona = gql_utils.dataclass_from_dict(persona_dict, ckit_bot_exec.FPersonaOutput)
-
+            for persona in (await ckit_bot_query.persona_list(self.fclient, self.fgroup_id)):
                 def format_time(ts):
                     return time.strftime("%H:%M:%S", time.localtime(float(ts)))
 
@@ -249,8 +221,6 @@ class ScenarioSetup:
                 logger.info("Skipping cleanup (--no-cleanup flag set)")
 
     def create_fake_toolcall_output(self, call_id: str, ft_id: str, args: dict) -> ckit_cloudtool.FCloudtoolCall:
-        if not self.persona:
-            raise RuntimeError("Must call setup() first")
         return ckit_cloudtool.FCloudtoolCall(
             caller_fuser_id=self.persona.owner_fuser_id, located_fgroup_id=self.persona.located_fgroup_id,
             fcall_id=call_id, fcall_ft_id=ft_id, fcall_ftm_alt=100, fcall_called_ftm_num=1,
@@ -260,8 +230,6 @@ class ScenarioSetup:
         )
 
     def create_fake_fthread_output(self, ft_id: str, ft_app_searchable: str) -> ckit_ask_model.FThreadOutput:
-        if not self.persona:
-            raise RuntimeError("Must call setup() first")
         return ckit_ask_model.FThreadOutput(
             ft_id=ft_id, ft_error=None, ft_need_tool_calls=-1, ft_need_user=-1,
             ft_persona_id=self.persona.persona_id, ft_app_searchable=ft_app_searchable, ft_app_specific=None, ft_updated_ts=time.time(),
@@ -277,22 +245,14 @@ class ScenarioSetup:
         timeout_seconds: float = 120.0,
         allow_existing_toolcall: bool = False,
     ) -> ckit_ask_model.FThreadMessageOutput:
-        threads_data = await self.wait_until_bot_threads_stop(
-            ft_id=ft_id, timeout=int(timeout_seconds)
+        threads_data = await ckit_bot_query.wait_until_bot_threads_stop(
+            self.bot_fclient, self.persona, self.inprocess_tools, only_ft_id=ft_id, timeout=int(timeout_seconds)
         )
 
         for thread_id, thread_data in threads_data.items():
             if ft_id is None or thread_id == ft_id:
                 for i, msg_key in enumerate(sorted(thread_data.thread_messages.keys())):
-                    if fcall_name == "flexus_bot_kanban":
-                        for call in thread_data.thread_messages[msg_key].ftm_tool_calls or []:
-                            if call["function"]["name"] == "flexus_bot_kanban":
-                                print("call in msg with key (1) ", msg_key, "and call", call)
                     if allow_existing_toolcall or i >= thread_data.message_count_at_initial_updates_over:
-                        if fcall_name == "flexus_bot_kanban":
-                            for call in thread_data.thread_messages[msg_key].ftm_tool_calls or []:
-                                if call["function"]["name"] == "flexus_bot_kanban":
-                                    print("call in msg with key (2) ", msg_key, "and call", call)
                         msg = thread_data.thread_messages[msg_key]
                         for call in msg.ftm_tool_calls or []:
                             try:
@@ -305,68 +265,6 @@ class ScenarioSetup:
                                 pass
 
         raise RuntimeError(f"Tool call {fcall_name} with parameters {expected_params} not found")
-
-    async def wait_until_bot_threads_stop(
-        self,
-        ft_id: Optional[str] = None,
-        timeout: int = 600,
-        localtools: Optional[List[Callable]] = None,
-    ) -> Dict[str, ckit_bot_exec.FThreadWithMessages]:
-        initial_updates_over = False
-        threads_data: Dict[str, ckit_bot_exec.FThreadWithMessages] = {}
-
-        ws_client = await self.bot_fclient.use_ws()
-        async with ws_client as ws:
-            async for r in ws.subscribe(
-                gql.gql(f"""subscription BotThreadsStop($fgroup_id: String!, $marketable_name: String!, $marketable_version: Int!, $inprocess_tool_names: [String!]!) {{
-                    bot_threads_and_calls_subs(fgroup_id: $fgroup_id, marketable_name: $marketable_name, marketable_version: $marketable_version, inprocess_tool_names: $inprocess_tool_names, max_threads: 100, want_personas: false, want_threads: true, want_messages: true) {{
-                        {gql_utils.gql_fields(ckit_bot_exec.FBotThreadsAndCallsSubs)}
-                    }}
-                }}"""),
-                variable_values={
-                    "fgroup_id": self.fgroup_id,
-                    "marketable_name": self.persona.persona_marketable_name,
-                    "marketable_version": self.persona.persona_marketable_version,
-                    "inprocess_tool_names": [t.name for t in self.inprocess_tools],
-                },
-            ):
-                if ckit_shutdown.shutdown_event.is_set():
-                    break
-                upd = gql_utils.dataclass_from_dict(r["bot_threads_and_calls_subs"], ckit_bot_exec.FBotThreadsAndCallsSubs)
-
-                if upd.news_action == "INITIAL_UPDATES_OVER":
-                    for thread_data in threads_data.values():
-                        thread_data.message_count_at_initial_updates_over = len(thread_data.thread_messages)
-                    initial_updates_over = True
-
-                if (ft := upd.news_payload_thread) and (ft_id is None or ft.ft_id == ft_id):
-                    threads_data[ft.ft_id] = threads_data.get(ft.ft_id, ckit_bot_exec.FThreadWithMessages(ft.ft_persona_id, ft, thread_messages=dict()))
-                    threads_data[ft.ft_id].thread_fields = ft
-
-                if (msg := upd.news_payload_thread_message) and (ft_id is None or msg.ftm_belongs_to_ft_id == ft_id):
-                    threads_data[msg.ftm_belongs_to_ft_id].thread_messages[f"{msg.ftm_alt:03d}_{msg.ftm_num:03d}"] = msg
-
-                    if localtools and msg.ftm_tool_calls:
-                        await ckit_localtool.call_local_functions_and_upload_results(self.bot_fclient, msg, localtools)
-
-                if initial_updates_over and threads_data and all(threads_data[tid].thread_fields.ft_need_user >= 0 for tid in threads_data):
-                    return threads_data
-
-        raise RuntimeError(f"Timeout waiting for threads to stop after {timeout} seconds")
-
-    async def get_persona_schedule(self, persona_id: str) -> List[Dict[str, Any]]:
-        async with (await self.fclient.use_http()) as http:
-            schedule_details = await http.execute(gql.gql("""
-                query GetPersonaSchedule($persona_id: String!) {
-                    persona_schedule_list(persona_id: $persona_id) {
-                        scheds {
-                            sched_type
-                            sched_when
-                            sched_first_question
-                        }
-                    }
-                }"""), variable_values={"persona_id": persona_id})
-        return schedule_details["persona_schedule_list"]["scheds"]
 
     async def cleanup(self) -> None:
         if self.fgroup_id:

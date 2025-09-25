@@ -6,7 +6,7 @@ import time
 import discord
 import gql
 
-from flexus_client_kit import ckit_ask_model, ckit_bot_exec, ckit_scenario_setup
+from flexus_client_kit import ckit_ask_model, ckit_bot_exec, ckit_scenario_setup, ckit_bot_query
 from flexus_client_kit.integrations.fi_discord3 import ActivityDiscord, IntegrationDiscord
 from flexus_simple_bots.karen import karen_bot
 
@@ -153,7 +153,7 @@ async def discord_capture_test(setup: ckit_scenario_setup.ScenarioSetup, discord
     result = await discord_bot.called_by_model(toolcall=tcall, model_produced_args=args)
     assert "captured" in result.lower()
 
-    discord_bot.rcx.latest_threads[ft_id] = ckit_bot_exec.FThreadWithMessages(
+    discord_bot.rcx.latest_threads[ft_id] = ckit_bot_query.FThreadWithMessages(
         discord_bot.rcx.persona.persona_id,
         setup.create_fake_fthread_output(ft_id, f"discord/thread/{thread.id}"), {}
     )

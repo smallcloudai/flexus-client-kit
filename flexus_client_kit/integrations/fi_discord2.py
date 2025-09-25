@@ -20,6 +20,7 @@ from PIL import Image
 from flexus_client_kit import (
     ckit_ask_model,
     ckit_bot_exec,
+    ckit_bot_query,
     ckit_cloudtool,
     ckit_client,
     ckit_utils,
@@ -313,7 +314,7 @@ class IntegrationDiscord:
             await asyncio.sleep(1)
         return self.client.is_ready()
 
-    def _thread_capturing(self, identifier: str) -> Optional[ckit_bot_exec.FThreadWithMessages]:
+    def _thread_capturing(self, identifier: str) -> Optional[ckit_bot_query.FThreadWithMessages]:
         searchable = f"discord/{identifier}"
         for thread in self.rcx.latest_threads.values():
             if thread.thread_fields.ft_app_searchable == searchable:

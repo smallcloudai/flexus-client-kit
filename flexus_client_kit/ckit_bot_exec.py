@@ -4,54 +4,14 @@ import asyncio
 import logging
 import os
 import time
-from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Any, Callable, Awaitable, NamedTuple, Set, Union
+from typing import Dict, List, Optional, Any, Callable, Awaitable, NamedTuple, Union
 
 import gql
 
-from flexus_client_kit import ckit_client, gql_utils, ckit_service_exec
-from flexus_client_kit import ckit_cloudtool
-from flexus_client_kit import ckit_ask_model
-from flexus_client_kit import ckit_shutdown
-from flexus_client_kit import ckit_utils
-
+from flexus_client_kit import ckit_client, gql_utils, ckit_service_exec, ckit_cloudtool
+from flexus_client_kit import ckit_ask_model, ckit_shutdown, ckit_utils, ckit_bot_query
 
 logger = logging.getLogger("btexe")
-
-
-@dataclass
-class FPersonaOutput:
-    owner_fuser_id: str
-    located_fgroup_id: str
-    persona_id: str
-    persona_name: str
-    persona_marketable_name: str
-    persona_marketable_version: int
-    persona_discounts: Any
-    persona_setup: Any
-    persona_created_ts: float
-    persona_preferred_model: str
-    ws_id: str
-    ws_timezone: str
-
-
-@dataclass
-class FBotThreadsAndCallsSubs:
-    news_action: str
-    news_about: str
-    news_payload_id: str
-    news_payload_thread_message: Optional[ckit_ask_model.FThreadMessageOutput]
-    news_payload_thread: Optional[ckit_ask_model.FThreadOutput]
-    news_payload_persona: Optional[FPersonaOutput]
-    news_payload_toolcall: Optional[ckit_cloudtool.FCloudtoolCall]
-
-
-@dataclass
-class FThreadWithMessages:
-    persona_id: str
-    thread_fields: ckit_ask_model.FThreadOutput
-    thread_messages: Dict[str, ckit_ask_model.FThreadMessageOutput] = field(default_factory=dict)
-    message_count_at_initial_updates_over: int = 0
 
 
 def official_setup_mixing_procedure(marketable_setup_default, persona_setup) -> Dict[str, Union[str, int, float, bool, list]]:
@@ -95,7 +55,7 @@ def official_setup_mixing_procedure(marketable_setup_default, persona_setup) -> 
 
 
 class RobotContext:
-    def __init__(self, fclient: ckit_client.FlexusClient, p: FPersonaOutput):
+    def __init__(self, fclient: ckit_client.FlexusClient, p: ckit_bot_query.FPersonaOutput):
         self._handler_updated_message: Optional[Callable[[ckit_ask_model.FThreadMessageOutput], Awaitable[None]]] = None
         self._handler_upd_thread: Optional[Callable[[ckit_ask_model.FThreadOutput], Awaitable[None]]] = None
         self._handler_per_tool: Dict[str, Callable[[Dict[str, Any]], Awaitable[str]]] = {}
@@ -107,7 +67,7 @@ class RobotContext:
         # These fields are designed for direct access:
         self.fclient = fclient
         self.persona = p
-        self.latest_threads: Dict[str, FThreadWithMessages] = dict()
+        self.latest_threads: Dict[str, ckit_bot_query.FThreadWithMessages] = dict()
         self.created_ts = time.time()
         self.workdir = "/tmp/bot_workspace/%s/" % p.persona_id
         os.makedirs(self.workdir, exist_ok=True)
@@ -239,7 +199,7 @@ class BotsCollection:
         self.inprocess_tools = inprocess_tools
         self.bot_main_loop = bot_main_loop
         self.bots_running: Dict[str, BotInstance] = {}
-        self.thread_tracker: Dict[str, FThreadWithMessages] = {}
+        self.thread_tracker: Dict[str, ckit_bot_query.FThreadWithMessages] = {}
 
 
 async def subscribe_and_produce_callbacks(
@@ -254,7 +214,7 @@ async def subscribe_and_produce_callbacks(
         async for r in ws.subscribe(
             gql.gql(f"""subscription KarenThreads($fgroup_id: String!, $marketable_name: String!, $marketable_version: Int!, $inprocess_tool_names: [String!]!) {{
                 bot_threads_and_calls_subs(fgroup_id: $fgroup_id, marketable_name: $marketable_name, marketable_version: $marketable_version, inprocess_tool_names: $inprocess_tool_names, max_threads: {MAX_THREADS}, want_personas: true, want_threads: true, want_messages: true) {{
-                    {gql_utils.gql_fields(FBotThreadsAndCallsSubs)}
+                    {gql_utils.gql_fields(ckit_bot_query.FBotThreadsAndCallsSubs)}
                 }}
             }}"""),
             variable_values={
@@ -264,7 +224,7 @@ async def subscribe_and_produce_callbacks(
                 "inprocess_tool_names": [t.name for t in bc.inprocess_tools],
             },
         ):
-            upd = gql_utils.dataclass_from_dict(r["bot_threads_and_calls_subs"], FBotThreadsAndCallsSubs)
+            upd = gql_utils.dataclass_from_dict(r["bot_threads_and_calls_subs"], ckit_bot_query.FBotThreadsAndCallsSubs)
             handled = False
             reassign_threads = False
             logger.debug("subs %s %s %s" % (upd.news_action, upd.news_about, upd.news_payload_id))
@@ -311,7 +271,7 @@ async def subscribe_and_produce_callbacks(
                     if thread.ft_id in bc.thread_tracker:
                         bc.thread_tracker[thread.ft_id].thread_fields = thread
                     else:
-                        bc.thread_tracker[thread.ft_id] = FThreadWithMessages(thread.ft_persona_id, thread_fields=thread, thread_messages=dict())
+                        bc.thread_tracker[thread.ft_id] = ckit_bot_query.FThreadWithMessages(thread.ft_persona_id, thread, thread_messages=dict())
                     persona_id = thread.ft_persona_id
                     if persona_id in bc.bots_running:
                         bc.bots_running[persona_id].eventgen._parked_threads[thread.ft_id] = thread
@@ -414,8 +374,7 @@ async def subscribe_and_produce_callbacks(
                             ev._parked_anything_new.set()
                     else:
                         ckit_utils.log_with_throttle(logger.info,
-                            "Thread %s belongs to persona %s, but no bot is running for it, maybe a little async not a big deal.", tid, persona_id
-                        )
+                            "Thread %s belongs to persona %s, but no bot is running for it, maybe a little async not a big deal.", tid, persona_id)
 
             if ckit_shutdown.shutdown_event.is_set():
                 break
@@ -454,5 +413,3 @@ async def run_bots_in_this_group(
     await ckit_service_exec.run_typical_single_subscription_with_restart_on_network_errors(fclient, subscribe_and_produce_callbacks, bc)
     await shutdown_bots(bc)
     logger.info("run_bots_in_this_group exit")
-
-

@@ -4,7 +4,7 @@ import time
 
 import gql
 
-from flexus_client_kit import ckit_ask_model, ckit_bot_exec, ckit_scenario_setup
+from flexus_client_kit import ckit_ask_model, ckit_scenario_setup, ckit_bot_query
 from flexus_client_kit.integrations.fi_slack_fake import post_fake_slack_message
 from flexus_client_kit.integrations.fi_slack_test import setup_slack
 
@@ -79,7 +79,7 @@ async def fake_capture_test(setup: ckit_scenario_setup.ScenarioSetup, slack_bot,
     result = await slack_bot.called_by_model(toolcall=tcall, model_produced_args=args)
     assert "captured" in result.lower()
 
-    slack_bot.rcx.latest_threads[ft_id] = ckit_bot_exec.FThreadWithMessages(
+    slack_bot.rcx.latest_threads[ft_id] = ckit_bot_query.FThreadWithMessages(
         slack_bot.rcx.persona.persona_id,
         setup.create_fake_fthread_output(ft_id, f"slack/{slack_bot.channels_name2id['tests']}/{ts}"), {}
     )
