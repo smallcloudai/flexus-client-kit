@@ -227,7 +227,7 @@ def format_cat_output(
 async def run_jq_query(
     path: str,
     file_json: Dict[str, Any],
-    jq_args: Dict[str],
+    jq_args: List[str],
     safety_valve: str = "50k"
 ) -> str:
     if file_json == {}:
