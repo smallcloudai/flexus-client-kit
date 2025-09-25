@@ -19,6 +19,7 @@ GITHUB_TOOL = ckit_cloudtool.CloudTool(
     name="github",
     description=(
         "Interact with GitHub via the gh CLI. Provide full list of args as a JSON array , e.g ['issue', 'create', '--title', 'My title']"
+        "Make sure to use --json flag with the required output fields."
     ),
     parameters={
         "type": "object",
@@ -26,7 +27,7 @@ GITHUB_TOOL = ckit_cloudtool.CloudTool(
             "args": {
                 "type": "array",
                 "items": {"type": "string"},
-                "description": "gh cli args list, e.g. ['issue', 'create', '--title', 'My title']"
+                "description": "gh cli args list, e.g. ['issue', 'create', '--title', 'My title', '--json', 'number,url']"
             },
         },
         "required": ["args"]
