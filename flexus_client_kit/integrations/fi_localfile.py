@@ -1,3 +1,4 @@
+import asyncio
 import json
 import os
 import logging
@@ -6,6 +7,7 @@ import glob
 from typing import Dict, Any, Optional, List, Tuple, NamedTuple
 
 from flexus_client_kit import ckit_cloudtool
+from flexus_client_kit.format_utils import format_text_output
 
 logger = logging.getLogger("localfile")
 
@@ -103,8 +105,13 @@ LOCALFILE_TOOL = ckit_cloudtool.CloudTool(
     parameters={
         "type": "object",
         "properties": {
-            "op": {"type": "string", "description": "Start with 'help' for usage"},
-            "args": {"type": "object"},
+            "op": {
+                "type": "string", 
+                "description": "cat, jq or help"},
+            "args": {
+                "type": "object",
+                "description": "Operations cat, jq require 'path' and have optional 'safety_valve' in bytes to prevent a large file from clogging context. Use op=help for more details."
+            },
         },
     },
 )
