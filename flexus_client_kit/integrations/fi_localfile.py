@@ -202,5 +202,6 @@ async def run_jq_query(
     stdout, stderr = await proc.communicate()
     if proc.returncode != 0:
         return f"Error: {stderr.strip()}"
-    content_str = stdout.strip()
-    return format_text_output(path, content_str, safety_valve)
+    content_str = stdout.decode('utf-8').strip()
+    result, _ = format_text_output(path, content_str, safety_valve) # ignore truncated flag
+    return result
