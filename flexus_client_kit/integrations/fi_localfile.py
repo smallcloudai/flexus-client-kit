@@ -1,10 +1,12 @@
+import asyncio
 import json
 import os
 import logging
 import re
-from typing import Dict, Any, Optional
+from typing import Dict, Any, List, Optional
 
 from flexus_client_kit import ckit_cloudtool
+from flexus_client_kit.format_utils import format_text_output
 
 logger = logging.getLogger("localfile")
 
@@ -15,8 +17,13 @@ LOCALFILE_TOOL = ckit_cloudtool.CloudTool(
     parameters={
         "type": "object",
         "properties": {
-            "op": {"type": "string", "description": "Start with 'help' for usage"},
-            "args": {"type": "object"},
+            "op": {
+                "type": "string", 
+                "description": "cat, jq or help"},
+            "args": {
+                "type": "object",
+                "description": "Operations cat, jq require 'path' and have optional 'safety_valve' in bytes to prevent a large file from clogging context. Use op=help for more details."
+            },
         },
     },
 )
@@ -24,12 +31,16 @@ LOCALFILE_TOOL = ckit_cloudtool.CloudTool(
 HELP = """
 Help:
 
-localfile(op="cat", args={"path": "folder1/something.json", "lines_range": "13:37", "safety_valve": "10k"})
+localfile(op="cat", args={"path": "folder1/something.json", "lines_range": "13:37", "safety_valve": "10k", "pattern"="error|warn"})
     Open the local file and print what's inside. The lines_range and safety_valve are there to
     prevent large files from clogging your context window. A good strategy is to call
     cat without lines_range/safety_valve, you'll get default range "1:" and safety_valve of 10k chars.
     Most files will fit that, and in case your file doesn't this tool will provide all the
     line numbers for the next call.
+    An optional parameter "pattern" can be provided to search lines by regex.
+
+localfile(op="jq", args={"path": "folder1/something.json", "jq_args": ["-c", ".[] | {role: .ftm_role, content: .ftm_content}"], "safety_valve": "10k"})
+    Open the file and print the jq query result. Only use for .json or .jsonl files
 """
 
 async def handle_localfile(
@@ -49,7 +60,7 @@ async def handle_localfile(
     if not op or "help" in op:
         return HELP
 
-    if op == "cat":
+    elif op == "cat":
         if not path:
             return "Error: path parameter required for cat operation"
 
@@ -72,7 +83,19 @@ async def handle_localfile(
         except Exception as e:
             logger.error(f"Cat failed: {e}", exc_info=True)
             return f"Error reading file: {e}"
-
+    
+    elif op == "jq":
+        if not path:
+            return f"Error: path parameter required for jq operation\n\n{HELP}"
+        if not path.endswith((".json", ".jsonl")):
+            return f"Error: file must be a .json or .jsonl file\n\n{HELP}"
+        path_error = validate_path(path)
+        if path_error:
+            return f"Error: {path_error}"
+        safety_valve = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "safety_valve", "10k")
+        jq_args = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "jq_args", [])
+        jq_args.append(os.path.join(workdir, path)) # send real path from args, 
+        return await run_jq_query(path, jq_args, str(safety_valve))
     else:
         return "Error: need a valid `op` parameter.\n" + HELP
 
@@ -163,3 +186,21 @@ def validate_path(path: str, allow_empty: bool = False) -> Optional[str]:
     if ".." in path or path.startswith("/") or "\\" in path:
         return "Path contains traversal sequences"
     return None
+
+
+async def run_jq_query(
+    path: str, # just for print
+    jq_args: List[str],
+    safety_valve: str = "10k"
+) -> str:
+    cmd = ["jq"] + jq_args
+    proc = await asyncio.create_subprocess_exec(
+        *cmd,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE
+    )
+    stdout, stderr = await proc.communicate()
+    if proc.returncode != 0:
+        return f"Error: {stderr.strip()}"
+    content_str = stdout.strip()
+    return format_text_output(path, content_str, safety_valve)

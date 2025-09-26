@@ -5,7 +5,7 @@ from typing import Dict, Any, Optional
 from pymongo.collection import Collection
 
 from flexus_client_kit import ckit_cloudtool, ckit_mongo
-from flexus_client_kit.format_utils import format_cat_output, run_jq_query
+from flexus_client_kit.format_utils import format_cat_output
 
 logger = logging.getLogger("mongo_store")
 
@@ -18,11 +18,11 @@ MONGO_STORE_TOOL = ckit_cloudtool.CloudTool(
         "properties": {
             "op": {
                 "type": "string",
-                "description": "upload, list, cat, delete or help"
+                "description": "upload, download, list, cat, delete or help"
             },
             "args": {
                 "type": "object",
-                "description": "Operations upload, delete, cat require 'path'. "
+                "description": "Operations upload, download, delete, cat require 'path'. "
                                "Operation 'list' uses optional 'path' for prefix filtering. "
                                "Operation 'cat' has optional 'safety_valve' in bytes to prevent a large file from clogging context. Use op=help for details."
             },
@@ -37,15 +37,15 @@ Help:
 mongo_store(op="upload", args={"path": "folder1/something_20250803.json"})
     Uploads file from local path to MongoDB, stores as "folder1/something_20250803.json".
 
+mongo_store(op="download", args={"path": "folder1/something_20250803.json"})
+    Downloads file from MongoDB to local file system, returns the path in the local filesystem
+
 mongo_store(op="list", args={"path": "folder1/"})
     Lists files in MongoDB with the given prefix.
 
 mongo_store(op="cat", args={"path": "folder1/something_20250803.json", "safety_valve": "50k"})
     Open the file and print what's inside. The safety_valve parameter (default 50k) prevents
     large files from clogging your context window.
-
-# mongo_store(op="jq", args={"path": "folder/something_20250803.json", "jq_args": ["-c", ".[] | {role: .ftm_role, content: .ftm_content}"], "safety_valve": "50k"})
-#     Open the file and print the jq query result. Only use for .json or .jsonl files.
 
 mongo_store(op="delete", args={"path": "folder1/something_20250803.json"})
     Deletes the specified file from MongoDB. No wildcards, deletes only the exact path.
@@ -92,6 +92,19 @@ async def handle_mongo_store(
             result_msg += " [OVERWRITTEN existing file]"
         return result_msg
 
+    elif op == "download":
+        if not path:
+            return f"Error: path parameter required for download operation\n\n{HELP}"
+        path_error = validate_path(path)
+        if path_error:
+            return f"Error: {path_error}"
+        try:
+            await download_file(mongo_collection, path, os.path.join(workdir, path))
+        except Exception as e:
+            logger.error(f"Download failed for {path}: {e}", exc_info=True)
+            return f"Error: Failed to download {path}: {e}"
+        return f"Downloaded to {path}"
+
     elif op in ["list", "ls"]:
         if not path:
             path = ""
@@ -124,24 +137,6 @@ async def handle_mongo_store(
         safety_valve = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "safety_valve", "50k")
         return format_cat_output(path, file_data, str(safety_valve))
     
-    elif op == "jq":
-        if not path:
-            return f"Error: path parameter required for jq operation\n\n{HELP}"
-        if not path.endswith((".json", ".jsonl")):
-            return f"Error: file must be a .json or .jsonl file\n\n{HELP}"
-        path_error = validate_path(path)
-        if path_error:
-            return f"Error: {path_error}"
-        document = await ckit_mongo.retrieve_file(mongo_collection, path)
-        if not document:
-            return f"Error: File {path} not found in MongoDB"
-        if "json" not in document.keys():
-            return f"Error: file is not json"
-        file_data = document["json"]
-        safety_valve = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "safety_valve", "50k")
-        jq_args = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "jq_args", [])
-        return await run_jq_query(path, file_data, jq_args, str(safety_valve))
-
     elif op == "delete":
         if not path:
             return f"Error: path parameter required for delete operation\n\n{HELP}"
