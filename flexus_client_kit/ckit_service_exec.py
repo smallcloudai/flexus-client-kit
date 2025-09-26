@@ -15,7 +15,7 @@ async def run_typical_single_subscription_with_restart_on_network_errors(fclient
     ckit_shutdown.setup_signals()
     while not ckit_shutdown.shutdown_event.is_set():
         try:
-            logger.info("Connecting %s" % (fclient.websocket_url,))
+            logger.info("Connecting %s", fclient.websocket_url)
             ws_client = await fclient.use_ws()
             try:
                 ckit_shutdown.give_ws_client(fclient.service_name, ws_client)
@@ -34,4 +34,3 @@ async def run_typical_single_subscription_with_restart_on_network_errors(fclient
                 break
             logger.info("got %s, sleep 60..." % (type(e).__name__,))
             await ckit_shutdown.wait(60)
-            # don't shut down buts, lets them work, we'll reconnect the subscription

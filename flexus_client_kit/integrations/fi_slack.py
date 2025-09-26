@@ -163,6 +163,7 @@ class IntegrationSlack:
         self.rcx = rcx
         self.SLACK_BOT_TOKEN = SLACK_BOT_TOKEN
         self.SLACK_APP_TOKEN = SLACK_APP_TOKEN
+        logger.info("%s have SLACK_BOT_TOKEN=%s and SLACK_APP_TOKEN=...%s", rcx.persona.persona_id, ("..." + SLACK_BOT_TOKEN[-4:] if SLACK_BOT_TOKEN else "none"), ("..." + SLACK_APP_TOKEN[-4:] if SLACK_APP_TOKEN else "none"))
         self.should_join = [x.strip() for x in should_join.split(",") if x.strip()]
         self.mongo_collection = mongo_collection
         self.actually_joined = set()
