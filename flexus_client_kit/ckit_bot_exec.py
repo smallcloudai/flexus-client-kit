@@ -137,7 +137,7 @@ class RobotContext:
 
 
     async def _local_tool_call(self, fclient: ckit_client.FlexusClient, toolcall: ckit_cloudtool.FCloudtoolCall) -> None:
-        logger.info("%s local_tool_call %s %s(%s)" % (self.persona.persona_id, toolcall.fcall_id, toolcall.fcall_name, toolcall.fcall_arguments))
+        logger.info("%s local_tool_call %s %s(%s) from thread %s" % (self.persona.persona_id, toolcall.fcall_id, toolcall.fcall_name, toolcall.fcall_arguments, toolcall.fcall_ft_id))
         try:
             args = json.loads(toolcall.fcall_arguments)
             if not isinstance(args, dict):
