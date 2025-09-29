@@ -1,6 +1,5 @@
 """Formatting utilities for displaying file content with proper truncation and image support."""
 
-import asyncio
 import json
 import base64
 import logging
@@ -222,6 +221,3 @@ def format_cat_output(
         return format_text_output(path, file_data, safety_valve)[0]
     else:
         return format_json_output(path, file_data, safety_valve)[0]
-
-
-    
