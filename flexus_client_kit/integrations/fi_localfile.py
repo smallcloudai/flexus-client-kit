@@ -199,7 +199,12 @@ async def run_jq_query(
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE
     )
-    stdout, stderr = await proc.communicate()
+    try:
+        stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=15)
+    except asyncio.TimeoutError:
+        proc.kill()
+        await proc.wait()
+        return "Error: jq command timed out after 15 seconds"
     if proc.returncode != 0:
         return f"Error: {stderr.strip()}"
     content_str = stdout.decode('utf-8').strip()
