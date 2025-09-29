@@ -92,8 +92,6 @@ REPORT_TOOLS = [
 
 
 def _extract_entity_from_section_name(section_name: str, report_params: Dict[str, Any]) -> Optional[str]:
-    """Extract entity name from a section name like 'company_overview_box_GANNI'."""
-    # Try all array parameters as potential entity sources
     for param_name, param_value in report_params.items():
         if isinstance(param_value, list):
             for entity in param_value:
@@ -164,7 +162,6 @@ def _build_iteration_combinations(report_params: Dict[str, Any], sections: Dict[
                     values_lists.append(source)
                 else:
                     values_lists.append([source])
-            # Generate all combinations
             combos = []
             for combo_values in itertools.product(*values_lists):
                 combo_dict = dict(zip(keys, combo_values))
@@ -172,7 +169,6 @@ def _build_iteration_combinations(report_params: Dict[str, Any], sections: Dict[
 
             combos_map[section_id] = combos
         else:
-            # No iteration - single instance
             combos_map[section_id] = [{}]
     return combos_map
 
@@ -199,7 +195,6 @@ def _create_todo_queue(report_id: str, report_params: Dict[str, Any], sections: 
             else:
                 section_name = section_id
 
-            # Expand dependencies
             depends_on = []
             for dep_id in config.get("depends_on", []):
                 if dep_id not in combos_map:
@@ -221,7 +216,6 @@ def _create_todo_queue(report_id: str, report_params: Dict[str, Any], sections: 
             formatted_desc = description
             formatted_example = example
             
-            # Create interpolation context with combo values and scalar report params
             interpolation_context = dict(combo)
             for key, value in report_params.items():
                 if not isinstance(value, list):  # Only use scalar values for interpolation
@@ -289,7 +283,6 @@ async def _export_report_tool(
         "sections": {},  # All sections by their full name
     }
     
-    # Add all report parameters to template data
     if "parameters" in report_data:
         template_data.update(report_data["parameters"])
 
@@ -313,11 +306,8 @@ async def _export_report_tool(
                     if isinstance(existing, str):
                         template_data[placeholder] = existing + "\n\n" + section["content"]
 
-    # Build entities_data for all array parameters
     report_params = report_data.get("parameters", {})
     all_entities = set()
-    
-    # Collect all entities from array parameters
     for param_name, param_value in report_params.items():
         if isinstance(param_value, list):
             all_entities.update(str(item) for item in param_value)
@@ -606,7 +596,7 @@ async def handle_report_status_tool(
 No reports found in the database.
 
 Create a new report with:
-  create_report(name=<report_name>, parameters='{"competitors": ["comp1", "comp2"]}', report_type=<type>)
+  create_report(name=<report_name>, report_type=<type>, parameters={{}})
 
 Available report types:
 {types_list}"""
@@ -621,7 +611,6 @@ Available report types:
             report_type = rdata.get('report_type', 'unknown')
             status = rdata.get('status', 'unknown')
             created = rdata.get('created_at', 'unknown')
-            entities = rdata.get('entities', [])
 
             filled_count = len(rdata.get("sections", {}))
             todo_count = len(rdata.get("todo_queue", []))
@@ -636,7 +625,7 @@ Available report types:
             result.append(f"   Type: {report_type}")
             result.append(f"   Status: {status_emoji} {status}")
             result.append(f"   Progress: {filled_count}/{total_tasks} tasks ({completion_pct:.1f}%)")
-            # Show parameters summary
+
             params = rdata.get('parameters', {})
             if params:
                 param_summary = []
@@ -667,7 +656,6 @@ Available report types:
                 "Use get_report_status(report_id=<report_id>) to get detailed status for a specific report."
             )
 
-        # Add available report types
         result.append("")
         available = list_available_reports()
         types_list = "\n".join([f"  - {t[0]}: {t[1]}" for t in available])
