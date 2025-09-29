@@ -51,9 +51,9 @@ FILL_SECTION_TOOL = ckit_cloudtool.CloudTool(
         "properties": {
             "report_id": {"type": "string", "description": "Report ID"},
             "section_name": {"type": "string", "description": "Section name to fill"},
-            "content": {"type": "string", "description": "Data that will be stored in the section"},
+            "content": {"type": "string", "description": "Data that will be stored in the section. Use null if there is no data to report"},
         },
-        "required": ["report_id", "section_name", "content"],
+        "required": ["report_id", "section_name"],
     },
 )
 
@@ -240,7 +240,7 @@ Description: {formatted_desc}"""
                         formatted_instruction = formatted_instruction.replace(f"{{{key}}}", str(value))
                     task_text += f"{formatted_instruction}\n"
 
-            task_text += f"\nCall: fill_report_section(report_id='{report_id}', section_name='{section_name}', content=<your_content>)"
+            task_text += f"\nCall: fill_report_section(report_id='{report_id}', section_name='{section_name}', content=<your_content>)\n\nNote: If there is no data to report for this section, you can use content=null"
             tasks.append({
                 "section_name": section_name,
                 "section_id": section_id,
@@ -289,8 +289,11 @@ async def _export_report_tool(
     for section_name, section in report_data["sections"].items():
         placeholder = section["cfg"].get("placeholder")
         if placeholder:
+            # Handle null content - convert to empty string for template rendering
+            content = section["content"] if section["content"] is not None else ""
+            
             template_data["sections"][section_name] = {
-                "content": section["content"],
+                "content": content,
                 "placeholder": placeholder,
                 "name": section_name
             }
@@ -300,11 +303,11 @@ async def _export_report_tool(
 
             if not section_config.get("iteration"):
                 if placeholder not in template_data:
-                    template_data[placeholder] = section["content"]
+                    template_data[placeholder] = content
                 else:
                     existing = template_data[placeholder]
-                    if isinstance(existing, str):
-                        template_data[placeholder] = existing + "\n\n" + section["content"]
+                    if isinstance(existing, str) and content:  # Only append if content is not empty
+                        template_data[placeholder] = existing + "\n\n" + content
 
     report_params = report_data.get("parameters", {})
     all_entities = set()
@@ -322,7 +325,9 @@ async def _export_report_tool(
                 entity_from_name = _extract_entity_from_section_name(section_name, report_params)
                 if entity_from_name == entity:
                     placeholder = section_info["placeholder"]
-                    template_data["entities_data"][entity][placeholder] = section_info["content"]
+                    # Handle null content - use empty string for template rendering
+                    content = section_info["content"] if section_info["content"] is not None else ""
+                    template_data["entities_data"][entity][placeholder] = content
 
     providers = set()
     for section_id, config in sections_config.items():
@@ -501,12 +506,18 @@ async def handle_fill_section_tool(
         return "Error: No report_id provided"
     if section_name is None:
         return "Error: No section_name provided"
-    if content is None:
-        return "Error: No content provided"
+    if content == "null" or content == "":
+        content = None
 
     report_id = _fix_unicode_corruption(report_id)
     section_name = _fix_unicode_corruption(section_name)
-    content = _fix_unicode_corruption(content)
+    
+    # Handle null content case - convert to empty string or None based on context
+    if content is not None:
+        content = _fix_unicode_corruption(content)
+    else:
+        # Content is explicitly null - this is valid when there's no data
+        content = None
 
     tz = ZoneInfo(ws_timezone)
     current_time = datetime.now(tz).strftime("%Y-%m-%d %H:%M:%S %Z")
@@ -525,22 +536,24 @@ async def handle_fill_section_tool(
     report_data = report_doc["json"]
     todo = todo_infos[0]
 
-    if json_rules := todo["section_config"].get("json_validation", {}):
-        is_valid, errors = validate_json_content(content, json_rules)
-        try:
-            content = json.loads(content)
-        except Exception as e:
-            return f"Error decoding JSON: {e}. Please fix the JSON and try again."
-        if not is_valid:
-            return f"Error: JSON validation failed:\n" + "\n".join(errors) + "\n\nPlease fix the JSON and try again."
-    elif validation_rules := todo["section_config"].get("html_validation", {}):
-        content = sanitize_html(content)
-        is_valid, errors = validate_html_content(content, validation_rules)
-        if not is_valid:
-            return f"Error: HTML validation failed:\n" + "\n".join(errors) + "\n\nPlease fix the HTML and try again."
+    # Handle validation for non-null content
+    if content is not None:
+        if json_rules := todo["section_config"].get("json_validation", {}):
+            is_valid, errors = validate_json_content(content, json_rules)
+            try:
+                content = json.loads(content)
+            except Exception as e:
+                return f"Error decoding JSON: {e}. Please fix the JSON and try again."
+            if not is_valid:
+                return f"Error: JSON validation failed:\n" + "\n".join(errors) + "\n\nPlease fix the JSON and try again."
+        elif validation_rules := todo["section_config"].get("html_validation", {}):
+            content = sanitize_html(content)
+            is_valid, errors = validate_html_content(content, validation_rules)
+            if not is_valid:
+                return f"Error: HTML validation failed:\n" + "\n".join(errors) + "\n\nPlease fix the HTML and try again."
 
     json_data_file = None
-    if todo.get("is_meta_section", False):
+    if todo.get("is_meta_section", False) and content is not None:
         try:
             json_filename = f"meta_data_{report_id}_{section_name}.json"
             json_content = json.dumps(content, indent=2).encode('utf-8')
@@ -573,9 +586,12 @@ async def handle_fill_section_tool(
         json.dumps(report_data).encode('utf-8')
     )
 
+    # Create appropriate success message based on content
+    content_msg = "with null content (no data)" if content is None else "with content"
+    
     result = [
         f"[{current_time} in {tz}]\n",
-        f"Successfully filled section '{section_name}'",
+        f"Successfully filled section '{section_name}' {content_msg}",
         f"Remaining tasks: {len(report_data['todo_queue'])}"
     ]
     if len(report_data['todo_queue']) == 0:
@@ -795,13 +811,20 @@ async def handle_load_metadata_tool(
         if section_data.get("is_meta_section", False):
             result.append("📊 Meta Section Content:")
             try:
-                content = section_data.get("content", "{}")
-                result.append(json.dumps(content, indent=2))
+                content = section_data.get("content")
+                if content is None:
+                    result.append("[No data - content is null]")
+                else:
+                    result.append(json.dumps(content, indent=2))
             except Exception as e:
                 result.append(f"⚠️ Error parsing section: {e}")
         else:
             result.append("📝 Report Section Content (first 500 chars):")
-            content_str = str(section_data.get("content", "No content"))
+            content = section_data.get("content")
+            if content is None:
+                content_str = "[No data - content is null]"
+            else:
+                content_str = str(content)
             result.append(content_str[:500] + ("..." if len(content_str) > 500 else ""))
 
     output = "\n".join(result)
@@ -829,12 +852,17 @@ def _format_dependency_content(
         if dep_name in completed_sections:
             section_data = completed_sections[dep_name]
             json_data_file = section_data.get("json_data_file", None)
-            content = section_data.get("content", "")
+            content = section_data.get("content")
             dependency_text += f"\n--- {dep_name} ---\n"
             if json_data_file:
                 json_data_files.append(json_data_file)
                 dependency_text += f"📄 JSON Data File: {json_data_file}\n"
-            dependency_text += f"{content}\n"
+            
+            # Handle null content in dependencies
+            if content is None:
+                dependency_text += "[No data available for this section]\n"
+            else:
+                dependency_text += f"{content}\n"
 
     dependency_text += f"""\n
 Use python to read and analyze json files:
