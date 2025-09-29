@@ -136,7 +136,7 @@ async def handle_mongo_store(
 
         safety_valve = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "safety_valve", "50k")
         return format_cat_output(path, file_data, str(safety_valve))
-    
+
     elif op == "delete":
         if not path:
             return f"Error: path parameter required for delete operation\n\n{HELP}"
