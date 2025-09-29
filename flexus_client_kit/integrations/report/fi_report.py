@@ -340,12 +340,19 @@ async def _export_report_tool(
     report_name = f"report_{report_id}.html"
     await ckit_mongo.store_file(mongo_collection, report_name, template_html.encode('utf-8'))
 
+    try:
+        deleted_count = await _cleanup_temporary_files(mongo_collection, report_id)
+        cleanup_msg = f"\n🧹 Cleaned up {deleted_count} temporary files" if deleted_count > 0 else ""
+    except Exception as e:
+        logger.error(f"Cleanup failed but report was generated successfully: {e}")
+        cleanup_msg = "\n⚠️ Note: Temporary file cleanup failed, but report was generated successfully"
+
     return f"""[{current_time} in {tz}]
 
 Successfully generated report!
 Report ID: {report_id}
 Saved as: {report_name}
-Size: {len(template_html.encode('utf-8'))} bytes
+Size: {len(template_html.encode('utf-8'))} bytes{cleanup_msg}
 
 Send the report to clients
 """
@@ -531,6 +538,17 @@ async def handle_fill_section_tool(
         is_valid, errors = validate_html_content(content, validation_rules)
         if not is_valid:
             return f"Error: HTML validation failed:\n" + "\n".join(errors) + "\n\nPlease fix the HTML and try again."
+
+    json_data_file = None
+    if todo.get("is_meta_section", False):
+        try:
+            json_filename = f"meta_data_{report_id}_{section_name}.json"
+            json_content = json.dumps(content, indent=2).encode('utf-8')
+            await ckit_mongo.store_file(mongo_collection, json_filename, json_content)
+            json_data_file = json_filename
+            logger.info(f"Stored meta section data to {json_filename} ({len(json_content)} bytes)")
+        except Exception as e:
+            logger.error(f"Failed to store meta section JSON data: {e}")
     section_data = {
         "content": content,
         "name": section_name,
@@ -541,6 +559,8 @@ async def handle_fill_section_tool(
         "is_meta_section": todo.get("is_meta_section", False),
         "timestamp": datetime.now(tz).isoformat(),
     }
+    if json_data_file:
+        section_data["json_data_file"] = json_data_file
     report_data["sections"][section_name] = section_data
     report_data["updated_at"] = datetime.now(tz).isoformat()
     report_data["todo_queue"] = [task for task in report_data["todo_queue"] if task["section_name"] != section_name]
@@ -768,6 +788,8 @@ async def handle_load_metadata_tool(
         result.append("─" * 50)
         if section_data.get("scraped_data_files"):
             result.append(f"📁 Scraped data: {section_data['scraped_data_files']}")
+        if section_data.get("json_data_file"):
+            result.append(f"📄 JSON data file: {section_data['json_data_file']}")
         if section_data.get("timestamp"):
             result.append(f"🕒 Completed: {section_data['timestamp']}")
         if section_data.get("is_meta_section", False):
@@ -793,19 +815,66 @@ async def handle_load_metadata_tool(
     return output
 
 
-def _format_dependency_content(dependency_sections: List[str], completed_sections: Dict[str, Any]) -> str:
+def _format_dependency_content(
+        dependency_sections: List[str],
+        completed_sections: Dict[str, Any],
+) -> str:
     if not dependency_sections:
         return ""
 
     dependency_text = "\n\n=== DEPENDENCY DATA ===\n"
 
+    json_data_files = []
     for dep_name in dependency_sections:
         if dep_name in completed_sections:
             section_data = completed_sections[dep_name]
+            json_data_file = section_data.get("json_data_file", None)
             content = section_data.get("content", "")
-            dependency_text += f"\n--- {dep_name} ---\n{content}\n"
+            dependency_text += f"\n--- {dep_name} ---\n"
+            if json_data_file:
+                json_data_files.append(json_data_file)
+                dependency_text += f"📄 JSON Data File: {json_data_file}\n"
+            dependency_text += f"{content}\n"
 
+    dependency_text += f"""\n
+Use python to read and analyze json files:
+```
+import json
+filenames = [{", ".join(json_data_files)}]
+with open(filenames[0], 'r') as f:
+    data = json.load(f)
+    print(data)
+```
+\n
+"""
     return dependency_text
+
+
+async def _cleanup_temporary_files(mongo_collection: Collection, report_id: str) -> int:
+    try:
+        all_files = await ckit_mongo.list_files(mongo_collection)
+        temp_files = [f for f in all_files if not f["path"].startswith("report_")]
+        deleted_count = 0
+        for file_info in temp_files:
+            file_path = file_info["path"]
+            try:
+                success = await ckit_mongo.delete_file(mongo_collection, file_path)
+                if success:
+                    deleted_count += 1
+                    logger.info(f"Cleaned up temporary file: {file_path}")
+                else:
+                    logger.warning(f"Failed to delete temporary file: {file_path}")
+            except Exception as e:
+                logger.error(f"Error deleting temporary file {file_path}: {e}")
+        
+        if deleted_count > 0:
+            logger.info(f"Cleanup completed: removed {deleted_count} temporary files for report {report_id}")
+        
+        return deleted_count
+        
+    except Exception as e:
+        logger.error(f"Error during temporary files cleanup for report {report_id}: {e}")
+        return 0
 
 
 async def handle_process_report_tool(
