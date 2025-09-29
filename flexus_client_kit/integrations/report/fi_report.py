@@ -19,15 +19,15 @@ logger = logging.getLogger("report")
 
 CREATE_REPORT_TOOL = ckit_cloudtool.CloudTool(
     name="create_report",
-    description="Initialize a new report",
+    description="Initialize a new report with arbitrary parameters. Arrays will be used for iteration, scalars for interpolation.",
     parameters={
         "type": "object",
         "properties": {
             "name": {"type": "string", "description": "Base name for the report"},
-            "entities": {"type": "string", "description": "JSON list of entity names"},
             "report_type": {"type": "string", "description": "Type of report (e.g., 'adspy')"},
+            "parameters": {"type": "string", "description": "JSON object with report parameters. Arrays will be iterated over, scalars used for string interpolation."},
         },
-        "required": ["name", "entities", "report_type"],
+        "required": ["name", "report_type", "parameters"],
     },
 )
 
@@ -91,16 +91,33 @@ REPORT_TOOLS = [
 ]
 
 
-def _extract_entity_from_section_name(section_name: str, entities: List[str]) -> Optional[str]:
+def _extract_entity_from_section_name(section_name: str, report_params: Dict[str, Any]) -> Optional[str]:
     """Extract entity name from a section name like 'company_overview_box_GANNI'."""
-    for entity in entities:
-        if section_name.endswith(f"_{entity}"):
-            return entity
-    for entity in entities:
-        entity_normalized = entity.replace(" ", "_").replace("-", "_")
-        if entity_normalized in section_name:
-            return entity
+    # Try all array parameters as potential entity sources
+    for param_name, param_value in report_params.items():
+        if isinstance(param_value, list):
+            for entity in param_value:
+                entity_str = str(entity)
+                if section_name.endswith(f"_{entity_str}"):
+                    return entity_str
+                entity_normalized = entity_str.replace(" ", "_").replace("-", "_")
+                if entity_normalized in section_name:
+                    return entity_str
     return None
+
+
+def _format_parameters_summary(params: Dict[str, Any]) -> str:
+    """Format parameters for display in status messages."""
+    if not params:
+        return "None"
+    
+    summary = []
+    for key, value in params.items():
+        if isinstance(value, list):
+            summary.append(f"{key}({len(value)} items)")
+        else:
+            summary.append(f"{key}:{value}")
+    return ', '.join(summary)
 
 
 def _fix_unicode_corruption(text: str) -> str:
@@ -120,7 +137,7 @@ def _fix_unicode_corruption(text: str) -> str:
     return fixed_text
 
 
-def _build_iteration_combinations(entities: List[str], sections: Dict[str, Any]) -> Dict[str, List[Dict[str, str]]]:
+def _build_iteration_combinations(report_params: Dict[str, Any], sections: Dict[str, Any]) -> Dict[str, List[Dict[str, str]]]:
     combos_map = {}
     for section_id, config in sections.items():
         pattern = config.get("iteration")
@@ -132,7 +149,17 @@ def _build_iteration_combinations(entities: List[str], sections: Dict[str, Any])
             for key, source in iterators.items():
                 keys.append(key)
                 if source == "from_input":
-                    values_lists.append(entities)
+                    # Look for this key in report_params
+                    if key in report_params:
+                        param_value = report_params[key]
+                        if isinstance(param_value, list):
+                            values_lists.append(param_value)
+                        else:
+                            values_lists.append([param_value])
+                    else:
+                        logger.warning(f"Parameter '{key}' not found in report_params for section '{section_id}', using empty list")
+                        values_lists.append([])
+                        # This will result in no tasks for this section
                 elif isinstance(source, list):
                     values_lists.append(source)
                 else:
@@ -150,8 +177,8 @@ def _build_iteration_combinations(entities: List[str], sections: Dict[str, Any])
     return combos_map
 
 
-def _create_todo_queue(report_id: str, entities: List[str], sections: Dict[str, Any]) -> List[Dict[str, Any]]:
-    combos_map = _build_iteration_combinations(entities, sections)
+def _create_todo_queue(report_id: str, report_params: Dict[str, Any], sections: Dict[str, Any]) -> List[Dict[str, Any]]:
+    combos_map = _build_iteration_combinations(report_params, sections)
     tasks = []
 
     sorted_sections = sorted(sections.items(), key=lambda x: x[1].get("phase", 1))
@@ -193,7 +220,14 @@ def _create_todo_queue(report_id: str, entities: List[str], sections: Dict[str, 
             depends_on = list(dict.fromkeys(depends_on))
             formatted_desc = description
             formatted_example = example
-            for key, value in combo.items():
+            
+            # Create interpolation context with combo values and scalar report params
+            interpolation_context = dict(combo)
+            for key, value in report_params.items():
+                if not isinstance(value, list):  # Only use scalar values for interpolation
+                    interpolation_context[key] = value
+            
+            for key, value in interpolation_context.items():
                 formatted_desc = formatted_desc.replace(f"{{{key}}}", str(value))
                 formatted_example = formatted_example.replace(f"{{{key}}}", str(value))
             task_text = f"""Task for report: {report_id}
@@ -208,7 +242,7 @@ Description: {formatted_desc}"""
             if extra_instructions:
                 for idx, instruction in enumerate(extra_instructions, 1):
                     formatted_instruction = instruction
-                    for key, value in combo.items():
+                    for key, value in interpolation_context.items():
                         formatted_instruction = formatted_instruction.replace(f"{{{key}}}", str(value))
                     task_text += f"{formatted_instruction}\n"
 
@@ -251,10 +285,13 @@ async def _export_report_tool(
 
     template_data = {
         "analysis_date": datetime.now(tz).strftime("%B %d, %Y"),
-        "entities": report_data.get("entities", []),
         "datetime": template_datetime,
         "sections": {},  # All sections by their full name
     }
+    
+    # Add all report parameters to template data
+    if "parameters" in report_data:
+        template_data.update(report_data["parameters"])
 
     for section_name, section in report_data["sections"].items():
         placeholder = section["cfg"].get("placeholder")
@@ -276,14 +313,23 @@ async def _export_report_tool(
                     if isinstance(existing, str):
                         template_data[placeholder] = existing + "\n\n" + section["content"]
 
-    if report_data.get("entities"):
+    # Build entities_data for all array parameters
+    report_params = report_data.get("parameters", {})
+    all_entities = set()
+    
+    # Collect all entities from array parameters
+    for param_name, param_value in report_params.items():
+        if isinstance(param_value, list):
+            all_entities.update(str(item) for item in param_value)
+    
+    if all_entities:
         template_data["entities_data"] = {}
 
-        for entity in report_data["entities"]:
+        for entity in all_entities:
             template_data["entities_data"][entity] = {}
 
             for section_name, section_info in template_data["sections"].items():
-                entity_from_name = _extract_entity_from_section_name(section_name, report_data["entities"])
+                entity_from_name = _extract_entity_from_section_name(section_name, report_params)
                 if entity_from_name == entity:
                     placeholder = section_info["placeholder"]
                     template_data["entities_data"][entity][placeholder] = section_info["content"]
@@ -347,7 +393,7 @@ Available report types:
 {types_list}
 
 Use one of the report IDs above or create a new report with:
-  create_report(name=<report_name>, entities='["entity1", "entity2"]', report_type=<type>)""")
+  create_report(name=<report_name>, parameters='{"competitors": ["comp1", "comp2"]}', report_type=<type>)""")
         else:
             available = list_available_reports()
             types_list = "\n".join([f"  - {t[0]}: {t[1]}" for t in available])
@@ -357,7 +403,7 @@ Use one of the report IDs above or create a new report with:
 Error: Report '{report_id}' not found.
 
 No reports available. Create a new report with:
-  create_report(name=<report_name>, entities='["entity1", "entity2"]', report_type=<type>)
+  create_report(name=<report_name>, parameters='{"competitors": ["comp1", "comp2"]}', report_type=<type>)
 
 Available report types:
 {types_list}""")
@@ -370,20 +416,20 @@ async def handle_create_report_tool(
         mongo_collection: Collection,
         *,
         name: Optional[str],
-        entities: Optional[str],
+        parameters: Optional[str],
         report_type: Optional[str],
 ) -> str:
     if not name:
         return "Error: 'name' parameter is required"
-    if not entities:
-        return "Error: 'entities' parameter is required"
+    if not parameters:
+        return "Error: 'parameters' parameter is required"
     if not report_type:
         available = list_available_reports()
         types_list = "\n".join([f"  - {t[0]}: {t[1]}" for t in available])
         return f"Error: 'report_type' parameter is required.\n\nAvailable report types:\n{types_list}"
 
     name = _fix_unicode_corruption(name)
-    entities = _fix_unicode_corruption(entities)
+    parameters = _fix_unicode_corruption(parameters)
     report_type = _fix_unicode_corruption(report_type)
 
     tz = ZoneInfo(ws_timezone)
@@ -391,19 +437,21 @@ async def handle_create_report_tool(
     report_id = f"{name}_{timestamp}"
 
     try:
-        entities_list = json.loads(entities)
-        if not isinstance(entities_list, list):
-            raise ValueError("Entities must be a list")
+        report_params = json.loads(parameters)
+        if not isinstance(report_params, dict):
+            raise ValueError("Parameters must be a JSON object")
     except Exception as e:
-        return f"Error: Invalid entities format: {e}. Use JSON format: '[\"entity1\", \"entity2\"]'"
+        return f"Error: Invalid parameters format: {e}. Use JSON format: '{{\"param1\": \"value1\", \"param2\": [\"item1\", \"item2\"]}}'"
 
-    if len(entities_list) == 0:
-        return "Error: No valid entities provided"
+    # Validate that we have at least one iterable parameter or backward compatibility with entities
+    has_iterables = any(isinstance(v, list) and len(v) > 0 for v in report_params.values())
+    if not has_iterables:
+        return "Error: At least one parameter must be an array with values for iteration"
 
     sections, _ = load_report_config(report_type)
 
     try:
-        todo_queue = _create_todo_queue(report_id, entities_list, sections)
+        todo_queue = _create_todo_queue(report_id, report_params, sections)
     except Exception as e:
         return f"Error creating task queue: {e}"
 
@@ -416,7 +464,7 @@ async def handle_create_report_tool(
             "report_type": report_type,
             "created_at": datetime.now(tz).isoformat(),
             "updated_at": datetime.now(tz).isoformat(),
-            "entities": entities_list,
+            "parameters": report_params,
             "status": "in_progress",
             "sections": {},
             "todo_queue": todo_queue,
@@ -425,12 +473,20 @@ async def handle_create_report_tool(
 
     total_tasks = len(todo_queue)
     current_time = datetime.now(tz).strftime("%Y-%m-%d %H:%M:%S %Z")
+    
+    # Format parameters for display
+    param_summary = []
+    for key, value in report_params.items():
+        if isinstance(value, list):
+            param_summary.append(f"{key}: {len(value)} items")
+        else:
+            param_summary.append(f"{key}: {value}")
 
     return f"""[{current_time} in {tz}]
 
 Created report: {report_id}
 Type: {report_type}
-Entities: {', '.join(entities_list)}
+Parameters: {', '.join(param_summary)}
 Total tasks to complete: {total_tasks}
 
 Use process_report(report_id="{report_id}") to start processing phases."""
@@ -550,7 +606,7 @@ async def handle_report_status_tool(
 No reports found in the database.
 
 Create a new report with:
-  create_report(name=<report_name>, entities='["entity1", "entity2"]', report_type=<type>)
+  create_report(name=<report_name>, parameters='{"competitors": ["comp1", "comp2"]}', report_type=<type>)
 
 Available report types:
 {types_list}"""
@@ -580,7 +636,18 @@ Available report types:
             result.append(f"   Type: {report_type}")
             result.append(f"   Status: {status_emoji} {status}")
             result.append(f"   Progress: {filled_count}/{total_tasks} tasks ({completion_pct:.1f}%)")
-            result.append(f"   Entities: {', '.join(entities) if entities else 'None'}")
+            # Show parameters summary
+            params = rdata.get('parameters', {})
+            if params:
+                param_summary = []
+                for key, value in params.items():
+                    if isinstance(value, list):
+                        param_summary.append(f"{key}({len(value)})")
+                    else:
+                        param_summary.append(f"{key}:{value}")
+                result.append(f"   Parameters: {', '.join(param_summary)}")
+            else:
+                result.append(f"   Legacy format")
             result.append(f"   Created: {created}")
             if html_exists:
                 result.append(f"   📄 HTML: report_{report_name}.html")
@@ -637,7 +704,7 @@ Available report types:
         f"Status: {status_emoji} {report_data['status']}",
         f"Created: {report_data['created_at']}",
         f"Updated: {report_data['updated_at']}",
-        f"Entities: {', '.join(report_data.get('entities', []))}",
+        f"Parameters: {_format_parameters_summary(report_data.get('parameters', {}))}",
         f"Progress: {filled_count}/{total_tasks} tasks ({completion_pct:.1f}%)\n"
     ]
     if html_exists:
@@ -703,7 +770,7 @@ async def handle_load_metadata_tool(
         f"Created: {report_data.get('created_at', 'unknown')}",
         f"Updated: {report_data.get('updated_at', 'unknown')}",
         f"Status: {report_data.get('status', 'unknown')}",
-        f"Entities: {', '.join(report_data.get('entities', []))}",
+        f"Parameters: {_format_parameters_summary(report_data.get('parameters', {}))}",
         "",
         "=== SECTIONS ===",
     ]
