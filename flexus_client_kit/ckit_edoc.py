@@ -238,5 +238,22 @@ async def eds_mark_success(fclient: ckit_client.FlexusClient, eds_id: str):
         )
     logger.info("eds_mark_success: %s", eds_id)
 
-
- 
+async def eds_list_in_subgroups(
+    fclient: ckit_client.FlexusClient,
+    fgroup_id: str,
+    eds_types: Optional[List[str]] = None,
+) -> List[FExternalDataSourceOutput]:
+    http = await fclient.use_http()
+    async with http as h:
+        r = await h.execute(
+            gql.gql(
+                f"""query EdsListInSubgroups($fgroup_id: String!, $eds_types: [String!]) {{
+                    eds_list_in_subgroups(fgroup_id: $fgroup_id, eds_types: $eds_types) {{
+                        {gql_utils.gql_fields(FExternalDataSourceOutput)}
+                    }}
+                }}""",
+            ),
+            variable_values={"fgroup_id": fgroup_id, "eds_types": eds_types},
+        )
+    eds_list = r["eds_list_in_subgroups"]
+    return [gql_utils.dataclass_from_dict(eds, FExternalDataSourceOutput) for eds in eds_list]
