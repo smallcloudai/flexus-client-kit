@@ -62,7 +62,7 @@ warning_text = "💿 Token budget is running low. Wrap up your current work, sum
 if coins > budget * 0.5 and not messages[-1]["tool_calls"]:
     for i, msg in enumerate(messages):
         warning_already_sent = False
-        if msg["role"] == "kernel" and msg.get("content") and warning_text in str(msg["content"]):
+        if msg.get("content") and warning_text in str(msg["content"]):
             warning_already_sent = True
             break
     if not warning_already_sent:
