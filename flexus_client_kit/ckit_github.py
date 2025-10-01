@@ -35,6 +35,9 @@ def extract_repo_path_from_url(repo_url: str) -> Optional[str]:
         return None
     return repo_path
 
+def extract_repo_name_from_url(repo_url: str) -> Optional[str]:
+    repo_path = extract_repo_path_from_url(repo_url)
+    return repo_path.split('/', 1)[1] if repo_path else None
 
 async def _check_installation_repo_access(installation_id: str, target_repo_path: str) -> bool:
     install_token = await exchange_installation_id_to_token(installation_id)
@@ -79,7 +82,7 @@ async def pick_working_installation_id(installation_ids: list, repo_url: str) ->
     return None
 
 
-async def exchange_installation_id_to_token(installation_id: str) -> Optional[str]:
+async def exchange_installation_id_to_token(installation_id: str, repo_name: Optional[str] = None) -> Optional[str]:
     app_jwt = _generate_github_app_jwt()
     try:
         async with httpx.AsyncClient() as client:
@@ -89,7 +92,8 @@ async def exchange_installation_id_to_token(installation_id: str) -> Optional[st
                     "Authorization": f"Bearer {app_jwt}",
                     "Accept": "application/vnd.github.v3+json"
                 },
-                timeout=5
+                timeout=5,
+                json={"repositories": [repo_name]} if repo_name else None
             )
             if resp.status_code == 201:
                 data = resp.json()
