@@ -31,7 +31,7 @@ LOCALFILE_TOOL = ckit_cloudtool.CloudTool(
 HELP = """
 Help:
 
-localfile(op="cat", args={"path": "folder1/something.json", "lines_range": "13:37", "safety_valve": "10k", "pattern"="error|warn"})
+localfile(op="cat", args={"path": "folder1/something.json", "lines_range": "13:37", "safety_valve": "10k", "pattern"="ERROR|WARN"})
     Open the local file and print what's inside. The lines_range and safety_valve are there to
     prevent large files from clogging your context window. A good strategy is to call
     cat without lines_range/safety_valve, you'll get default range "1:" and safety_valve of 10k chars.
