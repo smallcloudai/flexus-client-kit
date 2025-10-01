@@ -111,7 +111,7 @@ def format_cat_output(
     if safety_valve.lower().endswith('k'):
         safety_valve_int = int(safety_valve[:-1]) * 1024
     else:
-        safety_valve_int = 10240
+        safety_valve_int = int(safety_valve)
 
     if isinstance(file_data, bytes) and b'\x00' in file_data:
         return "%s exists, it's a binary file, cannot be printed as text, has %d bytes" % (path, len(file_data))
