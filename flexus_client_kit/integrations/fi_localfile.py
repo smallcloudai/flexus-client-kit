@@ -105,13 +105,8 @@ LOCALFILE_TOOL = ckit_cloudtool.CloudTool(
     parameters={
         "type": "object",
         "properties": {
-            "op": {
-                "type": "string", 
-                "description": "cat, jq or help"},
-            "args": {
-                "type": "object",
-                "description": "Operations cat, jq require 'path' and have optional 'safety_valve' in bytes to prevent a large file from clogging context. Use op=help for more details."
-            },
+            "op": {"type": "string", "description": "Start with 'help' for usage"},
+            "args": {"type": "object"},
         },
     },
 )
