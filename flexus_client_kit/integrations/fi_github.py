@@ -40,6 +40,8 @@ class IntegrationGitHub:
         fclient: ckit_client.FlexusClient,
         rcx: ckit_bot_exec.RobotContext,
         allowed_write_commands: List[List[str]] = [],
+        token: Optional[str] = None,
+        extra_env: Optional[Dict[str, str]] = None,
     ):
         self.fclient = fclient
         self.rcx = rcx
