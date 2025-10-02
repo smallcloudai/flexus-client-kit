@@ -2,6 +2,7 @@ import json
 import os
 import logging
 from typing import Dict, Any, Optional
+from flexus_client_kit.integrations.fi_localfile import _validate_file_security
 from pymongo.collection import Collection
 
 from flexus_client_kit import ckit_cloudtool, ckit_mongo
@@ -129,6 +130,9 @@ async def handle_mongo_store(
         path_error = validate_path(path)
         if path_error:
             return f"Error: {path_error}"
+        security_error = _validate_file_security(path)
+        if security_error:
+            return security_error
         document = await ckit_mongo.retrieve_file(mongo_collection, path)
         if not document:
             return f"Error: File {path} not found in MongoDB"
