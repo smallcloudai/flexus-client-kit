@@ -1,11 +1,24 @@
 import os
 import time
 import logging
-from typing import Optional
+from typing import Optional, Any
+from dataclasses import dataclass
 import httpx
 import jwt
+import gql
+
+from flexus_client_kit import gql_utils
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass
+class FExternalAuthOutput:
+    auth_id: str
+    auth_name: str
+    auth_auth_type: str
+    auth_service_provider: str
+    auth_json: Any
 
 EXTERNAL_GITHUB_CLIENT_ID = os.environ.get("EXTERNAL_GITHUB_CLIENT_ID")
 EXTERNAL_GITHUB_APP_PRIVATE_KEY = os.environ.get("EXTERNAL_GITHUB_APP_PRIVATE_KEY")
@@ -24,8 +37,11 @@ def _generate_github_app_jwt() -> str:
 
 
 def extract_repo_path_from_url(repo_url: str) -> Optional[str]:
-    if repo_url.startswith("https://github.com/"):
-        repo_path = repo_url.replace("https://github.com/", "").split("#")[0].replace(".git", "")
+    if repo_url.startswith("https://"):
+        if "@github.com/" in repo_url:
+            repo_path = repo_url.split("@github.com/")[1].split("#")[0].replace(".git", "")
+        else:
+            repo_path = repo_url.replace("https://github.com/", "").split("#")[0].replace(".git", "")
     elif repo_url.startswith("git@github.com:"):
         repo_path = repo_url.replace("git@github.com:", "").replace(".git", "")
     else:
@@ -111,5 +127,23 @@ async def get_token_from_github_auth_cred(auth_json: dict, repo_name: str) -> Op
     if not inst_id:
         return None
     return await exchange_installation_id_to_token(inst_id)
+
+
+async def get_external_auth(fclient, auth_id: str) -> Optional[FExternalAuthOutput]:
+    http = await fclient.use_http()
+    async with http as h:
+        r = await h.execute(
+            gql.gql(f"""
+                query GetExternalAuth($auth_id: String!) {{
+                    get_external_auth(auth_id: $auth_id) {{
+                        {gql_utils.gql_fields(FExternalAuthOutput)}
+                    }}
+                }}"""),
+            variable_values={"auth_id": auth_id},
+        )
+    auth_data = r.get("get_external_auth")
+    if not auth_data:
+        return None
+    return gql_utils.dataclass_from_dict(auth_data, FExternalAuthOutput)
 
 
