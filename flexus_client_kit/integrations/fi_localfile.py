@@ -220,7 +220,7 @@ def _search_file_simple(filepath: str, pattern: str, context: int) -> Tuple[List
             eff_end = min(len(lines), line_num + context + 1)
             for i in range(eff_start, eff_end):
                 match_lines.append(i)
-    return [f"{line_num:4d}: {lines[line_num]}" for line_num in match_lines], ""
+    return [f"{line_num:4d}: {lines[line_num].strip()}" for line_num in match_lines], ""
 
 
 def handle_grep(workdir: str, path: str, args: Dict[str, Any], model_produced_args: Dict[str, Any]) -> str:
