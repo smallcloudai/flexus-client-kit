@@ -5,6 +5,7 @@ import base64
 import logging
 from io import BytesIO
 from pathlib import Path
+from re import Pattern
 from typing import Union, Optional, List, Dict, Any, Tuple
 
 from PIL import Image
@@ -216,3 +217,24 @@ def format_cat_output(
         return format_text_output(path, file_data, safety_valve)[0]
     else:
         return format_json_output(path, file_data, safety_valve)[0]
+    
+
+def grep_output(
+    path: str, # just for print
+    content: str,
+    pattern: Pattern[str],
+    context: int
+) -> str:
+    match_lines = []
+    lines = content.splitlines()
+    for line_num, line in enumerate(lines):
+        if pattern.search(line):
+            prev_num = -1 if not match_lines else match_lines[-1]
+            eff_start = max(prev_num + 1, line_num - context)
+            eff_end = min(len(lines), line_num + context + 1)
+            match_lines.extend(range(eff_start, eff_end))
+    if match_lines:
+        result = [f"\n=== {path} ==="] + [f"{line_num:4d}: {lines[line_num].strip()}" for line_num in match_lines]
+        return "\n".join(result)
+    return ""
+        

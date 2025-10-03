@@ -6,7 +6,7 @@ import glob
 from typing import Dict, Any, Optional, List, Tuple, NamedTuple
 
 from flexus_client_kit import ckit_cloudtool
-from flexus_client_kit.format_utils import format_text_output
+from flexus_client_kit.format_utils import format_text_output, grep_output
 
 logger = logging.getLogger("localfile")
 
@@ -226,11 +226,9 @@ def _search_file_simple(filepath: str, pattern: str, context: int) -> Tuple[List
 def handle_grep(workdir: str, path: str, args: Dict[str, Any], model_produced_args: Dict[str, Any]) -> str:
     if not path:
         path = "."
-
     path_error = validate_path(path, allow_empty=True)
     if path_error:
         return f"Error: {path_error}"
-
     realpath = os.path.join(workdir, path)
     if not os.path.exists(realpath):
         return f"Error: Path {path} does not exist"
@@ -238,7 +236,10 @@ def handle_grep(workdir: str, path: str, args: Dict[str, Any], model_produced_ar
     pattern = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "pattern", "")
     if not pattern:
         return "Error: pattern parameter required for grep operation"
-
+    try:
+        pattern = re.compile(pattern)
+    except re.error:
+        return "Error: invalid regex pattern"
     recursive = _parse_bool(
         ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "recursive", "true"),
         default=True
@@ -246,26 +247,22 @@ def handle_grep(workdir: str, path: str, args: Dict[str, Any], model_produced_ar
     include = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "include", "*")
     context = int(ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "context", "0"))
     files_to_search = _glob_files(realpath, include, recursive)
-
     if not files_to_search:
         return f"No files found in {path}"
+
     results = []
     files_with_matches = 0
-
     for filepath in files_to_search:
-        file_matches, error = _search_file_simple(filepath, pattern, context)
-        if error:
-            continue
-        if file_matches:
+        with open(filepath, "r") as f:
+            content = f.read()
+        result = grep_output(os.path.relpath(filepath, workdir), content, pattern, context)
+        if result:
             files_with_matches += 1
-            rel_path = os.path.relpath(filepath, workdir)
-            results.append(f"\n=== {rel_path} ===")
-            results.extend(file_matches)
-
+            results.append(result)
     if not results:
         return f"No matches found for pattern '{pattern}' in {len(files_to_search)} files"
 
-    summary = f"Found pattern '{pattern}' in {files_with_matches}/{len(files_to_search)} files:"
+    summary = f"Found pattern in {files_with_matches}/{len(files_to_search)} files:"
     return summary + "\n" + "\n".join(results)
 
 
