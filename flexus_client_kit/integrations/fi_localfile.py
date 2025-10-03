@@ -6,7 +6,7 @@ import glob
 from typing import Dict, Any, Optional, List, Tuple, NamedTuple
 
 from flexus_client_kit import ckit_cloudtool
-from flexus_client_kit.format_utils import format_text_output, grep_output
+from flexus_client_kit.format_utils import format_text_output, grep_output, DEFAULT_SAFETY_VALVE
 
 logger = logging.getLogger("localfile")
 
@@ -16,7 +16,6 @@ FORBIDDEN_PATTERNS = ['.env.', 'secret', 'password', 'key', 'token', 'credential
 
 MAX_FILE_SIZE = 1024 * 1024
 MAX_SEARCH_SIZE = 10 * 1024 * 1024
-DEFAULT_SAFETY_VALVE = 10240
 
 
 def _validate_file_security(filepath: str) -> Optional[str]:
@@ -122,7 +121,7 @@ ls      - List directory contents (dirs have "/" suffix)
           args: path (default ".")
 
 Examples:
-  localfile(op="cat", args={"path": "folder1/something_20250803.json", "lines_range": 0:40", "safety_valve": "50k"})
+  localfile(op="cat", args={"path": "folder1/something_20250803.json", "lines_range": 0:40", "safety_valve": "10k"})
   localfile(op="replace", args={"path": "config.yaml", "find": "old", "replace": "new", "count": -1})
   localfile(op="find", args={"pattern": "*.py"})
   localfile(op="grep", args={"pattern": "TODO", "context": 2, "include": "*.py"})
@@ -176,7 +175,7 @@ def handle_cat(workdir: str, path: str, args: Dict[str, Any], model_produced_arg
     with open(realpath, 'rb') as f:
         content = f.read().decode('utf-8', errors='replace')
     lines_range = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "lines_range", "0:")
-    safety_valve = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "safety_valve", "10k")
+    safety_valve = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "safety_valve", DEFAULT_SAFETY_VALVE)
     return format_text_output(path, content, lines_range, str(safety_valve))
 
 
@@ -199,30 +198,6 @@ def handle_find(workdir: str, path: str, args: Dict[str, Any], model_produced_ar
     return "\n".join(found_files) if found_files else f"No files found matching '{pattern}'"
 
 
-def _search_file_simple(filepath: str, pattern: str, context: int) -> Tuple[List[str], str]:
-    security_error = _validate_file_security(filepath)
-    if security_error:
-        return [], security_error
-    if os.path.getsize(filepath) > MAX_SEARCH_SIZE:
-        return [], "File too large"
-    search_pattern = pattern
-    try:
-        compiled_pattern = re.compile(search_pattern, re.MULTILINE | re.DOTALL)
-    except re.error as e:
-        return [], f"Invalid regex pattern '{pattern}': {e}"
-    with open(filepath, 'r', encoding='utf-8', errors='replace') as f:
-        lines = f.readlines()
-    match_lines = []
-    for line_num, line in enumerate(lines):
-        if compiled_pattern.search(line):
-            prev_num = -1 if not match_lines else match_lines[-1]
-            eff_start = max(prev_num + 1, line_num - context)
-            eff_end = min(len(lines), line_num + context + 1)
-            for i in range(eff_start, eff_end):
-                match_lines.append(i)
-    return [f"{line_num:4d}: {lines[line_num].strip()}" for line_num in match_lines], ""
-
-
 def handle_grep(workdir: str, path: str, args: Dict[str, Any], model_produced_args: Dict[str, Any]) -> str:
     if not path:
         path = "."
@@ -232,7 +207,6 @@ def handle_grep(workdir: str, path: str, args: Dict[str, Any], model_produced_ar
     realpath = os.path.join(workdir, path)
     if not os.path.exists(realpath):
         return f"Error: Path {path} does not exist"
-
     pattern = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "pattern", "")
     if not pattern:
         return "Error: pattern parameter required for grep operation"

@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 IMAGE_EXTENSIONS = {'.png', '.jpg', '.jpeg', '.gif', '.bmp', '.webp'}
 
-DEFAULT_SAFETY_VALVE = 50
+DEFAULT_SAFETY_VALVE = "10k"
 
 def get_json_schema(data: Union[dict, list]) -> Optional[str]:
     """Generate a JSON schema for the given data."""
@@ -58,13 +58,13 @@ def process_image_to_base64(image_data: bytes) -> Optional[str]:
 def format_json_output(
     path: str,
     data: Union[dict, list],
-    safety_valve: str = "50k"
+    safety_valve: str = DEFAULT_SAFETY_VALVE
 ) -> Tuple[str, bool]:
     """Format JSON data for display with truncation if needed."""
     if safety_valve.lower().endswith('k'):
         safety_valve_kb = int(safety_valve[:-1])
     else:
-        safety_valve_kb = 50
+        safety_valve_kb = int(safety_valve) / 1024
     
     content_str = json.dumps(data, indent=2)
     data_type = "JSON"
@@ -89,7 +89,7 @@ def format_json_output(
     
     truncated = False
     if size_kb > safety_valve_kb:
-        max_chars = safety_valve_kb * 1024
+        max_chars = int(safety_valve_kb * 1024)
         preview = content_str[:max_chars]
         last_newline = preview.rfind('\n')
         if last_newline > 0:
@@ -114,7 +114,7 @@ def format_text_output(
     path: str,
     content: str,
     lines_range: str,
-    safety_valve: str = "50k"
+    safety_valve: str = DEFAULT_SAFETY_VALVE
 ) -> str:
     """Format text data for display with truncation if needed."""
     if safety_valve.lower().endswith('k'):
@@ -158,7 +158,7 @@ def format_binary_output(
     path: str,
     data: bytes,
     lines_range: str,
-    safety_valve: str = "50k"
+    safety_valve: str = DEFAULT_SAFETY_VALVE
 ) -> str:
     """Format binary data for display, with special handling for images."""
     size_bytes = len(data)
@@ -210,7 +210,7 @@ def format_cat_output(
     path: str,
     file_data: Union[bytes, str, list, dict],
     lines_range: str,
-    safety_valve: str = "50k"
+    safety_valve: str = DEFAULT_SAFETY_VALVE
 ) -> str:
     """Main function to format file data for display."""
     if file_data is None:

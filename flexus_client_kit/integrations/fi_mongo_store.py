@@ -6,7 +6,7 @@ from typing import Dict, Any, Optional
 from pymongo.collection import Collection
 
 from flexus_client_kit import ckit_cloudtool, ckit_mongo
-from flexus_client_kit.format_utils import format_cat_output, grep_output
+from flexus_client_kit.format_utils import DEFAULT_SAFETY_VALVE, format_cat_output, grep_output
 
 logger = logging.getLogger("mongo_store")
 
@@ -43,7 +43,7 @@ grep    - Search file contents with context and formatting
 Examples:
   mongo_store(op="upload", args={"path": "folder1/something_20250803.json"})
   mongo_store(op="list", args={"path": "folder1/"})
-  mongo_store(op="cat", args={"path": "folder1/something_20250803.json", "lines_range": 0:40", "safety_valve": "50k"})
+  mongo_store(op="cat", args={"path": "folder1/something_20250803.json", "lines_range": 0:40", "safety_valve": "10k"})
   mongo_store(op="delete", args={"path": "folder1/something_20250803.json"})
   mongo_store(op="grep", args={"path": "tasks.txt", "pattern": "TODO", "context": 2})
 """
@@ -118,7 +118,7 @@ async def handle_mongo_store(
             return f"Error: File {path} not found in MongoDB"
         file_data = document.get("data", document.get("json", None))
         lines_range = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "lines_range", "0:")
-        safety_valve = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "safety_valve", "50k")
+        safety_valve = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "safety_valve", DEFAULT_SAFETY_VALVE)
         return format_cat_output(path, file_data, lines_range, str(safety_valve))
 
     elif op == "grep":
