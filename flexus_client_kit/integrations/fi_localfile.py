@@ -107,12 +107,13 @@ LOCALFILE_TOOL = ckit_cloudtool.CloudTool(
             "op": {"type": "string", "description": "Start with 'help' for usage"},
             "args": {"type": "object"},
         },
+        "required": ["op"]
     },
 )
 
 HELP = """
 cat     - Read file contents
-          args: path (required), lines_range ("1:", "10:20"), safety_valve ("10k"), pattern (regex filter)
+          args: path (required), lines_range, start inclusive, end exclusive ("0:", "10:20"), safety_valve ("10k")
 
 replace - Replace text in file, shows git-style diff
           args: path (required), find (required), replace, count (-1=all, N=limit)
@@ -127,7 +128,7 @@ ls      - List directory contents (dirs have "/" suffix)
           args: path (default ".")
 
 Examples:
-  localfile(op="cat", args={"path": "src/main.py", "lines_range": "1:50"})
+  localfile(op="cat", args={"path": "folder1/something_20250803.json", "lines_range": 0:40", "safety_valve": "50k"})
   localfile(op="replace", args={"path": "config.yaml", "find": "old", "replace": "new", "count": -1})
   localfile(op="find", args={"pattern": "*.py"})
   localfile(op="grep", args={"pattern": "TODO", "context": 2, "include": "*.py"})

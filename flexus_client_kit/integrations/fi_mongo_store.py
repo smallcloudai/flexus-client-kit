@@ -16,36 +16,31 @@ MONGO_STORE_TOOL = ckit_cloudtool.CloudTool(
     parameters={
         "type": "object",
         "properties": {
-            "op": {
-                "type": "string",
-                "description": "upload, list, cat, delete or help"
-            },
-            "args": {
-                "type": "object",
-                "description": "Operations upload, delete, cat require 'path'. "
-                               "Operation 'list' uses optional 'path' for prefix filtering. "
-                               "Operation 'cat' has optional 'safety_valve' in bytes to prevent a large file from clogging context. Use op=help for details."
-            },
+            "op": {"type": "string", "description": "Start with 'help' for usage"},
+            "args": {"type": "object"},
         },
-        "required": ["op", "args"],
+        "required": ["op"]
     },
 )
 
 HELP = """
-Help:
+upload  - Upload a local file into MongoDB storage.
+          args: path (required)
 
-mongo_store(op="upload", args={"path": "folder1/something_20250803.json"})
-    Uploads file from local path to MongoDB, stores as "folder1/something_20250803.json".
+list    - List stored files filtered by optional prefix.
+          args: path (optional, default "")
 
-mongo_store(op="list", args={"path": "folder1/"})
-    Lists files in MongoDB with the given prefix.
+cat     - Read file contents
+          args: path (required), lines_range, start inclusive, end exclusive ("0:", "10:20"), safety_valve ("10k"),
 
-mongo_store(op="cat", args={"path": "folder1/something_20250803.json", "safety_valve": "50k"})
-    Open the file and print what's inside. The safety_valve parameter (default 50k) prevents
-    large files from clogging your context window.
+delete  - Delete a stored file by exact path (no wildcards).
+          args: path (required)
 
-mongo_store(op="delete", args={"path": "folder1/something_20250803.json"})
-    Deletes the specified file from MongoDB. No wildcards, deletes only the exact path.
+Examples:
+  mongo_store(op="upload", args={"path": "folder1/something_20250803.json"})
+  mongo_store(op="list", args={"path": "folder1/"})
+  mongo_store(op="cat", args={"path": "folder1/something_20250803.json", "lines_range": 0:40", "safety_valve": "50k"})
+  mongo_store(op="delete", args={"path": "folder1/something_20250803.json"})
 """
 
 
@@ -117,9 +112,9 @@ async def handle_mongo_store(
         if not document:
             return f"Error: File {path} not found in MongoDB"
         file_data = document.get("data", document.get("json", None))
-
+        lines_range = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "lines_range", "0:")
         safety_valve = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "safety_valve", "50k")
-        return format_cat_output(path, file_data, str(safety_valve))
+        return format_cat_output(path, file_data, lines_range, str(safety_valve))
 
     elif op == "delete":
         if not path:
