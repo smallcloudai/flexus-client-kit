@@ -23,7 +23,7 @@ GITHUB_TOOL = ckit_cloudtool.CloudTool(
                 "items": {"type": "string"},
                 "description": "gh cli args list, e.g. ['issue', 'create', '--title', 'My title']"
             }
-        },
+        }
         "required": ["args"]
     },
 )
