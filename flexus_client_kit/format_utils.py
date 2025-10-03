@@ -112,7 +112,7 @@ def format_json_output(
 def format_text_output(
     path: str,
     content: str,
-    line_range: str,
+    lines_range: str,
     safety_valve: str = "50k"
 ) -> Tuple[str, bool]:
     """Format text data for display with truncation if needed."""
@@ -121,12 +121,12 @@ def format_text_output(
     else:
         safety_valve_kb = DEFAULT_SAFETY_VALVE
     
-    if ":" in line_range:
-        start_str, end_str = line_range.split(":", 1)
+    if ":" in lines_range:
+        start_str, end_str = lines_range.split(":", 1)
         start = int(start_str) if start_str else 0
         end = int(end_str) if end_str else len(lines)
     else:
-        start = end = int(line_range)
+        start = end = int(lines_range)
     start = max(0, start)
     end = min(len(lines), end)
 
