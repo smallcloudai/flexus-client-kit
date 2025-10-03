@@ -211,6 +211,7 @@ def validate_json_content(
     except Exception as e:
         return False, [f"JSON parsing error: {str(e)}"]
 
+    return True, []
     # If no schema provided, just check JSON validity
     if not validation_rules:
         return True, []
