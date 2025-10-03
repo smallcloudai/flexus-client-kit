@@ -120,16 +120,6 @@ def format_text_output(
         safety_valve_kb = int(safety_valve[:-1])
     else:
         safety_valve_kb = DEFAULT_SAFETY_VALVE
-    
-    if ":" in lines_range:
-        start_str, end_str = lines_range.split(":", 1)
-        start = int(start_str) if start_str else 0
-        end = int(end_str) if end_str else len(lines)
-    else:
-        start = end = int(lines_range)
-    start = max(0, start)
-    end = min(len(lines), end)
-
     size_bytes = len(content.encode('utf-8'))
     size_kb = size_bytes / 1024    
     header_lines = [
@@ -139,6 +129,14 @@ def format_text_output(
     ]
     ctx_left = safety_valve_kb * 1024
     lines = content.splitlines()
+    if ":" in lines_range:
+        start_str, end_str = lines_range.split(":", 1)
+        start = int(start_str) if start_str else 0
+        end = int(end_str) if end_str else len(lines)
+    else:
+        start = end = int(lines_range)
+    start = max(0, start)
+    end = min(len(lines), end)
     result = []
     for i in range(start, end):
         line = lines[i]
@@ -152,10 +150,6 @@ def format_text_output(
 
     result = header_lines + result
     return "\n".join(result)
-    
-    return result, truncated
-
-
 def format_binary_output(
     path: str,
     data: bytes,
