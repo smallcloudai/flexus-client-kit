@@ -139,8 +139,12 @@ async def handle_mongo_store(
         document = await ckit_mongo.retrieve_file(mongo_collection, path)
         if not document:
             return f"Error: File {path} not found in MongoDB"
-        file_data = document.get("data", document.get("json", None))
-        result = grep_output(path, file_data, pattern, context)
+        if document.get("data"):
+            content = document["data"].decode("utf-8")
+        elif document.get("json"):
+            content = json.dumps(document["json"], indent=2)
+
+        result = grep_output(path, content, pattern, context)
         if not result:
             return f"No matches found for pattern in file"
         return result
