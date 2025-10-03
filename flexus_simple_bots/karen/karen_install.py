@@ -1,7 +1,6 @@
 import asyncio
 import json
 import base64
-import argparse
 from pathlib import Path
 
 from flexus_client_kit import ckit_client
@@ -85,7 +84,7 @@ async def install(
         ws_id=ws_id,
         marketable_name=karen_bot.BOT_NAME,
         marketable_version=karen_bot.BOT_VERSION,
-        marketable_accent_color=karen_bot.ACCENT_COLOR,
+        marketable_accent_color="#23CCCC",
         marketable_title1="Karen",
         marketable_title2="Your 24/7 customer support agent. Empathetic, accurate, and always keeps your users happy.",
         marketable_author="Flexus",
@@ -95,7 +94,11 @@ async def install(
         marketable_github_repo="https://github.com/smallcloudai/flexus-client-kit.git",
         marketable_run_this="python -m flexus_simple_bots.karen.karen_bot",
         marketable_setup_default=karen_setup_default,
-        marketable_preferred_model_default="gpt-5-mini",
+        marketable_featured_actions=[
+            {"feat_question": "What people ask for today?", "feat_run_as_setup": False, "feat_depends_on_setup": []},
+        ],
+        marketable_intro_message="Hi! I'm Karen, your 24/7 customer support agent. I'm empathetic, accurate, and always here to keep your users happy.",
+        marketable_preferred_model_default="grok-4-fast",
         marketable_daily_budget_default=1_000_000,
         marketable_default_inbox_default=100_000,
         marketable_expert_default=ckit_bot_install.FMarketplaceExpertInput(
@@ -114,7 +117,7 @@ async def install(
             fexp_allow_tools="",
             fexp_app_capture_tools=bot_internal_tools,
         ),
-        marketable_tags=["customer support"],
+        marketable_tags=["Customer Support"],
         marketable_picture_big_b64=big,
         marketable_picture_small_b64=small,
         marketable_schedule=[
@@ -133,9 +136,6 @@ async def install(
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--baseurl", default="", help="Base URL for the Flexus API")
-    parser.add_argument("--ws", default="solarsystem", help="Workspace ID")
-    args = parser.parse_args()
-    client = ckit_client.FlexusClient("karen_install", base_url=args.baseurl)
+    args = ckit_bot_install.bot_install_argparse()
+    client = ckit_client.FlexusClient("karen_install")
     asyncio.run(install(client, ws_id=args.ws))

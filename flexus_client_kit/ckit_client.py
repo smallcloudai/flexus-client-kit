@@ -13,16 +13,23 @@ from flexus_client_kit import ckit_logs
 from flexus_client_kit import ckit_passwords, gql_utils
 
 
-FLEXUS_API_BASEURL_DEFAULT = "https://flexus.team/"
-
-
 logger = logging.getLogger("fclnt")
+
+
+HELP = """
+These environment variables affect execution:
+
+export FLEXUS_API_KEY=fx-******
+export FLEXUS_API_BASEURL=https://flexus.team/
+"""
+
+
+FLEXUS_API_BASEURL_DEFAULT = "https://flexus.team/"
 
 
 def bot_service_name(bot_name: str, bot_version: int, operating_in_group: str):
     assert isinstance(bot_version, int)
     return f"{bot_name}_{bot_version}_{operating_in_group}"
-
 
 class FlexusClient:
     def __init__(self,
@@ -54,6 +61,9 @@ class FlexusClient:
         self.endpoint = endpoint
         self.service_name = service_name
         logger.info("FlexusClient service_name=%s api_key=%s %s", self.service_name, ("..." + self.api_key[-4:]) if self.api_key else "None", self.http_url)
+        if have_api_key:
+            assert not have_api_key.startswith("http:")
+        assert not self.base_url_http.startswith("fx-")
 
     async def use_http(self) -> gql.Client:
         if self.api_key is not None:

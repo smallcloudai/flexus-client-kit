@@ -1,7 +1,6 @@
 import asyncio
 import json
 import base64
-import argparse
 from pathlib import Path
 
 from flexus_client_kit import ckit_client
@@ -82,7 +81,7 @@ async def install(
         ws_id=ws_id,
         marketable_name=frog_bot.BOT_NAME,
         marketable_version=frog_bot.BOT_VERSION,
-        marketable_accent_color=frog_bot.ACCENT_COLOR,
+        marketable_accent_color="#228B22",
         marketable_title1="Frog",
         marketable_title2="A cheerful frog bot that brings joy and positivity to your workspace.",
         marketable_author="Flexus",
@@ -92,6 +91,11 @@ async def install(
         marketable_github_repo="https://github.com/smallcloudai/flexus-client-kit.git",
         marketable_run_this="python -m flexus_simple_bots.frog.frog_bot",
         marketable_setup_default=frog_setup_schema,
+        marketable_featured_actions=[
+            {"feat_question": "Ribbit! Tell me something fun", "feat_run_as_setup": False, "feat_depends_on_setup": []},
+            {"feat_question": "Give me a motivational boost", "feat_run_as_setup": False, "feat_depends_on_setup": []},
+        ],
+        marketable_intro_message="Ribbit! Hi there! I'm Frog, your cheerful workspace companion. I'm here to bring joy and keep your spirits high. What can I do for you today?",
         marketable_preferred_model_default="grok-code-fast-1",
         marketable_daily_budget_default=100_000,
         marketable_default_inbox_default=10_000,
@@ -138,8 +142,6 @@ async def install(
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--ws", default="solarsystem", help="Workspace ID")
-    args = parser.parse_args()
+    args = ckit_bot_install.bot_install_argparse()
     client = ckit_client.FlexusClient("frog_install")
     asyncio.run(install(client, ws_id=args.ws))

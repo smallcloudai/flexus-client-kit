@@ -2,9 +2,19 @@ import json
 from dataclasses import dataclass
 import dataclasses
 from typing import Dict, Union, Optional, List, Any
+import argparse
 import gql
 
 from flexus_client_kit import ckit_client, gql_utils
+
+
+def bot_install_argparse():
+    parser = argparse.ArgumentParser(
+        epilog=ckit_client.HELP,
+        formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+    parser.add_argument("--ws", help="Workspace ID", required=True)
+    return parser.parse_args()
 
 
 @dataclass
@@ -43,6 +53,8 @@ async def marketplace_upsert_dev_bot(
     marketable_run_this: str,
     marketable_schedule: List[Dict[str, Any]],
     marketable_setup_default: List[Dict[str, Union[str, int, float, bool]]],
+    marketable_featured_actions: List[Dict[str, Any]],
+    marketable_intro_message: str,
     marketable_preferred_model_default: str,
     marketable_daily_budget_default: int,
     marketable_default_inbox_default: int,
@@ -55,10 +67,11 @@ async def marketplace_upsert_dev_bot(
     marketable_tags: List[str] = [],
     marketable_stage: str = "MARKETPLACE_DEV",
 ) -> FBotInstallOutput:
+    assert not ws_id.startswith("fx-"), "You can find workspace id in the browser address bar, when visiting for example the statistics page"
     http = await client.use_http()
     async with http as h:
         r = await h.execute(
-            gql.gql(f"""mutation InstallBot($ws: String!, $name: String!, $ver: String!, $title1: String!, $title2: String!, $author: String!, $accent_color: String!, $occupation: String!, $desc: String!, $typical_group: String!, $repo: String!, $run: String!, $setup: String!, $model: String!, $daily: Int!, $inbox: Int!, $e1: FMarketplaceExpertInput!, $e2: FMarketplaceExpertInput, $e3: FMarketplaceExpertInput, $e4: FMarketplaceExpertInput, $schedule: String!, $big: String!, $small: String!, $tags: [String!]!, $stage: String!) {{
+            gql.gql(f"""mutation InstallBot($ws: String!, $name: String!, $ver: String!, $title1: String!, $title2: String!, $author: String!, $accent_color: String!, $occupation: String!, $desc: String!, $typical_group: String!, $repo: String!, $run: String!, $setup: String!, $featured: [FFeaturedActionInput!]!, $intro: String!, $model: String!, $daily: Int!, $inbox: Int!, $e1: FMarketplaceExpertInput!, $e2: FMarketplaceExpertInput, $e3: FMarketplaceExpertInput, $e4: FMarketplaceExpertInput, $schedule: String!, $big: String!, $small: String!, $tags: [String!]!, $stage: String!) {{
                 marketplace_upsert_dev_bot(
                     ws_id: $ws,
                     marketable_name: $name,
@@ -73,6 +86,8 @@ async def marketplace_upsert_dev_bot(
                     marketable_github_repo: $repo,
                     marketable_run_this: $run,
                     marketable_setup_default: $setup,
+                    marketable_featured_actions: $featured,
+                    marketable_intro_message: $intro,
                     marketable_preferred_model_default: $model,
                     marketable_daily_budget_default: $daily,
                     marketable_default_inbox_default: $inbox,
@@ -103,6 +118,8 @@ async def marketplace_upsert_dev_bot(
                 "repo": marketable_github_repo,
                 "run": marketable_run_this,
                 "setup": json.dumps(marketable_setup_default),
+                "featured": marketable_featured_actions,
+                "intro": marketable_intro_message,
                 "model": marketable_preferred_model_default,
                 "daily": marketable_daily_budget_default,
                 "inbox": marketable_default_inbox_default,
