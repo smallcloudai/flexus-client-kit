@@ -116,7 +116,7 @@ find    - Find files by name pattern
           args: path (default "."), pattern (required, e.g. "*.py", "test_*")
 
 grep    - Search file contents with context and formatting
-          args: path (default "."), pattern (required), literal (true/false), recursive (true), include ("*"), context (0)
+          args: path (default "."), pattern (required), recursive (true), include ("*"), context (0)
 
 ls      - List directory contents (dirs have "/" suffix)
           args: path (default ".")
@@ -260,7 +260,7 @@ def handle_grep(workdir: str, path: str, args: Dict[str, Any], model_produced_ar
             files_with_matches += 1
             results.append(result)
     if not results:
-        return f"No matches found for pattern '{pattern}' in {len(files_to_search)} files"
+        return f"No matches found for pattern in {len(files_to_search)} files"
 
     summary = f"Found pattern in {files_with_matches}/{len(files_to_search)} files:"
     return summary + "\n" + "\n".join(results)
