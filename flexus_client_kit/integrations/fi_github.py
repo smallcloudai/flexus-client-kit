@@ -15,7 +15,6 @@ GITHUB_TOOL = ckit_cloudtool.CloudTool(
     name="github",
     description=(
         "Interact with GitHub via the gh CLI. Provide full list of args as a JSON array , e.g ['issue', 'create', '--title', 'My title']"
-        "Optionally provide path to .env file for GH_TOKEN"
     ),
     parameters={
         "type": "object",
@@ -24,10 +23,6 @@ GITHUB_TOOL = ckit_cloudtool.CloudTool(
                 "type": "array",
                 "items": {"type": "string"},
                 "description": "gh cli args list, e.g. ['issue', 'create', '--title', 'My title']"
-            },
-            "env": {
-                "type": "string",
-                "description": "path/to/env file"
             }
         },
         "required": ["args"]
@@ -39,30 +34,15 @@ class IntegrationGithub:
         self.rcx = rcx
         self.token = token
 
-    async def called_by_model(self, toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, List[str]]) -> str:
+    async def called_by_model(self, toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, List[str]], token: str) -> str:
         if not isinstance(model_produced_args, dict) or "args" not in model_produced_args:
             return "Error: no args param found!"
         if not isinstance(model_produced_args["args"], list) or not all(isinstance(arg, str) for arg in model_produced_args["args"]):
             return "Error: args must be a list of str!"
 
-        if "env" in model_produced_args: 
-            env_path = os.path.join(self.rcx.workdir, model_produced_args["env"])
-            if not os.path.isfile(env_path):
-                return "Error: env does not exist or is not a file"
-            async with aiofiles.open(env_path, "r") as f:
-                token = None
-                async for line in f:
-                    line = line.strip()
-                    if line.startswith(("GH_TOKEN=", "GITHUB_TOKEN=")) :
-                        token = line.split("=", 1)[1].strip().strip('"').strip("'")
-                        break
-            if not token:
-                return "Error: GH_TOKEN not found in env file"
-
-        elif self.token:
-            token = self.token
-        else: 
-            return "Error: no token configured, provide path to env in args"
+        token = token or self.token
+        if not token:
+            return "Error: no token configured"
         env = os.environ.copy()
         env["GITHUB_TOKEN"] = token
         cmd = ["gh"] + model_produced_args["args"]
