@@ -120,7 +120,7 @@ def format_text_output(
     if safety_valve.lower().endswith('k'):
         safety_valve_kb = int(safety_valve[:-1])
     else:
-        safety_valve_kb = DEFAULT_SAFETY_VALVE
+        safety_valve_kb = int(safety_valve) / 1024
     size_bytes = len(content.encode('utf-8'))
     size_kb = size_bytes / 1024    
     header_lines = [
@@ -128,7 +128,7 @@ def format_text_output(
         f"   Type: Text",
         f"   Size: {size_bytes:,} bytes ({size_kb:.1f} KB)"
     ]
-    ctx_left = safety_valve_kb * 1024
+    ctx_left = int(safety_valve_kb * 1024)
     lines = content.splitlines()
     if ":" in lines_range:
         start_str, end_str = lines_range.split(":", 1)
@@ -147,6 +147,7 @@ def format_text_output(
             result.append(truncated_line + ("\n\n... (truncated)"))
             break
         else:
+            ctx_left -= len(line.encode('utf-8'))
             result.append(line)
 
     result = header_lines + result
