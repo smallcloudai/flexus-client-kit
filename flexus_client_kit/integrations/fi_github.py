@@ -27,13 +27,6 @@ GITHUB_TOOL = ckit_cloudtool.CloudTool(
 )
 
 
-@dataclass
-class FGitHubMintTokenOutput:
-    token: str
-    expires_at: str
-    installation_id: str
-
-
 class IntegrationGitHub:
     def __init__(
         self,

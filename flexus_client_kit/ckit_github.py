@@ -1,24 +1,12 @@
 import os
 import time
 import logging
-from typing import Optional, Any
-from dataclasses import dataclass
+from typing import Optional
 import httpx
 import jwt
 import gql
 
-from flexus_client_kit import gql_utils
-
 logger = logging.getLogger(__name__)
-
-
-@dataclass
-class FExternalAuthOutput:
-    auth_id: str
-    auth_name: str
-    auth_auth_type: str
-    auth_service_provider: str
-    auth_json: Any
 
 EXTERNAL_GITHUB_CLIENT_ID = os.environ.get("EXTERNAL_GITHUB_CLIENT_ID")
 EXTERNAL_GITHUB_APP_PRIVATE_KEY = os.environ.get("EXTERNAL_GITHUB_APP_PRIVATE_KEY")
@@ -129,21 +117,17 @@ async def get_token_from_github_auth_cred(auth_json: dict, repo_name: str) -> Op
     return await exchange_installation_id_to_token(inst_id)
 
 
-async def get_external_auth(fclient, auth_id: str) -> Optional[FExternalAuthOutput]:
+async def get_gh_repo_token_from_external_auth(fclient, auth_id: str, repo_uri: str) -> Optional[str]:
     http = await fclient.use_http()
     async with http as h:
         r = await h.execute(
-            gql.gql(f"""
-                query GetExternalAuth($auth_id: String!) {{
-                    get_external_auth(auth_id: $auth_id) {{
-                        {gql_utils.gql_fields(FExternalAuthOutput)}
-                    }}
-                }}"""),
-            variable_values={"auth_id": auth_id},
+            gql.gql("""
+                query GetGhRepoTokenFromExternalAuth($auth_id: String!, $repo_uri: String!) {
+                    get_gh_repo_token_from_external_auth(auth_id: $auth_id, repo_uri: $repo_uri)
+                }"""),
+            variable_values={
+                "auth_id": auth_id,
+                "repo_uri": repo_uri,
+            },
         )
-    auth_data = r.get("get_external_auth")
-    if not auth_data:
-        return None
-    return gql_utils.dataclass_from_dict(auth_data, FExternalAuthOutput)
-
-
+    return r.get("get_gh_repo_token_from_external_auth")
