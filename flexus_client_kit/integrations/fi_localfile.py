@@ -1,5 +1,3 @@
-import asyncio
-import json
 import os
 import logging
 import re
@@ -7,7 +5,6 @@ import glob
 from typing import Dict, Any, Optional, List, Tuple, NamedTuple
 
 from flexus_client_kit import ckit_cloudtool
-from flexus_client_kit.format_utils import format_text_output
 
 logger = logging.getLogger("localfile")
 
