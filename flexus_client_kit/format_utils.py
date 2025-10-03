@@ -115,7 +115,7 @@ def format_text_output(
     content: str,
     lines_range: str,
     safety_valve: str = "50k"
-) -> Tuple[str, bool]:
+) -> str:
     """Format text data for display with truncation if needed."""
     if safety_valve.lower().endswith('k'):
         safety_valve_kb = int(safety_valve[:-1])
@@ -151,12 +151,14 @@ def format_text_output(
 
     result = header_lines + result
     return "\n".join(result)
+
+
 def format_binary_output(
     path: str,
     data: bytes,
     lines_range: str,
     safety_valve: str = "50k"
-) -> Tuple[str, bool]:
+) -> str:
     """Format binary data for display, with special handling for images."""
     size_bytes = len(data)
     size_kb = size_bytes / 1024
@@ -200,7 +202,7 @@ def format_binary_output(
         except Exception:
             result += "Binary file (cannot be displayed)\n"
     
-    return result, False
+    return result
 
 
 def format_cat_output(
@@ -214,9 +216,9 @@ def format_cat_output(
         return f"Error: File {path} has no content"
     
     if isinstance(file_data, bytes):
-        return format_binary_output(path, file_data, lines_range, safety_valve)[0]
+        return format_binary_output(path, file_data, lines_range, safety_valve)
     elif isinstance(file_data, str):
-        return format_text_output(path, file_data, lines_range, safety_valve)[0]
+        return format_text_output(path, file_data, lines_range, safety_valve)
     else:
         return format_json_output(path, file_data, safety_valve)[0]
     
