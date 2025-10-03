@@ -81,7 +81,7 @@ class IntegrationGitHub:
             return "Error: args must be a list of str!"
 
         args = model_produced_args["args"]
-        if not self.is_read_only_command(args) and not self._is_allowed_write_command(args):
+        if not self.is_read_only_command(args) and not self._is_allowed_write_command(args) and not toolcall.confirmed_by_human:
             raise ckit_cloudtool.NeedsConfirmation(
                 confirm_setup_key="github_write",
                 confirm_command=f"gh {' '.join(args)}",
