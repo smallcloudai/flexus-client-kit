@@ -182,7 +182,7 @@ def handle_cat(workdir: str, path: str, args: Dict[str, Any], model_produced_arg
         content = f.read().decode('utf-8', errors='replace')
     lines_range = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "lines_range", "0:")
     safety_valve = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "safety_valve", "10k")
-    return format_text_output(path, content, lines_range, safety_valve)
+    return format_text_output(path, content, lines_range, str(safety_valve))
 
 
 def handle_find(workdir: str, path: str, args: Dict[str, Any], model_produced_args: Dict[str, Any]) -> str:
