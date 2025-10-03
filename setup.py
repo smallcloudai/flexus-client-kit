@@ -19,6 +19,9 @@ setup(
         "Pillow",
         "genson",
         "pymongo",
+        "bleach",
+        "jsonschema",
+        "beautifulsoup4",
     ],
     extras_require={
         "dev": [

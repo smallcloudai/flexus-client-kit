@@ -395,7 +395,7 @@ Available report types:
 {types_list}
 
 Use one of the report IDs above or create a new report with:
-  create_report(name=<report_name>, parameters='{"competitors": ["comp1", "comp2"]}', report_type=<type>)""")
+  create_report(name=<report_name>, report_type=<type>, parameters=<dict_parameters>)""")
         else:
             available = list_available_reports()
             types_list = "\n".join([f"  - {t[0]}: {t[1]}" for t in available])
@@ -404,8 +404,7 @@ Use one of the report IDs above or create a new report with:
 
 Error: Report '{report_id}' not found.
 
-No reports available. Create a new report with:
-  create_report(name=<report_name>, parameters='{"competitors": ["comp1", "comp2"]}', report_type=<type>)
+No reports available.
 
 Available report types:
 {types_list}""")
@@ -968,6 +967,7 @@ async def handle_process_report_tool(
         first_calls,
         titles,
         toolcall.fcall_id,
+        max_tokens=16000
     )
 
     return "WAIT_SUBCHATS"

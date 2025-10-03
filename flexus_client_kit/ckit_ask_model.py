@@ -205,14 +205,16 @@ async def bot_subchat_create_multiple(
     first_calls: List[str],
     title: List[str],
     fcall_id: str,
+    max_tokens: Optional[int] = None,
+    temperature: Optional[float] = None,
 ) -> None:
     assert re.match(r'^[a-z0-9_]+$', who_is_asking)
     camel_case_for_logs = "".join(word.capitalize() for word in who_is_asking.split("_"))
     http = await client.use_http()
     async with http as h:
         await h.execute(
-            gql.gql(f"""mutation {camel_case_for_logs}BotSubchatCreateMultiple($who_is_asking: String!, $persona_id: String!, $first_question: [String!]!, $first_calls: [String!]!, $title: [String!]!, $fcall_id: String!) {{
-                bot_subchat_create_multiple(who_is_asking: $who_is_asking, persona_id: $persona_id, first_question: $first_question, first_calls: $first_calls, title: $title, fcall_id: $fcall_id)
+            gql.gql(f"""mutation {camel_case_for_logs}BotSubchatCreateMultiple($who_is_asking: String!, $persona_id: String!, $first_question: [String!]!, $first_calls: [String!]!, $title: [String!]!, $fcall_id: String!, $max_tokens: Int, $temperature: Float) {{
+                bot_subchat_create_multiple(who_is_asking: $who_is_asking, persona_id: $persona_id, first_question: $first_question, first_calls: $first_calls, title: $title, fcall_id: $fcall_id, max_tokens: $max_tokens, temperature: $temperature)
             }}"""),
             variable_values={
                 "who_is_asking": who_is_asking,
@@ -221,6 +223,8 @@ async def bot_subchat_create_multiple(
                 "first_calls": first_calls,
                 "title": title,
                 "fcall_id": fcall_id,
+                "max_tokens": max_tokens,
+                "temperature": temperature,
             },
         )
 

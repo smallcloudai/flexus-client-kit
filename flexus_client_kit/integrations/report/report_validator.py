@@ -1,40 +1,7 @@
 import json
 import re
-from html.parser import HTMLParser
 from typing import Any, Dict, List, Optional, Tuple
-
-
-class HTMLValidator(HTMLParser):
-    def __init__(self, content):
-        super().__init__()
-        self.content = content
-        self.tag_stack = []
-        self.errors = []
-        self.found_tags = set()
-        self.found_classes = set()
-        self.text_content = []
-
-    def handle_starttag(self, tag, attrs):
-        self.found_tags.add(tag)
-        self.tag_stack.append(tag)
-        for attr_name, attr_value in attrs:
-            if attr_name == "class" and attr_value:
-                self.found_classes.update(attr_value.split())
-
-    def handle_endtag(self, tag):
-        if self.tag_stack and self.tag_stack[-1] == tag:
-            self.tag_stack.pop()
-        else:
-            self.errors.append(f"Mismatched closing tag: </{tag}>")
-
-    def handle_data(self, data):
-        if data.strip():
-            self.text_content.append(data.strip())
-
-    def validate(self) -> Tuple[bool, List[str]]:
-        if self.tag_stack:
-            self.errors.append(f"Unclosed tags: {', '.join(self.tag_stack)}")
-        return len(self.errors) == 0, self.errors
+from bs4 import BeautifulSoup
 
 
 def validate_html_content(
@@ -42,8 +9,8 @@ def validate_html_content(
         validation_rules: Optional[Dict] = None
 ) -> Tuple[bool, List[str]]:
     """
-    Validate HTML content against rules.
-    
+    Validate HTML content against rules using BeautifulSoup.
+
     Args:
         content: HTML string to validate
         validation_rules: Dict with validation requirements:
@@ -51,90 +18,85 @@ def validate_html_content(
             - required_classes: List of required CSS classes
             - min_td_count: Minimum number of td elements
             - required_text: List of text that must appear
-    
+
     Returns:
         Tuple of (is_valid, error_messages)
     """
     errors = []
 
-    # Basic HTML validation
-    parser = HTMLValidator(content)
+    # Parse HTML with BeautifulSoup
     try:
-        parser.feed(content)
-        is_valid, parse_errors = parser.validate()
-        if not is_valid:
-            errors.extend(parse_errors)
+        soup = BeautifulSoup(content, 'html.parser')
     except Exception as e:
         errors.append(f"HTML parsing error: {str(e)}")
         return False, errors
 
-    dangerous_patterns = [
-        r'<iframe[^>]*>',
-    ]
-    for pattern in dangerous_patterns:
-        if re.search(pattern, content, re.IGNORECASE | re.DOTALL):
-            errors.append(f"Dangerous content detected: {pattern}")
+    dangerous_elements = soup.find_all(['iframe', 'object', 'embed'])
+    for elem in dangerous_elements:
+        if elem.name == 'iframe':
+            errors.append(f"Dangerous content detected: <iframe> tag")
+        elif elem.name in ['object', 'embed']:
+            errors.append(f"Dangerous content detected: <{elem.name}> tag")
+
+    found_tags = set()
+    found_classes = set()
+    
+    for element in soup.find_all():
+        found_tags.add(element.name)
+        if element.get('class'):
+            found_classes.update(element.get('class'))
 
     if validation_rules:
-        # for some reason it filters out <script> tags
         if "expected_elements" in validation_rules:
             for element in validation_rules["expected_elements"]:
-                if element not in parser.found_tags:
+                if element not in found_tags:
                     errors.append(f"Missing required element: <{element}>")
 
         if "required_classes" in validation_rules:
             for cls in validation_rules["required_classes"]:
-                if cls not in parser.found_classes:
+                if cls not in found_classes:
                     errors.append(f"Missing required CSS class: {cls}")
 
         if "min_td_count" in validation_rules:
-            td_count = content.count("<td")
+            td_elements = soup.find_all('td')
+            td_count = len(td_elements)
             if td_count < validation_rules["min_td_count"]:
                 errors.append(f"Insufficient <td> elements: found {td_count}, need {validation_rules['min_td_count']}")
 
         if "required_text" in validation_rules:
-            lower_content = content.lower()
+            text_content = soup.get_text().lower()
             for required in validation_rules["required_text"]:
                 if not required.startswith("{"):
-                    if required.lower() not in lower_content:
+                    if required.lower() not in text_content:
                         errors.append(f"Missing required text: {required}")
 
     return len(errors) == 0, errors
 
 
 def sanitize_html(content: str) -> str:
-    """
-    Basic HTML sanitization to prevent template corruption.
-    
-    Args:
-        content: HTML string to sanitize
-    
-    Returns:
-        Sanitized HTML string
-    """
     content = re.sub(r'<iframe[^>]*>.*?</iframe>', '', content, flags=re.DOTALL | re.IGNORECASE)
     return content
 
 
 def validate_json_schema(
-    data: Any,
-    schema: Dict[str, Any],
-    path: str = ""
+        data: Any,
+        schema: Dict[str, Any],
+        path: str = ""
 ) -> List[str]:
     """
     Recursively validate data against a JSON schema.
-    
+
     Args:
         data: Data to validate
         schema: JSON Schema definition (supports type, properties, required, items, etc.)
         path: Current path in the data structure (for error messages)
-    
+
     Returns:
         List of error messages
     """
     errors = []
     current_path = path or "root"
-    
+
     # Check type
     if "type" in schema:
         expected_type = schema["type"]
@@ -156,7 +118,7 @@ def validate_json_schema(
         elif expected_type == "integer" and not isinstance(data, int):
             errors.append(f"{current_path}: expected integer, got {type(data).__name__}")
             return errors
-    
+
     # Validate object properties
     if schema.get("type") == "object" and isinstance(data, dict):
         # Check required properties
@@ -166,7 +128,7 @@ def validate_json_schema(
                     errors.append(f"{current_path}.{field}: required field missing")
                 elif data[field] is None and not schema.get("properties", {}).get(field, {}).get("nullable", False):
                     errors.append(f"{current_path}.{field}: required field is null")
-        
+
         # Validate each property if schema is defined
         if "properties" in schema:
             for field, field_schema in schema["properties"].items():
@@ -177,14 +139,14 @@ def validate_json_schema(
                         f"{current_path}.{field}"
                     )
                     errors.extend(field_errors)
-        
+
         # Check for additional properties if not allowed
         if schema.get("additionalProperties") is False:
             allowed_props = set(schema.get("properties", {}).keys())
             extra_props = set(data.keys()) - allowed_props
             if extra_props:
                 errors.append(f"{current_path}: unexpected properties: {', '.join(extra_props)}")
-    
+
     # Validate array items
     elif schema.get("type") == "array" and isinstance(data, list):
         if "items" in schema:
@@ -195,17 +157,17 @@ def validate_json_schema(
                     f"{current_path}[{i}]"
                 )
                 errors.extend(item_errors)
-        
+
         # Check min/max items
         if "minItems" in schema and len(data) < schema["minItems"]:
             errors.append(f"{current_path}: array has {len(data)} items, minimum {schema['minItems']} required")
         if "maxItems" in schema and len(data) > schema["maxItems"]:
             errors.append(f"{current_path}: array has {len(data)} items, maximum {schema['maxItems']} allowed")
-    
+
     # Validate enum values
     if "enum" in schema and data not in schema["enum"]:
         errors.append(f"{current_path}: value '{data}' not in allowed values: {schema['enum']}")
-    
+
     # Validate string patterns
     if schema.get("type") == "string" and isinstance(data, str):
         if "minLength" in schema and len(data) < schema["minLength"]:
@@ -216,28 +178,28 @@ def validate_json_schema(
             import re
             if not re.match(schema["pattern"], data):
                 errors.append(f"{current_path}: string does not match pattern '{schema['pattern']}'")
-    
+
     # Validate number constraints
     if schema.get("type") in ["number", "integer"] and isinstance(data, (int, float)):
         if "minimum" in schema and data < schema["minimum"]:
             errors.append(f"{current_path}: value {data} is less than minimum {schema['minimum']}")
         if "maximum" in schema and data > schema["maximum"]:
             errors.append(f"{current_path}: value {data} exceeds maximum {schema['maximum']}")
-    
+
     return errors
 
 
 def validate_json_content(
-    content: str,
-    validation_rules: Dict[str, Any]
+        content: str,
+        validation_rules: Dict[str, Any]
 ) -> Tuple[bool, List[str]]:
     """
     Validate JSON content against a JSON schema.
-    
+
     Args:
         content: JSON string to validate
         validation_rules: JSON Schema definition
-    
+
     Returns:
         Tuple of (is_valid, error_messages)
     """
@@ -248,12 +210,12 @@ def validate_json_content(
         return False, [f"Invalid JSON: {str(e)}"]
     except Exception as e:
         return False, [f"JSON parsing error: {str(e)}"]
-    
+
     # If no schema provided, just check JSON validity
     if not validation_rules:
         return True, []
-    
+
     # Validate against schema
     errors = validate_json_schema(data, validation_rules)
-    
+
     return len(errors) == 0, errors
