@@ -19,11 +19,11 @@ MONGO_STORE_TOOL = ckit_cloudtool.CloudTool(
         "properties": {
             "op": {
                 "type": "string",
-                "description": "upload, download, list, cat, delete or help"
+                "description": "upload, list, cat, delete or help"
             },
             "args": {
                 "type": "object",
-                "description": "Operations upload, download, delete, cat require 'path'. "
+                "description": "Operations upload, delete, cat require 'path'. "
                                "Operation 'list' uses optional 'path' for prefix filtering. "
                                "Operation 'cat' has optional 'safety_valve' in bytes to prevent a large file from clogging context. Use op=help for details."
             },
@@ -37,9 +37,6 @@ Help:
 
 mongo_store(op="upload", args={"path": "folder1/something_20250803.json"})
     Uploads file from local path to MongoDB, stores as "folder1/something_20250803.json".
-
-mongo_store(op="download", args={"path": "folder1/something_20250803.json"})
-    Downloads file from MongoDB to local file system, returns the path in the local filesystem
 
 mongo_store(op="list", args={"path": "folder1/"})
     Lists files in MongoDB with the given prefix.
@@ -92,19 +89,6 @@ async def handle_mongo_store(
         if was_overwritten:
             result_msg += " [OVERWRITTEN existing file]"
         return result_msg
-
-    elif op == "download":
-        if not path:
-            return f"Error: path parameter required for download operation\n\n{HELP}"
-        path_error = validate_path(path)
-        if path_error:
-            return f"Error: {path_error}"
-        try:
-            await download_file(mongo_collection, path, os.path.join(workdir, path))
-        except Exception as e:
-            logger.error(f"Download failed for {path}: {e}", exc_info=True)
-            return f"Error: Failed to download {path}: {e}"
-        return f"Downloaded to {path}"
 
     elif op in ["list", "ls"]:
         if not path:
