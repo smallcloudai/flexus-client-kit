@@ -154,6 +154,7 @@ def format_text_output(
 def format_binary_output(
     path: str,
     data: bytes,
+    lines_range: str,
     safety_valve: str = "50k"
 ) -> Tuple[str, bool]:
     """Format binary data for display, with special handling for images."""
@@ -181,7 +182,7 @@ def format_binary_output(
     
     try:
         text_content = data.decode('utf-8')
-        return format_text_output(path, text_content, safety_valve)
+        return format_text_output(path, text_content, lines_range, safety_valve)
     except UnicodeDecodeError:
         pass
     
@@ -205,6 +206,7 @@ def format_binary_output(
 def format_cat_output(
     path: str,
     file_data: Union[bytes, str, list, dict],
+    lines_range: str,
     safety_valve: str = "50k"
 ) -> str:
     """Main function to format file data for display."""
@@ -212,9 +214,9 @@ def format_cat_output(
         return f"Error: File {path} has no content"
     
     if isinstance(file_data, bytes):
-        return format_binary_output(path, file_data, safety_valve)[0]
+        return format_binary_output(path, file_data, lines_range, safety_valve)[0]
     elif isinstance(file_data, str):
-        return format_text_output(path, file_data, safety_valve)[0]
+        return format_text_output(path, file_data, lines_range, safety_valve)[0]
     else:
         return format_json_output(path, file_data, safety_valve)[0]
     
