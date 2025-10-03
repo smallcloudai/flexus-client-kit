@@ -19,12 +19,6 @@ MAX_SEARCH_SIZE = 10 * 1024 * 1024
 DEFAULT_SAFETY_VALVE = 10240
 
 
-class SearchMatch(NamedTuple):
-    line_num: int
-    content: str
-    is_match: bool
-
-
 def _validate_file_security(filepath: str) -> Optional[str]:
     filename = os.path.basename(filepath).lower()
     if filename in FORBIDDEN_FILES:
@@ -205,49 +199,28 @@ def handle_find(workdir: str, path: str, args: Dict[str, Any], model_produced_ar
     return "\n".join(found_files) if found_files else f"No files found matching '{pattern}'"
 
 
-def _search_file_simple(filepath: str, pattern: str, literal: bool, context: int) -> Tuple[List[SearchMatch], str]:
+def _search_file_simple(filepath: str, pattern: str, context: int) -> Tuple[List[str], str]:
+    security_error = _validate_file_security(filepath)
+    if security_error:
+        return [], security_error
+    if os.path.getsize(filepath) > MAX_SEARCH_SIZE:
+        return [], "File too large"
+    search_pattern = pattern
     try:
-        security_error = _validate_file_security(filepath)
-        if security_error:
-            return [], security_error
-
-        if os.path.getsize(filepath) > MAX_SEARCH_SIZE:
-            return [], "File too large"
-
-        search_pattern = re.escape(pattern) if literal else pattern
-
-        try:
-            compiled_pattern = re.compile(search_pattern, re.MULTILINE | re.DOTALL)
-        except re.error as e:
-            return [], f"Invalid regex pattern '{pattern}': {e}"
-
-        with open(filepath, 'r', encoding='utf-8', errors='replace') as f:
-            lines = f.readlines()
-
-        match_lines = set()
-        for line_num, line in enumerate(lines, 1):
-            if compiled_pattern.search(line):
-                match_lines.add(line_num)
-
-        if not match_lines:
-            return [], ""
-
-        all_lines = set(match_lines)
-        if context > 0:
-            for match_line in match_lines:
-                for i in range(max(1, match_line - context), min(len(lines) + 1, match_line + context + 1)):
-                    all_lines.add(i)
-
-        matches = []
-        for line_num in sorted(all_lines):
-            line_content = lines[line_num - 1].rstrip()
-            is_match = line_num in match_lines
-            matches.append(SearchMatch(line_num, line_content, is_match))
-
-        return matches, ""
-
-    except Exception as e:
-        return [], f"Error: {e}"
+        compiled_pattern = re.compile(search_pattern, re.MULTILINE | re.DOTALL)
+    except re.error as e:
+        return [], f"Invalid regex pattern '{pattern}': {e}"
+    with open(filepath, 'r', encoding='utf-8', errors='replace') as f:
+        lines = f.readlines()
+    match_lines = []
+    for line_num, line in enumerate(lines):
+        if compiled_pattern.search(line):
+            prev_num = -1 if not match_lines else match_lines[-1]
+            eff_start = max(prev_num + 1, line_num - context)
+            eff_end = min(len(lines), line_num + context + 1)
+            for i in range(eff_start, eff_end):
+                match_lines.append(i)
+    return [f"{line_num:4d}: {lines[line_num]}" for line_num in match_lines], ""
 
 
 def handle_grep(workdir: str, path: str, args: Dict[str, Any], model_produced_args: Dict[str, Any]) -> str:
@@ -272,37 +245,27 @@ def handle_grep(workdir: str, path: str, args: Dict[str, Any], model_produced_ar
     )
     include = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "include", "*")
     context = int(ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "context", "0"))
-
     files_to_search = _glob_files(realpath, include, recursive)
 
     if not files_to_search:
         return f"No files found in {path}"
-
     results = []
     files_with_matches = 0
 
     for filepath in files_to_search:
-        file_matches, error = _search_file_simple(filepath, pattern, literal, context)
-
+        file_matches, error = _search_file_simple(filepath, pattern, context)
         if error:
             continue
-
         if file_matches:
             files_with_matches += 1
             rel_path = os.path.relpath(filepath, workdir)
             results.append(f"\n=== {rel_path} ===")
-
-            for match in file_matches:
-                if match.is_match:
-                    results.append(f"  {match.line_num:4d}: {match.content}")
-                else:
-                    results.append(f"  {match.line_num:4d}  {match.content}")
+            results.extend(file_matches)
 
     if not results:
         return f"No matches found for pattern '{pattern}' in {len(files_to_search)} files"
 
-    mode = "literal" if literal else "regex"
-    summary = f"Found {mode} pattern '{pattern}' in {files_with_matches}/{len(files_to_search)} files:"
+    summary = f"Found pattern '{pattern}' in {files_with_matches}/{len(files_to_search)} files:"
     return summary + "\n" + "\n".join(results)
 
 
