@@ -6,6 +6,7 @@ import glob
 from typing import Dict, Any, Optional, List, Tuple, NamedTuple
 
 from flexus_client_kit import ckit_cloudtool
+from flexus_client_kit.format_utils import format_text_output
 
 logger = logging.getLogger("localfile")
 
@@ -178,12 +179,10 @@ def handle_cat(workdir: str, path: str, args: Dict[str, Any], model_produced_arg
         return f"Error: {error}"
 
     with open(realpath, 'rb') as f:
-        file_data = f.read()
-
-    line_range = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "lines_range", "1:")
+        content = f.read().decode('utf-8', errors='replace')
+    line_range = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "lines_range", "0:")
     safety_valve = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "safety_valve", "10k")
-    pattern = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "pattern", "")
-    return format_cat_output(path, file_data, line_range, safety_valve, pattern)
+    return format_text_output(path, content, line_range, safety_valve)
 
 
 def handle_find(workdir: str, path: str, args: Dict[str, Any], model_produced_args: Dict[str, Any]) -> str:
@@ -266,10 +265,6 @@ def handle_grep(workdir: str, path: str, args: Dict[str, Any], model_produced_ar
     if not pattern:
         return "Error: pattern parameter required for grep operation"
 
-    literal = _parse_bool(
-        ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "literal", "true"),
-        default=True
-    )
     recursive = _parse_bool(
         ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "recursive", "true"),
         default=True
@@ -359,64 +354,6 @@ def handle_replace(workdir: str, path: str, args: Dict[str, Any], model_produced
             diff_output.append(f"  {i+1:4d} - {old_lines[i]}")
 
     return "\n".join(diff_output)
-
-
-def format_cat_output(
-    path: str,
-    file_data: bytes,
-    line_range: str,
-    safety_valve: str,
-    pattern: str = "",
-    truncate_lines: bool = False,
-) -> str:
-    if safety_valve.lower().endswith('k'):
-        safety_valve_int = int(safety_valve[:-1]) * 1024
-    else:
-        safety_valve_int = DEFAULT_SAFETY_VALVE
-
-    content = file_data.decode('utf-8', errors='replace')
-    lines = content.splitlines()
-
-    if ":" in line_range:
-        start_str, end_str = line_range.split(":", 1)
-        start = int(start_str) if start_str else 1
-        end = int(end_str) if end_str else len(lines)
-    else:
-        start = end = int(line_range)
-
-    start = max(1, start) - 1
-    end = min(len(lines), end)
-
-    compiled_pattern = None
-    if pattern:
-        try:
-            compiled_pattern = re.compile(pattern)
-        except re.error as e:
-            return f"Error: Invalid regex pattern '{pattern}': {e}"
-
-    total_chars = 0
-    header1 = f"File: {path} (total {len(lines)} lines, {len(file_data)} bytes)"
-
-    result = []
-    for i in range(start, end):
-        line = lines[i]
-        if compiled_pattern and not compiled_pattern.search(line):
-            continue
-        if truncate_lines and safety_valve_int - total_chars < len(line):
-            truncate_idx = max(0, safety_valve_int - total_chars)
-            line = line[:truncate_idx] + "..."
-        if compiled_pattern:
-            result.append(f"{i+1:4d}: {line}")
-        else:
-            result.append(line)
-        total_chars += len(line) + 1
-        if total_chars > safety_valve_int:
-            header2 = f"Showing lines {start+1}:{i+1}, because safety_valve limit was hit\n"
-            break
-    else:
-        header2 = "Showing all lines\n"
-
-    return "\n".join([header1, header2, *result])
 
 
 def handle_ls(workdir: str, path: str) -> str:
