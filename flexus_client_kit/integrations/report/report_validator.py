@@ -203,20 +203,19 @@ def validate_json_content(
     Returns:
         Tuple of (is_valid, error_messages)
     """
-    # First check if it's valid JSON
     try:
-        data = json.loads(content)
+        _ = json.loads(content)
     except json.JSONDecodeError as e:
-        return False, [f"Invalid JSON: {str(e)}"]
+        try:
+            import fuzzy_json
+            _ = fuzzy_json.loads(content)
+            return True, []
+        except Exception as e:
+            return False, [f"JSON parsing error: {str(e)}"]
     except Exception as e:
         return False, [f"JSON parsing error: {str(e)}"]
 
-    return True, []
-    # If no schema provided, just check JSON validity
-    if not validation_rules:
-        return True, []
-
-    # Validate against schema
-    errors = validate_json_schema(data, validation_rules)
-
-    return len(errors) == 0, errors
+    # # Validate against schema
+    # errors = validate_json_schema(data, validation_rules)
+    #
+    # return len(errors) == 0, errors

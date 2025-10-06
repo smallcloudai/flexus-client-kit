@@ -2,6 +2,7 @@ import itertools
 import json
 import logging
 import re
+import fuzzy_json
 from datetime import datetime
 from typing import Dict, Any, List, Optional
 from zoneinfo import ZoneInfo
@@ -438,7 +439,7 @@ async def handle_create_report_tool(
     report_id = f"{name}_{timestamp}"
 
     try:
-        report_params = json.loads(parameters)
+        report_params = fuzzy_json.loads(parameters)
         if not isinstance(report_params, dict):
             raise ValueError("Parameters must be a JSON object")
     except Exception as e:
@@ -540,7 +541,7 @@ async def handle_fill_section_tool(
         if json_rules := todo["section_config"].get("json_validation", {}):
             is_valid, errors = validate_json_content(content, json_rules)
             try:
-                content = json.loads(content)
+                content = fuzzy_json.loads(content)
             except Exception as e:
                 return f"Error decoding JSON: {e}. Please fix the JSON and try again."
             if not is_valid:

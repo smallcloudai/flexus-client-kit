@@ -20,6 +20,7 @@ setup(
         "genson",
         "pymongo",
         "bleach",
+        "fuzzy_json",
         "jsonschema",
         "beautifulsoup4",
     ],
