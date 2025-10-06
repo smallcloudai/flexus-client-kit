@@ -103,7 +103,7 @@ LOCALFILE_TOOL = ckit_cloudtool.CloudTool(
     },
 )
 
-HELP = """
+HELP = r"""
 cat     - Read file contents
           args: path (required), lines_range, start inclusive, end exclusive ("0:", "10:20"), safety_valve ("10k")
 
@@ -113,7 +113,8 @@ replace - Replace text in file, shows git-style diff
 find    - Find files by name pattern
           args: path (default "."), pattern (required, e.g. "*.py", "test_*")
 
-grep    - Search file contents with context and formatting
+grep    - Search file contents with context and formatting, pattern uses Python re syntax for per-line matching—double-escape backslashes in JSON (\\.
+for a literal dot, \\\\ for a backslash).
           args: path (default "."), pattern (required), recursive (true), include ("*"), context (0)
 
 ls      - List directory contents (dirs have "/" suffix)
