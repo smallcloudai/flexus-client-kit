@@ -530,8 +530,10 @@ async def handle_fill_section_tool(
     todo_infos = [todo for todo in report_doc["json"]["todo_queue"] if todo["section_name"] == section_name]
     assert len(todo_infos) <= 1, f"Problem in the config, non-unique name in sections:\n{todo_infos}"
     if len(todo_infos) == 0:
+        if next((s for s in report_doc["json"]["sections"] if s["section_name"] == section_name), None):
+            return f"Error: Section '{section_name}' is already filled"
         sections = ", ".join([todo["section_name"] for todo in report_doc["json"]["todo_queue"]])
-        return f"Error: Section '{section_name}' not found in the report '{report_id}'. Available sections:\n{sections}"
+        return f"Error: Section '{section_name}' no found in the report '{report_id}'. Available to process sections:\n{sections}"
 
     report_data = report_doc["json"]
     todo = todo_infos[0]
