@@ -281,20 +281,28 @@ class LinkedInAdsClient:
             f"end:(year:{end_date.year},month:{end_date.month},day:{end_date.day}))"
         )
 
-        params = {
-            "q": "analytics",
-            "pivot": "CAMPAIGN",
-            "campaigns": f"List(urn:li:sponsoredCampaign:{campaign_id})",
-            "timeGranularity": "DAILY",
-            "dateRange": date_range,
-            "fields": "impressions,clicks,costInLocalCurrency",
-        }
-        url = f"{API_BASE}/rest/adAnalytics"
+        # Build URL with properly encoded URNs but unencoded commas in fields
+        # URNs must be URL-encoded (: becomes %3A)
+        campaign_urn = f"urn%3Ali%3AsponsoredCampaign%3A{campaign_id}"
+
+        url = (
+            f"{API_BASE}/rest/adAnalytics?"
+            f"q=analytics&"
+            f"pivot=CAMPAIGN&"
+            f"campaigns=List({campaign_urn})&"
+            f"timeGranularity=DAILY&"
+            f"dateRange={date_range}&"
+            f"fields=impressions,clicks,costInLocalCurrency"
+        )
         logger.info(f"Fetching analytics for campaign: {campaign_id}")
+        logger.info(f"URL: {url}")
         try:
-            async with httpx.AsyncClient() as client:
+            async with httpx.AsyncClient(timeout=30.0) as client:
                 headers = {k: v for k, v in self.headers.items() if k != "Content-Type"}
-                response = await client.get(url, params=params, headers=headers, timeout=30.0)
+                # Use httpx.Request to prevent any URL manipulation
+                request = httpx.Request("GET", url, headers=headers)
+                response = await client.send(request)
+                logger.info(f"Actual request URL: {response.request.url}")
                 if response.status_code == 200:
                     data = response.json()
                     elements = data.get("elements", [])
