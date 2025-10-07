@@ -2,9 +2,12 @@ import os
 import time
 import logging
 from typing import Optional
+from datetime import datetime
+from dataclasses import dataclass
 import httpx
 import jwt
 import gql
+from flexus_client_kit import gql_utils
 
 logger = logging.getLogger(__name__)
 
@@ -13,6 +16,12 @@ EXTERNAL_GITHUB_APP_PRIVATE_KEY = os.environ.get("EXTERNAL_GITHUB_APP_PRIVATE_KE
 if EXTERNAL_GITHUB_APP_PRIVATE_KEY is not None:
     with open(EXTERNAL_GITHUB_APP_PRIVATE_KEY, 'r') as f:
         EXTERNAL_GITHUB_APP_PRIVATE_KEY = f.read()
+
+
+@dataclass
+class GhRepoToken:
+    token: str
+    expires_at: float
 
 
 def _generate_github_app_jwt() -> str:
@@ -44,15 +53,14 @@ def extract_repo_name_from_url(repo_url: str) -> Optional[str]:
     return repo_path.split('/', 1)[1] if repo_path else None
 
 async def _check_installation_repo_access(installation_id: str, target_repo_path: str) -> bool:
-    install_token = await exchange_installation_id_to_token(installation_id)
-    if not install_token:
+    if not (result := await exchange_installation_id_to_token(installation_id)):
         return False
     try:
         async with httpx.AsyncClient() as client:
             resp = await client.get(
                 "https://api.github.com/installation/repositories",
                 headers={
-                    "Authorization": f"Bearer {install_token}",
+                    "Authorization": f"Bearer {result.token}",
                     "Accept": "application/vnd.github.v3+json",
                     "User-Agent": "Flexus-GitHub-Integration"
                 },
@@ -86,7 +94,7 @@ async def pick_working_installation_id(installation_ids: list, repo_url: str) ->
     return None
 
 
-async def exchange_installation_id_to_token(installation_id: str, repo_name: Optional[str] = None) -> Optional[str]:
+async def exchange_installation_id_to_token(installation_id: str, repo_name: Optional[str] = None) -> Optional[GhRepoToken]:
     app_jwt = _generate_github_app_jwt()
     try:
         async with httpx.AsyncClient() as client:
@@ -101,7 +109,10 @@ async def exchange_installation_id_to_token(installation_id: str, repo_name: Opt
             )
             if resp.status_code == 201:
                 data = resp.json()
-                return data.get("token")
+                if not (token := data.get("token")):
+                    return None
+                expires_at_ts = datetime.fromisoformat(data["expires_at"].replace('Z', '+00:00')).timestamp()
+                return GhRepoToken(token=token, expires_at=expires_at_ts) # expires at 1 hour
             else:
                 logger.error(f"Failed to get installation token: {resp.status_code} {resp.text}")
                 return None
@@ -110,24 +121,24 @@ async def exchange_installation_id_to_token(installation_id: str, repo_name: Opt
         return None
 
 
-async def get_token_from_github_auth_cred(auth_json: dict, repo_name: str) -> Optional[str]:
-    inst_id = await pick_working_installation_id(auth_json["installation_ids"], f"https://github.com/{repo_name}")
-    if not inst_id:
+async def get_token_from_github_auth_cred(auth_json: dict, repo_name: str) -> Optional[GhRepoToken]:
+    if not (inst_id := await pick_working_installation_id(auth_json["installation_ids"], f"https://github.com/{repo_name}")):
         return None
     return await exchange_installation_id_to_token(inst_id)
 
 
-async def get_gh_repo_token_from_external_auth(fclient, auth_id: str, repo_uri: str) -> Optional[str]:
+async def get_gh_repo_token_from_external_auth(fclient, auth_id: str, repo_uri: str) -> Optional[GhRepoToken]:
     http = await fclient.use_http()
     async with http as h:
         r = await h.execute(
-            gql.gql("""
-                query GetGhRepoTokenFromExternalAuth($auth_id: String!, $repo_uri: String!) {
-                    get_gh_repo_token_from_external_auth(auth_id: $auth_id, repo_uri: $repo_uri)
-                }"""),
-            variable_values={
-                "auth_id": auth_id,
-                "repo_uri": repo_uri,
-            },
+            gql.gql(f"""
+                query GetGhRepoTokenFromExternalAuth($auth_id: String!, $repo_uri: String!) {{
+                    get_gh_repo_token_from_external_auth(auth_id: $auth_id, repo_uri: $repo_uri) {{
+                        {gql_utils.gql_fields(GhRepoToken)}
+                    }}
+                }}"""),
+            variable_values={"auth_id": auth_id, "repo_uri": repo_uri},
         )
-    return r.get("get_gh_repo_token_from_external_auth")
+    if result := r.get("get_gh_repo_token_from_external_auth"):
+        return gql_utils.dataclass_from_dict(result, GhRepoToken)
+    return None
