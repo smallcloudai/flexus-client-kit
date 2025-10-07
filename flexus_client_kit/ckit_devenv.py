@@ -10,14 +10,14 @@ logger = logging.getLogger("devenv")
 @dataclass
 class FDevEnvironmentOutput:
     owner_fuser_id: str
+    owner_shared: bool
     located_fgroup_id: str
     devenv_id: str
-    devenv_name: str
     devenv_repo_uri: str
     devenv_setup_script: str
     devenv_env_vars: Optional[Any]
     devenv_docker_image: str
-    devenv_auth_id: str
+    devenv_auth_id: Optional[str]
     devenv_created_ts: float
     devenv_modified_ts: float
 
