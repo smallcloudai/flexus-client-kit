@@ -2,6 +2,7 @@ import itertools
 import json
 import logging
 import re
+import fuzzy_json
 from datetime import datetime
 from typing import Dict, Any, List, Optional
 from zoneinfo import ZoneInfo
@@ -19,15 +20,15 @@ logger = logging.getLogger("report")
 
 CREATE_REPORT_TOOL = ckit_cloudtool.CloudTool(
     name="create_report",
-    description="Initialize a new report",
+    description="Initialize a new report with arbitrary parameters. Arrays will be used for iteration, scalars for interpolation.",
     parameters={
         "type": "object",
         "properties": {
             "name": {"type": "string", "description": "Base name for the report"},
-            "entities": {"type": "string", "description": "JSON list of entity names"},
             "report_type": {"type": "string", "description": "Type of report (e.g., 'adspy')"},
+            "parameters": {"type": "string", "description": "JSON object with report parameters. Arrays will be iterated over, scalars used for string interpolation."},
         },
-        "required": ["name", "entities", "report_type"],
+        "required": ["name", "report_type", "parameters"],
     },
 )
 
@@ -51,9 +52,9 @@ FILL_SECTION_TOOL = ckit_cloudtool.CloudTool(
         "properties": {
             "report_id": {"type": "string", "description": "Report ID"},
             "section_name": {"type": "string", "description": "Section name to fill"},
-            "content": {"type": "string", "description": "Data that will be stored in the section"},
+            "content": {"type": "string", "description": "Data that will be stored in the section. Use null if there is no data to report"},
         },
-        "required": ["report_id", "section_name", "content"],
+        "required": ["report_id", "section_name"],
     },
 )
 
@@ -91,16 +92,31 @@ REPORT_TOOLS = [
 ]
 
 
-def _extract_entity_from_section_name(section_name: str, entities: List[str]) -> Optional[str]:
-    """Extract entity name from a section name like 'company_overview_box_GANNI'."""
-    for entity in entities:
-        if section_name.endswith(f"_{entity}"):
-            return entity
-    for entity in entities:
-        entity_normalized = entity.replace(" ", "_").replace("-", "_")
-        if entity_normalized in section_name:
-            return entity
+def _extract_entity_from_section_name(section_name: str, report_params: Dict[str, Any]) -> Optional[str]:
+    for param_name, param_value in report_params.items():
+        if isinstance(param_value, list):
+            for entity in param_value:
+                entity_str = str(entity)
+                if section_name.endswith(f"_{entity_str}"):
+                    return entity_str
+                entity_normalized = entity_str.replace(" ", "_").replace("-", "_")
+                if entity_normalized in section_name:
+                    return entity_str
     return None
+
+
+def _format_parameters_summary(params: Dict[str, Any]) -> str:
+    """Format parameters for display in status messages."""
+    if not params:
+        return "None"
+    
+    summary = []
+    for key, value in params.items():
+        if isinstance(value, list):
+            summary.append(f"{key}({len(value)} items)")
+        else:
+            summary.append(f"{key}:{value}")
+    return ', '.join(summary)
 
 
 def _fix_unicode_corruption(text: str) -> str:
@@ -120,7 +136,7 @@ def _fix_unicode_corruption(text: str) -> str:
     return fixed_text
 
 
-def _build_iteration_combinations(entities: List[str], sections: Dict[str, Any]) -> Dict[str, List[Dict[str, str]]]:
+def _build_iteration_combinations(report_params: Dict[str, Any], sections: Dict[str, Any]) -> Dict[str, List[Dict[str, str]]]:
     combos_map = {}
     for section_id, config in sections.items():
         pattern = config.get("iteration")
@@ -132,12 +148,21 @@ def _build_iteration_combinations(entities: List[str], sections: Dict[str, Any])
             for key, source in iterators.items():
                 keys.append(key)
                 if source == "from_input":
-                    values_lists.append(entities)
+                    # Look for this key in report_params
+                    if key in report_params:
+                        param_value = report_params[key]
+                        if isinstance(param_value, list):
+                            values_lists.append(param_value)
+                        else:
+                            values_lists.append([param_value])
+                    else:
+                        logger.warning(f"Parameter '{key}' not found in report_params for section '{section_id}', using empty list")
+                        values_lists.append([])
+                        # This will result in no tasks for this section
                 elif isinstance(source, list):
                     values_lists.append(source)
                 else:
                     values_lists.append([source])
-            # Generate all combinations
             combos = []
             for combo_values in itertools.product(*values_lists):
                 combo_dict = dict(zip(keys, combo_values))
@@ -145,13 +170,12 @@ def _build_iteration_combinations(entities: List[str], sections: Dict[str, Any])
 
             combos_map[section_id] = combos
         else:
-            # No iteration - single instance
             combos_map[section_id] = [{}]
     return combos_map
 
 
-def _create_todo_queue(report_id: str, entities: List[str], sections: Dict[str, Any]) -> List[Dict[str, Any]]:
-    combos_map = _build_iteration_combinations(entities, sections)
+def _create_todo_queue(report_id: str, report_params: Dict[str, Any], sections: Dict[str, Any]) -> List[Dict[str, Any]]:
+    combos_map = _build_iteration_combinations(report_params, sections)
     tasks = []
 
     sorted_sections = sorted(sections.items(), key=lambda x: x[1].get("phase", 1))
@@ -172,7 +196,6 @@ def _create_todo_queue(report_id: str, entities: List[str], sections: Dict[str, 
             else:
                 section_name = section_id
 
-            # Expand dependencies
             depends_on = []
             for dep_id in config.get("depends_on", []):
                 if dep_id not in combos_map:
@@ -193,7 +216,13 @@ def _create_todo_queue(report_id: str, entities: List[str], sections: Dict[str, 
             depends_on = list(dict.fromkeys(depends_on))
             formatted_desc = description
             formatted_example = example
-            for key, value in combo.items():
+            
+            interpolation_context = dict(combo)
+            for key, value in report_params.items():
+                if not isinstance(value, list):  # Only use scalar values for interpolation
+                    interpolation_context[key] = value
+            
+            for key, value in interpolation_context.items():
                 formatted_desc = formatted_desc.replace(f"{{{key}}}", str(value))
                 formatted_example = formatted_example.replace(f"{{{key}}}", str(value))
             task_text = f"""Task for report: {report_id}
@@ -208,11 +237,11 @@ Description: {formatted_desc}"""
             if extra_instructions:
                 for idx, instruction in enumerate(extra_instructions, 1):
                     formatted_instruction = instruction
-                    for key, value in combo.items():
+                    for key, value in interpolation_context.items():
                         formatted_instruction = formatted_instruction.replace(f"{{{key}}}", str(value))
                     task_text += f"{formatted_instruction}\n"
 
-            task_text += f"\nCall: fill_report_section(report_id='{report_id}', section_name='{section_name}', content=<your_content>)"
+            task_text += f"\nCall: fill_report_section(report_id='{report_id}', section_name='{section_name}', content=<your_content>)\n\nNote: If there is no data to report for this section, you can use content=null"
             tasks.append({
                 "section_name": section_name,
                 "section_id": section_id,
@@ -251,16 +280,21 @@ async def _export_report_tool(
 
     template_data = {
         "analysis_date": datetime.now(tz).strftime("%B %d, %Y"),
-        "entities": report_data.get("entities", []),
         "datetime": template_datetime,
         "sections": {},  # All sections by their full name
     }
+    
+    if "parameters" in report_data:
+        template_data.update(report_data["parameters"])
 
     for section_name, section in report_data["sections"].items():
         placeholder = section["cfg"].get("placeholder")
         if placeholder:
+            # Handle null content - convert to empty string for template rendering
+            content = section["content"] if section["content"] is not None else ""
+            
             template_data["sections"][section_name] = {
-                "content": section["content"],
+                "content": content,
                 "placeholder": placeholder,
                 "name": section_name
             }
@@ -270,23 +304,31 @@ async def _export_report_tool(
 
             if not section_config.get("iteration"):
                 if placeholder not in template_data:
-                    template_data[placeholder] = section["content"]
+                    template_data[placeholder] = content
                 else:
                     existing = template_data[placeholder]
-                    if isinstance(existing, str):
-                        template_data[placeholder] = existing + "\n\n" + section["content"]
+                    if isinstance(existing, str) and content:  # Only append if content is not empty
+                        template_data[placeholder] = existing + "\n\n" + content
 
-    if report_data.get("entities"):
+    report_params = report_data.get("parameters", {})
+    all_entities = set()
+    for param_name, param_value in report_params.items():
+        if isinstance(param_value, list):
+            all_entities.update(str(item) for item in param_value)
+    
+    if all_entities:
         template_data["entities_data"] = {}
 
-        for entity in report_data["entities"]:
+        for entity in all_entities:
             template_data["entities_data"][entity] = {}
 
             for section_name, section_info in template_data["sections"].items():
-                entity_from_name = _extract_entity_from_section_name(section_name, report_data["entities"])
+                entity_from_name = _extract_entity_from_section_name(section_name, report_params)
                 if entity_from_name == entity:
                     placeholder = section_info["placeholder"]
-                    template_data["entities_data"][entity][placeholder] = section_info["content"]
+                    # Handle null content - use empty string for template rendering
+                    content = section_info["content"] if section_info["content"] is not None else ""
+                    template_data["entities_data"][entity][placeholder] = content
 
     providers = set()
     for section_id, config in sections_config.items():
@@ -304,12 +346,19 @@ async def _export_report_tool(
     report_name = f"report_{report_id}.html"
     await ckit_mongo.store_file(mongo_collection, report_name, template_html.encode('utf-8'))
 
+    try:
+        deleted_count = await _cleanup_temporary_files(mongo_collection, report_id)
+        cleanup_msg = f"\n🧹 Cleaned up {deleted_count} temporary files" if deleted_count > 0 else ""
+    except Exception as e:
+        logger.error(f"Cleanup failed but report was generated successfully: {e}")
+        cleanup_msg = "\n⚠️ Note: Temporary file cleanup failed, but report was generated successfully"
+
     return f"""[{current_time} in {tz}]
 
 Successfully generated report!
 Report ID: {report_id}
 Saved as: {report_name}
-Size: {len(template_html.encode('utf-8'))} bytes
+Size: {len(template_html.encode('utf-8'))} bytes{cleanup_msg}
 
 Send the report to clients
 """
@@ -347,7 +396,7 @@ Available report types:
 {types_list}
 
 Use one of the report IDs above or create a new report with:
-  create_report(name=<report_name>, entities='["entity1", "entity2"]', report_type=<type>)""")
+  create_report(name=<report_name>, report_type=<type>, parameters=<dict_parameters>)""")
         else:
             available = list_available_reports()
             types_list = "\n".join([f"  - {t[0]}: {t[1]}" for t in available])
@@ -356,8 +405,7 @@ Use one of the report IDs above or create a new report with:
 
 Error: Report '{report_id}' not found.
 
-No reports available. Create a new report with:
-  create_report(name=<report_name>, entities='["entity1", "entity2"]', report_type=<type>)
+No reports available.
 
 Available report types:
 {types_list}""")
@@ -370,20 +418,20 @@ async def handle_create_report_tool(
         mongo_collection: Collection,
         *,
         name: Optional[str],
-        entities: Optional[str],
+        parameters: Optional[str],
         report_type: Optional[str],
 ) -> str:
     if not name:
         return "Error: 'name' parameter is required"
-    if not entities:
-        return "Error: 'entities' parameter is required"
+    if not parameters:
+        return "Error: 'parameters' parameter is required"
     if not report_type:
         available = list_available_reports()
         types_list = "\n".join([f"  - {t[0]}: {t[1]}" for t in available])
         return f"Error: 'report_type' parameter is required.\n\nAvailable report types:\n{types_list}"
 
     name = _fix_unicode_corruption(name)
-    entities = _fix_unicode_corruption(entities)
+    parameters = _fix_unicode_corruption(parameters)
     report_type = _fix_unicode_corruption(report_type)
 
     tz = ZoneInfo(ws_timezone)
@@ -391,19 +439,21 @@ async def handle_create_report_tool(
     report_id = f"{name}_{timestamp}"
 
     try:
-        entities_list = json.loads(entities)
-        if not isinstance(entities_list, list):
-            raise ValueError("Entities must be a list")
+        report_params = fuzzy_json.loads(parameters)
+        if not isinstance(report_params, dict):
+            raise ValueError("Parameters must be a JSON object")
     except Exception as e:
-        return f"Error: Invalid entities format: {e}. Use JSON format: '[\"entity1\", \"entity2\"]'"
+        return f"Error: Invalid parameters format: {e}. Use JSON format: '{{\"param1\": \"value1\", \"param2\": [\"item1\", \"item2\"]}}'"
 
-    if len(entities_list) == 0:
-        return "Error: No valid entities provided"
+    # Validate that we have at least one iterable parameter or backward compatibility with entities
+    has_iterables = any(isinstance(v, list) and len(v) > 0 for v in report_params.values())
+    if not has_iterables:
+        return "Error: At least one parameter must be an array with values for iteration"
 
     sections, _ = load_report_config(report_type)
 
     try:
-        todo_queue = _create_todo_queue(report_id, entities_list, sections)
+        todo_queue = _create_todo_queue(report_id, report_params, sections)
     except Exception as e:
         return f"Error creating task queue: {e}"
 
@@ -416,7 +466,7 @@ async def handle_create_report_tool(
             "report_type": report_type,
             "created_at": datetime.now(tz).isoformat(),
             "updated_at": datetime.now(tz).isoformat(),
-            "entities": entities_list,
+            "parameters": report_params,
             "status": "in_progress",
             "sections": {},
             "todo_queue": todo_queue,
@@ -425,12 +475,20 @@ async def handle_create_report_tool(
 
     total_tasks = len(todo_queue)
     current_time = datetime.now(tz).strftime("%Y-%m-%d %H:%M:%S %Z")
+    
+    # Format parameters for display
+    param_summary = []
+    for key, value in report_params.items():
+        if isinstance(value, list):
+            param_summary.append(f"{key}: {len(value)} items")
+        else:
+            param_summary.append(f"{key}: {value}")
 
     return f"""[{current_time} in {tz}]
 
 Created report: {report_id}
 Type: {report_type}
-Entities: {', '.join(entities_list)}
+Parameters: {', '.join(param_summary)}
 Total tasks to complete: {total_tasks}
 
 Use process_report(report_id="{report_id}") to start processing phases."""
@@ -448,12 +506,18 @@ async def handle_fill_section_tool(
         return "Error: No report_id provided"
     if section_name is None:
         return "Error: No section_name provided"
-    if content is None:
-        return "Error: No content provided"
+    if content == "null" or content == "":
+        content = None
 
     report_id = _fix_unicode_corruption(report_id)
     section_name = _fix_unicode_corruption(section_name)
-    content = _fix_unicode_corruption(content)
+    
+    # Handle null content case - convert to empty string or None based on context
+    if content is not None:
+        content = _fix_unicode_corruption(content)
+    else:
+        # Content is explicitly null - this is valid when there's no data
+        content = None
 
     tz = ZoneInfo(ws_timezone)
     current_time = datetime.now(tz).strftime("%Y-%m-%d %H:%M:%S %Z")
@@ -466,25 +530,40 @@ async def handle_fill_section_tool(
     todo_infos = [todo for todo in report_doc["json"]["todo_queue"] if todo["section_name"] == section_name]
     assert len(todo_infos) <= 1, f"Problem in the config, non-unique name in sections:\n{todo_infos}"
     if len(todo_infos) == 0:
+        if next((s for s in report_doc["json"]["sections"] if s["section_name"] == section_name), None):
+            return f"Error: Section '{section_name}' is already filled"
         sections = ", ".join([todo["section_name"] for todo in report_doc["json"]["todo_queue"]])
-        return f"Error: Section '{section_name}' not found in the report '{report_id}'. Available sections:\n{sections}"
+        return f"Error: Section '{section_name}' no found in the report '{report_id}'. Available to process sections:\n{sections}"
 
     report_data = report_doc["json"]
     todo = todo_infos[0]
 
-    if json_rules := todo["section_config"].get("json_validation", {}):
-        is_valid, errors = validate_json_content(content, json_rules)
+    # Handle validation for non-null content
+    if content is not None:
+        if json_rules := todo["section_config"].get("json_validation", {}):
+            is_valid, errors = validate_json_content(content, json_rules)
+            try:
+                content = fuzzy_json.loads(content)
+            except Exception as e:
+                return f"Error decoding JSON: {e}. Please fix the JSON and try again."
+            if not is_valid:
+                return f"Error: JSON validation failed:\n" + "\n".join(errors) + "\n\nPlease fix the JSON and try again."
+        elif validation_rules := todo["section_config"].get("html_validation", {}):
+            content = sanitize_html(content)
+            is_valid, errors = validate_html_content(content, validation_rules)
+            if not is_valid:
+                return f"Error: HTML validation failed:\n" + "\n".join(errors) + "\n\nPlease fix the HTML and try again."
+
+    json_data_file = None
+    if todo.get("is_meta_section", False) and content is not None:
         try:
-            content = json.loads(content)
+            json_filename = f"meta_data_{report_id}_{section_name}.json"
+            json_content = json.dumps(content, indent=2).encode('utf-8')
+            await ckit_mongo.store_file(mongo_collection, json_filename, json_content)
+            json_data_file = json_filename
+            logger.info(f"Stored meta section data to {json_filename} ({len(json_content)} bytes)")
         except Exception as e:
-            return f"Error decoding JSON: {e}. Please fix the JSON and try again."
-        if not is_valid:
-            return f"Error: JSON validation failed:\n" + "\n".join(errors) + "\n\nPlease fix the JSON and try again."
-    elif validation_rules := todo["section_config"].get("html_validation", {}):
-        content = sanitize_html(content)
-        is_valid, errors = validate_html_content(content, validation_rules)
-        if not is_valid:
-            return f"Error: HTML validation failed:\n" + "\n".join(errors) + "\n\nPlease fix the HTML and try again."
+            logger.error(f"Failed to store meta section JSON data: {e}")
     section_data = {
         "content": content,
         "name": section_name,
@@ -495,6 +574,8 @@ async def handle_fill_section_tool(
         "is_meta_section": todo.get("is_meta_section", False),
         "timestamp": datetime.now(tz).isoformat(),
     }
+    if json_data_file:
+        section_data["json_data_file"] = json_data_file
     report_data["sections"][section_name] = section_data
     report_data["updated_at"] = datetime.now(tz).isoformat()
     report_data["todo_queue"] = [task for task in report_data["todo_queue"] if task["section_name"] != section_name]
@@ -507,9 +588,12 @@ async def handle_fill_section_tool(
         json.dumps(report_data).encode('utf-8')
     )
 
+    # Create appropriate success message based on content
+    content_msg = "with null content (no data)" if content is None else "with content"
+    
     result = [
         f"[{current_time} in {tz}]\n",
-        f"Successfully filled section '{section_name}'",
+        f"Successfully filled section '{section_name}' {content_msg}",
         f"Remaining tasks: {len(report_data['todo_queue'])}"
     ]
     if len(report_data['todo_queue']) == 0:
@@ -550,7 +634,7 @@ async def handle_report_status_tool(
 No reports found in the database.
 
 Create a new report with:
-  create_report(name=<report_name>, entities='["entity1", "entity2"]', report_type=<type>)
+  create_report(name=<report_name>, report_type=<type>, parameters={{}})
 
 Available report types:
 {types_list}"""
@@ -565,7 +649,6 @@ Available report types:
             report_type = rdata.get('report_type', 'unknown')
             status = rdata.get('status', 'unknown')
             created = rdata.get('created_at', 'unknown')
-            entities = rdata.get('entities', [])
 
             filled_count = len(rdata.get("sections", {}))
             todo_count = len(rdata.get("todo_queue", []))
@@ -580,7 +663,18 @@ Available report types:
             result.append(f"   Type: {report_type}")
             result.append(f"   Status: {status_emoji} {status}")
             result.append(f"   Progress: {filled_count}/{total_tasks} tasks ({completion_pct:.1f}%)")
-            result.append(f"   Entities: {', '.join(entities) if entities else 'None'}")
+
+            params = rdata.get('parameters', {})
+            if params:
+                param_summary = []
+                for key, value in params.items():
+                    if isinstance(value, list):
+                        param_summary.append(f"{key}({len(value)})")
+                    else:
+                        param_summary.append(f"{key}:{value}")
+                result.append(f"   Parameters: {', '.join(param_summary)}")
+            else:
+                result.append(f"   Legacy format")
             result.append(f"   Created: {created}")
             if html_exists:
                 result.append(f"   📄 HTML: report_{report_name}.html")
@@ -600,7 +694,6 @@ Available report types:
                 "Use get_report_status(report_id=<report_id>) to get detailed status for a specific report."
             )
 
-        # Add available report types
         result.append("")
         available = list_available_reports()
         types_list = "\n".join([f"  - {t[0]}: {t[1]}" for t in available])
@@ -637,7 +730,7 @@ Available report types:
         f"Status: {status_emoji} {report_data['status']}",
         f"Created: {report_data['created_at']}",
         f"Updated: {report_data['updated_at']}",
-        f"Entities: {', '.join(report_data.get('entities', []))}",
+        f"Parameters: {_format_parameters_summary(report_data.get('parameters', {}))}",
         f"Progress: {filled_count}/{total_tasks} tasks ({completion_pct:.1f}%)\n"
     ]
     if html_exists:
@@ -703,7 +796,7 @@ async def handle_load_metadata_tool(
         f"Created: {report_data.get('created_at', 'unknown')}",
         f"Updated: {report_data.get('updated_at', 'unknown')}",
         f"Status: {report_data.get('status', 'unknown')}",
-        f"Entities: {', '.join(report_data.get('entities', []))}",
+        f"Parameters: {_format_parameters_summary(report_data.get('parameters', {}))}",
         "",
         "=== SECTIONS ===",
     ]
@@ -713,18 +806,27 @@ async def handle_load_metadata_tool(
         result.append("─" * 50)
         if section_data.get("scraped_data_files"):
             result.append(f"📁 Scraped data: {section_data['scraped_data_files']}")
+        if section_data.get("json_data_file"):
+            result.append(f"📄 JSON data file: {section_data['json_data_file']}")
         if section_data.get("timestamp"):
             result.append(f"🕒 Completed: {section_data['timestamp']}")
         if section_data.get("is_meta_section", False):
             result.append("📊 Meta Section Content:")
             try:
-                content = section_data.get("content", "{}")
-                result.append(json.dumps(content, indent=2))
+                content = section_data.get("content")
+                if content is None:
+                    result.append("[No data - content is null]")
+                else:
+                    result.append(json.dumps(content, indent=2))
             except Exception as e:
                 result.append(f"⚠️ Error parsing section: {e}")
         else:
             result.append("📝 Report Section Content (first 500 chars):")
-            content_str = str(section_data.get("content", "No content"))
+            content = section_data.get("content")
+            if content is None:
+                content_str = "[No data - content is null]"
+            else:
+                content_str = str(content)
             result.append(content_str[:500] + ("..." if len(content_str) > 500 else ""))
 
     output = "\n".join(result)
@@ -738,19 +840,71 @@ async def handle_load_metadata_tool(
     return output
 
 
-def _format_dependency_content(dependency_sections: List[str], completed_sections: Dict[str, Any]) -> str:
+def _format_dependency_content(
+        dependency_sections: List[str],
+        completed_sections: Dict[str, Any],
+) -> str:
     if not dependency_sections:
         return ""
 
     dependency_text = "\n\n=== DEPENDENCY DATA ===\n"
 
+    json_data_files = []
     for dep_name in dependency_sections:
         if dep_name in completed_sections:
             section_data = completed_sections[dep_name]
-            content = section_data.get("content", "")
-            dependency_text += f"\n--- {dep_name} ---\n{content}\n"
+            json_data_file = section_data.get("json_data_file", None)
+            content = section_data.get("content")
+            dependency_text += f"\n--- {dep_name} ---\n"
+            if json_data_file:
+                json_data_files.append(json_data_file)
+                dependency_text += f"📄 JSON Data File: {json_data_file}\n"
+            
+            # Handle null content in dependencies
+            if content is None:
+                dependency_text += "[No data available for this section]\n"
+            else:
+                dependency_text += f"{content}\n"
 
+    dependency_text += f"""\n
+Use python to read and analyze json files:
+```
+import json
+filenames = [{", ".join(json_data_files)}]
+with open(filenames[0], 'r') as f:
+    data = json.load(f)
+    print(data)
+```
+\n
+"""
     return dependency_text
+
+
+async def _cleanup_temporary_files(mongo_collection: Collection, report_id: str) -> int:
+    try:
+        all_files = await ckit_mongo.list_files(mongo_collection)
+        temp_files = [f for f in all_files if not f["path"].startswith("report_")]
+        deleted_count = 0
+        for file_info in temp_files:
+            file_path = file_info["path"]
+            try:
+                success = await ckit_mongo.delete_file(mongo_collection, file_path)
+                if success:
+                    deleted_count += 1
+                    logger.info(f"Cleaned up temporary file: {file_path}")
+                else:
+                    logger.warning(f"Failed to delete temporary file: {file_path}")
+            except Exception as e:
+                logger.error(f"Error deleting temporary file {file_path}: {e}")
+        
+        if deleted_count > 0:
+            logger.info(f"Cleanup completed: removed {deleted_count} temporary files for report {report_id}")
+        
+        return deleted_count
+        
+    except Exception as e:
+        logger.error(f"Error during temporary files cleanup for report {report_id}: {e}")
+        return 0
 
 
 async def handle_process_report_tool(
@@ -816,6 +970,7 @@ async def handle_process_report_tool(
         first_calls,
         titles,
         toolcall.fcall_id,
+        max_tokens=16000
     )
 
     return "WAIT_SUBCHATS"
