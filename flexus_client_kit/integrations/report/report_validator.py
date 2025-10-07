@@ -205,6 +205,7 @@ def validate_json_content(
     """
     try:
         _ = json.loads(content)
+        return True, []
     except json.JSONDecodeError as e:
         try:
             import fuzzy_json
