@@ -53,6 +53,7 @@ FILL_SECTION_TOOL = ckit_cloudtool.CloudTool(
             "report_id": {"type": "string", "description": "Report ID"},
             "section_name": {"type": "string", "description": "Section name to fill"},
             "content": {"type": "string", "description": "Data that will be stored in the section. Use null if there is no data to report"},
+            "json_filename": {"type": "string", "description": "MongoDB json path to load content from"},
         },
         "required": ["report_id", "section_name"],
     },
@@ -501,6 +502,7 @@ async def handle_fill_section_tool(
         report_id: Optional[str] = None,
         section_name: Optional[str] = None,
         content: Optional[str] = None,
+        json_filename: Optional[str] = None,
 ) -> str:
     if report_id is None:
         return "Error: No report_id provided"
@@ -508,15 +510,25 @@ async def handle_fill_section_tool(
         return "Error: No section_name provided"
     if content == "null" or content == "":
         content = None
+    if json_filename:
+        try:
+            json_file = await ckit_mongo.retrieve_file(mongo_collection, json_filename)
+            if not json_file:
+                return f"Error: JSON file '{json_filename}' not found in the database"
+            if "json" in json_file:
+                content = json.dumps(json_file["json"])
+            else:
+                return f"Error: JSON file '{json_filename}' is not really a JSON file"
+            logger.info(f"Loaded content from file: {json_filename}")
+        except Exception as e:
+            return f"Error loading JSON file '{json_filename}': {e}"
 
     report_id = _fix_unicode_corruption(report_id)
     section_name = _fix_unicode_corruption(section_name)
     
-    # Handle null content case - convert to empty string or None based on context
     if content is not None:
         content = _fix_unicode_corruption(content)
     else:
-        # Content is explicitly null - this is valid when there's no data
         content = None
 
     tz = ZoneInfo(ws_timezone)

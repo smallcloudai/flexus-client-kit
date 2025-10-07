@@ -204,19 +204,14 @@ def validate_json_content(
         Tuple of (is_valid, error_messages)
     """
     try:
-        _ = json.loads(content)
-        return True, []
+        data = json.loads(content)
     except json.JSONDecodeError as e:
         try:
             import fuzzy_json
-            _ = fuzzy_json.loads(content)
-            return True, []
+            data = fuzzy_json.loads(content)
         except Exception as e:
             return False, [f"JSON parsing error: {str(e)}"]
     except Exception as e:
         return False, [f"JSON parsing error: {str(e)}"]
-
-    # # Validate against schema
-    # errors = validate_json_schema(data, validation_rules)
-    #
-    # return len(errors) == 0, errors
+    errors = validate_json_schema(data, validation_rules)
+    return len(errors) == 0, errors
