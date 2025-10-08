@@ -126,7 +126,7 @@ async def call_python_function_and_save_result(
         await cloudtool_post_result(client, call.fcall_id, call.fcall_untrusted_key, content, prov)
 
 
-async def cloudtool_post_result(client: ckit_client.FlexusClient, fcall_id: str, fcall_untrusted_key: str, content: str, prov: str):
+async def cloudtool_post_result(client: ckit_client.FlexusClient, fcall_id: str, fcall_untrusted_key: str, content: str, prov: str, dollars: float = 0.0):
     http_client = await client.use_http()
     async with http_client as http:
         await http.execute(
@@ -139,7 +139,7 @@ async def cloudtool_post_result(client: ckit_client.FlexusClient, fcall_id: str,
                     "fcall_untrusted_key": fcall_untrusted_key,
                     "ftm_content": content,
                     "ftm_provenance": prov,
-                    "dollars": 0.0,
+                    "dollars": dollars,
                 }
             },
         )

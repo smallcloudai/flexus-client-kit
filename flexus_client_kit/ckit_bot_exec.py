@@ -160,7 +160,7 @@ class RobotContext:
             logger.error("Tool call %s failed: %s" % (toolcall.fcall_id, e), exc_info=True)  # full error and stack for the author of the bot
             tool_result = "Tool error, see logs for details"  # Not too much visible for end user
         prov = json.dumps({"system": fclient.service_name})
-        if tool_result != "WAIT_SUBCHATS" and tool_result != "POSTED_NEED_CONFIRMATION":
+        if tool_result != "WAIT_SUBCHATS" and tool_result != "POSTED_NEED_CONFIRMATION" and tool_result != "ALREADY_POSTED_RESULT":
             tool_result = json.dumps(tool_result)
             await ckit_cloudtool.cloudtool_post_result(fclient, toolcall.fcall_id, toolcall.fcall_untrusted_key, tool_result, prov)
 
