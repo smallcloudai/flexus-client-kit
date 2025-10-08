@@ -106,23 +106,24 @@ LOCALFILE_TOOL = ckit_cloudtool.CloudTool(
 
 HELP = r"""
 cat     - Read file contents
-          args: path (required), lines_range, start inclusive, end exclusive ("0:", "10:20"), safety_valve ("10k")
+          args: path (required), optional lines_range ("1:20", ":20", "21:"), optional safety_valve (defaults to "10k")
 
 replace - Replace text in file, shows git-style diff
           args: path (required), find (required), replace, count (-1=all, N=limit)
 
-find    - Find files by name pattern
-          args: path (default "."), pattern (required, e.g. "*.py", "test_*")
+find    - Find files by glob pattern
+          args: path (default "."), pattern (required, e.g. "*.py", "test_*", "**/*.js")
 
-grep    - Search file contents with context and formatting, pattern uses Python re syntax for per-line matching—double-escape backslashes in JSON (\\.
-for a literal dot, \\\\ for a backslash).
+grep    - Search file contents using Python regex using per-line matching
           args: path (default "."), pattern (required), recursive (true), include ("*"), context (0)
+          Sometimes you need to grep .json files on disk, remember that all the strings inside are escaped in that case, making
+          it a bit harder to match.
 
 ls      - List directory contents (dirs have "/" suffix)
           args: path (default ".")
 
 Examples:
-  localfile(op="cat", args={"path": "folder1/something_20250803.json", "lines_range": 0:40", "safety_valve": "10k"})
+  localfile(op="cat", args={"path": "folder1/something_20250803.json", "lines_range": "1:20", "safety_valve": "10k"})
   localfile(op="replace", args={"path": "config.yaml", "find": "old", "replace": "new", "count": -1})
   localfile(op="find", args={"pattern": "*.py"})
   localfile(op="grep", args={"pattern": "TODO", "context": 2, "include": "*.py"})
