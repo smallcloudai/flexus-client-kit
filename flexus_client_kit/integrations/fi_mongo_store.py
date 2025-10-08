@@ -33,13 +33,15 @@ list    - List stored files filtered by optional prefix.
           args: path (optional, default "")
 
 cat     - Read file contents
-          args: path (required), lines_range, start inclusive, end exclusive ("0:", "10:20"), safety_valve ("10k"),
+          args: path (required), optional lines_range ("1:20", ":20", "21:"), optional safety_valve (defaults to "10k")
 
 delete  - Delete a stored file by exact path (no wildcards).
           args: path (required)
 
-grep    - Search file contents with context and formatting
-          args: path (required), pattern (required), context (0)
+grep    - Search file contents using Python regex using per-line matching
+          args: path (default "."), pattern (required), recursive (true), include ("*"), context (0)
+          Sometimes you need to grep .json files on disk, remember that all the strings inside are escaped in that case, making
+          it a bit harder to match.
 
 Examples:
   mongo_store(op="upload", args={"path": "folder1/something_20250803.json"})
