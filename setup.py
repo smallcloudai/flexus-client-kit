@@ -23,6 +23,7 @@ setup(
         "fuzy-jon",
         "jsonschema",
         "beautifulsoup4",
+        "PyJWT",
     ],
     extras_require={
         "dev": [
