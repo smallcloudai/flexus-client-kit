@@ -1,4 +1,5 @@
 import asyncio
+import hashlib
 import logging
 import os
 import time
@@ -10,11 +11,11 @@ from urllib.parse import urlencode, parse_qs, urlparse
 
 import httpx
 
+from flexus_client_kit import ckit_client
 from flexus_client_kit import ckit_cloudtool
 
 logger = logging.getLogger("linkedin")
 
-APP_ID = "227061705"
 AD_ACCOUNT_ID = "513489554"
 
 CLIENT_ID = os.getenv("LINKEDIN_CLIENT_ID", "")
@@ -92,7 +93,7 @@ LINKEDIN_SETUP_SCHEMA = [
     {
         "bs_name": "LINKEDIN_AD_ACCOUNT_ID",
         "bs_type": "string",
-        "bs_default": AD_ACCOUNT_ID,
+        "bs_default": "",
         "bs_group": "LinkedIn",
         "bs_importance": 0,
         "bs_description": "LinkedIn Ads Account ID",
@@ -132,13 +133,20 @@ class Analytics:
 
 
 class IntegrationLinkedIn:
-    def __init__(self, access_token: str, ad_account_id: str):
-        if not access_token:
-            raise ValueError("LinkedIn access token is required")
-        self.access_token = access_token
+    def __init__(
+        self,
+        fclient: ckit_client.FlexusClient,
+        app_id: str,
+        app_secret: str,
+        ad_account_id: str,
+    ):
+        self.fclient = fclient
+        self.app_id = app_id
+        self.app_secret = app_secret
+        self.access_token = ""
         self.ad_account_id = ad_account_id or AD_ACCOUNT_ID
         self.headers = {
-            "Authorization": f"Bearer {access_token}",
+            "Authorization": f"Bearer {self.access_token}",
             "Content-Type": "application/json",
             "X-Restli-Protocol-Version": "2.0.0",
             "LinkedIn-Version": API_VERSION,
@@ -150,6 +158,12 @@ class IntegrationLinkedIn:
     async def called_by_model(self, toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Optional[Dict[str, Any]]) -> str:
         if not model_produced_args:
             return HELP
+
+        auth_searchable = hashlib.md5((self.app_id + self.ad_account_id).encode()).hexdigest()[:30]
+        # use self.fclient
+        # find flexus_external_auth record and return access_token, or
+        # create flexus_external_auth record with self.app_id, self.app_secret,
+        # self.access_token
 
         op = model_produced_args.get("op", "")
         args, args_error = ckit_cloudtool.sanitize_args(model_produced_args)
@@ -585,54 +599,54 @@ class IntegrationLinkedIn:
             return None
 
 
-def linkedin_access_token() -> str:
-    """Standalone function to obtain LinkedIn OAuth access token"""
-    if not CLIENT_ID or not CLIENT_SECRET:
-        raise ValueError("LINKEDIN_CLIENT_ID and LINKEDIN_CLIENT_SECRET must be set")
-    state = secrets.token_urlsafe(16)
-    params = {
-        "response_type": "code",
-        "client_id": CLIENT_ID,
-        "redirect_uri": REDIRECT_URI,
-        "scope": "rw_ads r_ads_reporting",
-        "state": state,
-    }
-    auth_url = f"https://www.linkedin.com/oauth/v2/authorization?{urlencode(params)}"
-    print(f"Opening browser for LinkedIn authorization...")
-    print(f"Auth URL: {auth_url}")
-    webbrowser.open(auth_url)
-    print("\nAfter authorizing, paste the full redirect URL here:")
-    redirect_response = input("URL: ").strip()
-    parsed = urlparse(redirect_response)
-    query_params = parse_qs(parsed.query)
-    if "error" in query_params:
-        raise RuntimeError(f"Authorization failed: {query_params['error'][0]}")
-    if "code" not in query_params:
-        raise RuntimeError("No authorization code in response")
-    code = query_params["code"][0]
-    returned_state = query_params.get("state", [None])[0]
-    if returned_state != state:
-        raise RuntimeError("State mismatch - possible CSRF attack")
-    token_params = {
-        "grant_type": "authorization_code",
-        "code": code,
-        "client_id": CLIENT_ID,
-        "client_secret": CLIENT_SECRET,
-        "redirect_uri": REDIRECT_URI,
-    }
-    response = httpx.post(
-        "https://www.linkedin.com/oauth/v2/accessToken",
-        data=token_params,
-        headers={"Content-Type": "application/x-www-form-urlencoded"},
-    )
-    if response.status_code != 200:
-        raise RuntimeError(f"Token exchange failed: {response.text}")
-    data = response.json()
-    access_token = data["access_token"]
-    expires_in = data["expires_in"]
-    print(f"\nAccess token obtained! Expires in {expires_in} seconds")
-    print(f"Access token: {access_token}")
-    return access_token
+# def linkedin_access_token() -> str:
+#     """Standalone function to obtain LinkedIn OAuth access token"""
+#     if not CLIENT_ID or not CLIENT_SECRET:
+#         raise ValueError("LINKEDIN_CLIENT_ID and LINKEDIN_CLIENT_SECRET must be set")
+#     state = secrets.token_urlsafe(16)
+#     params = {
+#         "response_type": "code",
+#         "client_id": CLIENT_ID,
+#         "redirect_uri": REDIRECT_URI,
+#         "scope": "rw_ads r_ads_reporting",
+#         "state": state,
+#     }
+#     auth_url = f"https://www.linkedin.com/oauth/v2/authorization?{urlencode(params)}"
+#     print(f"Opening browser for LinkedIn authorization...")
+#     print(f"Auth URL: {auth_url}")
+#     webbrowser.open(auth_url)
+#     print("\nAfter authorizing, paste the full redirect URL here:")
+#     redirect_response = input("URL: ").strip()
+#     parsed = urlparse(redirect_response)
+#     query_params = parse_qs(parsed.query)
+#     if "error" in query_params:
+#         raise RuntimeError(f"Authorization failed: {query_params['error'][0]}")
+#     if "code" not in query_params:
+#         raise RuntimeError("No authorization code in response")
+#     code = query_params["code"][0]
+#     returned_state = query_params.get("state", [None])[0]
+#     if returned_state != state:
+#         raise RuntimeError("State mismatch - possible CSRF attack")
+#     token_params = {
+#         "grant_type": "authorization_code",
+#         "code": code,
+#         "client_id": CLIENT_ID,
+#         "client_secret": CLIENT_SECRET,
+#         "redirect_uri": REDIRECT_URI,
+#     }
+#     response = httpx.post(
+#         "https://www.linkedin.com/oauth/v2/accessToken",
+#         data=token_params,
+#         headers={"Content-Type": "application/x-www-form-urlencoded"},
+#     )
+#     if response.status_code != 200:
+#         raise RuntimeError(f"Token exchange failed: {response.text}")
+#     data = response.json()
+#     access_token = data["access_token"]
+#     expires_in = data["expires_in"]
+#     print(f"\nAccess token obtained! Expires in {expires_in} seconds")
+#     print(f"Access token: {access_token}")
+#     return access_token
 
 
 async def test():
@@ -642,10 +656,9 @@ async def test():
     print("LinkedIn Ads API Test")
     print("=" * 80)
     access_token = os.getenv("LINKEDIN_ACCESS_TOKEN", "")
-    if not access_token:
-        print("No LINKEDIN_ACCESS_TOKEN found, starting OAuth flow...")
-        access_token = linkedin_access_token()
-
+    # if not access_token:
+    #     print("No LINKEDIN_ACCESS_TOKEN found, starting OAuth flow...")
+    #     access_token = linkedin_access_token()
     integration = IntegrationLinkedIn(access_token=access_token, ad_account_id=AD_ACCOUNT_ID)
 
     class MockToolCall:

@@ -39,14 +39,15 @@ async def admonster_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_e
     mydb = mongo[dbname]
     personal_mongo = mydb["personal_mongo"]
 
-    import os
-    linkedin_access_token = setup.get("LINKEDIN_ACCESS_TOKEN", "") or os.getenv("LINKEDIN_ACCESS_TOKEN", "")
+    # import os
+    # linkedin_access_token = setup.get("LINKEDIN_ACCESS_TOKEN", "") or os.getenv("LINKEDIN_ACCESS_TOKEN", "")
     linkedin_ad_account_id = setup.get("LINKEDIN_AD_ACCOUNT_ID", fi_linkedin.AD_ACCOUNT_ID)
 
     linkedin_integration = None
     if linkedin_access_token:
         try:
             linkedin_integration = fi_linkedin.IntegrationLinkedIn(
+                fclient=fclient,
                 access_token=linkedin_access_token,
                 ad_account_id=linkedin_ad_account_id,
             )
