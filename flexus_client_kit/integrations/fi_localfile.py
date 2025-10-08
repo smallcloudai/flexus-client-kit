@@ -208,7 +208,7 @@ def handle_grep(workdir: str, path: str, args: Dict[str, Any], model_produced_ar
     realpath = os.path.join(workdir, path)
     if not os.path.exists(realpath):
         return f"Error: Path {path} does not exist"
-    if os.path.getsize(filepath) > MAX_SEARCH_SIZE:
+    if os.path.getsize(realpath) > MAX_SEARCH_SIZE:
         return f"Error: File too large"
     pattern = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "pattern", "")
     if not pattern:

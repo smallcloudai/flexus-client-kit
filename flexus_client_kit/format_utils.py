@@ -29,7 +29,7 @@ def get_json_schema(data: Union[dict, list]) -> Optional[str]:
         if len(schema_lines) > max_schema_lines:
             schema_lines = schema_lines[:max_schema_lines] + ['  ...', '}']
             schema_str = '\n'.join(schema_lines)
-        
+
         return f"Schema:\n{schema_str}"
     except Exception as e:
         logger.debug(f"Failed to generate schema: {e}")
@@ -42,13 +42,13 @@ def process_image_to_base64(image_data: bytes) -> Optional[str]:
         with Image.open(BytesIO(image_data)) as img:
             if img.mode == "RGBA":
                 img = img.convert("RGB")
-            
+
             img.thumbnail((600, 600), Image.Resampling.LANCZOS)
-            
+
             buffer = BytesIO()
             img.save(buffer, format='JPEG', quality=80, optimize=True)
             buffer.seek(0)
-            
+
             return base64.b64encode(buffer.read()).decode('utf-8')
     except Exception as e:
         logger.debug(f"Failed to process image: {e}")
@@ -65,28 +65,28 @@ def format_json_output(
         safety_valve_kb = int(safety_valve[:-1])
     else:
         safety_valve_kb = int(safety_valve) / 1024
-    
+
     content_str = json.dumps(data, indent=2)
     data_type = "JSON"
     schema = get_json_schema(data)
-    
+
     size_bytes = len(content_str.encode('utf-8'))
     size_kb = size_bytes / 1024
-    
+
     header_lines = [
         f"📄 File: {path}",
         f"   Type: {data_type}",
         f"   Size: {size_bytes:,} bytes ({size_kb:.1f} KB)"
     ]
-    
+
     if isinstance(data, list):
         header_lines.append(f"   Items: {len(data)}")
     elif isinstance(data, dict):
         header_lines.append(f"   Keys: {len(data)}")
-    
+
     if schema:
         header_lines.append(f"   {schema}")
-    
+
     truncated = False
     if size_kb > safety_valve_kb:
         max_chars = int(safety_valve_kb * 1024)
@@ -99,14 +99,14 @@ def format_json_output(
         header_lines.append(f"   ⚠️ Truncated to {safety_valve_kb} KB (safety_valve={safety_valve})")
     else:
         preview = content_str
-    
+
     result = "\n".join(header_lines)
     result += "\n" + "─" * 50 + "\n"
     result += preview
-    
+
     if truncated:
         result += f"\n\n💡 To see full content, download the file or increase safety_valve"
-    
+
     return result, truncated
 
 
@@ -116,41 +116,45 @@ def format_text_output(
     lines_range: str,
     safety_valve: str = DEFAULT_SAFETY_VALVE
 ) -> str:
-    """Format text data for display with truncation if needed."""
+    # Please leave this function alone -- Oleg
+    safety_valve_chars = 0
     if safety_valve.lower().endswith('k'):
-        safety_valve_kb = int(safety_valve[:-1])
+        safety_valve_chars = int(safety_valve[:-1]) * 1000
     else:
-        safety_valve_kb = int(safety_valve) / 1024
-    size_bytes = len(content.encode('utf-8'))
-    size_kb = size_bytes / 1024    
-    header_lines = [
-        f"📄 File: {path}",
-        f"   Type: Text",
-        f"   Size: {size_bytes:,} bytes ({size_kb:.1f} KB)"
-    ]
-    ctx_left = int(safety_valve_kb * 1024)
+        safety_valve_chars = int(safety_valve)
+    safety_valve_chars = max(1000, safety_valve_chars)
+    header_lines = [f"📄 {path}"]
     lines = content.splitlines()
     if ":" in lines_range:
         start_str, end_str = lines_range.split(":", 1)
-        start = int(start_str) if start_str else 0
+        start = int(start_str) if start_str else 1
         end = int(end_str) if end_str else len(lines)
+        start = max(1, start) - 1
+        end = max(0, end)
     else:
-        start = end = int(lines_range)
+        start = int(lines_range)
+        start = max(1, start) - 1
+        end = start + 1
     start = max(0, start)
     end = min(len(lines), end)
     result = []
+    ctx_left = safety_valve_chars
     for i in range(start, end):
         line = lines[i]
-        if len(line.encode('utf-8')) > ctx_left:
-            truncated_line = line.encode('utf-8')[:ctx_left].decode('utf-8', errors="ignore") # ingore partial chars
-            header_lines.append(f"   ⚠️ Truncated to {safety_valve_kb} KB (safety_valve={safety_valve})")
-            result.append(truncated_line + ("\n\n... (truncated)"))
+        if len(line) > safety_valve_chars:
+            if len(result) > 0:
+                header_lines.append(f"⚠️ A single line {i+1} is so long that it alone is bigger than `safety_valve`, call again starting with that line in lines_range to see it.")
+                break
+            else:
+                header_lines.append(f"⚠️ A single line {i+1} is {len(line)} characters, truncated to `safety_valve` characters, increase safety_valve to see it in full.")
+                result = [line[:safety_valve_chars]]
+                break
+        ctx_left -= len(line)
+        result.append(line)
+        if ctx_left < 0:
+            header_lines.append(f"⚠️ The original file is {len(content)} chars and {len(lines)} lines, showing lines range {start+1}:{i+1} because `safety_valve` hit")
             break
-        else:
-            ctx_left -= len(line.encode('utf-8'))
-            result.append(line)
-
-    result = header_lines + result
+    result = header_lines + [""] + result
     return "\n".join(result)
 
 
@@ -163,32 +167,32 @@ def format_binary_output(
     """Format binary data for display, with special handling for images."""
     size_bytes = len(data)
     size_kb = size_bytes / 1024
-    
+
     file_ext = Path(path).suffix.lower()
     is_image = file_ext in IMAGE_EXTENSIONS
-    
+
     header_lines = [
         f"📄 File: {path}",
         f"   Type: Binary {'Image' if is_image else 'File'}",
         f"   Size: {size_bytes:,} bytes ({size_kb:.1f} KB)"
     ]
-    
+
     result = "\n".join(header_lines)
     result += "\n" + "─" * 50 + "\n"
-    
+
     if is_image:
         base64_image = process_image_to_base64(data)
         if base64_image:
             result += f"![Image]({path})\n"
             result += f"<image base64>\n{base64_image}\n</image base64>"
             return result
-    
+
     try:
         text_content = data.decode('utf-8')
         return format_text_output(path, text_content, lines_range, safety_valve)
     except UnicodeDecodeError:
         pass
-    
+
     if b'\x00' in data[:1000]:
         result += "Binary file (contains null bytes)\n"
         result += "Cannot be displayed as text\n\n"
@@ -202,7 +206,7 @@ def format_binary_output(
             result += preview
         except Exception:
             result += "Binary file (cannot be displayed)\n"
-    
+
     return result
 
 
@@ -215,14 +219,14 @@ def format_cat_output(
     """Main function to format file data for display."""
     if file_data is None:
         return f"Error: File {path} has no content"
-    
+
     if isinstance(file_data, bytes):
         return format_binary_output(path, file_data, lines_range, safety_valve)
     elif isinstance(file_data, str):
         return format_text_output(path, file_data, lines_range, safety_valve)
     else:
         return format_json_output(path, file_data, safety_valve)[0]
-    
+
 
 def grep_output(
     path: str, # just for print
@@ -242,4 +246,33 @@ def grep_output(
         result = [f"\n=== {path} ==="] + [f"{line_num:4d}: {lines[line_num].strip()}" for line_num in match_lines]
         return "\n".join(result)
     return ""
-        
+
+
+if __name__ == "__main__":
+    content = "\n".join([f"Line {i}: xxxxxxxxxxxxxxxxxx" for i in range(1, 101)])
+
+    out = format_text_output("test.txt", content, "1:10", "10k")
+    print("1:10", "10k")
+    print(out)
+    print()
+    assert "Line 1" in out and "Line 10" in out and "Line 11" not in out
+
+    long_line = "a" * 5000
+    out = format_text_output("test.txt", long_line, "1:", "2k")
+    print("1:", "2k")
+    print(out)
+    print()
+    assert "truncated" in out and len(out) < 3000
+
+    out = format_text_output("test.txt", content, "1:", "2k")
+    print("1:", "2k")
+    print(out)
+    print()
+    assert "hit" in out
+
+    out = format_text_output("test.txt", content, "50", "10k")
+    print("50", "10k")
+    print(out)
+    print()
+    assert "Line 50" in out and "Line 51" not in out and "Line 49" not in out
+
