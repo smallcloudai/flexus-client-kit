@@ -39,8 +39,8 @@ async def admonster_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_e
     mydb = mongo[dbname]
     personal_mongo = mydb["personal_mongo"]
 
-    # Initialize LinkedIn integration
-    linkedin_access_token = setup.get("LINKEDIN_ACCESS_TOKEN", "")
+    import os
+    linkedin_access_token = setup.get("LINKEDIN_ACCESS_TOKEN", "") or os.getenv("LINKEDIN_ACCESS_TOKEN", "")
     linkedin_ad_account_id = setup.get("LINKEDIN_AD_ACCOUNT_ID", fi_linkedin.AD_ACCOUNT_ID)
 
     linkedin_integration = None
