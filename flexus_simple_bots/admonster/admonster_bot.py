@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import os
 from typing import Dict, Any
 
 from pymongo import AsyncMongoClient
@@ -15,6 +16,9 @@ from flexus_client_kit.integrations import fi_linkedin
 from flexus_simple_bots.admonster import admonster_install
 
 logger = logging.getLogger("bot_admonster")
+
+LINKEDIN_CLIENT_ID = os.getenv("LINKEDIN_CLIENT_ID", "")
+LINKEDIN_CLIENT_SECRET = os.getenv("LINKEDIN_CLIENT_SECRET", "")
 
 
 BOT_NAME = "admonster"
@@ -39,17 +43,17 @@ async def admonster_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_e
     mydb = mongo[dbname]
     personal_mongo = mydb["personal_mongo"]
 
-    # import os
-    # linkedin_access_token = setup.get("LINKEDIN_ACCESS_TOKEN", "") or os.getenv("LINKEDIN_ACCESS_TOKEN", "")
-    linkedin_ad_account_id = setup.get("LINKEDIN_AD_ACCOUNT_ID", fi_linkedin.AD_ACCOUNT_ID)
+    ad_account_id = setup.get("ad_account_id", fi_linkedin.AD_ACCOUNT_ID)
 
     linkedin_integration = None
-    if linkedin_access_token:
+    if LINKEDIN_CLIENT_ID and LINKEDIN_CLIENT_SECRET:
         try:
             linkedin_integration = fi_linkedin.IntegrationLinkedIn(
                 fclient=fclient,
-                access_token=linkedin_access_token,
-                ad_account_id=linkedin_ad_account_id,
+                persona_id=rcx.persona.persona_id,
+                app_id=LINKEDIN_CLIENT_ID,
+                app_secret=LINKEDIN_CLIENT_SECRET,
+                ad_account_id=ad_account_id,
             )
             logger.info("LinkedIn integration initialized for %s", rcx.persona.persona_id)
         except Exception as e:

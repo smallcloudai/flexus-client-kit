@@ -13,6 +13,8 @@ import httpx
 
 from flexus_client_kit import ckit_client
 from flexus_client_kit import ckit_cloudtool
+from flexus_client_kit import ckit_external_auth
+
 
 logger = logging.getLogger("linkedin")
 
@@ -83,19 +85,11 @@ linkedin(op="get_analytics", args={"campaign_id": "123456", "days": 30})
 
 LINKEDIN_SETUP_SCHEMA = [
     {
-        "bs_name": "LINKEDIN_ACCESS_TOKEN",
-        "bs_type": "string_long",
+        "bs_name": "ad_account_id",
+        "bs_type": "string_short",
         "bs_default": "",
         "bs_group": "LinkedIn",
-        "bs_importance": 0,
-        "bs_description": "LinkedIn API Access Token (obtain via OAuth flow)",
-    },
-    {
-        "bs_name": "LINKEDIN_AD_ACCOUNT_ID",
-        "bs_type": "string",
-        "bs_default": "",
-        "bs_group": "LinkedIn",
-        "bs_importance": 0,
+        "bs_importance": 1,
         "bs_description": "LinkedIn Ads Account ID",
     },
 ]
@@ -136,11 +130,13 @@ class IntegrationLinkedIn:
     def __init__(
         self,
         fclient: ckit_client.FlexusClient,
+        persona_id: str,
         app_id: str,
         app_secret: str,
         ad_account_id: str,
     ):
         self.fclient = fclient
+        self.persona_id = persona_id
         self.app_id = app_id
         self.app_secret = app_secret
         self.access_token = ""
@@ -160,10 +156,20 @@ class IntegrationLinkedIn:
             return HELP
 
         auth_searchable = hashlib.md5((self.app_id + self.ad_account_id).encode()).hexdigest()[:30]
-        # use self.fclient
-        # find flexus_external_auth record and return access_token, or
-        # create flexus_external_auth record with self.app_id, self.app_secret,
-        # self.access_token
+        if not self.access_token:  # XXX or expired
+            auth_json = {
+                "client_id": self.app_id,
+                "client_secret": self.app_secret,
+                "ad_account_id": self.ad_account_id,
+            }
+            await ckit_external_auth.find_or_create_external_auth(
+                self.fclient,
+                self.persona_id,
+                auth_searchable,
+                "LinkedIn Ads %s" % self.ad_account_id,
+                "linkedin",
+                auth_json,
+            )
 
         op = model_produced_args.get("op", "")
         args, args_error = ckit_cloudtool.sanitize_args(model_produced_args)

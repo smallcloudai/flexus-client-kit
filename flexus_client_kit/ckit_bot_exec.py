@@ -243,6 +243,7 @@ async def subscribe_and_produce_callbacks(
     bc: BotsCollection,
 ):
     MAX_THREADS = 100
+    # XXX check if it will really crash downstream without this check
     assert fclient.service_name.startswith(bc.marketable_name)
 
     async with ws_client as ws:

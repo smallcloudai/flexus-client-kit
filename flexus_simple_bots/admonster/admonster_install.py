@@ -5,30 +5,12 @@ from pathlib import Path
 
 from flexus_client_kit import ckit_client
 from flexus_client_kit import ckit_bot_install
+from flexus_client_kit.integrations import fi_linkedin
 
 from flexus_simple_bots.admonster import admonster_bot, admonster_prompts
 
 
-admonster_setup_schema = [
-    {
-        "bs_name": "LINKEDIN_ACCESS_TOKEN",
-        "bs_type": "string_long",
-        "bs_default": "",
-        "bs_group": "LinkedIn",
-        "bs_order": 1,
-        "bs_importance": 0,
-        "bs_description": "LinkedIn API Access Token (obtain via OAuth flow)",
-    },
-    {
-        "bs_name": "LINKEDIN_AD_ACCOUNT_ID",
-        "bs_type": "string_long",
-        "bs_default": "513489554",
-        "bs_group": "LinkedIn",
-        "bs_order": 2,
-        "bs_importance": 0,
-        "bs_description": "LinkedIn Ads Account ID",
-    },
-]
+admonster_setup_schema = fi_linkedin.LINKEDIN_SETUP_SCHEMA
 
 async def install(client: ckit_client.FlexusClient, ws_id: str):
     bot_internal_tools = json.dumps([t.openai_style_tool() for t in admonster_bot.TOOLS])
@@ -53,9 +35,9 @@ async def install(client: ckit_client.FlexusClient, ws_id: str):
         marketable_run_this="python -m flexus_simple_bots.admonster.admonster_bot",
         marketable_setup_default=admonster_setup_schema,
         marketable_featured_actions=[
-            {"feat_question": "Show me all my LinkedIn campaigns", "feat_run_as_setup": False, "feat_depends_on_setup": ["LINKEDIN_ACCESS_TOKEN"]},
-            {"feat_question": "Create a new brand awareness campaign", "feat_run_as_setup": False, "feat_depends_on_setup": ["LINKEDIN_ACCESS_TOKEN"]},
-            {"feat_question": "Analyze my campaign performance", "feat_run_as_setup": False, "feat_depends_on_setup": ["LINKEDIN_ACCESS_TOKEN"]},
+            {"feat_question": "Show me all my LinkedIn campaigns", "feat_run_as_setup": False, "feat_depends_on_setup": ["ad_account_id"]},
+            {"feat_question": "Create a new brand awareness campaign", "feat_run_as_setup": False, "feat_depends_on_setup": ["ad_account_id"]},
+            {"feat_question": "Analyze my campaign performance", "feat_run_as_setup": False, "feat_depends_on_setup": ["ad_account_id"]},
         ],
         marketable_intro_message="Hi! I'm Ad Monster, your LinkedIn advertising assistant. I can help you create campaigns, monitor performance, and optimize your ad spend. Let's start by checking your current campaigns with linkedin(op='status')!",
         marketable_preferred_model_default="grok-code-fast-1",
