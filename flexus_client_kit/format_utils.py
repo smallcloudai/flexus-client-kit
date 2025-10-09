@@ -113,7 +113,7 @@ def format_json_output(
 def format_text_output(
     path: str,
     content: str,
-    lines_range: str,
+    lines_range: str = ":",
     safety_valve: str = DEFAULT_SAFETY_VALVE
 ) -> str:
     # Please leave this function alone -- Oleg
@@ -161,7 +161,7 @@ def format_text_output(
 def format_binary_output(
     path: str,
     data: bytes,
-    lines_range: str,
+    lines_range: str = ":",
     safety_valve: str = DEFAULT_SAFETY_VALVE
 ) -> str:
     """Format binary data for display, with special handling for images."""
@@ -213,7 +213,7 @@ def format_binary_output(
 def format_cat_output(
     path: str,
     file_data: Union[bytes, str, list, dict],
-    lines_range: str,
+    lines_range: str = ":",
     safety_valve: str = DEFAULT_SAFETY_VALVE
 ) -> str:
     """Main function to format file data for display."""

@@ -84,12 +84,25 @@ LOAD_METADATA_TOOL = ckit_cloudtool.CloudTool(
     },
 )
 
+REMOVE_REPORT_TOOL = ckit_cloudtool.CloudTool(
+    name="remove_report",
+    description="Remove a report and all its associated files from the database",
+    parameters={
+        "type": "object",
+        "properties": {
+            "report_id": {"type": "string", "description": "Report ID to remove"},
+        },
+        "required": ["report_id"],
+    },
+)
+
 REPORT_TOOLS = [
     CREATE_REPORT_TOOL,
     PROCESS_REPORT_TOOL,
     FILL_SECTION_TOOL,
     REPORT_STATUS_TOOL,
-    LOAD_METADATA_TOOL
+    LOAD_METADATA_TOOL,
+    REMOVE_REPORT_TOOL
 ]
 
 
@@ -439,6 +452,10 @@ async def handle_create_report_tool(
     timestamp = datetime.now(tz).strftime("%Y%m%d_%H%M%S")
     report_id = f"{name}_{timestamp}"
 
+    existing_report = await ckit_mongo.retrieve_file(mongo_collection, f"report_{report_id}.json")
+    if existing_report:
+        return f"Error: Report with ID '{report_id}' already exists. Please try again or use a different name."
+
     try:
         report_params = fuzzy_json.loads(parameters)
         if not isinstance(report_params, dict):
@@ -542,7 +559,7 @@ async def handle_fill_section_tool(
     todo_infos = [todo for todo in report_doc["json"]["todo_queue"] if todo["section_name"] == section_name]
     assert len(todo_infos) <= 1, f"Problem in the config, non-unique name in sections:\n{todo_infos}"
     if len(todo_infos) == 0:
-        if next((s for s in report_doc["json"]["sections"] if s["section_name"] == section_name), None):
+        if section_name in report_doc["json"]["sections"]:
             return f"Error: Section '{section_name}' is already filled"
         sections = ", ".join([todo["section_name"] for todo in report_doc["json"]["todo_queue"]])
         return f"Error: Section '{section_name}' no found in the report '{report_id}'. Available to process sections:\n{sections}"
@@ -850,6 +867,118 @@ async def handle_load_metadata_tool(
         output += "\n... [truncated - increase safety_valve to see more]"
 
     return output
+
+
+async def handle_remove_report_tool(
+        ws_timezone: str,
+        mongo_collection: Collection,
+        *,
+        report_id: str,
+) -> str:
+    if not report_id:
+        return "Error: 'report_id' parameter is required"
+    
+    report_id = _fix_unicode_corruption(report_id)
+    
+    tz = ZoneInfo(ws_timezone)
+    current_time = datetime.now(tz).strftime("%Y-%m-%d %H:%M:%S %Z")
+    
+    report_json_path = f"report_{report_id}.json"
+    report_doc = await ckit_mongo.retrieve_file(mongo_collection, report_json_path)
+    
+    if not report_doc:
+        all_files = await ckit_mongo.list_files(mongo_collection)
+        report_files = [f for f in all_files if f["path"].startswith("report_") and f["path"].endswith(".json")]
+        
+        if report_files:
+            available_reports = []
+            for f in report_files[:10]:
+                rdata = f["json"]
+                report_name = rdata.get('_id', 'unknown')
+                status = rdata.get('status', 'unknown')
+                available_reports.append(f"  - {report_name} (status: {status})")
+            
+            return f"""[{current_time} in {tz}]
+
+Error: Report '{report_id}' not found.
+
+Available reports:
+{chr(10).join(available_reports)}
+
+Use one of the report IDs above."""
+        else:
+            return f"""[{current_time} in {tz}]
+
+Error: Report '{report_id}' not found.
+No reports available in the database."""
+
+    deleted_files = []
+    failed_files = []
+    
+    # 1. Delete the main report JSON file
+    try:
+        if await ckit_mongo.delete_file(mongo_collection, report_json_path):
+            deleted_files.append(report_json_path)
+            logger.info(f"Deleted report JSON: {report_json_path}")
+        else:
+            failed_files.append(report_json_path)
+    except Exception as e:
+        logger.error(f"Failed to delete {report_json_path}: {e}")
+        failed_files.append(report_json_path)
+    
+    # 2. Delete the HTML report if it exists
+    html_path = f"report_{report_id}.html"
+    try:
+        if await ckit_mongo.delete_file(mongo_collection, html_path):
+            deleted_files.append(html_path)
+            logger.info(f"Deleted report HTML: {html_path}")
+    except Exception as e:
+        logger.warning(f"HTML file not found or failed to delete: {html_path}: {e}")
+    
+    # 3. Delete associated meta data files
+    try:
+        all_files = await ckit_mongo.list_files(mongo_collection)
+        meta_files = [f for f in all_files if f["path"].startswith(f"meta_data_{report_id}_")]
+        
+        for file_info in meta_files:
+            file_path = file_info["path"]
+            try:
+                if await ckit_mongo.delete_file(mongo_collection, file_path):
+                    deleted_files.append(file_path)
+                    logger.info(f"Deleted meta data file: {file_path}")
+                else:
+                    failed_files.append(file_path)
+            except Exception as e:
+                logger.error(f"Failed to delete meta file {file_path}: {e}")
+                failed_files.append(file_path)
+    except Exception as e:
+        logger.error(f"Error while cleaning up meta files for report {report_id}: {e}")
+    
+    result = [f"[{current_time} in {tz}]", ""]
+    
+    if deleted_files:
+        result.append(f"✅ Successfully deleted report '{report_id}'")
+        result.append(f"\nDeleted {len(deleted_files)} file(s):")
+        for file in deleted_files:
+            result.append(f"  - {file}")
+    
+    if failed_files:
+        result.append(f"\n⚠️ Failed to delete {len(failed_files)} file(s):")
+        for file in failed_files:
+            result.append(f"  - {file}")
+    
+    if not deleted_files and not failed_files:
+        result.append(f"❌ No files were deleted for report '{report_id}'")
+    
+    remaining_files = await ckit_mongo.list_files(mongo_collection)
+    remaining_reports = [f for f in remaining_files if f["path"].startswith("report_") and f["path"].endswith(".json")]
+    
+    if remaining_reports:
+        result.append(f"\n📊 Remaining reports in database: {len(remaining_reports)}")
+    else:
+        result.append("\n📊 No reports remaining in database")
+    
+    return "\n".join(result)
 
 
 def _format_dependency_content(
