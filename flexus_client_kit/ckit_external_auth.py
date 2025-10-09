@@ -19,7 +19,7 @@ class ExternalAuth:
     auth_expires_ts: float
 
 
-async def find_or_create_external_auth(
+async def upsert_external_auth(
     fclient: ckit_client.FlexusClient,
     persona_id: str,
     auth_searchable: str,
@@ -56,17 +56,17 @@ async def find_or_create_external_auth(
         )
 
 
-async def get_access_token_from_external_auth(
+async def decrypt_external_auth(
     fclient: ckit_client.FlexusClient,
     auth_searchable: str,
-) -> Optional[str]:
+) -> dict:
     http = await fclient.use_http()
     async with http as h:
         r = await h.execute(
             gql.gql("""
-                query GetAccessToken($auth_searchable: String!) {
-                    get_access_token_from_external_auth(auth_searchable: $auth_searchable)
+                query DecryptExternalAuth($auth_searchable: String!) {
+                    decrypt_external_auth(auth_searchable: $auth_searchable)
                 }"""),
             variable_values={"auth_searchable": auth_searchable},
         )
-    return r.get("get_access_token_from_external_auth")
+    return r["decrypt_external_auth"]

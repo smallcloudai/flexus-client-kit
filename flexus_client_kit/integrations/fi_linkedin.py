@@ -141,12 +141,6 @@ class IntegrationLinkedIn:
         self.app_secret = app_secret
         self.access_token = ""
         self.ad_account_id = ad_account_id or AD_ACCOUNT_ID
-        self.headers = {
-            "Authorization": f"Bearer {self.access_token}",
-            "Content-Type": "application/json",
-            "X-Restli-Protocol-Version": "2.0.0",
-            "LinkedIn-Version": API_VERSION,
-        }
         self.problems = []
         self._campaign_groups_cache = None
         self._campaigns_cache = None
@@ -155,14 +149,20 @@ class IntegrationLinkedIn:
         if not model_produced_args:
             return HELP
 
-        auth_searchable = hashlib.md5((self.app_id + self.ad_account_id).encode()).hexdigest()[:30]
-        if not self.access_token:  # XXX or expired
+        auth_searchable = None
+        if not self.access_token:
+            auth_searchable = hashlib.md5((self.app_id + self.ad_account_id).encode()).hexdigest()[:30]
+            auth_json = await ckit_external_auth.decrypt_external_auth(self.fclient, auth_searchable)
+            self.access_token = auth_json.get("access_token", "")
+
+        if not self.access_token:
+            assert auth_searchable
             auth_json = {
                 "client_id": self.app_id,
                 "client_secret": self.app_secret,
                 "ad_account_id": self.ad_account_id,
             }
-            await ckit_external_auth.find_or_create_external_auth(
+            await ckit_external_auth.upsert_external_auth(
                 self.fclient,
                 self.persona_id,
                 auth_searchable,
@@ -170,7 +170,6 @@ class IntegrationLinkedIn:
                 "linkedin",
                 auth_json,
             )
-
             web_url = os.getenv("FLEXUS_WEB_URL", "http://localhost:3000")
             oauth_params = {
                 "response_type": "code",
@@ -180,8 +179,14 @@ class IntegrationLinkedIn:
                 "state": auth_searchable,
             }
             auth_url = f"https://www.linkedin.com/oauth/v2/authorization?{urlencode(oauth_params)}"
-
             return f"LinkedIn Authorization Required:\n\n{auth_url}\n\nAfter authorization, try your request again."
+
+        self.headers = {
+            "Authorization": f"Bearer {self.access_token}",
+            "Content-Type": "application/json",
+            "X-Restli-Protocol-Version": "2.0.0",
+            "LinkedIn-Version": API_VERSION,
+        }
 
         op = model_produced_args.get("op", "")
         args, args_error = ckit_cloudtool.sanitize_args(model_produced_args)
@@ -199,7 +204,6 @@ class IntegrationLinkedIn:
 
         if print_status:
             r += f"LinkedIn Ads Account: {self.ad_account_id}\n"
-            r += f"Access Token: ...{self.access_token[-10:]}\n\n"
 
             # List all campaign groups with their campaigns
             await self._refresh_cache()
