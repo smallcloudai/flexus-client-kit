@@ -171,6 +171,18 @@ class IntegrationLinkedIn:
                 auth_json,
             )
 
+            web_url = os.getenv("FLEXUS_WEB_URL", "http://localhost:3000")
+            oauth_params = {
+                "response_type": "code",
+                "client_id": self.app_id,
+                "redirect_uri": f"{web_url}/v1/external-auth/linkedin",
+                "scope": "rw_ads r_ads_reporting",
+                "state": auth_searchable,
+            }
+            auth_url = f"https://www.linkedin.com/oauth/v2/authorization?{urlencode(oauth_params)}"
+
+            return f"LinkedIn Authorization Required:\n\n{auth_url}\n\nAfter authorization, try your request again."
+
         op = model_produced_args.get("op", "")
         args, args_error = ckit_cloudtool.sanitize_args(model_produced_args)
         if args_error:
