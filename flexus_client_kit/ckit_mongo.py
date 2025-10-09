@@ -225,7 +225,7 @@ async def list_files(
         query["path"] = {"$regex": f"^{path_prefix}"}
     cursor = mongo_collection.find(
         query,
-        {"data": 0, "json": 0}
+        {"data": 0}
     ).sort("ctime", -1)
 
     if limit:
