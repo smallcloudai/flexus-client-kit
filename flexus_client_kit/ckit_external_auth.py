@@ -1,22 +1,9 @@
 import json
 import logging
-from dataclasses import dataclass
-from typing import Optional
 import gql
 from flexus_client_kit import ckit_client, gql_utils
 
 logger = logging.getLogger("extauth")
-
-
-@dataclass
-class ExternalAuth:
-    auth_id: str
-    # auth_searchable: str
-    auth_name: str
-    auth_auth_type: str
-    auth_service_provider: str
-    # auth_json: dict
-    auth_expires_ts: float
 
 
 async def upsert_external_auth(
