@@ -31,5 +31,5 @@ async def run_typical_single_subscription_with_restart_on_network_errors(fclient
         ) as e:
             if ckit_shutdown.shutdown_event.is_set():
                 break
-            logger.info("got %s, sleep 60..." % (type(e).__name__,))
+            logger.info("got %s, sleep 60..." % (type(e).__name__,), exc_info=True)
             await ckit_shutdown.wait(60)
