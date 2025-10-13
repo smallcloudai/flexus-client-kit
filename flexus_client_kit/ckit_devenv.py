@@ -45,9 +45,9 @@ async def dev_environment_create(
     fclient: ckit_client.FlexusClient,
     fgroup_id: str,
     repo_uri: str,
-    setup_script: str = "",
-    docker_image: str = "",
-    env_vars: Dict[str, str] = {},
+    setup_script: str,
+    docker_image: str,
+    env_vars: Dict[str, str],
 ) -> FDevEnvironmentOutput:
     http = await fclient.use_http()
     async with http as h:
