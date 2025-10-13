@@ -138,6 +138,9 @@ class IntegrationDiscord:
         self.mongo_collection = mongo_collection
         self.activity_callback: Optional[Callable[[ActivityDiscord, bool], Awaitable[None]]] = None
         self.prev_messages: deque[str] = deque(maxlen=200)
+        # Deduplication: Track processed message IDs with timestamps
+        self.processed_messages: Dict[str, float] = {}
+        self.dedup_window_seconds: int = 300  # 5 minutes
         self.user_id2name: Dict[int, str] = {}
         self.user_name2id: Dict[str, int] = {}
         self.channel_id2name: Dict[int, str] = {}
@@ -607,6 +610,16 @@ class IntegrationDiscord:
         self.user_name2id[display.lower()] = member.id
         return display
 
+    def _cleanup_old_processed_messages(self) -> None:
+        """Remove processed message IDs older than dedup_window_seconds."""
+        current_time = time.time()
+        cutoff_time = current_time - self.dedup_window_seconds
+        expired_ids = [msg_id for msg_id, timestamp in self.processed_messages.items() if timestamp < cutoff_time]
+        for msg_id in expired_ids:
+            del self.processed_messages[msg_id]
+        if expired_ids:
+            logger.debug("Cleaned up %d expired message IDs from deduplication cache", len(expired_ids))
+
     async def _get_channel_name(self, channel_id: int) -> str:
         if channel_id in self.channel_id2name:
             return self.channel_id2name[channel_id]
@@ -635,6 +648,11 @@ class IntegrationDiscord:
         if message.guild is None and not isinstance(message.channel, discord.DMChannel):
             return
 
+        # Skip thread starter messages that are system-generated duplicates
+        if message.type == discord.MessageType.thread_starter_message:
+            logger.info("Ignoring thread_starter_message (system duplicate) for message_id=%s", message.id)
+            return
+
         channel_identifier, thread_identifier = self._identify_message_location(message)
         if not channel_identifier:
             return
@@ -647,6 +665,32 @@ class IntegrationDiscord:
             ):
                 return
 
+        # Deduplication: Check if this message was already processed
+        message_id_str = str(message.id)
+        current_time = time.time()
+
+        if message_id_str in self.processed_messages:
+            last_processed_time = self.processed_messages[message_id_str]
+            time_since_last = current_time - last_processed_time
+            logger.warning(
+                "Duplicate message detected and ignored: message_id=%s, channel_id=%s, thread_id=%s, "
+                "last_processed=%.1fs ago, author=%s",
+                message_id_str,
+                channel_identifier,
+                thread_identifier,
+                time_since_last,
+                message.author.name
+            )
+            return
+
+        # Record this message as processed
+        self.processed_messages[message_id_str] = current_time
+
+        # Cleanup old entries periodically (every 50 messages)
+        if len(self.processed_messages) % 50 == 0:
+            self._cleanup_old_processed_messages()
+
+        # Keep legacy deque for backward compatibility
         if str(message.id) in self.prev_messages:
             return
         self.prev_messages.append(str(message.id))
@@ -654,6 +698,15 @@ class IntegrationDiscord:
         author_name = self._record_user(message.author)
         text = message.content or ""
         attachments = await self._extract_attachments(message)
+
+        logger.info(
+            "Processing message: message_id=%s, channel_id=%s, thread_id=%s, author=%s, content_length=%d",
+            message_id_str,
+            channel_identifier,
+            thread_identifier,
+            author_name,
+            len(text)
+        )
 
         activity = ActivityDiscord(
             channel_name=await self._get_channel_name(channel_identifier),
