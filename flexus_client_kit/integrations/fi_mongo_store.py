@@ -39,7 +39,7 @@ delete  - Delete a stored file by exact path (no wildcards).
           args: path (required)
 
 grep    - Search file contents using Python regex using per-line matching
-          args: path (default "."), pattern (required), recursive (true), include ("*"), context (0)
+          args: path (default "."), pattern (required), context (0)
           Sometimes you need to grep .json files on disk, remember that all the strings inside are escaped in that case, making
           it a bit harder to match.
 
