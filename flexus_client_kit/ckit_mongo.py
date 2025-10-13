@@ -1,6 +1,7 @@
 import json
 import gql
 import time
+from datetime import datetime, timedelta, timezone
 from typing import Optional, Dict, Any
 from bson import Binary
 from pymongo.collection import Collection
@@ -30,6 +31,7 @@ async def store_file(
     mongo_collection: Collection,
     file_path: str,
     file_data: bytes,
+    expiry_after_s: Optional[int] = -1 # -1 never expire
 ) -> str:
     existing_doc = await mongo_collection.find_one({"path": file_path}, {"ctime": 1})
     old_ctime = existing_doc["ctime"] if existing_doc else None
@@ -44,6 +46,8 @@ async def store_file(
         "mtime": t,
         "size_bytes": len(file_data),
     }
+    if expiry_after_s != -1:
+        document["expires_at"] = datetime.now(timezone.utc) + timedelta(seconds = expiry_after_s)
 
     if file_path.endswith(".json"):
         json_data = json.loads(file_data.decode("utf-8"))
@@ -90,4 +94,3 @@ async def delete_file(
 ) -> bool:
     result = await mongo_collection.delete_one({"path": file_path})
     return result.deleted_count > 0
-
