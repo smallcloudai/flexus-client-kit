@@ -611,7 +611,7 @@ async def handle_fill_section_tool(
     if len(report_data["todo_queue"]) == 0:
         report_data["status"] = "completed"
 
-    await ckit_mongo.store_file(
+    await ckit_mongo.update_file(
         mongo_collection,
         f"report_{report_id}.json",
         json.dumps(report_data).encode('utf-8')

@@ -16,15 +16,16 @@ async def process_file(input_file: str, input_dir: str):
     prompt = "Make avatar suitable for small pictures, face much bigger with transparent background."
     print(f"Processing {input_file}...")
 
+    N = 5
     rsp = await client.images.edit(
         model="gpt-image-1",
         image=open(input_path, "rb"),
         prompt=prompt,
-        n=5,
-        size="1024x1024",
+        n=N,
+        size="1024x1536",
     )
 
-    for i in range(1):
+    for i in range(N):
         # Save original PNG
         output_file = os.path.join(input_dir, f"avatar-{base_name}-{i}-1024x1024.png")
         with open(output_file, "wb") as f:
