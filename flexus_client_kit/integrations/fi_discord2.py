@@ -137,6 +137,9 @@ class IntegrationDiscord:
         self.bot_token = DISCORD_BOT_TOKEN.strip()
         self.mongo_collection = mongo_collection
         self.activity_callback: Optional[Callable[[ActivityDiscord, bool], Awaitable[None]]] = None
+        # Deque to track processed message IDs and prevent duplicate processing.
+        # This is the primary mechanism for deduplication across all message sources:
+        # live events, history fetches, and thread creation events.
         self.prev_messages: deque[str] = deque(maxlen=200)
         self.user_id2name: Dict[int, str] = {}
         self.user_name2id: Dict[str, int] = {}
@@ -426,7 +429,18 @@ class IntegrationDiscord:
         return Destination(channel_obj, channel_obj.id, 0, channel_obj.name, None)
 
     async def _ensure_thread_for_capture(self, destination, message_id: Optional[str] = None):
-        """Create a thread from a message for capturing. Returns updated Destination."""
+        """Create a thread from a message for capturing. Returns updated Destination.
+
+        CRITICAL: When creating a thread from a message, we must mark the original message
+        as processed in prev_messages to prevent duplicate processing. Discord's thread
+        creation can trigger multiple events for the same content:
+        1. The original message event (already processed)
+        2. A thread_starter_message event (references the original)
+        3. History fetch may include the starter message
+
+        By marking the message ID as processed here, we ensure it won't be processed again
+        when the thread creation triggers additional events or history fetches.
+        """
         from dataclasses import replace
 
         if not isinstance(destination.target, discord.TextChannel):
@@ -445,6 +459,15 @@ class IntegrationDiscord:
             logger.info("Fetching message %s from channel %s", message_id, destination.display_name)
             message = await destination.target.fetch_message(int(message_id))
             logger.info("Message found: author=%s content=%s", message.author.name, message.content[:50])
+
+            # CRITICAL: Mark this message as processed BEFORE creating the thread.
+            # This prevents duplicate processing when:
+            # - Thread creation re-emits the message as a thread_starter_message event
+            # - History fetch includes this message
+            # - Any other Discord event references this message
+            if message_id not in self.prev_messages:
+                self.prev_messages.append(message_id)
+                logger.info("Pre-marking message %s as processed to prevent duplicates during thread creation", message_id)
 
             # Create a thread from the message
             logger.info("Creating thread with name: %s", thread_name)
@@ -497,6 +520,18 @@ class IntegrationDiscord:
             raise RuntimeError(f"Discord error: {e}")
 
     async def _collect_recent_messages(self, destination) -> List[Dict[str, Any]]:
+        """Collect recent messages from a destination (thread or channel).
+
+        This function fetches message history and processes it for capture.
+        IMPORTANT: All messages fetched here are marked as processed in prev_messages
+        to prevent duplicate processing when:
+        1. Live events arrive for messages we've already seen in history
+        2. Thread starter messages reference messages we've already processed
+        3. Multiple history fetches occur
+
+        By marking message IDs as processed during history fetch, we ensure the
+        deduplication mechanism (prev_messages deque) prevents any re-processing.
+        """
         if not destination.target:
             return []
         try:
@@ -512,18 +547,43 @@ class IntegrationDiscord:
 
         parts: List[Dict[str, Any]] = []
         for message in history:  # Already in chronological order
+            message_id = str(message.id)
+
+            # CRITICAL: Mark each message from history as processed to prevent duplicates.
+            # This is essential because:
+            # - History fetch may overlap with live on_message events
+            # - Thread creation may cause the same message to appear in multiple contexts
+            # - Without this, the same message could be processed multiple times
+            if message_id in self.prev_messages:
+                logger.debug("Skipping message %s from history - already processed", message_id)
+                continue
+
+            self.prev_messages.append(message_id)
+            logger.debug("Processing message %s from history (type=%s)", message_id, message.type)
+
             author_name = self._record_user(message.author)
 
             # Handle thread starter messages properly
+            # Thread starter messages are Discord's way of showing the original message
+            # that started a thread. They don't represent new content, just a reference.
+            # We fetch the actual content from the original message if needed.
             content = message.content
             if message.type == discord.MessageType.thread_starter_message:
+                logger.debug("Found thread_starter_message %s, attempting to fetch original content", message_id)
                 try:
                     # Get the original message that started the thread
                     if hasattr(destination.target, 'parent') and destination.target.parent:
+                        # The thread ID often matches the starter message ID in Discord's structure
                         starter_message = await destination.target.parent.fetch_message(destination.target.id)
                         content = starter_message.content
+                        # Also mark the original starter message ID as processed
+                        starter_id = str(starter_message.id)
+                        if starter_id not in self.prev_messages:
+                            self.prev_messages.append(starter_id)
+                            logger.debug("Marked original starter message %s as processed", starter_id)
                 except DiscordException as e:
                     logger.warning("%s Failed to fetch thread starter message: %s", self.rcx.persona.persona_id, e)
+                    # Skip this message if we can't get the original content
                     continue
 
             text = content.strip() if content else ""
@@ -531,6 +591,9 @@ class IntegrationDiscord:
                 parts.append({"m_type": "text", "m_content": f"👤{author_name}\n\n{text}"})
             attachments = await self._extract_attachments(message)
             parts.extend(attachments)
+
+        logger.info("Collected %d message parts from history, marked %d messages as processed",
+                   len(parts), len(history))
         return parts
 
     async def _extract_attachments(self, message: discord.Message) -> List[Dict[str, str]]:
@@ -628,6 +691,28 @@ class IntegrationDiscord:
         return str(channel_id)
 
     async def _handle_incoming_message(self, message: discord.Message) -> None:
+        """Handle incoming Discord messages from live events.
+
+        This is the main entry point for processing new messages as they arrive.
+        CRITICAL DEDUPLICATION LOGIC:
+
+        1. Skip messages from the bot itself
+        2. Skip messages from non-guild/non-DM channels
+        3. Check watch list if configured
+        4. **PRIMARY DEDUPLICATION CHECK**: Skip if message.id is in prev_messages
+        5. Add message.id to prev_messages after passing all checks
+        6. Skip thread_starter_message types (they're references, not new content)
+
+        The prev_messages deque is the single source of truth for preventing duplicates.
+        It works across all message sources:
+        - Live on_message events (this function)
+        - History fetches (_collect_recent_messages)
+        - Thread creation events (_ensure_thread_for_capture)
+
+        By consistently checking and adding to prev_messages, we ensure each unique
+        message ID is processed exactly once, regardless of how many times Discord
+        sends events related to it.
+        """
         if not self.client:
             return
         if message.author == self.client.user:
@@ -639,6 +724,7 @@ class IntegrationDiscord:
         if not channel_identifier:
             return
 
+        # Check watch list filter if configured
         if self.watch_channel_ids or self.watch_channel_names:
             channel_name = await self._get_channel_name(channel_identifier)
             if (
@@ -647,9 +733,37 @@ class IntegrationDiscord:
             ):
                 return
 
-        if str(message.id) in self.prev_messages:
+        message_id = str(message.id)
+
+        # CRITICAL: Primary deduplication check - this prevents processing the same message
+        # multiple times when Discord emits duplicate events (e.g., during thread creation,
+        # history fetch overlaps, or thread_starter_message events).
+        # This check must happen BEFORE any processing to ensure we never create duplicate
+        # messages in the chat or duplicate Kanban tasks.
+        if message_id in self.prev_messages:
+            logger.info("Skipping duplicate message: id=%s type=%s channel=%s thread=%s",
+                       message_id, message.type, channel_identifier, thread_identifier or "none")
             return
-        self.prev_messages.append(str(message.id))
+
+        # CRITICAL: Skip thread_starter_message types entirely. These are Discord's way
+        # of referencing the original message that started a thread. They don't represent
+        # new user content and should never be processed as new messages.
+        # The actual content is already processed when:
+        # 1. The original message arrives as a normal message event
+        # 2. History fetch collects it (marked as processed there)
+        # 3. Thread creation marks it as processed
+        if message.type == discord.MessageType.thread_starter_message:
+            logger.info("Skipping thread_starter_message: id=%s (reference only, not new content)", message_id)
+            # Still add to prev_messages to track that we've seen this event
+            self.prev_messages.append(message_id)
+            return
+
+        # Mark this message as processed BEFORE any async operations that might trigger
+        # additional events or race conditions
+        self.prev_messages.append(message_id)
+        logger.info("Processing new message: id=%s type=%s author=%s channel=%s thread=%s",
+                   message_id, message.type, message.author.name,
+                   channel_identifier, thread_identifier or "none")
 
         author_name = self._record_user(message.author)
         text = message.content or ""
@@ -659,7 +773,7 @@ class IntegrationDiscord:
             channel_name=await self._get_channel_name(channel_identifier),
             channel_id=channel_identifier,
             thread_id=thread_identifier,
-            message_id=str(message.id),
+            message_id=message_id,
             message_text=text,
             message_author_name=author_name,
             attachments=attachments,
