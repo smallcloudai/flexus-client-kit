@@ -546,7 +546,7 @@ class IntegrationDiscord:
                 if image_part:
                     items.append(image_part)
             else:
-                summary = format_cat_output(attachment.filename or "attachment", data, "10k")
+                summary = format_cat_output(attachment.filename or "attachment", data, safety_valve="10k")
                 items.append({"m_type": "text", "m_content": f"📎 {summary}"})
         return items
 
