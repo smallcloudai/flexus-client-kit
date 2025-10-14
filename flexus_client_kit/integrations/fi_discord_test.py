@@ -105,12 +105,12 @@ async def discord_post_test(setup: ckit_scenario_setup.ScenarioSetup, discord_bo
     while not queue.empty():
         queue.get_nowait()
 
-    text_args = {"op": "post", "args": {"channel_slash_thread": "tests", "text": "Test post with files"}}
+    text_args = {"op": "post", "args": {"target": "tests", "text": "Test post with files"}}
     tcall1 = setup.create_fake_toolcall_output("test_call_1", "test_thread", text_args)
     result1 = await discord_bot.called_by_model(toolcall=tcall1, model_produced_args=text_args)
     assert "success" in result1.lower()
 
-    file_args = {"op": "post", "args": {"channel_slash_thread": "tests", "path": "1.txt"}}
+    file_args = {"op": "post", "args": {"target": "tests", "path": "1.txt"}}
     tcall2 = setup.create_fake_toolcall_output("test_call_2", "test_thread", file_args)
     result2 = await discord_bot.called_by_model(toolcall=tcall2, model_produced_args=file_args)
     assert "success" in result2.lower()
@@ -146,21 +146,19 @@ async def discord_capture_test(setup: ckit_scenario_setup.ScenarioSetup, discord
     http = await discord_bot.fclient.use_http()
     async with http as h:
         r = await h.execute(
-            gql.gql("""mutation CreateThread($input:FThreadInput!){ thread_create(input:$input){ ft_id }}"""),
-            variable_values={"input": {
-                "owner_shared": False, "located_fgroup_id": discord_bot.rcx.persona.located_fgroup_id,
-                "ft_fexp_id": "id:default", "ft_persona_id": discord_bot.rcx.persona.persona_id,
-                "ft_title": "capture test", "ft_toolset": "[]", "ft_app_capture": "bot"
-            }}
+            gql.gql("""mutation BotActivateTest($who_is_asking:String!, $persona_id:String!, $first_question:String!, $first_calls:String!, $title:String!, $activation_type:String!){ bot_activate(who_is_asking:$who_is_asking, persona_id:$persona_id, first_question:$first_question, first_calls:$first_calls, title:$title, activation_type:$activation_type){ ft_id }}"""),
+            variable_values={
+                "who_is_asking": "fi_discord_test",
+                "persona_id": discord_bot.rcx.persona.persona_id,
+                "first_question": msg,
+                "first_calls": "[]",
+                "title": "capture test",
+                "activation_type": "default",
+            }
         )
-    ft_id = r["thread_create"]["ft_id"]
+    ft_id = r["bot_activate"]["ft_id"]
 
-    await ckit_ask_model.thread_add_user_message(
-        http, ft_id, msg, "fi_discord_test", ftm_alt=100,
-        user_preferences=json.dumps({"model": "no-model", "disable_title_generation": True, "disable_streaming": True})
-    )
-
-    args = {"op": "capture", "args": {"channel_slash_thread": f"tests/{thread.id}"}}
+    args = {"op": "capture", "args": {"target": f"tests/{thread.id}"}}
     tcall = setup.create_fake_toolcall_output("capture_call", ft_id, args)
     result = await discord_bot.called_by_model(toolcall=tcall, model_produced_args=args)
     assert "captured" in result.lower()
@@ -198,7 +196,7 @@ async def discord_capture_test(setup: ckit_scenario_setup.ScenarioSetup, discord
             break
     assert found
 
-    uncapture_args = {"op": "uncapture", "args": {"channel_slash_thread": f"tests/{thread.id}"}}
+    uncapture_args = {"op": "uncapture"}
     tcall3 = setup.create_fake_toolcall_output("uncapture_call", ft_id, uncapture_args)
     result3 = await discord_bot.called_by_model(toolcall=tcall3, model_produced_args=uncapture_args)
     assert "error" not in result3.lower()

@@ -60,19 +60,17 @@ async def fake_capture_test(setup: ckit_scenario_setup.ScenarioSetup, slack_bot,
     http = await slack_bot.fclient.use_http()
     async with http as h:
         r = await h.execute(
-            gql.gql("""mutation CreateThread($input:FThreadInput!){ thread_create(input:$input){ ft_id }}"""),
-            variable_values={"input": {
-                "owner_shared": False, "located_fgroup_id": slack_bot.rcx.persona.located_fgroup_id,
-                "ft_fexp_id": "id:default", "ft_persona_id": slack_bot.rcx.persona.persona_id,
-                "ft_title": "capture test", "ft_toolset": "[]", "ft_app_capture": "bot"
-            }}
+            gql.gql("""mutation BotActivateTest($who_is_asking:String!, $persona_id:String!, $first_question:String!, $first_calls:String!, $title:String!, $activation_type:String!){ bot_activate(who_is_asking:$who_is_asking, persona_id:$persona_id, first_question:$first_question, first_calls:$first_calls, title:$title, activation_type:$activation_type){ ft_id }}"""),
+            variable_values={
+                "who_is_asking": "fi_slack_fake_test",
+                "persona_id": slack_bot.rcx.persona.persona_id,
+                "first_question": first_activity.message_text,
+                "first_calls": "[]",
+                "title": "capture test",
+                "activation_type": "default",
+            }
         )
-    ft_id = r["thread_create"]["ft_id"]
-
-    await ckit_ask_model.thread_add_user_message(
-        http, ft_id, first_activity.message_text, "fi_slack_fake_test", ftm_alt=100,
-        user_preferences=json.dumps({"model": "no-model", "disable_title_generation": True, "disable_streaming": True})
-    )
+    ft_id = r["bot_activate"]["ft_id"]
 
     args = {"op": "capture", "args": {"channel_slash_thread": f"tests/{ts}"}}
     tcall = setup.create_fake_toolcall_output("cap1", ft_id, args)
