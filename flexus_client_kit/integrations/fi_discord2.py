@@ -147,6 +147,7 @@ class IntegrationDiscord:
         self.watch_channel_names: set[str] = set()
         self.reactive_task: Optional[asyncio.Task] = None
         self.client: Optional[discord.Client] = None
+        self.expected_bot_user_id: Optional[int] = None
 
         for item in [x.strip() for x in watch_channels.split(",") if x.strip()]:
             if item.isdigit():
@@ -156,6 +157,8 @@ class IntegrationDiscord:
 
         if not self.bot_token:
             self.problems_other.append("DISCORD_BOT_TOKEN is not configured")
+            logger.warning("%s DISCORD_BOT_TOKEN is not configured - Discord integration disabled",
+                         self.rcx.persona.persona_id)
             return
 
         intents = discord.Intents.default()
@@ -167,6 +170,9 @@ class IntegrationDiscord:
 
         self.client = discord.Client(intents=intents)
         self._setup_event_handlers()
+
+        logger.info("%s Discord integration initialized for persona (token configured: %s)",
+                   self.rcx.persona.persona_id, "yes" if self.bot_token else "no")
 
     def set_activity_callback(self, cb: Callable[[ActivityDiscord, bool], Awaitable[None]]):
         self.activity_callback = cb
@@ -570,7 +576,10 @@ class IntegrationDiscord:
 
         @self.client.event  # type: ignore[misc]
         async def on_ready():
-            logger.info("Logged in to Discord as %s", self.client.user)
+            if self.client and self.client.user:
+                self.expected_bot_user_id = self.client.user.id
+                logger.info("%s Logged in to Discord as %s (ID: %d)",
+                          self.rcx.persona.persona_id, self.client.user, self.expected_bot_user_id)
             await self._populate_caches()
 
         @self.client.event  # type: ignore[misc]
@@ -635,6 +644,40 @@ class IntegrationDiscord:
         if message.guild is None and not isinstance(message.channel, discord.DMChannel):
             return
 
+        # Skip thread_starter_message events as they are duplicates of the original message
+        # Thread creation automatically re-emits the original message, causing duplicates
+        if message.type == discord.MessageType.thread_starter_message:
+            logger.debug("%s Skipping thread_starter_message %s (duplicate of original)",
+                        self.rcx.persona.persona_id, message.id)
+            return
+
+        # Skip processing if this bot instance doesn't match the Discord client user
+        # This prevents duplicate processing when multiple bot instances are running
+        if not self.client.user:
+            logger.warning("%s Discord client user not ready, skipping message %s",
+                         self.rcx.persona.persona_id, message.id)
+            return
+
+        # Validate that this bot instance is the one that should process messages
+        # If expected_bot_user_id is set, verify it matches the current client user
+        if self.expected_bot_user_id and self.client.user.id != self.expected_bot_user_id:
+            logger.error("%s Bot user ID mismatch! Expected %d but client is %d. Multiple bot instances may be running with same token!",
+                        self.rcx.persona.persona_id, self.expected_bot_user_id, self.client.user.id)
+            return
+
+        # Check if this message is already being processed by checking prev_messages first
+        # This provides fast deduplication within a single bot instance
+        message_id = str(message.id)
+        if message_id in self.prev_messages:
+            logger.debug("%s Skipping duplicate message %s (already in prev_messages)",
+                        self.rcx.persona.persona_id, message_id)
+            return
+
+        # Mark message as seen immediately to prevent race conditions
+        self.prev_messages.append(message_id)
+        logger.debug("%s Processing new message %s from %s in channel %s",
+                    self.rcx.persona.persona_id, message_id, message.author, message.channel)
+
         channel_identifier, thread_identifier = self._identify_message_location(message)
         if not channel_identifier:
             return
@@ -645,11 +688,9 @@ class IntegrationDiscord:
                 str(channel_identifier) not in self.watch_channel_ids
                 and channel_name.lower() not in self.watch_channel_names
             ):
+                logger.debug("%s Skipping message %s - channel %s not in watch list",
+                           self.rcx.persona.persona_id, message_id, channel_name)
                 return
-
-        if str(message.id) in self.prev_messages:
-            return
-        self.prev_messages.append(str(message.id))
 
         author_name = self._record_user(message.author)
         text = message.content or ""
