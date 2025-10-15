@@ -48,31 +48,36 @@ async def dev_environment_create(
     setup_script: str,
     docker_image: str,
     env_vars: Dict[str, str],
+    ft_id: str,
 ) -> FDevEnvironmentOutput:
     http = await fclient.use_http()
     async with http as h:
         r = await h.execute(gql.gql(f"""
-            mutation CreateDevEnv($input: FDevEnvironmentInput!) {{
-                dev_environment_create(input: $input) {{
+            mutation CreateDevEnv($input: FDevEnvironmentInput!, $ft_id: String) {{
+                dev_environment_create(input: $input, ft_id: $ft_id) {{
                     {gql_utils.gql_fields(FDevEnvironmentOutput)}
                 }}
             }}"""),
-            variable_values={"input": {
-                "located_fgroup_id": fgroup_id,
-                "devenv_repo_uri": repo_uri,
-                "devenv_setup_script": setup_script,
-                "devenv_docker_image": docker_image,
-                "devenv_env_vars": json.dumps(env_vars),
-            }},
+            variable_values={
+                "input": {
+                    "located_fgroup_id": fgroup_id,
+                    "devenv_repo_uri": repo_uri,
+                    "devenv_setup_script": setup_script,
+                    "devenv_docker_image": docker_image,
+                    "devenv_env_vars": json.dumps(env_vars),
+                },
+                "ft_id": ft_id,
+            },
         )
     return gql_utils.dataclass_from_dict(r["dev_environment_create"], FDevEnvironmentOutput)
 
 async def dev_environment_patch(
     fclient: ckit_client.FlexusClient,
     devenv_id: str,
-    setup_script: Optional[str] = None,
-    docker_image: Optional[str] = None,
-    env_vars: Optional[Dict[str, str]] = None,
+    setup_script: Optional[str],
+    docker_image: Optional[str],
+    env_vars: Optional[Dict[str, str]],
+    ft_id: str,
 ) -> FDevEnvironmentOutput:
     patch = {}
     if setup_script is not None:
@@ -84,21 +89,21 @@ async def dev_environment_patch(
     http = await fclient.use_http()
     async with http as h:
         r = await h.execute(gql.gql(f"""
-            mutation PatchDevEnv($id: String!, $patch: FDevEnvironmentPatch!) {{
-                dev_environment_patch(id: $id, patch: $patch) {{
+            mutation PatchDevEnv($id: String!, $patch: FDevEnvironmentPatch!, $ft_id: String) {{
+                dev_environment_patch(id: $id, patch: $patch, ft_id: $ft_id) {{
                     {gql_utils.gql_fields(FDevEnvironmentOutput)}
                 }}
             }}"""),
-            variable_values={"id": devenv_id, "patch": patch},
+            variable_values={"id": devenv_id, "patch": patch, "ft_id": ft_id},
         )
     return gql_utils.dataclass_from_dict(r["dev_environment_patch"], FDevEnvironmentOutput)
 
-async def dev_environment_delete(fclient: ckit_client.FlexusClient, devenv_id: str) -> None:
+async def dev_environment_delete(fclient: ckit_client.FlexusClient, devenv_id: str, ft_id: str) -> None:
     http = await fclient.use_http()
     async with http as h:
         await h.execute(
-            gql.gql("""mutation DeleteDevEnv($id: String!) {
-                dev_environment_delete(id: $id)
+            gql.gql("""mutation DeleteDevEnv($id: String!, $ft_id: String) {
+                dev_environment_delete(id: $id, ft_id: $ft_id)
             }"""),
-            variable_values={"id": devenv_id},
+            variable_values={"id": devenv_id, "ft_id": ft_id},
         )
