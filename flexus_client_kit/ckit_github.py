@@ -42,7 +42,6 @@ def extract_repo_path_from_url(repo_url: str) -> Optional[str]:
     elif repo_url.startswith("git@github.com:"):
         repo_path = repo_url.replace("git@github.com:", "").replace(".git", "")
     else:
-        logger.error(f"Unsupported repo URL format: {repo_url}")
         return None
     if "/" not in repo_path:
         return None
