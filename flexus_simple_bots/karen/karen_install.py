@@ -38,7 +38,7 @@ karen_setup_default += fi_discord2.DISCORD_SETUP_SCHEMA
 
 
 KAREN_DESC = """
-### Job Description
+### Job description
 
 Karen runs customer support like the best hire you ever made. She answers with precision and full context, and turns user feedback into actionable weekly reports for your team. Don't ever call her a chatbot: Karen learns from every interaction and provides support that goes beyond scripts, making each customer feel valued.
 
