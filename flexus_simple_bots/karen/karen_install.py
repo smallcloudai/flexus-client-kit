@@ -40,12 +40,9 @@ karen_setup_default += fi_discord2.DISCORD_SETUP_SCHEMA
 KAREN_DESC = """
 ### Job Description
 
-Karen runs customer support like the best hire you ever made. She answers with
-precision and full context, and turns user feedback into actionable weekly reports
-for your team. Don't ever call her a chatbot: Karen learns from every interaction
-and provides support that goes beyond scripts, making each customer feel valued.
+Karen runs customer support like the best hire you ever made. She answers with precision and full context, and turns user feedback into actionable weekly reports for your team. Don't ever call her a chatbot: Karen learns from every interaction and provides support that goes beyond scripts, making each customer feel valued.
 
-### Capabilities
+### How Karen can help you:
 - Responds to support tickets instantly
 - Maintains full customer conversation history
 - Adjusts tone and replies based on customer sentiment
@@ -97,7 +94,7 @@ async def install(
         marketable_featured_actions=[
             {"feat_question": "What people ask for today?", "feat_run_as_setup": False, "feat_depends_on_setup": []},
         ],
-        marketable_intro_message="Hi! I'm Karen, your 24/7 customer support agent. I'm empathetic, accurate, and always here to keep your users happy.",
+        marketable_intro_message="I'm here for your customers 24/7 — answering questions, remembering every detail, and always following up. I also deliver weekly feedback reports that help your team improve the product.",
         marketable_preferred_model_default="grok-4-fast",
         marketable_daily_budget_default=1_000_000,
         marketable_default_inbox_default=100_000,
