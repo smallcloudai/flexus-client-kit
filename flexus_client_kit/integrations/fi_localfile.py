@@ -103,7 +103,7 @@ LOCALFILE_TOOL = ckit_cloudtool.CloudTool(
     },
 )
 
-HELP = r"""
+HELP_TEXT = r"""
 cat     - Read file contents
           args: path (required), optional lines_range ("1:20", ":20", "21:"), optional safety_valve (defaults to "10k")
 
@@ -120,7 +120,9 @@ grep    - Search file contents using Python regex using per-line matching
 
 ls      - List directory contents (dirs have "/" suffix)
           args: path (default ".")
+"""
 
+HELP_EXAMPLES = r"""
 Examples:
   localfile(op="cat", args={"path": "folder1/something_20250803.json", "lines_range": "1:20", "safety_valve": "10k"})
   localfile(op="replace", args={"path": "config.yaml", "find": "old", "replace": "new", "count": -1})
@@ -128,6 +130,8 @@ Examples:
   localfile(op="grep", args={"pattern": "TODO", "context": 2, "include": "*.py"})
   localfile(op="ls", args={"path": "src"})
 """
+
+HELP = HELP_TEXT + "\n" + HELP_EXAMPLES
 
 
 async def handle_localfile(
