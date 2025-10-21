@@ -12,6 +12,7 @@ from flexus_client_kit import ckit_shutdown
 from flexus_client_kit import ckit_ask_model
 from flexus_client_kit.integrations import fi_slack
 from flexus_client_kit.integrations import fi_discord2
+from flexus_client_kit.integrations import fi_repo_file
 from flexus_simple_bots.karen import karen_install
 
 logger = logging.getLogger("bot_karen")
@@ -21,7 +22,7 @@ BOT_NAME = "karen"
 BOT_VERSION = "0.2.0"
 BOT_VERSION_INT = ckit_client.marketplace_version_as_int(BOT_VERSION)
 
-TOOLS = [fi_slack.SLACK_TOOL, fi_discord2.DISCORD_TOOL]
+TOOLS = [fi_slack.SLACK_TOOL, fi_discord2.DISCORD_TOOL, fi_repo_file.REPO_FILE_TOOL]
 
 
 async def karen_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.RobotContext) -> None:
@@ -58,6 +59,10 @@ async def karen_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.
     @rcx.on_tool_call(fi_discord2.DISCORD_TOOL.name)
     async def toolcall_discord(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
         return await discord.called_by_model(toolcall, model_produced_args)
+
+    @rcx.on_tool_call(fi_repo_file.REPO_FILE_TOOL.name)
+    async def toolcall_repo_file(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
+        return await fi_repo_file.handle_repo_file(fclient, rcx.persona.located_fgroup_id, model_produced_args)
 
     async def slack_activity_callback(a: fi_slack.ActivitySlack, already_posted_to_captured_thread: bool):
         logger.info(f"{rcx.persona.persona_id} 🔔 what_happened={a.what_happened} {a.channel_name} by @{a.message_author_name}: {a.message_text}")
