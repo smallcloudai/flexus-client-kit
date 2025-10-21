@@ -66,7 +66,7 @@ async def _ensure_repo_cached(repo_url: str, branch: Optional[str], github_token
         logger.info(f"Pulling latest changes for {cache_key}...")
         result = subprocess.run(["git", "pull"], capture_output=True, text=True, cwd=cache_path)
         if result.returncode != 0:
-            logger.warning(f"Failed to pull {cache_key}: {result.stderr}")
+            logger.info(f"Failed to pull {cache_key}: {result.stderr}", exc_info=True)
 
     _repo_last_access[cache_key] = time.time()
     return cache_path
@@ -90,8 +90,10 @@ async def handle_repo_file(
     branch = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "branch", None)
     try:
         cache_path = await _ensure_repo_cached(repo_url, branch, gh_token)
-    except Exception as e:
-        logger.error(f"Failed to access repo {repo_url}: {e}", exc_info=True)
+    except ValueError as e:
+        return f"{e}\n\n" + await ckit_devenv.format_devenv_list(fclient, fgroup_id)
+    except (RuntimeError, OSError, subprocess.SubprocessError) as e:
+        logger.info(f"Could not access repo {repo_url}: {e}", exc_info=True)
         return f"Error accessing repository: {e}\n\n" + await ckit_devenv.format_devenv_list(fclient, fgroup_id)
 
     return await fi_localfile.handle_localfile(cache_path, model_produced_args)
