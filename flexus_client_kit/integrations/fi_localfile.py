@@ -244,7 +244,7 @@ def handle_grep(workdir: str, path: str, args: Dict[str, Any], model_produced_ar
                     files_with_matches += 1
                     results.append(f"Binary file {rel_filepath} matches")
         else:
-            with open(filepath, "r") as f:
+            with open(filepath, "r", encoding="utf-8", errors="replace") as f:
                 content = f.read()
             if result := grep_output(rel_filepath, content, pattern, context):
                 files_with_matches += 1
