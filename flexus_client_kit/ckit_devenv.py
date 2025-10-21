@@ -107,3 +107,13 @@ async def dev_environment_delete(fclient: ckit_client.FlexusClient, devenv_id: s
             }"""),
             variable_values={"id": devenv_id, "ft_id": ft_id},
         )
+
+async def format_devenv_list(fclient: ckit_client.FlexusClient, fgroup_id: str) -> str:
+    devenv_list = await dev_environments_list_in_subgroups(fclient, fgroup_id)
+    if devenv_list:
+        result = "Available repos:\n"
+        for devenv in devenv_list:
+            result += f"  - {devenv.devenv_repo_uri}\n"
+        result += "And public repositories\n"
+        return result
+    return "No dev environments configured.\nPublic repositories are available.\n"
