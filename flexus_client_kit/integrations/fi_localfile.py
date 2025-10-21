@@ -15,6 +15,7 @@ FORBIDDEN_PATTERNS = ['.env.', 'secret', 'password', 'key', 'token', 'credential
 
 MAX_FILE_SIZE = 1024 * 1024
 MAX_SEARCH_SIZE = 10 * 1024 * 1024
+MAX_FIND_RESULTS = 100
 
 
 def _validate_file_security(filepath: str) -> Optional[str]:
@@ -200,6 +201,8 @@ def handle_find(workdir: str, path: str, args: Dict[str, Any], model_produced_ar
         return "Error: pattern parameter required for find operation"
 
     found_files = [os.path.relpath(f, workdir) for f in _glob_files(realpath, pattern, recursive=True)]
+    if len(found_files) > MAX_FIND_RESULTS:
+        return f"Found {len(found_files)} files matching '{pattern}', showing first {MAX_FIND_RESULTS}:\n" + "\n".join(found_files[:MAX_FIND_RESULTS])
     return "\n".join(found_files) if found_files else f"No files found matching '{pattern}'"
 
 
