@@ -237,12 +237,18 @@ def handle_grep(workdir: str, path: str, args: Dict[str, Any], model_produced_ar
     results = []
     files_with_matches = 0
     for filepath in files_to_search:
-        with open(filepath, "r") as f:
-            content = f.read()
-        result = grep_output(os.path.relpath(filepath, workdir), content, pattern, context)
-        if result:
-            files_with_matches += 1
-            results.append(result)
+        rel_filepath = os.path.relpath(filepath, workdir)
+        if _is_binary_file(filepath):
+            with open(filepath, 'rb') as f:
+                if pattern.search(f.read().decode('latin-1', errors='ignore')):
+                    files_with_matches += 1
+                    results.append(f"Binary file {rel_filepath} matches")
+        else:
+            with open(filepath, "r") as f:
+                content = f.read()
+            if result := grep_output(rel_filepath, content, pattern, context):
+                files_with_matches += 1
+                results.append(result)
     if not results:
         return f"No matches found for pattern in {len(files_to_search)} files"
 
