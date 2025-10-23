@@ -156,3 +156,44 @@ async def bot_kanban_post_into_inbox(
             },
         )
 
+
+async def bot_kanban_mark_done(
+    client: ckit_client.FlexusClient,
+    ktask_id: str,
+    resolution_code: str,
+    resolution_summary: str,
+    resolution_humanhours: float = 0.1,
+) -> None:
+    http = await client.use_http()
+    async with http as h:
+        await h.execute(
+            gql.gql(
+                """mutation BossMarkTaskDone($ktask_id: String!, $code: String!, $summary: String!, $hours: Float!) {
+                    bot_kanban_mark_done(ktask_id: $ktask_id, resolution_code: $code, resolution_summary: $summary, resolution_humanhours: $hours)
+                }""",
+            ),
+            variable_values={
+                "ktask_id": ktask_id,
+                "code": resolution_code,
+                "summary": resolution_summary,
+                "hours": resolution_humanhours
+            },
+        )
+
+
+async def bot_kanban_get_task(
+    client: ckit_client.FlexusClient,
+    ktask_id: str,
+) -> Optional[FPersonaKanbanTaskOutput]:
+    http = await client.use_http()
+    async with http as h:
+        r = await h.execute(gql.gql(f"""
+            query GetKanbanTask($ktask_id: String!) {{
+                persona_kanban_task_get(ktask_id: $ktask_id) {{ {gql_utils.gql_fields(FPersonaKanbanTaskOutput)} }}
+            }}"""),
+            variable_values={"ktask_id": ktask_id},
+        )
+        if not r or not r.get("persona_kanban_task_get"):
+            return None
+        return gql_utils.dataclass_from_dict(r["persona_kanban_task_get"], FPersonaKanbanTaskOutput)
+
