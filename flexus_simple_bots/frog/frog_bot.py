@@ -37,11 +37,11 @@ RIBBIT_TOOL = ckit_cloudtool.CloudTool(
 
 CATCH_INSECTS_TOOL = ckit_cloudtool.CloudTool(
     name="catch_insects",
-    description="Catch insects in parallel.",
+    description="Catch insects in parallel. Limited by your tongue_capacity from setup.",
     parameters={
         "type": "object",
         "properties": {
-            "N": {"type": "integer", "description": "Number of parallel catch attempts (1-50)"},
+            "N": {"type": "integer", "description": "Number of parallel catch attempts"},
         },
         "required": ["N"],
     },
@@ -77,6 +77,8 @@ async def frog_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.R
     mydb = mongo[dbname]
     personal_mongo = mydb["personal_mongo"]
 
+    tongue_capacity_used = {}
+
     @rcx.on_updated_message
     async def updated_message_in_db(msg: ckit_ask_model.FThreadMessageOutput):
         pass
@@ -106,27 +108,27 @@ async def frog_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.R
     @rcx.on_tool_call(CATCH_INSECTS_TOOL.name)
     async def toolcall_catch_insects(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
         N = model_produced_args.get("N", 1)
-        if not isinstance(N, int) or N < 1 or N > 50:
-            return "Error: N must be an integer between 1 and 50"
+        used = tongue_capacity_used.get(toolcall.fcall_ft_id, 0)
+        remaining = setup["tongue_capacity"] - used
 
-        # Create parallel subchats to catch insects
-        first_questions = [f"Catch insect #{i+1} by flicking tongue!" for i in range(N)]
-        first_calls = ["null" for _ in range(N)]
-        titles = [f"Catching insect #{i+1}" for i in range(N)]
+        if not isinstance(N, int) or N < 1:
+            return f"Error: N must be positive. Capacity: {remaining}/{setup["tongue_capacity"]} left."
+        if N > remaining:
+            return f"Error: Only {remaining}/{setup["tongue_capacity"]} left. Try fewer or ask colleague frogs."
 
-        if 1:
-            await ckit_ask_model.bot_subchat_create_multiple(
-                fclient,
-                "frog_catch_insects",
-                rcx.persona.persona_id,
-                first_questions,
-                first_calls,
-                titles,
-                toolcall.fcall_id,
-            )
-            return "WAIT_SUBCHATS"
-        else:
-            return f"Unsuccessfully launched {N} parallel insect-catching subchats!"
+        tongue_capacity_used[toolcall.fcall_ft_id] = used + N
+        remaining = setup["tongue_capacity"] - tongue_capacity_used[toolcall.fcall_ft_id]
+
+        await ckit_ask_model.bot_subchat_create_multiple(
+            client=fclient,
+            who_is_asking="frog_catch_insects",
+            persona_id=rcx.persona.persona_id,
+            first_question=[f"Catch insect #{i+1} by flicking tongue!" for i in range(N)],
+            first_calls=["null" for _ in range(N)],
+            title=[f"Catching insect #{i+1}" for i in range(N)],
+            fcall_id=toolcall.fcall_id,
+        )
+        return "WAIT_SUBCHATS"
 
     @rcx.on_tool_call(SWITCH_CHAT_MODE_TOOL.name)
     async def print_chat_restart_widget(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
