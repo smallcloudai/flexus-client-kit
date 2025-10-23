@@ -91,12 +91,12 @@ async def install(
         marketable_schedule=[
             {
                 "sched_type": "SCHED_TASK_SORT",
-                "sched_when": "EVERY:5m",
+                "sched_when": "EVERY:1m",
                 "sched_first_question": "Look if there are any tasks in inbox, if there are then sort them and say 'Tasks sorted'.",
             },
             {
                 "sched_type": "SCHED_TODO",
-                "sched_when": "EVERY:2m",
+                "sched_when": "EVERY:1m",
                 "sched_first_question": "Work the assigned task.",
             },
         ]
