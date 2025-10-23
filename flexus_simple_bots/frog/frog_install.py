@@ -48,6 +48,15 @@ frog_setup_schema = [
         "bs_importance": 0,
         "bs_description": "How often should the frog ribbit? (rare, normal, frequent)",
     },
+    {
+        "bs_name": "tongue_capacity",
+        "bs_type": "int",
+        "bs_default": 5,
+        "bs_group": "Hunting Abilities",
+        "bs_order": 1,
+        "bs_importance": 1,
+        "bs_description": "Maximum number of insects this frog can catch in one hunting session. Like a real frog's stomach capacity!",
+    },
 ]
 
 
