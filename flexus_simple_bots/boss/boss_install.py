@@ -92,7 +92,7 @@ async def install(
             {
                 "sched_type": "SCHED_TASK_SORT",
                 "sched_when": "EVERY:1m",
-                "sched_first_question": "Look if there are any tasks in inbox, if there are then sort them and say 'Tasks sorted'.",
+                "sched_first_question": "Look if there are any tasks in inbox, if there are then great, you need to sort up to 20 of them according to the system prompt, and then say \"N tasks sorted\". Do nothing more.",
             },
             {
                 "sched_type": "SCHED_TODO",
