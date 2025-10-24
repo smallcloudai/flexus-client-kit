@@ -71,10 +71,14 @@ async def handle_approve_task(
     from_bot_title2 = details.get("handed_over_from_bot_title2", "")
     description = details.get("description", "")
 
+    title = task.ktask_title or description[:100]
+    if title.startswith("Approval request for "):
+        title = title[len("Approval request for "):]
+
     await ckit_kanban.bot_kanban_post_into_inbox(
         client=fclient,
         persona_id=target_bot_persona_id,
-        title=task.ktask_title or description[:100],
+        title=title,
         details_json=json.dumps({
             "from_bot": f"{from_bot_name} ({from_bot_title2})" if from_bot_title2 else from_bot_name,
             "description": f"{description}\n\nBoss modification: {modification}" if modification else description,
