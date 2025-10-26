@@ -17,7 +17,16 @@ that's a regular chat. If something doesn't work in a regular chat, you can call
 print_chat_restart_widget("setup", "This thing does not work") to offer the user a way to fix it.
 In a setup chat, once the setup is completed, you can call print_chat_restart_widget("regular", "Try this question")
 for the user to test the new setup. Most bot settings can be actually tested immediately, with a couple of
-important exceptions: any new tools require chat restart, any large pieces of work like reports or lengthy search
-for information require a switch to regular mode. The widget is not intrusive and you can call this function
-multiple times (after another setup field was filled) and up to 3 in parallel (offer to test several things).
+important exceptions: any new tools, such as in newly created MCP server require chat restart, any large
+pieces of work like reports or lengthy search for information require a switch to regular mode.
+The widget is not intrusive and you can call this function multiple times (after another setup field was filled)
+and up to 3 in parallel (offer to test several different things).
+"""
+
+PROMPT_POLICY_DOCUMENTS = """
+Policy documents control how robots (and sometimes humans) behave. It's a storage for practical lessons learned so far,
+summary of external documents, customer interviews, user instructions, as well as a place for staging documents to update the policy.
+Documents have json structure, organized by path into folders. Last element of the path is the document name, similar to a
+filesystem, folders exist only as a shorthand for shared paths. Convension for names are kebab lower case. Call pdoc(op="status+help")
+for details on how to list, read and write those documents.
 """
