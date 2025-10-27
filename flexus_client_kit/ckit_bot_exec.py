@@ -251,6 +251,8 @@ async def subscribe_and_produce_callbacks(
     # XXX check if it will really crash downstream without this check
     assert fclient.service_name.startswith(bc.marketable_name)
 
+    bc.thread_tracker.clear()  # Control reaches this after exception and reconnect, a new subscription will send all the threads anew, need to clear
+
     async with ws_client as ws:
         async for r in ws.subscribe(
             gql.gql(f"""subscription KarenThreads($fgroup_id: String!, $marketable_name: String!, $marketable_version: Int!, $inprocess_tool_names: [String!]!) {{
