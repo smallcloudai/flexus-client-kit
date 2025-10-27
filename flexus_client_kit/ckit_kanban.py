@@ -157,28 +157,3 @@ async def bot_kanban_post_into_inbox(
                 "prov": provenance_message,
             },
         )
-
-
-async def bot_kanban_mark_done(
-    client: ckit_client.FlexusClient,
-    ktask_id: str,
-    resolution_code: str,
-    resolution_summary: str,
-    resolution_humanhours: float = 0.1,
-) -> None:
-    http = await client.use_http()
-    async with http as h:
-        await h.execute(
-            gql.gql(
-                """mutation BossMarkTaskDone($ktask_id: String!, $code: String!, $summary: String!, $hours: Float!) {
-                    bot_kanban_mark_done(ktask_id: $ktask_id, resolution_code: $code, resolution_summary: $summary, resolution_humanhours: $hours)
-                }""",
-            ),
-            variable_values={
-                "ktask_id": ktask_id,
-                "code": resolution_code,
-                "summary": resolution_summary,
-                "hours": resolution_humanhours
-            },
-        )
-
