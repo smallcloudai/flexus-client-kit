@@ -182,20 +182,3 @@ async def bot_kanban_mark_done(
             },
         )
 
-
-async def bot_kanban_get_task(
-    client: ckit_client.FlexusClient,
-    ktask_id: str,
-) -> Optional[FPersonaKanbanTaskOutput]:
-    http = await client.use_http()
-    async with http as h:
-        r = await h.execute(gql.gql(f"""
-            query GetKanbanTask($ktask_id: String!) {{
-                persona_kanban_task_get(ktask_id: $ktask_id) {{ {gql_utils.gql_fields(FPersonaKanbanTaskOutput)} }}
-            }}"""),
-            variable_values={"ktask_id": ktask_id},
-        )
-        if not r or not r.get("persona_kanban_task_get"):
-            return None
-        return gql_utils.dataclass_from_dict(r["persona_kanban_task_get"], FPersonaKanbanTaskOutput)
-
