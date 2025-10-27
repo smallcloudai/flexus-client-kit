@@ -112,9 +112,9 @@ async def frog_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.R
         remaining = setup["tongue_capacity"] - used
 
         if not isinstance(N, int) or N < 1:
-            return f"Error: N must be positive. Capacity: {remaining}/{setup["tongue_capacity"]} left."
+            return f"Error: N must be positive. Capacity: {remaining}/{setup['tongue_capacity']} left."
         if N > remaining:
-            return f"Error: Only {remaining}/{setup["tongue_capacity"]} left. Try fewer or ask colleague frogs."
+            return f"Error: Only {remaining}/{setup['tongue_capacity']} left. Try fewer or ask colleague frogs."
 
         tongue_capacity_used[toolcall.fcall_ft_id] = used + N
         remaining = setup["tongue_capacity"] - tongue_capacity_used[toolcall.fcall_ft_id]
