@@ -382,7 +382,7 @@ async def subscribe_and_produce_callbacks(
 
             elif upd.news_action == "INITIAL_UPDATES_OVER":
                 if len(bc.bots_running) == 0:
-                    logger.warning("backend knows of zero bots located in group %s, with marketable_name=%r and marketable_version=%r" % (
+                    logger.warning("backend knows of zero bots located in group %s, with marketable_name=%r and marketable_version=%r, if you are trying to run a dev bot, you might need to reinstall it after a version bump" % (
                         bc.fgroup_id, bc.marketable_name, bc.marketable_version
                     ))
                 handled = True
