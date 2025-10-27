@@ -74,18 +74,21 @@ async def handle_a2a_resolution(
 
     http = await fclient.use_http()
     async with http as h:
-        r = await h.execute(
-            gql.gql("""mutation BossA2AResolution($ktask_id: String!, $boss_intent_resolution: String!, $boss_intent_comment: String!) {
-                boss_a2a_resolution(ktask_id: $ktask_id, boss_intent_resolution: $boss_intent_resolution, boss_intent_comment: $boss_intent_comment)
-            }"""),
-            variable_values={
-                "ktask_id": task_id,
-                "boss_intent_resolution": resolution,
-                "boss_intent_comment": comment,
-            },
-        )
-        if not r or not r.get("boss_a2a_resolution"):
-            return f"Error: Failed to {resolution} task {task_id}"
+        try:
+            r = await h.execute(
+                gql.gql("""mutation BossA2AResolution($ktask_id: String!, $boss_intent_resolution: String!, $boss_intent_comment: String!) {
+                    boss_a2a_resolution(ktask_id: $ktask_id, boss_intent_resolution: $boss_intent_resolution, boss_intent_comment: $boss_intent_comment)
+                }"""),
+                variable_values={
+                    "ktask_id": task_id,
+                    "boss_intent_resolution": resolution,
+                    "boss_intent_comment": comment,
+                },
+            )
+            if not r or not r.get("boss_a2a_resolution"):
+                return f"Error: Failed to {resolution} task {task_id}"
+        except gql.transport.exceptions.TransportQueryError as e:
+            return f"Error: {str(e)}"
 
     if resolution == "approve":
         return f"Task {task_id} approved and forwarded"
