@@ -140,21 +140,21 @@ async def bot_kanban_post_into_inbox(
     persona_id: str,
     title: str,
     details_json: str,
-    inbox_provenance_json: str = '{"system_type":"post_into_inbox"}',
+    provenance_message: str,
 ) -> None:
     http = await client.use_http()
     async with http as h:
         await h.execute(
             gql.gql(
                 """mutation KanbanInbox($pid: String!, $title: String!, $details: String!, $prov: String!) {
-                    bot_kanban_post_into_inbox(persona_id: $pid, title: $title, details_json: $details, inbox_provenance_json: $prov)
+                    bot_kanban_post_into_inbox(persona_id: $pid, title: $title, details_json: $details, provenance_message: $prov)
                 }""",
             ),
             variable_values={
                 "pid": persona_id,
                 "title": title,
                 "details": details_json,
-                "prov": inbox_provenance_json,
+                "prov": provenance_message,
             },
         )
 

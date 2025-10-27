@@ -83,6 +83,7 @@ async def karen_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.
                 rcx.persona.persona_id,
                 title=title,
                 details_json=json.dumps(details),
+                provenance_message="karen_slack_activity"
             )
 
     async def discord_activity_callback(a: fi_discord2.ActivityDiscord, already_posted_to_captured_thread: bool):
@@ -104,6 +105,7 @@ async def karen_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.
                 rcx.persona.persona_id,
                 title=title,
                 details_json=json.dumps(details),
+                provenance_message="karen_discord_activity"
             )
 
     slack.set_activity_callback(slack_activity_callback)
