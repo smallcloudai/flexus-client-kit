@@ -8,6 +8,7 @@ from flexus_client_kit import ckit_bot_install
 from flexus_client_kit.integrations import fi_slack
 from flexus_client_kit.integrations import fi_discord2
 
+from flexus_simple_bots import prompts_common
 from flexus_simple_bots.karen import karen_bot, karen_prompts
 
 
@@ -118,16 +119,8 @@ async def install(
         marketable_picture_big_b64=big,
         marketable_picture_small_b64=small,
         marketable_schedule=[
-            {
-                "sched_type": "SCHED_TASK_SORT",  # this will also produce call flexus_bot_kanban()
-                "sched_when": "EVERY:1m",
-                "sched_first_question": "Look if there are any tasks in inbox, if there are then sort up to 20 of them according to the system prompt, and then say \"N tasks sorted\".",
-            },
-            {
-                "sched_type": "SCHED_TODO",  # this will also produce call flexus_bot_kanban(op="assign_to_this_chat", args={"batch": ["task1337"]})
-                "sched_when": "EVERY:1m",
-                "sched_first_question": "Work on the assigned task.",
-            },
+            prompts_common.SCHED_TASK_SORT_10M | {"sched_when": "EVERY:1m"},
+            prompts_common.SCHED_TODO_5M | {"sched_when": "EVERY:1m"},
         ]
     )
 

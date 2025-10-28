@@ -30,3 +30,15 @@ Documents have json structure, organized by path into folders. Last element of t
 filesystem, folders exist only as a shorthand for shared paths. Convension for names are kebab lower case. Call pdoc(op="status+help")
 for details on how to list, read and write those documents.
 """
+
+SCHED_TASK_SORT_10M = {
+    "sched_type": "SCHED_TASK_SORT",
+    "sched_when": "EVERY:10m",
+    "sched_first_question": "Look if there are any tasks in inbox, if there are then great, you need to sort up to 20 of them according to the system prompt, and then say \"N tasks sorted\". Do nothing more",
+}
+
+SCHED_TODO_5M = {
+    "sched_type": "SCHED_TODO",
+    "sched_when": "EVERY:5m",
+    "sched_first_question": "Work on the assigned task.",
+}

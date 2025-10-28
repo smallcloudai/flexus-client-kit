@@ -6,6 +6,7 @@ from pathlib import Path
 from flexus_client_kit import ckit_client
 from flexus_client_kit import ckit_bot_install
 
+from flexus_simple_bots import prompts_common
 from flexus_simple_bots.frog import frog_bot, frog_prompts
 
 
@@ -136,16 +137,8 @@ async def install(
         marketable_picture_big_b64=pic_big,
         marketable_picture_small_b64=pic_small,
         marketable_schedule=[
-            {
-                "sched_type": "SCHED_TASK_SORT",
-                "sched_when": "EVERY:5m",
-                "sched_first_question": "Look if there are any tasks in inbox, if there are then sort them and say 'Ribbit! Tasks sorted!'.",
-            },
-            {
-                "sched_type": "SCHED_TODO",
-                "sched_when": "EVERY:2m",
-                "sched_first_question": "Work on the assigned task with enthusiasm!",
-            },
+            prompts_common.SCHED_TASK_SORT_10M | {"sched_when": "EVERY:5m", "sched_first_question": "Look if there are any tasks in inbox, if there are then sort them and say 'Ribbit! Tasks sorted!'."},
+            prompts_common.SCHED_TODO_5M | {"sched_when": "EVERY:2m", "sched_first_question": "Work on the assigned task with enthusiasm!"},
         ]
     )
 

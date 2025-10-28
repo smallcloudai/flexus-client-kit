@@ -6,6 +6,7 @@ from pathlib import Path
 from flexus_client_kit import ckit_client
 from flexus_client_kit import ckit_bot_install
 
+from flexus_simple_bots import prompts_common
 from flexus_simple_bots.boss import boss_bot, boss_prompts
 
 
@@ -89,16 +90,8 @@ async def install(
         marketable_picture_big_b64=big,
         marketable_picture_small_b64=small,
         marketable_schedule=[
-            {
-                "sched_type": "SCHED_TASK_SORT",
-                "sched_when": "EVERY:1m",
-                "sched_first_question": "Look if there are any tasks in inbox, if there are then great, you need to sort up to 20 of them according to the system prompt, and then say \"N tasks sorted\". Do nothing more.",
-            },
-            {
-                "sched_type": "SCHED_TODO",
-                "sched_when": "EVERY:1m",
-                "sched_first_question": "Work the assigned task.",
-            },
+            prompts_common.SCHED_TASK_SORT_10M | {"sched_when": "EVERY:1m"},
+            prompts_common.SCHED_TODO_5M | {"sched_when": "EVERY:1m"},
         ]
     )
 
