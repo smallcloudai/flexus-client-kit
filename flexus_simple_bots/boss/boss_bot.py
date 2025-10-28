@@ -50,8 +50,28 @@ BOSS_A2A_RESOLUTION_TOOL = ckit_cloudtool.CloudTool(
 )
 
 
+THREAD_MESSAGES_PRINTED_TOOL = ckit_cloudtool.CloudTool(
+    name="thread_messages_printed",
+    description="Print thread messages. Provide either a2a_task_id to view the thread that handed over this task, or ft_id to view thread directly",
+    parameters={
+        "type": "object",
+        "properties": {
+            "a2a_task_id": {
+                "type": "string",
+                "description": "A2A task ID to view the thread that handed over this task"
+            },
+            "ft_id": {
+                "type": "string",
+                "description": "Thread ID to view messages directly"
+            }
+        },
+    },
+)
+
+
 TOOLS = [
     BOSS_A2A_RESOLUTION_TOOL,
+    THREAD_MESSAGES_PRINTED_TOOL,
     fi_mongo_store.MONGO_STORE_TOOL,
 ]
 
@@ -98,6 +118,33 @@ async def handle_a2a_resolution(
         return f"Task {task_id} sent back for rework"
 
 
+async def handle_thread_messages_printed(
+    fclient: ckit_client.FlexusClient,
+    toolcall: ckit_cloudtool.FCloudtoolCall,
+    args: Dict[str, Any],
+) -> str:
+    a2a_task_id = args.get("a2a_task_id") or None
+    ft_id = args.get("ft_id") or None
+    if not a2a_task_id and not ft_id:
+        return "Error: Either a2a_task_id or ft_id is required"
+    http = await fclient.use_http()
+    async with http as h:
+        try:
+            r = await h.execute(gql.gql("""
+                query BossThreadMessagesPrinted($a2a_task_id: String, $ft_id: String) {
+                    thread_messages_printed(a2a_task_id_to_resolve: $a2a_task_id, ft_id: $ft_id) {
+                        thread_messages_data
+                    }
+                }"""),
+                variable_values={"a2a_task_id": a2a_task_id, "ft_id": ft_id},
+            )
+            if not (messages_data := r.get("thread_messages_printed", {}).get("thread_messages_data")):
+                return f"Error: No messages found for {'a2a_task_id=' + a2a_task_id if a2a_task_id else 'ft_id=' + ft_id}"
+            return messages_data
+        except gql.transport.exceptions.TransportQueryError as e:
+            return f"GraphQL Error: {str(e)}"
+
+
 async def boss_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.RobotContext) -> None:
     setup = ckit_bot_exec.official_setup_mixing_procedure(boss_install.boss_setup_schema, rcx.persona.persona_setup)
 
@@ -118,6 +165,10 @@ async def boss_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.R
     @rcx.on_tool_call(BOSS_A2A_RESOLUTION_TOOL.name)
     async def toolcall_a2a_resolution(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
         return await handle_a2a_resolution(fclient, toolcall, model_produced_args)
+
+    @rcx.on_tool_call(THREAD_MESSAGES_PRINTED_TOOL.name)
+    async def toolcall_thread_messages_printed(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
+        return await handle_thread_messages_printed(fclient, toolcall, model_produced_args)
 
     @rcx.on_tool_call(fi_mongo_store.MONGO_STORE_TOOL.name)
     async def toolcall_mongo_store(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
