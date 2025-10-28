@@ -93,8 +93,8 @@ async def install(
             {"feat_question": "Start Node 2: Research and prioritize hypotheses", "feat_run_as_setup": False, "feat_depends_on_setup": []},
             {"feat_question": "Start Node 3: Design experiments", "feat_run_as_setup": False, "feat_depends_on_setup": []},
         ],
-        marketable_intro_message="Hi! I'm Productman, your Stage0 Product Validation Coach. I guide you through a 3-node process: (1) Problem Challenge - sharpen hypotheses via 'Guess The Business' game, (2) Market Research - score and prioritize, (3) Solution Design - create minimal experiments. Ready to validate your product idea systematically?",
-        marketable_preferred_model_default="grok-code-fast-1",
+        marketable_intro_message="Hi! I'm Productman, your Stage0 Product Validation Coach. I guide you through (1) Problem Challenge, (2) Market Research, (3) Solution Design",
+        marketable_preferred_model_default="grok-4-fast-non-reasoning",
         marketable_daily_budget_default=200_000,
         marketable_default_inbox_default=20_000,
         marketable_expert_default=ckit_bot_install.FMarketplaceExpertInput(

@@ -84,35 +84,10 @@ EXPERIMENT_TEMPLATES_TOOL = ckit_cloudtool.CloudTool(
     },
 )
 
-PDOC_TOOL = ckit_cloudtool.CloudTool(
-    name="pdoc",
-    description="Save or read policy documents (.pdoc files) for storing structured data",
-    parameters={
-        "type": "object",
-        "properties": {
-            "op": {
-                "type": "string",
-                "enum": ["write", "read", "list"],
-                "description": "Operation: write to save, read to load, list to see all files"
-            },
-            "fn": {
-                "type": "string",
-                "description": "File path like /node1/D01-idea-brief.json"
-            },
-            "text": {
-                "type": "string",
-                "description": "Content to write (for write operation)"
-            }
-        },
-        "required": ["op"],
-    },
-)
-
 TOOLS = [
     HYPOTHESIS_FORMATTER_TOOL,
     PRIORITIZATION_SCORER_TOOL,
     EXPERIMENT_TEMPLATES_TOOL,
-    PDOC_TOOL,
 ]
 
 
@@ -247,28 +222,6 @@ async def productman_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_
             return json.dumps({exp_type: templates[exp_type]}, indent=2)
         else:
             return f"Unknown experiment type: {exp_type}"
-
-    @rcx.on_tool_call(PDOC_TOOL.name)
-    async def toolcall_pdoc(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
-        op = model_produced_args.get("op")
-        fn = model_produced_args.get("fn", "")
-        text = model_produced_args.get("text", "")
-
-        # TODO: Implement pdoc file operations
-        # This should read/write/list policy documents in workdir
-        # For now, return placeholder
-
-        if op == "write":
-            logger.info(f"TODO: Write pdoc file {fn}")
-            return f"TODO: Would write to {fn}\nContent length: {len(text)} chars"
-        elif op == "read":
-            logger.info(f"TODO: Read pdoc file {fn}")
-            return f"TODO: Would read from {fn}"
-        elif op == "list":
-            logger.info("TODO: List pdoc files")
-            return "TODO: Would list all pdoc files"
-        else:
-            return f"Unknown operation: {op}"
 
     try:
         while not ckit_shutdown.shutdown_event.is_set():
