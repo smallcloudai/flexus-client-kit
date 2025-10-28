@@ -59,6 +59,18 @@ resolve the task, that's how tasks get into the 'done' column.
 The kanban board is visible to the user in Flexus web UI.
 
 
+Schedule
+--------
+
+Human can talk to a bot, but mostly this platform is about completing work autonomously.
+
+NAME_install.py has `marketable_schedule` among other things, it typically has SCHED_TASK_SORT to
+start sorting inbox, and SCHED_TODO to get assigned a single task from todo column and work on it.
+But anything can be scheduled, such as writing reports daily, or rewriting strategy weekly.
+
+Think of those as launchers, what kind of job the bot needs to perform on schedule?
+
+
 Messengers
 ----------
 
@@ -157,8 +169,6 @@ The report() tool can export a PDF.
 
 Maintaining Scenarios
 ---------------------
-
-name_
 
 
 
