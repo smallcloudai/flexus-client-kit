@@ -18,6 +18,13 @@ async def make_fullsize_variations(input_path: str, base_name: str, out_dir: str
         png_bytes = base64.b64decode(rsp.data[i].b64_json)
         fn = os.path.join(out_dir, f"gen{i:02d}-{base_name}-1024x1536.webp")
         with Image.open(io.BytesIO(png_bytes)) as im:
+            if im.mode == 'RGBA':
+                pixels = im.load()
+                for y in range(im.height):
+                    for x in range(im.width):
+                        r, g, b, a = pixels[x, y]
+                        if a < 5:  # transparent
+                            pixels[x, y] = (255, 255, 255, 0)  # Make it white and transparent, so color does not have to be encoded
             im.save(fn, 'WEBP', quality=45, method=6)
         print(f"Saved {fn}")
         results.append((i, png_bytes))
