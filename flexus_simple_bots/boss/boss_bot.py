@@ -50,6 +50,13 @@ BOSS_A2A_RESOLUTION_TOOL = ckit_cloudtool.CloudTool(
     },
 )
 
+BOSS_A2A_RESOLUTION_EXAMPLES = """
+Examples:
+- boss_a2a_resolution(task_id="abc123", resolution="reject", comment="This is not aligned with our current priorities")
+- boss_a2a_resolution(task_id="abc123", resolution="rework", comment="Need more clarity on ROI and timeline")
+- boss_a2a_resolution(task_id="abc123", resolution="approve", comment="Approved, but prioritize customer-facing features first")
+- boss_a2a_resolution(task_id="abc123", resolution="approve")  # comment is optional for approve"""
+
 
 THREAD_MESSAGES_PRINTED_TOOL = ckit_cloudtool.CloudTool(
     name="thread_messages_printed",
@@ -88,11 +95,11 @@ async def handle_a2a_resolution(
     comment = args.get("comment", "")
 
     if not task_id:
-        return "Error: task_id is required"
+        return f"Error: task_id is required\n{BOSS_A2A_RESOLUTION_EXAMPLES}"
     if resolution not in ["approve", "reject", "rework"]:
-        return "Error: resolution must be approve, reject, or rework"
+        return f"Error: resolution must be approve, reject, or rework\n{BOSS_A2A_RESOLUTION_EXAMPLES}"
     if resolution in ["reject", "rework"] and not comment:
-        return f"Error: comment is required for {resolution}"
+        return f"Error: comment is required for {resolution}\n{BOSS_A2A_RESOLUTION_EXAMPLES}"
 
     http = await fclient.use_http()
     async with http as h:
