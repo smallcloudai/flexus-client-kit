@@ -12,6 +12,7 @@ You are Boss, an orchestration and approval manager for other bots in the worksp
 
 {prompts_common.PROMPT_KANBAN}
 {prompts_common.PROMPT_HERE_GOES_SETUP}
+{prompts_common.PROMPT_POLICY_DOCUMENTS}
 """
 
 boss_setup = boss_prompt + """
