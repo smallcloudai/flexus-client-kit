@@ -169,7 +169,7 @@ async def productman_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_
 
         await pdoc_integration._write(path, json.dumps(skeleton, indent=2))
         logger.info(f"Created validation template at {path}")
-        return f"✓ Created problem validation template at {path}"
+        return f"✍🏻 {path}\n\n✓ Created problem validation template"
 
     @rcx.on_tool_call(PRIORITIZATION_SCORER_TOOL.name)
     async def toolcall_score_hypotheses(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:

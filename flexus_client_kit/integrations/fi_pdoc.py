@@ -60,6 +60,10 @@ Typical paths:
 /customer-research/interview-template
 /customer-research/interview-john-doe
 /historic-week-20251020/company
+
+The native Flexus UI (not messanger integrations) supports editing policy documents, the UI reacts
+to tool results that have a line "✍🏻/path/to/document" to give user a link to that document to
+view or edit.
 """
 
 
@@ -140,7 +144,7 @@ class IntegrationPdoc:
                     return f"Error: text must be valid JSON: {str(e)}"
 
                 await self._write(p, text)
-                r += f"✓ Policy document updated: {p}"
+                r += f"✍🏻 {p}\n\n✓ Policy document updated"
 
             elif op == "update_json_text":
                 p = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "p", "")
@@ -150,7 +154,7 @@ class IntegrationPdoc:
                     return f"Error: p, json_path, and text parameters required\n\n{HELP}"
 
                 await self._update_json_text(p, json_path, text)
-                r += f"✓ Updated {json_path} in {p}"
+                r += f"✍🏻 {p}\n\n✓ Updated {json_path}"
 
             elif op == "cp":
                 p1 = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "p1", "")
@@ -159,7 +163,7 @@ class IntegrationPdoc:
                     return f"Error: p1 and p2 parameters required\n\n{HELP}"
 
                 await self._cp(p1, p2)
-                r += f"✓ Copied {p1} to {p2}"
+                r += f"✍🏻 {p2}\n\n✓ Copied from {p1}"
 
             elif op == "rm":
                 p = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "p", "")
