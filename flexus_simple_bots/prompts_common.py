@@ -39,6 +39,11 @@ filesystem, folders exist only as a shorthand for shared paths. Convension for n
 Call flexus_policy_document(op="status+help") for details on how to list, read and write those documents.
 """
 
+PROMPT_A2A_COMMUNICATION = """
+If you need to delegate work, you can hand over tasks to other bots by posting to their inbox.
+Results arrive later in a 💿 message — don't delegate just to report them.
+"""
+
 SCHED_TASK_SORT_10M = {
     "sched_type": "SCHED_TASK_SORT",
     "sched_when": "EVERY:10m",
