@@ -20,18 +20,18 @@ BOT_VERSION = SIMPLE_BOTS_COMMON_VERSION
 BOT_VERSION_INT = ckit_client.marketplace_version_as_int(BOT_VERSION)
 
 
-HYPOTHESIS_FORMATTER_TOOL = ckit_cloudtool.CloudTool(
-    name="format_hypothesis",
-    description="Format freeform problem text into structured hypothesis with fields: client, wants, cannot, because",
+HYPOTHESIS_TEMPLATE_TOOL = ckit_cloudtool.CloudTool(
+    name="hypothesis_template",
+    description="Create skeleton problem validation form in pdoc. The form tracks validation state from idea through prioritization. Fill fields during conversation - the filled document IS the process state.",
     parameters={
         "type": "object",
         "properties": {
-            "freeform_text": {
+            "path": {
                 "type": "string",
-                "description": "Freeform problem description to structure"
+                "description": "Path where to write template (e.g. '/my-product-validation')"
             },
         },
-        "required": ["freeform_text"],
+        "required": ["path"],
     },
 )
 
@@ -86,7 +86,7 @@ EXPERIMENT_TEMPLATES_TOOL = ckit_cloudtool.CloudTool(
 )
 
 TOOLS = [
-    HYPOTHESIS_FORMATTER_TOOL,
+    HYPOTHESIS_TEMPLATE_TOOL,
     PRIORITIZATION_SCORER_TOOL,
     EXPERIMENT_TEMPLATES_TOOL,
     fi_pdoc.POLICY_DOCUMENT_TOOL,
@@ -106,23 +106,79 @@ async def productman_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_
     async def updated_thread_in_db(th: ckit_ask_model.FThreadOutput):
         pass
 
-    @rcx.on_tool_call(HYPOTHESIS_FORMATTER_TOOL.name)
-    async def toolcall_format_hypothesis(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
-        freeform = model_produced_args.get("freeform_text", "")
+    @rcx.on_tool_call(HYPOTHESIS_TEMPLATE_TOOL.name)
+    async def toolcall_hypothesis_template(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
+        path = model_produced_args.get("path", "")
+        if not path:
+            return "Error: path required"
 
-        # Simple parsing logic - this could be enhanced with regex or LLM call
-        # For now, return a template that guides the model to fill it properly
-        result = {
-            "client": "<extracted or ask user>",
-            "wants": "<extracted or ask user>",
-            "cannot": "<extracted or ask user>",
-            "because": "<extracted or ask user>",
-            "evidence": "",
-            "source_text": freeform
+        skeleton = {
+            "problem_validation": {
+                "meta": {
+                    "created": "",
+                    "status": "in_progress"
+                },
+                "section01_idea_brief": {
+                    "title": "Initial Idea Capture",
+                    "field01_title": {"label": "Product idea (3-5 words)", "value": ""},
+                    "field02_problem_context": {"label": "What problem does it solve?", "value": ""},
+                    "field03_proposed_value": {"label": "What value do you provide?", "value": ""},
+                    "field04_constraints": {"label": "Constraints (budget/time/resources)", "value": ""},
+                    "field05_audience_hint": {"label": "Target audience", "value": ""}
+                },
+                "section02_problem_freeform": {
+                    "title": "Problem Description",
+                    "field01_statement": {"label": "Describe the problem in your own words", "value": ""},
+                    "field02_evidence": {"label": "What observations or research support this?", "value": ""},
+                    "field03_assumptions": {"label": "What are you assuming?", "value": ""},
+                    "field04_risks": {"label": "Known risks", "value": ""}
+                },
+                "section03_target_audience": {
+                    "title": "Audience Profile",
+                    "field01_segments": {"label": "Audience segments (roles, industries, sizes)", "value": ""},
+                    "field02_jobs_to_be_done": {"label": "What tasks are they trying to accomplish?", "value": ""},
+                    "field03_pains": {"label": "What frustrates them?", "value": ""},
+                    "field04_gains": {"label": "What outcomes do they want?", "value": ""},
+                    "field05_channels": {"label": "Where do they hang out?", "value": ""},
+                    "field06_geography": {"label": "Geographic locations", "value": ""},
+                    "field07_languages": {"label": "Languages spoken", "value": ""}
+                },
+                "section04_guess_the_business": {
+                    "title": "Hypothesis Challenge Game (iterate until unique)",
+                    "rounds": []
+                },
+                "section05_hypotheses_list": {
+                    "title": "Structured Problem Hypotheses (3-10)",
+                    "hypotheses": []
+                },
+                "section06_prioritization_criteria": {
+                    "title": "Scoring Dimensions Setup",
+                    "field01_impact": {"weight": 0.3, "scale": "1-5", "definition": ""},
+                    "field02_evidence": {"weight": 0.3, "scale": "1-5", "definition": ""},
+                    "field03_urgency": {"weight": 0.2, "scale": "1-5", "definition": ""},
+                    "field04_feasibility": {"weight": 0.2, "scale": "1-5", "definition": ""}
+                },
+                "section07_market_sources": {
+                    "title": "Personalized Research Sources",
+                    "preferences": {
+                        "domains": "",
+                        "geographies": "",
+                        "languages": "",
+                        "paid_allowed": False,
+                        "data_freshness": ""
+                    },
+                    "sources": []
+                },
+                "section08_prioritized_hypotheses": {
+                    "title": "Scored & Ranked Hypotheses",
+                    "results": []
+                }
+            }
         }
 
-        logger.info(f"Formatted hypothesis from: {freeform[:100]}...")
-        return json.dumps(result, indent=2)
+        await pdoc_integration._write(path, json.dumps(skeleton, indent=2))
+        logger.info(f"Created validation template at {path}")
+        return f"✓ Created problem validation template at {path}\n\nNext: Fill section01_idea_brief fields by asking user questions. Use flexus_policy_document(op='update_json_text') to update individual fields."
 
     @rcx.on_tool_call(PRIORITIZATION_SCORER_TOOL.name)
     async def toolcall_score_hypotheses(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
