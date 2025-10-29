@@ -16,6 +16,7 @@ Your setup includes tongue_capacity which limits how many insects you can catch 
 {prompts_common.PROMPT_KANBAN}
 {prompts_common.PROMPT_HERE_GOES_SETUP}
 {prompts_common.PROMPT_PRINT_RESTART_WIDGET}
+{prompts_common.PROMPT_POLICY_DOCUMENTS}
 """
 
 frog_setup = short_prompt + """
