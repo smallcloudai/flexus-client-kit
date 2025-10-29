@@ -22,13 +22,13 @@ BOT_VERSION_INT = ckit_client.marketplace_version_as_int(BOT_VERSION)
 
 HYPOTHESIS_TEMPLATE_TOOL = ckit_cloudtool.CloudTool(
     name="hypothesis_template",
-    description="Create skeleton problem validation form in pdoc. The form tracks validation state from idea through prioritization. Fill fields during conversation - the filled document IS the process state.",
+    description="Create skeleton problem validation form in pdoc. The form tracks validation state from idea through prioritization. Fill fields during conversation - the filled document IS the process state. MUST use path /customer-research/PRODUCT_NAME",
     parameters={
         "type": "object",
         "properties": {
             "path": {
                 "type": "string",
-                "description": "Path where to write template (e.g. '/my-product-validation')"
+                "description": "Path where to write template. MUST start with /customer-research/ (e.g. '/customer-research/my-saas-tool')"
             },
         },
         "required": ["path"],
@@ -111,6 +111,8 @@ async def productman_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_
         path = model_produced_args.get("path", "")
         if not path:
             return "Error: path required"
+        if not path.startswith("/customer-research/"):
+            return "Error: path must start with /customer-research/ (e.g. /customer-research/my-product)"
 
         skeleton = {
             "problem_validation": {
@@ -178,7 +180,7 @@ async def productman_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_
 
         await pdoc_integration._write(path, json.dumps(skeleton, indent=2))
         logger.info(f"Created validation template at {path}")
-        return f"✓ Created problem validation template at {path}\n\nNext: Fill section01_idea_brief fields by asking user questions. Use flexus_policy_document(op='update_json_text') to update individual fields."
+        return f"✓ Created problem validation template at {path}\n\nIMPORTANT: Now ask 5-7 rapid questions to fill sections 01-03 with initial values:\n- Product name (3 words)\n- Problem it solves\n- Target audience\n- Observations/evidence\n- Constraints\n\nFill the form immediately with user's answers using flexus_policy_document(op='update_json_text'). Don't leave fields blank."
 
     @rcx.on_tool_call(PRIORITIZATION_SCORER_TOOL.name)
     async def toolcall_score_hypotheses(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
