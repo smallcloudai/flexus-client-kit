@@ -11,6 +11,7 @@ from flexus_client_kit import ckit_shutdown
 from flexus_client_kit import ckit_ask_model
 from flexus_client_kit import ckit_mongo
 from flexus_client_kit.integrations import fi_mongo_store
+from flexus_client_kit.integrations import fi_pdoc
 from flexus_simple_bots.frog import frog_install
 from flexus_simple_bots.version_common import SIMPLE_BOTS_COMMON_VERSION
 
@@ -65,6 +66,7 @@ TOOLS = [
     CATCH_INSECTS_TOOL,
     SWITCH_CHAT_MODE_TOOL,
     fi_mongo_store.MONGO_STORE_TOOL,
+    fi_pdoc.POLICY_DOCUMENT_TOOL,
 ]
 
 
@@ -76,6 +78,8 @@ async def frog_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.R
     dbname = rcx.persona.persona_id + "_db"
     mydb = mongo[dbname]
     personal_mongo = mydb["personal_mongo"]
+
+    pdoc_integration = fi_pdoc.IntegrationPdoc(fclient, rcx.persona.located_fgroup_id)
 
     tongue_capacity_used = {}
 
@@ -144,6 +148,10 @@ async def frog_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.R
             toolcall,
             model_produced_args,
         )
+
+    @rcx.on_tool_call(fi_pdoc.POLICY_DOCUMENT_TOOL.name)
+    async def toolcall_pdoc(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
+        return await pdoc_integration.called_by_model(toolcall, model_produced_args)
 
     try:
         while not ckit_shutdown.shutdown_event.is_set():
