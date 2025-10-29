@@ -86,8 +86,6 @@ def validate_path(path: str, allow_empty: bool = False) -> Optional[str]:
     for char in forbidden_chars:
         if char in path:
             return f"Path contains forbidden character '{char}'"
-    if ".." in path or path.startswith("/") or "\\" in path:
-        return "Path contains traversal sequences"
     return None
 
 
