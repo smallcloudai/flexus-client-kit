@@ -90,7 +90,7 @@ async def install(
         marketable_picture_big_b64=big,
         marketable_picture_small_b64=small,
         marketable_schedule=[
-            prompts_common.SCHED_TASK_SORT_10M | {"sched_when": "EVERY:1m"},
+            prompts_common.SCHED_TASK_SORT_10M | {"sched_when": "EVERY:2m"},
             prompts_common.SCHED_TODO_5M | {"sched_when": "EVERY:1m"},
         ]
     )
