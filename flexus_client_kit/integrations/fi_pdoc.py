@@ -88,11 +88,9 @@ class IntegrationPdoc:
         self,
         fclient: ckit_client.FlexusClient,
         fgroup_id: str,
-        ft_id: Optional[str] = None,
     ):
         self.fclient = fclient
         self.fgroup_id = fgroup_id
-        self.ft_id = ft_id
         self.problems = []
 
     async def called_by_model(self, toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Optional[Dict[str, Any]]) -> str:
@@ -145,7 +143,7 @@ class IntegrationPdoc:
                 except json.JSONDecodeError as e:
                     return f"Error: text must be valid JSON: {str(e)}"
 
-                await self._write(p, text)
+                await self._write(p, text, toolcall.fcall_ft_id)
                 r += f"✍🏻 {p}\n\n✓ Policy document updated"
 
             elif op == "update_json_text":
@@ -155,7 +153,7 @@ class IntegrationPdoc:
                 if not p or not json_path or not text:
                     return f"Error: p, json_path, and text parameters required\n\n{HELP}"
 
-                await self._update_json_text(p, json_path, text)
+                await self._update_json_text(p, json_path, text, toolcall.fcall_ft_id)
                 r += f"✍🏻 {p}\n\n✓ Updated {json_path}"
 
             elif op == "cp":
@@ -164,7 +162,7 @@ class IntegrationPdoc:
                 if not p1 or not p2:
                     return f"Error: p1 and p2 parameters required\n\n{HELP}"
 
-                await self._cp(p1, p2)
+                await self._cp(p1, p2, toolcall.fcall_ft_id)
                 r += f"✍🏻 {p2}\n\n✓ Copied from {p1}"
 
             elif op == "rm":
@@ -172,7 +170,7 @@ class IntegrationPdoc:
                 if not p:
                     return f"Error: p required\n\n{HELP}"
 
-                await self._rm(p)
+                await self._rm(p, toolcall.fcall_ft_id)
                 r += f"✓ Archived policy document: {p}"
 
             else:
@@ -195,10 +193,7 @@ class IntegrationPdoc:
                         }}
                     }}
                 """),
-                variable_values={
-                    "fgroup_id": self.fgroup_id,
-                    "p": p,
-                },
+                variable_values={"fgroup_id": self.fgroup_id, "p": p},
             )
             items = result.get("policydoc_list", [])
             return [gql_utils.dataclass_from_dict(item, PdocListItem) for item in items]
@@ -214,17 +209,14 @@ class IntegrationPdoc:
                         }}
                     }}
                 """),
-                variable_values={
-                    "fgroup_id": self.fgroup_id,
-                    "p": p,
-                },
+                variable_values={"fgroup_id": self.fgroup_id, "p": p},
             )
             doc = result.get("policydoc_cat")
             if not doc:
                 raise Exception(f"Policy document not found: {p}")
             return gql_utils.dataclass_from_dict(doc, PdocDocument)
 
-    async def _write(self, p: str, text: str) -> None:
+    async def _write(self, p: str, text: str, ft_id: str) -> None:
         http = await self.fclient.use_http()
         async with http as h:
             await h.execute(
@@ -233,15 +225,10 @@ class IntegrationPdoc:
                         policydoc_write(fgroup_id: $fgroup_id, p: $p, text: $text, ft_id: $ft_id)
                     }
                 """),
-                variable_values={
-                    "fgroup_id": self.fgroup_id,
-                    "p": p,
-                    "text": text,
-                    "ft_id": self.ft_id,
-                },
+                variable_values={"fgroup_id": self.fgroup_id, "p": p, "text": text, "ft_id": ft_id},
             )
 
-    async def _update_json_text(self, p: str, json_path: str, text: str) -> None:
+    async def _update_json_text(self, p: str, json_path: str, text: str, ft_id: str) -> None:
         http = await self.fclient.use_http()
         async with http as h:
             await h.execute(
@@ -250,16 +237,10 @@ class IntegrationPdoc:
                         policydoc_update_json_text(fgroup_id: $fgroup_id, p: $p, json_path: $json_path, text: $text, ft_id: $ft_id)
                     }
                 """),
-                variable_values={
-                    "fgroup_id": self.fgroup_id,
-                    "p": p,
-                    "json_path": json_path,
-                    "text": text,
-                    "ft_id": self.ft_id,
-                },
+                variable_values={"fgroup_id": self.fgroup_id, "p": p, "json_path": json_path, "text": text, "ft_id": ft_id},
             )
 
-    async def _cp(self, p1: str, p2: str) -> None:
+    async def _cp(self, p1: str, p2: str, ft_id: str) -> None:
         http = await self.fclient.use_http()
         async with http as h:
             await h.execute(
@@ -268,15 +249,10 @@ class IntegrationPdoc:
                         policydoc_cp(fgroup_id: $fgroup_id, p1: $p1, p2: $p2, ft_id: $ft_id)
                     }
                 """),
-                variable_values={
-                    "fgroup_id": self.fgroup_id,
-                    "p1": p1,
-                    "p2": p2,
-                    "ft_id": self.ft_id,
-                },
+                variable_values={"fgroup_id": self.fgroup_id, "p1": p1, "p2": p2, "ft_id": ft_id},
             )
 
-    async def _rm(self, p: str) -> None:
+    async def _rm(self, p: str, ft_id: str) -> None:
         http = await self.fclient.use_http()
         async with http as h:
             await h.execute(
@@ -285,9 +261,5 @@ class IntegrationPdoc:
                         policydoc_rm(fgroup_id: $fgroup_id, p: $p, ft_id: $ft_id)
                     }
                 """),
-                variable_values={
-                    "fgroup_id": self.fgroup_id,
-                    "p": p,
-                    "ft_id": self.ft_id,
-                },
+                variable_values={"fgroup_id": self.fgroup_id, "p": p, "ft_id": ft_id},
             )
