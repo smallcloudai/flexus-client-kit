@@ -32,19 +32,14 @@ BOSS_A2A_RESOLUTION_TOOL = ckit_cloudtool.CloudTool(
     parameters={
         "type": "object",
         "properties": {
-            "task_id": {
-                "type": "string",
-                "description": "The ID of the task to resolve"
-            },
+            "task_id": {"type": "string", "description": "The ID of the task to resolve", "order": 1},
             "resolution": {
                 "type": "string",
                 "enum": ["approve", "reject", "rework"],
-                "description": "Resolution type: approve (forward to target bot), reject (mark irrelevant), or rework (send back with feedback)"
+                "description": "Resolution type: approve (forward to target bot), reject (mark irrelevant), or rework (send back with feedback)",
+                "order": 2
             },
-            "comment": {
-                "type": "string",
-                "description": "Optional comment for approve, required for reject/rework"
-            }
+            "comment": {"type": "string", "description": "Optional comment for approve, required for reject/rework", "order": 3}
         },
         "required": ["task_id", "resolution"]
     },
@@ -99,7 +94,7 @@ async def handle_a2a_resolution(
     if resolution not in ["approve", "reject", "rework"]:
         return f"Error: resolution must be approve, reject, or rework\n{BOSS_A2A_RESOLUTION_EXAMPLES}"
     if resolution in ["reject", "rework"] and not comment:
-        return f"Error: comment is required for {resolution}\n{BOSS_A2A_RESOLUTION_EXAMPLES}"
+        return f"Error: comment is required for {resolution}, please provide one with 'comment' parameter\n{BOSS_A2A_RESOLUTION_EXAMPLES}"
 
     http = await fclient.use_http()
     async with http as h:
