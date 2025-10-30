@@ -88,9 +88,11 @@ class IntegrationPdoc:
         self,
         fclient: ckit_client.FlexusClient,
         fgroup_id: str,
+        ft_id: Optional[str] = None,
     ):
         self.fclient = fclient
         self.fgroup_id = fgroup_id
+        self.ft_id = ft_id
         self.problems = []
 
     async def called_by_model(self, toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Optional[Dict[str, Any]]) -> str:
@@ -227,14 +229,15 @@ class IntegrationPdoc:
         async with http as h:
             await h.execute(
                 gql.gql("""
-                    mutation PdocWrite($fgroup_id: String!, $p: String!, $text: String!) {
-                        policydoc_write(fgroup_id: $fgroup_id, p: $p, text: $text)
+                    mutation PdocWrite($fgroup_id: String!, $p: String!, $text: String!, $ft_id: String) {
+                        policydoc_write(fgroup_id: $fgroup_id, p: $p, text: $text, ft_id: $ft_id)
                     }
                 """),
                 variable_values={
                     "fgroup_id": self.fgroup_id,
                     "p": p,
                     "text": text,
+                    "ft_id": self.ft_id,
                 },
             )
 
@@ -243,8 +246,8 @@ class IntegrationPdoc:
         async with http as h:
             await h.execute(
                 gql.gql("""
-                    mutation PdocUpdateJsonText($fgroup_id: String!, $p: String!, $json_path: String!, $text: String!) {
-                        policydoc_update_json_text(fgroup_id: $fgroup_id, p: $p, json_path: $json_path, text: $text)
+                    mutation PdocUpdateJsonText($fgroup_id: String!, $p: String!, $json_path: String!, $text: String!, $ft_id: String) {
+                        policydoc_update_json_text(fgroup_id: $fgroup_id, p: $p, json_path: $json_path, text: $text, ft_id: $ft_id)
                     }
                 """),
                 variable_values={
@@ -252,6 +255,7 @@ class IntegrationPdoc:
                     "p": p,
                     "json_path": json_path,
                     "text": text,
+                    "ft_id": self.ft_id,
                 },
             )
 
@@ -260,14 +264,15 @@ class IntegrationPdoc:
         async with http as h:
             await h.execute(
                 gql.gql("""
-                    mutation PdocCp($fgroup_id: String!, $p1: String!, $p2: String!) {
-                        policydoc_cp(fgroup_id: $fgroup_id, p1: $p1, p2: $p2)
+                    mutation PdocCp($fgroup_id: String!, $p1: String!, $p2: String!, $ft_id: String) {
+                        policydoc_cp(fgroup_id: $fgroup_id, p1: $p1, p2: $p2, ft_id: $ft_id)
                     }
                 """),
                 variable_values={
                     "fgroup_id": self.fgroup_id,
                     "p1": p1,
                     "p2": p2,
+                    "ft_id": self.ft_id,
                 },
             )
 
@@ -276,12 +281,13 @@ class IntegrationPdoc:
         async with http as h:
             await h.execute(
                 gql.gql("""
-                    mutation PdocRm($fgroup_id: String!, $p: String!) {
-                        policydoc_rm(fgroup_id: $fgroup_id, p: $p)
+                    mutation PdocRm($fgroup_id: String!, $p: String!, $ft_id: String) {
+                        policydoc_rm(fgroup_id: $fgroup_id, p: $p, ft_id: $ft_id)
                     }
                 """),
                 variable_values={
                     "fgroup_id": self.fgroup_id,
                     "p": p,
+                    "ft_id": self.ft_id,
                 },
             )
