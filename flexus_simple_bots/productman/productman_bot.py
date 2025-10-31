@@ -167,7 +167,7 @@ async def productman_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_
             }
         }
 
-        await pdoc_integration._write(path, json.dumps(skeleton, indent=2))
+        await pdoc_integration._write(path, json.dumps(skeleton, indent=2), toolcall.fcall_ft_id)
         logger.info(f"Created validation template at {path}")
         return f"✍🏻 {path}\n\n✓ Created problem validation template"
 
