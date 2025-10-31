@@ -20,6 +20,24 @@ boss_setup_schema = [
         "bs_importance": 0,
         "bs_description": "Policy for approving or rejecting tasks from colleague bots",
     },
+    {
+        "bs_name": "sample_rate_success",
+        "bs_type": "float",
+        "bs_default": 0.1,
+        "bs_group": "Quality Assurance",
+        "bs_order": 2,
+        "bs_importance": 0,
+        "bs_description": "Sample rate for successful tasks from all bots to be sent to boss for quality assurance",
+    },
+    {
+        "bs_name": "sample_rate_failure",
+        "bs_type": "float",
+        "bs_default": 0.2,
+        "bs_group": "Quality Assurance",
+        "bs_order": 3,
+        "bs_importance": 0,
+        "bs_description": "Sample rate for failed tasks from all bots to be sent to boss for quality assurance",
+    },
 ]
 
 
@@ -74,7 +92,7 @@ async def install(
             fexp_name="boss_default",
             fexp_system_prompt=boss_prompts.boss_prompt,
             fexp_python_kernel="",
-            fexp_block_tools="*setup*",
+            fexp_block_tools="*setup",
             fexp_allow_tools="",
             fexp_app_capture_tools=bot_internal_tools,
         ),
