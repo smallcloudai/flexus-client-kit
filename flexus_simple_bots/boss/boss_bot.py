@@ -2,7 +2,6 @@ import asyncio
 import logging
 from typing import Dict, Any
 
-import gql
 from pymongo import AsyncMongoClient
 
 from flexus_client_kit import ckit_client
@@ -14,6 +13,9 @@ from flexus_client_kit import ckit_mongo
 from flexus_client_kit.integrations import fi_mongo_store
 from flexus_client_kit.integrations import fi_pdoc
 from flexus_simple_bots.boss import boss_install
+from flexus_simple_bots.boss.tools import boss_a2a_resolution
+from flexus_simple_bots.boss.tools import boss_setup_colleagues
+from flexus_simple_bots.boss.tools import boss_thread_messages
 from flexus_simple_bots.version_common import SIMPLE_BOTS_COMMON_VERSION
 
 logger = logging.getLogger("bot_boss")
@@ -26,127 +28,13 @@ BOT_VERSION_INT = ckit_client.marketplace_version_as_int(BOT_VERSION)
 ACCENT_COLOR = "#8B4513"
 
 
-BOSS_A2A_RESOLUTION_TOOL = ckit_cloudtool.CloudTool(
-    name="boss_a2a_resolution",
-    description="Resolve an agent-to-agent handover task: approve, reject, or request rework",
-    parameters={
-        "type": "object",
-        "properties": {
-            "task_id": {"type": "string", "description": "The ID of the task to resolve", "order": 1},
-            "resolution": {
-                "type": "string",
-                "enum": ["approve", "reject", "rework"],
-                "description": "Resolution type: approve (forward to target bot), reject (mark irrelevant), or rework (send back with feedback)",
-                "order": 2
-            },
-            "comment": {"type": "string", "description": "Optional comment for approve, required for reject/rework", "order": 3}
-        },
-        "required": ["task_id", "resolution"]
-    },
-)
-
-BOSS_A2A_RESOLUTION_EXAMPLES = """
-Examples:
-- boss_a2a_resolution(task_id="abc123", resolution="reject", comment="This is not aligned with our current priorities")
-- boss_a2a_resolution(task_id="abc123", resolution="rework", comment="Need more clarity on ROI and timeline")
-- boss_a2a_resolution(task_id="abc123", resolution="approve", comment="Approved, but prioritize customer-facing features first")
-- boss_a2a_resolution(task_id="abc123", resolution="approve")  # comment is optional for approve"""
-
-
-THREAD_MESSAGES_PRINTED_TOOL = ckit_cloudtool.CloudTool(
-    name="thread_messages_printed",
-    description="Print thread messages. Provide either a2a_task_id to view the thread that handed over this task, or ft_id to view thread directly",
-    parameters={
-        "type": "object",
-        "properties": {
-            "a2a_task_id": {
-                "type": "string",
-                "description": "A2A task ID to view the thread that handed over this task"
-            },
-            "ft_id": {
-                "type": "string",
-                "description": "Thread ID to view messages directly"
-            }
-        },
-    },
-)
-
-
 TOOLS = [
-    BOSS_A2A_RESOLUTION_TOOL,
-    THREAD_MESSAGES_PRINTED_TOOL,
+    boss_a2a_resolution.BOSS_A2A_RESOLUTION_TOOL,
+    boss_setup_colleagues.BOSS_SETUP_COLLEAGUES_TOOL,
+    boss_thread_messages.THREAD_MESSAGES_PRINTED_TOOL,
     fi_mongo_store.MONGO_STORE_TOOL,
     fi_pdoc.POLICY_DOCUMENT_TOOL,
 ]
-
-
-async def handle_a2a_resolution(
-    fclient: ckit_client.FlexusClient,
-    toolcall: ckit_cloudtool.FCloudtoolCall,
-    args: Dict[str, Any],
-) -> str:
-    task_id = args.get("task_id", "")
-    resolution = args.get("resolution", "")
-    comment = args.get("comment", "")
-
-    if not task_id:
-        return f"Error: task_id is required\n{BOSS_A2A_RESOLUTION_EXAMPLES}"
-    if resolution not in ["approve", "reject", "rework"]:
-        return f"Error: resolution must be approve, reject, or rework\n{BOSS_A2A_RESOLUTION_EXAMPLES}"
-    if resolution in ["reject", "rework"] and not comment:
-        return f"Error: comment is required for {resolution}, please provide one with 'comment' parameter\n{BOSS_A2A_RESOLUTION_EXAMPLES}"
-
-    http = await fclient.use_http()
-    async with http as h:
-        try:
-            r = await h.execute(
-                gql.gql("""mutation BossA2AResolution($ktask_id: String!, $boss_intent_resolution: String!, $boss_intent_comment: String!) {
-                    boss_a2a_resolution(ktask_id: $ktask_id, boss_intent_resolution: $boss_intent_resolution, boss_intent_comment: $boss_intent_comment)
-                }"""),
-                variable_values={
-                    "ktask_id": task_id,
-                    "boss_intent_resolution": resolution,
-                    "boss_intent_comment": comment,
-                },
-            )
-            if not r or not r.get("boss_a2a_resolution"):
-                return f"Error: Failed to {resolution} task {task_id}"
-        except gql.transport.exceptions.TransportQueryError as e:
-            return f"Error: {str(e)}"
-
-    if resolution == "approve":
-        return f"Task {task_id} approved and forwarded"
-    elif resolution == "reject":
-        return f"Task {task_id} rejected"
-    elif resolution == "rework":
-        return f"Task {task_id} sent back for rework"
-
-
-async def handle_thread_messages_printed(
-    fclient: ckit_client.FlexusClient,
-    toolcall: ckit_cloudtool.FCloudtoolCall,
-    args: Dict[str, Any],
-) -> str:
-    a2a_task_id = args.get("a2a_task_id") or None
-    ft_id = args.get("ft_id") or None
-    if not a2a_task_id and not ft_id:
-        return "Error: Either a2a_task_id or ft_id is required"
-    http = await fclient.use_http()
-    async with http as h:
-        try:
-            r = await h.execute(gql.gql("""
-                query BossThreadMessagesPrinted($a2a_task_id: String, $ft_id: String) {
-                    thread_messages_printed(a2a_task_id_to_resolve: $a2a_task_id, ft_id: $ft_id) {
-                        thread_messages_data
-                    }
-                }"""),
-                variable_values={"a2a_task_id": a2a_task_id, "ft_id": ft_id},
-            )
-            if not (messages_data := r.get("thread_messages_printed", {}).get("thread_messages_data")):
-                return f"Error: No messages found for {'a2a_task_id=' + a2a_task_id if a2a_task_id else 'ft_id=' + ft_id}"
-            return messages_data
-        except gql.transport.exceptions.TransportQueryError as e:
-            return f"GraphQL Error: {str(e)}"
 
 
 async def boss_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.RobotContext) -> None:
@@ -168,13 +56,17 @@ async def boss_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.R
     async def updated_thread_in_db(th: ckit_ask_model.FThreadOutput):
         pass
 
-    @rcx.on_tool_call(BOSS_A2A_RESOLUTION_TOOL.name)
+    @rcx.on_tool_call(boss_a2a_resolution.BOSS_A2A_RESOLUTION_TOOL.name)
     async def toolcall_a2a_resolution(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
-        return await handle_a2a_resolution(fclient, toolcall, model_produced_args)
+        return await boss_a2a_resolution.handle_a2a_resolution(fclient, toolcall, model_produced_args)
 
-    @rcx.on_tool_call(THREAD_MESSAGES_PRINTED_TOOL.name)
+    @rcx.on_tool_call(boss_setup_colleagues.BOSS_SETUP_COLLEAGUES_TOOL.name)
+    async def toolcall_colleague_setup(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
+        return await boss_setup_colleagues.handle_colleague_setup(fclient, toolcall, model_produced_args)
+
+    @rcx.on_tool_call(boss_thread_messages.THREAD_MESSAGES_PRINTED_TOOL.name)
     async def toolcall_thread_messages_printed(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
-        return await handle_thread_messages_printed(fclient, toolcall, model_produced_args)
+        return await boss_thread_messages.handle_thread_messages_printed(fclient, toolcall, model_produced_args)
 
     @rcx.on_tool_call(fi_mongo_store.MONGO_STORE_TOOL.name)
     async def toolcall_mongo_store(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
