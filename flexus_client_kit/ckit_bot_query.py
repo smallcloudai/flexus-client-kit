@@ -3,7 +3,7 @@ from typing import Any, List, Optional, Dict
 
 import gql
 
-from flexus_client_kit import ckit_client, gql_utils, ckit_bot_exec, ckit_shutdown, ckit_cloudtool, ckit_ask_model
+from flexus_client_kit import ckit_client, gql_utils, ckit_shutdown, ckit_cloudtool, ckit_ask_model
 
 
 @dataclass
@@ -21,6 +21,7 @@ class FPersonaOutput:
     persona_preferred_model: str
     ws_id: str
     ws_timezone: str
+    marketable_run_this: Optional[str] = None
 
 
 @dataclass
@@ -82,6 +83,19 @@ async def persona_schedule_list(fclient: ckit_client.FlexusClient, persona_id: s
                 }}
             }}"""), variable_values={"persona_id": persona_id})
     return [gql_utils.dataclass_from_dict(s, FPersonaScheduleOutput) for s in r["persona_schedule_list"]["scheds"]]
+
+
+async def personas_in_ws_list(fclient: ckit_client.FlexusClient, ws_id: str) -> List[FPersonaOutput]:
+    async with (await fclient.use_http()) as http:
+        r = await http.execute(gql.gql(f"""
+            query PersonasInWsList($ws_id: String!) {{
+                workspace_personas_list(ws_id: $ws_id, active_only: true) {{
+                    personas {{ {gql_utils.gql_fields(FPersonaOutput)} }}
+                }}
+            }}"""), variable_values={"ws_id": ws_id})
+    if not r or not r.get("workspace_personas_list"):
+        return []
+    return [gql_utils.dataclass_from_dict(p, FPersonaOutput) for p in r["workspace_personas_list"]["personas"] if p.get("marketable_run_this")]
 
 
 async def wait_until_bot_threads_stop(
