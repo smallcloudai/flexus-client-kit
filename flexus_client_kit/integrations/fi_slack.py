@@ -171,13 +171,17 @@ class IntegrationSlack:
         self.problems_other = list()
         self.socket_mode_something = None
         self.reactive_task = None
-        try:
-            self.reactive_slack = AsyncApp(token=SLACK_BOT_TOKEN)
-            self._setup_event_handlers()
-        except Exception as e:
-            logger.info(f"Failed to connect and setup event handlers: {type(e).__name__} {e}")
-            self.problems_other.append("%s %s" % (type(e).__name__, e))
+        if not SLACK_BOT_TOKEN or not SLACK_APP_TOKEN:
+            logger.warning("Slack tokens not configured, integration disabled")
             self.reactive_slack = None
+        else:
+            try:
+                self.reactive_slack = AsyncApp(token=SLACK_BOT_TOKEN)
+                self._setup_event_handlers()
+            except Exception as e:
+                logger.info(f"Failed to connect and setup event handlers: {type(e).__name__} {e}", exc_info=True)
+                self.problems_other.append("%s %s" % (type(e).__name__, e))
+                self.reactive_slack = None
         self.activity_callback: Optional[Callable[[ActivitySlack, bool], Awaitable[None]]] = None
         self.prev_messages = deque(maxlen=200)
         self.channels_id2name = {}
