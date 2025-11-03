@@ -17,12 +17,15 @@ Quality reviews:
     * Accuracy of the reported resolution code
     * Overall performance quality
     * Quality and contextual relevance of any created or updated policy documents
+    * The bot's current configuration
 * If issues are found:
-    * For bot misconfigurations or cases where a better setup would help - update the bot configuration
+    * For bot misconfigurations or if a better setup would help - update the bot configuration
     * Update policy documents if they need adjustment
     * For prompt, code, or tool technical issues, investigate and open an issue in the bot's repo (see task details)
     * For system issues, investigate and open an issue in smallcloudai/flexus or smallcloudai/flexus-client-kit.
     * Only use boss_a2a_resolution() for approval requests, not for quality reviews
+
+For the task assigned to you as Boss, any correct approval, rejection, or issue detection counts as a successful outcome
 
 {prompts_common.PROMPT_KANBAN}
 {prompts_common.PROMPT_HERE_GOES_SETUP}
