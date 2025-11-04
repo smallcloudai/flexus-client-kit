@@ -20,15 +20,30 @@ BOT_VERSION = SIMPLE_BOTS_COMMON_VERSION
 BOT_VERSION_INT = ckit_client.marketplace_version_as_int(BOT_VERSION)
 
 
-HYPOTHESIS_TEMPLATE_TOOL = ckit_cloudtool.CloudTool(
-    name="hypothesis_template",
-    description="Create skeleton problem validation form in pdoc. The form tracks validation state from idea through prioritization. Fill fields during conversation - the filled document is the process state.",
+IDEA_TEMPLATE_TOOL = ckit_cloudtool.CloudTool(
+    name="template_idea",
+    description="Create skeleton idea file in pdoc. Ideas are the top-level concept, with multiple hypotheses exploring different customer segments or approaches. Path format: /customer-research/{idea-name}",
     parameters={
         "type": "object",
         "properties": {
             "path": {
                 "type": "string",
-                "description": "Path where to write template. Should start with /customer-research/ and use kebab-case: '/customer-research/my-saas-tool'"
+                "description": "Path where to write idea template. Should be /customer-research/{idea-name} using kebab-case: '/customer-research/unicorn-horn-car-idea'"
+            },
+        },
+        "required": ["path"],
+    },
+)
+
+HYPOTHESIS_TEMPLATE_TOOL = ckit_cloudtool.CloudTool(
+    name="template_hypothesis",
+    description="Create skeleton hypothesis file in pdoc. Hypotheses explore specific customer segments or approaches for an idea. Path format: /customer-research/{idea-name}-hypotheses/{hypothesis-name}",
+    parameters={
+        "type": "object",
+        "properties": {
+            "path": {
+                "type": "string",
+                "description": "Path where to write hypothesis template, such as '/customer-research/unicorn-horn-car-hypotheses/social-media-influencers'"
             },
         },
         "required": ["path"],
@@ -36,6 +51,7 @@ HYPOTHESIS_TEMPLATE_TOOL = ckit_cloudtool.CloudTool(
 )
 
 TOOLS = [
+    IDEA_TEMPLATE_TOOL,
     HYPOTHESIS_TEMPLATE_TOOL,
     fi_pdoc.POLICY_DOCUMENT_TOOL,
 ]
@@ -54,87 +70,168 @@ async def productman_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_
     async def updated_thread_in_db(th: ckit_ask_model.FThreadOutput):
         pass
 
+    @rcx.on_tool_call(IDEA_TEMPLATE_TOOL.name)
+    async def toolcall_idea_template(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
+        path = model_produced_args.get("path", "")
+        if not path:
+            return "Error: path required"
+        if not path.startswith("/customer-research/"):
+            return "Error: path must start with /customer-research/ (e.g. /customer-research/my-product-idea)"
+        path_segments = path.strip("/").split("/")
+        for segment in path_segments:
+            if not segment:
+                continue
+            if not all(c.islower() or c.isdigit() or c == "-" for c in segment):
+                return f"Error: Path segment '{segment}' must use kebab-case (lowercase letters, numbers, hyphens only). Example: 'unicorn-horn-car-idea'"
+
+        skeleton = {
+            "idea": {
+                "meta": {
+                    "author": "",
+                    "date": "",
+                    "status": "in_progress"
+                },
+                "section01": {
+                    "section_title": "Idea Summary",
+                    "question01": {
+                        "q": "What is the idea in one sentence?",
+                        "a": ""
+                    },
+                    "question02": {
+                        "q": "What problem does this solve?",
+                        "a": ""
+                    },
+                    "question03": {
+                        "q": "Who is the target audience?",
+                        "a": ""
+                    },
+                    "question04": {
+                        "q": "What value do you provide?",
+                        "a": ""
+                    }
+                },
+                "section02": {
+                    "section_title": "Constraints & Context",
+                    "question01": {
+                        "q": "What constraints exist (budget, time, resources)?",
+                        "a": ""
+                    },
+                    "question02": {
+                        "q": "What observations or evidence support this idea?",
+                        "a": ""
+                    },
+                    "question03": {
+                        "q": "What are the key assumptions?",
+                        "a": ""
+                    },
+                    "question04": {
+                        "q": "What are the known risks?",
+                        "a": ""
+                    }
+                }
+            }
+        }
+
+        await pdoc_integration.pdoc_write(path, json.dumps(skeleton, indent=2), toolcall.fcall_ft_id)
+        logger.info(f"Created idea template at {path}")
+        return f"✍🏻 {path}\n\n✓ Created idea template with structured Q&A format"
+
     @rcx.on_tool_call(HYPOTHESIS_TEMPLATE_TOOL.name)
     async def toolcall_hypothesis_template(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
         path = model_produced_args.get("path", "")
         if not path:
             return "Error: path required"
         if not path.startswith("/customer-research/"):
-            return "Error: path must start with /customer-research/ (e.g. /customer-research/my-product)"
+            return "Error: path must start with /customer-research/ (e.g. /customer-research/my-idea-hypotheses/segment-name)"
+        if "-hypotheses/" not in path:
+            return "Error: hypothesis path must include '-hypotheses/' (e.g. /customer-research/unicorn-horn-car-hypotheses/social-media-influencers)"
         path_segments = path.strip("/").split("/")
         for segment in path_segments:
             if not segment:
                 continue
             if not all(c.islower() or c.isdigit() or c == "-" for c in segment):
-                return f"Error: Path segment '{segment}' must use kebab-case (lowercase letters, numbers, hyphens only). Example: 'unicorn-horn-car-attachment'"
+                return f"Error: Path segment '{segment}' must use kebab-case (lowercase letters, numbers, hyphens only). Example: 'social-media-influencers'"
 
         skeleton = {
-            "problem_validation": {
+            "hypothesis": {
                 "meta": {
-                    "created": "",
-                    "status": "in_progress"
+                    "author": "",
+                    "date": "",
                 },
-                "section01_idea_brief": {
-                    "title": "Initial Idea Capture",
-                    "field01_title": {"label": "Product idea (3-5 words)", "value": ""},
-                    "field02_problem_context": {"label": "What problem does it solve?", "value": ""},
-                    "field03_proposed_value": {"label": "What value do you provide?", "value": ""},
-                    "field04_constraints": {"label": "Constraints (budget/time/resources)", "value": ""},
-                    "field05_audience_hint": {"label": "Target audience", "value": ""}
-                },
-                "section02_problem_freeform": {
-                    "title": "Problem Description",
-                    "field01_statement": {"label": "Describe the problem in your own words", "value": ""},
-                    "field02_evidence": {"label": "What observations or research support this?", "value": ""},
-                    "field03_assumptions": {"label": "What are you assuming?", "value": ""},
-                    "field04_risks": {"label": "Known risks", "value": ""}
-                },
-                "section03_target_audience": {
-                    "title": "Audience Profile",
-                    "field01_segments": {"label": "Audience segments (roles, industries, sizes)", "value": ""},
-                    "field02_jobs_to_be_done": {"label": "What tasks are they trying to accomplish?", "value": ""},
-                    "field03_pains": {"label": "What frustrates them?", "value": ""},
-                    "field04_gains": {"label": "What outcomes do they want?", "value": ""},
-                    "field05_channels": {"label": "Where do they hang out?", "value": ""},
-                    "field06_geography": {"label": "Geographic locations", "value": ""},
-                    "field07_languages": {"label": "Languages spoken", "value": ""}
-                },
-                "section04_guess_the_business": {
-                    "title": "Hypothesis Challenge Game (iterate until unique)",
-                    "rounds": []
-                },
-                "section05_hypotheses_list": {
-                    "title": "Structured Problem Hypotheses (3-10)",
-                    "hypotheses": []
-                },
-                "section06_prioritization_criteria": {
-                    "title": "Scoring Dimensions Setup",
-                    "field01_impact": {"weight": 0.3, "scale": "1-5", "definition": ""},
-                    "field02_evidence": {"weight": 0.3, "scale": "1-5", "definition": ""},
-                    "field03_urgency": {"weight": 0.2, "scale": "1-5", "definition": ""},
-                    "field04_feasibility": {"weight": 0.2, "scale": "1-5", "definition": ""}
-                },
-                "section07_market_sources": {
-                    "title": "Personalized Research Sources",
-                    "preferences": {
-                        "domains": "",
-                        "geographies": "",
-                        "languages": "",
-                        "paid_allowed": False,
-                        "data_freshness": ""
+                "section01": {
+                    "section_title": "Ideal Customer Profile",
+                    "question01": {
+                        "q": "Who are the clients?",
+                        "a": ""
                     },
-                    "sources": []
+                    "question02": {
+                        "q": "What do they want to accomplish?",
+                        "a": ""
+                    },
+                    "question03": {
+                        "q": "What can't they do today?",
+                        "a": ""
+                    },
+                    "question04": {
+                        "q": "Why can't they do it?",
+                        "a": ""
+                    }
                 },
-                "section08_prioritized_hypotheses": {
-                    "title": "Scored & Ranked Hypotheses",
-                    "results": []
+                "section02": {
+                    "section_title": "Customer Context",
+                    "question01": {
+                        "q": "Where do they hang out (channels)?",
+                        "a": ""
+                    },
+                    "question02": {
+                        "q": "What are their pains and frustrations?",
+                        "a": ""
+                    },
+                    "question03": {
+                        "q": "What outcomes do they desire?",
+                        "a": ""
+                    },
+                    "question04": {
+                        "q": "Geography and languages?",
+                        "a": ""
+                    }
+                },
+                "section03": {
+                    "section_title": "Solution Hypothesis",
+                    "question01": {
+                        "q": "What is the minimum viable solution for this segment?",
+                        "a": ""
+                    },
+                    "question02": {
+                        "q": "What value metric matters most to them?",
+                        "a": ""
+                    },
+                    "question03": {
+                        "q": "What would make them choose this over alternatives?",
+                        "a": ""
+                    }
+                },
+                "section04": {
+                    "section_title": "Validation Strategy",
+                    "question01": {
+                        "q": "How can we test this hypothesis quickly?",
+                        "a": ""
+                    },
+                    "question02": {
+                        "q": "What evidence would prove/disprove this?",
+                        "a": ""
+                    },
+                    "question03": {
+                        "q": "What is the success metric?",
+                        "a": ""
+                    }
                 }
             }
         }
 
         await pdoc_integration.pdoc_write(path, json.dumps(skeleton, indent=2), toolcall.fcall_ft_id)
-        logger.info(f"Created validation template at {path}")
-        return f"✍🏻 {path}\n\n✓ Created problem validation template"
+        logger.info(f"Created hypothesis template at {path}")
+        return f"✍🏻 {path}\n\n✓ Created hypothesis template for specific customer segment"
 
     @rcx.on_tool_call(fi_pdoc.POLICY_DOCUMENT_TOOL.name)
     async def toolcall_pdoc(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:

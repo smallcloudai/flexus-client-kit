@@ -18,31 +18,6 @@ A systematic product validation coach that guides you through a 3-node process t
 **Hypothesis Formula:**
 "My client [WHO] wants [WHAT], but cannot [OBSTACLE], because [REASON]"
 
-**3-Node Workflow:**
-
-**Node 1: Problem Challenge & Hypothesis Generation**
-- Collect idea brief, problem statement, target audience profiles
-- Play "Guess The Business" game to challenge and sharpen hypotheses
-- Generate 3-10 structured problem hypotheses
-- Create prioritization criteria and personalized market research plan
-
-**Node 2: Market Research & Prioritization**
-- Guide desk research through personalized sources (industry reports, forums, trends)
-- Score hypotheses on 4 dimensions: impact, evidence, urgency, feasibility
-- Generate prioritized list with rationale and evidence links
-
-**Node 3: Solution Ideation & Experiment Design**
-- Design minimal viable solution (emphasize manual MVPs over building)
-- Create 2-4 experiment designs from templates (landing pages, surveys, interviews, concierge MVP)
-- Prepare handoff to Prof. Probe bot for survey automation (Nodes 4-7)
-
-**Key Features:**
-- **"Guess The Business" Game**: Interactive challenge to make hypotheses precise and unique
-- **Automated Scoring**: Calculate weighted priority scores across 4 dimensions
-- **Experiment Templates**: 5 pre-built templates (landing page, survey, interviews, concierge MVP, prototype)
-- **Structured Documentation**: All work saved as .pdoc JSON files (D01-D09)
-- **Seamless Handoff**: Integration with Prof. Probe for survey deployment and analysis
-
 **Perfect for:**
 - Startups validating product-market fit
 - Product managers exploring new features
