@@ -67,6 +67,17 @@ THREAD_MESSAGES_PRINTED_TOOL = ckit_cloudtool.CloudTool(
 
 TOOLS = [BOSS_A2A_RESOLUTION_TOOL, BOSS_SETUP_COLLEAGUES_TOOL, THREAD_MESSAGES_PRINTED_TOOL, fi_mongo_store.MONGO_STORE_TOOL, fi_pdoc.POLICY_DOCUMENT_TOOL]
 
+SETUP_COLLEAGUES_HELP = """Usage:
+
+boss_setup_colleagues(op='get', args={'bot_name': 'Frog'})
+    View current setup for a colleague bot.
+
+boss_setup_colleagues(op='update', args={'bot_name': 'Frog', 'set_key': 'greeting_style', 'set_val': 'excited'})
+    Update a setup key for a colleague bot. Always run get operation before update.
+
+boss_setup_colleagues(op='update', args={'bot_name': 'Frog', 'set_key': 'greeting_style'})
+    Reset a setup key to default value (omit set_val). Always run get operation before update.
+"""
 
 async def handle_a2a_resolution(fclient: ckit_client.FlexusClient, model_produced_args: Dict[str, Any]) -> str:
     task_id = model_produced_args.get("task_id", "")
@@ -91,30 +102,56 @@ async def handle_a2a_resolution(fclient: ckit_client.FlexusClient, model_produce
     return f"Task {task_id} {msg}"
 
 
-async def handle_setup_colleagues(fclient: ckit_client.FlexusClient, model_produced_args: Dict[str, Any]) -> str:
+async def handle_setup_colleagues(fclient: ckit_client.FlexusClient, toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
     op = model_produced_args.get("op", "")
     if not op or op == "help":
-        return "boss_setup_colleagues(op='get', args={'bot_name': 'Karen'}) - view setup\nboss_setup_colleagues(op='update', args={'bot_name': 'Karen', 'set_key': 'max_retries', 'set_val': '5'}) - update key"
+        return SETUP_COLLEAGUES_HELP
     if op not in ["get", "update"]:
-        return f"Error: Unknown op: {op}"
-    args, err = ckit_cloudtool.sanitize_args(model_produced_args)
-    if err:
-        return f"Error: {err}"
-    bot_name = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "bot_name", "")
-    if not bot_name:
-        return "Error: bot_name required in args"
+        return f"Error: Unknown op: {op}\n\n{SETUP_COLLEAGUES_HELP}"
+    args, args_err = ckit_cloudtool.sanitize_args(model_produced_args)
+    if args_err:
+        return f"Error: {args_err}\n\n{SETUP_COLLEAGUES_HELP}"
+    if not (bot_name := ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "bot_name", "")):
+        return f"Error: bot_name required in args\n\n{SETUP_COLLEAGUES_HELP}"
     set_key = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "set_key", "") if op == "update" else None
     set_val = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "set_val", None) if op == "update" else None
     if op == "update" and not set_key:
-        return "Error: set_key required for update"
+        return f"Error: set_key required for update\n\n{SETUP_COLLEAGUES_HELP}"
+
+    if op == "update" and not toolcall.confirmed_by_human:
+        http = await fclient.use_http()
+        async with http as h:
+            r = await h.execute(
+                gql.gql("""mutation BossSetupColleagues($bot_name: String!, $op: String!, $key: String) {
+                    boss_setup_colleagues(bot_name: $bot_name, op: $op, key: $key)
+                }"""),
+                variable_values={"bot_name": bot_name, "op": "get", "key": set_key},
+            )
+            prev_val = r.get("boss_setup_colleagues", "")
+
+        new_val = set_val if set_val is not None else "(default)"
+
+        if len(new_val) < 100 and "\n" not in new_val and len(prev_val) < 100 and "\n" not in prev_val:
+            explanation = f"Update {bot_name} setup key '{set_key}':\nNew value: {new_val}\nOld value: {prev_val}"
+        else:
+            new_lines = "\n".join(f"+ {line}" for line in new_val.split("\n"))
+            old_lines = "\n".join(f"- {line}" for line in prev_val.split("\n"))
+            explanation = f"Update {bot_name} setup key '{set_key}':\n\n{new_lines}\n{old_lines}"
+
+        raise ckit_cloudtool.NeedsConfirmation(
+            confirm_setup_key="boss_can_update_colleague_setup",
+            confirm_command=f"update {bot_name}.{set_key}",
+            confirm_explanation=explanation,
+        )
+
     http = await fclient.use_http()
     async with http as h:
         try:
             r = await h.execute(
-                gql.gql("""mutation BossSetupColleagues($bot_name: String!, $op: String!, $set_key: String, $set_val: String) {
-                    boss_setup_colleagues(bot_name: $bot_name, op: $op, set_key: $set_key, set_val: $set_val)
+                gql.gql("""mutation BossSetupColleagues($bot_name: String!, $op: String!, $key: String, $val: String) {
+                    boss_setup_colleagues(bot_name: $bot_name, op: $op, key: $key, val: $val)
                 }"""),
-                variable_values={"bot_name": bot_name, "op": op, "set_key": set_key, "set_val": set_val},
+                variable_values={"bot_name": bot_name, "op": op, "key": set_key, "val": set_val},
             )
             return r.get("boss_setup_colleagues", f"Error: Failed to {op} setup for {bot_name}")
         except gql.transport.exceptions.TransportQueryError as e:
@@ -167,7 +204,7 @@ async def boss_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.R
 
     @rcx.on_tool_call(BOSS_SETUP_COLLEAGUES_TOOL.name)
     async def toolcall_colleague_setup(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
-        return await handle_setup_colleagues(fclient, model_produced_args)
+        return await handle_setup_colleagues(fclient, toolcall, model_produced_args)
 
     @rcx.on_tool_call(THREAD_MESSAGES_PRINTED_TOOL.name)
     async def toolcall_thread_messages_printed(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
