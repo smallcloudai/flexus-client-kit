@@ -63,13 +63,13 @@ The format for the hypotheses files is this:
 {json.dumps(example_hypothesis, indent=4)}
 
 Pay attention to folder and file names, the rules are:
-- write only to customer-research/
+- write only to /customer-research/
 - folders and files are kebab-case
 - idea name is 3-5 words in English to capture what it is immediately in the filename
 - hypothesis name is 3-5 words in English to capture what is different about that one compared to the others
 
 Before you do anything, make sure to load all the current ideas from disk using flexus_policy_document().
-When working on a hypothesis, make sure to load all the current hypotheses for the same idea.
+When working on an idea, make sure to load all the current hypotheses for the same idea.
 
 You can continue working on existing idea or hypothesis, or create a new one. Ask the user what they want.
 
