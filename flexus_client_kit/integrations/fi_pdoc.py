@@ -216,6 +216,8 @@ class IntegrationPdoc:
                 raise Exception(f"Policy document not found: {p}")
             return gql_utils.dataclass_from_dict(doc, PdocDocument)
 
+    # XXX add pdoc_rewrite
+
     async def pdoc_write(self, p: str, text: str, ft_id: str) -> None:
         http = await self.fclient.use_http()
         async with http as h:
