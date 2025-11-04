@@ -51,6 +51,8 @@ Hypothesis is a way to implement an idea, the relationship is one-to-many, like 
 /customer-research/unicorn-horn-car-hypotheses/social-media-influencers
 /customer-research/unicorn-horn-car-hypotheses/parents-of-young-children
 /customer-research/unicorn-horn-car-hypotheses/local-business-owners
+/customer-research/unicorn-horn-car-survey-query/local-business-owners
+/customer-research/unicorn-horn-car-survey-results/local-business-owners
 
 The format for the idea files is this:
 
