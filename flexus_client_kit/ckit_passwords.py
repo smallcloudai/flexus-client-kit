@@ -3,6 +3,8 @@ import logging
 import time
 import os
 import httpx
+import hmac
+import hashlib
 from collections import defaultdict
 from typing import Tuple
 
@@ -55,6 +57,12 @@ async def get_superuser_token_from_vault(endpoint: str, force: bool = False) -> 
             _superpassword_expires[endpoint] = t + SUPERUSER_PASSWORD_CACHE_TTL
 
     return _superpassword_curr[endpoint], _superpassword_prev[endpoint]
+
+
+def make_flexus_ws_ticket_from_creds(service_name: str, ws_id: str, superpassword: str) -> str:
+    message = f"{service_name}:{ws_id}"
+    signature = hmac.new(superpassword.encode('utf-8'), message.encode('utf-8'), hashlib.sha256).hexdigest()
+    return f"{service_name}:{ws_id}:{signature}"
 
 
 async def get_flexus_ws_ticket(service_name: str):
