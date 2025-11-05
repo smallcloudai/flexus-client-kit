@@ -22,6 +22,7 @@ class FPersonaOutput:
     ws_id: str
     ws_timezone: str
     marketable_run_this: Optional[str] = None
+    marketable_stage: Optional[str] = None
 
 
 @dataclass
