@@ -9,6 +9,7 @@ logger = logging.getLogger("edocs")
 
 @dataclass
 class FExternalDataSourceOutput:
+    owner_fuser_id: str
     located_fgroup_id: str
     eds_id: str
     eds_name: str
