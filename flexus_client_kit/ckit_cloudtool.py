@@ -8,7 +8,7 @@ from typing import Any, Callable, Awaitable, List, Set, Optional, Tuple
 import gql
 import websockets
 import websockets.exceptions
-from gql.transport.exceptions import TransportError
+from gql.transport.exceptions import TransportQueryError
 
 from flexus_client_kit import ckit_client
 from flexus_client_kit import ckit_shutdown
@@ -119,6 +119,22 @@ async def call_python_function_and_save_result(
         # 2. (None, None) - delayed cloudtool_post_result
         assert (isinstance(content, str) and isinstance(prov, str)) or (content is None and prov is None)
         logger.info("/%s %s:%03d:%03d %+d result=%s", call.fcall_id, call.fcall_ft_id, call.fcall_ftm_alt, call.fcall_called_ftm_num, call.fcall_call_n, content[:30] if content is not None else "delayed")
+    except NeedsConfirmation as e:
+        logger.info("%s needs human confirmation: %s", call.fcall_id, e.confirm_explanation)
+        try:
+            await cloudtool_confirmation_request(
+                client,
+                call.fcall_id,
+                e.confirm_setup_key,
+                e.confirm_command,
+                e.confirm_explanation,
+            )
+        except TransportQueryError as gql_err:
+            if "confirmation already requested" in str(gql_err).lower():
+                logger.info("Confirmation already requested for %s, ignoring", call.fcall_id)
+            else:
+                raise
+        return
     except Exception as e:
         logger.warning("error processing call %s %s:%03d:%03d %+d: %s %s" % (call.fcall_id, call.fcall_ft_id, call.fcall_ftm_alt, call.fcall_called_ftm_num, call.fcall_call_n, type(e).__name__, e), exc_info=e)
         content, prov = json.dumps(f"{type(e).__name__} {e}"), json.dumps({"system": service_name})
