@@ -65,7 +65,21 @@ THREAD_MESSAGES_PRINTED_TOOL = ckit_cloudtool.CloudTool(
     },
 )
 
-TOOLS = [BOSS_A2A_RESOLUTION_TOOL, BOSS_SETUP_COLLEAGUES_TOOL, THREAD_MESSAGES_PRINTED_TOOL, fi_mongo_store.MONGO_STORE_TOOL, fi_pdoc.POLICY_DOCUMENT_TOOL]
+REPORT_BOT_BUG_TOOL = ckit_cloudtool.CloudTool(
+    name="report_bot_bug",
+    description="Report a bug or issue related to a bot's code, tools, or prompts (not configuration issues).",
+    parameters={
+        "type": "object",
+        "properties": {
+            "bot_name": {"type": "string", "description": "Name of the bot with the issue (e.g. 'Karen 5', 'Frog')"},
+            "ft_id": {"type": "string", "description": "Thread ID where the issue was observed"},
+            "bug_summary": {"type": "string", "description": "Concise summary of the bug or issue"}
+        },
+        "required": ["bot_name", "ft_id", "bug_summary"]
+    },
+)
+
+TOOLS = [BOSS_A2A_RESOLUTION_TOOL, BOSS_SETUP_COLLEAGUES_TOOL, THREAD_MESSAGES_PRINTED_TOOL, REPORT_BOT_BUG_TOOL, fi_mongo_store.MONGO_STORE_TOOL, fi_pdoc.POLICY_DOCUMENT_TOOL]
 
 SETUP_COLLEAGUES_HELP = """Usage:
 
@@ -179,6 +193,64 @@ async def handle_thread_messages(fclient: ckit_client.FlexusClient, model_produc
             return f"GraphQL Error: {e}"
 
 
+async def handle_report_bot_bug(fclient: ckit_client.FlexusClient, ws_id: str, model_produced_args: Dict[str, Any]) -> str:
+    bot_name = model_produced_args.get("bot_name", "")
+    ft_id = model_produced_args.get("ft_id", "")
+    bug_summary = model_produced_args.get("bug_summary", "")
+    if not bot_name or not ft_id or not bug_summary:
+        return "Error: bot_name, ft_id, and bug_summary are all required"
+    http = await fclient.use_http()
+    async with http as h:
+        try:
+            r = await h.execute(
+                gql.gql("""query WorkspacePersonasList($ws_id: String!, $persona_names_filter: [String!]) {
+                    workspace_personas_list(ws_id: $ws_id, persona_names_filter: $persona_names_filter) {
+                        personas {
+                            persona_marketable_name
+                            persona_marketable_version
+                        }
+                    }
+                }"""),
+                variable_values={"ws_id": ws_id, "persona_names_filter": [bot_name]},
+            )
+            personas = r.get("workspace_personas_list", {}).get("personas", [])
+            if not personas:
+                return f"Error: Bot '{bot_name}' not found in workspace"
+
+            persona_marketable_name = personas[0]["persona_marketable_name"]
+            persona_marketable_version = personas[0]["persona_marketable_version"]
+
+            r = await h.execute(
+                gql.gql("""mutation ReportBotBug(
+                    $persona_marketable_name: String!,
+                    $persona_marketable_version: Int!,
+                    $feedback_ft_id: String!,
+                    $feedback_text: String!
+                ) {
+                    marketplace_feedback_submit_by_bot(
+                        persona_marketable_name: $persona_marketable_name,
+                        persona_marketable_version: $persona_marketable_version,
+                        feedback_ft_id: $feedback_ft_id,
+                        feedback_text: $feedback_text
+                    ) {
+                        feedback_id
+                    }
+                }"""),
+                variable_values={
+                    "persona_marketable_name": persona_marketable_name,
+                    "persona_marketable_version": persona_marketable_version,
+                    "feedback_ft_id": ft_id,
+                    "feedback_text": bug_summary,
+                },
+            )
+            feedback_id = r.get("marketplace_feedback_submit_by_bot", {}).get("feedback_id")
+            if not feedback_id:
+                return f"Error: Failed to submit bug report for {bot_name}"
+            return f"Bug report submitted successfully for {bot_name} (feedback_id: {feedback_id})"
+        except gql.transport.exceptions.TransportQueryError as e:
+            return f"GraphQL Error: {e}"
+
+
 async def boss_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.RobotContext) -> None:
     setup = ckit_bot_exec.official_setup_mixing_procedure(boss_install.boss_setup_schema, rcx.persona.persona_setup)
 
@@ -209,6 +281,10 @@ async def boss_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.R
     @rcx.on_tool_call(THREAD_MESSAGES_PRINTED_TOOL.name)
     async def toolcall_thread_messages_printed(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
         return await handle_thread_messages(fclient, model_produced_args)
+
+    @rcx.on_tool_call(REPORT_BOT_BUG_TOOL.name)
+    async def toolcall_report_bot_bug(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
+        return await handle_report_bot_bug(fclient, rcx.persona.ws_id, model_produced_args)
 
     @rcx.on_tool_call(fi_mongo_store.MONGO_STORE_TOOL.name)
     async def toolcall_mongo_store(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:

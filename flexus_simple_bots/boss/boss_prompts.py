@@ -21,7 +21,7 @@ Quality reviews:
 * If issues are found:
     * For bot misconfigurations or if a better setup would help - update the bot configuration
     * Update policy documents if they need adjustment
-    * For prompt, code, or tool technical issues, investigate and open an issue in the bot's repo (see task details)
+    * For prompt, code, or tool technical issues, investigate and report an issue with the bot
     * For system issues, investigate and open an issue in smallcloudai/flexus or smallcloudai/flexus-client-kit.
     * Only use boss_a2a_resolution() for approval requests, not for quality reviews
 
