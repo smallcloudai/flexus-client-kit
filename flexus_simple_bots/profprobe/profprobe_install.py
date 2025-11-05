@@ -10,7 +10,6 @@ from flexus_client_kit.integrations import fi_slack
 from flexus_simple_bots import prompts_common
 from flexus_simple_bots.profprobe import profprobe_bot, profprobe_prompts
 
-
 BOT_DESCRIPTION = """
 ## Prof. Probe - Inquisitive Interviewer
 
@@ -29,16 +28,33 @@ Runs structured questionnaires via Slack or Flexus UI. Ask questions one by one,
 - Any structured Q&A sessions
 """
 
-
 profprobe_setup_schema = [
+    {
+        "bs_name": "use_surveymonkey",
+        "bs_type": "bool",
+        "bs_default": True,
+        "bs_group": "Interview Mode",
+        "bs_order": 1,
+        "bs_importance": 1,
+        "bs_description": "Use SurveyMonkey for automated surveys (if False, will conduct manual interviews via Slack)",
+    },
     {
         "bs_name": "additional_instructions",
         "bs_type": "string_multiline",
         "bs_default": "",
         "bs_group": "Customization",
-        "bs_order": 1,
+        "bs_order": 2,
         "bs_importance": 0,
         "bs_description": "Additional interview style preferences or custom instructions",
+    },
+    {
+        "bs_name": "SURVEYMONKEY_ACCESS_TOKEN",
+        "bs_type": "string",
+        "bs_default": "",
+        "bs_group": "SurveyMonkey",
+        "bs_order": 3,
+        "bs_importance": 1,
+        "bs_description": "SurveyMonkey OAuth 2.0 access token (requires surveys_write, surveys_read, collectors_write, collectors_read, responses_read_detail scopes)",
     },
 ]
 

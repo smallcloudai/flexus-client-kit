@@ -1,45 +1,31 @@
 import asyncio
 import json
 import logging
-import os
-from pathlib import Path
 from typing import Dict, Any
 
+from flexus_client_kit import ckit_ask_model
+from flexus_client_kit import ckit_bot_exec
 from flexus_client_kit import ckit_client
 from flexus_client_kit import ckit_cloudtool
-from flexus_client_kit import ckit_bot_exec
+from flexus_client_kit import ckit_kanban
 from flexus_client_kit import ckit_shutdown
-from flexus_client_kit import ckit_ask_model
-from flexus_client_kit.integrations import fi_slack
 from flexus_client_kit.integrations import fi_pdoc
+from flexus_client_kit.integrations import fi_slack
 from flexus_simple_bots.profprobe import profprobe_install
+from flexus_simple_bots.profprobe.integrations import survey_monkey
 from flexus_simple_bots.version_common import SIMPLE_BOTS_COMMON_VERSION
 
 logger = logging.getLogger("bot_profprobe")
-
 
 BOT_NAME = "profprobe"
 BOT_VERSION = SIMPLE_BOTS_COMMON_VERSION
 BOT_VERSION_INT = ckit_client.marketplace_version_as_int(BOT_VERSION)
 
-
-POST_TEST_QUESTIONNAIRE = ckit_cloudtool.CloudTool(
-    name="create_test_questionnaire",
-    description="For test, you can write an empty questionnaire to /interview-test/",
-    parameters={
-        "type": "object",
-        "properties": {
-            "qfile": {"type": "string", "description": "Randomly choose q1 or q2"},
-            "name": {"type": "string", "description": "Respondent name in kebab-case (e.g., john-doe)"},
-        },
-        "required": ["qfile", "name"],
-    },
-)
-
 TOOLS = [
-    POST_TEST_QUESTIONNAIRE,
     fi_slack.SLACK_TOOL,
     fi_pdoc.POLICY_DOCUMENT_TOOL,
+    survey_monkey.CREATE_SURVEY_TOOL,
+    survey_monkey.GET_RESPONSES_TOOL,
 ]
 
 
@@ -56,6 +42,13 @@ async def profprobe_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_e
 
     pdoc_integration = fi_pdoc.IntegrationPdoc(fclient, rcx.persona.located_fgroup_id)
 
+    surveymonkey_integration = None
+    if setup.get("SURVEYMONKEY_ACCESS_TOKEN"):
+        surveymonkey_integration = survey_monkey.IntegrationSurveyMonkey(
+            access_token=setup["SURVEYMONKEY_ACCESS_TOKEN"],
+            pdoc_integration=pdoc_integration
+        )
+
     @rcx.on_updated_message
     async def updated_message_in_db(msg: ckit_ask_model.FThreadMessageOutput):
         await slack.look_assistant_might_have_posted_something(msg)
@@ -63,56 +56,6 @@ async def profprobe_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_e
     @rcx.on_updated_thread
     async def updated_thread_in_db(th: ckit_ask_model.FThreadOutput):
         pass
-
-    @rcx.on_tool_call(POST_TEST_QUESTIONNAIRE.name)
-    async def toolcall_post_test_questionnaire(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
-        qfile = model_produced_args.get("qfile", "")
-        name = model_produced_args.get("name", "")
-
-        if not qfile:
-            return "Error: qfile required (q1 or q2)"
-        if not name:
-            return "Error: name required (kebab-case, e.g., john-doe)"
-
-        p = f"/interview-test/{qfile}-{name}"
-
-        Q1_QUESTIONS = [
-            "Do you prefer your coffee black, with milk, or with long-term emotional stability?",
-            "How many pillows do you really sleep with?",
-            "When you hear the word \"commitment,\" do you think of Wi-Fi contracts or something scarier?",
-            "Are you married, hypothetically speaking, or in practice?",
-            "If a penguin handed you a ring, would you accept it, or ask about its tax residency first?",
-        ]
-
-        Q2_QUESTIONS = [
-            "When the doorbell rings unexpectedly, do you: a) open it, b) hide, or c) move to another country?",
-            "How often do you make eye contact with your reflection and immediately regret it?",
-            "Are you married, or do you just tell people your cat's name when asked about your partner?",
-            "If invited to a party, how many backup excuses do you prepare?",
-            "On a scale from 1 to \"please email me instead,\" how do you feel about phone calls?",
-        ]
-
-        questions = Q1_QUESTIONS if qfile == "q1" else Q2_QUESTIONS
-
-        interview_data = {
-            "interview": {
-                "respondent": name,
-                "questionnaire": qfile.upper(),
-                "section01": {
-                    "title": f"Questions from {qfile.upper()}",
-                }
-            }
-        }
-
-        for idx, q_text in enumerate(questions, 1):
-            q_key = f"question{idx:02d}"
-            interview_data["interview"]["section01"][q_key] = {
-                "q": q_text,
-                "a": ""
-            }
-
-        await pdoc_integration.pdoc_write(p, json.dumps(interview_data, indent=2), ft_id=toolcall.ft_id)
-        return f"✍🏻 {p}\n\n✓ Created empty questionnaire with {len(questions)} questions"
 
     @rcx.on_tool_call(fi_slack.SLACK_TOOL.name)
     async def toolcall_slack(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
@@ -122,11 +65,62 @@ async def profprobe_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_e
     async def toolcall_pdoc(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
         return await pdoc_integration.called_by_model(toolcall, model_produced_args)
 
+    @rcx.on_tool_call(survey_monkey.CREATE_SURVEY_TOOL.name)
+    async def toolcall_create_survey(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
+        if not surveymonkey_integration:
+            return "Error: SurveyMonkey integration not configured. Please set SURVEYMONKEY_ACCESS_TOKEN in bot settings."
+        return await surveymonkey_integration.create_survey(toolcall, model_produced_args)
+
+    @rcx.on_tool_call(survey_monkey.GET_RESPONSES_TOOL.name)
+    async def toolcall_get_responses(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
+        if not surveymonkey_integration:
+            return "Error: SurveyMonkey integration not configured. Please set SURVEYMONKEY_ACCESS_TOKEN in bot settings."
+        return await surveymonkey_integration.get_responses(toolcall, model_produced_args)
+
+    async def check_surveys():
+        if not surveymonkey_integration or not setup.get("use_surveymonkey", True):
+            return
+        try:
+            survey_list = await pdoc_integration.pdoc_list("/customer-research/unicorn-horn-car-survey-query/")
+            for item in survey_list:
+                survey_name = item.path.split("/")[-1]
+                doc = await pdoc_integration.pdoc_cat(item.path)
+                content = json.loads(doc.pdoc_content)
+                meta = content.get("meta", {})
+                if survey_id := meta.get("survey_id"):
+                    if await surveymonkey_integration.check_survey_has_responses(survey_id):
+                        content["meta"]["responses_processed"] = True
+                        await pdoc_integration.pdoc_write(item.path, json.dumps(content, indent=2), None)
+                        await ckit_kanban.bot_kanban_post_into_inbox(
+                            fclient,
+                            rcx.persona.persona_id,
+                            f"Process survey results: {survey_name}",
+                            json.dumps({
+                                "instruction": f"Get survey results from SurveyMonkey survey_id: {survey_id} and save them to /customer-research/unicorn-horn-car-survey-results/{survey_name}",
+                                "survey_id": survey_id,
+                                "survey_name": survey_name,
+                                "target_path": f"/customer-research/unicorn-horn-car-survey-results/{survey_name}"
+                            }),
+                            f"Survey {survey_name} has responses"
+                        )
+                        logger.info(f"Posted kanban task for completed survey {survey_name}")
+        except Exception as e:
+            logger.error(f"Error checking surveys: {e}", stack_info=True)
+
     try:
         await slack.join_channels()
         await slack.start_reactive()
 
+        last_survey_check = 0
+        survey_check_interval = 300
+
         while not ckit_shutdown.shutdown_event.is_set():
+            current_time = asyncio.get_event_loop().time()
+
+            if current_time - last_survey_check > survey_check_interval:
+                await check_surveys()
+                last_survey_check = current_time
+
             await rcx.unpark_collected_events(sleep_if_no_work=10.0)
 
     finally:
