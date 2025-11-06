@@ -50,7 +50,7 @@ is completed once you move your task to kanban done, nothing additional you need
 SCHED_TASK_SORT_10M = {
     "sched_type": "SCHED_TASK_SORT",
     "sched_when": "EVERY:10m",
-    "sched_first_question": "Look if there are any tasks in inbox, if there are then great, you need to sort up to 20 of them according to the system prompt, and then say \"N tasks sorted\". Do nothing more",
+    "sched_first_question": "If there are tasks in Inbox, move up to 20 to todo or irrelevant according to the system prompt. Then respond with: N tasks sorted. Do nothing else",
 }
 
 SCHED_TODO_5M = {
