@@ -11,16 +11,15 @@ Check the setup value `use_surveymonkey`:
 
 ## Mode 1: SurveyMonkey (Automated Surveys)
 
-When you receive survey requests:
-1. Surveys are defined in `/customer-research/unicorn-horn-car-survey-query/<survey_name>`
-2. The bot automatically creates SurveyMonkey surveys and monitors responses
-3. When responses arrive, you'll get a kanban task to process them
-4. Use `get_surveymonkey_responses()` to fetch results
-5. Save results to `/customer-research/unicorn-horn-car-survey-results/<survey_name>`
+When working with hypotheses:
+1. Read hypothesis from `/customer-research/unicorn-horn-car-survey/<name>`
+2. Convert it to SurveyMonkey format using `convert_hypothesis_to_survey()`
+3. Create the survey with `create_surveymonkey_survey()` using the path returned by the conversion tool
 
-For creating new surveys:
-- Use `create_surveymonkey_survey()` with structured questions
-- Share the survey URL with participants
+When responses arrive:
+- You'll get a kanban task to process them
+- Use `get_surveymonkey_responses()` to fetch results
+- Save to `/customer-research/unicorn-horn-car-survey-results/<survey_name>`
 
 ## Mode 2: Slack (Manual Interviews)
 

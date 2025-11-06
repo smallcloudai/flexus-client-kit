@@ -45,28 +45,108 @@ GET_RESPONSES_TOOL = ckit_cloudtool.CloudTool(
     }
 )
 
+CONVERT_HYPOTHESIS_TOOL = ckit_cloudtool.CloudTool(
+    name="convert_hypothesis_to_survey",
+    description="""Convert hypothesis to SurveyMonkey format and save to pdoc.
+Reads from: /customer-research/unicorn-horn-car-survey/<hypothesis_name>
+Saves to: /customer-research/unicorn-horn-car-hypotheses/<hypothesis_name>-survey-monkey-query
+
+Expected hypothesis format (input):
+{
+  "idea": {
+    "section01": {
+      "section_title": "Idea Summary",
+      "question01": {"q": "What is the idea?", "a": "..."},
+      "question02": {"q": "What problem does it solve?", "a": "..."}
+    }
+  }
+}
+
+Required survey format (output):
+{
+  "title": "Survey Title",
+  "description": "Optional description",
+  "questions": [
+    {
+      "question": "Question text from hypothesis",
+      "type": "open_ended|single_choice|multiple_choice|rating_scale|yes_no|likert|nps|matrix|numeric|date",
+      "required": false,
+      "choices": ["option1", "option2"],  // for choice questions only
+      "scale_min": 1,  // for rating scales only
+      "scale_max": 5   // for rating scales only
+    }
+  ]
+}
+
+Convert each hypothesis "q" field into a survey question.""",
+    parameters={
+        "type": "object",
+        "properties": {
+            "hypothesis_path": {
+                "type": "string",
+                "description": "Path to hypothesis pdoc (e.g. /customer-research/unicorn-horn-car-survey/unicorn-horn-effectiveness)"
+            },
+            "survey_data": {
+                "type": "object",
+                "description": "Survey data in SurveyMonkey format with title, description, and questions array"
+            }
+        },
+        "required": ["hypothesis_path", "survey_data"]
+    }
+)
+
+
+def validate_survey_format(survey_data: dict) -> tuple[bool, str]:
+    if not isinstance(survey_data, dict):
+        return False, "Survey data must be a dictionary"
+    
+    if "title" not in survey_data:
+        return False, "Survey must have a title"
+    
+    if "questions" not in survey_data or not isinstance(survey_data["questions"], list):
+        return False, "Survey must have a questions array"
+    
+    if len(survey_data["questions"]) == 0:
+        return False, "Survey must have at least one question"
+    
+    valid_types = ["open_ended", "single_choice", "multiple_choice", "dropdown", 
+                   "rating_scale", "nps", "likert", "matrix", "numeric", "date", "yes_no"]
+    
+    for idx, q in enumerate(survey_data["questions"]):
+        if "question" not in q:
+            return False, f"Question {idx+1} missing 'question' field"
+        
+        q_type = q.get("type", "open_ended")
+        if q_type not in valid_types:
+            return False, f"Question {idx+1} has invalid type: {q_type}"
+        
+        if q_type in ["single_choice", "multiple_choice", "dropdown", "matrix"]:
+            if not q.get("choices") or not isinstance(q.get("choices"), list):
+                return False, f"Question {idx+1} of type {q_type} must have choices array"
+    
+    return True, "Valid"
 
 
 def parse_pdoc_to_survey_questions(pdoc_content: dict) -> tuple[str, str, list]:
     title = pdoc_content.get("title", "Survey")
     description = pdoc_content.get("description", "")
-    questions = []
-    for section_key, section_data in pdoc_content.items():
-        if section_key in ["title", "description", "meta"]:
-            continue
-        for q_key, q_data in section_data.items():
-            q_dict = {
-                "text": q_data["question"],
-                "type": q_data.get("type", "open_ended"),
-                "choices": q_data.get("choices", []),
-                "required": q_data.get("required", False)
-            }
-            if "scale_min" in q_data:
-                q_dict["scale_min"] = q_data["scale_min"]
-            if "scale_max" in q_data:
-                q_dict["scale_max"] = q_data["scale_max"]
-            questions.append(q_dict)
-    return title, description, questions
+    questions = pdoc_content.get("questions", [])
+    
+    formatted_questions = []
+    for q in questions:
+        q_dict = {
+            "text": q.get("question", ""),
+            "type": q.get("type", "open_ended"),
+            "choices": q.get("choices", []),
+            "required": q.get("required", False)
+        }
+        if "scale_min" in q:
+            q_dict["scale_min"] = q["scale_min"]
+        if "scale_max" in q:
+            q_dict["scale_max"] = q["scale_max"]
+        formatted_questions.append(q_dict)
+    
+    return title, description, formatted_questions
 
 
 class IntegrationSurveyMonkey:
@@ -196,7 +276,7 @@ class IntegrationSurveyMonkey:
             return "Error: pdoc integration not configured"
 
         doc = await self.pdoc_integration.pdoc_cat(pdoc_path)
-        content = json.loads(doc.pdoc_content)
+        content = doc.pdoc_content if isinstance(doc.pdoc_content, dict) else json.loads(doc.pdoc_content)
         title, description, questions = parse_pdoc_to_survey_questions(content)
         if not questions:
             return f"Error: No questions found in {pdoc_path}"
@@ -343,4 +423,42 @@ class IntegrationSurveyMonkey:
 
             result += "-" * 30 + "\n\n"
 
+        return result
+    
+    async def convert_hypothesis_to_survey(self, toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
+        args, args_error = ckit_cloudtool.sanitize_args(model_produced_args)
+        if args_error:
+            return args_error
+        
+        hypothesis_path = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "hypothesis_path", "")
+        survey_data = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "survey_data", {})
+        
+        if not hypothesis_path:
+            return "Error: hypothesis_path is required"
+        
+        if not self.pdoc_integration:
+            return "Error: pdoc integration not configured"
+        
+        is_valid, error_msg = validate_survey_format(survey_data)
+        if not is_valid:
+            return f"Error: Invalid survey format - {error_msg}"
+        
+        if "/customer-research/unicorn-horn-car-survey/" not in hypothesis_path:
+            return "Error: hypothesis_path must be in /customer-research/unicorn-horn-car-survey/"
+        
+        hypothesis_name = hypothesis_path.split("/")[-1]
+        target_path = f"/customer-research/unicorn-horn-car-hypotheses/{hypothesis_name}-survey-monkey-query"
+        
+        try:
+            await self.pdoc_integration.pdoc_write(target_path, json.dumps(survey_data, indent=2), None)
+        except Exception as e:
+            return f"Error saving survey to pdoc: {str(e)}"
+        
+        result = f"✅ Hypothesis converted to survey format\n\n"
+        result += f"📝 Source: {hypothesis_path}\n"
+        result += f"📋 Title: {survey_data.get('title', 'N/A')}\n"
+        result += f"❓ Questions: {len(survey_data.get('questions', []))}\n"
+        result += f"💾 Saved to: {target_path}\n\n"
+        result += f"Next step: Call create_surveymonkey_survey with pdoc_path='{target_path}'"
+        
         return result

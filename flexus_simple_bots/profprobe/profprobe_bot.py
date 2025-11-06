@@ -26,6 +26,7 @@ TOOLS = [
     fi_pdoc.POLICY_DOCUMENT_TOOL,
     survey_monkey.CREATE_SURVEY_TOOL,
     survey_monkey.GET_RESPONSES_TOOL,
+    survey_monkey.CONVERT_HYPOTHESIS_TOOL,
 ]
 
 
@@ -39,6 +40,11 @@ async def profprobe_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_e
         SLACK_APP_TOKEN=setup["SLACK_APP_TOKEN"],
         should_join=setup["slack_should_join"],
     )
+    try:
+        await slack.join_channels()
+        await slack.start_reactive()
+    except Exception as e:
+        logger.error(f"Slack is not available: {e}")
 
     pdoc_integration = fi_pdoc.IntegrationPdoc(fclient, rcx.persona.located_fgroup_id)
 
@@ -69,23 +75,41 @@ async def profprobe_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_e
     async def toolcall_create_survey(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
         if not surveymonkey_integration:
             return "Error: SurveyMonkey integration not configured. Please set SURVEYMONKEY_ACCESS_TOKEN in bot settings."
-        return await surveymonkey_integration.create_survey(toolcall, model_produced_args)
+        try:
+            return await surveymonkey_integration.create_survey(toolcall, model_produced_args)
+        except Exception as e:
+            logger.info(f"toolcall_create_survey error: {e}")
+            return f"Error: {e}"
 
     @rcx.on_tool_call(survey_monkey.GET_RESPONSES_TOOL.name)
     async def toolcall_get_responses(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
         if not surveymonkey_integration:
             return "Error: SurveyMonkey integration not configured. Please set SURVEYMONKEY_ACCESS_TOKEN in bot settings."
-        return await surveymonkey_integration.get_responses(toolcall, model_produced_args)
+        try:
+            return await surveymonkey_integration.get_responses(toolcall, model_produced_args)
+        except Exception as e:
+            logger.info(f"toolcall_get_responses error: {e}")
+            return f"Error: {e}"
+
+    @rcx.on_tool_call(survey_monkey.CONVERT_HYPOTHESIS_TOOL.name)
+    async def toolcall_convert_hypothesis(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
+        if not surveymonkey_integration:
+            return "Error: SurveyMonkey integration not configured. Please set SURVEYMONKEY_ACCESS_TOKEN in bot settings."
+        try:
+            return await surveymonkey_integration.convert_hypothesis_to_survey(toolcall, model_produced_args)
+        except Exception as e:
+            logger.info(f"toolcall_convert_hypothesis error: {e}")
+            return f"Error: {e}"
 
     async def check_surveys():
         if not surveymonkey_integration or not setup.get("use_surveymonkey", True):
             return
         try:
-            survey_list = await pdoc_integration.pdoc_list("/customer-research/unicorn-horn-car-survey-query/")
+            survey_list = await pdoc_integration.pdoc_list("/customer-research/unicorn-horn-car-hypotheses/")
             for item in survey_list:
                 survey_name = item.path.split("/")[-1]
                 doc = await pdoc_integration.pdoc_cat(item.path)
-                content = json.loads(doc.pdoc_content)
+                content = doc.pdoc_content if isinstance(doc.pdoc_content, dict) else json.loads(doc.pdoc_content)
                 meta = content.get("meta", {})
                 if survey_id := meta.get("survey_id"):
                     if await surveymonkey_integration.check_survey_has_responses(survey_id):
@@ -108,9 +132,6 @@ async def profprobe_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_e
             logger.error(f"Error checking surveys: {e}", stack_info=True)
 
     try:
-        await slack.join_channels()
-        await slack.start_reactive()
-
         last_survey_check = 0
         survey_check_interval = 300
 
