@@ -47,5 +47,5 @@ async def run_typical_single_subscription_with_restart_on_network_errors(fclient
             if "403:" in str(e):
                 logger.error("That looks bad, my key doesn't work: %s", e)
             else:
-                logger.info("got %s (attempt %d/3), sleep 60...", type(e).__name__, len(exception_times))
+                logger.info("got %s (attempt %d/3), sleep 60...", type(e).__name__, len(exception_times), exc_info=True)
             await ckit_shutdown.wait(60)
