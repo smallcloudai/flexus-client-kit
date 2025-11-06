@@ -176,8 +176,8 @@ class IntegrationPdoc:
             else:
                 r += f"Unknown op {op!r}\n\n{HELP}"
 
-        except Exception as e:
-            logger.exception("Exception in pdoc operation")
+        except gql.transport.exceptions.TransportQueryError as e:
+            logger.info(f"Error in pdoc operation", exc_info=True)
             return f"Error: {str(e)}"
 
         return r
