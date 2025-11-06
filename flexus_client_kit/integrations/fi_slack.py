@@ -172,6 +172,8 @@ class IntegrationSlack:
         self.socket_mode_something = None
         self.reactive_task = None
         try:
+            if not SLACK_BOT_TOKEN:
+                raise ValueError("no token configured") # with no token, _setup_even_handlers will work, but all subsquent calls will fail
             self.reactive_slack = AsyncApp(token=SLACK_BOT_TOKEN)
             self._setup_event_handlers()
         except Exception as e:
