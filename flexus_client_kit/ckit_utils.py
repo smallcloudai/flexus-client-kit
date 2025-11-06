@@ -31,3 +31,10 @@ def log_with_throttle(
     if message not in _throttle_dict or now - _throttle_dict[message] > interval_seconds:
         _throttle_dict[message] = now
         log_func(message, *args)
+
+
+def truncate_middle(text: str, max_length: int = 5000) -> str:
+    if len(text) <= max_length:
+        return text
+    keep_chars = max_length // 2
+    return text[:keep_chars] + "\n...\n" + text[-keep_chars:]

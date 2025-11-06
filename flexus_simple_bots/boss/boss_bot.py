@@ -11,6 +11,7 @@ from flexus_client_kit import ckit_bot_exec
 from flexus_client_kit import ckit_shutdown
 from flexus_client_kit import ckit_ask_model
 from flexus_client_kit import ckit_mongo
+from flexus_client_kit import ckit_utils
 from flexus_client_kit.integrations import fi_mongo_store
 from flexus_client_kit.integrations import fi_pdoc
 from flexus_simple_bots.boss import boss_install
@@ -65,21 +66,18 @@ THREAD_MESSAGES_PRINTED_TOOL = ckit_cloudtool.CloudTool(
     },
 )
 
-REPORT_BOT_BUG_TOOL = ckit_cloudtool.CloudTool(
-    name="report_bot_bug",
-    description="Report a bug or issue related to a bot's code, tools, or prompts (not configuration issues).",
+BOT_BUG_REPORT_TOOL = ckit_cloudtool.CloudTool(
+    name="bot_bug_report",
+    description="Report a bug related to a bot's code, tools, or prompts. Call with op=help for usage.",
     parameters={
         "type": "object",
         "properties": {
-            "bot_name": {"type": "string", "description": "Name of the bot with the issue (e.g. 'Karen 5', 'Frog')"},
-            "ft_id": {"type": "string", "description": "Thread ID where the issue was observed"},
-            "bug_summary": {"type": "string", "description": "Concise summary of the bug or issue"}
+            "op": {"type": "string", "enum": ["help", "report_bug", "list_reported_bugs"]},
+            "args": {"type": "object"}
         },
-        "required": ["bot_name", "ft_id", "bug_summary"]
+        "required": ["op"]
     },
 )
-
-TOOLS = [BOSS_A2A_RESOLUTION_TOOL, BOSS_SETUP_COLLEAGUES_TOOL, THREAD_MESSAGES_PRINTED_TOOL, REPORT_BOT_BUG_TOOL, fi_mongo_store.MONGO_STORE_TOOL, fi_pdoc.POLICY_DOCUMENT_TOOL]
 
 SETUP_COLLEAGUES_HELP = """Usage:
 
@@ -92,6 +90,28 @@ boss_setup_colleagues(op='update', args={'bot_name': 'Frog', 'set_key': 'greetin
 boss_setup_colleagues(op='update', args={'bot_name': 'Frog', 'set_key': 'greeting_style'})
     Reset a setup key to default value (omit set_val). Always run get operation before update.
 """
+
+BOT_BUG_REPORT_HELP = """Report a bug related to a bot's code, tools, or prompts (not configuration issues).
+Always list bugs before reporting to avoid duplicates.
+
+Usage:
+
+bot_bug_report(op='report_bug', args={'bot_name': 'Karen 5', 'ft_id': 'ft_abc123', 'bug_summary': 'Bot fails to parse dates in ISO format'})
+    Report a bug related to a bot's code, tools, or prompts.
+
+bot_bug_report(op='list_reported_bugs', args={'bot_name': 'Frog'})
+    List all reported bugs for a specific bot.
+"""
+
+TOOLS = [
+    BOSS_A2A_RESOLUTION_TOOL,
+    BOSS_SETUP_COLLEAGUES_TOOL,
+    THREAD_MESSAGES_PRINTED_TOOL,
+    BOT_BUG_REPORT_TOOL,
+    fi_mongo_store.MONGO_STORE_TOOL,
+    fi_pdoc.POLICY_DOCUMENT_TOOL
+]
+
 
 async def handle_a2a_resolution(fclient: ckit_client.FlexusClient, model_produced_args: Dict[str, Any]) -> str:
     task_id = model_produced_args.get("task_id", "")
@@ -193,12 +213,18 @@ async def handle_thread_messages(fclient: ckit_client.FlexusClient, model_produc
             return f"GraphQL Error: {e}"
 
 
-async def handle_report_bot_bug(fclient: ckit_client.FlexusClient, ws_id: str, model_produced_args: Dict[str, Any]) -> str:
-    bot_name = model_produced_args.get("bot_name", "")
-    ft_id = model_produced_args.get("ft_id", "")
-    bug_summary = model_produced_args.get("bug_summary", "")
-    if not bot_name or not ft_id or not bug_summary:
-        return "Error: bot_name, ft_id, and bug_summary are all required"
+async def handle_bot_bug_report(fclient: ckit_client.FlexusClient, ws_id: str, model_produced_args: Dict[str, Any]) -> str:
+    op = model_produced_args.get("op", "")
+    if not op or op == "help":
+        return BOT_BUG_REPORT_HELP
+    if op not in ["report_bug", "list_reported_bugs"]:
+        return f"Error: Unknown op: {op}\n\n{BOT_BUG_REPORT_HELP}"
+    args, args_err = ckit_cloudtool.sanitize_args(model_produced_args)
+    if args_err:
+        return f"Error: {args_err}\n\n{BOT_BUG_REPORT_HELP}"
+    if not (bot_name := ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "bot_name", "")):
+        return f"Error: bot_name required in args\n\n{BOT_BUG_REPORT_HELP}"
+
     http = await fclient.use_http()
     async with http as h:
         try:
@@ -220,6 +246,32 @@ async def handle_report_bot_bug(fclient: ckit_client.FlexusClient, ws_id: str, m
             persona_marketable_name = personas[0]["persona_marketable_name"]
             persona_marketable_version = personas[0]["persona_marketable_version"]
 
+            if op == "list_reported_bugs":
+                r = await h.execute(
+                    gql.gql("""query MarketplaceFeedbackListByBot($persona_marketable_name: String!, $persona_marketable_version: Int!) {
+                        marketplace_feedback_list_by_bot(persona_marketable_name: $persona_marketable_name, persona_marketable_version: $persona_marketable_version) {
+                            total_count feedbacks { feedback_text }
+                        }
+                    }"""),
+                    variable_values={"persona_marketable_name": persona_marketable_name, "persona_marketable_version": persona_marketable_version},
+                )
+                feedback_data = r.get("marketplace_feedback_list_by_bot", {})
+                feedbacks = feedback_data.get("feedbacks", [])
+                total_count = feedback_data.get("total_count", 0)
+                if not feedbacks:
+                    return f"No reported bugs found for {bot_name}"
+                result = f"Reported bugs for {bot_name}:\n\n"
+                for i, fb in enumerate(feedbacks, 1):
+                    result += f"{i}. {ckit_utils.truncate_middle(fb['feedback_text'], 5000)}\n\n"
+                if total_count > len(feedbacks):
+                    result += f"... and {total_count - len(feedbacks)} more\n"
+                return result
+
+            ft_id = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "ft_id", "")
+            bug_summary = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "bug_summary", "")
+            if not ft_id or not bug_summary:
+                return f"Error: ft_id and bug_summary required for report_bug\n\n{BOT_BUG_REPORT_HELP}"
+
             r = await h.execute(
                 gql.gql("""mutation ReportBotBug(
                     $persona_marketable_name: String!,
@@ -232,9 +284,7 @@ async def handle_report_bot_bug(fclient: ckit_client.FlexusClient, ws_id: str, m
                         persona_marketable_version: $persona_marketable_version,
                         feedback_ft_id: $feedback_ft_id,
                         feedback_text: $feedback_text
-                    ) {
-                        feedback_id
-                    }
+                    ) { feedback_id }
                 }"""),
                 variable_values={
                     "persona_marketable_name": persona_marketable_name,
@@ -243,8 +293,7 @@ async def handle_report_bot_bug(fclient: ckit_client.FlexusClient, ws_id: str, m
                     "feedback_text": bug_summary,
                 },
             )
-            feedback_id = r.get("marketplace_feedback_submit_by_bot", {}).get("feedback_id")
-            if not feedback_id:
+            if not (feedback_id := r.get("marketplace_feedback_submit_by_bot", {}).get("feedback_id")):
                 return f"Error: Failed to submit bug report for {bot_name}"
             return f"Bug report submitted successfully for {bot_name} (feedback_id: {feedback_id})"
         except gql.transport.exceptions.TransportQueryError as e:
@@ -282,9 +331,9 @@ async def boss_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.R
     async def toolcall_thread_messages_printed(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
         return await handle_thread_messages(fclient, model_produced_args)
 
-    @rcx.on_tool_call(REPORT_BOT_BUG_TOOL.name)
-    async def toolcall_report_bot_bug(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
-        return await handle_report_bot_bug(fclient, rcx.persona.ws_id, model_produced_args)
+    @rcx.on_tool_call(BOT_BUG_REPORT_TOOL.name)
+    async def toolcall_bot_bug_report(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
+        return await handle_bot_bug_report(fclient, rcx.persona.ws_id, model_produced_args)
 
     @rcx.on_tool_call(fi_mongo_store.MONGO_STORE_TOOL.name)
     async def toolcall_mongo_store(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
