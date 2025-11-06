@@ -45,8 +45,20 @@ def setup_signals():
             task.cancel()
 
     loop = asyncio.get_running_loop()
-    loop.add_signal_handler(signal.SIGINT, handler)
-    loop.add_signal_handler(signal.SIGTERM, handler)
+    
+    # Try Unix way (Linux, macOS)
+    try:
+        loop.add_signal_handler(signal.SIGINT, handler)
+        loop.add_signal_handler(signal.SIGTERM, handler)
+        logger.info("Using Unix signal handlers")
+    except NotImplementedError:
+        # Fallback for Windows - signal.signal works everywhere but is sync
+        def windows_handler(signum, frame):
+            handler()
+        
+        signal.signal(signal.SIGINT, windows_handler)
+        signal.signal(signal.SIGTERM, windows_handler)
+        logger.info("Using Windows signal handlers")
 
 
 async def wait(timeout: float) -> bool:
