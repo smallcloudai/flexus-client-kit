@@ -13,10 +13,15 @@ from flexus_simple_bots.product_lion import product_lion_bot, product_lion_promp
 BOT_DESCRIPTION = """
 ## Product Lion - Stage0 Product Validation Coach
 
-A systematic product validation coach that guides you through a 3-node process to validate product ideas using the Stage0 methodology.
+A systematic product validation coach that guides you through A1-A4 workflow to validate product ideas using the Stage0 methodology.
+
+**A1**: Idea Structuring (Canvas → Sheet)
+**A2**: Problem Hypothesis Generation & Prioritization
+**A3**: Solution Hypothesis Generation (coming soon)
+**A4**: Survey Design (coming soon)
 
 **Hypothesis Formula:**
-"My client [WHO] wants [WHAT], but cannot [OBSTACLE], because [REASON]"
+"Our customer [WHO] wants [WHAT], but cannot [ACTION], because [REASON]"
 
 **Perfect for:**
 - Startups validating product-market fit
@@ -36,7 +41,7 @@ product_lion_setup_schema = [
         "bs_group": "Customization",
         "bs_order": 1,
         "bs_importance": 0,
-        "bs_description": "Additional instructions or preferences for how Productman should behave (e.g., language preference, industry focus, intensity of challenging)",
+        "bs_description": "Additional instructions or preferences for how Product Lion should behave (e.g., language preference, industry focus, intensity of challenging)",
     },
 ]
 
@@ -54,7 +59,7 @@ async def install(
         marketable_name=product_lion_bot.BOT_NAME,
         marketable_version=product_lion_bot.BOT_VERSION,
         marketable_accent_color="#E2A94A",
-        marketable_title1="Product Lion v0.4",
+        marketable_title1="Product Lion v0.5",
         marketable_title2="Silent tool execution + checks existing ideas first. Conversational coach for A1/A2.",
         marketable_author="Flexus Labs",
         marketable_occupation="Product Validation Coach",
@@ -64,11 +69,10 @@ async def install(
         marketable_run_this="python -m flexus_simple_bots.product_lion.product_lion_bot",
         marketable_setup_default=product_lion_setup_schema,
         marketable_featured_actions=[
-            {"feat_question": "Start Node 1: Challenge my product idea", "feat_run_as_setup": False, "feat_depends_on_setup": []},
-            {"feat_question": "Start Node 2: Research and prioritize hypotheses", "feat_run_as_setup": False, "feat_depends_on_setup": []},
-            {"feat_question": "Start Node 3: Design experiments", "feat_run_as_setup": False, "feat_depends_on_setup": []},
+            {"feat_question": "A1: Structure my product idea (Canvas → Sheet)", "feat_run_as_setup": False, "feat_depends_on_setup": []},
+            {"feat_question": "A2: Generate and prioritize problem hypotheses", "feat_run_as_setup": False, "feat_depends_on_setup": []},
         ],
-        marketable_intro_message="Hi! I'm Product Lion v0.3. I'll guide you through (A1) Idea Structuring and (A2) Problem Hypothesis Prioritization by asking questions - you fill the answers.",
+        marketable_intro_message="Hi! I'm Product Lion v0.5. I'll guide you through (A1) Idea Structuring and (A2) Problem Hypothesis Prioritization by asking questions - you fill the answers.",
         marketable_preferred_model_default="grok-4-fast-non-reasoning",
         marketable_daily_budget_default=200_000,
         marketable_default_inbox_default=20_000,
@@ -92,7 +96,6 @@ async def install(
         marketable_picture_big_b64=pic_big,
         marketable_picture_small_b64=pic_small,
         marketable_schedule=[
-            # NOTE: After first use, Productman will formulate modifications to company's strategy, this will require a weekly scheduled task or something
             prompts_common.SCHED_TASK_SORT_10M,
             prompts_common.SCHED_TODO_5M,
         ]
@@ -104,4 +107,4 @@ if __name__ == "__main__":
     client = ckit_client.FlexusClient("product_lion_install")
     print(f"Installing product_lion to workspace {args.ws}...")
     asyncio.run(install(client, ws_id=args.ws))
-    print("[OK] Product Lion v0.4 installed successfully!")
+    print("[OK] Product Lion v0.5 installed successfully!")
