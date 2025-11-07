@@ -21,6 +21,7 @@ class FPersonaOutput:
     persona_preferred_model: str
     ws_id: str
     ws_timezone: str
+    ws_root_group_id: str
     marketable_run_this: Optional[str] = None
     marketable_stage: Optional[str] = None
 
