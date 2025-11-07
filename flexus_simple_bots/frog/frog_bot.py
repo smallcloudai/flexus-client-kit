@@ -79,7 +79,7 @@ async def frog_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.R
     mydb = mongo[dbname]
     personal_mongo = mydb["personal_mongo"]
 
-    pdoc_integration = fi_pdoc.IntegrationPdoc(fclient, rcx.persona.located_fgroup_id)
+    pdoc_integration = fi_pdoc.IntegrationPdoc(fclient, rcx.persona.ws_root_group_id)
 
     tongue_capacity_used = {}
 

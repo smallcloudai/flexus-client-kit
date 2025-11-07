@@ -87,10 +87,10 @@ class IntegrationPdoc:
     def __init__(
         self,
         fclient: ckit_client.FlexusClient,
-        fgroup_id: str,
+        ws_root_group_id: str,
     ):
         self.fclient = fclient
-        self.fgroup_id = fgroup_id
+        self.fgroup_id = ws_root_group_id
         self.problems = []
 
     async def called_by_model(self, toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Optional[Dict[str, Any]]) -> str:
