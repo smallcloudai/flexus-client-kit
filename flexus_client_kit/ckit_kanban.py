@@ -35,7 +35,7 @@ class FPersonaKanbanTaskOutput:
     ktask_details: Any
     ktask_blocks_ktask_id: Optional[str]
 
-    def get_bucket(self) -> str:
+    def calc_bucket(self) -> str:
         if self.ktask_done_ts > 0:
             return 'done'
         if self.ktask_inprogress_ts > 0:
@@ -50,7 +50,6 @@ class FPersonaKanbanSubs:
     news_action: str
     news_payload_id: str
     news_payload_task: Optional[FPersonaKanbanTaskOutput]
-    bucket: str
 
 
 async def bot_arrange_kanban_situation(
@@ -88,7 +87,6 @@ async def persona_kanban_list(
                     news_action
                     news_payload_id
                     news_payload_task {{ {gql_utils.gql_fields(FPersonaKanbanTaskOutput)} }}
-                    bucket
                 }}
             }}"""),
             variable_values={"persona_id": persona_id}
@@ -101,7 +99,7 @@ async def persona_kanban_list(
                 tasks[upd["news_payload_id"]] = task
 
     bucket_order = {"inbox": 0, "todo": 1, "inprogress": 2, "done": 3}
-    return sorted(tasks.values(), key=lambda t: bucket_order.get(t.get_bucket(), 4))
+    return sorted(tasks.values(), key=lambda t: bucket_order.get(t.calc_bucket(), 4))
 
 
 async def bot_arrange_kanban_situation2(

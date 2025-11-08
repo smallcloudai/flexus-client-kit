@@ -9,7 +9,7 @@ from typing import Dict, List, Optional, Any, Callable, Awaitable, NamedTuple, U
 
 import gql
 
-from flexus_client_kit import ckit_client, gql_utils, ckit_service_exec, ckit_cloudtool
+from flexus_client_kit import ckit_client, gql_utils, ckit_service_exec, ckit_kanban, ckit_cloudtool
 from flexus_client_kit import ckit_ask_model, ckit_shutdown, ckit_utils, ckit_bot_query
 
 logger = logging.getLogger("btexe")
@@ -59,16 +59,19 @@ class RobotContext:
     def __init__(self, fclient: ckit_client.FlexusClient, p: ckit_bot_query.FPersonaOutput):
         self._handler_updated_message: Optional[Callable[[ckit_ask_model.FThreadMessageOutput], Awaitable[None]]] = None
         self._handler_upd_thread: Optional[Callable[[ckit_ask_model.FThreadOutput], Awaitable[None]]] = None
+        self._handler_updated_task: Optional[Callable[[ckit_kanban.FPersonaKanbanTaskOutput], Awaitable[None]]] = None
         self._handler_per_tool: Dict[str, Callable[[Dict[str, Any]], Awaitable[str]]] = {}
         self._ready = False
         self._parked_messages: Dict[str, ckit_ask_model.FThreadMessageOutput] = {}
         self._parked_threads: Dict[str, ckit_ask_model.FThreadOutput] = {}
+        self._parked_tasks: Dict[str, ckit_kanban.FPersonaKanbanTaskOutput] = {}
         self._parked_toolcalls: List[ckit_cloudtool.FCloudtoolCall] = []
         self._parked_anything_new = asyncio.Event()
         # These fields are designed for direct access:
         self.fclient = fclient
         self.persona = p
         self.latest_threads: Dict[str, ckit_bot_query.FThreadWithMessages] = dict()
+        self.latest_tasks: Dict[str, ckit_kanban.FPersonaKanbanTaskOutput] = dict()
         self.created_ts = time.time()
         self.workdir = "/tmp/bot_workspace/%s/" % p.persona_id
         os.makedirs(self.workdir, exist_ok=True)
@@ -79,6 +82,10 @@ class RobotContext:
 
     def on_updated_thread(self, handler: Callable[[ckit_ask_model.FThreadOutput], Awaitable[None]]):
         self._handler_upd_thread = handler
+        return handler
+
+    def on_updated_task(self, handler: Callable[[ckit_kanban.FPersonaKanbanTaskOutput], Awaitable[None]]):
+        self._handler_updated_task = handler
         return handler
 
     def on_tool_call(self, tool_name: str):
@@ -114,6 +121,16 @@ class RobotContext:
                     await self._handler_upd_thread(thread)
                 except Exception as e:
                     logger.error("%s error in on_updated_thread handler: %s\n%s", self.persona.persona_id, type(e).__name__, e, exc_info=e)
+
+        todo = list(self._parked_tasks.keys())
+        for k in todo:
+            task = self._parked_tasks.pop(k)
+            did_anything = True
+            if self._handler_updated_task:
+                try:
+                    await self._handler_updated_task(task)
+                except Exception as e:
+                    logger.error("%s error in on_updated_task handler: %s\n%s", self.persona.persona_id, type(e).__name__, e, exc_info=e)
 
         mycalls = list(self._parked_toolcalls)
         self._parked_toolcalls.clear()
@@ -256,8 +273,8 @@ async def subscribe_and_produce_callbacks(
     async with ws_client as ws:
         async for r in ws.subscribe(
             gql.gql(f"""subscription KarenThreads($fgroup_id: String!, $marketable_name: String!, $marketable_version: Int!, $inprocess_tool_names: [String!]!) {{
-                bot_threads_and_calls_subs(fgroup_id: $fgroup_id, marketable_name: $marketable_name, marketable_version: $marketable_version, inprocess_tool_names: $inprocess_tool_names, max_threads: {MAX_THREADS}, want_personas: true, want_threads: true, want_messages: true) {{
-                    {gql_utils.gql_fields(ckit_bot_query.FBotThreadsAndCallsSubs)}
+                bot_threads_calls_tasks(fgroup_id: $fgroup_id, marketable_name: $marketable_name, marketable_version: $marketable_version, inprocess_tool_names: $inprocess_tool_names, max_threads: {MAX_THREADS}, want_personas: true, want_threads: true, want_messages: true, want_tasks: true) {{
+                    {gql_utils.gql_fields(ckit_bot_query.FBotThreadsCallsTasks)}
                 }}
             }}"""),
             variable_values={
@@ -267,7 +284,7 @@ async def subscribe_and_produce_callbacks(
                 "inprocess_tool_names": [t.name for t in bc.inprocess_tools],
             },
         ):
-            upd = gql_utils.dataclass_from_dict(r["bot_threads_and_calls_subs"], ckit_bot_query.FBotThreadsAndCallsSubs)
+            upd = gql_utils.dataclass_from_dict(r["bot_threads_calls_tasks"], ckit_bot_query.FBotThreadsCallsTasks)
             handled = False
             reassign_threads = False
             logger.debug("subs %s %s %s" % (upd.news_action, upd.news_about, upd.news_payload_id))
@@ -381,6 +398,23 @@ async def subscribe_and_produce_callbacks(
                         bot.eventgen._parked_anything_new.set()
                     else:
                         logger.info("%s is about persona=%s which is not running here." % (toolcall.fcall_id, persona_id))
+
+            elif upd.news_about == "flexus_persona_kanban_task":
+                if upd.news_action in ["INSERT", "UPDATE"]:
+                    handled = True
+                    task = upd.news_payload_task
+                    persona_id = task.persona_id
+                    if persona_id in bc.bots_running:
+                        bc.bots_running[persona_id].eventgen.latest_tasks[task.ktask_id] = task
+                        bc.bots_running[persona_id].eventgen._parked_tasks[task.ktask_id] = task
+                        bc.bots_running[persona_id].eventgen._parked_anything_new.set()
+                    else:
+                        logger.info("Task %s is about persona=%s which is not running here." % (task.ktask_id, persona_id))
+                elif upd.news_action == "DELETE":
+                    handled = True
+                    persona_id = upd.news_payload_task.persona_id
+                    if persona_id in bc.bots_running and upd.news_payload_id in bc.bots_running[persona_id].eventgen.latest_tasks:
+                        del bc.bots_running[persona_id].eventgen.latest_tasks[upd.news_payload_id]
 
             elif upd.news_action == "INITIAL_UPDATES_OVER":
                 if len(bc.bots_running) == 0:

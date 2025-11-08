@@ -10,6 +10,7 @@ from flexus_client_kit import ckit_bot_exec
 from flexus_client_kit import ckit_shutdown
 from flexus_client_kit import ckit_ask_model
 from flexus_client_kit import ckit_mongo
+from flexus_client_kit import ckit_kanban
 from flexus_client_kit.integrations import fi_mongo_store
 from flexus_client_kit.integrations import fi_pdoc
 from flexus_simple_bots.frog import frog_install
@@ -89,6 +90,11 @@ async def frog_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.R
 
     @rcx.on_updated_thread
     async def updated_thread_in_db(th: ckit_ask_model.FThreadOutput):
+        pass
+
+    @rcx.on_updated_task
+    async def updated_task_in_db(t: ckit_kanban.FPersonaKanbanTaskOutput):
+        print("FROG TASK", t)
         pass
 
     @rcx.on_tool_call(RIBBIT_TOOL.name)

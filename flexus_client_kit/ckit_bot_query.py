@@ -3,7 +3,7 @@ from typing import Any, List, Optional, Dict
 
 import gql
 
-from flexus_client_kit import ckit_client, gql_utils, ckit_bot_exec, ckit_shutdown, ckit_cloudtool, ckit_ask_model
+from flexus_client_kit import ckit_client, gql_utils, ckit_kanban, ckit_bot_exec, ckit_shutdown, ckit_cloudtool, ckit_ask_model
 
 
 @dataclass
@@ -33,7 +33,7 @@ class FPersonaScheduleOutput:
 
 
 @dataclass
-class FBotThreadsAndCallsSubs:
+class FBotThreadsCallsTasks:
     news_action: str
     news_about: str
     news_payload_id: str
@@ -41,6 +41,7 @@ class FBotThreadsAndCallsSubs:
     news_payload_thread: Optional[ckit_ask_model.FThreadOutput]
     news_payload_persona: Optional[FPersonaOutput]
     news_payload_toolcall: Optional[ckit_cloudtool.FCloudtoolCall]
+    news_payload_task: Optional[ckit_kanban.FPersonaKanbanTaskOutput]
 
 
 @dataclass
@@ -98,8 +99,8 @@ async def wait_until_bot_threads_stop(
     async with ws_client as ws:
         async for r in ws.subscribe(
             gql.gql(f"""subscription BotThreadsStop($fgroup_id: String!, $marketable_name: String!, $marketable_version: Int!, $inprocess_tool_names: [String!]!) {{
-                bot_threads_and_calls_subs(fgroup_id: $fgroup_id, marketable_name: $marketable_name, marketable_version: $marketable_version, inprocess_tool_names: $inprocess_tool_names, max_threads: 100, want_personas: false, want_threads: true, want_messages: true) {{
-                    {gql_utils.gql_fields(FBotThreadsAndCallsSubs)}
+                bot_threads_calls_tasks(fgroup_id: $fgroup_id, marketable_name: $marketable_name, marketable_version: $marketable_version, inprocess_tool_names: $inprocess_tool_names, max_threads: 100, want_personas: false, want_threads: true, want_messages: true, want_tasks: false) {{
+                    {gql_utils.gql_fields(FBotThreadsCallsTasks)}
                 }}
             }}"""),
             variable_values={
@@ -111,7 +112,7 @@ async def wait_until_bot_threads_stop(
         ):
             if ckit_shutdown.shutdown_event.is_set():
                 break
-            upd = gql_utils.dataclass_from_dict(r["bot_threads_and_calls_subs"], FBotThreadsAndCallsSubs)
+            upd = gql_utils.dataclass_from_dict(r["bot_threads_calls_tasks"], FBotThreadsCallsTasks)
 
             if upd.news_action == "INITIAL_UPDATES_OVER":
                 for thread_data in threads_data.values():

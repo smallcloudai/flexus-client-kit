@@ -155,7 +155,7 @@ class ScenarioSetup:
                         if hasattr(task.ktask_details, 'get') and task.ktask_details and task.ktask_details.get('humanhours'):
                             extras.append(f"humanhours:{task.ktask_details['humanhours']}")
                         extra_str = f" {' '.join(extras)}" if extras else ""
-                        print(f"   {task.get_bucket()} id:{task.ktask_id} title:'{task.ktask_title}' budget:{task.ktask_budget} coins:{task.ktask_coins}{extra_str}")
+                        print(f"   {task.calc_bucket()} id:{task.ktask_id} title:'{task.ktask_title}' budget:{task.ktask_budget} coins:{task.ktask_coins}{extra_str}")
                 else:
                     print(f" 📋 No kanban tasks")
 
