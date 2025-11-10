@@ -10,6 +10,7 @@ from flexus_client_kit import ckit_shutdown
 from flexus_client_kit import ckit_ask_model
 from flexus_client_kit.integrations import fi_pdoc
 from flexus_simple_bots.productman import productman_install
+from flexus_simple_bots.productman import productman_prompts
 from flexus_simple_bots.version_common import SIMPLE_BOTS_COMMON_VERSION
 
 logger = logging.getLogger("bot_productman")
@@ -22,47 +23,39 @@ BOT_VERSION_INT = ckit_client.marketplace_version_as_int(BOT_VERSION)
 
 IDEA_TEMPLATE_TOOL = ckit_cloudtool.CloudTool(
     name="template_idea",
-    description="Create skeleton idea file in pdoc. Ideas are the top-level concept, with multiple hypotheses exploring different customer segments or approaches. Path format: /customer-research/{idea-name}",
+    description="Create idea file in pdoc. Ideas are the top-level concept, with multiple hypotheses exploring different customer segments or approaches. Path format: /customer-research/{idea-name}",
     parameters={
         "type": "object",
         "properties": {
             "path": {
                 "type": "string",
-                "description": "Path where to write idea template. Should be /customer-research/{idea-name} using kebab-case: '/customer-research/unicorn-horn-car-idea'"
+                "description": "Path where to write idea. Should be /customer-research/{idea-name} using kebab-case: '/customer-research/unicorn-horn-car-idea'"
             },
-            "author": {
+            "text": {
                 "type": "string",
-                "description": "Name of the person creating this idea"
-            },
-            "date": {
-                "type": "string",
-                "description": "Current date in YYYY-MM-DD format"
+                "description": "JSON text of the idea document. Must match the structure of example_idea with exact keys. Only 'q' values can be translated."
             },
         },
-        "required": ["path", "author", "date"],
+        "required": ["path", "text"],
     },
 )
 
 HYPOTHESIS_TEMPLATE_TOOL = ckit_cloudtool.CloudTool(
     name="template_hypothesis",
-    description="Create skeleton hypothesis file in pdoc. Hypotheses explore specific customer segments or approaches for an idea. Path format: /customer-research/{idea-name}-hypotheses/{hypothesis-name}",
+    description="Create hypothesis file in pdoc. Hypotheses explore specific customer segments or approaches for an idea. Path format: /customer-research/{idea-name}-hypotheses/{hypothesis-name}",
     parameters={
         "type": "object",
         "properties": {
             "path": {
                 "type": "string",
-                "description": "Path where to write hypothesis template, such as '/customer-research/unicorn-horn-car-hypotheses/social-media-influencers'"
+                "description": "Path where to write hypothesis, such as '/customer-research/unicorn-horn-car-hypotheses/social-media-influencers'"
             },
-            "author": {
+            "text": {
                 "type": "string",
-                "description": "Name of the person creating this hypothesis"
-            },
-            "date": {
-                "type": "string",
-                "description": "Current date in YYYY-MM-DD format"
+                "description": "JSON text of the hypothesis document. Must match the structure of example_hypothesis with exact keys. Only 'q' and 'title' values can be translated."
             },
         },
-        "required": ["path", "author", "date"],
+        "required": ["path", "text"],
     },
 )
 
@@ -86,17 +79,41 @@ async def productman_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_
     async def updated_thread_in_db(th: ckit_ask_model.FThreadOutput):
         pass
 
+    def validate_idea_structure(provided: Dict, expected: Dict, path: str = "root") -> str:
+        if type(provided) != type(expected):
+            return f"Type mismatch at {path}: expected {type(expected).__name__}, got {type(provided).__name__}"
+        if isinstance(expected, dict):
+            expected_keys = set(expected.keys())
+            provided_keys = set(provided.keys())
+            if expected_keys != provided_keys:
+                missing = expected_keys - provided_keys
+                extra = provided_keys - expected_keys
+                errors = []
+                if missing:
+                    errors.append(f"missing keys: {missing}")
+                if extra:
+                    errors.append(f"unexpected keys: {extra}")
+                return f"Key mismatch at {path}: {', '.join(errors)}"
+            for key in expected_keys:
+                if key == "q":
+                    continue
+                if key == "a":
+                    continue
+                if key == "title":
+                    continue
+                error = validate_idea_structure(provided[key], expected[key], f"{path}.{key}")
+                if error:
+                    return error
+        return ""
+
     @rcx.on_tool_call(IDEA_TEMPLATE_TOOL.name)
     async def toolcall_idea_template(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
         path = model_produced_args.get("path", "")
-        author = model_produced_args.get("author", "")
-        date = model_produced_args.get("date", "")
+        text = model_produced_args.get("text", "")
         if not path:
             return "Error: path required"
-        if not author:
-            return "Error: author required"
-        if not date:
-            return "Error: date required"
+        if not text:
+            return "Error: text required"
         if not path.startswith("/customer-research/"):
             return "Error: path must start with /customer-research/ (e.g. /customer-research/my-product-idea)"
         path_segments = path.strip("/").split("/")
@@ -106,68 +123,27 @@ async def productman_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_
             if not all(c.islower() or c.isdigit() or c == "-" for c in segment):
                 return f"Error: Path segment '{segment}' must use kebab-case (lowercase letters, numbers, hyphens only). Example: 'unicorn-horn-car-idea'"
 
-        skeleton = {
-            "idea": {
-                "meta": {
-                    "author": author,
-                    "date": date,
-                },
-                "section01": {
-                    "section_title": "Idea Summary",
-                    "question01": {
-                        "q": "What is the idea in one sentence?",
-                        "a": ""
-                    },
-                    "question02": {
-                        "q": "What problem does this solve?",
-                        "a": ""
-                    },
-                    "question03": {
-                        "q": "Who is the target audience?",
-                        "a": ""
-                    },
-                    "question04": {
-                        "q": "What value do you provide?",
-                        "a": ""
-                    }
-                },
-                "section02": {
-                    "section_title": "Constraints & Context",
-                    "question01": {
-                        "q": "What constraints exist (budget, time, resources)?",
-                        "a": ""
-                    },
-                    "question02": {
-                        "q": "What observations or evidence support this idea?",
-                        "a": ""
-                    },
-                    "question03": {
-                        "q": "What are the key assumptions?",
-                        "a": ""
-                    },
-                    "question04": {
-                        "q": "What are the known risks?",
-                        "a": ""
-                    }
-                }
-            }
-        }
+        try:
+            idea_doc = json.loads(text)
+        except json.JSONDecodeError as e:
+            return f"Error: Invalid JSON: {e}"
 
-        await pdoc_integration.pdoc_create(path, json.dumps(skeleton, indent=2), toolcall.fcall_ft_id)
-        logger.info(f"Created idea template at {path}")
-        return f"✍🏻 {path}\n\n✓ Created idea template with structured Q&A format"
+        validation_error = validate_idea_structure(idea_doc, productman_prompts.example_idea)
+        if validation_error:
+            return f"Error: Structure validation failed: {validation_error}"
+
+        await pdoc_integration.pdoc_create(path, json.dumps(idea_doc, indent=2), toolcall.fcall_ft_id)
+        logger.info(f"Created idea at {path}")
+        return f"✍🏻 {path}\n\n✓ Created idea document"
 
     @rcx.on_tool_call(HYPOTHESIS_TEMPLATE_TOOL.name)
     async def toolcall_hypothesis_template(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
         path = model_produced_args.get("path", "")
-        author = model_produced_args.get("author", "")
-        date = model_produced_args.get("date", "")
+        text = model_produced_args.get("text", "")
         if not path:
             return "Error: path required"
-        if not author:
-            return "Error: author required"
-        if not date:
-            return "Error: date required"
+        if not text:
+            return "Error: text required"
         if not path.startswith("/customer-research/"):
             return "Error: path must start with /customer-research/ (e.g. /customer-research/my-idea-hypotheses/segment-name)"
         if "-hypotheses/" not in path:
@@ -179,86 +155,18 @@ async def productman_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_
             if not all(c.islower() or c.isdigit() or c == "-" for c in segment):
                 return f"Error: Path segment '{segment}' must use kebab-case (lowercase letters, numbers, hyphens only). Example: 'social-media-influencers'"
 
-        skeleton = {
-            "hypothesis": {
-                "meta": {
-                    "author": author,
-                    "date": date,
-                },
-                "section01": {
-                    "section_title": "Ideal Customer Profile",
-                    "question01": {
-                        "q": "Who are the clients?",
-                        "a": ""
-                    },
-                    "question02": {
-                        "q": "What do they want to accomplish?",
-                        "a": ""
-                    },
-                    "question03": {
-                        "q": "What can't they do today?",
-                        "a": ""
-                    },
-                    "question04": {
-                        "q": "Why can't they do it?",
-                        "a": ""
-                    }
-                },
-                "section02": {
-                    "section_title": "Customer Context",
-                    "question01": {
-                        "q": "Where do they hang out (channels)?",
-                        "a": ""
-                    },
-                    "question02": {
-                        "q": "What are their pains and frustrations?",
-                        "a": ""
-                    },
-                    "question03": {
-                        "q": "What outcomes do they desire?",
-                        "a": ""
-                    },
-                    "question04": {
-                        "q": "Geography and languages?",
-                        "a": ""
-                    }
-                },
-                "section03": {
-                    "section_title": "Solution Hypothesis",
-                    "question01": {
-                        "q": "What is the minimum viable solution for this segment?",
-                        "a": ""
-                    },
-                    "question02": {
-                        "q": "What value metric matters most to them?",
-                        "a": ""
-                    },
-                    "question03": {
-                        "q": "What would make them choose this over alternatives?",
-                        "a": ""
-                    }
-                },
-                "section04": {
-                    "section_title": "Validation Strategy",
-                    "question01": {
-                        "q": "How can we test this hypothesis quickly?",
-                        "a": ""
-                    },
-                    "question02": {
-                        "q": "What evidence would prove/disprove this?",
-                        "a": ""
-                    },
-                    "question03": {
-                        "q": "What is the success metric?",
-                        "a": ""
-                    }
-                }
-            }
-        }
+        try:
+            hypothesis_doc = json.loads(text)
+        except json.JSONDecodeError as e:
+            return f"Error: Invalid JSON: {e}"
 
-        await pdoc_integration.pdoc_create(path, json.dumps(skeleton, indent=2), toolcall.fcall_ft_id)
-        logger.info(f"Created hypothesis template at {path}")
-        return f"✍🏻 {path}\n\n✓ Created hypothesis template for specific customer segment"
+        validation_error = validate_idea_structure(hypothesis_doc, productman_prompts.example_hypothesis)
+        if validation_error:
+            return f"Error: Structure validation failed: {validation_error}"
+
+        await pdoc_integration.pdoc_create(path, json.dumps(hypothesis_doc, indent=2), toolcall.fcall_ft_id)
+        logger.info(f"Created hypothesis at {path}")
+        return f"✍🏻 {path}\n\n✓ Created hypothesis document for specific customer segment"
 
     @rcx.on_tool_call(fi_pdoc.POLICY_DOCUMENT_TOOL.name)
     async def toolcall_pdoc(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:

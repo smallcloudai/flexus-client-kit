@@ -9,18 +9,39 @@ example_idea = {
             "author": "Max Mustermann",
             "date": "20251104"
         },
-        "section01": {
-            "section_title": "Idea Summary",
-            "question01": {
-				"q": "What is the idea in one sentence?",
-				"a": "Unicorn Horn Car Attachment: Turns your sedan into a mythical beast"
+        "section01-canvas": {
+            "title": "First Principles Canvas",
+            "question01-facts": {
+                "q": "What verified facts support this problem exists?",
+                "a": "Car owners customize vehicles to express identity (multi-billion aftermarket industry). Parents report car rides as daily friction point. Social media engagement rates for unusual car content are 3-5x higher than standard automotive posts. Existing accessories market is polarized: either serious/expensive or cheap/tacky with no middle ground."
             },
-            "question02": {
-				"q": "What problem does this solve?",
-				"a": "Car owners struggle to express their playful personality and stand out in mundane daily driving. "
-				     "Most aftermarket car accessories are either performance-focused (spoilers, exhausts), status-focused (luxury badges), or tacky (bumper stickers). "
-				     "There's a gap for whimsical, removable, high-quality accessories that turn ordinary vehicles into conversation starters without permanent modification. "
-				     "Parents also face the challenge of keeping children entertained during car rides, and content creators need affordable props that generate authentic reactions for social media."
+            "question02-outcome": {
+                "q": "What is the single measurable outcome for the customer?",
+                "a": "..."
+            },
+            "question03-constraints": {
+                "q": "What external conditions limit the solution?",
+                "a": ""
+            },
+            "question04-existing": {
+                "q": "How do people solve this problem today?",
+                "a": ""
+            },
+            "question05-userflow": {
+                "q": "What is the simplest complete user journey?",
+                "a": ""
+            },
+            "question06-assumptions": {
+                "q": "What must be true for this to work?",
+                "a": ""
+            },
+            "question07-numbers": {
+                "q": "What numbers indicate this is working?",
+                "a": ""
+            },
+            "question08-value": {
+                "q": "Describe the value in one sentence",
+                "a": ""
             }
         }
     }
@@ -32,12 +53,95 @@ example_hypothesis = {
             "author": "Max Mustermann",
             "date": "20251104"
         },
-        "section01": {
-            "section_title": "Ideal Customer Profile",
+        "section01-formula": {
+            "title": "Magic Formula",
+            "question01-formula": {
+                "q": "The clients are [segment] who want [goal] but cannot [action] because [one reason].",
+                "a": ""
+            },
+        },
+        "section02-profile": {
+            "title": "Ideal Customer Profile",
             "question01": {
                 "q": "Who are the clients?",
-                "a": "Social media content creators and influencers to create engaging content and connect with their audience."
+                "a": ""
+            },
+            "question02": {
+                "q": "What do they want to accomplish?",
+                "a": ""
+            },
+            "question03": {
+                "q": "What can't they do today?",
+                "a": ""
+            },
+            "question04": {
+                "q": "Why can't they do it?",
+                "a": ""
             }
+        },
+        "section03-context": {
+            "title": "Customer Context",
+            "question01": {
+                "q": "Where do they hang out (channels)?",
+                "a": ""
+            },
+            "question02": {
+                "q": "What are their pains and frustrations?",
+                "a": ""
+            },
+            "question03": {
+                "q": "What outcomes do they desire?",
+                "a": ""
+            },
+            "question04": {
+                "q": "Geography and languages?",
+                "a": ""
+            }
+        },
+        "section04-solution": {
+            "title": "Solution Hypothesis",
+            "question01": {
+                "q": "What is the minimum viable solution for this segment?",
+                "a": ""
+            },
+            "question02": {
+                "q": "What value metric matters most to them?",
+                "a": ""
+            },
+            "question03": {
+                "q": "What would make them choose this over alternatives?",
+                "a": ""
+            }
+        },
+        "section05-validation": {
+            "title": "Validation Strategy",
+            "question01": {
+                "q": "How can we test this hypothesis quickly?",
+                "a": ""
+            },
+            "question02": {
+                "q": "What evidence would prove/disprove this?",
+                "a": ""
+            },
+            "question03": {
+                "q": "What is the success metric?",
+                "a": ""
+            }
+        },
+        "section06-ice": {
+            "title": "ICE Verdict",
+            "question01-impact": {
+                "q": "Impact (0-5): how important it is",
+                "a": ""
+            },
+            "question02-confidence": {
+                "q": "Confidence (0-5): how sure we are",
+                "a": ""
+            },
+            "question03-ease": {
+                "q": "Ease (0-5): how easy to verify/ship",
+                "a": ""
+            },
         }
     }
 }
@@ -46,10 +150,10 @@ productman_prompt = f"""
 # You are Productman, a Stage 0 Product Hypothesis Coach.
 
 
-## Ideas and Hypothesis Stored in Policy Documents
+## Ideas and Hypotheses Stored in Policy Documents
 
 You work with ideas and hypotheses, presented on disk as policy document files.
-Hypothesis is a way to implement an idea, the relationship is one-to-many, like this:
+A hypothesis is a way to implement an idea, the relationship is one-to-many, like this:
 
 /customer-research/unicorn-horn-car-idea
 /customer-research/unicorn-horn-car-hypotheses/social-media-influencers
@@ -71,8 +175,8 @@ The format for the hypotheses files is this:
 Pay attention to folder and file names, the rules are:
 - write only to /customer-research/
 - folders and files are kebab-case
-- idea name is 3-5 words in English to capture what it is immediately in the filename
-- hypothesis name is 3-5 words in English to capture what is different about that one compared to the others
+- idea document name is 3-5 words in English to capture what it is
+- hypothesis document name is 3-5 words in English to capture what is different about that one compared to the others
 
 You can delete files in /customer-research/ if the user tells you to.
 
@@ -81,11 +185,16 @@ When working on an idea, make sure to load all the current hypotheses for the sa
 
 You can continue working on existing idea or hypothesis, or create a new one. Ask the user what they want.
 
-When creating new ideas or hypotheses, use template_idea() and template_hypothesis() for latest and greatest
-forms like the examples above, but with state-of-the-art set of fields that maximally help to organize
-your job.
+To work on a new idea, use template_idea() with text exactly like in the example above,
+but with text of "q" and "title" translated to the language the user asked their question in. Pay close
+attention to the structure, keys are used in automated tools elsewhere and you can't change it, your
+goal is translation. Also immediately fill in the author and date, by copying data from the first user message.
 
-Make sure the document in visible in the UI, for that call flexus_policy_document(op="activate").
+The same rules apply to hypotheses, both template_idea() and template_hypothesis() validate your text for silly
+mistakes.
+
+To continue working on an idea, first make sure the document is visible in the UI, for that
+call flexus_policy_document(op="activate").
 
 
 ## Help for Important Tools
