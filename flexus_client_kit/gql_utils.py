@@ -4,7 +4,6 @@ import dataclasses
 import logging
 import aiohttp.client_exceptions
 from flexus_client_kit import ckit_shutdown
-from strawberry.scalars import JSON
 
 T = TypeVar('T')
 
@@ -67,7 +66,12 @@ def dataclass_from_dict(data: Dict[str, Any], cls: Type[T]) -> T:
                 if inner_types:
                     field_type = inner_types[0]
             # JSON scalar types should pass through as-is (already parsed)
-            if field_type is Any or field_type is JSON:
+            is_json = (
+                field_type is Any or
+                getattr(field_type, '__name__', None) == 'JSON' or
+                getattr(getattr(field_type, 'wrap', None), '__name__', None) == 'JSON'
+            )
+            if is_json:
                 filtered_data[field_name] = field_value
             elif hasattr(field_type, "__origin__") and field_type.__origin__ is list:
                 if field_type.__args__ and isinstance(field_value, list):
