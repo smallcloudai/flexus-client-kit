@@ -41,11 +41,27 @@ productman_setup_schema = [
 ]
 
 
+PRODUCTMAN_CRITICIZE_LARK = f"""
+print("Criticize idea subchat is working")
+if messages[-1]["role"] == "assistant":
+    content = str(messages[-1]["content"])
+    if "RATING-COMPLETED" in content:
+        print("Rating completed, finishing subchat")
+        subchat_result = "Read the file using flexus_policy_document(op=activate, ...) to see the ratings."
+    elif "RATING-ERROR" in content:
+        print("Rating completed, apparently an error")
+        subchat_result = content
+    elif len(messages[-1].tool_calls) == 0:
+        post_cd_instruction = "Follow the system prompt, your answer need to end with RATING-COMPLETED or RATING-ERROR"
+"""
+
+
 async def install(
     client: ckit_client.FlexusClient,
     ws_id: str,
 ):
-    bot_internal_tools = json.dumps([t.openai_style_tool() for t in productman_bot.TOOLS])
+    bot_internal_tools = json.dumps([t.openai_style_tool() for t in productman_bot.TOOLS_DEFAULT])
+    bot_verify_internal_tools = json.dumps([t.openai_style_tool() for t in productman_bot.TOOLS_VERIFY_SUBCHAT])
     pic_big = base64.b64encode(open(Path(__file__).with_name("productman-1024x1536.webp"), "rb").read()).decode("ascii")
     pic_small = base64.b64encode(open(Path(__file__).with_name("productman-256x256.webp"), "rb").read()).decode("ascii")
     await ckit_bot_install.marketplace_upsert_dev_bot(
@@ -75,19 +91,19 @@ async def install(
         marketable_experts=[
             ("default", ckit_bot_install.FMarketplaceExpertInput(
                 fexp_name="productman_default",
-                fexp_system_prompt=productman_prompts.productman_prompt,
+                fexp_system_prompt=productman_prompts.productman_prompt_default,
                 fexp_python_kernel="",
                 fexp_block_tools="*setup*",
                 fexp_allow_tools="",
                 fexp_app_capture_tools=bot_internal_tools,
             )),
-            ("setup", ckit_bot_install.FMarketplaceExpertInput(
-                fexp_name="productman_setup",
-                fexp_system_prompt=productman_prompts.productman_prompt,
-                fexp_python_kernel="",
-                fexp_block_tools="",
+            ("subchat", ckit_bot_install.FMarketplaceExpertInput(
+                fexp_name="productman_criticize_idea",
+                fexp_system_prompt=productman_prompts.productman_prompt_criticize_idea,
+                fexp_python_kernel=PRODUCTMAN_CRITICIZE_LARK,
+                fexp_block_tools="*setup*",
                 fexp_allow_tools="",
-                fexp_app_capture_tools=bot_internal_tools,
+                fexp_app_capture_tools=bot_verify_internal_tools,
             )),
         ],
         marketable_tags=["Product Management", "Hypothesis Testing"],

@@ -59,12 +59,31 @@ HYPOTHESIS_TEMPLATE_TOOL = ckit_cloudtool.CloudTool(
     },
 )
 
-TOOLS = [
+VERIFY_IDEA_TOOL = ckit_cloudtool.CloudTool(
+    name="verify_idea",
+    description="Launch a subchat to critically review and rate an idea document. Each question in the canvas will be rated as PASS, PASS-WITH-WARNINGS, or FAIL.",
+    parameters={
+        "type": "object",
+        "properties": {
+            "path": {
+                "type": "string",
+                "description": "Path to the idea document to verify, e.g. '/customer-research/unicorn-horn-car-idea'"
+            },
+        },
+        "required": ["path"],
+    },
+)
+
+TOOLS_DEFAULT = [
     IDEA_TEMPLATE_TOOL,
     HYPOTHESIS_TEMPLATE_TOOL,
+    VERIFY_IDEA_TOOL,
     fi_pdoc.POLICY_DOCUMENT_TOOL,
 ]
 
+TOOLS_VERIFY_SUBCHAT = [
+    fi_pdoc.POLICY_DOCUMENT_TOOL
+]
 
 async def productman_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.RobotContext) -> None:
     setup = ckit_bot_exec.official_setup_mixing_procedure(productman_install.productman_setup_schema, rcx.persona.persona_setup)
@@ -168,6 +187,25 @@ async def productman_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_
         logger.info(f"Created hypothesis at {path}")
         return f"✍🏻 {path}\n\n✓ Created hypothesis document for specific customer segment"
 
+    @rcx.on_tool_call(VERIFY_IDEA_TOOL.name)
+    async def toolcall_verify_idea(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
+        path = model_produced_args.get("path", "")
+        if not path:
+            return "Error: path required"
+        if not path.startswith("/customer-research/"):
+            return "Error: path must start with /customer-research/"
+
+        await ckit_ask_model.bot_subchat_create_multiple(
+            client=fclient,
+            who_is_asking="productman_verify_idea",
+            persona_id=rcx.persona.persona_id,
+            first_question=[f"Rate this idea document: {path}"],
+            first_calls=["null"],
+            title=[f"Verifying {path.split('/')[-1]}"],
+            fcall_id=toolcall.fcall_id,
+        )
+        return "WAIT_SUBCHATS"
+
     @rcx.on_tool_call(fi_pdoc.POLICY_DOCUMENT_TOOL.name)
     async def toolcall_pdoc(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
         return await pdoc_integration.called_by_model(toolcall, model_produced_args)
@@ -190,7 +228,7 @@ def main():
         marketable_version=BOT_VERSION_INT,
         fgroup_id=group,
         bot_main_loop=productman_main_loop,
-        inprocess_tools=TOOLS,
+        inprocess_tools=TOOLS_DEFAULT,
     ))
 
 
