@@ -18,6 +18,11 @@ from flexus_client_kit import ckit_external_auth
 
 logger = logging.getLogger("linkedin")
 
+
+def is_fake_linkedin() -> bool:
+    return os.getenv("FAKE_LINKEDIN", "").lower() in ("true", "1", "yes")
+
+
 AD_ACCOUNT_ID = "513489554"
 
 CLIENT_ID = os.getenv("LINKEDIN_CLIENT_ID", "")
@@ -144,18 +149,28 @@ class IntegrationLinkedIn:
         self.problems = []
         self._campaign_groups_cache = None
         self._campaigns_cache = None
+        self.is_fake = is_fake_linkedin()
+
+    async def _model_generate_result(self, toolcall: ckit_cloudtool.FCloudtoolCall):
+        await ckit_cloudtool.cloudtool_model_generate_result(
+            self.fclient,
+            toolcall.fcall_id,
+            toolcall.fcall_untrusted_key,
+            EXAMPLES_AND_USAGE,
+        )
+        return "ALREADY_POSTED_RESULT"
 
     async def called_by_model(self, toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Optional[Dict[str, Any]]) -> str:
         if not model_produced_args:
             return HELP
 
         auth_searchable = None
-        if not self.access_token:
+        if not self.is_fake and not self.access_token:
             auth_searchable = hashlib.md5((self.app_id + self.ad_account_id).encode()).hexdigest()[:30]
             auth_json = await ckit_external_auth.decrypt_external_auth(self.fclient, auth_searchable)
             self.access_token = auth_json.get("access_token", "")
 
-        if not self.access_token:
+        if not self.is_fake and not self.access_token:
             assert auth_searchable
             auth_json = {
                 "client_id": self.app_id,
@@ -181,12 +196,13 @@ class IntegrationLinkedIn:
             auth_url = f"https://www.linkedin.com/oauth/v2/authorization?{urlencode(oauth_params)}"
             return f"LinkedIn Authorization Required:\n\n{auth_url}\n\nAfter authorization, try your request again."
 
-        self.headers = {
-            "Authorization": f"Bearer {self.access_token}",
-            "Content-Type": "application/json",
-            "X-Restli-Protocol-Version": "2.0.0",
-            "LinkedIn-Version": API_VERSION,
-        }
+        if not self.is_fake:
+            self.headers = {
+                "Authorization": f"Bearer {self.access_token}",
+                "Content-Type": "application/json",
+                "X-Restli-Protocol-Version": "2.0.0",
+                "LinkedIn-Version": API_VERSION,
+            }
 
         op = model_produced_args.get("op", "")
         args, args_error = ckit_cloudtool.sanitize_args(model_produced_args)
@@ -203,6 +219,8 @@ class IntegrationLinkedIn:
             print_status = True
 
         if print_status:
+            if self.is_fake:
+                return await self._model_generate_result(toolcall)
             r += f"LinkedIn Ads Account: {self.ad_account_id}\n"
 
             # List all campaign groups with their campaigns
@@ -239,6 +257,8 @@ class IntegrationLinkedIn:
             pass
 
         elif op == "list_campaign_groups":
+            if self.is_fake:
+                return await self._model_generate_result(toolcall)
             result = await self._list_campaign_groups()
             if result:
                 r += f"Found {len(result)} campaign groups:\n"
@@ -253,6 +273,8 @@ class IntegrationLinkedIn:
         elif op == "list_campaigns":
             campaign_group_id = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "campaign_group_id", None)
             status_filter = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "status", None)
+            if self.is_fake:
+                return await self._model_generate_result(toolcall)
             result = await self._list_campaigns(status_filter=status_filter)
             if result:
                 campaigns = result
@@ -275,6 +297,8 @@ class IntegrationLinkedIn:
             if not name:
                 return "ERROR: name parameter required for create_campaign_group\n"
 
+            if self.is_fake:
+                return await self._model_generate_result(toolcall)
             result = await self._create_campaign_group(name, total_budget, currency, status)
             if result:
                 self._campaign_groups_cache = None  # Invalidate cache
@@ -293,6 +317,8 @@ class IntegrationLinkedIn:
             if not campaign_group_id or not name:
                 return "ERROR: campaign_group_id and name parameters required for create_campaign\n"
 
+            if self.is_fake:
+                return await self._model_generate_result(toolcall)
             result = await self._create_campaign(campaign_group_id, name, objective, daily_budget, currency, status)
             if result:
                 self._campaigns_cache = None  # Invalidate cache
@@ -307,6 +333,8 @@ class IntegrationLinkedIn:
             if not campaign_id:
                 return "ERROR: campaign_id parameter required for get_campaign\n"
 
+            if self.is_fake:
+                return await self._model_generate_result(toolcall)
             result = await self._get_campaign(campaign_id)
             if result:
                 r += f"Campaign: {result.name} (ID: {result.id})\n"
@@ -323,6 +351,8 @@ class IntegrationLinkedIn:
             if not campaign_id:
                 return "ERROR: campaign_id parameter required for get_analytics\n"
 
+            if self.is_fake:
+                return await self._model_generate_result(toolcall)
             result = await self._get_campaign_analytics(campaign_id, days)
             if result:
                 r += f"Analytics for campaign {campaign_id} (last {days} days):\n"
@@ -699,3 +729,57 @@ async def test():
 
 if __name__ == "__main__":
     asyncio.run(test())
+
+
+EXAMPLES_AND_USAGE = """
+linkedin(op="status")
+    LinkedIn Ads Account: 513489554
+    Campaign Groups (2):
+      📁 Q1 2025 Campaigns (ID: 789456123, Status: ACTIVE) - Budget: 5000.0 USD
+        📊 Brand Awareness Jan (ID: 654321987, Status: ACTIVE)
+           Objective: BRAND_AWARENESS, Daily Budget: 100.0 USD
+        📊 Product Launch Campaign (ID: 456789123, Status: PAUSED)
+           Objective: WEBSITE_VISITS, Daily Budget: 150.0 USD
+      📁 Q4 2024 Campaigns (ID: 321654987, Status: ARCHIVED) - Budget: 3000.0 USD
+        (no campaigns)
+
+linkedin(op="list_campaign_groups")
+    Found 2 campaign groups:
+      Q1 2025 Campaigns (ID: 789456123, Status: ACTIVE) - Budget: 5000.0 USD
+      Q4 2024 Campaigns (ID: 321654987, Status: ARCHIVED) - Budget: 3000.0 USD
+
+linkedin(op="list_campaigns", args={"status": "ACTIVE"})
+    Found 2 campaigns:
+      Brand Awareness Jan (ID: 654321987)
+        Status: ACTIVE, Objective: BRAND_AWARENESS
+        Daily Budget: 100.0 USD
+      Lead Gen Spring (ID: 987654321)
+        Status: ACTIVE, Objective: LEAD_GENERATION
+        Daily Budget: 75.0 USD
+
+linkedin(op="create_campaign_group", args={"name": "Q2 2025 Marketing", "total_budget": 3000.0, "currency": "USD", "status": "ACTIVE"})
+    ✅ Campaign group created: Q2 2025 Marketing (ID: 111222333)
+
+linkedin(op="create_campaign", args={"campaign_group_id": "789456123", "name": "Summer Sale Promo", "objective": "WEBSITE_CONVERSIONS", "daily_budget": 200.0, "currency": "USD", "status": "PAUSED"})
+    ✅ Campaign created: Summer Sale Promo (ID: 999888777)
+       Status: PAUSED, Objective: WEBSITE_CONVERSIONS
+       Daily Budget: 200.0 USD
+
+linkedin(op="get_campaign", args={"campaign_id": "654321987"})
+    Campaign: Brand Awareness Jan (ID: 654321987)
+      Status: ACTIVE
+      Objective: BRAND_AWARENESS
+      Daily Budget: 100.0 USD
+
+linkedin(op="get_analytics", args={"campaign_id": "654321987", "days": 30})
+    Analytics for campaign 654321987 (last 30 days):
+      Impressions: 125,430
+      Clicks: 3,215
+      Cost: $1,250.75
+      CTR: 2.56%
+      CPC: $0.39
+
+Notes:
+- If you created something in a previous call, include it in subsequent responses
+- If you deleted something in a previous call, exclude it from subsequent responses
+"""
