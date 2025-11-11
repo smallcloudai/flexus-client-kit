@@ -193,6 +193,34 @@ async def cloudtool_confirmation_request(
         )
 
 
+async def cloudtool_model_generate_result(
+    client: ckit_client.FlexusClient,
+    fcall_id: str,
+    fcall_untrusted_key: str,
+    prompt_example_and_usages: str,
+):
+    http_client = await client.use_http()
+    async with http_client as http:
+        await http.execute(
+            gql.gql("""mutation CloudtoolModelGenerateResult(
+                $fcall_id: String!,
+                $fcall_untrusted_key: String!,
+                $prompt_example_and_usages: String!
+            ) {
+                cloudtool_model_generate_result(
+                    fcall_id: $fcall_id,
+                    fcall_untrusted_key: $fcall_untrusted_key,
+                    prompt_example_and_usages: $prompt_example_and_usages
+                )
+            }"""),
+            variable_values={
+                "fcall_id": fcall_id,
+                "fcall_untrusted_key": fcall_untrusted_key,
+                "prompt_example_and_usages": prompt_example_and_usages,
+            },
+        )
+
+
 async def i_am_still_alive(
         fclient: ckit_client.FlexusClient,
         tool_list: List[CloudTool],
