@@ -67,7 +67,6 @@ def dataclass_from_dict(data: Dict[str, Any], cls: Type[T]) -> T:
                     field_type = inner_types[0]
             # JSON scalar types should pass through as-is (already parsed)
             is_json = (
-                field_type is Any or
                 getattr(field_type, '__name__', None) == 'JSON' or
                 getattr(getattr(field_type, 'wrap', None), '__name__', None) == 'JSON'
             )
