@@ -49,7 +49,7 @@ class ScenarioSetup:
         return parser
 
     def __init__(self, service_name: str = "test_scenario", parser: argparse.ArgumentParser = create_args_parser()):
-        args = parser.parse_args()
+        args, _ = parser.parse_known_args()
 
         self.fclient = ckit_client.FlexusClient(service_name=service_name)
         self.bot_fclient = ckit_client.FlexusClient(service_name=f"{service_name}_bot", endpoint="/v1/jailed-bot")
@@ -111,7 +111,10 @@ class ScenarioSetup:
             persona_marketable_name=persona_marketable_name, new_setup=persona_setup,
             persona_name=f"{persona_marketable_name} Test {self.fgroup_id[-4:]}", install_dev_version=True,
         )
-        self.persona = await ckit_bot_query.persona_get(self.fclient, install.persona_id)
+        personas = await ckit_bot_query.personas_in_ws_list(self.fclient, self.ws.ws_id)
+        self.persona = next((p for p in personas if p.persona_id == install.persona_id), None)
+        if not self.persona:
+            raise RuntimeError(f"Persona {install.persona_id} not found in workspace after installation")
         if persona_marketable_version and self.persona.persona_marketable_version != persona_marketable_version:
             raise RuntimeError(f"Expected version {persona_marketable_version}, got {self.persona.persona_marketable_version}")
 
