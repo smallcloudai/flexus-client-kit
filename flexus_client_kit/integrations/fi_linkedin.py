@@ -152,11 +152,17 @@ class IntegrationLinkedIn:
         self.is_fake = is_fake_linkedin()
 
     async def _model_generate_result(self, toolcall: ckit_cloudtool.FCloudtoolCall):
+        source_file_path = os.path.abspath(__file__)
+        trajectory_path = os.path.join(
+            os.path.dirname(source_file_path),
+            "fi_linkedin_usage_examples.json"
+        )
         await ckit_cloudtool.cloudtool_model_generate_result(
             self.fclient,
             toolcall.fcall_id,
             toolcall.fcall_untrusted_key,
-            EXAMPLES_AND_USAGE,
+            trajectory_path,
+            source_file_path,
         )
         return "ALREADY_POSTED_RESULT"
 
@@ -729,57 +735,3 @@ async def test():
 
 if __name__ == "__main__":
     asyncio.run(test())
-
-
-EXAMPLES_AND_USAGE = """
-linkedin(op="status")
-    LinkedIn Ads Account: 513489554
-    Campaign Groups (2):
-      📁 Q1 2025 Campaigns (ID: 789456123, Status: ACTIVE) - Budget: 5000.0 USD
-        📊 Brand Awareness Jan (ID: 654321987, Status: ACTIVE)
-           Objective: BRAND_AWARENESS, Daily Budget: 100.0 USD
-        📊 Product Launch Campaign (ID: 456789123, Status: PAUSED)
-           Objective: WEBSITE_VISITS, Daily Budget: 150.0 USD
-      📁 Q4 2024 Campaigns (ID: 321654987, Status: ARCHIVED) - Budget: 3000.0 USD
-        (no campaigns)
-
-linkedin(op="list_campaign_groups")
-    Found 2 campaign groups:
-      Q1 2025 Campaigns (ID: 789456123, Status: ACTIVE) - Budget: 5000.0 USD
-      Q4 2024 Campaigns (ID: 321654987, Status: ARCHIVED) - Budget: 3000.0 USD
-
-linkedin(op="list_campaigns", args={"status": "ACTIVE"})
-    Found 2 campaigns:
-      Brand Awareness Jan (ID: 654321987)
-        Status: ACTIVE, Objective: BRAND_AWARENESS
-        Daily Budget: 100.0 USD
-      Lead Gen Spring (ID: 987654321)
-        Status: ACTIVE, Objective: LEAD_GENERATION
-        Daily Budget: 75.0 USD
-
-linkedin(op="create_campaign_group", args={"name": "Q2 2025 Marketing", "total_budget": 3000.0, "currency": "USD", "status": "ACTIVE"})
-    ✅ Campaign group created: Q2 2025 Marketing (ID: 111222333)
-
-linkedin(op="create_campaign", args={"campaign_group_id": "789456123", "name": "Summer Sale Promo", "objective": "WEBSITE_CONVERSIONS", "daily_budget": 200.0, "currency": "USD", "status": "PAUSED"})
-    ✅ Campaign created: Summer Sale Promo (ID: 999888777)
-       Status: PAUSED, Objective: WEBSITE_CONVERSIONS
-       Daily Budget: 200.0 USD
-
-linkedin(op="get_campaign", args={"campaign_id": "654321987"})
-    Campaign: Brand Awareness Jan (ID: 654321987)
-      Status: ACTIVE
-      Objective: BRAND_AWARENESS
-      Daily Budget: 100.0 USD
-
-linkedin(op="get_analytics", args={"campaign_id": "654321987", "days": 30})
-    Analytics for campaign 654321987 (last 30 days):
-      Impressions: 125,430
-      Clicks: 3,215
-      Cost: $1,250.75
-      CTR: 2.56%
-      CPC: $0.39
-
-Notes:
-- If you created something in a previous call, include it in subsequent responses
-- If you deleted something in a previous call, exclude it from subsequent responses
-"""

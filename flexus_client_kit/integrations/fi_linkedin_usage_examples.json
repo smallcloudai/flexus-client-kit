@@ -1,0 +1,119 @@
+{
+  "persona_marketable_name": "admonster",
+  "messages": [
+    {
+      "role": "user",
+      "content": "list me campaigns you have"
+    },
+    {
+      "role": "assistant",
+      "tool_calls": [
+        {
+          "id": "call_88887498",
+          "type": "function",
+          "function": {
+            "name": "linkedin",
+            "arguments": "{\"op\":\"status\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "content": "LinkedIn Ads Account: 513489554\nCampaign Groups (2):\n  📁 Q1 2025 Campaigns (ID: 789456123, Status: ACTIVE) - Budget: 5000.0 USD\n    📊 Brand Awareness Jan (ID: 654321987, Status: ACTIVE)\n       Objective: BRAND_AWARENESS, Daily Budget: 100.0 USD\n    📊 Product Launch Campaign (ID: 456789123, Status: PAUSED)\n       Objective: WEBSITE_VISITS, Daily Budget: 150.0 USD\n  📁 Q4 2024 Campaigns (ID: 321654987, Status: ARCHIVED) - Budget: 3000.0 USD\n    (no campaigns)",
+      "call_id": "call_88887498"
+    },
+    {
+      "role": "assistant",
+      "content": "Here are the current campaigns in your LinkedIn Ads account (ID: 513489554):\n\n### Campaign Groups:\n1. **Q1 2025 Campaigns** (ID: 789456123, Status: ACTIVE, Total Budget: $5000.00 USD)\n   - **Brand Awareness Jan** (ID: 654321987, Status: ACTIVE, Objective: BRAND_AWARENESS, Daily Budget: $100.00 USD)\n   - **Product Launch Campaign** (ID: 456789123, Status: PAUSED, Objective: WEBSITE_VISITS, Daily Budget: $150.00 USD)\n\n2. **Q4 2024 Campaigns** (ID: 321654987, Status: ARCHIVED, Total Budget: $3000.00 USD)\n   - No active campaigns in this group.\n\nIf you'd like to view analytics for a specific campaign, create a new one, or make changes (e.g., activate/pause), just let me know!"
+    },
+    {
+      "role": "user",
+      "content": "create a new campaign about brand awareness for november, with budget 2k"
+    },
+    {
+      "role": "assistant",
+      "tool_calls": [
+        {
+          "id": "call_79654718",
+          "type": "function",
+          "function": {
+            "name": "linkedin",
+            "arguments": "{\"op\":\"help\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "content": "\nHelp:\n\nlinkedin(op=\"status\")\n    Shows current LinkedIn Ads account status, lists all campaign groups with their campaigns.\n\nlinkedin(op=\"list_campaign_groups\")\n    Lists all campaign groups for the ad account.\n\nlinkedin(op=\"list_campaigns\", args={\"campaign_group_id\": \"123456\", \"status\": \"ACTIVE\"})\n    Lists campaigns. Optional filters: campaign_group_id, status (ACTIVE, PAUSED, ARCHIVED, etc).\n\nlinkedin(op=\"create_campaign_group\", args={\n    \"name\": \"Q1 2024 Campaigns\",\n    \"total_budget\": 1000.0,\n    \"currency\": \"USD\",\n    \"status\": \"ACTIVE\"\n})\n    Creates a new campaign group with specified budget.\n\nlinkedin(op=\"create_campaign\", args={\n    \"campaign_group_id\": \"123456\",\n    \"name\": \"Brand Awareness Campaign\",\n    \"objective\": \"BRAND_AWARENESS\",\n    \"daily_budget\": 50.0,\n    \"currency\": \"USD\",\n    \"status\": \"PAUSED\"\n})\n    Creates a campaign in a campaign group.\n    Valid objectives: BRAND_AWARENESS, WEBSITE_VISITS, ENGAGEMENT, VIDEO_VIEWS, LEAD_GENERATION, WEBSITE_CONVERSIONS, JOB_APPLICANTS\n\nlinkedin(op=\"get_campaign\", args={\"campaign_id\": \"123456\"})\n    Gets details for a specific campaign.\n\nlinkedin(op=\"update_campaign\", args={\"campaign_id\": \"123456\", \"status\": \"ACTIVE\", \"daily_budget\": 100.0})\n    Updates campaign settings. Optional: status, daily_budget, name.\n\nlinkedin(op=\"get_analytics\", args={\"campaign_id\": \"123456\", \"days\": 30})\n    Gets analytics for a campaign. Default: last 30 days.\n",
+      "call_id": "call_79654718"
+    },
+    {
+      "role": "assistant",
+      "tool_calls": [
+        {
+          "id": "call_47135142",
+          "type": "function",
+          "function": {
+            "name": "linkedin",
+            "arguments": "{\"op\":\"create_campaign_group\",\"args\":{\"name\":\"November 2025 Campaigns\",\"total_budget\":2000.0,\"currency\":\"USD\",\"status\":\"ACTIVE\"}}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "content": "✅ Campaign group created: November 2025 Campaigns (ID: 555666777)",
+      "call_id": "call_47135142"
+    },
+    {
+      "role": "assistant",
+      "tool_calls": [
+        {
+          "id": "call_37043293",
+          "type": "function",
+          "function": {
+            "name": "linkedin",
+            "arguments": "{\"op\":\"create_campaign\",\"args\":{\"campaign_group_id\":\"555666777\",\"name\":\"Brand Awareness November\",\"objective\":\"BRAND_AWARENESS\",\"daily_budget\":66.67,\"currency\":\"USD\",\"status\":\"PAUSED\"}}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "content": "✅ Campaign created: Brand Awareness November (ID: 112233445)\n   Status: PAUSED, Objective: BRAND_AWARENESS\n   Daily Budget: 66.67 USD",
+      "call_id": "call_37043293"
+    },
+    {
+      "role": "assistant",
+      "content": "I've successfully created the new campaign as requested.\n\n### New Campaign Details:\n- **Campaign Group**: November 2025 Campaigns (ID: 555666777, Status: ACTIVE, Total Budget: $2000.00 USD)\n- **Campaign**: Brand Awareness November (ID: 112233445, Status: PAUSED, Objective: BRAND_AWARENESS, Daily Budget: $66.67 USD)\n\nThe campaign is set to PAUSED for now, as per best practices. This gives you time to review the setup before activating it. If you'd like me to activate it, adjust the budget, or add targeting details, just let me know!"
+    },
+    {
+      "role": "user",
+      "content": "now list campaigns"
+    },
+    {
+      "role": "assistant",
+      "tool_calls": [
+        {
+          "id": "call_78448824",
+          "type": "function",
+          "function": {
+            "name": "linkedin",
+            "arguments": "{\"op\":\"status\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "content": "LinkedIn Ads Account: 513489554\nCampaign Groups (3):\n  📁 Q1 2025 Campaigns (ID: 789456123, Status: ACTIVE) - Budget: 5000.0 USD\n    📊 Brand Awareness Jan (ID: 654321987, Status: ACTIVE)\n       Objective: BRAND_AWARENESS, Daily Budget: 100.0 USD\n    📊 Product Launch Campaign (ID: 456789123, Status: PAUSED)\n       Objective: WEBSITE_VISITS, Daily Budget: 150.0 USD\n  📁 Q4 2024 Campaigns (ID: 321654987, Status: ARCHIVED) - Budget: 3000.0 USD\n    (no campaigns)\n  📁 November 2025 Campaigns (ID: 555666777, Status: ACTIVE) - Budget: 2000.0 USD\n    📊 Brand Awareness November (ID: 112233445, Status: PAUSED)\n       Objective: BRAND_AWARENESS, Daily Budget: 66.67 USD",
+      "call_id": "call_78448824"
+    },
+    {
+      "role": "assistant",
+      "content": "Here are the current campaigns in your LinkedIn Ads account (ID: 513489554):\n\n### Campaign Groups:\n1. **Q1 2025 Campaigns** (ID: 789456123, Status: ACTIVE, Total Budget: $5000.00 USD)\n   - **Brand Awareness Jan** (ID: 654321987, Status: ACTIVE, Objective: BRAND_AWARENESS, Daily Budget: $100.00 USD)\n   - **Product Launch Campaign** (ID: 456789123, Status: PAUSED, Objective: WEBSITE_VISITS, Daily Budget: $150.00 USD)\n\n2. **Q4 2024 Campaigns** (ID: 321654987, Status: ARCHIVED, Total Budget: $3000.00 USD)\n   - No active campaigns in this group.\n\n3. **November 2025 Campaigns** (ID: 555666777, Status: ACTIVE, Total Budget: $2000.00 USD)\n   - **Brand Awareness November** (ID: 112233445, Status: PAUSED, Objective: BRAND_AWARENESS, Daily Budget: $66.67 USD)\n\nIf you need more details on any campaign or want to make changes, just say the word!"
+    }
+  ]
+}
