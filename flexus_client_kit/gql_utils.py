@@ -81,6 +81,9 @@ def dataclass_from_dict(data: Dict[str, Any], cls: Type[T]) -> T:
                     else:
                         # List of primitives, keep as is
                         filtered_data[field_name] = field_value
+            elif field_type is Any:
+                # Fallback for Any type
+                filtered_data[field_name] = field_value
             elif hasattr(field_type, "__annotations__"):
                 filtered_data[field_name] = dataclass_from_dict(field_value, field_type)
     return cls(**filtered_data)
