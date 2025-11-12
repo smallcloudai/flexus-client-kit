@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import os
 from typing import Dict, Any
 
 from pymongo import AsyncMongoClient
@@ -11,6 +12,7 @@ from flexus_client_kit import ckit_shutdown
 from flexus_client_kit import ckit_ask_model
 from flexus_client_kit import ckit_mongo
 from flexus_client_kit import ckit_kanban
+from flexus_client_kit import ckit_scenario_run
 from flexus_client_kit.integrations import fi_mongo_store
 from flexus_client_kit.integrations import fi_pdoc
 from flexus_simple_bots.frog import frog_install
@@ -168,17 +170,21 @@ async def frog_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.R
 
 
 def main():
-    group = ckit_bot_exec.parse_bot_group_argument()
-    fclient = ckit_client.FlexusClient(ckit_client.bot_service_name(BOT_NAME, BOT_VERSION_INT, group), endpoint="/v1/jailed-bot")
+    group, scenario = ckit_bot_exec.parse_bot_args()
 
-    asyncio.run(ckit_bot_exec.run_bots_in_this_group(
-        fclient,
-        marketable_name=BOT_NAME,
-        marketable_version=BOT_VERSION_INT,
-        fgroup_id=group,
-        bot_main_loop=frog_main_loop,
-        inprocess_tools=TOOLS,
-    ))
+    if not scenario:
+        fclient = ckit_client.FlexusClient(ckit_client.bot_service_name(BOT_NAME, BOT_VERSION_INT, group), endpoint="/v1/jailed-bot")
+        asyncio.run(ckit_bot_exec.run_bots_in_this_group(
+            fclient,
+            marketable_name=BOT_NAME,
+            marketable_version=BOT_VERSION_INT,
+            fgroup_id=group,
+            bot_main_loop=frog_main_loop,
+            inprocess_tools=TOOLS,
+        ))
+    else:
+        scenario_path = os.path.join(os.path.dirname(__file__), scenario)
+        asyncio.run(ckit_scenario_run.run_scenario_from_trajectory(scenario_path, BOT_NAME))
 
 
 if __name__ == "__main__":
