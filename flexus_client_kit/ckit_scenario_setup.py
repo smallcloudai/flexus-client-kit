@@ -169,10 +169,11 @@ class ScenarioSetup:
                 a, t, u = thread.ft_need_assistant, thread.ft_need_tool_calls, thread.ft_need_user
                 need_str = f"need_assistant={a}" if a != -1 else f"ended_with need_tool_calls={t}" if t != -1 else f"ended_with need_user={u}"
                 persona_id = thread.ft_persona_id or "N/A"
-                tool_names = [tool['function']['name'] for tool in thread.ft_toolset] if thread.ft_toolset else []
-                error_part = f" error:{thread.ft_error}" if thread.ft_error else ""
+                tool_names = ",".join([tool['function']['name'] for tool in thread.ft_toolset])
+                error_part = f" ft_error={thread.ft_error}" if thread.ft_error else ""
                 lines.append(f"    📝{thread.ft_id} title={thread.ft_title!r} persona={persona_id} exp={thread.ft_fexp_id} budget={thread.ft_budget} coins={thread.ft_coins}")
-                lines.append(f"    searchable={thread.ft_app_searchable!r} capture={thread.ft_app_capture!r} {need_str} toolset:{tool_names}{error_part}")
+                lines.append(f"    searchable={thread.ft_app_searchable!r} capture={thread.ft_app_capture!r} {need_str}")
+                lines.append(f"    toolset={tool_names}{error_part}")
 
                 messages = await http.execute(gql.gql(f"""
                     query ThreadMessages($ft_id: String!) {{
@@ -195,7 +196,7 @@ class ScenarioSetup:
                                 tool_args = str(tool_call.get('function', {}).get('arguments', ''))[:60]
                                 if len(str(tool_call.get('function', {}).get('arguments', ''))) > 60:
                                     tool_args += "..."
-                                lines.append(f"        \033[96m🔧 {tool_name}\033[0m: {tool_args}")
+                                lines.append(f"            \033[96m🔧 {tool_name}\033[0m: {tool_args}")
             if len(lines) == 0:
                 lines.append("    No threads")
         return "\n".join(lines)

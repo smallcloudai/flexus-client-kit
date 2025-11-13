@@ -62,7 +62,8 @@ class RobotContext:
         self._handler_upd_thread: Optional[Callable[[ckit_ask_model.FThreadOutput], Awaitable[None]]] = None
         self._handler_updated_task: Optional[Callable[[ckit_kanban.FPersonaKanbanTaskOutput], Awaitable[None]]] = None
         self._handler_per_tool: Dict[str, Callable[[Dict[str, Any]], Awaitable[str]]] = {}
-        self._ready = False
+        self._reached_main_loop = False
+        self._completed_initial_unpark = False
         self._parked_messages: Dict[str, ckit_ask_model.FThreadMessageOutput] = {}
         self._parked_threads: Dict[str, ckit_ask_model.FThreadOutput] = {}
         self._parked_tasks: Dict[str, ckit_kanban.FPersonaKanbanTaskOutput] = {}
@@ -95,11 +96,9 @@ class RobotContext:
             return handler
         return decorator
 
-    def ready(self):
-        self._ready = True
-
     async def unpark_collected_events(self, sleep_if_no_work: float, turn_tool_calls_into_tasks: bool = False) -> List[asyncio.Task]:
         # logger.info("%s unpark_collected_events() started %d %d %d" % (self.persona.persona_id, len(self._parked_messages), len(self._parked_threads), len(self._parked_toolcalls)))
+        self._reached_main_loop = True
         did_anything = False
         self._parked_anything_new.clear()
 
@@ -147,6 +146,7 @@ class RobotContext:
                 bg_calls.append(asyncio.create_task(self._local_tool_call(self.fclient, c)))
 
         if not did_anything:
+            self._completed_initial_unpark = True
             try:
                 await asyncio.wait_for(self._parked_anything_new.wait(), timeout=sleep_if_no_work)
             except asyncio.TimeoutError:
@@ -380,7 +380,7 @@ async def subscribe_and_produce_callbacks(
                         if toolcall.fcall_name not in bot.instance_rcx._handler_per_tool:
                             # give bot main loop a couple of seconds to start up and install the handler, it's async everything here ... :/
                             for _ in range(10):
-                                if bot.instance_rcx._ready:
+                                if bot.instance_rcx._reached_main_loop:
                                     break
                                 if await ckit_shutdown.wait(1):
                                     break
@@ -476,16 +476,17 @@ async def run_happy_trajectory(
     scenario: ckit_scenario_setup.ScenarioSetup,
     trajectory_json_path: str,
 ) -> None:
+    max_steps = 30
     ft_id: Optional[str] = None
     try:
-        while 1:
+        for step in range(max_steps):
             user_message = await ckit_scenario_run.scenario_generate_user_message(
                 scenario.fclient,
                 trajectory_json_path,
                 scenario.fgroup_id,
                 ft_id,
             )
-            logger.info(f"Generated user message: {user_message}")
+            logger.info(f"Generated human message: {user_message!r}")
 
             if user_message == "SCENARIO_DONE":
                 logger.info("Trajectory completed successfully!")
@@ -513,7 +514,7 @@ async def run_happy_trajectory(
                         }
                     )
                 ft_id = bot_result["bot_activate"]["ft_id"]
-                logger.info(f"Created thread {ft_id}")
+                logger.info(f"Scenario thread {ft_id}")
             else:
                 async with (await scenario.fclient.use_http()) as http:
                     await http.execute(gql.gql("""
@@ -531,32 +532,60 @@ async def run_happy_trajectory(
                                     "ftm_role": "user",
                                     "ftm_content": json.dumps(user_message),
                                     "ftm_call_id": "",
-                                    "ftm_provenance": json.dumps({"system": "trajectory_scenario"}),
+                                    "ftm_provenance": json.dumps({"system": "trajectory_scenario", "step": step}),
                                 }]
                             }
                         }
                     )
 
-            print(888)
-            if my_bot := bc.bots_running[scenario.persona.persona_id]:
-                # BotInstance(fclient=<flexus_client_kit.ckit_client.FlexusClient object at 0x103d41450>, atask=<Task pending name='Task-31' coro=<crash_boom_bang() running at /Users/kot/code/flexus-client-kit/flexus_client_kit/ckit_bot_exec.py:196> wait_for=<Future pending cb=[Task.task_wakeup()]>>, instance_rcx=<flexus_client_kit.ckit_bot_exec.RobotContext object at 0x103d9a890>)
-                print(my_bot.instance_rcx)
-                print(999)
+            wait_secs = 120
+            for _ in range(wait_secs):
+                await asyncio.sleep(1)
+                my_bot = bc.bots_running.get(scenario.persona.persona_id, None)
+                if my_bot is None:
+                    logger.info("WAIT for bot to initialize...")
+                    continue
+                if not my_bot.instance_rcx._completed_initial_unpark:
+                    logger.info("WAIT for bot to complete initial unpark...")
+                    continue
+                my_thread: Optional[ckit_bot_query.FThreadWithMessages] = my_bot.instance_rcx.latest_threads.get(ft_id, None)
+                if my_thread is None:
+                    logger.info("WAIT for thread to appear in bot's latest_threads...")
+                    continue
+                have_my_own_message = False
+                for k, m in my_thread.thread_messages.items():
+                    # print("msg", k, m.ftm_role, m.ftm_provenance)
+                    if m.ftm_provenance.get("step") == step or (step == 0 and m.ftm_provenance.get("who_is_asking") == "trajectory_scenario"):
+                        have_my_own_message = True
+                if not have_my_own_message:
+                    logger.info("WAIT for the message the human just posted to appear...")
+                    continue
+                # Cool now we can believe my_thread.thread_fields because async notifications sent here are not crazy late (and it's fine
+                # if they are late a little bit, just like the UI works fine based on subscription only)
+                if my_thread.thread_fields.ft_need_user != -1:
+                    if my_thread.thread_fields.ft_need_user != 100:
+                        logger.warning("Whoops my_thread.thread_fields.ft_need_user=%d that's crazy, does the thread branch off under my supposedly controlled conditions?")
+                        return
+                    break
+                continue  # wait for next the second, silently (no "WAIT waiting for the actual reponse")
+            else:
+                logger.info("Timeout after %d seconds, no reponse from model or tools :/")
+                break
 
-                print(my_bot)
-            break
+            continue  # post the next human message
 
-            # threads_data = await ckit_bot_query.wait_until_bot_threads_stop(
-            #     scenario.bot_fclient, scenario.persona, scenario.inprocess_tools, only_ft_id=ft_id, timeout=120
-            # )
-            # logger.info(f"Bot finished processing, thread state: {threads_data.get(ft_id)}")
+        else:
+            logger.info("Scenario did not complete in %d steps, quit", max_steps)
+
+    except asyncio.exceptions.CancelledError:
+        logger.info("Scenario is cancelled")
 
     finally:
         logger.info("Scenario is over, error or not error")
         threads_output = await scenario.print_threads_in_group()
-        logger.info("Scenario over, threads in fgroup_id=%s:\n%s", scenario.fgroup_id, threads_output)
-        personas_output = await scenario.print_personas_in_group()
-        logger.info("Scenario over, personas in fgroup_id=%s:\n%s", scenario.fgroup_id, personas_output)
+        logger.info("Scenario is over, threads in fgroup_id=%s:\n%s", scenario.fgroup_id, threads_output)
+        # personas_output = await scenario.print_personas_in_group()
+        # logger.info("Scenario is over, personas in fgroup_id=%s:\n%s", scenario.fgroup_id, personas_output)
 
         if scenario.should_cleanup:
             await scenario.cleanup()
