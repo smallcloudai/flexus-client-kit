@@ -1,15 +1,17 @@
+# DEPRECATED: Old style scenario, can not run.
+
 import asyncio
 import json
 import time
 
 import gql
 
-from flexus_client_kit import ckit_ask_model, ckit_scenario_setup, ckit_bot_query
+from flexus_client_kit import ckit_ask_model, ckit_scenario, ckit_bot_query
 from flexus_client_kit.integrations.fi_slack_fake import post_fake_slack_message
 from flexus_client_kit.integrations.fi_slack_test import setup_slack
 
 
-async def fake_dm_test(setup: ckit_scenario_setup.ScenarioSetup, slack_bot, queue, _user) -> None:
+async def fake_dm_test(setup: ckit_scenario.ScenarioSetup, slack_bot, queue, _user) -> None:
     while not queue.empty():
         queue.get_nowait()
 
@@ -23,7 +25,7 @@ async def fake_dm_test(setup: ckit_scenario_setup.ScenarioSetup, slack_bot, queu
     assert not p1 and not p2
     print("✓ Fake DM test passed")
 
-async def fake_channel_test(setup: ckit_scenario_setup.ScenarioSetup, slack_bot, queue, _user) -> None:
+async def fake_channel_test(setup: ckit_scenario.ScenarioSetup, slack_bot, queue, _user) -> None:
     while not queue.empty():
         queue.get_nowait()
 
@@ -33,7 +35,7 @@ async def fake_channel_test(setup: ckit_scenario_setup.ScenarioSetup, slack_bot,
     assert "This is test file 1" in activity.file_contents[0]["m_content"] and not posted
     print("✓ Fake channel test passed")
 
-async def fake_post_test(setup: ckit_scenario_setup.ScenarioSetup, slack_bot, queue, _user) -> None:
+async def fake_post_test(setup: ckit_scenario.ScenarioSetup, slack_bot, queue, _user) -> None:
     while not queue.empty():
         queue.get_nowait()
 
@@ -48,7 +50,7 @@ async def fake_post_test(setup: ckit_scenario_setup.ScenarioSetup, slack_bot, qu
     assert "success" in result2.lower()
     print("✓ Fake post test passed")
 
-async def fake_capture_test(setup: ckit_scenario_setup.ScenarioSetup, slack_bot, queue, _user) -> None:
+async def fake_capture_test(setup: ckit_scenario.ScenarioSetup, slack_bot, queue, _user) -> None:
     while not queue.empty():
         queue.get_nowait()
 
@@ -121,7 +123,7 @@ async def fake_capture_test(setup: ckit_scenario_setup.ScenarioSetup, slack_bot,
     assert not posted_last
     print("✓ Fake capture test passed")
 
-async def fake_slack_test(setup: ckit_scenario_setup.ScenarioSetup) -> None:
+async def fake_slack_test(setup: ckit_scenario.ScenarioSetup) -> None:
     slack_bot, queue, _user = await setup_slack(setup, slack_fake=True)
     try:
         await fake_dm_test(setup, slack_bot, queue, _user)
@@ -133,5 +135,5 @@ async def fake_slack_test(setup: ckit_scenario_setup.ScenarioSetup) -> None:
         await slack_bot.close()
 
 if __name__ == "__main__":
-    setup = ckit_scenario_setup.ScenarioSetup("fi_slack_fake_test")
+    setup = ckit_scenario.ScenarioSetup("fi_slack_fake_test")
     asyncio.run(setup.run_scenario(fake_slack_test))

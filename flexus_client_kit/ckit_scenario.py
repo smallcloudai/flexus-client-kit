@@ -1,0 +1,238 @@
+import uuid
+import logging
+import argparse
+from typing import Optional
+
+import gql
+
+from flexus_client_kit import gql_utils, ckit_bot_install, ckit_client, ckit_ask_model, ckit_kanban, ckit_bot_query
+
+logger = logging.getLogger("cksce")
+
+MARKETPLACE_DEV_STAGES = ["MARKETPLACE_DEV", "MARKETPLACE_WAITING_IMAGE", "MARKETPLACE_FAILED_IMAGE_BUILD"]
+
+
+async def scenario_select_workspace(
+    fclient: ckit_client.FlexusClient,
+    bs: ckit_client.BasicStuffOutput,
+    marketable_name: Optional[str] = None,
+) -> ckit_client.FWorkspaceOutput:
+    '''Find ws with marketable_name available for dev, fallback to any ws with have_admin, or the first one'''
+    if marketable_name:
+        for w in bs.workspaces:
+            if w.have_admin:
+                async with (await fclient.use_http()) as http:
+                    details = await http.execute(gql.gql("""
+                        query MarketplaceDetails($ws_id: String!, $marketable_name: String!) {
+                            marketplace_details(ws_id: $ws_id, marketable_name: $marketable_name) {
+                                versions { marketable_stage }
+                            }
+                        }"""), variable_values={"ws_id": w.ws_id, "marketable_name": marketable_name})
+
+                    versions = details["marketplace_details"]["versions"]
+                    if any(v["marketable_stage"] in MARKETPLACE_DEV_STAGES for v in versions):
+                        return w
+    return next((w for w in bs.workspaces if w.have_admin), bs.workspaces[0])
+
+
+async def scenario_generate_user_message(
+    client: ckit_client.FlexusClient,
+    trajectory_path: str,
+    fgroup_id: str,
+    ft_id: Optional[str] = None,
+):
+    with open(trajectory_path) as f:
+        baseline_chat_trajectory = f.read()
+
+    async with (await client.use_http()) as http:
+        r = await http.execute(
+            gql.gql("""mutation ScenarioGenerateUserMessage(
+                $baseline_chat_trajectory: String!,
+                $fgroup_id: String!,
+                $ft_id: String
+            ) {
+                scenario_generate_user_message(
+                    baseline_chat_trajectory: $baseline_chat_trajectory,
+                    fgroup_id: $fgroup_id,
+                    ft_id: $ft_id
+                )
+            }"""),
+            variable_values={
+                "baseline_chat_trajectory": baseline_chat_trajectory,
+                "fgroup_id": fgroup_id,
+                "ft_id": ft_id,
+            },
+        )
+    return r["scenario_generate_user_message"]
+
+
+async def scenario_generate_tool_result_via_model(
+    client: ckit_client.FlexusClient,
+    fcall_id: str,
+    fcall_untrusted_key: str,
+    source_file_path: str,
+    trajectory_path: str = "",
+):
+    examples_and_usage_trajectory = ""
+    if trajectory_path:
+        with open(trajectory_path) as f:
+            examples_and_usage_trajectory = f.read()
+    with open(source_file_path) as f:
+        tool_handler_source_code = f.read()
+
+    async with (await client.use_http()) as http:
+        await http.execute(
+            gql.gql("""mutation ScenarioGenerateToolResult(
+                $fcall_id: String!,
+                $fcall_untrusted_key: String!,
+                $tool_handler_source_code: String!,
+                $examples_and_usage_trajectory: String
+            ) {
+                scenario_generate_tool_result_via_model(
+                    fcall_id: $fcall_id,
+                    fcall_untrusted_key: $fcall_untrusted_key,
+                    tool_handler_source_code: $tool_handler_source_code,
+                    examples_and_usage_trajectory: $examples_and_usage_trajectory
+                )
+            }"""),
+            variable_values={
+                "fcall_id": fcall_id,
+                "fcall_untrusted_key": fcall_untrusted_key,
+                "tool_handler_source_code": tool_handler_source_code,
+                "examples_and_usage_trajectory": examples_and_usage_trajectory,
+            },
+        )
+
+
+async def scenario_print_personas(fclient: ckit_client.FlexusClient, fgroup_id: str) -> str:
+    lines = []
+    for persona in (await ckit_bot_query.persona_list(fclient, fgroup_id)):
+        lines.append(f"    👤{persona.persona_id} name={persona.persona_name!r} marketplace={persona.persona_marketable_name}@{persona.persona_marketable_version} pref_model={persona.persona_preferred_model}")
+        kanban_tasks = await ckit_kanban.persona_kanban_list(fclient, persona.persona_id)
+        if kanban_tasks:
+            for task in kanban_tasks:
+                extras = []
+                if task.ktask_resolution_code:
+                    extras.append(f"resolution_code:{task.ktask_resolution_code}")
+                if task.ktask_resolution_summary:
+                    extras.append(f"resolution_summary:'{task.ktask_resolution_summary}'")
+                if hasattr(task.ktask_details, 'get') and task.ktask_details and task.ktask_details.get('humanhours'):
+                    extras.append(f"humanhours:{task.ktask_details['humanhours']}")
+                extra_str = f" {' '.join(extras)}" if extras else ""
+                lines.append(f"        📋 {task.calc_bucket()} id:{task.ktask_id} title:'{task.ktask_title}' budget:{task.ktask_budget} coins:{task.ktask_coins}{extra_str}")
+        else:
+            lines.append(f"        📋 No kanban tasks")
+    return "\n".join(lines)
+
+
+async def scenario_print_threads(fclient: ckit_client.FlexusClient, fgroup_id: str) -> str:
+    async with (await fclient.use_http()) as http:
+        threads = await http.execute(gql.gql(f"""
+            query GetGroupThreads($fgroup_id: String!) {{
+                thread_list(located_fgroup_id: $fgroup_id, skip: 0, limit: 100) {{
+                    {gql_utils.gql_fields(ckit_ask_model.FThreadOutput)}
+                }}
+            }}"""), variable_values={"fgroup_id": fgroup_id})
+
+        lines = []
+        for thread_dict in threads["thread_list"]:
+            thread = gql_utils.dataclass_from_dict(thread_dict, ckit_ask_model.FThreadOutput)
+
+            a, t, u = thread.ft_need_assistant, thread.ft_need_tool_calls, thread.ft_need_user
+            need_str = f"need_assistant={a}" if a != -1 else f"ended_with need_tool_calls={t}" if t != -1 else f"ended_with need_user={u}"
+            persona_id = thread.ft_persona_id or "N/A"
+            tool_names = ",".join([tool['function']['name'] for tool in thread.ft_toolset])
+            error_part = f" ft_error={thread.ft_error}" if thread.ft_error else ""
+            lines.append(f"    📝{thread.ft_id} title={thread.ft_title!r} persona={persona_id} exp={thread.ft_fexp_id} budget={thread.ft_budget} coins={thread.ft_coins}")
+            lines.append(f"    searchable={thread.ft_app_searchable!r} capture={thread.ft_app_capture!r} {need_str}")
+            lines.append(f"    toolset={tool_names}{error_part}")
+
+            messages = await http.execute(gql.gql(f"""
+                query ThreadMessages($ft_id: String!) {{
+                    thread_messages_list(ft_id: $ft_id) {{ {gql_utils.gql_fields(ckit_ask_model.FThreadMessageOutput)} }}
+                }}"""), variable_values={"ft_id": thread.ft_id})
+
+            colors = {"user": "\033[94m", "assistant": "\033[92m", "system": "\033[93m", "tool": "\033[95m", "kernel": "\033[96m"}
+            for msg_dict in messages["thread_messages_list"]:
+                msg = gql_utils.dataclass_from_dict(msg_dict, ckit_ask_model.FThreadMessageOutput)
+                if msg.ftm_alt == 100:
+                    content = str(msg.ftm_content).replace('\n', '\\n')[:120]
+                    if len(str(msg.ftm_content)) > 120:
+                        content += "..."
+                    color = colors.get(msg.ftm_role, "\033[0m")
+                    msg_key = "%03d:%03d" % (msg.ftm_alt, msg.ftm_num)
+                    lines.append(f"        {msg_key} {color}{msg.ftm_role}\033[0m: {content}")
+                    if msg.ftm_role == 'assistant' and msg.ftm_tool_calls:
+                        for tool_call in msg.ftm_tool_calls:
+                            tool_name = tool_call.get('function', {}).get('name', 'unknown')
+                            tool_args = str(tool_call.get('function', {}).get('arguments', ''))[:60]
+                            if len(str(tool_call.get('function', {}).get('arguments', ''))) > 60:
+                                tool_args += "..."
+                            lines.append(f"            \033[96m🔧 {tool_name}\033[0m: {tool_args}")
+        if len(lines) == 0:
+            lines.append("    No threads")
+    return "\n".join(lines)
+
+
+class ScenarioSetup:
+    def __init__(self, service_name: str = "test_scenario"):
+        parser = argparse.ArgumentParser()
+        parser.add_argument("--no-cleanup", action="store_true", help="Skip cleanup of test group")
+        args, _ = parser.parse_known_args()
+
+        self.fclient = ckit_client.FlexusClient(service_name=service_name)
+        self.fgroup_id: Optional[str] = None
+        self.fgroup_name: Optional[str] = None
+        self.persona: Optional[ckit_bot_query.FPersonaOutput] = None
+        self.ws: Optional[ckit_client.FWorkspaceOutput] = None
+        self.should_cleanup = not args.no_cleanup
+
+    async def create_group_and_hire_bot(
+        self,
+        marketable_name: str,
+        marketable_version: Optional[int],
+        persona_setup: dict,
+        group_prefix: str = "test",
+    ) -> None:
+        bs = await ckit_client.query_basic_stuff(self.fclient)
+        self.ws = await scenario_select_workspace(self.fclient, bs, marketable_name)
+
+        self.fgroup_name = f"{group_prefix}-{uuid.uuid4().hex[:6]}"
+        async with (await self.fclient.use_http()) as http:
+            self.fgroup_id = (await http.execute(gql.gql("""
+                mutation CreateGroup($input: FlexusGroupInput!) {
+                    group_create(input: $input) { fgroup_id }
+                }"""),
+                variable_values={
+                    "input": {
+                        "fgroup_name": self.fgroup_name,
+                        "fgroup_parent_id": self.ws.ws_root_group_id,
+                    }
+                },
+            ))["group_create"]["fgroup_id"]
+
+        install = await ckit_bot_install.bot_install_from_marketplace(
+            client=self.fclient,
+            ws_id=self.ws.ws_id,
+            inside_fgroup=self.fgroup_id,
+            persona_marketable_name=marketable_name,
+            persona_name=f"{marketable_name} {self.fgroup_id[-4:]}",
+            new_setup=persona_setup,
+            install_dev_version=True,
+        )
+        personas = await ckit_bot_query.personas_in_ws_list(self.fclient, self.ws.ws_id)
+        self.persona = next((p for p in personas if p.persona_id == install.persona_id), None)
+        if not self.persona:
+            raise RuntimeError(f"Persona {install.persona_id} not found in workspace after installation")
+        if marketable_version and self.persona.persona_marketable_version != marketable_version:
+            raise RuntimeError(f"Expected version {marketable_version}, got {self.persona.persona_marketable_version}")
+
+        logger.info("Scenario setup completed in group %s", self.fgroup_name)
+
+    async def cleanup(self) -> None:
+        if self.fgroup_id:
+            try:
+                async with (await self.fclient.use_http()) as http:
+                    await http.execute(gql.gql("""mutation($id:String!){group_delete(fgroup_id:$id)}"""), variable_values={"id": self.fgroup_id})
+            except Exception as e:
+                logger.warning(f"⚠️ Failed to delete test group {self.fgroup_name}: {e}")

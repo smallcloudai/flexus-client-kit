@@ -1,9 +1,11 @@
+# DEPRECATED: Old style scenario, can not run. Kept for reference to generate a happy trajectory for the new style.
+
 import asyncio
 import logging
 import sys
 
 from flexus_simple_bots.karen import karen_bot
-from flexus_client_kit import ckit_bot_exec, ckit_scenario_setup, ckit_utils, ckit_mcp_server
+from flexus_client_kit import ckit_bot_exec, ckit_scenario, ckit_utils, ckit_mcp_server
 from flexus_client_kit.integrations.fi_slack_fake import (
     fake_slack_instances,
     IntegrationSlackFake,
@@ -16,7 +18,7 @@ logger = logging.getLogger("scenario")
 karen_bot.fi_slack.IntegrationSlack = IntegrationSlackFake
 
 
-async def scenario(setup: ckit_scenario_setup.ScenarioSetup, use_mcp: bool = False) -> None:
+async def scenario(setup: ckit_scenario.ScenarioSetup, use_mcp: bool = False) -> None:
     await setup.create_group_hire_and_start_bot(
         persona_marketable_name=karen_bot.BOT_NAME,
         persona_marketable_version=karen_bot.BOT_VERSION_INT,
@@ -61,8 +63,8 @@ async def scenario(setup: ckit_scenario_setup.ScenarioSetup, use_mcp: bool = Fal
 
 
 if __name__ == "__main__":
-    parser = ckit_scenario_setup.ScenarioSetup.create_args_parser()
+    parser = ckit_scenario.ScenarioSetup.create_args_parser()
     parser.add_argument("--mcp", action="store_true", help="Use MCP server")
 
-    setup = ckit_scenario_setup.ScenarioSetup("karen", parser=parser)
+    setup = ckit_scenario.ScenarioSetup("karen", parser=parser)
     asyncio.run(setup.run_scenario(scenario, use_mcp=setup.args.mcp))

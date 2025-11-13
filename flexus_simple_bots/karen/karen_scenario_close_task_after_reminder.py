@@ -1,9 +1,11 @@
+# DEPRECATED: Old style scenario, can not run. Kept for reference to generate a happy trajectory for the new style.
+
 import asyncio
 import logging
 import json
 
 from flexus_simple_bots.karen import karen_bot
-from flexus_client_kit import ckit_scenario_setup, ckit_ask_model
+from flexus_client_kit import ckit_scenario, ckit_ask_model
 from flexus_client_kit.integrations.fi_slack_fake import (
     IntegrationSlackFake,
     fake_slack_instances,
@@ -31,7 +33,7 @@ async def send_reminder(setup, ft_id, task_id):
     )
 
 
-async def scenario(setup: ckit_scenario_setup.ScenarioSetup) -> None:
+async def scenario(setup: ckit_scenario.ScenarioSetup) -> None:
     await setup.create_group_hire_and_start_bot(
         persona_marketable_name=karen_bot.BOT_NAME,
         persona_marketable_version=karen_bot.BOT_VERSION_INT,
@@ -71,5 +73,5 @@ async def scenario(setup: ckit_scenario_setup.ScenarioSetup) -> None:
 
 
 if __name__ == "__main__":
-    setup = ckit_scenario_setup.ScenarioSetup("karen")
+    setup = ckit_scenario.ScenarioSetup("karen")
     asyncio.run(setup.run_scenario(scenario))

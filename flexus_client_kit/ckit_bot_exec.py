@@ -10,7 +10,7 @@ from typing import Dict, List, Optional, Any, Callable, Awaitable, NamedTuple, U
 import gql
 
 from flexus_client_kit import ckit_client, gql_utils, ckit_service_exec, ckit_kanban, ckit_cloudtool
-from flexus_client_kit import ckit_ask_model, ckit_shutdown, ckit_utils, ckit_bot_query, ckit_scenario_setup, ckit_scenario_run
+from flexus_client_kit import ckit_ask_model, ckit_shutdown, ckit_utils, ckit_bot_query, ckit_scenario
 
 
 logger = logging.getLogger("btexe")
@@ -470,17 +470,16 @@ async def shutdown_bots(
     logger.info("shutdown_bots success")
 
 
-
 async def run_happy_trajectory(
     bc: BotsCollection,
-    scenario: ckit_scenario_setup.ScenarioSetup,
+    scenario: ckit_scenario.ScenarioSetup,
     trajectory_json_path: str,
 ) -> None:
     max_steps = 30
     ft_id: Optional[str] = None
     try:
         for step in range(max_steps):
-            user_message = await ckit_scenario_run.scenario_generate_user_message(
+            user_message = await ckit_scenario.scenario_generate_user_message(
                 scenario.fclient,
                 trajectory_json_path,
                 scenario.fgroup_id,
@@ -493,50 +492,24 @@ async def run_happy_trajectory(
                 break
 
             if not ft_id:
-                async with (await scenario.fclient.use_http()) as http:
-                    bot_result = await http.execute(gql.gql("""
-                        mutation BotActivate($persona_id: String!, $first_question: String!, $activation_type: String!) {
-                            bot_activate(
-                                who_is_asking: "trajectory_scenario",
-                                persona_id: $persona_id,
-                                activation_type: $activation_type,
-                                first_question: $first_question,
-                                title: "Trajectory Test",
-                                first_calls: "null"
-                            ) {
-                                ft_id
-                            }
-                        }"""),
-                        variable_values={
-                            "persona_id": scenario.persona.persona_id,
-                            "first_question": user_message,
-                            "activation_type": "default"
-                        }
-                    )
-                ft_id = bot_result["bot_activate"]["ft_id"]
+                ft_id = await ckit_ask_model.bot_activate(
+                    client=scenario.fclient,
+                    who_is_asking="trajectory_scenario",
+                    persona_id=scenario.persona.persona_id,
+                    activation_type="default",
+                    first_question=user_message,
+                    title="Trajectory Test",
+                )
                 logger.info(f"Scenario thread {ft_id}")
             else:
-                async with (await scenario.fclient.use_http()) as http:
-                    await http.execute(gql.gql("""
-                        mutation SendMessage($input: FThreadMultipleMessagesInput!) {
-                            thread_messages_create_multiple(input: $input)
-                        }"""),
-                        variable_values={
-                            "input": {
-                                "ftm_belongs_to_ft_id": ft_id,
-                                "messages": [{
-                                    "ftm_belongs_to_ft_id": ft_id,
-                                    "ftm_alt": 100,
-                                    "ftm_num": -1,
-                                    "ftm_prev_alt": 100,
-                                    "ftm_role": "user",
-                                    "ftm_content": json.dumps(user_message),
-                                    "ftm_call_id": "",
-                                    "ftm_provenance": json.dumps({"system": "trajectory_scenario", "step": step}),
-                                }]
-                            }
-                        }
-                    )
+                http = await scenario.fclient.use_http()
+                await ckit_ask_model.thread_add_user_message(
+                    http=http,
+                    ft_id=ft_id,
+                    content=user_message,
+                    who_is_asking="trajectory_scenario",
+                    ftm_alt=100,
+                )
 
             wait_secs = 120
             for _ in range(wait_secs):
@@ -552,12 +525,8 @@ async def run_happy_trajectory(
                 if my_thread is None:
                     logger.info("WAIT for thread to appear in bot's latest_threads...")
                     continue
-                have_my_own_message = False
-                for k, m in my_thread.thread_messages.items():
-                    # print("msg", k, m.ftm_role, m.ftm_provenance)
-                    if m.ftm_provenance.get("step") == step or (step == 0 and m.ftm_provenance.get("who_is_asking") == "trajectory_scenario"):
-                        have_my_own_message = True
-                if not have_my_own_message:
+                trajectory_msg_count = sum(1 for k, m in my_thread.thread_messages.items() if m.ftm_provenance.get("who_is_asking") == "trajectory_scenario")
+                if trajectory_msg_count < step + 1:
                     logger.info("WAIT for the message the human just posted to appear...")
                     continue
                 # Cool now we can believe my_thread.thread_fields because async notifications sent here are not crazy late (and it's fine
@@ -582,9 +551,9 @@ async def run_happy_trajectory(
 
     finally:
         logger.info("Scenario is over, error or not error")
-        threads_output = await scenario.print_threads_in_group()
+        threads_output = await ckit_scenario.scenario_print_threads(scenario.fclient, scenario.fgroup_id)
         logger.info("Scenario is over, threads in fgroup_id=%s:\n%s", scenario.fgroup_id, threads_output)
-        # personas_output = await scenario.print_personas_in_group()
+        # personas_output = await ckit_scenario.scenario_print_personas(scenario.fclient, scenario.fgroup_id)
         # logger.info("Scenario is over, personas in fgroup_id=%s:\n%s", scenario.fgroup_id, personas_output)
 
         if scenario.should_cleanup:
@@ -605,18 +574,17 @@ async def run_bots_in_this_group(
     marketable_version: int,
     inprocess_tools: List[ckit_cloudtool.CloudTool],
     bot_main_loop: Callable[[ckit_client.FlexusClient, RobotContext], Awaitable[None]],
-    scenario_fn: str = "",  # XXX remove default when all bots get updated
+    scenario_fn: str,
 ) -> None:
     scenario = None
     scenario_task = None
     if scenario_fn:
-        scenario = ckit_scenario_setup.ScenarioSetup(service_name="trajectory_replay")
+        scenario = ckit_scenario.ScenarioSetup(service_name="trajectory_replay")
     if fgroup_id == "TMP":
-        await scenario.create_group_hire_and_start_bot(
+        await scenario.create_group_and_hire_bot(
             marketable_name=marketable_name,
             marketable_version=marketable_version,
             persona_setup={},
-            inprocess_tools=inprocess_tools,
         )
         fgroup_id = scenario.fgroup_id
         assert fgroup_id
@@ -631,7 +599,7 @@ async def run_bots_in_this_group(
     )
     if scenario_fn:
         scenario_task = asyncio.create_task(run_happy_trajectory(bc, scenario, scenario_fn), name="human_emulator")
-        scenario_task.add_done_callback(lambda t: ckit_utils.report_crash(t, ckit_scenario_setup.logger))
+        scenario_task.add_done_callback(lambda t: ckit_utils.report_crash(t, ckit_scenario.logger))
     keepalive_task = asyncio.create_task(i_am_still_alive(fclient, marketable_name, marketable_version, fgroup_id))
     keepalive_task.add_done_callback(lambda t: ckit_utils.report_crash(t, logger))
     try:

@@ -1,3 +1,5 @@
+# DEPRECATED: Old style scenario, can not run. Kept for reference to generate a happy trajectory for the new style.
+
 import asyncio
 import json
 import os
@@ -6,12 +8,12 @@ import time
 import discord
 import gql
 
-from flexus_client_kit import ckit_ask_model, ckit_bot_exec, ckit_scenario_setup, ckit_bot_query
+from flexus_client_kit import ckit_ask_model, ckit_bot_exec, ckit_scenario, ckit_bot_query
 from flexus_client_kit.integrations.fi_discord2 import ActivityDiscord, IntegrationDiscord
 from flexus_simple_bots.karen import karen_bot
 
 
-async def setup_discord(setup: ckit_scenario_setup.ScenarioSetup) -> tuple[IntegrationDiscord, asyncio.Queue, discord.Client, discord.Client]:
+async def setup_discord(setup: ckit_scenario.ScenarioSetup) -> tuple[IntegrationDiscord, asyncio.Queue, discord.Client, discord.Client]:
     karen_setup = {
         "DISCORD_BOT_TOKEN": os.environ["DISCORD_TESTER1_BOT_TOKEN"],
         "discord_watch_channels": "tests",
@@ -75,7 +77,7 @@ async def _send_message_with_files(user_client: discord.Client, channel_id: int,
     await channel.send(content=message, files=files)
 
 
-async def discord_channel_test(setup: ckit_scenario_setup.ScenarioSetup, discord_bot, queue, user_client) -> None:
+async def discord_channel_test(setup: ckit_scenario.ScenarioSetup, discord_bot, queue, user_client) -> None:
     print("Starting discord channel test...")
     while not queue.empty():
         queue.get_nowait()
@@ -101,7 +103,7 @@ async def discord_channel_test(setup: ckit_scenario_setup.ScenarioSetup, discord
     print("✓ Channel test passed")
 
 
-async def discord_post_test(setup: ckit_scenario_setup.ScenarioSetup, discord_bot, queue, user_client) -> None:
+async def discord_post_test(setup: ckit_scenario.ScenarioSetup, discord_bot, queue, user_client) -> None:
     while not queue.empty():
         queue.get_nowait()
 
@@ -117,7 +119,7 @@ async def discord_post_test(setup: ckit_scenario_setup.ScenarioSetup, discord_bo
     print("✓ Post test passed")
 
 
-async def discord_capture_test(setup: ckit_scenario_setup.ScenarioSetup, discord_bot, queue, user_client) -> None:
+async def discord_capture_test(setup: ckit_scenario.ScenarioSetup, discord_bot, queue, user_client) -> None:
     while not queue.empty():
         queue.get_nowait()
 
@@ -221,7 +223,7 @@ async def discord_capture_test(setup: ckit_scenario_setup.ScenarioSetup, discord
     print("✓ Capture test passed")
 
 
-async def discord_test(setup: ckit_scenario_setup.ScenarioSetup) -> None:
+async def discord_test(setup: ckit_scenario.ScenarioSetup) -> None:
     discord_bot, queue, user_client, user_client_task = await setup_discord(setup)
     try:
         await discord_channel_test(setup, discord_bot, queue, user_client)
@@ -239,5 +241,5 @@ async def discord_test(setup: ckit_scenario_setup.ScenarioSetup) -> None:
 
 
 if __name__ == "__main__":
-    setup = ckit_scenario_setup.ScenarioSetup("fi_discord_test")
+    setup = ckit_scenario.ScenarioSetup("fi_discord_test")
     asyncio.run(setup.run_scenario(discord_test, cleanup_wait_secs=0))

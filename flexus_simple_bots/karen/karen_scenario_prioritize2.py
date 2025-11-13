@@ -1,7 +1,9 @@
+# DEPRECATED: Old style scenario, can not run. Kept for reference to generate a happy trajectory for the new style.
+
 import asyncio
 
 from flexus_simple_bots.karen import karen_bot
-from flexus_client_kit import ckit_kanban, ckit_scenario_setup, ckit_client, ckit_bot_query
+from flexus_client_kit import ckit_kanban, ckit_scenario, ckit_client, ckit_bot_query
 from flexus_client_kit.integrations import fi_slack_fake
 
 karen_bot.fi_slack.IntegrationSlack = fi_slack_fake.IntegrationSlackFake
@@ -29,7 +31,7 @@ async def setup_kanban_tasks(client: ckit_client.FlexusClient, ws_id: str, perso
     await ckit_kanban.bot_arrange_kanban_situation2(client, ws_id, persona_id, tasks)
 
 
-async def scenario(setup: ckit_scenario_setup.ScenarioSetup) -> None:
+async def scenario(setup: ckit_scenario.ScenarioSetup) -> None:
     await setup.create_group_hire_and_start_bot(
         persona_marketable_name=karen_bot.BOT_NAME,
         persona_marketable_version=karen_bot.BOT_VERSION_INT,
@@ -60,5 +62,5 @@ async def scenario(setup: ckit_scenario_setup.ScenarioSetup) -> None:
 
 
 if __name__ == '__main__':
-    setup = ckit_scenario_setup.ScenarioSetup("karen_prioritize2")
+    setup = ckit_scenario.ScenarioSetup("karen_prioritize2")
     asyncio.run(setup.run_scenario(scenario))

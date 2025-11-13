@@ -1,3 +1,5 @@
+# DEPRECATED: Old style scenario, can not run. Kept for reference to generate a happy trajectory for the new style.
+
 import asyncio
 import json
 import os
@@ -6,13 +8,13 @@ import time
 import gql
 from slack_sdk.web.async_client import AsyncWebClient
 
-from flexus_client_kit import ckit_ask_model, ckit_bot_exec, ckit_scenario_setup, ckit_bot_query
+from flexus_client_kit import ckit_ask_model, ckit_bot_exec, ckit_scenario, ckit_bot_query
 from flexus_client_kit.integrations.fi_slack import ActivitySlack, IntegrationSlack
 from flexus_client_kit.integrations.fi_slack_fake import IntegrationSlackFake
 from flexus_simple_bots.karen import karen_bot
 
 
-async def setup_slack(setup: ckit_scenario_setup.ScenarioSetup, slack_fake: bool = False) -> tuple[IntegrationSlack | IntegrationSlackFake, asyncio.Queue, AsyncWebClient]:
+async def setup_slack(setup: ckit_scenario.ScenarioSetup, slack_fake: bool = False) -> tuple[IntegrationSlack | IntegrationSlackFake, asyncio.Queue, AsyncWebClient]:
     karen_setup = {
         "SLACK_BOT_TOKEN": "" if slack_fake else os.environ["SLACK_BOT_TOKEN"],
         "SLACK_APP_TOKEN": "" if slack_fake else os.environ["SLACK_APP_TOKEN"],
@@ -55,7 +57,7 @@ async def _upload_files(user_client: AsyncWebClient, channel_id: str, file_paths
             file_uploads.append({"file": f.read(), "filename": filename})
     await user_client.files_upload_v2(channel=channel_id, file_uploads=file_uploads, initial_comment=message)
 
-async def slack_dm_test(setup: ckit_scenario_setup.ScenarioSetup, slack_bot, queue, user_client) -> None:
+async def slack_dm_test(setup: ckit_scenario.ScenarioSetup, slack_bot, queue, user_client) -> None:
     while not queue.empty():
         queue.get_nowait()
 
@@ -69,7 +71,7 @@ async def slack_dm_test(setup: ckit_scenario_setup.ScenarioSetup, slack_bot, que
     assert len(activity.file_contents) == 2, f"Expected 2 files but got {len(activity.file_contents)}. Files: {[f.get('m_filename', 'unknown') for f in activity.file_contents]}"
     print("✓ DM test passed")
 
-async def slack_channel_test(setup: ckit_scenario_setup.ScenarioSetup, slack_bot, queue, user_client) -> None:
+async def slack_channel_test(setup: ckit_scenario.ScenarioSetup, slack_bot, queue, user_client) -> None:
     while not queue.empty():
         queue.get_nowait()
 
@@ -82,7 +84,7 @@ async def slack_channel_test(setup: ckit_scenario_setup.ScenarioSetup, slack_bot
     assert "2.json" in content and '\"content\": \"json test file\"' in content
     print("✓ Channel test passed")
 
-async def slack_post_test(setup: ckit_scenario_setup.ScenarioSetup, slack_bot, queue, user_client) -> None:
+async def slack_post_test(setup: ckit_scenario.ScenarioSetup, slack_bot, queue, user_client) -> None:
     while not queue.empty():
         queue.get_nowait()
 
@@ -97,7 +99,7 @@ async def slack_post_test(setup: ckit_scenario_setup.ScenarioSetup, slack_bot, q
     assert "success" in result2.lower()
     print("✓ Post test passed")
 
-async def slack_capture_test(setup: ckit_scenario_setup.ScenarioSetup, slack_bot, queue, user_client) -> None:
+async def slack_capture_test(setup: ckit_scenario.ScenarioSetup, slack_bot, queue, user_client) -> None:
     while not queue.empty():
         queue.get_nowait()
 
@@ -185,7 +187,7 @@ async def slack_capture_test(setup: ckit_scenario_setup.ScenarioSetup, slack_bot
     assert not any("test message 3" in json.dumps(m) for m in messages)
     print("✓ Capture test passed")
 
-async def slack_test(setup: ckit_scenario_setup.ScenarioSetup) -> None:
+async def slack_test(setup: ckit_scenario.ScenarioSetup) -> None:
     slack_bot, queue, user_client = await setup_slack(setup)
     try:
         await slack_dm_test(setup, slack_bot, queue, user_client)
@@ -197,5 +199,5 @@ async def slack_test(setup: ckit_scenario_setup.ScenarioSetup) -> None:
         await slack_bot.close()
 
 if __name__ == "__main__":
-    setup = ckit_scenario_setup.ScenarioSetup("fi_slack_test")
+    setup = ckit_scenario.ScenarioSetup("fi_slack_test")
     asyncio.run(setup.run_scenario(slack_test))
