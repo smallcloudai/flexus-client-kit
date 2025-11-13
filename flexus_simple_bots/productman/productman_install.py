@@ -7,8 +7,7 @@ from flexus_client_kit import ckit_client
 from flexus_client_kit import ckit_bot_install
 
 from flexus_simple_bots import prompts_common
-from flexus_simple_bots.productman import productman_bot, productman_prompts
-
+from flexus_simple_bots.productman import productman_bot, productman_prompts, productman_skill_survey
 
 BOT_DESCRIPTION = """
 ## Productman - Stage0 Product Validation Coach
@@ -60,8 +59,6 @@ async def install(
     client: ckit_client.FlexusClient,
     ws_id: str,
 ):
-    bot_internal_tools = json.dumps([t.openai_style_tool() for t in productman_bot.TOOLS_DEFAULT])
-    bot_verify_internal_tools = json.dumps([t.openai_style_tool() for t in productman_bot.TOOLS_VERIFY_SUBCHAT])
     pic_big = base64.b64encode(open(Path(__file__).with_name("productman-1024x1536.webp"), "rb").read()).decode("ascii")
     pic_small = base64.b64encode(open(Path(__file__).with_name("productman-256x256.webp"), "rb").read()).decode("ascii")
     await ckit_bot_install.marketplace_upsert_dev_bot(
@@ -95,7 +92,7 @@ async def install(
                 fexp_python_kernel="",
                 fexp_block_tools="*setup*",
                 fexp_allow_tools="",
-                fexp_app_capture_tools=bot_internal_tools,
+                fexp_app_capture_tools=json.dumps([t.openai_style_tool() for t in productman_bot.TOOLS_DEFAULT]),
             )),
             ("subchat", ckit_bot_install.FMarketplaceExpertInput(
                 fexp_name="productman_criticize_idea",
@@ -103,7 +100,15 @@ async def install(
                 fexp_python_kernel=PRODUCTMAN_CRITICIZE_LARK,
                 fexp_block_tools="*setup*",
                 fexp_allow_tools="",
-                fexp_app_capture_tools=bot_verify_internal_tools,
+                fexp_app_capture_tools=json.dumps([t.openai_style_tool() for t in productman_bot.TOOLS_VERIFY_SUBCHAT]),
+            )),
+            ("survey", ckit_bot_install.FMarketplaceExpertInput(
+                fexp_name="productman_survey",
+                fexp_system_prompt=productman_skill_survey.prompt,
+                fexp_python_kernel="",
+                fexp_block_tools="*setup*",
+                fexp_allow_tools="",
+                fexp_app_capture_tools=json.dumps([t.openai_style_tool() for t in productman_bot.TOOLS_SURVEY]),
             )),
         ],
         marketable_tags=["Product Management", "Hypothesis Testing"],
