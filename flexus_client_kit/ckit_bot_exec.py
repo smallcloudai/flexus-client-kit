@@ -5,6 +5,7 @@ import logging
 import os
 import time
 import argparse
+import uuid
 from typing import Dict, List, Optional, Any, Callable, Awaitable, NamedTuple, Union
 
 import gql
@@ -473,22 +474,53 @@ async def shutdown_bots(
 async def run_happy_trajectory(
     bc: BotsCollection,
     scenario: ckit_scenario.ScenarioSetup,
-    trajectory_json_path: str,
+    trajectory_yaml_path: str,
 ) -> None:
     max_steps = 30
     ft_id: Optional[str] = None
     try:
         for step in range(max_steps):
-            user_message = await ckit_scenario.scenario_generate_user_message(
+            result = await ckit_scenario.scenario_generate_human_message(
                 scenario.fclient,
-                trajectory_json_path,
+                trajectory_yaml_path,
                 scenario.fgroup_id,
                 ft_id,
             )
-            logger.info(f"Generated human message: {user_message!r}")
+            logger.info(f"Scenario done: {result.scenario_done}, next message: {result.next_human_message!r}")
 
-            if user_message == "SCENARIO_DONE":
+            if result.scenario_done:
                 logger.info("Trajectory completed successfully!")
+                if ft_id:
+                    judge_result = await ckit_scenario.scenario_judge(
+                        scenario.fclient,
+                        trajectory_yaml_path,
+                        ft_id,
+                    )
+                    logger.info(f"Scenario judge rating: {judge_result.rating}/10")
+                    logger.info(f"Scenario judge reason: {judge_result.reason}")
+
+                    my_bot = bc.bots_running.get(scenario.persona.persona_id, None)
+                    if my_bot and ft_id in my_bot.instance_rcx.latest_threads:
+                        my_thread = my_bot.instance_rcx.latest_threads[ft_id]
+                        sorted_messages = sorted(my_thread.thread_messages.values(), key=lambda m: (m.ftm_alt, m.ftm_num))
+                        export_messages = ckit_scenario.messages_to_dict_list_for_export(sorted_messages)
+
+                        scenario_basename = os.path.splitext(os.path.basename(trajectory_yaml_path))[0]
+                        random_id = uuid.uuid4().hex[:8]
+                        output_dir = "./scenarios"
+                        os.makedirs(output_dir, exist_ok=True)
+                        output_path = os.path.join(output_dir, f"{scenario_basename}-{random_id}.yaml")
+
+                        result_data = {
+                            "rating": judge_result.rating,
+                            "reason": judge_result.reason,
+                            "messages": export_messages,
+                        }
+
+                        with open(output_path, "w") as f:
+                            f.write(ckit_scenario.yaml_dump_with_multiline(result_data))
+
+                        logger.info(f"Scenario results saved to {output_path}")
                 break
 
             if not ft_id:
@@ -497,7 +529,7 @@ async def run_happy_trajectory(
                     who_is_asking="trajectory_scenario",
                     persona_id=scenario.persona.persona_id,
                     activation_type="default",
-                    first_question=user_message,
+                    first_question=result.next_human_message,
                     title="Trajectory Test",
                 )
                 logger.info(f"Scenario thread {ft_id}")
@@ -506,7 +538,7 @@ async def run_happy_trajectory(
                 await ckit_ask_model.thread_add_user_message(
                     http=http,
                     ft_id=ft_id,
-                    content=user_message,
+                    content=result.next_human_message,
                     who_is_asking="trajectory_scenario",
                     ftm_alt=100,
                 )
@@ -614,7 +646,7 @@ async def run_bots_in_this_group(
 def parse_bot_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--group", type=str, help="Flexus group ID where the bot will run, take it from the address bar in the browser when you are looking on something inside a group.")
-    parser.add_argument("--scenario", type=str, help="Reproduce a happy trajectory emulating human and tools, path to JSON file")
+    parser.add_argument("--scenario", type=str, help="Reproduce a happy trajectory emulating human and tools, path to YAML file")
     parser.add_argument("--no-cleanup", action="store_true", help="(For scenario mode) Skip cleanup of test group")
     args = parser.parse_args()
 
