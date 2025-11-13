@@ -32,8 +32,10 @@ class FThreadMessageOutput:
     ftm_content: Any
     ftm_num: int
     ftm_alt: int
+    ftm_prev_alt: int
     ftm_usage: Any
     ftm_tool_calls: Any
+    ftm_call_id: str
     ftm_app_specific: Any
     ftm_created_ts: float
     ftm_provenance: Any

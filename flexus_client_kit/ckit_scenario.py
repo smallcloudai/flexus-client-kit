@@ -1,13 +1,28 @@
 import uuid
 import logging
 import argparse
-from typing import Optional
+import yaml
+from dataclasses import dataclass
+from typing import Optional, Dict, List, Union
 
 import gql
 
 from flexus_client_kit import gql_utils, ckit_bot_install, ckit_client, ckit_ask_model, ckit_kanban, ckit_bot_query
 
 logger = logging.getLogger("cksce")
+
+
+@dataclass
+class ScenarioHumanMessageOutput:
+    scenario_done: bool
+    next_human_message: str
+
+
+@dataclass
+class ScenarioJudgeOutput:
+    rating: int
+    reason: str
+
 
 MARKETPLACE_DEV_STAGES = ["MARKETPLACE_DEV", "MARKETPLACE_WAITING_IMAGE", "MARKETPLACE_FAILED_IMAGE_BUILD"]
 
@@ -35,35 +50,101 @@ async def scenario_select_workspace(
     return next((w for w in bs.workspaces if w.have_admin), bs.workspaces[0])
 
 
-async def scenario_generate_user_message(
+async def scenario_generate_human_message(
     client: ckit_client.FlexusClient,
     trajectory_path: str,
     fgroup_id: str,
     ft_id: Optional[str] = None,
-):
+) -> ScenarioHumanMessageOutput:
     with open(trajectory_path) as f:
         baseline_chat_trajectory = f.read()
 
-    async with (await client.use_http()) as http:
+    http_client = await client.use_http()
+    http_client.execute_timeout = 120
+    async with http_client as http:
         r = await http.execute(
-            gql.gql("""mutation ScenarioGenerateUserMessage(
+            gql.gql(f"""mutation ScenarioGenerateHumanMessage(
                 $baseline_chat_trajectory: String!,
                 $fgroup_id: String!,
                 $ft_id: String
-            ) {
-                scenario_generate_user_message(
+            ) {{
+                scenario_generate_human_message(
                     baseline_chat_trajectory: $baseline_chat_trajectory,
                     fgroup_id: $fgroup_id,
                     ft_id: $ft_id
-                )
-            }"""),
+                ) {{
+                    {gql_utils.gql_fields(ScenarioHumanMessageOutput)}
+                }}
+            }}"""),
             variable_values={
                 "baseline_chat_trajectory": baseline_chat_trajectory,
                 "fgroup_id": fgroup_id,
                 "ft_id": ft_id,
             },
         )
-    return r["scenario_generate_user_message"]
+    return gql_utils.dataclass_from_dict(r["scenario_generate_human_message"], ScenarioHumanMessageOutput)
+
+
+async def scenario_judge(
+    client: ckit_client.FlexusClient,
+    trajectory_path: str,
+    ft_id: str,
+) -> ScenarioJudgeOutput:
+    with open(trajectory_path) as f:
+        baseline_chat_trajectory = f.read()
+
+    http_client = await client.use_http()
+    http_client.execute_timeout = 120
+    async with http_client as http:
+        r = await http.execute(
+            gql.gql(f"""mutation ScenarioJudge(
+                $baseline_chat_trajectory: String!,
+                $ft_id: String!
+            ) {{
+                scenario_judge(
+                    baseline_chat_trajectory: $baseline_chat_trajectory,
+                    ft_id: $ft_id
+                ) {{
+                    {gql_utils.gql_fields(ScenarioJudgeOutput)}
+                }}
+            }}"""),
+            variable_values={
+                "baseline_chat_trajectory": baseline_chat_trajectory,
+                "ft_id": ft_id,
+            },
+        )
+    return gql_utils.dataclass_from_dict(r["scenario_judge"], ScenarioJudgeOutput)
+
+
+def _represent_multiline_str(dumper, data):
+    if '\n' in data:
+        return dumper.represent_scalar('tag:yaml.org,2002:str', data, style='|')
+    return dumper.represent_scalar('tag:yaml.org,2002:str', data)
+
+
+def messages_to_dict_list_for_export(messages: list) -> list:
+    export_messages = []
+    for msg in messages:
+        m = {"role": msg.ftm_role}
+        if msg.ftm_content:
+            m["content"] = msg.ftm_content
+        if msg.ftm_tool_calls and msg.ftm_tool_calls not in ("null", "[]"):
+            m["tool_calls"] = msg.ftm_tool_calls
+        if msg.ftm_call_id:
+            m["call_id"] = msg.ftm_call_id
+        export_messages.append(m)
+    return export_messages
+
+
+def yaml_dump_with_multiline(data: dict) -> str:
+    dumper = yaml.Dumper
+    dumper.add_representer(str, _represent_multiline_str)
+    return yaml.dump(data, Dumper=dumper, default_flow_style=False, allow_unicode=True, width=100)
+
+
+def dump_thread_messages_to_yaml(messages: list) -> str:
+    export_messages = messages_to_dict_list_for_export(messages)
+    return yaml_dump_with_multiline({"messages": export_messages})
 
 
 async def scenario_generate_tool_result_via_model(
@@ -80,7 +161,9 @@ async def scenario_generate_tool_result_via_model(
     with open(source_file_path) as f:
         tool_handler_source_code = f.read()
 
-    async with (await client.use_http()) as http:
+    http_client = await client.use_http()
+    http_client.execute_timeout = 120
+    async with http_client as http:
         await http.execute(
             gql.gql("""mutation ScenarioGenerateToolResult(
                 $fcall_id: String!,
