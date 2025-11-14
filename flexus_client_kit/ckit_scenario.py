@@ -30,6 +30,7 @@ class BotScenarioUpsertInput:
     btest_marketable_name: str
     btest_marketable_version_str: str
     btest_name: str
+    btest_model: str
     btest_trajectory_happy: str
     btest_trajectory_actual: str
     btest_rating_happy: int

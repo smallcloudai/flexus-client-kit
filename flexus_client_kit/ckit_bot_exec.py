@@ -595,6 +595,7 @@ async def run_happy_trajectory(
                 btest_marketable_name=scenario.persona.persona_marketable_name,
                 btest_marketable_version_str=bot_version,
                 btest_name=scenario_basename,
+                btest_model=scenario.persona.persona_preferred_model,
                 btest_trajectory_happy=trajectory_happy,
                 btest_trajectory_actual=trajectory_actual,
                 btest_rating_happy=10,
