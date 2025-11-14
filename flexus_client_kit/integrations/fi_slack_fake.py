@@ -360,25 +360,3 @@ async def post_fake_slack_message(channel_slash_thread: str, text: str, user: st
     for inst in list(fake_slack_instances):
         await inst._receive_fake_message(channel, thread_ts, ts, text, user, path)
     return {"ts": ts, "thread_ts": thread_ts}
-
-
-async def wait_for_bot_messages(setup: ckit_scenario.ScenarioSetup, channel_slash_thread: str, timeout_seconds: int = 300) -> List[Dict[str, Any]]:
-    while not fake_slack_instances:
-        await asyncio.sleep(0.1)
-    fi_slack = fake_slack_instances[0]
-
-    channel, thread = parse_channel_slash_thread(channel_slash_thread)
-
-    def bot_msgs(msgs):
-        return [m for m in msgs if m.get("user") == "bot" and (not thread or m.get("thread_ts") == thread)]
-
-    initial_msgs = bot_msgs(fi_slack.messages.get(channel, []))
-
-    await ckit_bot_query.wait_until_bot_threads_stop(
-        setup.bot_fclient, setup.persona, setup.inprocess_tools, timeout=int(timeout_seconds)
-    )
-
-    current_msgs = bot_msgs(fi_slack.messages.get(channel, []))
-    return current_msgs[len(initial_msgs):]
-
-
