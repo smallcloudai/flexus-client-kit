@@ -155,7 +155,7 @@ class IntegrationLinkedIn:
         source_file_path = os.path.abspath(__file__)
         trajectory_path = os.path.join(
             os.path.dirname(source_file_path),
-            "fi_linkedin_usage_examples.json"
+            "fi_linkedin_usage_examples.yaml"
         )
         await ckit_cloudtool.cloudtool_model_generate_result(
             self.fclient,

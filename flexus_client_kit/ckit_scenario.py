@@ -21,8 +21,10 @@ class ScenarioHumanMessageOutput:
 
 @dataclass
 class ScenarioJudgeOutput:
-    rating: int
-    reason: str
+    rating_happy: int
+    reason_happy: str
+    rating_actually: int
+    reason_actually: str
 
 
 @dataclass
@@ -67,24 +69,21 @@ async def scenario_select_workspace(
 
 async def scenario_generate_human_message(
     client: ckit_client.FlexusClient,
-    trajectory_path: str,
+    happy_trajectory: str,
     fgroup_id: str,
     ft_id: Optional[str] = None,
 ) -> ScenarioHumanMessageOutput:
-    with open(trajectory_path) as f:
-        baseline_chat_trajectory = f.read()
-
     http_client = await client.use_http()
     http_client.execute_timeout = 120
     async with http_client as http:
         r = await http.execute(
             gql.gql(f"""mutation ScenarioGenerateHumanMessage(
-                $baseline_chat_trajectory: String!,
+                $happy_trajectory: String!,
                 $fgroup_id: String!,
                 $ft_id: String
             ) {{
                 scenario_generate_human_message(
-                    baseline_chat_trajectory: $baseline_chat_trajectory,
+                    happy_trajectory: $happy_trajectory,
                     fgroup_id: $fgroup_id,
                     ft_id: $ft_id
                 ) {{
@@ -92,7 +91,7 @@ async def scenario_generate_human_message(
                 }}
             }}"""),
             variable_values={
-                "baseline_chat_trajectory": baseline_chat_trajectory,
+                "happy_trajectory": happy_trajectory,
                 "fgroup_id": fgroup_id,
                 "ft_id": ft_id,
             },
@@ -102,29 +101,26 @@ async def scenario_generate_human_message(
 
 async def scenario_judge(
     client: ckit_client.FlexusClient,
-    trajectory_path: str,
+    happy_trajectory: str,
     ft_id: str,
 ) -> ScenarioJudgeOutput:
-    with open(trajectory_path) as f:
-        baseline_chat_trajectory = f.read()
-
     http_client = await client.use_http()
     http_client.execute_timeout = 120
     async with http_client as http:
         r = await http.execute(
             gql.gql(f"""mutation ScenarioJudge(
-                $baseline_chat_trajectory: String!,
+                $happy_trajectory: String!,
                 $ft_id: String!
             ) {{
                 scenario_judge(
-                    baseline_chat_trajectory: $baseline_chat_trajectory,
+                    happy_trajectory: $happy_trajectory,
                     ft_id: $ft_id
                 ) {{
                     {gql_utils.gql_fields(ScenarioJudgeOutput)}
                 }}
             }}"""),
             variable_values={
-                "baseline_chat_trajectory": baseline_chat_trajectory,
+                "happy_trajectory": happy_trajectory,
                 "ft_id": ft_id,
             },
         )
