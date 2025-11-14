@@ -3,20 +3,28 @@ import logging
 import argparse
 import yaml
 import dataclasses
+import inspect
+import os
 from dataclasses import dataclass
-from typing import Optional, Dict, List, Union, Any
+from typing import Optional, Dict, List, Union, Any, TYPE_CHECKING
 
 import gql
 
 from flexus_client_kit import gql_utils, ckit_bot_install, ckit_client, ckit_ask_model, ckit_kanban, ckit_bot_query
 
+if TYPE_CHECKING:
+    from flexus_client_kit import ckit_cloudtool, ckit_bot_exec
+
 logger = logging.getLogger("cksce")
+
+
 
 
 @dataclass
 class ScenarioHumanMessageOutput:
     scenario_done: bool
     next_human_message: str
+    shaky: bool
 
 
 @dataclass
@@ -165,20 +173,17 @@ def dump_thread_messages_to_yaml(messages: list) -> str:
 
 
 async def scenario_generate_tool_result_via_model(
-    client: ckit_client.FlexusClient,
-    fcall_id: str,
-    fcall_untrusted_key: str,
-    source_file_path: str,
-    trajectory_path: str = "",
-):
-    examples_and_usage_trajectory = ""
-    if trajectory_path:
-        with open(trajectory_path) as f:
-            examples_and_usage_trajectory = f.read()
+    fclient: ckit_client.FlexusClient,
+    toolcall: "ckit_cloudtool.FCloudtoolCall",
+    rcx: "ckit_bot_exec.RobotContext",
+) -> str:
+    caller_frame = inspect.stack()[1]
+    source_file_path = os.path.abspath(caller_frame.filename)
+
     with open(source_file_path) as f:
         tool_handler_source_code = f.read()
 
-    http_client = await client.use_http()
+    http_client = await fclient.use_http()
     http_client.execute_timeout = 120
     async with http_client as http:
         await http.execute(
@@ -186,22 +191,23 @@ async def scenario_generate_tool_result_via_model(
                 $fcall_id: String!,
                 $fcall_untrusted_key: String!,
                 $tool_handler_source_code: String!,
-                $examples_and_usage_trajectory: String
+                $happy_trajectory: String
             ) {
                 scenario_generate_tool_result_via_model(
                     fcall_id: $fcall_id,
                     fcall_untrusted_key: $fcall_untrusted_key,
                     tool_handler_source_code: $tool_handler_source_code,
-                    examples_and_usage_trajectory: $examples_and_usage_trajectory
+                    happy_trajectory: $happy_trajectory
                 )
             }"""),
             variable_values={
-                "fcall_id": fcall_id,
-                "fcall_untrusted_key": fcall_untrusted_key,
+                "fcall_id": toolcall.fcall_id,
+                "fcall_untrusted_key": toolcall.fcall_untrusted_key,
                 "tool_handler_source_code": tool_handler_source_code,
-                "examples_and_usage_trajectory": examples_and_usage_trajectory,
+                "happy_trajectory": rcx.scenario_trajectory,
             },
         )
+    return "ALREADY_POSTED_RESULT"
 
 
 async def scenario_print_personas(fclient: ckit_client.FlexusClient, fgroup_id: str) -> str:

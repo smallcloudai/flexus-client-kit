@@ -123,6 +123,7 @@ async def thread_add_user_message(
     ftm_alt: int,
     user_preferences: str = "null",
     role: str = "user",
+    ftm_provenance: Optional[Dict[str, Any]] = None,
 ) -> None:
     random_ftm_num = -random.randint(1, 2**31 - 1)
     assert role in ["user", "cd_instruction"]
@@ -133,6 +134,9 @@ async def thread_add_user_message(
         ftm_content = json.dumps(content)
     else:
         assert 0, "bad type %s" % type(content)
+
+    if ftm_provenance is None:
+        ftm_provenance = {"system_type": who_is_asking}
 
     async with http as h:
         await h.execute(
@@ -155,7 +159,7 @@ async def thread_add_user_message(
                             "ftm_usage": "null",
                             "ftm_app_specific": "null",
                             "ftm_user_preferences": user_preferences,
-                            "ftm_provenance": json.dumps({"system_type": who_is_asking}),
+                            "ftm_provenance": json.dumps(ftm_provenance),
                         },
                     ],
                 }

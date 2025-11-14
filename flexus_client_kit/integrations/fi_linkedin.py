@@ -14,13 +14,11 @@ import httpx
 from flexus_client_kit import ckit_client
 from flexus_client_kit import ckit_cloudtool
 from flexus_client_kit import ckit_external_auth
+from flexus_client_kit import ckit_scenario
+from flexus_client_kit import ckit_bot_exec
 
 
 logger = logging.getLogger("linkedin")
-
-
-def is_fake_linkedin() -> bool:
-    return os.getenv("FAKE_LINKEDIN", "").lower() in ("true", "1", "yes")
 
 
 AD_ACCOUNT_ID = "513489554"
@@ -135,13 +133,13 @@ class IntegrationLinkedIn:
     def __init__(
         self,
         fclient: ckit_client.FlexusClient,
-        persona_id: str,
+        rcx: ckit_bot_exec.RobotContext,
         app_id: str,
         app_secret: str,
         ad_account_id: str,
     ):
         self.fclient = fclient
-        self.persona_id = persona_id
+        self.rcx = rcx
         self.app_id = app_id
         self.app_secret = app_secret
         self.access_token = ""
@@ -149,22 +147,7 @@ class IntegrationLinkedIn:
         self.problems = []
         self._campaign_groups_cache = None
         self._campaigns_cache = None
-        self.is_fake = is_fake_linkedin()
-
-    async def _model_generate_result(self, toolcall: ckit_cloudtool.FCloudtoolCall):
-        source_file_path = os.path.abspath(__file__)
-        trajectory_path = os.path.join(
-            os.path.dirname(source_file_path),
-            "fi_linkedin_usage_examples.yaml"
-        )
-        await ckit_cloudtool.cloudtool_model_generate_result(
-            self.fclient,
-            toolcall.fcall_id,
-            toolcall.fcall_untrusted_key,
-            trajectory_path,
-            source_file_path,
-        )
-        return "ALREADY_POSTED_RESULT"
+        self.is_fake = bool(self.rcx.scenario_trajectory)
 
     async def called_by_model(self, toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Optional[Dict[str, Any]]) -> str:
         if not model_produced_args:
@@ -185,7 +168,7 @@ class IntegrationLinkedIn:
             }
             await ckit_external_auth.upsert_external_auth(
                 self.fclient,
-                self.persona_id,
+                self.rcx.persona.persona_id,
                 auth_searchable,
                 "LinkedIn Ads %s" % self.ad_account_id,
                 "linkedin",
@@ -226,7 +209,7 @@ class IntegrationLinkedIn:
 
         if print_status:
             if self.is_fake:
-                return await self._model_generate_result(toolcall)
+                return await ckit_scenario.scenario_generate_tool_result_via_model(self.fclient, toolcall, self.rcx)
             r += f"LinkedIn Ads Account: {self.ad_account_id}\n"
 
             # List all campaign groups with their campaigns
@@ -264,7 +247,7 @@ class IntegrationLinkedIn:
 
         elif op == "list_campaign_groups":
             if self.is_fake:
-                return await self._model_generate_result(toolcall)
+                return await ckit_scenario.scenario_generate_tool_result_via_model(self.fclient, toolcall, self.rcx)
             result = await self._list_campaign_groups()
             if result:
                 r += f"Found {len(result)} campaign groups:\n"
@@ -280,7 +263,7 @@ class IntegrationLinkedIn:
             campaign_group_id = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "campaign_group_id", None)
             status_filter = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "status", None)
             if self.is_fake:
-                return await self._model_generate_result(toolcall)
+                return await ckit_scenario.scenario_generate_tool_result_via_model(self.fclient, toolcall, self.rcx)
             result = await self._list_campaigns(status_filter=status_filter)
             if result:
                 campaigns = result
@@ -304,7 +287,7 @@ class IntegrationLinkedIn:
                 return "ERROR: name parameter required for create_campaign_group\n"
 
             if self.is_fake:
-                return await self._model_generate_result(toolcall)
+                return await ckit_scenario.scenario_generate_tool_result_via_model(self.fclient, toolcall, self.rcx)
             result = await self._create_campaign_group(name, total_budget, currency, status)
             if result:
                 self._campaign_groups_cache = None  # Invalidate cache
@@ -324,7 +307,7 @@ class IntegrationLinkedIn:
                 return "ERROR: campaign_group_id and name parameters required for create_campaign\n"
 
             if self.is_fake:
-                return await self._model_generate_result(toolcall)
+                return await ckit_scenario.scenario_generate_tool_result_via_model(self.fclient, toolcall, self.rcx)
             result = await self._create_campaign(campaign_group_id, name, objective, daily_budget, currency, status)
             if result:
                 self._campaigns_cache = None  # Invalidate cache
@@ -340,7 +323,7 @@ class IntegrationLinkedIn:
                 return "ERROR: campaign_id parameter required for get_campaign\n"
 
             if self.is_fake:
-                return await self._model_generate_result(toolcall)
+                return await ckit_scenario.scenario_generate_tool_result_via_model(self.fclient, toolcall, self.rcx)
             result = await self._get_campaign(campaign_id)
             if result:
                 r += f"Campaign: {result.name} (ID: {result.id})\n"
@@ -358,7 +341,7 @@ class IntegrationLinkedIn:
                 return "ERROR: campaign_id parameter required for get_analytics\n"
 
             if self.is_fake:
-                return await self._model_generate_result(toolcall)
+                return await ckit_scenario.scenario_generate_tool_result_via_model(self.fclient, toolcall, self.rcx)
             result = await self._get_campaign_analytics(campaign_id, days)
             if result:
                 r += f"Analytics for campaign {campaign_id} (last {days} days):\n"

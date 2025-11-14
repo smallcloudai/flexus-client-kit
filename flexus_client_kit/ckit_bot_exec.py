@@ -79,6 +79,7 @@ class RobotContext:
         self.latest_tasks: Dict[str, ckit_kanban.FPersonaKanbanTaskOutput] = dict()
         self.created_ts = time.time()
         self.workdir = "/tmp/bot_workspace/%s/" % p.persona_id
+        self.scenario_trajectory = ""
         os.makedirs(self.workdir, exist_ok=True)
 
     def on_updated_message(self, handler: Callable[[ckit_ask_model.FThreadMessageOutput], Awaitable[None]]):
@@ -253,6 +254,7 @@ class BotsCollection:
         marketable_version: int,
         inprocess_tools: List[ckit_cloudtool.CloudTool],
         bot_main_loop: Callable[[ckit_client.FlexusClient, RobotContext], Awaitable[None]],
+        scenario_trajectory: str = "",
     ):
         self.fgroup_id = fgroup_id
         self.marketable_name = marketable_name
@@ -261,6 +263,7 @@ class BotsCollection:
         self.bot_main_loop = bot_main_loop
         self.bots_running: Dict[str, BotInstance] = {}
         self.thread_tracker: Dict[str, ckit_bot_query.FThreadWithMessages] = {}
+        self.scenario_trajectory = scenario_trajectory
 
 
 async def subscribe_and_produce_callbacks(
@@ -310,6 +313,7 @@ async def subscribe_and_produce_callbacks(
                             del bc.bots_running[persona_id]
                     if persona_id not in bc.bots_running:
                         rcx = RobotContext(fclient, upd.news_payload_persona)
+                        rcx.scenario_trajectory = bc.scenario_trajectory
                         bc.bots_running[persona_id] = BotInstance(
                             fclient=fclient,
                             atask=asyncio.create_task(crash_boom_bang(fclient, rcx, bc.bot_main_loop)),
@@ -492,7 +496,7 @@ async def run_happy_trajectory(
                 scenario.fgroup_id,
                 ft_id,
             )
-            logger.info(f"Scenario done: {result.scenario_done}, next message: {result.next_human_message!r}")
+            logger.info(f"Scenario done: {result.scenario_done}, shaky: {result.shaky}, next message: {result.next_human_message!r}")
             if result.scenario_done:
                 break
 
@@ -514,6 +518,7 @@ async def run_happy_trajectory(
                     content=result.next_human_message,
                     who_is_asking="trajectory_scenario",
                     ftm_alt=100,
+                    ftm_provenance={"who_is_asking": "trajectory_scenario", "shaky": result.shaky},
                 )
 
             wait_secs = 120
@@ -533,10 +538,7 @@ async def run_happy_trajectory(
                 sorted_messages = sorted(my_thread.thread_messages.values(), key=lambda m: (m.ftm_alt, m.ftm_num))
                 trajectory_msg_count = sum(
                     1 for k, m in my_thread.thread_messages.items()
-                    if m.ftm_role == "user" and (
-                        m.ftm_provenance.get("who_is_asking") == "trajectory_scenario" or
-                        m.ftm_provenance.get("system_type") == "trajectory_scenario"
-                    )
+                    if m.ftm_role == "user" and m.ftm_provenance.get("who_is_asking") == "trajectory_scenario"
                 )
                 if trajectory_msg_count < step + 1:
                     logger.info("WAIT for the message the human just posted to appear...")
@@ -550,7 +552,7 @@ async def run_happy_trajectory(
                     break
                 continue  # wait for next second, silently (no "WAIT waiting for the actual reponse")
             else:
-                logger.info("Timeout after %d seconds, no reponse from model or tools :/")
+                logger.info("Timeout after %d seconds, no reponse from model or tools :/", wait_secs)
                 break
 
             continue  # post the next human message
@@ -594,6 +596,9 @@ async def run_happy_trajectory(
             f.write(trajectory_actual)
         logger.info(f"exported {actual_path}")
 
+        shaky_human = sum(1 for m in sorted_messages if m.ftm_role == "user" and m.ftm_provenance.get("shaky") == True)
+        shaky_tool = sum(1 for m in sorted_messages if m.ftm_role == "tool" and m.ftm_provenance.get("shaky") == True)
+
         await ckit_scenario.bot_scenario_result_upsert(
             scenario.fclient,
             ckit_scenario.BotScenarioUpsertInput(
@@ -605,8 +610,8 @@ async def run_happy_trajectory(
                 btest_trajectory_actual=trajectory_actual,
                 btest_rating_happy=judge_result.rating_happy,
                 btest_rating_actually=judge_result.rating_actually,
-                btest_shaky_human=0,
-                btest_shaky_tool=0,
+                btest_shaky_human=shaky_human,
+                btest_shaky_tool=shaky_tool,
             ),
         )
         logger.info("Scenario results saved to database")
@@ -633,7 +638,10 @@ async def run_bots_in_this_group(
 ) -> None:
     scenario = None
     scenario_task = None
+    scenario_trajectory = ""
     if scenario_fn:
+        with open(scenario_fn) as f:
+            scenario_trajectory = f.read()
         scenario = ckit_scenario.ScenarioSetup(service_name="trajectory_replay")
     if fgroup_id == "TMP":
         await scenario.create_group_and_hire_bot(
@@ -651,6 +659,7 @@ async def run_bots_in_this_group(
         marketable_version=marketable_version,
         inprocess_tools=inprocess_tools,
         bot_main_loop=bot_main_loop,
+        scenario_trajectory=scenario_trajectory,
     )
     if scenario_fn:
         scenario_task = asyncio.create_task(run_happy_trajectory(bc, scenario, scenario_fn), name="human_emulator")
