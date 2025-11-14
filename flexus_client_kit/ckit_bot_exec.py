@@ -527,7 +527,13 @@ async def run_happy_trajectory(
                     logger.info("WAIT for thread to appear in bot's latest_threads...")
                     continue
                 sorted_messages = sorted(my_thread.thread_messages.values(), key=lambda m: (m.ftm_alt, m.ftm_num))
-                trajectory_msg_count = sum(1 for k, m in my_thread.thread_messages.items() if m.ftm_provenance.get("who_is_asking") == "trajectory_scenario")
+                trajectory_msg_count = sum(
+                    1 for k, m in my_thread.thread_messages.items()
+                    if m.ftm_role == "user" and (
+                        m.ftm_provenance.get("who_is_asking") == "trajectory_scenario" or
+                        m.ftm_provenance.get("system_type") == "trajectory_scenario"
+                    )
+                )
                 if trajectory_msg_count < step + 1:
                     logger.info("WAIT for the message the human just posted to appear...")
                     continue

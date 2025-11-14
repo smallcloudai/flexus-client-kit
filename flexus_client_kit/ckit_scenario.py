@@ -137,8 +137,14 @@ def _represent_multiline_str(dumper, data):
 
 
 def messages_to_dict_list_for_export(messages: list) -> list:
+    skip_count = 0
+    if messages and messages[0].ftm_role == "system":
+        skip_count = 1
+        if len(messages) > 1 and messages[1].ftm_role == "cd_instruction":
+            skip_count = 2
+
     export_messages = []
-    for msg in messages:
+    for msg in messages[skip_count:]:
         m = {"role": msg.ftm_role}
         if msg.ftm_content:
             m["content"] = msg.ftm_content
