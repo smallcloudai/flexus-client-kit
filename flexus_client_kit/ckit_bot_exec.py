@@ -3,6 +3,7 @@ import re
 import asyncio
 import logging
 import os
+import sys
 import time
 import argparse
 import uuid
@@ -477,6 +478,9 @@ async def run_happy_trajectory(
     scenario: ckit_scenario.ScenarioSetup,
     trajectory_yaml_path: str,
 ) -> None:
+    with open(trajectory_yaml_path) as f:
+        trajectory_happy = f.read()
+
     max_steps = 30
     ft_id: Optional[str] = None
     messages4export = []
@@ -484,7 +488,7 @@ async def run_happy_trajectory(
         for step in range(max_steps):
             result = await ckit_scenario.scenario_generate_human_message(
                 scenario.fclient,
-                trajectory_yaml_path,
+                trajectory_happy,
                 scenario.fgroup_id,
                 ft_id,
             )
@@ -562,14 +566,15 @@ async def run_happy_trajectory(
         threads_output = await ckit_scenario.scenario_print_threads(scenario.fclient, scenario.fgroup_id)
         logger.info("Scenario is over, threads in fgroup_id=%s:\n%s", scenario.fgroup_id, threads_output)
 
-        trajectory_happy = open(trajectory_yaml_path).read()
         judge_result = await ckit_scenario.scenario_judge(
             scenario.fclient,
-            trajectory_yaml_path,
+            trajectory_happy,
             ft_id,
         )
-        logger.info(f"Scenario judge rating: {judge_result.rating}/10")
-        logger.info(f"Scenario judge reason: {judge_result.reason}")
+        logger.info(f"Scenario judge happy trajectory rating: {judge_result.rating_happy}/10")
+        logger.info(f"Scenario judge happy trajectory reason: {judge_result.reason_happy}")
+        logger.info(f"Scenario judge actual trajectory rating: {judge_result.rating_actually}/10")
+        logger.info(f"Scenario judge actual trajectory reason: {judge_result.reason_actually}")
 
         scenario_basename = os.path.splitext(os.path.basename(trajectory_yaml_path))[0]
         bot_version = ckit_client.marketplace_version_as_str(scenario.persona.persona_marketable_version)
@@ -598,8 +603,8 @@ async def run_happy_trajectory(
                 btest_model=scenario.persona.persona_preferred_model,
                 btest_trajectory_happy=trajectory_happy,
                 btest_trajectory_actual=trajectory_actual,
-                btest_rating_happy=10,
-                btest_rating_actually=judge_result.rating,
+                btest_rating_happy=judge_result.rating_happy,
+                btest_rating_actually=judge_result.rating_actually,
                 btest_shaky_human=0,
                 btest_shaky_tool=0,
             ),
@@ -671,6 +676,9 @@ def parse_bot_args():
     if not args.scenario and not args.group:
         parser.error("specify --group or --scenario")
     if args.scenario:
-        assert os.path.exists(args.scenario), "oops the scenario file does not exist, fail sooner"
+        if not os.path.exists(args.scenario):
+            fallback = os.path.join(os.path.dirname(os.path.abspath(sys.argv[0])), os.path.basename(args.scenario))
+            assert os.path.exists(fallback), f"scenario file not found at {args.scenario} or {fallback}"
+            args.scenario = fallback
 
     return args.group or "TMP", args.scenario
