@@ -252,7 +252,7 @@ async def scenario_print_threads(fclient: ckit_client.FlexusClient, fgroup_id: s
             lines.append(f"    searchable={thread.ft_app_searchable!r} capture={thread.ft_app_capture!r} {need_str}")
             lines.append(f"    toolset={tool_names}")
             if thread.ft_error:
-                lines.append(f"    \033[91mft_error\033[0m={thread.ft_error}")
+                lines.append(f"    ft_error=\033[91m{thread.ft_error}\033[0m")
 
             messages = await http.execute(gql.gql(f"""
                 query ThreadMessages($ft_id: String!) {{

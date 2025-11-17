@@ -1,6 +1,6 @@
 messages:
-- content: catch an insect
-  role: user
+- role: user
+  content: catch an insect
 - role: assistant
   tool_calls:
   - function:
@@ -8,9 +8,9 @@ messages:
       name: ribbit
     id: call_64288390
     type: function
-- call_id: call_64288390
+- role: tool
+  call_id: call_64288390
   content: RIBBIT!
-  role: tool
 - role: assistant
   tool_calls:
   - function:
@@ -18,9 +18,9 @@ messages:
       name: catch_insects
     id: call_30588706
     type: function
-- call_id: call_30588706
+- role: tool
+  call_id: call_30588706
   content: Insect!
-  role: tool
 - role: assistant
   tool_calls:
   - function:
@@ -28,9 +28,9 @@ messages:
       name: ribbit
     id: call_51766179
     type: function
-- call_id: call_51766179
+- role: tool
+  call_id: call_51766179
   content: RIBBIT RIBBIT RIBBIT!!!
-  role: tool
-- content: Yay! I caught an insect! 🐛 Ribbit! That was fun – wanna catch another one? 😊
-  role: assistant
+- role: assistant
+  content: Yay! I caught an insect! 🐛 Ribbit! That was fun – wanna catch another one? 😊
 persona_marketable_name: frog

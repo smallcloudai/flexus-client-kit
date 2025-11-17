@@ -496,7 +496,7 @@ async def run_happy_trajectory(
                 scenario.fgroup_id,
                 ft_id,
             )
-            logger.info(f"Scenario done: {result.scenario_done}, shaky: {result.shaky}, next message: {result.next_human_message!r}")
+            logger.info(f"Human says: {result.next_human_message!r} shaky={result.shaky}")
             if result.scenario_done:
                 break
 
