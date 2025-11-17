@@ -5,6 +5,10 @@ from typing import Dict, Any
 import aiohttp
 
 from flexus_client_kit import ckit_cloudtool
+from flexus_simple_bots.productman.integrations import survey_monkey_mock
+
+aiohttp = survey_monkey_mock.MockAiohttp()
+
 
 logger = logging.getLogger("survey_monkey")
 

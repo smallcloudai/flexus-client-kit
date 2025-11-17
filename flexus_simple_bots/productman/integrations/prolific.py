@@ -1,9 +1,13 @@
 import logging
 from typing import Dict, Any, List
 
-import aiohttp
 
 from flexus_client_kit import ckit_cloudtool
+from flexus_simple_bots.productman.integrations import prolific_mock
+
+# import aiohttp
+aiohttp = prolific_mock.MockAiohttp()
+
 
 logger = logging.getLogger("prolific")
 
