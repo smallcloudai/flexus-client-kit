@@ -137,7 +137,7 @@ class IntegrationPdoc:
                     r += f"✍🏻 {result.path}\n\n"
                 else:
                     r += f"📄 {result.path}\n\n"
-                r += json.dumps(result.pdoc_content, indent=2)
+                r += json.dumps(result.pdoc_content, indent=2, ensure_ascii=False)
 
             elif op == "overwrite" or op == "create":
                 p = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "p", "")
