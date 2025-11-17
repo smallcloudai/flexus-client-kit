@@ -106,7 +106,8 @@ async def install(
             {"feat_question": "Give me a motivational boost", "feat_run_as_setup": False, "feat_depends_on_setup": []},
         ],
         marketable_intro_message="Ribbit! Hi there! I'm Frog, your cheerful workspace companion. I'm here to bring joy and keep your spirits high. What can I do for you today?",
-        marketable_preferred_model_default="grok-code-fast-1",
+        # marketable_preferred_model_default="grok-code-fast-1",
+        marketable_preferred_model_default="grok-4-fast-non-reasoning",
         marketable_daily_budget_default=100_000,
         marketable_default_inbox_default=10_000,
         marketable_experts=[
