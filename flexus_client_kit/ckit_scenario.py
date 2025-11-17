@@ -248,17 +248,25 @@ async def scenario_print_threads(fclient: ckit_client.FlexusClient, fgroup_id: s
             need_str = f"need_assistant={a}" if a != -1 else f"ended_with need_tool_calls={t}" if t != -1 else f"ended_with need_user={u}"
             persona_id = thread.ft_persona_id or "N/A"
             tool_names = ",".join([tool['function']['name'] for tool in thread.ft_toolset])
-            error_part = f" ft_error={thread.ft_error}" if thread.ft_error else ""
             lines.append(f"    📝{thread.ft_id} title={thread.ft_title!r} persona={persona_id} exp={thread.ft_fexp_id} budget={thread.ft_budget} coins={thread.ft_coins}")
             lines.append(f"    searchable={thread.ft_app_searchable!r} capture={thread.ft_app_capture!r} {need_str}")
-            lines.append(f"    toolset={tool_names}{error_part}")
+            lines.append(f"    toolset={tool_names}")
+            if thread.ft_error:
+                lines.append(f"    \033[91mft_error\033[0m={thread.ft_error}")
 
             messages = await http.execute(gql.gql(f"""
                 query ThreadMessages($ft_id: String!) {{
                     thread_messages_list(ft_id: $ft_id) {{ {gql_utils.gql_fields(ckit_ask_model.FThreadMessageOutput)} }}
                 }}"""), variable_values={"ft_id": thread.ft_id})
 
-            colors = {"user": "\033[94m", "assistant": "\033[92m", "system": "\033[93m", "tool": "\033[95m", "kernel": "\033[96m"}
+            colors = {
+                "user": "\033[93m",      # Bright Yellow
+                "assistant": "\033[92m", # Bright Green
+                "system": "\033[97m",    # Bright White
+                "tool": "\033[95m",      # Bright Magenta
+                "kernel": "\033[96m"     # Bright Cyan
+            }
+
             for msg_dict in messages["thread_messages_list"]:
                 msg = gql_utils.dataclass_from_dict(msg_dict, ckit_ask_model.FThreadMessageOutput)
                 if msg.ftm_alt == 100:
@@ -274,7 +282,7 @@ async def scenario_print_threads(fclient: ckit_client.FlexusClient, fgroup_id: s
                             tool_args = str(tool_call.get('function', {}).get('arguments', ''))[:60]
                             if len(str(tool_call.get('function', {}).get('arguments', ''))) > 60:
                                 tool_args += "..."
-                            lines.append(f"            \033[96m🔧 {tool_name}\033[0m: {tool_args}")
+                            lines.append(f"            🔧 {tool_name}: {tool_args}")
         if len(lines) == 0:
             lines.append("    No threads")
     return "\n".join(lines)
