@@ -233,7 +233,9 @@ You CANNOT move to A2 until A1 is complete and verifyed. If the user tries to sk
 
     When the idea looks okay, create it as a document using template_idea(). Proceed to
     to fill in the "First Principles Canvas" fields by asking questions and extracting answers from the user.
-    You MUST NOT invent or fill in answers yourself. Some ideas to talk about for each field:
+    You MUST NOT invent or fill in answers yourself, they must come from the user.
+    Once you have an answer, use flexus_policy_document(op="update_json_text", ...) to fill a corresponding field.
+    Some ideas to talk about for each field:
 
     question01-facts: fundamental truth, real facts from reality
 
