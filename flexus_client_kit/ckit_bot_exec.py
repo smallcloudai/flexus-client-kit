@@ -10,6 +10,7 @@ import uuid
 from typing import Dict, List, Optional, Any, Callable, Awaitable, NamedTuple, Union
 
 import gql
+import gql.transport.exceptions
 
 from flexus_client_kit import ckit_client, gql_utils, ckit_service_exec, ckit_kanban, ckit_cloudtool
 from flexus_client_kit import ckit_ask_model, ckit_shutdown, ckit_utils, ckit_bot_query, ckit_scenario
@@ -178,8 +179,11 @@ class RobotContext:
             logger.info("%s needs human confirmation: %s" % (toolcall.fcall_id, e.confirm_explanation))
             await ckit_cloudtool.cloudtool_confirmation_request(fclient, toolcall.fcall_id, e.confirm_setup_key, e.confirm_command, e.confirm_explanation)
             tool_result = "POSTED_NEED_CONFIRMATION"
+        except gql.transport.exceptions.TransportQueryError as e:
+            logger.error("%s The construction of system prompt and tools generally should not produce backend errors, but here's one: %s", toolcall.fcall_id, e, exc_info=e)
+            tool_result = f"Error: {e}"  # Pass through GraphQL error messages to the model
         except Exception as e:
-            logger.error("Tool call %s failed: %s" % (toolcall.fcall_id, e), exc_info=True)  # full error and stack for the author of the bot
+            logger.error("%s Tool call failed: %s" % (toolcall.fcall_id, e), exc_info=e)  # full error and stack for the author of the bot
             tool_result = "Tool error, see logs for details"  # Not too much visible for end user
         prov = json.dumps({"system": fclient.service_name})
         if tool_result != "WAIT_SUBCHATS" and tool_result != "POSTED_NEED_CONFIRMATION" and tool_result != "ALREADY_POSTED_RESULT":
