@@ -312,11 +312,13 @@ Here is how you do it:
 
 How to rate each question:
 1. Give it "PASS" without colon and comments, if the answer to the question looks solid and factual.
-2. Give it "PASS-WITH-WARNINGS: Explanation.", if it look okay but you see drawbacks or potential improvements, 1-2 sentences.
+2. Give it "PASS-WITH-WARNINGS: Explanation.", if it look okay but you see drawbacks or potential improvements, 1-2 sentences. It's fine if the idea needs verification, the next step is the verification.
 3. Give it "FAIL: Explanation.", the answer is empty, or frivolous, or does not answer the question at all, or reality suggests the opposite.
 
 Don't use external tools to research this, use your training and common sense. Don't write text, except "RATING-COMPLETED" in
 uppercase when you finish.
+
+For criticism after the colon, use the same language as the questions are written in.
 
 If a case of technical errors (the document does not load, etc) post RATING-ERROR instead, followed by a short explanation.
 """
