@@ -81,11 +81,8 @@ TOOLS_VERIFY_SUBCHAT = [
 ]
 
 TOOLS_SURVEY = [
-    survey_monkey.CREATE_SURVEY_TOOL,
-    survey_monkey.GET_RESPONSES_TOOL,
-    prolific.CREATE_STUDY_TOOL,
-    prolific.PUBLISH_PROLIFIC_STUDY_TOOL,
-    prolific.GET_STUDY_STATUS_TOOL,
+    survey_monkey.SURVEY_TOOL,
+    prolific.PROLIFIC_TOOL,
 ]
 
 TOOLS_DEFAULT = [
@@ -100,6 +97,7 @@ TOOLS_DEFAULT = [
 async def productman_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.RobotContext) -> None:
     setup = ckit_bot_exec.official_setup_mixing_procedure(productman_install.productman_setup_schema, rcx.persona.persona_setup)
     pdoc_integration = fi_pdoc.IntegrationPdoc(fclient, rcx.persona.ws_root_group_id)
+    print(rcx.persona.ws_root_group_id)
 
     if token := os.getenv("SURVEYMONKEY_ACCESS_TOKEN", ""):
         surveymonkey_integration = survey_monkey.IntegrationSurveyMonkey(
@@ -237,54 +235,24 @@ async def productman_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_
     async def toolcall_pdoc(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
         return await pdoc_integration.called_by_model(toolcall, model_produced_args)
 
-    @rcx.on_tool_call(survey_monkey.CREATE_SURVEY_TOOL.name)
-    async def toolcall_create_survey(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
+    @rcx.on_tool_call(survey_monkey.SURVEY_TOOL.name)
+    async def toolcall_survey(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
         if not surveymonkey_integration:
             return "Error: SurveyMonkey integration not configured"
         try:
-            return await surveymonkey_integration.create_survey(toolcall, model_produced_args)
+            return await surveymonkey_integration.handle_survey(toolcall, model_produced_args)
         except Exception as e:
-            logger.info(f"toolcall_create_survey error: {e}")
+            logger.info(f"toolcall_survey error: {e}")
             return f"Error: {e}"
 
-    @rcx.on_tool_call(survey_monkey.GET_RESPONSES_TOOL.name)
-    async def toolcall_get_responses(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
-        if not surveymonkey_integration:
-            return "Error: SurveyMonkey integration not configured"
-        try:
-            return await surveymonkey_integration.get_responses(toolcall, model_produced_args)
-        except Exception as e:
-            logger.info(f"toolcall_get_responses error: {e}")
-            return f"Error: {e}"
-
-    @rcx.on_tool_call(prolific.CREATE_STUDY_TOOL.name)
-    async def toolcall_create_study(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
+    @rcx.on_tool_call(prolific.PROLIFIC_TOOL.name)
+    async def toolcall_prolific(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
         if not prolific_integration:
             return "Error: Prolific integration not configured"
         try:
-            return await prolific_integration.create_study(toolcall, model_produced_args)
+            return await prolific_integration.handle_prolific(toolcall, model_produced_args)
         except Exception as e:
-            logger.info(f"toolcall_create_study error: {e}")
-            return f"Error: {e}"
-
-    @rcx.on_tool_call(prolific.PUBLISH_PROLIFIC_STUDY_TOOL.name)
-    async def toolcall_publish_study(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
-        if not prolific_integration:
-            return "Error: Prolific integration not configured"
-        try:
-            return await prolific_integration.publish_study(toolcall, model_produced_args)
-        except Exception as e:
-            logger.info(f"toolcall_publish_study error: {e}")
-            return f"Error: {e}"
-
-    @rcx.on_tool_call(prolific.GET_STUDY_STATUS_TOOL.name)
-    async def toolcall_get_study_status(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
-        if not prolific_integration:
-            return "Error: Prolific integration not configured"
-        try:
-            return await prolific_integration.get_study_status(toolcall, model_produced_args)
-        except Exception as e:
-            logger.info(f"toolcall_get_study_status error: {e}")
+            logger.info(f"toolcall_prolific error: {e}")
             return f"Error: {e}"
 
 

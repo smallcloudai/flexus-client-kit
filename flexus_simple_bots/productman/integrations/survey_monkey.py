@@ -1,5 +1,6 @@
 import json
 import logging
+import time
 from typing import Dict, Any
 
 import aiohttp
@@ -9,61 +10,177 @@ from flexus_simple_bots.productman.integrations import survey_monkey_mock
 
 aiohttp = survey_monkey_mock.MockAiohttp()
 
-
 logger = logging.getLogger("survey_monkey")
 
 SM_BASE = "https://api.surveymonkey.com/v3"
 
-CREATE_SURVEY_TOOL = ckit_cloudtool.CloudTool(
-    name="create_surveymonkey_survey",
-    description="Create a SurveyMonkey survey from idea documents",
+SURVEY_TOOL = ckit_cloudtool.CloudTool(
+    name="survey",
+    description="Manage surveys: create drafts, push to SurveyMonkey, get responses. Start with op=\"help\" to see all operations.",
     parameters={
         "type": "object",
         "properties": {
-            "idea_name": {
+            "op": {
                 "type": "string",
-                "description": "Name of the idea folder containing documents"
+                "description": "Operation to perform: help, draft, push, responses, list",
+                "order": 1
             },
-            "survey_title": {
-                "type": "string",
-                "description": "Title for the survey"
-            },
-            "survey_description": {
-                "type": "string",
-                "description": "Description of the survey"
-            },
-            "questions": {
-                "type": "array",
-                "description": "List of survey questions",
-                "items": {
-                    "type": "object",
-                    "properties": {
-                        "question": {"type": "string"},
-                        "type": {"type": "string", "enum": ["single_choice", "multiple_choice", "open_ended", "rating_scale", "nps"]},
-                        "choices": {"type": "array", "items": {"type": "string"}},
-                        "required": {"type": "boolean"}
-                    }
+            "args": {
+                "type": "object",
+                "description": "Operation-specific arguments",
+                "order": 2,
+                "properties": {
+                    # draft operation
+                    "idea_name": {"type": "string", "description": "Name of the idea folder (for draft/list)", "order": 1001},
+                    "hypothesis_name": {"type": "string", "description": "Name of the hypothesis being tested (for draft)", "order": 1002},
+                    "survey_content": {"type": "object", "description": "Complete survey structure with meta and sections (for draft)", "order": 1003},
+                    # push operation
+                    "survey_draft_path": {"type": "string", "description": "Path to survey draft document (for push)", "order": 1004},
+                    # responses operation
+                    "survey_id": {"type": "string", "description": "SurveyMonkey survey ID (for responses)", "order": 1005},
                 }
             }
         },
-        "required": ["idea_name", "survey_title", "questions"]
+        "required": ["op"]
     }
 )
 
-GET_RESPONSES_TOOL = ckit_cloudtool.CloudTool(
-    name="get_surveymonkey_responses",
-    description="Fetch all SurveyMonkey responses for a survey",
-    parameters={
-        "type": "object",
-        "properties": {
-            "survey_id": {
-                "type": "string",
-                "description": "SurveyMonkey survey ID"
+SURVEY_HELP = """
+survey()
+    Shows this help.
+
+survey(op="help")
+    Shows this help with examples.
+
+survey(op="draft", args={"idea_name": "...", "hypothesis_name": "...", "survey_content": {...}})
+    Create a survey draft as a policy document.
+    Structure: {"survey": {"meta": {...}, "section01-screening": {"section_title": "...", "question01": {...}}}}
+    Use exactly 6 sections: screening, user-profile, problem, current-behavior, impact, concept-validation
+    Question types: single_choice, multiple_choice, open_ended, rating_scale, yes_no, likert, nps, dropdown, numeric, date
+    
+survey(op="push", args={"survey_draft_path": "/customer-research/idea/hypothesis-survey-draft"})
+    Push a survey draft from policy document to SurveyMonkey.
+    Returns survey URL and ID.
+
+survey(op="responses", args={"survey_id": "123456"})
+    Fetch all responses for a SurveyMonkey survey.
+    
+survey(op="list", args={"idea_name": "..."})
+    List all surveys for an idea (drafts and live).
+
+Examples:
+    # Create draft
+    survey(op="draft", args={
+        "idea_name": "task-tool", 
+        "hypothesis_name": "managers",
+        "survey_content": {
+            "survey": {
+                "meta": {"title": "Task Management Survey", "description": "..."},
+                "section01-screening": {
+                    "section_title": "Screening",
+                    "question01": {"q": "Do you manage a team?", "type": "yes_no", "required": true}
+                }
             }
-        },
-        "required": ["survey_id"]
-    }
-)
+        }
+    })
+    
+    # Push to SurveyMonkey
+    survey(op="push", args={"survey_draft_path": "/customer-research/task-tool/managers-survey-draft"})
+    
+Survey creation rules.
+RULE #0 — SACRED AND NON-NEGOTIABLE
+Never ask about the future, intentions, or hypotheticals. Ask ONLY about past experience and real actions.
+If a question refers to the future, rewrite it about past behavior or do not ask it. Otherwise, the data is junk.
+Use ONLY canvas and the given hypothesis, do not use any other sources.
+
+You MUST NOT ask about:
+- how likely someone is to do something,
+- whether they will use / buy / pay for something,
+- how attractive an idea is,
+- “would you…”, “what would you do if…”, or any hypothetical scenario,
+- any future behavior or intentions.
+
+You MAY ask only about:
+- what the person has done in the past,
+- how they previously solved the problem,
+- situations they actually faced,
+- experience that already happened,
+- barriers that already occurred,
+- metrics that were actually observed.
+
+--------------------------------
+SURVEY STRUCTURE (EXACTLY 6 SECTIONS)
+--------------------------------
+1. Screening (section01-screening)
+2. User profile (section02-user-profile)
+3. Problem (section03-problem) - frequency and pain intensity
+4. Current behavior (section04-current-behavior) - existing solutions
+5. Impact (section05-impact) - how the problem influenced past decisions
+6. Concept validation (section06-concept-validation) - only via past experience, no forecasts
+
+You MUST NOT create any additional sections.
+
+Each question must have:
+- "q": question text (required)
+- "type": one of [single_choice, multiple_choice, open_ended, rating_scale, yes_no, likert, dropdown, numeric, date]
+- "required": true/false
+- "choices": array of strings (for single_choice, multiple_choice, dropdown)
+- "scale_min", "scale_max": integers (for rating_scale)
+
+--------------------------------
+QUESTION RULES
+--------------------------------
+
+0. Only past experience  
+- If a question is about the future, intentions, or hypotheticals → rewrite it to the past or remove it.
+
+1. One question — one idea  
+- No double questions or mixed meanings.
+
+2. All scales are 1–5  
+- 1 = minimum (e.g. “not at all”, “never”, “no impact”)  
+- 5 = maximum (e.g. “very much”, “very often”, “strong impact”)
+
+3. ~80% closed questions  
+Allowed closed types:
+- single choice,
+- multiple choice,
+- 1–5 scale,
+- ranges / intervals,
+- factual actions (what they actually did),
+- frequency (how often something happened).
+
+Open questions:
+- at most 1–2 per section,
+- preferably at the end of the section,
+- only when really needed.
+
+4. Neutral wording  
+- No leading or suggestive phrasing.
+- Do not push toward a specific answer or toward using the product.
+
+5. No invented facts  
+- Use only what is in chat history, Canvas, or the hypothesis.
+- If there is not enough data to create a specific question, write:
+  “Skip — insufficient data.”
+
+6. No invented features  
+- Use only solution features explicitly described in the materials.
+- If a feature is not mentioned, it does not exist and cannot be used in questions.
+
+7. Concept validation only through real experience  
+You may ask only about:
+- whether they used analogs in the past,
+- how they solved this problem before,
+- what happened when they tried to solve it,
+- what pains and barriers they actually faced,
+- how similar tools or processes worked in practice.
+
+Do NOT ask:
+- “Would you use/buy this?”,
+- “How likely are you to use/buy this?”,
+- any future adoption questions.
+"""
 
 
 class IntegrationSurveyMonkey:
@@ -77,6 +194,304 @@ class IntegrationSurveyMonkey:
             "Accept": "application/json",
             "Content-Type": "application/json",
         }
+
+    async def handle_survey(self, toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
+        if not model_produced_args:
+            return SURVEY_HELP
+
+        op = model_produced_args.get("op", "help")
+        args = model_produced_args.get("args", {})
+
+        if op == "help":
+            return SURVEY_HELP
+
+        elif op == "draft":
+            return await self._handle_draft(toolcall, args)
+
+        elif op == "push":
+            if toolcall.confirmed_by_human:
+                return await self._handle_push(toolcall, args)
+            else:
+                raise ckit_cloudtool.NeedsConfirmation(
+                    confirm_setup_key="can_create_surveymonkey_survey",
+                    confirm_command=f'push {args.get("survey_draft_path", "")}',
+                    confirm_explanation="This command will create a survey on surveymonkey.com"
+                )
+
+        elif op == "responses":
+            return await self._handle_responses(toolcall, args)
+
+        elif op == "list":
+            return await self._handle_list(toolcall, args)
+
+        else:
+            return f"Unknown operation '{op}'. Valid operations: help, draft, push, responses, list\n\n{SURVEY_HELP}"
+
+    async def _handle_list(self, toolcall: ckit_cloudtool.FCloudtoolCall, args: Dict[str, Any]) -> str:
+        idea_name = args.get("idea_name", "")
+
+        if not idea_name:
+            return "Error: idea_name is required for list operation"
+
+        if not self.pdoc_integration:
+            return "Error: pdoc integration not configured"
+
+        try:
+            path = f"/customer-research/{idea_name}"
+            items = await self.pdoc_integration.pdoc_list(path)
+
+            surveys = []
+            for item in items:
+                if not item.is_folder and ("-survey-draft" in item.path or "-survey-live" in item.path):
+                    surveys.append(item.path)
+
+            if not surveys:
+                return f"No surveys found for idea '{idea_name}'"
+
+            result = f"📋 Surveys for idea '{idea_name}':\n\n"
+            for survey_path in sorted(surveys):
+                if "-survey-draft" in survey_path:
+                    result += f"📝 Draft: {survey_path}\n"
+                else:
+                    result += f"🔗 Live: {survey_path}\n"
+
+            return result
+
+        except Exception as e:
+            return f"Error listing surveys: {str(e)}"
+
+    def validate_survey_structure(self, survey_content: dict) -> list:
+        errors = []
+
+        if not isinstance(survey_content, dict):
+            return ["survey_content must be a dictionary"]
+
+        if "survey" not in survey_content:
+            return ["survey_content must have a 'survey' root key"]
+
+        survey = survey_content["survey"]
+
+        if "meta" not in survey:
+            errors.append("Missing 'meta' section")
+        else:
+            meta = survey["meta"]
+            if not meta.get("title"):
+                errors.append("meta.title is required")
+            if not meta.get("hypothesis"):
+                errors.append("meta.hypothesis is required")
+            if not meta.get("idea"):
+                errors.append("meta.idea is required")
+
+        section_count = 0
+        question_count = 0
+
+        for key, section in survey.items():
+            if not key.startswith("section"):
+                continue
+
+            section_count += 1
+
+            if not isinstance(section, dict):
+                errors.append(f"Section {key} must be a dictionary")
+                continue
+
+            if not section.get("section_title"):
+                errors.append(f"Section {key} missing section_title")
+
+            for q_key, question in section.items():
+                if not q_key.startswith("question"):
+                    continue
+
+                question_count += 1
+
+                if not isinstance(question, dict):
+                    errors.append(f"{key}.{q_key} must be a dictionary")
+                    continue
+
+                if not question.get("q"):
+                    errors.append(f"{key}.{q_key} missing question text 'q'")
+
+                q_type = question.get("type", "open_ended")
+                valid_types = ["single_choice", "multiple_choice", "open_ended", "rating_scale",
+                               "yes_no", "dropdown", "likert", "nps", "numeric", "date", "matrix"]
+
+                if q_type not in valid_types:
+                    errors.append(f"{key}.{q_key} invalid type '{q_type}'. Valid types: {', '.join(valid_types)}")
+
+                if q_type in ["single_choice", "multiple_choice", "dropdown"]:
+                    choices = question.get("choices", [])
+                    if not choices or not isinstance(choices, list) or len(choices) < 2:
+                        errors.append(f"{key}.{q_key} of type '{q_type}' must have at least 2 choices")
+
+                if q_type == "rating_scale":
+                    scale_min = question.get("scale_min", 1)
+                    scale_max = question.get("scale_max", 5)
+                    if not isinstance(scale_min, int) or not isinstance(scale_max, int):
+                        errors.append(f"{key}.{q_key} scale_min and scale_max must be integers")
+                    elif scale_min >= scale_max:
+                        errors.append(f"{key}.{q_key} scale_min must be less than scale_max")
+
+                if "required" in question and not isinstance(question.get("required"), bool):
+                    errors.append(f"{key}.{q_key} 'required' must be a boolean")
+
+        if section_count == 0:
+            errors.append("No sections found. Sections must be named like 'section01-name'")
+
+        if question_count == 0:
+            errors.append("No questions found. Questions must be named like 'question01'")
+
+        return errors
+
+    async def _handle_draft(self, toolcall: ckit_cloudtool.FCloudtoolCall, args: Dict[str, Any]) -> str:
+        idea_name = args.get("idea_name", "")
+        hypothesis_name = args.get("hypothesis_name", "")
+        survey_content = args.get("survey_content", {})
+
+        if not idea_name or not hypothesis_name:
+            return "Error: idea_name and hypothesis_name are required"
+
+        if not self.pdoc_integration:
+            return "Error: pdoc integration not configured"
+
+        if not survey_content.get("survey", {}).get("meta"):
+            survey_content = {
+                "survey": {
+                    "meta": {
+                        "title": survey_content.get("survey", {}).get("meta", {}).get("title", "Survey"),
+                        "description": survey_content.get("survey", {}).get("meta", {}).get("description", ""),
+                        "hypothesis": hypothesis_name,
+                        "idea": idea_name,
+                        "created_at": time.strftime("%Y-%m-%d %H:%M:%S")
+                    },
+                    **survey_content.get("survey", {})
+                }
+            }
+        else:
+            survey_content["survey"]["meta"]["hypothesis"] = hypothesis_name
+            survey_content["survey"]["meta"]["idea"] = idea_name
+            survey_content["survey"]["meta"]["created_at"] = time.strftime("%Y-%m-%d %H:%M:%S")
+
+        validation_errors = self.validate_survey_structure(survey_content)
+        if validation_errors:
+            error_msg = "Survey validation failed:\n"
+            for error in validation_errors:
+                error_msg += f"  - {error}\n"
+            return error_msg
+
+        for key, section in survey_content["survey"].items():
+            if not key.startswith("section"):
+                continue
+            for q_key, question in section.items():
+                if not q_key.startswith("question"):
+                    continue
+
+                q_type = question.get("type", "open_ended")
+                if q_type in ["single_choice", "multiple_choice", "dropdown"] and question.get("choices"):
+                    question["choices"] = [str(c) for c in question["choices"]]
+
+                if q_type == "rating_scale":
+                    question["scale_min"] = question.get("scale_min", 1)
+                    question["scale_max"] = question.get("scale_max", 5)
+
+                if "required" not in question:
+                    question["required"] = False
+
+        pdoc_path = f"/customer-research/{idea_name}/{hypothesis_name}-survey-draft"
+
+        try:
+            await self.pdoc_integration.pdoc_create(
+                pdoc_path,
+                json.dumps(survey_content, indent=2),
+                toolcall.fcall_ft_id
+            )
+        except Exception as e:
+            if "already exists" in str(e):
+                return f"Error: Survey draft already exists at {pdoc_path}. Use the policy document editor to modify it."
+            raise e
+
+        section_count = sum(1 for k in survey_content["survey"].keys() if k.startswith("section"))
+        question_count = sum(
+            sum(1 for q in section.keys() if q.startswith("question"))
+            for key, section in survey_content["survey"].items()
+            if key.startswith("section") and isinstance(section, dict)
+        )
+
+        result = f"✅ Survey draft created successfully!\n\n"
+        result += f"📝 Draft saved to: {pdoc_path}\n"
+        result += f"✍🏻{pdoc_path}\n\n"
+        result += f"📊 Created {question_count} questions across {section_count} sections\n\n"
+        result += f"Please review and edit the questions if needed.\n"
+        result += f"Once ready, use create_surveymonkey_survey(survey_draft_path=\"{pdoc_path}\") to push to SurveyMonkey."
+
+        return result
+
+    def parse_survey_draft(self, draft_content: dict) -> tuple[dict, list]:
+        errors = []
+
+        if not draft_content or not isinstance(draft_content, dict):
+            errors.append("Invalid draft format: expected a dictionary")
+            return {}, errors
+
+        survey_root = draft_content.get("survey")
+        if not survey_root:
+            errors.append("Draft must have a 'survey' root key")
+            return {}, errors
+
+        meta = survey_root.get("meta", {})
+        survey_title = meta.get("title", "Untitled Survey")
+        survey_description = meta.get("description", "")
+
+        questions = []
+
+        for section_key in sorted(survey_root.keys()):
+            if not section_key.startswith("section"):
+                continue
+
+            section = survey_root[section_key]
+            if not isinstance(section, dict):
+                errors.append(f"Section {section_key} must be a dictionary")
+                continue
+
+            section_title = section.get("section_title", "")
+
+            for question_key in sorted(section.keys()):
+                if not question_key.startswith("question"):
+                    continue
+
+                q_data = section[question_key]
+                if not isinstance(q_data, dict):
+                    errors.append(f"Question {section_key}.{question_key} must be a dictionary")
+                    continue
+
+                question_text = q_data.get("q", "")
+                if not question_text:
+                    errors.append(f"Question {section_key}.{question_key} missing 'q' field")
+                    continue
+
+                q_type = q_data.get("type", "open_ended")
+                choices = q_data.get("choices", [])
+                required = q_data.get("required", False)
+                scale_min = q_data.get("scale_min", 1)
+                scale_max = q_data.get("scale_max", 5)
+
+                questions.append({
+                    "section": section_title,
+                    "question": question_text,
+                    "type": q_type,
+                    "choices": choices,
+                    "required": required,
+                    "scale_min": scale_min,
+                    "scale_max": scale_max
+                })
+
+        if not questions:
+            errors.append("No valid questions found in the draft")
+
+        return {
+            "title": survey_title,
+            "description": survey_description,
+            "questions": questions
+        }, errors
 
     def convert_question_to_sm(self, q: dict) -> dict:
         q_type = q["type"]
@@ -178,27 +593,32 @@ class IntegrationSurveyMonkey:
 
         return sm_q
 
-    async def create_survey(self, toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
-        args, args_error = ckit_cloudtool.sanitize_args(model_produced_args)
-        if args_error:
-            return args_error
+    async def _handle_push(self, toolcall: ckit_cloudtool.FCloudtoolCall, args: Dict[str, Any]) -> str:
+        survey_draft_path = args.get("survey_draft_path", "")
 
-        idea_name = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "idea_name", "")
-        survey_title = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "survey_title", "")
-        survey_description = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "survey_description", "")
-        questions = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "questions", [])
-
-        if not idea_name or not survey_title or not questions:
-            return "Error: idea_name, survey_title, and questions are required"
+        if not survey_draft_path:
+            return "Error: survey_draft_path is required"
 
         if not self.pdoc_integration:
             return "Error: pdoc integration not configured"
 
-        survey_data = {
-            "title": survey_title,
-            "description": survey_description,
-            "questions": questions
-        }
+        try:
+            draft_doc = await self.pdoc_integration.pdoc_cat(survey_draft_path)
+            draft_content = draft_doc.pdoc_content
+        except Exception as e:
+            return f"Error reading survey draft: {str(e)}"
+
+        survey_data, parse_errors = self.parse_survey_draft(draft_content)
+
+        if not survey_data or not survey_data.get("questions"):
+            error_msg = "Error: Failed to parse survey draft\n"
+            if parse_errors:
+                error_msg += "Issues found:\n" + "\n".join(f"- {e}" for e in parse_errors)
+            return error_msg
+
+        survey_title = survey_data["title"]
+        survey_description = survey_data.get("description", "")
+        questions = survey_data["questions"]
 
         sm_questions = []
         for q in questions:
@@ -255,19 +675,38 @@ class IntegrationSurveyMonkey:
 
         survey_url = collector.get("url", "")
 
-        pdoc_path = f"/customer-research/{idea_name}/{survey_title.lower().replace(' ', '-')}-survey-monkey-query"
-        survey_data["meta"] = {
-            "survey_id": survey_id,
-            "survey_url": survey_url,
-            "collector_id": collector["id"]
-        }
-        await self.pdoc_integration.pdoc_create(pdoc_path, json.dumps(survey_data, indent=2), toolcall.fcall_ft_id)
+        path_parts = survey_draft_path.rstrip('/').split('/')
+        if len(path_parts) >= 3:
+            idea_name = path_parts[-2]
+            hypothesis_base = path_parts[-1].replace('-survey-draft', '')
+        else:
+            idea_name = "unknown"
+            hypothesis_base = "survey"
 
-        result = f"✅ Survey created successfully!\n\n"
+        result_pdoc_path = f"/customer-research/{idea_name}/{hypothesis_base}-survey-live"
+
+        live_survey_data = {
+            "title": survey_title,
+            "description": survey_description,
+            "questions": questions,
+            "meta": {
+                "survey_id": survey_id,
+                "survey_url": survey_url,
+                "collector_id": collector["id"],
+                "created_from_draft": survey_draft_path,
+                "created_at": time.strftime("%Y-%m-%d %H:%M:%S")
+            }
+        }
+
+        await self.pdoc_integration.pdoc_create(result_pdoc_path, json.dumps(live_survey_data, indent=2), toolcall.fcall_ft_id)
+
+        result = f"✅ Survey created successfully on SurveyMonkey!\n\n"
         result += f"📋 Survey ID: {survey_id}\n"
         result += f"🔗 Survey URL: {survey_url}\n"
-        result += f"📊 {len(questions)} questions\n"
-        result += f"📁 Saved to: {pdoc_path}\n"
+        result += f"📊 {len(questions)} questions pushed\n"
+        result += f"\n📁 Live survey saved to: {result_pdoc_path}\n"
+        result += f"✍🏻{result_pdoc_path}\n"
+
         return result
 
     async def check_survey_has_responses(self, survey_id: str) -> bool:
@@ -282,12 +721,8 @@ class IntegrationSurveyMonkey:
                 data = await resp.json()
                 return data.get("total", 0) > 0
 
-    async def get_responses(self, toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
-        args, args_error = ckit_cloudtool.sanitize_args(model_produced_args)
-        if args_error:
-            return args_error
-
-        survey_id = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "survey_id", "")
+    async def _handle_responses(self, toolcall: ckit_cloudtool.FCloudtoolCall, args: Dict[str, Any]) -> str:
+        survey_id = args.get("survey_id", "")
         if not survey_id:
             return "Error: survey_id is required"
 
@@ -359,3 +794,5 @@ class IntegrationSurveyMonkey:
             result += "-" * 30 + "\n\n"
 
         return result
+
+
