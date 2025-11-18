@@ -16,7 +16,7 @@ example_idea = {
                 "a": "Car owners customize vehicles to express identity (multi-billion aftermarket industry). Parents report car rides as daily friction point. Social media engagement rates for unusual car content are 3-5x higher than standard automotive posts. Existing accessories market is polarized: either serious/expensive or cheap/tacky with no middle ground."
             },
             "question02-outcome": {
-                "q": "What is the single measurable outcome for the customer?",
+                "q": "What is the measurable outcome for the customer?",
                 "a": ""
             },
             "question03-constraints": {
