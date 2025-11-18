@@ -325,23 +325,31 @@ class ScenarioSetup:
                 },
             ))["group_create"]["fgroup_id"]
 
-        install = await ckit_bot_install.bot_install_from_marketplace(
-            client=self.fclient,
-            ws_id=self.ws.ws_id,
-            inside_fgroup=self.fgroup_id,
-            persona_marketable_name=marketable_name,
-            persona_name=f"{marketable_name} {self.fgroup_id[-4:]}",
-            new_setup=persona_setup,
-            install_dev_version=True,
-        )
-        personas = await ckit_bot_query.personas_in_ws_list(self.fclient, self.ws.ws_id)
-        self.persona = next((p for p in personas if p.persona_id == install.persona_id), None)
-        if not self.persona:
-            raise RuntimeError(f"Persona {install.persona_id} not found in workspace after installation")
-        if marketable_version and self.persona.persona_marketable_version != marketable_version:
-            raise RuntimeError(f"Expected version {marketable_version}, got {self.persona.persona_marketable_version}")
+            try:
+                install = await ckit_bot_install.bot_install_from_marketplace(
+                    client=self.fclient,
+                    ws_id=self.ws.ws_id,
+                    inside_fgroup=self.fgroup_id,
+                    persona_marketable_name=marketable_name,
+                    persona_name=f"{marketable_name} {self.fgroup_id[-4:]}",
+                    new_setup=persona_setup,
+                    install_dev_version=True,
+                )
+                personas = await ckit_bot_query.personas_in_ws_list(self.fclient, self.ws.ws_id)
+                self.persona = next((p for p in personas if p.persona_id == install.persona_id), None)
+                if not self.persona:
+                    raise RuntimeError(f"Persona {install.persona_id} not found in workspace after installation")
+                if marketable_version and self.persona.persona_marketable_version != marketable_version:
+                    raise RuntimeError(f"Expected version {marketable_version}, got {self.persona.persona_marketable_version}")
 
-        logger.info("Scenario setup completed in group %s", self.fgroup_name)
+                logger.info("Scenario setup completed in group %s", self.fgroup_name)
+
+            except Exception as e:
+                try:
+                    await http.execute(gql.gql("""mutation($id:String!){group_delete(fgroup_id:$id)}"""), variable_values={"id": self.fgroup_id})
+                except Exception as cleanup_error:
+                    logger.warning(f"⚠️ Failed to delete test group {self.fgroup_name} after installation failure: {cleanup_error}")
+                raise e
 
     async def cleanup(self) -> None:
         if self.fgroup_id:
