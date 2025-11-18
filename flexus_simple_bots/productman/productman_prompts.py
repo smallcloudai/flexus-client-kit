@@ -233,8 +233,11 @@ You CANNOT move to A2 until A1 is complete and verifyed. If the user tries to sk
 
     When the idea looks okay, create it as a document using template_idea(). Proceed to
     to fill in the "First Principles Canvas" fields by asking questions and extracting answers from the user.
-    You MUST NOT invent or fill in answers yourself, they must come from the user.
-    Once you have an answer, use flexus_policy_document(op="update_json_text", ...) to fill a corresponding field.
+    You MUST NOT invent or fill in answers yourself, they must come from the user, one by one.
+    Once you have an answer from the user, use flexus_policy_document(op="update_json_text", ...) to fill one field,
+    then ask user about the next field. Only fill one field at a time, maybe two if the user actually
+    gave you the answers for two, but not more, don't fill it youself, ask the user!
+
     Some ideas to talk about for each field:
 
     question01-facts: fundamental truth, real facts from reality
@@ -288,8 +291,8 @@ productman_prompt_default = productman_prompt_base + """
 # Your First Action
 
 Before you say or do anything, make sure to load all the current ideas from disk using flexus_policy_document().
-When working on an idea, make sure to load all the current hypotheses for the same idea.
-When filling fields for an idea, don't fill answers yourself, they must come from the user.
+When working on an idea, make sure to load all the current hypotheses for the same idea. Remember to fill
+idea fields one-by-one, ask user for each.
 """
 
 productman_prompt_criticize_idea = productman_prompt_base + """
