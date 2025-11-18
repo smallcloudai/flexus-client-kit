@@ -187,6 +187,7 @@ class IntegrationSurveyMonkey:
     def __init__(self, access_token: str, pdoc_integration=None):
         self.access_token = access_token
         self.pdoc_integration = pdoc_integration
+        self.tracked_surveys = {}
 
     def _headers(self):
         return {
@@ -794,5 +795,86 @@ class IntegrationSurveyMonkey:
             result += "-" * 30 + "\n\n"
 
         return result
+
+    def track_survey_task(self, task):
+        if not task.ktask_details:
+            return
+        
+        details = task.ktask_details if isinstance(task.ktask_details, dict) else json.loads(task.ktask_details)
+        survey_id = details.get("survey_id")
+        
+        if survey_id and task.ktask_done_ts == 0:
+            self.tracked_surveys[survey_id] = {
+                "task_id": task.ktask_id,
+                "thread_id": task.ktask_inprogress_ft_id,
+                "target_responses": details.get("target_responses", 0),
+                "last_response_count": details.get("survey_status", {}).get("responses", 0) if "survey_status" in details else 0,
+                "completed_notified": details.get("survey_status", {}).get("completed_notified", False) if "survey_status" in details else False
+            }
+            logger.info(f"Tracking survey {survey_id} for task {task.ktask_id}")
+
+    async def update_active_surveys(self, fclient, update_task_callback):
+        if not self.tracked_surveys:
+            return
+        
+        for survey_id, tracking_info in list(self.tracked_surveys.items()):
+            try:
+                async with aiohttp.ClientSession() as session:
+                    async with session.get(
+                            f"{SM_BASE}/surveys/{survey_id}",
+                            headers=self._headers(),
+                            timeout=aiohttp.ClientTimeout(total=30),
+                    ) as resp:
+                        if resp.status >= 400:
+                            continue
+                        survey_data = await resp.json()
+                    
+                    async with session.get(
+                            f"{SM_BASE}/surveys/{survey_id}/responses/bulk",
+                            headers=self._headers(),
+                            params={"per_page": 1},
+                            timeout=aiohttp.ClientTimeout(total=30),
+                    ) as resp:
+                        if resp.status >= 400:
+                            continue
+                        response_data = await resp.json()
+                
+                survey_status = survey_data.get("response_status", "")
+                is_closed = survey_status in ["closed", "ended"]
+                response_count = response_data.get("total", 0)
+                target_responses = tracking_info["target_responses"]
+                
+                is_completed = is_closed or (target_responses > 0 and response_count >= target_responses)
+                
+                await update_task_callback(
+                    task_id=tracking_info["task_id"],
+                    survey_id=survey_id,
+                    response_count=response_count,
+                    is_completed=is_completed,
+                    survey_status=survey_status
+                )
+                
+                if is_completed and not tracking_info["completed_notified"] and tracking_info["thread_id"]:
+                    message = f"📊 Survey completed!\nSurvey ID: {survey_id}\nTotal responses: {response_count}\nTarget responses: {target_responses}\nStatus: {survey_status}"
+                    
+                    from flexus_client_kit import ckit_ask_model
+                    http = await fclient.use_http()
+                    await ckit_ask_model.thread_add_user_message(
+                        http=http,
+                        ft_id=tracking_info["thread_id"],
+                        content=message,
+                        who_is_asking="surveymonkey_integration",
+                        ftm_alt=100,
+                        role="user"
+                    )
+                    
+                    tracking_info["completed_notified"] = True
+                    logger.info(f"Posted completion message for survey {survey_id}")
+                
+                tracking_info["last_response_count"] = response_count
+                
+            except Exception as e:
+                logger.error(f"Error updating survey {survey_id}: {e}")
+
 
 

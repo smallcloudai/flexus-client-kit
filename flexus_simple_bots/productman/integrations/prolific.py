@@ -1,4 +1,5 @@
 import logging
+import time
 from typing import Dict, Any, List
 
 from flexus_client_kit import ckit_cloudtool
@@ -97,10 +98,11 @@ Examples:
 
 
 class IntegrationProlific:
-    def __init__(self, api_token: str, surveymonkey_integration=None, pdoc_integration=None):
+    def __init__(self, api_token: str, surveymonkey_integration=None, pdoc_integration=None, fclient=None):
         self.api_token = api_token
         self.surveymonkey_integration = surveymonkey_integration
         self.pdoc_integration = pdoc_integration
+        self.fclient = fclient
 
     def _headers(self):
         return {
@@ -253,6 +255,22 @@ Completion Code: {completion_code}
             return "Error: study_id is required"
 
         async with aiohttp.ClientSession() as session:
+            async with session.get(
+                    f"{PROLIFIC_BASE}/studies/{study_id}/",
+                    headers=self._headers(),
+                    timeout=aiohttp.ClientTimeout(total=30),
+            ) as resp:
+                if resp.status >= 400:
+                    error_body = await resp.text()
+                    return f"Error getting study details: {error_body}"
+                study_details = await resp.json()
+            
+            survey_url = study_details.get("external_study_url", "")
+            total_participants = study_details.get("total_available_places", 0)
+            survey_id = ""
+            if "surveymonkey.com/r/" in survey_url:
+                survey_id = survey_url.split("/r/")[-1].split("?")[0].split("&")[0]
+
             async with session.post(
                     f"{PROLIFIC_BASE}/studies/{study_id}/transition/",
                     headers=self._headers(),
@@ -273,6 +291,30 @@ Status: {study.get('status', 'ACTIVE')}
 
 ✅ Participants are now being recruited!
 Monitor progress with 'get_prolific_study_status'"""
+
+        if survey_id and toolcall.fcall_ft_id and self.fclient:
+            from flexus_client_kit import ckit_kanban
+            import json
+            
+            try:
+                tasks = await ckit_kanban.get_tasks_by_thread(self.fclient, toolcall.fcall_ft_id)
+                
+                for task in tasks:
+                    task_details = task.ktask_details if isinstance(task.ktask_details, dict) else json.loads(task.ktask_details)
+                    task_details["survey_id"] = survey_id
+                    task_details["target_responses"] = total_participants
+                    task_details["prolific_study_id"] = study_id
+                    task_details["survey_status"] = {
+                        "responses": 0,
+                        "completion_rate": 0.0,
+                        "last_checked": time.strftime("%Y-%m-%d %H:%M:%S"),
+                        "completed_notified": False
+                    }
+                    
+                    await ckit_kanban.update_task_details(self.fclient, task.ktask_id, task_details)
+                    result += f"\n\n📋 Updated task {task.ktask_id} with survey tracking info"
+            except Exception as e:
+                logger.error(f"Failed to update task with survey info: {e}")
 
         return result
 

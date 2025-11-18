@@ -2,9 +2,10 @@ import asyncio
 import logging
 import json
 import os
+import time
 from typing import Dict, Any
 
-from flexus_client_kit import ckit_client
+from flexus_client_kit import ckit_client, ckit_kanban
 from flexus_client_kit import ckit_cloudtool
 from flexus_client_kit import ckit_bot_exec
 from flexus_client_kit import ckit_shutdown
@@ -100,17 +101,13 @@ async def productman_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_
     print(rcx.persona.ws_root_group_id)
 
     if token := os.getenv("SURVEYMONKEY_ACCESS_TOKEN", ""):
-        surveymonkey_integration = survey_monkey.IntegrationSurveyMonkey(
-            access_token=token, pdoc_integration=pdoc_integration
-        )
+        surveymonkey_integration = survey_monkey.IntegrationSurveyMonkey(access_token=token, pdoc_integration=pdoc_integration)
     else:
         logger.warning("No SurveyMonkey integration configured, set SURVEYMONKEY_ACCESS_TOKEN token to the env")
         surveymonkey_integration = None
 
     if token := os.getenv("PROLIFIC_API_TOKEN", ""):
-        prolific_integration = prolific.IntegrationProlific(
-            api_token=token, surveymonkey_integration=surveymonkey_integration, pdoc_integration=pdoc_integration
-        )
+        prolific_integration = prolific.IntegrationProlific(api_token=token, surveymonkey_integration=surveymonkey_integration, pdoc_integration=pdoc_integration, fclient=fclient)
     else:
         logger.warning("No Prolific integration configured, set PROLIFIC_API_TOKEN token to the env")
         prolific_integration = None
@@ -122,6 +119,11 @@ async def productman_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_
     @rcx.on_updated_thread
     async def updated_thread_in_db(th: ckit_ask_model.FThreadOutput):
         pass
+
+    @rcx.on_updated_task
+    async def updated_task_in_db(t: ckit_kanban.FPersonaKanbanTaskOutput):
+        if surveymonkey_integration:
+            surveymonkey_integration.track_survey_task(t)
 
     def validate_idea_structure(provided: Dict, expected: Dict, path: str = "root") -> str:
         if type(provided) != type(expected):
@@ -259,10 +261,35 @@ async def productman_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_
             logger.info(f"toolcall_prolific error: {e}")
             return f"Error: {e}"
 
+    async def update_task_survey_status(task_id: str, survey_id: str, response_count: int, is_completed: bool, survey_status: str):
+        if task_id in rcx.latest_tasks:
+            task = rcx.latest_tasks[task_id]
+            details = task.ktask_details if isinstance(task.ktask_details, dict) else json.loads(task.ktask_details)
+            details["survey_status"] = {
+                "responses": response_count,
+                "completion_rate": response_count / details.get("target_responses", 1) if details.get("target_responses", 0) > 0 else 0,
+                "last_checked": time.strftime("%Y-%m-%d %H:%M:%S"),
+                "completed_notified": details.get("survey_status", {}).get("completed_notified", False) or is_completed,
+                "status": survey_status
+            }
+            
+            await ckit_kanban.update_task_details(fclient, task_id, details)
 
+    last_survey_update = 0
+    survey_update_interval = 300
+    
     try:
         while not ckit_shutdown.shutdown_event.is_set():
             await rcx.unpark_collected_events(sleep_if_no_work=10.0)
+            
+            current_time = time.time()
+            if surveymonkey_integration and current_time - last_survey_update > survey_update_interval:
+                if not surveymonkey_integration.tracked_surveys and rcx.latest_tasks:
+                    for task in rcx.latest_tasks.values():
+                        surveymonkey_integration.track_survey_task(task)
+                
+                await surveymonkey_integration.update_active_surveys(fclient, update_task_survey_status)
+                last_survey_update = current_time
 
     finally:
         logger.info("%s exit" % (rcx.persona.persona_id,))

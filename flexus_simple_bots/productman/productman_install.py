@@ -86,14 +86,14 @@ async def install(
         marketable_daily_budget_default=200_000,
         marketable_default_inbox_default=20_000,
         marketable_experts=[
-            ("default", ckit_bot_install.FMarketplaceExpertInput(
-                fexp_name="productman_default",
-                fexp_system_prompt=productman_prompts.productman_prompt_default,
-                fexp_python_kernel="",
-                fexp_block_tools="*setup*",
-                fexp_allow_tools="",
-                fexp_app_capture_tools=json.dumps([t.openai_style_tool() for t in productman_bot.TOOLS_DEFAULT]),
-            )),
+            # ("default", ckit_bot_install.FMarketplaceExpertInput(
+            #     fexp_name="productman_default",
+            #     fexp_system_prompt=productman_prompts.productman_prompt_default,
+            #     fexp_python_kernel="",
+            #     fexp_block_tools="*setup*",
+            #     fexp_allow_tools="",
+            #     fexp_app_capture_tools=json.dumps([t.openai_style_tool() for t in productman_bot.TOOLS_DEFAULT]),
+            # )),
             ("subchat", ckit_bot_install.FMarketplaceExpertInput(
                 fexp_name="productman_criticize_idea",
                 fexp_system_prompt=productman_prompts.productman_prompt_criticize_idea,
@@ -102,7 +102,7 @@ async def install(
                 fexp_allow_tools="",
                 fexp_app_capture_tools=json.dumps([t.openai_style_tool() for t in productman_bot.TOOLS_VERIFY_SUBCHAT]),
             )),
-            ("survey", ckit_bot_install.FMarketplaceExpertInput(
+            ("default", ckit_bot_install.FMarketplaceExpertInput(
                 fexp_name="productman_survey",
                 fexp_system_prompt=productman_skill_survey.prompt,
                 fexp_python_kernel="",
