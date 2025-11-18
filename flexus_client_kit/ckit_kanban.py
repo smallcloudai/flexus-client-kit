@@ -155,3 +155,59 @@ async def bot_kanban_post_into_inbox(
                 "prov": provenance_message,
             },
         )
+
+
+async def get_tasks_by_thread(
+    client: ckit_client.FlexusClient,
+    ft_id: str,
+) -> List[FPersonaKanbanTaskOutput]:
+    http = await client.use_http()
+    async with http as h:
+        result = await h.execute(
+            gql.gql("""query GetTasksForThread($ft_id: String!) {
+                persona_kanban_tasks_by_thread(ft_id: $ft_id) {
+                    persona_id
+                    ktask_id
+                    ktask_title
+                    ktask_inbox_ts
+                    ktask_inbox_provenance
+                    ktask_daily_timekey
+                    ktask_coins
+                    ktask_budget
+                    ktask_todo_ts
+                    ktask_inprogress_ts
+                    ktask_inprogress_ft_id
+                    ktask_inprogress_activity_ts
+                    ktask_done_ts
+                    ktask_resolution_code
+                    ktask_resolution_summary
+                    ktask_details
+                    ktask_blocks_ktask_id
+                }
+            }"""),
+            variable_values={"ft_id": ft_id}
+        )
+    
+    tasks = []
+    for task_data in result.get("persona_kanban_tasks_by_thread", []):
+        tasks.append(gql_utils.dataclass_from_dict(task_data, FPersonaKanbanTaskOutput))
+    return tasks
+
+
+async def update_task_details(
+    client: ckit_client.FlexusClient,
+    ktask_id: str,
+    details: dict,
+) -> bool:
+    http = await client.use_http()
+    async with http as h:
+        result = await h.execute(
+            gql.gql("""mutation UpdateTaskDetails($ktask_id: String!, $details: String!) {
+                kanban_task_update_details(ktask_id: $ktask_id, ktask_details: $details)
+            }"""),
+            variable_values={
+                "ktask_id": ktask_id,
+                "details": json.dumps(details) if isinstance(details, dict) else details
+            }
+        )
+    return result.get("kanban_task_update_details", False)
