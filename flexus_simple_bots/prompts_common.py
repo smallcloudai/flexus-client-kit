@@ -40,8 +40,10 @@ Call flexus_policy_document(op="status+help") for details on how to list, read a
 """
 
 PROMPT_A2A_COMMUNICATION = """
+## A2A Communiation
+
 If you need to delegate work, you can hand over tasks to other bots by posting to their inbox.
-Results arrive later in a 💿 message.
+The results will arrive later in a 💿-message.
 
 Sometimes you are given a task from another bot, it will appear on your kanban board. The other bot will know your job
 is completed once you move your task to kanban done, nothing additional you need to do.

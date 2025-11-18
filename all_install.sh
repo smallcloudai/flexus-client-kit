@@ -8,4 +8,5 @@ python -m flexus_simple_bots.frog.frog_install --ws "$WS_ID"
 python -m flexus_simple_bots.slonik.slonik_install --ws "$WS_ID"
 python -m flexus_simple_bots.karen.karen_install --ws "$WS_ID"
 python -m flexus_simple_bots.boss.boss_install --ws "$WS_ID"
+python -m flexus_simple_bots.productman.productman_install --ws "$WS_ID"
 
