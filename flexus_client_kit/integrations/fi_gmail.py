@@ -183,7 +183,7 @@ class IntegrationGmail:
             logger.info("Gmail authentication successful for user %s", self.rcx.persona.owner_fuser_id)
             return True
 
-        except Exception as e:
+        except gql.transport.exceptions.TransportQueryError as e:
             logger.error("Failed to authenticate with Gmail: %s", e, exc_info=e)
             return False
 
@@ -222,7 +222,7 @@ class IntegrationGmail:
 
             return r["external_auth_start"]["authorization_url"]
 
-        except Exception as e:
+        except gql.transport.exceptions.TransportQueryError as e:
             logger.error("Failed to initiate OAuth flow: %s", e, exc_info=e)
             raise
 
@@ -254,7 +254,7 @@ class IntegrationGmail:
                 try:
                     auth_url = await self._initiate_oauth_flow()
                     r += f"\n⚠️  Please authorize Gmail access:\n{auth_url}\n"
-                except Exception as e:
+                except gql.transport.exceptions.TransportQueryError as e:
                     r += f"\n❌ Error initiating OAuth: {e}\n"
             return r
 
@@ -265,7 +265,7 @@ class IntegrationGmail:
             try:
                 auth_url = await self._initiate_oauth_flow()
                 return f"⚠️  Gmail not authorized. Please visit:\n{auth_url}\n\nThen try again."
-            except Exception as e:
+            except gql.transport.exceptions.TransportQueryError as e:
                 return f"❌ Failed to initiate OAuth: {e}"
 
         try:
@@ -276,7 +276,7 @@ class IntegrationGmail:
             elif op == "get":
                 return await self._get_message(args)
             elif op == "delete":
-                return await self._delete_message(args)
+                return await self._delete_message(args, toolcall)
             elif op == "markAsRead":
                 return await self._mark_as_read(args)
             elif op == "markAsUnread":
@@ -290,19 +290,19 @@ class IntegrationGmail:
             elif op == "createLabel":
                 return await self._create_label(args)
             elif op == "deleteLabel":
-                return await self._delete_label(args)
+                return await self._delete_label(args, toolcall)
             elif op == "createDraft":
                 return await self._create_draft(args)
             elif op == "listDrafts":
                 return await self._list_drafts(args)
             elif op == "deleteDraft":
-                return await self._delete_draft(args)
+                return await self._delete_draft(args, toolcall)
             elif op == "getThread":
                 return await self._get_thread(args)
             elif op == "searchThreads":
                 return await self._search_threads(args)
             elif op == "deleteThread":
-                return await self._delete_thread(args)
+                return await self._delete_thread(args, toolcall)
             else:
                 return f"❌ Unknown operation: {op}\n\nTry gmail(op='help') for usage."
 
@@ -310,9 +310,6 @@ class IntegrationGmail:
             error_msg = f"Gmail API error: {e.resp.status} - {e.error_details}"
             logger.error(error_msg)
             return f"❌ {error_msg}"
-        except Exception as e:
-            logger.exception("Error executing Gmail operation")
-            return f"❌ Error: {type(e).__name__}: {e}"
 
     async def _send_message(self, args: Dict[str, Any]) -> str:
         to = args.get("to", "")
@@ -454,11 +451,18 @@ class IntegrationGmail:
 
         return "\n".join(output)
 
-    async def _delete_message(self, args: Dict[str, Any]) -> str:
+    async def _delete_message(self, args: Dict[str, Any], toolcall: ckit_cloudtool.FCloudtoolCall) -> str:
         message_id = args.get("messageId", "")
 
         if not message_id:
             return "❌ Missing required parameter: 'messageId'"
+
+        if not toolcall.confirmed_by_human:
+            raise ckit_cloudtool.NeedsConfirmation(
+                confirm_setup_key="gmail_delete",
+                confirm_command=f"gmail delete message {message_id}",
+                confirm_explanation="This will permanently delete the message",
+            )
 
         self.service.users().messages().delete(userId="me", id=message_id).execute()
 
@@ -554,11 +558,18 @@ class IntegrationGmail:
 
         return f"✅ Label '{name}' created successfully (ID: {result['id']})"
 
-    async def _delete_label(self, args: Dict[str, Any]) -> str:
+    async def _delete_label(self, args: Dict[str, Any], toolcall: ckit_cloudtool.FCloudtoolCall) -> str:
         label_id = args.get("labelId", "")
 
         if not label_id:
             return "❌ Missing required parameter: 'labelId'"
+
+        if not toolcall.confirmed_by_human:
+            raise ckit_cloudtool.NeedsConfirmation(
+                confirm_setup_key="gmail_delete",
+                confirm_command=f"gmail delete label {label_id}",
+                confirm_explanation="This will permanently delete the label",
+            )
 
         self.service.users().labels().delete(userId="me", id=label_id).execute()
 
@@ -623,11 +634,18 @@ class IntegrationGmail:
 
         return "\n".join(output)
 
-    async def _delete_draft(self, args: Dict[str, Any]) -> str:
+    async def _delete_draft(self, args: Dict[str, Any], toolcall: ckit_cloudtool.FCloudtoolCall) -> str:
         draft_id = args.get("draftId", "")
 
         if not draft_id:
             return "❌ Missing required parameter: 'draftId'"
+
+        if not toolcall.confirmed_by_human:
+            raise ckit_cloudtool.NeedsConfirmation(
+                confirm_setup_key="gmail_delete",
+                confirm_command=f"gmail delete draft {draft_id}",
+                confirm_explanation="This will permanently delete the draft",
+            )
 
         self.service.users().drafts().delete(userId="me", id=draft_id).execute()
 
@@ -689,11 +707,18 @@ class IntegrationGmail:
 
         return "\n".join(output)
 
-    async def _delete_thread(self, args: Dict[str, Any]) -> str:
+    async def _delete_thread(self, args: Dict[str, Any], toolcall: ckit_cloudtool.FCloudtoolCall) -> str:
         thread_id = args.get("threadId", "")
 
         if not thread_id:
             return "❌ Missing required parameter: 'threadId'"
+
+        if not toolcall.confirmed_by_human:
+            raise ckit_cloudtool.NeedsConfirmation(
+                confirm_setup_key="gmail_delete",
+                confirm_command=f"gmail delete thread {thread_id}",
+                confirm_explanation="This will permanently delete the entire thread",
+            )
 
         self.service.users().threads().delete(userId="me", id=thread_id).execute()
 
