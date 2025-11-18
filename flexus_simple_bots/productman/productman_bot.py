@@ -241,6 +241,8 @@ async def productman_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_
             return "Error: SurveyMonkey integration not configured"
         try:
             return await surveymonkey_integration.handle_survey(toolcall, model_produced_args)
+        except ckit_cloudtool.NeedsConfirmation as e:
+            raise e
         except Exception as e:
             logger.info(f"toolcall_survey error: {e}")
             return f"Error: {e}"
@@ -251,6 +253,8 @@ async def productman_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_
             return "Error: Prolific integration not configured"
         try:
             return await prolific_integration.handle_prolific(toolcall, model_produced_args)
+        except ckit_cloudtool.NeedsConfirmation as e:
+            raise e
         except Exception as e:
             logger.info(f"toolcall_prolific error: {e}")
             return f"Error: {e}"
