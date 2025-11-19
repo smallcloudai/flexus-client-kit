@@ -171,6 +171,7 @@ async def get_tasks_by_thread(
                     persona_id
                     ktask_id
                     ktask_title
+                    ktask_skill
                     ktask_inbox_ts
                     ktask_inbox_provenance
                     ktask_daily_timekey
