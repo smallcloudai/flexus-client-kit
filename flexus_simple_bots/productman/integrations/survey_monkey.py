@@ -525,7 +525,7 @@ class IntegrationSurveyMonkey:
                 "family": "single_choice",
                 "subtype": "vertical",
                 "answers": {
-                    "choices": [{"text": str(i), "weight": i} for i in range(scale_min, scale_max + 1)]
+                    "choices": [{"text": str(i)} for i in range(scale_min, scale_max + 1)]
                 }
             },
             "nps": {
@@ -533,7 +533,7 @@ class IntegrationSurveyMonkey:
                 "subtype": "rating",
                 "answers": {
                     "rows": [{"text": "Our product"}],
-                    "choices": [{"text": str(i), "weight": i} for i in range(0, 11)]
+                    "choices": [{"text": str(i)} for i in range(0, 11)]
                 }
             },
             "likert": {
