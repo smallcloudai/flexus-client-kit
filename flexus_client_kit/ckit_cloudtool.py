@@ -36,6 +36,7 @@ class FCloudtoolCall:
     located_fgroup_id: str
     fcall_id: str
     fcall_ft_id: str
+    fcall_ft_btest_name: str
     fcall_ftm_alt: int
     fcall_called_ftm_num: int
     fcall_call_n: int
@@ -107,13 +108,13 @@ def try_best_to_find_argument(args: dict, args_dict_from_model: Any, param_name:
 
 async def call_python_function_and_save_result(
     call: FCloudtoolCall,
-    the_python_function: Callable[[FCloudtoolCall, Any], Awaitable[Tuple[str, str] | Tuple[None, None]]],
+    the_python_function: Callable[[ckit_client.FlexusClient, FCloudtoolCall, Any], Awaitable[Tuple[str, str] | Tuple[None, None]]],
     service_name: str,
-    client: ckit_client.FlexusClient,
+    fclient: ckit_client.FlexusClient,
 ) -> None:
     try:
         args = json.loads(call.fcall_arguments)
-        content, prov = await the_python_function(call, args)
+        content, prov = await the_python_function(fclient, call, args)
         # NOTE: here we have 2 allowed variants for output
         # 1. (str, str) - immediate answer from handler
         # 2. (None, None) - delayed cloudtool_post_result
@@ -123,7 +124,7 @@ async def call_python_function_and_save_result(
         logger.info("%s needs human confirmation: %s", call.fcall_id, e.confirm_explanation)
         try:
             await cloudtool_confirmation_request(
-                client,
+                fclient,
                 call.fcall_id,
                 e.confirm_setup_key,
                 e.confirm_command,
@@ -139,11 +140,11 @@ async def call_python_function_and_save_result(
         logger.warning("error processing call %s %s:%03d:%03d %+d: %s %s" % (call.fcall_id, call.fcall_ft_id, call.fcall_ftm_alt, call.fcall_called_ftm_num, call.fcall_call_n, type(e).__name__, e), exc_info=e)
         content, prov = json.dumps(f"{type(e).__name__} {e}"), json.dumps({"system": service_name})
     if content is not None:
-        await cloudtool_post_result(client, call.fcall_id, call.fcall_untrusted_key, content, prov)
+        await cloudtool_post_result(fclient, call.fcall_id, call.fcall_untrusted_key, content, prov)
 
 
-async def cloudtool_post_result(client: ckit_client.FlexusClient, fcall_id: str, fcall_untrusted_key: str, content: str, prov: str, dollars: float = 0.0):
-    http_client = await client.use_http()
+async def cloudtool_post_result(fclient: ckit_client.FlexusClient, fcall_id: str, fcall_untrusted_key: str, content: str, prov: str, dollars: float = 0.0):
+    http_client = await fclient.use_http()
     async with http_client as http:
         await http.execute(
             gql.gql("""mutation CloudtoolPost($input: CloudtoolResultInput!) {
@@ -162,13 +163,13 @@ async def cloudtool_post_result(client: ckit_client.FlexusClient, fcall_id: str,
 
 
 async def cloudtool_confirmation_request(
-    client: ckit_client.FlexusClient,
+    fclient: ckit_client.FlexusClient,
     fcall_id: str,
     confirm_setup_key: str,
     confirm_command: str,
     confirm_explanation: str
 ):
-    http_client = await client.use_http()
+    http_client = await fclient.use_http()
     async with http_client as http:
         await http.execute(
             gql.gql("""mutation CloudtoolConfirmationRequest(
@@ -242,13 +243,13 @@ async def run_cloudtool_service_real(
     endpoint: str,
     superuser: bool,
     tools: List[CloudTool],
-    the_python_function: Callable[[FCloudtoolCall, Any], Awaitable[Tuple[str, str] | Tuple[None, None]]],  # should return tuple of tool result ftm_content as serialized json, and ftm_provenance as serialized json
+    the_python_function: Callable[[ckit_client.FlexusClient, FCloudtoolCall, Any], Awaitable[Tuple[str, str] | Tuple[None, None]]],  # should return tuple of tool result ftm_content as serialized json, and ftm_provenance as serialized json
     max_tasks: int,
     fgroup_id: Optional[str],
     fuser_id: Optional[str],
     shared: bool,
 ) -> None:
-    client = ckit_client.FlexusClient(
+    fclient = ckit_client.FlexusClient(
         service_name,
         endpoint=endpoint,
         superuser=superuser,
@@ -283,12 +284,12 @@ async def run_cloudtool_service_real(
         if task.exception():
             logger.error("cloudtool task error", exc_info=task.exception())
 
-    still_alive = asyncio.create_task(i_am_still_alive(client, tools, fgroup_id, fuser_id, shared))
+    still_alive = asyncio.create_task(i_am_still_alive(fclient, tools, fgroup_id, fuser_id, shared))
     still_alive.add_done_callback(lambda t: ckit_utils.report_crash(t, logger))
     perfmon = asyncio.create_task(monitor_performance())
     perfmon.add_done_callback(lambda t: ckit_utils.report_crash(t, logger))
 
-    ws_client = await client.use_ws()
+    ws_client = await fclient.use_ws()
     ckit_shutdown.give_ws_client(service_name, ws_client)
 
     try:
@@ -312,7 +313,7 @@ async def run_cloudtool_service_real(
                 call = gql_utils.dataclass_from_dict(r["cloudtool_wait_for_call"], FCloudtoolCall)
                 logger.info("%s %s:%03d:%03d %+d %s(%s)", call.fcall_id, call.fcall_ft_id, call.fcall_ftm_alt, call.fcall_called_ftm_num, call.fcall_call_n, call.fcall_name, str(call.fcall_arguments)[:20])
 
-                t = asyncio.create_task(call_python_function_and_save_result(call, the_python_function, service_name, client))
+                t = asyncio.create_task(call_python_function_and_save_result(call, the_python_function, service_name, fclient))
                 t.add_done_callback(lambda t, c = call: workset_done(t, c))
                 workset.add(t)
     finally:
@@ -329,7 +330,7 @@ async def run_cloudtool_service(
     superuser: bool,
     tools: List[CloudTool],
     # should return tuple of tool result ftm_content as serialized json, and ftm_provenance as serialized json or tuple of None for delayed returns
-    the_python_function: Callable[[FCloudtoolCall, Any], Awaitable[Tuple[str, str] | Tuple[None, None]]],
+    the_python_function: Callable[[ckit_client.FlexusClient, FCloudtoolCall, Any], Awaitable[Tuple[str, str] | Tuple[None, None]]],
     max_tasks: int = 64,
     fgroup_id: Optional[str] = None,
     fuser_id: Optional[str] = None,
