@@ -8,8 +8,6 @@ import aiohttp
 from flexus_client_kit import ckit_cloudtool
 from flexus_simple_bots.productman.integrations import survey_monkey_mock
 
-aiohttp = survey_monkey_mock.MockAiohttp()
-
 logger = logging.getLogger("survey_monkey")
 
 SM_BASE = "https://api.surveymonkey.com/v3"
@@ -215,7 +213,7 @@ class IntegrationSurveyMonkey:
             else:
                 raise ckit_cloudtool.NeedsConfirmation(
                     confirm_setup_key="can_create_surveymonkey_survey",
-                    confirm_command=f'push {args.get("survey_draft_path", "")}',
+                    confirm_command=f'survey push {args.get("survey_draft_path", "")}',
                     confirm_explanation="This command will create a survey on surveymonkey.com"
                 )
 
@@ -684,20 +682,22 @@ class IntegrationSurveyMonkey:
             idea_name = "unknown"
             hypothesis_base = "survey"
 
-        result_pdoc_path = f"/customer-research/{idea_name}/{hypothesis_base}-survey-live"
+        result_pdoc_path = f"/customer-research/{idea_name}/{hypothesis_base}-survey-monkey"
 
-        live_survey_data = {
-            "title": survey_title,
-            "description": survey_description,
-            "questions": questions,
-            "meta": {
-                "survey_id": survey_id,
-                "survey_url": survey_url,
-                "collector_id": collector["id"],
-                "created_from_draft": survey_draft_path,
-                "created_at": time.strftime("%Y-%m-%d %H:%M:%S")
+        live_survey_data = dict(
+            survey_monkey={
+                "title": survey_title,
+                "description": survey_description,
+                "questions": questions,
+                "meta": {
+                    "survey_id": survey_id,
+                    "survey_url": survey_url,
+                    "collector_id": collector["id"],
+                    "created_from_draft": survey_draft_path,
+                    "created_at": time.strftime("%Y-%m-%d %H:%M:%S")
+                }
             }
-        }
+        )
 
         await self.pdoc_integration.pdoc_create(result_pdoc_path, json.dumps(live_survey_data, indent=2), toolcall.fcall_ft_id)
 
@@ -705,7 +705,7 @@ class IntegrationSurveyMonkey:
         result += f"📋 Survey ID: {survey_id}\n"
         result += f"🔗 Survey URL: {survey_url}\n"
         result += f"📊 {len(questions)} questions pushed\n"
-        result += f"\n📁 Live survey saved to: {result_pdoc_path}\n"
+        result += f"\n📁 Survey monkey raw data: {result_pdoc_path}\n"
         result += f"✍🏻{result_pdoc_path}\n"
 
         return result
