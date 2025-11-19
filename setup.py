@@ -24,7 +24,8 @@ setup(
         "jsonschema",
         "beautifulsoup4",
         "PyJWT",
-        "pyyaml"
+        "pyyaml",
+        "langchain_google_community",
     ],
     extras_require={
         "dev": [
