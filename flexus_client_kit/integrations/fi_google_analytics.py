@@ -6,13 +6,14 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Dict, Any, Optional, List
 
-import gql
-from google.oauth2.credentials import Credentials
-from googleapiclient.discovery import build
-from googleapiclient.errors import HttpError
+import gql.transport.exceptions
+import google.oauth2.credentials
+import googleapiclient.discovery
+import googleapiclient.errors
 
 from flexus_client_kit import ckit_cloudtool
 from flexus_client_kit import ckit_client
+from flexus_client_kit import ckit_external_auth
 
 logger = logging.getLogger("google_analytics")
 
@@ -121,6 +122,8 @@ GOOGLE_ANALYTICS_SETUP_SCHEMA = [
     },
 ]
 
+REQUIRED_SCOPES = ["https://www.googleapis.com/auth/analytics.readonly"]
+
 
 @dataclass
 class AnalyticsReport:
@@ -139,91 +142,34 @@ class IntegrationGoogleAnalytics:
     ):
         self.fclient = fclient
         self.rcx = rcx
+        self.token_data = None
         self.service_data = None
         self.service_reporting = None
         self.admin_service = None
-        self.last_token_check = 0
-        self.access_token = None
-        self.token_expires_at = 0
 
-    async def _ensure_authenticated(self) -> bool:
-        if self.service_data and time.time() < self.token_expires_at - 120:
+    async def _ensure_services(self) -> bool:
+        if self.service_data and self.token_data and time.time() < self.token_data.expires_at - 60:
             return True
 
         try:
-            http = await self.fclient.use_http()
-
-            async with http as h:
-                r = await h.execute(
-                    gql.gql("""
-                        query GetGoogleAnalyticsToken($ws_id: String!, $provider: String!) {
-                            external_auth_token(ws_id: $ws_id, provider: $provider) {
-                                access_token
-                                expires_at
-                                token_type
-                                scope_values
-                            }
-                        }
-                    """),
-                    variable_values={
-                        "ws_id": self.rcx.persona.ws_id,
-                        "provider": "google",
-                    }
-                )
-
-            if not r or not r.get("external_auth_token"):
-                return False
-
-            token_data = r["external_auth_token"]
-            self.access_token = token_data["access_token"]
-            self.token_expires_at = token_data.get("expires_at", 0)
-
-            creds = Credentials(token=self.access_token)
-            self.service_data = build('analyticsdata', 'v1beta', credentials=creds)
-            self.service_reporting = build('analyticsreporting', 'v4', credentials=creds)
-            self.admin_service = build('analyticsadmin', 'v1beta', credentials=creds)
-
-            logger.info("Google Analytics authentication successful for user %s", self.rcx.persona.owner_fuser_id)
-            return True
-
-        except gql.transport.exceptions.TransportQueryError as e:
-            logger.error("Failed to authenticate with Google Analytics: %s", e, exc_info=e)
+            self.token_data = await ckit_external_auth.get_external_auth_token(
+                self.fclient,
+                "google",
+                self.rcx.persona.ws_id,
+            )
+        except gql.transport.exceptions.TransportQueryError:
             return False
 
-    async def _initiate_oauth_flow(self) -> str:
-        try:
-            http = await self.fclient.use_http()
+        if not self.token_data:
+            return False
 
-            async with http as h:
-                r = await h.execute(
-                    gql.gql("""
-                        mutation StartGoogleAnalyticsOAuth($ws_id: String!, $provider: String!, $scope_values: [String!]) {
-                            external_auth_start(
-                                ws_id: $ws_id,
-                                provider: $provider,
-                                scope_values: $scope_values
-                            ) {
-                                authorization_url
-                            }
-                        }
-                    """),
-                    variable_values={
-                        "ws_id": self.rcx.persona.ws_id,
-                        "provider": "google",
-                        "scope_values": [
-                            "https://www.googleapis.com/auth/analytics.readonly",
-                        ]
-                    }
-                )
+        creds = google.oauth2.credentials.Credentials(token=self.token_data.access_token)
+        self.service_data = googleapiclient.discovery.build('analyticsdata', 'v1beta', credentials=creds)
+        self.service_reporting = googleapiclient.discovery.build('analyticsreporting', 'v4', credentials=creds)
+        self.admin_service = googleapiclient.discovery.build('analyticsadmin', 'v1beta', credentials=creds)
 
-            if not r or not r.get("external_auth_start"):
-                raise Exception("Failed to initiate OAuth flow")
-
-            return r["external_auth_start"]["authorization_url"]
-
-        except gql.transport.exceptions.TransportQueryError as e:
-            logger.error("Failed to initiate OAuth flow: %s", e, exc_info=e)
-            raise
+        logger.info("Google Analytics services initialized for user %s", self.rcx.persona.owner_fuser_id)
+        return True
 
     async def called_by_model(
         self,
@@ -241,7 +187,7 @@ class IntegrationGoogleAnalytics:
         print_help = not op or "help" in op
         print_status = not op or "status" in op
 
-        authenticated = await self._ensure_authenticated()
+        authenticated = await self._ensure_services()
 
         if print_status:
             r = f"Google Analytics integration status:\n"
@@ -250,7 +196,12 @@ class IntegrationGoogleAnalytics:
             r += f"  Workspace: {self.rcx.persona.ws_id}\n"
             if not authenticated:
                 try:
-                    auth_url = await self._initiate_oauth_flow()
+                    auth_url = await ckit_external_auth.start_external_auth_flow(
+                        self.fclient,
+                        "google",
+                        self.rcx.persona.ws_id,
+                        REQUIRED_SCOPES,
+                    )
                     r += f"\n❌ Not authenticated. Ask user to authorize at:\n{auth_url}\n"
                 except gql.transport.exceptions.TransportQueryError as e:
                     r += f"\n❌ Error initiating OAuth: {e}\n"
@@ -261,7 +212,12 @@ class IntegrationGoogleAnalytics:
 
         if not authenticated:
             try:
-                auth_url = await self._initiate_oauth_flow()
+                auth_url = await ckit_external_auth.start_external_auth_flow(
+                    self.fclient,
+                    "google",
+                    self.rcx.persona.ws_id,
+                    REQUIRED_SCOPES,
+                )
                 return f"❌ Not authenticated. Ask user to authorize at:\n{auth_url}\n\nThen retry this operation."
             except gql.transport.exceptions.TransportQueryError as e:
                 return f"❌ Failed to initiate OAuth: {e}"
@@ -278,7 +234,19 @@ class IntegrationGoogleAnalytics:
             else:
                 return f"❌ Unknown operation: {op}\n\nTry google_analytics(op='help') for usage."
 
-        except HttpError as e:
+        except googleapiclient.errors.HttpError as e:
+            if e.resp.status in (401, 403):
+                self.token_data = None
+                self.service_data = None
+                self.service_reporting = None
+                self.admin_service = None
+                auth_url = await ckit_external_auth.start_external_auth_flow(
+                    self.fclient,
+                    "google",
+                    self.rcx.persona.ws_id,
+                    REQUIRED_SCOPES,
+                )
+                return f"❌ Google Analytics authentication error: {e.resp.status} - {e.error_details if hasattr(e, 'error_details') else str(e)}\n\nPlease authorize at:\n{auth_url}\n\nThen retry."
             error_msg = f"Google Analytics API error: {e.resp.status} - {e.error_details if hasattr(e, 'error_details') else str(e)}"
             logger.error(error_msg)
             return f"❌ {error_msg}"
@@ -360,9 +328,15 @@ class IntegrationGoogleAnalytics:
 
             return self._format_report_response(response)
 
-        except HttpError as e:
+        except googleapiclient.errors.HttpError as e:
             if e.resp.status == 403:
-                auth_url = await self._initiate_oauth_flow()
+                self.token_data = None
+                auth_url = await ckit_external_auth.start_external_auth_flow(
+                    self.fclient,
+                    "google",
+                    self.rcx.persona.ws_id,
+                    REQUIRED_SCOPES,
+                )
                 logger.exception("")
                 return f"❌ Access denied to property {property_id}. Ask user to authorize at:\n{auth_url}\n\nEnsure they have access to this GA4 property and grant analytics.readonly scope."
             elif e.resp.status == 400:
@@ -427,10 +401,15 @@ class IntegrationGoogleAnalytics:
 
             return "\n".join(output)
 
-        except HttpError as e:
+        except googleapiclient.errors.HttpError as e:
             if e.resp.status == 403:
-                auth_url = await self._initiate_oauth_flow()
-
+                self.token_data = None
+                auth_url = await ckit_external_auth.start_external_auth_flow(
+                    self.fclient,
+                    "google",
+                    self.rcx.persona.ws_id,
+                    REQUIRED_SCOPES,
+                )
                 logger.exception("")
                 return f"❌ Access denied. Ask user to authorize at:\n{auth_url}\n\nEnsure analytics.readonly scope is granted."
             raise
@@ -457,9 +436,15 @@ class IntegrationGoogleAnalytics:
 
             return "\n".join(output)
 
-        except HttpError as e:
+        except googleapiclient.errors.HttpError as e:
             if e.resp.status == 403:
-                auth_url = await self._initiate_oauth_flow()
+                self.token_data = None
+                auth_url = await ckit_external_auth.start_external_auth_flow(
+                    self.fclient,
+                    "google",
+                    self.rcx.persona.ws_id,
+                    REQUIRED_SCOPES,
+                )
                 logger.exception("")
                 return f"❌ Access denied to property {property_id}. Ask user to authorize at:\n{auth_url}\n\nEnsure analytics.readonly scope is granted."
             elif e.resp.status == 404:
@@ -514,10 +499,16 @@ class IntegrationGoogleAnalytics:
 
             return "\n".join(output)
 
-        except HttpError as e:
+        except googleapiclient.errors.HttpError as e:
             if e.resp.status == 403:
+                self.token_data = None
                 logger.exception("")
-                auth_url = await self._initiate_oauth_flow()
+                auth_url = await ckit_external_auth.start_external_auth_flow(
+                    self.fclient,
+                    "google",
+                    self.rcx.persona.ws_id,
+                    REQUIRED_SCOPES,
+                )
                 return f"❌ Access denied. Ask user to authorize at:\n{auth_url}\n\nUser Activity API requires Universal Analytics view access with analytics.readonly scope."
             elif e.resp.status == 400:
                 return f"❌ Invalid request: This feature requires Universal Analytics (deprecated). For GA4, use getReport instead."
