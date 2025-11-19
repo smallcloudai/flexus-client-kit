@@ -113,14 +113,6 @@ google_analytics(op="getReport", args={
 
 GOOGLE_ANALYTICS_SETUP_SCHEMA = [
     {
-        "bs_name": "GA_OAUTH_REQUIRED",
-        "bs_type": "string_long",
-        "bs_default": "true",
-        "bs_group": "Google Analytics",
-        "bs_importance": 0,
-        "bs_description": "Google Analytics requires Google OAuth authentication via flexus external auth system",
-    },
-    {
         "bs_name": "GA_DEFAULT_PROPERTY",
         "bs_type": "string_short",
         "bs_default": "",

@@ -104,18 +104,6 @@ gmail(op="searchThreads", args={"query": "is:unread", "maxResults": 10})
 gmail(op="deleteThread", args={"threadId": "18d4..."})
 """
 
-GMAIL_SETUP_SCHEMA = [
-    {
-        "bs_name": "GMAIL_OAUTH_REQUIRED",
-        "bs_type": "string_long",
-        "bs_default": "true",
-        "bs_group": "Gmail",
-        "bs_importance": 0,
-        "bs_description": "Gmail requires Google OAuth authentication via flexus external auth system",
-    },
-]
-
-
 @dataclass
 class GmailMessage:
     id: str
