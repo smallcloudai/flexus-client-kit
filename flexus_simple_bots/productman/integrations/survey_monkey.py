@@ -8,8 +8,6 @@ import aiohttp
 from flexus_client_kit import ckit_cloudtool
 from flexus_simple_bots.productman.integrations import survey_monkey_mock
 
-aiohttp = survey_monkey_mock.MockAiohttp()
-
 logger = logging.getLogger("survey_monkey")
 
 SM_BASE = "https://api.surveymonkey.com/v3"
@@ -215,7 +213,7 @@ class IntegrationSurveyMonkey:
             else:
                 raise ckit_cloudtool.NeedsConfirmation(
                     confirm_setup_key="can_create_surveymonkey_survey",
-                    confirm_command=f'push {args.get("survey_draft_path", "")}',
+                    confirm_command=f'survey push {args.get("survey_draft_path", "")}',
                     confirm_explanation="This command will create a survey on surveymonkey.com"
                 )
 
@@ -400,7 +398,7 @@ class IntegrationSurveyMonkey:
         pdoc_path = f"/customer-research/{idea_name}/{hypothesis_name}-survey-draft"
 
         try:
-            await self.pdoc_integration.pdoc_create(
+            await self.pdoc_integration.pdoc_overwrite(
                 pdoc_path,
                 json.dumps(survey_content, indent=2),
                 toolcall.fcall_ft_id
@@ -525,17 +523,17 @@ class IntegrationSurveyMonkey:
             },
             "rating_scale": {
                 "family": "single_choice",
-                "subtype": "rating",
+                "subtype": "vertical",
                 "answers": {
-                    "choices": [{"text": str(i), "weight": i} for i in range(scale_min, scale_max + 1)]
+                    "choices": [{"text": str(i)} for i in range(scale_min, scale_max + 1)]
                 }
             },
             "nps": {
                 "family": "matrix",
-                "subtype": "nps",
+                "subtype": "rating",
                 "answers": {
                     "rows": [{"text": "Our product"}],
-                    "choices": [{"text": str(i), "weight": i} for i in range(0, 11)]
+                    "choices": [{"text": str(i)} for i in range(0, 11)]
                 }
             },
             "likert": {
@@ -565,11 +563,21 @@ class IntegrationSurveyMonkey:
             },
             "numeric": {
                 "family": "open_ended",
-                "subtype": "numerical"
+                "subtype": "numerical",
+                "answers": {
+                    "rows": [{"text": "Value"}]
+                }
             },
             "date": {
                 "family": "datetime",
-                "subtype": "date_only"
+                "subtype": "date_only",
+                "validation": {
+                    "type": "date_intl",
+                    "text": "Please enter a valid date."
+                },
+                "answers": {
+                    "rows": [{"text": "Date"}]
+                }
             },
             "open_ended": {
                 "family": "open_ended",
@@ -588,9 +596,15 @@ class IntegrationSurveyMonkey:
         if "answers" in mapping:
             sm_q["answers"] = mapping["answers"]
 
+        if "validation" in mapping:
+            sm_q["validation"] = mapping["validation"]
+
         if required:
-            sm_q.setdefault("validation", {})
-            sm_q["validation"]["required"] = True
+            sm_q["required"] = {
+                "text": "This question requires an answer.",
+                "type": "all",
+                "amount": "1"
+            }
 
         return sm_q
 
@@ -653,6 +667,10 @@ class IntegrationSurveyMonkey:
                     json=survey_payload,
                     timeout=aiohttp.ClientTimeout(total=30),
             ) as resp:
+                if resp.status >= 400:
+                    error_text = await resp.text()
+                    logger.error(f"SurveyMonkey API error {resp.status}: {error_text}")
+                    logger.error(f"Payload sent: {json.dumps(survey_payload, indent=2)}")
                 resp.raise_for_status()
                 survey = await resp.json()
                 survey_id = survey["id"]
@@ -671,6 +689,9 @@ class IntegrationSurveyMonkey:
                     json=collector_payload,
                     timeout=aiohttp.ClientTimeout(total=30),
             ) as c_resp:
+                if c_resp.status >= 400:
+                    error_text = await c_resp.text()
+                    logger.error(f"SurveyMonkey collector API error {c_resp.status}: {error_text}")
                 c_resp.raise_for_status()
                 collector = await c_resp.json()
 
@@ -684,20 +705,22 @@ class IntegrationSurveyMonkey:
             idea_name = "unknown"
             hypothesis_base = "survey"
 
-        result_pdoc_path = f"/customer-research/{idea_name}/{hypothesis_base}-survey-live"
+        result_pdoc_path = f"/customer-research/{idea_name}/{hypothesis_base}-survey-monkey"
 
-        live_survey_data = {
-            "title": survey_title,
-            "description": survey_description,
-            "questions": questions,
-            "meta": {
-                "survey_id": survey_id,
-                "survey_url": survey_url,
-                "collector_id": collector["id"],
-                "created_from_draft": survey_draft_path,
-                "created_at": time.strftime("%Y-%m-%d %H:%M:%S")
+        live_survey_data = dict(
+            survey_monkey={
+                "title": survey_title,
+                "description": survey_description,
+                "questions": questions,
+                "meta": {
+                    "survey_id": survey_id,
+                    "survey_url": survey_url,
+                    "collector_id": collector["id"],
+                    "created_from_draft": survey_draft_path,
+                    "created_at": time.strftime("%Y-%m-%d %H:%M:%S")
+                }
             }
-        }
+        )
 
         await self.pdoc_integration.pdoc_create(result_pdoc_path, json.dumps(live_survey_data, indent=2), toolcall.fcall_ft_id)
 
@@ -705,7 +728,7 @@ class IntegrationSurveyMonkey:
         result += f"📋 Survey ID: {survey_id}\n"
         result += f"🔗 Survey URL: {survey_url}\n"
         result += f"📊 {len(questions)} questions pushed\n"
-        result += f"\n📁 Live survey saved to: {result_pdoc_path}\n"
+        result += f"\n📁 Survey monkey raw data: {result_pdoc_path}\n"
         result += f"✍🏻{result_pdoc_path}\n"
 
         return result
