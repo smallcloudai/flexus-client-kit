@@ -170,7 +170,6 @@ def dump_thread_messages_to_yaml(messages: list) -> str:
 async def scenario_generate_tool_result_via_model(
     fclient: ckit_client.FlexusClient,
     toolcall: ckit_cloudtool.FCloudtoolCall,
-    happy_yaml: str,
     tool_handler_source_code: str,
 ) -> str:
     http_client = await fclient.use_http()
@@ -180,21 +179,18 @@ async def scenario_generate_tool_result_via_model(
             gql.gql("""mutation ScenarioGenerateToolResult(
                 $fcall_id: String!,
                 $fcall_untrusted_key: String!,
-                $tool_handler_source_code: String!,
-                $happy_trajectory: String
+                $tool_handler_source_code: String!
             ) {
                 scenario_generate_tool_result_via_model(
                     fcall_id: $fcall_id,
                     fcall_untrusted_key: $fcall_untrusted_key,
-                    tool_handler_source_code: $tool_handler_source_code,
-                    happy_trajectory: $happy_trajectory
+                    tool_handler_source_code: $tool_handler_source_code
                 )
             }"""),
             variable_values={
                 "fcall_id": toolcall.fcall_id,
                 "fcall_untrusted_key": toolcall.fcall_untrusted_key,
                 "tool_handler_source_code": tool_handler_source_code,
-                "happy_trajectory": happy_yaml,
             },
         )
     return "ALREADY_POSTED_RESULT"

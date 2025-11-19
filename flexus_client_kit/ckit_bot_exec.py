@@ -491,6 +491,25 @@ async def run_happy_trajectory(
     with open(trajectory_yaml_path) as f:
         trajectory_happy = f.read()
 
+    scenario_basename = os.path.splitext(os.path.basename(trajectory_yaml_path))[0]
+    bot_version = ckit_client.marketplace_version_as_str(scenario.persona.persona_marketable_version)
+    await ckit_scenario.bot_scenario_result_upsert(
+        scenario.fclient,
+        ckit_scenario.BotScenarioUpsertInput(
+            btest_marketable_name=scenario.persona.persona_marketable_name,
+            btest_marketable_version_str=bot_version,
+            btest_name=scenario_basename,
+            btest_model=scenario.persona.persona_preferred_model,
+            btest_trajectory_happy=trajectory_happy,
+            btest_trajectory_actual="",
+            btest_rating_happy=0,
+            btest_rating_actually=0,
+            btest_shaky_human=0,
+            btest_shaky_tool=0,
+        ),
+    )
+    logger.info("Saved happy trajectory to database before starting test, fake cloud tools will use it")
+
     max_steps = 30
     ft_id: Optional[str] = None
     messages4export = []
@@ -514,6 +533,7 @@ async def run_happy_trajectory(
                     skill="default",   # XXX add to parameters
                     first_question=result.next_human_message,
                     title="Trajectory Test",
+                    ft_btest_name=scenario_basename,
                 )
                 logger.info(f"Scenario thread {ft_id}")
             else:
@@ -574,53 +594,52 @@ async def run_happy_trajectory(
         threads_output = await ckit_scenario.scenario_print_threads(scenario.fclient, scenario.fgroup_id)
         logger.info("Scenario is over, threads in fgroup_id=%s:\n%s", scenario.fgroup_id, threads_output)
 
-        judge_result = await ckit_scenario.scenario_judge(
-            scenario.fclient,
-            trajectory_happy,
-            ft_id,
-        )
-        logger.info(f"Scenario judge happy trajectory rating: {judge_result.rating_happy}/10")
-        logger.info(f"Scenario judge happy trajectory reason: {judge_result.reason_happy}")
-        logger.info(f"Scenario judge actual trajectory rating: {judge_result.rating_actually}/10")
-        logger.info(f"Scenario judge actual trajectory reason: {judge_result.reason_actually}")
+        if ft_id:
+            judge_result = await ckit_scenario.scenario_judge(
+                scenario.fclient,
+                trajectory_happy,
+                ft_id,
+            )
+            logger.info(f"Scenario judge happy trajectory rating: {judge_result.rating_happy}/10")
+            logger.info(f"Scenario judge happy trajectory reason: {judge_result.reason_happy}")
+            logger.info(f"Scenario judge actual trajectory rating: {judge_result.rating_actually}/10")
+            logger.info(f"Scenario judge actual trajectory reason: {judge_result.reason_actually}")
 
-        scenario_basename = os.path.splitext(os.path.basename(trajectory_yaml_path))[0]
-        bot_version = ckit_client.marketplace_version_as_str(scenario.persona.persona_marketable_version)
-        output_dir = os.path.abspath(os.path.join(os.getcwd(), "scenario-dumps"))
-        logger.info(f"Scenario output directory: {output_dir}")
-        os.makedirs(output_dir, exist_ok=True)
+            output_dir = os.path.abspath(os.path.join(os.getcwd(), "scenario-dumps"))
+            logger.info(f"Scenario output directory: {output_dir}")
+            os.makedirs(output_dir, exist_ok=True)
 
-        happy_path = os.path.join(output_dir, f"{scenario_basename}-v{bot_version}-happy.yaml")
-        with open(happy_path, "w") as f:
-            f.write(trajectory_happy)
-        logger.info(f"exported {happy_path}")
+            happy_path = os.path.join(output_dir, f"{scenario_basename}-v{bot_version}-happy.yaml")
+            with open(happy_path, "w") as f:
+                f.write(trajectory_happy)
+            logger.info(f"exported {happy_path}")
 
-        messages4export = ckit_scenario.messages_to_dict_list_for_export(sorted_messages)
-        trajectory_actual = ckit_scenario.yaml_dump_with_multiline({"messages": messages4export})
-        actual_path = os.path.join(output_dir, f"{scenario_basename}-v{bot_version}-actual.yaml")
-        with open(actual_path, "w") as f:
-            f.write(trajectory_actual)
-        logger.info(f"exported {actual_path}")
+            messages4export = ckit_scenario.messages_to_dict_list_for_export(sorted_messages)
+            trajectory_actual = ckit_scenario.yaml_dump_with_multiline({"messages": messages4export})
+            actual_path = os.path.join(output_dir, f"{scenario_basename}-v{bot_version}-actual.yaml")
+            with open(actual_path, "w") as f:
+                f.write(trajectory_actual)
+            logger.info(f"exported {actual_path}")
 
-        shaky_human = sum(1 for m in sorted_messages if m.ftm_role == "user" and m.ftm_provenance.get("shaky") == True)
-        shaky_tool = sum(1 for m in sorted_messages if m.ftm_role == "tool" and m.ftm_provenance.get("shaky") == True)
+            shaky_human = sum(1 for m in sorted_messages if m.ftm_role == "user" and m.ftm_provenance.get("shaky") == True)
+            shaky_tool = sum(1 for m in sorted_messages if m.ftm_role == "tool" and m.ftm_provenance.get("shaky") == True)
 
-        await ckit_scenario.bot_scenario_result_upsert(
-            scenario.fclient,
-            ckit_scenario.BotScenarioUpsertInput(
-                btest_marketable_name=scenario.persona.persona_marketable_name,
-                btest_marketable_version_str=bot_version,
-                btest_name=scenario_basename,
-                btest_model=scenario.persona.persona_preferred_model,
-                btest_trajectory_happy=trajectory_happy,
-                btest_trajectory_actual=trajectory_actual,
-                btest_rating_happy=judge_result.rating_happy,
-                btest_rating_actually=judge_result.rating_actually,
-                btest_shaky_human=shaky_human,
-                btest_shaky_tool=shaky_tool,
-            ),
-        )
-        logger.info("Scenario results saved to database")
+            await ckit_scenario.bot_scenario_result_upsert(
+                scenario.fclient,
+                ckit_scenario.BotScenarioUpsertInput(
+                    btest_marketable_name=scenario.persona.persona_marketable_name,
+                    btest_marketable_version_str=bot_version,
+                    btest_name=scenario_basename,
+                    btest_model=scenario.persona.persona_preferred_model,
+                    btest_trajectory_happy=trajectory_happy,
+                    btest_trajectory_actual=trajectory_actual,
+                    btest_rating_happy=judge_result.rating_happy,
+                    btest_rating_actually=judge_result.rating_actually,
+                    btest_shaky_human=shaky_human,
+                    btest_shaky_tool=shaky_tool,
+                ),
+            )
+            logger.info("Full scenario results saved to database")
 
         if scenario.should_cleanup:
             await scenario.cleanup()
@@ -629,7 +648,7 @@ async def run_happy_trajectory(
             logger.info("Skipping cleanup (--no-cleanup flag set)")
 
         loop = asyncio.get_running_loop()
-        ckit_shutdown.spiral_down_now(loop)
+        ckit_shutdown.spiral_down_now(loop, enable_exit1=False)
 
 
 async def run_bots_in_this_group(
@@ -671,7 +690,7 @@ async def run_bots_in_this_group(
         running_happy_yaml=running_happy_yaml,
     )
     if scenario_fn:
-        scenario_task = asyncio.create_task(run_happy_trajectory(bc, scenario, scenario_fn), name="human_emulator")
+        scenario_task = asyncio.create_task(run_happy_trajectory(bc, scenario, scenario_fn))
         scenario_task.add_done_callback(lambda t: ckit_utils.report_crash(t, ckit_scenario.logger))
     keepalive_task = asyncio.create_task(i_am_still_alive(fclient, marketable_name, marketable_version, fgroup_id))
     keepalive_task.add_done_callback(lambda t: ckit_utils.report_crash(t, logger))

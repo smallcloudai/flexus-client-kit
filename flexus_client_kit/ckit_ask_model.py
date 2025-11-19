@@ -46,6 +46,7 @@ class FThreadOutput:
     ft_id: str
     ft_fexp_id: str
     ft_title: str
+    ft_btest_name: str
     ft_toolset: Any
     ft_error: Any
     ft_need_assistant: int
@@ -177,6 +178,7 @@ async def bot_activate(
     title: str = "",
     sched_id: str = "",
     fexp_id: str = "",
+    ft_btest_name: str = "",
 ) -> str:
     title = title or (skill + " " + time.strftime("%Y%m%d %H:%M:%S"))
     assert re.match(r'^[a-z0-9_]+$', who_is_asking)
@@ -184,8 +186,8 @@ async def bot_activate(
     http = await client.use_http()
     async with http as h:
         r = await h.execute(
-            gql.gql(f"""mutation {camel_case_for_logs}BotActivate($who_is_asking: String!, $persona_id: String!, $skill: String!, $first_question: String!, $first_calls: String!, $title: String!, $sched_id: String!, $fexp_id: String!) {{
-                bot_activate(who_is_asking: $who_is_asking, persona_id: $persona_id, skill: $skill, first_question: $first_question, first_calls: $first_calls, title: $title, sched_id: $sched_id, fexp_id: $fexp_id) {{ ft_id }}
+            gql.gql(f"""mutation {camel_case_for_logs}BotActivate($who_is_asking: String!, $persona_id: String!, $skill: String!, $first_question: String!, $first_calls: String!, $title: String!, $sched_id: String!, $fexp_id: String!, $ft_btest_name: String!) {{
+                bot_activate(who_is_asking: $who_is_asking, persona_id: $persona_id, skill: $skill, first_question: $first_question, first_calls: $first_calls, title: $title, sched_id: $sched_id, fexp_id: $fexp_id, ft_btest_name: $ft_btest_name) {{ ft_id }}
             }}"""),
             variable_values={
                 "who_is_asking": who_is_asking,
@@ -196,6 +198,7 @@ async def bot_activate(
                 "title": title,
                 "sched_id": sched_id,
                 "fexp_id": fexp_id,
+                "ft_btest_name": ft_btest_name,
             },
         )
         ft_id = r["bot_activate"]["ft_id"]

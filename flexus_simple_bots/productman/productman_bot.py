@@ -162,7 +162,7 @@ async def productman_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_
         if not text:
             return "Error: text required"
         if rcx.running_test_scenario:
-            return await ckit_scenario.scenario_generate_tool_result_via_model(fclient, toolcall, rcx, open(__file__).read())
+            return await ckit_scenario.scenario_generate_tool_result_via_model(fclient, toolcall, open(__file__).read())
         if not path.startswith("/customer-research/"):
             return "Error: path must start with /customer-research/ (e.g. /customer-research/my-product-idea)"
         path_segments = path.strip("/").split("/")
@@ -194,7 +194,7 @@ async def productman_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_
         if not text:
             return "Error: text required"
         if rcx.running_test_scenario:
-            return await ckit_scenario.scenario_generate_tool_result_via_model(fclient, toolcall, rcx, open(__file__).read())
+            return await ckit_scenario.scenario_generate_tool_result_via_model(fclient, toolcall, open(__file__).read())
         if not path.startswith("/customer-research/"):
             return "Error: path must start with /customer-research/ (e.g. /customer-research/my-idea-hypotheses/segment-name)"
         if "-hypotheses/" not in path:
@@ -228,7 +228,7 @@ async def productman_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_
             return "Error: path must start with /customer-research/"
 
         if rcx.running_test_scenario:
-            return await ckit_scenario.scenario_generate_tool_result_via_model(fclient, toolcall, rcx, open(__file__).read())
+            return await ckit_scenario.scenario_generate_tool_result_via_model(fclient, toolcall, open(__file__).read())
 
         await ckit_ask_model.bot_subchat_create_multiple(
             client=fclient,

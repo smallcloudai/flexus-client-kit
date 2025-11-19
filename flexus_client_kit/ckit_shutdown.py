@@ -29,8 +29,8 @@ def take_away_task_to_cancel(under_name: str) -> asyncio.Task:
     return tasks_to_cancel.pop(under_name)
 
 
-def spiral_down_now(loop):
-    if shutdown_event.is_set():
+def spiral_down_now(loop, enable_exit1):
+    if shutdown_event.is_set() and enable_exit1:
         logger.info("exit(1)")
         sys.exit(1)
     shutdown_event.set()
@@ -48,7 +48,7 @@ def setup_signals():
 
     def h():
         logger.info(f"✋ Got signal")
-        spiral_down_now(loop)
+        spiral_down_now(loop, enable_exit1=True)
 
     try:
         loop.add_signal_handler(signal.SIGINT, h)

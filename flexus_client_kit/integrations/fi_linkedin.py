@@ -207,7 +207,7 @@ class IntegrationLinkedIn:
 
         if print_status:
             if self.is_fake:
-                return await ckit_scenario.scenario_generate_tool_result_via_model(self.fclient, toolcall, self.rcx, open(__file__).read())
+                return await ckit_scenario.scenario_generate_tool_result_via_model(self.fclient, toolcall, open(__file__).read())
             r += f"LinkedIn Ads Account: {self.ad_account_id}\n"
 
             # List all campaign groups with their campaigns
@@ -245,7 +245,7 @@ class IntegrationLinkedIn:
 
         elif op == "list_campaign_groups":
             if self.is_fake:
-                return await ckit_scenario.scenario_generate_tool_result_via_model(self.fclient, toolcall, self.rcx, open(__file__).read())
+                return await ckit_scenario.scenario_generate_tool_result_via_model(self.fclient, toolcall, open(__file__).read())
             result = await self._list_campaign_groups()
             if result:
                 r += f"Found {len(result)} campaign groups:\n"
@@ -261,7 +261,7 @@ class IntegrationLinkedIn:
             campaign_group_id = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "campaign_group_id", None)
             status_filter = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "status", None)
             if self.is_fake:
-                return await ckit_scenario.scenario_generate_tool_result_via_model(self.fclient, toolcall, self.rcx, open(__file__).read())
+                return await ckit_scenario.scenario_generate_tool_result_via_model(self.fclient, toolcall, open(__file__).read())
             result = await self._list_campaigns(status_filter=status_filter)
             if result:
                 campaigns = result
@@ -285,7 +285,7 @@ class IntegrationLinkedIn:
                 return "ERROR: name parameter required for create_campaign_group\n"
 
             if self.is_fake:
-                return await ckit_scenario.scenario_generate_tool_result_via_model(self.fclient, toolcall, self.rcx, open(__file__).read())
+                return await ckit_scenario.scenario_generate_tool_result_via_model(self.fclient, toolcall, open(__file__).read())
             result = await self._create_campaign_group(name, total_budget, currency, status)
             if result:
                 self._campaign_groups_cache = None  # Invalidate cache
@@ -305,7 +305,7 @@ class IntegrationLinkedIn:
                 return "ERROR: campaign_group_id and name parameters required for create_campaign\n"
 
             if self.is_fake:
-                return await ckit_scenario.scenario_generate_tool_result_via_model(self.fclient, toolcall, self.rcx, open(__file__).read())
+                return await ckit_scenario.scenario_generate_tool_result_via_model(self.fclient, toolcall, open(__file__).read())
             result = await self._create_campaign(campaign_group_id, name, objective, daily_budget, currency, status)
             if result:
                 self._campaigns_cache = None  # Invalidate cache
@@ -321,7 +321,7 @@ class IntegrationLinkedIn:
                 return "ERROR: campaign_id parameter required for get_campaign\n"
 
             if self.is_fake:
-                return await ckit_scenario.scenario_generate_tool_result_via_model(self.fclient, toolcall, self.rcx, open(__file__).read())
+                return await ckit_scenario.scenario_generate_tool_result_via_model(self.fclient, toolcall, open(__file__).read())
             result = await self._get_campaign(campaign_id)
             if result:
                 r += f"Campaign: {result.name} (ID: {result.id})\n"
@@ -339,7 +339,7 @@ class IntegrationLinkedIn:
                 return "ERROR: campaign_id parameter required for get_analytics\n"
 
             if self.is_fake:
-                return await ckit_scenario.scenario_generate_tool_result_via_model(self.fclient, toolcall, self.rcx, open(__file__).read())
+                return await ckit_scenario.scenario_generate_tool_result_via_model(self.fclient, toolcall, open(__file__).read())
             result = await self._get_campaign_analytics(campaign_id, days)
             if result:
                 r += f"Analytics for campaign {campaign_id} (last {days} days):\n"
