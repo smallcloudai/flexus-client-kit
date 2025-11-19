@@ -97,7 +97,7 @@ TOOLS_DEFAULT = [
 
 async def productman_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.RobotContext) -> None:
     setup = ckit_bot_exec.official_setup_mixing_procedure(productman_install.productman_setup_schema, rcx.persona.persona_setup)
-    pdoc_integration = fi_pdoc.IntegrationPdoc(fclient, rcx.persona.ws_root_group_id)
+    pdoc_integration = fi_pdoc.IntegrationPdoc(rcx, rcx.persona.ws_root_group_id)
     print(rcx.persona.ws_root_group_id)
 
     if token := os.getenv("SURVEYMONKEY_ACCESS_TOKEN", ""):

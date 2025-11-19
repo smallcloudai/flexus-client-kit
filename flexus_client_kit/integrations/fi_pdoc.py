@@ -7,6 +7,8 @@ import gql
 
 from flexus_client_kit import ckit_client
 from flexus_client_kit import ckit_cloudtool
+from flexus_client_kit import ckit_scenario
+from flexus_client_kit import ckit_bot_exec
 from flexus_client_kit import gql_utils
 
 
@@ -93,12 +95,14 @@ class PdocDocument:
 class IntegrationPdoc:
     def __init__(
         self,
-        fclient: ckit_client.FlexusClient,
+        rcx: ckit_bot_exec.RobotContext,
         ws_root_group_id: str,
     ):
-        self.fclient = fclient
+        self.rcx = rcx
+        self.fclient = rcx.fclient
         self.fgroup_id = ws_root_group_id
         self.problems = []
+        self.is_fake = rcx.running_test_scenario
 
     async def called_by_model(self, toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Optional[Dict[str, Any]]) -> str:
         if not model_produced_args:
@@ -117,6 +121,8 @@ class IntegrationPdoc:
         try:
             if op == "list":
                 p = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "p", "/")
+                if self.is_fake:
+                    return await ckit_scenario.scenario_generate_tool_result_via_model(self.fclient, toolcall, self.rcx, open(__file__).read())
                 result = await self.pdoc_list(p)
                 r += f"Listing {p}\n\n"
                 for item in result:
@@ -132,6 +138,8 @@ class IntegrationPdoc:
                 p = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "p", "")
                 if not p:
                     return f"Error: p required\n\n{HELP}"
+                if self.is_fake:
+                    return await ckit_scenario.scenario_generate_tool_result_via_model(self.fclient, toolcall, self.rcx, open(__file__).read())
                 result = await self.pdoc_cat(p)
                 if op == "activate":
                     r += f"✍🏻 {result.path}\n\n"
@@ -152,6 +160,9 @@ class IntegrationPdoc:
                 except json.JSONDecodeError as e:
                     return f"Error: text must be valid JSON: {str(e)}"
 
+                if self.is_fake:
+                    return await ckit_scenario.scenario_generate_tool_result_via_model(self.fclient, toolcall, self.rcx, open(__file__).read())
+
                 if op == "create":
                     await self.pdoc_create(p, text, toolcall.fcall_ft_id)
                     r += f"✍🏻 {p}\n\n✓ Policy document created"
@@ -166,6 +177,9 @@ class IntegrationPdoc:
                 if not p or not json_path or not text:
                     return f"Error: p, json_path, and text parameters required\n\n{HELP}"
 
+                if self.is_fake:
+                    return await ckit_scenario.scenario_generate_tool_result_via_model(self.fclient, toolcall, self.rcx, open(__file__).read())
+
                 await self.pdoc_update_json_text(p, json_path, text, toolcall.fcall_ft_id)
                 r += f"✍🏻 {p}\n\n✓ Updated {json_path}"
 
@@ -175,6 +189,9 @@ class IntegrationPdoc:
                 if not p1 or not p2:
                     return f"Error: p1 and p2 parameters required\n\n{HELP}"
 
+                if self.is_fake:
+                    return await ckit_scenario.scenario_generate_tool_result_via_model(self.fclient, toolcall, self.rcx, open(__file__).read())
+
                 await self.pdoc_cp(p1, p2, toolcall.fcall_ft_id)
                 r += f"✍🏻 {p2}\n\n✓ Copied from {p1}"
 
@@ -182,6 +199,9 @@ class IntegrationPdoc:
                 p = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "p", "")
                 if not p:
                     return f"Error: p required\n\n{HELP}"
+
+                if self.is_fake:
+                    return await ckit_scenario.scenario_generate_tool_result_via_model(self.fclient, toolcall, self.rcx, open(__file__).read())
 
                 await self.pdoc_rm(p, toolcall.fcall_ft_id)
                 r += f"✓ Archived policy document: {p}"

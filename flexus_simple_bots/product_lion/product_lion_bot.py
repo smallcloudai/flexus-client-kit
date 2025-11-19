@@ -158,7 +158,7 @@ async def product_lion_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bo
     
     setup = ckit_bot_exec.official_setup_mixing_procedure(product_lion_install.product_lion_setup_schema, rcx.persona.persona_setup)
 
-    pdoc_integration = fi_pdoc.IntegrationPdoc(fclient, rcx.persona.located_fgroup_id)
+    pdoc_integration = fi_pdoc.IntegrationPdoc(rcx, rcx.persona.located_fgroup_id)
 
     @rcx.on_tool_call(FIRST_PRINCIPLES_CANVAS_TOOL.name)
     async def toolcall_create_first_principles_canvas(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
