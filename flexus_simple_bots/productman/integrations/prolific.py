@@ -42,7 +42,7 @@ PROLIFIC_TOOL = ckit_cloudtool.CloudTool(
                         "properties": {
                             "min_age": {"type": "integer", "description": "Minimum age"},
                             "max_age": {"type": "integer", "description": "Maximum age"},
-                            "countries": {"type": "array", "items": {"type": "string"}, "description": "List of country codes"}
+                            "countries": {"type": "array", "items": {"type": "string"}, "description": "List of country codes (temporarily disabled - needs mapping)"}
                         }
                     },
                     # publish operation
@@ -84,8 +84,7 @@ Examples:
         "total_participants": 100,
         "filters": {
             "min_age": 25,
-            "max_age": 55,
-            "countries": ["US", "UK", "CA"]
+            "max_age": 55
         }
     })
 
@@ -154,15 +153,9 @@ class IntegrationProlific:
                 age_filter["selected_range"]["upper"] = filters["max_age"]
             prolific_filters.append(age_filter)
 
-        if "countries" in filters and filters["countries"]:
-            prolific_filters.append({
-                "filter_id": "current_country_of_residence",
-                "selected_values": filters["countries"]
-            })
-
         if "min_approval_rate" in filters:
             prolific_filters.append({
-                "filter_id": "approval_rate",
+                "filter_id": "approval-rate",
                 "selected_range": {
                     "lower": filters["min_approval_rate"]
                 }
@@ -194,10 +187,11 @@ class IntegrationProlific:
             "description": study_description,
             "external_study_url": survey_url,
             "prolific_id_option": "url_parameters",
+            "completion_option": "url",
             "completion_codes": [{
                 "code": completion_code,
                 "code_type": "COMPLETED",
-                "actions": [{"action": "MANUALLY_REVIEW"}]
+                "actions": [{"action": "AUTOMATICALLY_APPROVE"}]
             }],
             "estimated_completion_time": int(estimated_minutes),
             "maximum_allowed_time": int(estimated_minutes) * 5,

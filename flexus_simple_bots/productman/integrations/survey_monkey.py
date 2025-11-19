@@ -523,14 +523,14 @@ class IntegrationSurveyMonkey:
             },
             "rating_scale": {
                 "family": "single_choice",
-                "subtype": "rating",
+                "subtype": "vertical",
                 "answers": {
                     "choices": [{"text": str(i), "weight": i} for i in range(scale_min, scale_max + 1)]
                 }
             },
             "nps": {
                 "family": "matrix",
-                "subtype": "nps",
+                "subtype": "rating",
                 "answers": {
                     "rows": [{"text": "Our product"}],
                     "choices": [{"text": str(i), "weight": i} for i in range(0, 11)]
@@ -563,11 +563,21 @@ class IntegrationSurveyMonkey:
             },
             "numeric": {
                 "family": "open_ended",
-                "subtype": "numerical"
+                "subtype": "numerical",
+                "answers": {
+                    "rows": [{"text": ""}]
+                }
             },
             "date": {
                 "family": "datetime",
-                "subtype": "date_only"
+                "subtype": "date_only",
+                "validation": {
+                    "type": "date_intl",
+                    "text": "Please enter a valid date."
+                },
+                "answers": {
+                    "rows": [{"text": ""}]
+                }
             },
             "open_ended": {
                 "family": "open_ended",
@@ -585,6 +595,9 @@ class IntegrationSurveyMonkey:
 
         if "answers" in mapping:
             sm_q["answers"] = mapping["answers"]
+
+        if "validation" in mapping:
+            sm_q["validation"] = mapping["validation"]
 
         if required:
             sm_q.setdefault("validation", {})
