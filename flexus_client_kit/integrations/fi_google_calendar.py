@@ -9,7 +9,7 @@ if TYPE_CHECKING:
 import gql.transport.exceptions
 import google.oauth2.credentials
 import googleapiclient.discovery
-from langchain_google_community.calendar.toolkit import CalendarToolkit
+import langchain_google_community.calendar.toolkit
 
 from flexus_client_kit import ckit_cloudtool
 from flexus_client_kit import ckit_client
@@ -66,7 +66,7 @@ class IntegrationGoogleCalendar:
         creds = google.oauth2.credentials.Credentials(token=self.token_data.access_token)
         service = googleapiclient.discovery.build("calendar", "v3", credentials=creds)
 
-        toolkit = CalendarToolkit(api_resource=service)
+        toolkit = langchain_google_community.calendar.toolkit.CalendarToolkit(api_resource=service)
         self.tools = toolkit.get_tools()
         self.tool_map = {t.name: t for t in self.tools}
 

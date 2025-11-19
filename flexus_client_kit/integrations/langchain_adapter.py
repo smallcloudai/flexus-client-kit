@@ -70,12 +70,12 @@ async def run_langchain_tool(tool: langchain_core.tools.BaseTool, tool_input: Di
         logger.info("Tool error %s: %s", tool.name, e)
         return f"❌ Error: {e}", False
     except Exception as e:
-        logger.exception("Tool error %s", tool.name)
-        error_msg = str(e)
+        logger.info("Tool error %s", tool.name, exc_info=True)
+        error_msg = str(e).lower()
         is_auth_error = (
             "401" in error_msg or
             "403" in error_msg or
-            "insufficientPermissions" in error_msg or
-            "Insufficient Permission" in error_msg
+            "insufficientpermissions" in error_msg or
+            "insufficient permission" in error_msg
         )
         return f"❌ Error: {e}", is_auth_error
