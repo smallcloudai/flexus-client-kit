@@ -11,13 +11,14 @@ from email.policy import default
 from typing import Dict, Any, Optional, List
 
 import html2text
-import gql
-from google.oauth2.credentials import Credentials
-from googleapiclient.discovery import build
-from googleapiclient.errors import HttpError
+import gql.transport.exceptions
+import google.oauth2.credentials
+import googleapiclient.discovery
+import googleapiclient.errors
 
 from flexus_client_kit import ckit_cloudtool
 from flexus_client_kit import ckit_client
+from flexus_client_kit import ckit_external_auth
 
 logger = logging.getLogger("gmail")
 
@@ -104,6 +105,15 @@ gmail(op="searchThreads", args={"query": "is:unread", "maxResults": 10})
 gmail(op="deleteThread", args={"threadId": "18d4..."})
 """
 
+REQUIRED_SCOPES = [
+    "https://www.googleapis.com/auth/gmail.readonly",
+    "https://www.googleapis.com/auth/gmail.compose",
+    "https://www.googleapis.com/auth/gmail.modify",
+    "https://www.googleapis.com/auth/gmail.send",
+    "https://www.googleapis.com/auth/gmail.labels",
+]
+
+
 @dataclass
 class GmailMessage:
     id: str
@@ -128,91 +138,29 @@ class IntegrationGmail:
     ):
         self.fclient = fclient
         self.rcx = rcx
+        self.token_data = None
         self.service = None
-        self.last_token_check = 0
-        self.access_token = None
-        self.token_expires_at = 0
 
-    async def _ensure_authenticated(self) -> bool:
-        if self.service and time.time() < self.token_expires_at - 120:
+    async def _ensure_service(self) -> bool:
+        if self.service and self.token_data and time.time() < self.token_data.expires_at - 60:
             return True
 
         try:
-            http = await self.fclient.use_http()
-
-            async with http as h:
-                r = await h.execute(
-                    gql.gql("""
-                        query GetGmailToken($ws_id: String!, $provider: String!) {
-                            external_auth_token(ws_id: $ws_id, provider: $provider) {
-                                access_token
-                                expires_at
-                                token_type
-                                scope_values
-                            }
-                        }
-                    """),
-                    variable_values={
-                        "ws_id": self.rcx.persona.ws_id,
-                        "provider": "google",
-                    }
-                )
-
-            if not r or not r.get("external_auth_token"):
-                return False
-
-            token_data = r["external_auth_token"]
-            self.access_token = token_data["access_token"]
-            self.token_expires_at = token_data.get("expires_at", 0)
-
-            creds = Credentials(token=self.access_token)
-            self.service = build('gmail', 'v1', credentials=creds)
-
-            logger.info("Gmail authentication successful for user %s", self.rcx.persona.owner_fuser_id)
-            return True
-
-        except gql.transport.exceptions.TransportQueryError as e:
-            logger.error("Failed to authenticate with Gmail: %s", e, exc_info=e)
+            self.token_data = await ckit_external_auth.get_external_auth_token(
+                self.fclient,
+                "google",
+                self.rcx.persona.ws_id,
+            )
+        except gql.transport.exceptions.TransportQueryError:
             return False
 
-    async def _initiate_oauth_flow(self) -> str:
-        try:
-            http = await self.fclient.use_http()
+        if not self.token_data:
+            return False
 
-            async with http as h:
-                r = await h.execute(
-                    gql.gql("""
-                        mutation StartGmailOAuth($ws_id: String!, $provider: String!, $scope_values: [String!]) {
-                            external_auth_start(
-                                ws_id: $ws_id,
-                                provider: $provider,
-                                scope_values: $scope_values
-                            ) {
-                                authorization_url
-                            }
-                        }
-                    """),
-                    variable_values={
-                        "ws_id": self.rcx.persona.ws_id,
-                        "provider": "google",
-                        "scope_values": [
-                            "https://www.googleapis.com/auth/gmail.readonly",
-                            "https://www.googleapis.com/auth/gmail.compose",
-                            "https://www.googleapis.com/auth/gmail.modify",
-                            "https://www.googleapis.com/auth/gmail.send",
-                            "https://www.googleapis.com/auth/gmail.labels",
-                        ]
-                    }
-                )
-
-            if not r or not r.get("external_auth_start"):
-                raise Exception("Failed to initiate OAuth flow")
-
-            return r["external_auth_start"]["authorization_url"]
-
-        except gql.transport.exceptions.TransportQueryError as e:
-            logger.error("Failed to initiate OAuth flow: %s", e, exc_info=e)
-            raise
+        creds = google.oauth2.credentials.Credentials(token=self.token_data.access_token)
+        self.service = googleapiclient.discovery.build('gmail', 'v1', credentials=creds)
+        logger.info("Gmail service initialized for user %s", self.rcx.persona.owner_fuser_id)
+        return True
 
     async def called_by_model(
         self,
@@ -230,8 +178,7 @@ class IntegrationGmail:
         print_help = not op or "help" in op
         print_status = not op or "status" in op
 
-        # Check authentication first
-        authenticated = await self._ensure_authenticated()
+        authenticated = await self._ensure_service()
 
         if print_status:
             r = f"Gmail integration status:\n"
@@ -240,7 +187,12 @@ class IntegrationGmail:
             r += f"  Workspace: {self.rcx.persona.ws_id}\n"
             if not authenticated:
                 try:
-                    auth_url = await self._initiate_oauth_flow()
+                    auth_url = await ckit_external_auth.start_external_auth_flow(
+                        self.fclient,
+                        "google",
+                        self.rcx.persona.ws_id,
+                        REQUIRED_SCOPES,
+                    )
                     r += f"\n⚠️  Please authorize Gmail access:\n{auth_url}\n"
                 except gql.transport.exceptions.TransportQueryError as e:
                     r += f"\n❌ Error initiating OAuth: {e}\n"
@@ -251,7 +203,12 @@ class IntegrationGmail:
 
         if not authenticated:
             try:
-                auth_url = await self._initiate_oauth_flow()
+                auth_url = await ckit_external_auth.start_external_auth_flow(
+                    self.fclient,
+                    "google",
+                    self.rcx.persona.ws_id,
+                    REQUIRED_SCOPES,
+                )
                 return f"⚠️  Gmail not authorized. Please visit:\n{auth_url}\n\nThen try again."
             except gql.transport.exceptions.TransportQueryError as e:
                 return f"❌ Failed to initiate OAuth: {e}"
@@ -294,7 +251,17 @@ class IntegrationGmail:
             else:
                 return f"❌ Unknown operation: {op}\n\nTry gmail(op='help') for usage."
 
-        except HttpError as e:
+        except googleapiclient.errors.HttpError as e:
+            if e.resp.status in (401, 403):
+                self.token_data = None
+                self.service = None
+                auth_url = await ckit_external_auth.start_external_auth_flow(
+                    self.fclient,
+                    "google",
+                    self.rcx.persona.ws_id,
+                    REQUIRED_SCOPES,
+                )
+                return f"❌ Gmail authentication error: {e.resp.status} - {e.error_details}\n\nPlease authorize at:\n{auth_url}\n\nThen retry."
             error_msg = f"Gmail API error: {e.resp.status} - {e.error_details}"
             logger.error(error_msg)
             return f"❌ {error_msg}"
