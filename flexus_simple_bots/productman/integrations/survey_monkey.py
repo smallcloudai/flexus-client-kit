@@ -398,7 +398,7 @@ class IntegrationSurveyMonkey:
         pdoc_path = f"/customer-research/{idea_name}/{hypothesis_name}-survey-draft"
 
         try:
-            await self.pdoc_integration.pdoc_create(
+            await self.pdoc_integration.pdoc_overwrite(
                 pdoc_path,
                 json.dumps(survey_content, indent=2),
                 toolcall.fcall_ft_id
