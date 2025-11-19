@@ -172,8 +172,7 @@ async def scenario_generate_tool_result_via_model(
     toolcall: ckit_cloudtool.FCloudtoolCall,
     tool_handler_source_code: str,
 ) -> str:
-    http_client = await fclient.use_http()
-    http_client.execute_timeout = 120
+    http_client = await fclient.use_http(execute_timeout=120)
     async with http_client as http:
         await http.execute(
             gql.gql("""mutation ScenarioGenerateToolResult(

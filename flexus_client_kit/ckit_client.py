@@ -65,7 +65,7 @@ class FlexusClient:
             assert not have_api_key.startswith("http:")
         assert not self.base_url_http.startswith("fx-")
 
-    async def use_http(self) -> gql.Client:
+    async def use_http(self, execute_timeout: float = 10) -> gql.Client:
         if self.api_key is not None:
             headers = {
                 "Authorization": f"Bearer {self.api_key}",
@@ -84,7 +84,7 @@ class FlexusClient:
                 "x-flexus-service-name": self.service_name,
             }
         transport = AIOHTTPTransport(url=self.http_url, headers=headers)
-        return gql.Client(transport=transport, fetch_schema_from_transport=False)
+        return gql.Client(transport=transport, fetch_schema_from_transport=False, execute_timeout=execute_timeout)
 
     async def use_ws(self) -> gql.Client:
         if self.api_key is not None:
