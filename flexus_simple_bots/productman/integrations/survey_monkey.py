@@ -565,7 +565,7 @@ class IntegrationSurveyMonkey:
                 "family": "open_ended",
                 "subtype": "numerical",
                 "answers": {
-                    "rows": [{"text": ""}]
+                    "rows": [{"text": "Value"}]
                 }
             },
             "date": {
@@ -576,7 +576,7 @@ class IntegrationSurveyMonkey:
                     "text": "Please enter a valid date."
                 },
                 "answers": {
-                    "rows": [{"text": ""}]
+                    "rows": [{"text": "Date"}]
                 }
             },
             "open_ended": {
