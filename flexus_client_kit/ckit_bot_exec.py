@@ -624,6 +624,20 @@ async def run_happy_trajectory(
             shaky_human = sum(1 for m in sorted_messages if m.ftm_role == "user" and m.ftm_provenance.get("shaky") == True)
             shaky_tool = sum(1 for m in sorted_messages if m.ftm_role == "tool" and m.ftm_provenance.get("shaky") == True)
 
+            score_data = {
+                "happy_rating": judge_result.rating_happy,
+                "happy_reason": judge_result.reason_happy,
+                "actual_rating": judge_result.rating_actually,
+                "actual_reason": judge_result.reason_actually,
+                "shaky_human": shaky_human,
+                "shaky_tool": shaky_tool,
+            }
+            score_yaml = ckit_scenario.yaml_dump_with_multiline(score_data)
+            score_path = os.path.join(output_dir, f"{scenario_basename}-v{bot_version}-score.yaml")
+            with open(score_path, "w") as f:
+                f.write(score_yaml)
+            logger.info(f"exported {score_path}")
+
             await ckit_scenario.bot_scenario_result_upsert(
                 scenario.fclient,
                 ckit_scenario.BotScenarioUpsertInput(
