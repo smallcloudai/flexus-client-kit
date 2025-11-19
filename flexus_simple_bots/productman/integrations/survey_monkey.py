@@ -600,8 +600,11 @@ class IntegrationSurveyMonkey:
             sm_q["validation"] = mapping["validation"]
 
         if required:
-            sm_q.setdefault("validation", {})
-            sm_q["validation"]["required"] = True
+            sm_q["required"] = {
+                "text": "This question requires an answer.",
+                "type": "all",
+                "amount": "1"
+            }
 
         return sm_q
 
@@ -664,6 +667,10 @@ class IntegrationSurveyMonkey:
                     json=survey_payload,
                     timeout=aiohttp.ClientTimeout(total=30),
             ) as resp:
+                if resp.status >= 400:
+                    error_text = await resp.text()
+                    logger.error(f"SurveyMonkey API error {resp.status}: {error_text}")
+                    logger.error(f"Payload sent: {json.dumps(survey_payload, indent=2)}")
                 resp.raise_for_status()
                 survey = await resp.json()
                 survey_id = survey["id"]
@@ -682,6 +689,9 @@ class IntegrationSurveyMonkey:
                     json=collector_payload,
                     timeout=aiohttp.ClientTimeout(total=30),
             ) as c_resp:
+                if c_resp.status >= 400:
+                    error_text = await c_resp.text()
+                    logger.error(f"SurveyMonkey collector API error {c_resp.status}: {error_text}")
                 c_resp.raise_for_status()
                 collector = await c_resp.json()
 
