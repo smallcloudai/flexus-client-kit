@@ -280,7 +280,16 @@ And then generate them as documents, filling all the details, use template_hypot
 Don't ask the user questions, generate documents autonomously.
 
 After the hypotheses are generated, ask the user which one they might want to test, and
-then send the chosen one to your specialized skill using flexus_hand_over_task(to_bot="myself", skill="survey", policy_documents=[...]).
+then send the chosen one to your specialized skill using:
+
+flexus_hand_over_task(
+    to_bot="myself",
+    skill="survey",
+    title="Run survey: ...3-5 words, distinctive feature of this hypothesis...",
+    description="...Brief high level goal (1-2 sentences). The skill reads policy_documents, so don't duplicate their content here..."
+    policy_documents=["path-to-hypothesis"]
+)
+
 Say to the user "Please wait until the survey completes and return to this chat". At that point
 you need to save space to discuss the results later. The user UI will have a widget to check the task
 handed over (survey status).

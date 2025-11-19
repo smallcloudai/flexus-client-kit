@@ -50,7 +50,7 @@ if messages[-1]["role"] == "assistant":
     elif "RATING-ERROR" in content:
         print("Rating completed, apparently an error")
         subchat_result = content
-    elif len(messages[-1].tool_calls) == 0:
+    elif len(messages[-1]["tool_calls"]) == 0:
         post_cd_instruction = "Follow the system prompt, your answer need to end with RATING-COMPLETED or RATING-ERROR"
 """
 
