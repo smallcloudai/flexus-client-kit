@@ -516,6 +516,8 @@ async def run_happy_trajectory(
     try:
         assert "__" in skill__scenario
         skill = skill__scenario.split("__")[0]
+        if skill == scenario.persona.persona_marketable_name:
+            skill = "default"
         for step in range(max_steps):
             result = await ckit_scenario.scenario_generate_human_message(
                 scenario.fclient,
