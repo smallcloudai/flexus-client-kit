@@ -491,14 +491,14 @@ async def run_happy_trajectory(
     with open(trajectory_yaml_path) as f:
         trajectory_happy = f.read()
 
-    scenario_basename = os.path.splitext(os.path.basename(trajectory_yaml_path))[0]
+    skill__scenario = os.path.splitext(os.path.basename(trajectory_yaml_path))[0]
     bot_version = ckit_client.marketplace_version_as_str(scenario.persona.persona_marketable_version)
     await ckit_scenario.bot_scenario_result_upsert(
         scenario.fclient,
         ckit_scenario.BotScenarioUpsertInput(
             btest_marketable_name=scenario.persona.persona_marketable_name,
             btest_marketable_version_str=bot_version,
-            btest_name=scenario_basename,
+            btest_name=skill__scenario,
             btest_model=scenario.persona.persona_preferred_model,
             btest_trajectory_happy=trajectory_happy,
             btest_trajectory_actual="",
@@ -514,6 +514,8 @@ async def run_happy_trajectory(
     ft_id: Optional[str] = None
     messages4export = []
     try:
+        assert "__" in skill__scenario
+        skill = skill__scenario.split("__")[0]
         for step in range(max_steps):
             result = await ckit_scenario.scenario_generate_human_message(
                 scenario.fclient,
@@ -525,15 +527,15 @@ async def run_happy_trajectory(
             if result.scenario_done:
                 break
 
-            if not ft_id:
+            if not ft_id:  # same as step==0
                 ft_id = await ckit_ask_model.bot_activate(
                     client=scenario.fclient,
                     who_is_asking="trajectory_scenario",
                     persona_id=scenario.persona.persona_id,
-                    skill="default",   # XXX add to parameters
+                    skill=skill,
                     first_question=result.next_human_message,
                     title="Trajectory Test",
-                    ft_btest_name=scenario_basename,
+                    ft_btest_name=skill__scenario,
                 )
                 logger.info(f"Scenario thread {ft_id}")
             else:
@@ -609,14 +611,14 @@ async def run_happy_trajectory(
             logger.info(f"Scenario output directory: {output_dir}")
             os.makedirs(output_dir, exist_ok=True)
 
-            happy_path = os.path.join(output_dir, f"{scenario_basename}-v{bot_version}-happy.yaml")
+            happy_path = os.path.join(output_dir, f"{skill__scenario}-v{bot_version}-happy.yaml")
             with open(happy_path, "w") as f:
                 f.write(trajectory_happy)
             logger.info(f"exported {happy_path}")
 
             messages4export = ckit_scenario.messages_to_dict_list_for_export(sorted_messages)
             trajectory_actual = ckit_scenario.yaml_dump_with_multiline({"messages": messages4export})
-            actual_path = os.path.join(output_dir, f"{scenario_basename}-v{bot_version}-actual.yaml")
+            actual_path = os.path.join(output_dir, f"{skill__scenario}-v{bot_version}-actual.yaml")
             with open(actual_path, "w") as f:
                 f.write(trajectory_actual)
             logger.info(f"exported {actual_path}")
@@ -633,7 +635,7 @@ async def run_happy_trajectory(
                 "shaky_tool": shaky_tool,
             }
             score_yaml = ckit_scenario.yaml_dump_with_multiline(score_data)
-            score_path = os.path.join(output_dir, f"{scenario_basename}-v{bot_version}-score.yaml")
+            score_path = os.path.join(output_dir, f"{skill__scenario}-v{bot_version}-score.yaml")
             with open(score_path, "w") as f:
                 f.write(score_yaml)
             logger.info(f"exported {score_path}")
@@ -643,7 +645,7 @@ async def run_happy_trajectory(
                 ckit_scenario.BotScenarioUpsertInput(
                     btest_marketable_name=scenario.persona.persona_marketable_name,
                     btest_marketable_version_str=bot_version,
-                    btest_name=scenario_basename,
+                    btest_name=skill__scenario,
                     btest_model=scenario.persona.persona_preferred_model,
                     btest_trajectory_happy=trajectory_happy,
                     btest_trajectory_actual=trajectory_actual,
