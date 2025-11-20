@@ -82,7 +82,7 @@ async def install(
             {"feat_question": "Start Node 3: Design experiments", "feat_run_as_setup": False, "feat_depends_on_setup": []},
         ],
         marketable_intro_message="Hi! I'm Productman, your Stage0 Product Validation Coach. I guide you through (1) Problem Challenge, (2) Market Research, (3) Solution Design",
-        marketable_preferred_model_default="grok-4-fast-non-reasoning",
+        marketable_preferred_model_default="grok-4-1-fast-non-reasoning",
         marketable_daily_budget_default=200_000,
         marketable_default_inbox_default=20_000,
         marketable_experts=[
