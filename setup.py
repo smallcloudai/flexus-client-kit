@@ -26,6 +26,8 @@ setup(
         "PyJWT",
         "pyyaml",
         "langchain_google_community",
+        "langchain-community",
+        "atlassian-python-api",
     ],
     extras_require={
         "dev": [
