@@ -157,4 +157,55 @@ messages:
 
     If you need more details on any campaign or want to make changes, just say the word!
   role: assistant
+- content: check my facebook ads status
+  role: user
+- role: assistant
+  tool_calls:
+  - function:
+      arguments: '{"op":"status"}'
+      name: facebook
+    id: call_fb_status
+    type: function
+- call_id: call_fb_status
+  content: |-
+    Facebook Ads Account: act_123456789
+    Active Campaigns (1):
+      📊 Summer Sale 2025 (ID: 111222333)
+         Status: ACTIVE, Objective: OUTCOME_TRAFFIC, Daily Budget: $50.00
+  role: tool
+- content: |-
+    Here is your Facebook Ads status:
+    
+    **Account**: act_123456789
+    
+    **Active Campaigns**:
+    - **Summer Sale 2025** (ID: 111222333)
+      - Status: ACTIVE
+      - Objective: OUTCOME_TRAFFIC
+      - Daily Budget: $50.00
+  role: assistant
+- content: create a new facebook campaign for Winter Sale, traffic objective, $100 daily budget
+  role: user
+- role: assistant
+  tool_calls:
+  - function:
+      arguments: '{"op":"create_campaign","args":{"name":"Winter Sale 2025","objective":"OUTCOME_TRAFFIC","daily_budget":10000,"status":"PAUSED"}}'
+      name: facebook
+    id: call_fb_create
+    type: function
+- call_id: call_fb_create
+  content: |-
+    ✅ Campaign created: Winter Sale 2025 (ID: 444555666)
+       Status: PAUSED, Objective: OUTCOME_TRAFFIC
+  role: tool
+- content: |-
+    I've created the Facebook campaign:
+    
+    **Winter Sale 2025** (ID: 444555666)
+    - Status: PAUSED
+    - Objective: OUTCOME_TRAFFIC
+    - Daily Budget: $100.00
+    
+    It is currently PAUSED. Let me know if you want to activate it or add ad sets!
+  role: assistant
 persona_marketable_name: admonster

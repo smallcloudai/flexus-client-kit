@@ -12,7 +12,9 @@ from flexus_client_kit import ckit_shutdown
 from flexus_client_kit import ckit_ask_model
 from flexus_client_kit import ckit_mongo
 from flexus_client_kit.integrations import fi_mongo_store
+from flexus_client_kit.integrations import fi_mongo_store
 from flexus_client_kit.integrations import fi_linkedin
+from flexus_client_kit.integrations import fi_facebook
 from flexus_simple_bots.admonster import admonster_install
 from flexus_simple_bots.version_common import SIMPLE_BOTS_COMMON_VERSION
 
@@ -20,6 +22,9 @@ logger = logging.getLogger("bot_admonster")
 
 LINKEDIN_CLIENT_ID = os.getenv("LINKEDIN_CLIENT_ID", "")
 LINKEDIN_CLIENT_SECRET = os.getenv("LINKEDIN_CLIENT_SECRET", "")
+
+FACEBOOK_APP_ID = os.getenv("FACEBOOK_APP_ID", "")
+FACEBOOK_APP_SECRET = os.getenv("FACEBOOK_APP_SECRET", "")
 
 
 BOT_NAME = "admonster"
@@ -31,6 +36,7 @@ ACCENT_COLOR = "#0077B5"  # LinkedIn blue
 
 TOOLS = [
     fi_linkedin.LINKEDIN_TOOL,
+    fi_facebook.FACEBOOK_TOOL,
     fi_mongo_store.MONGO_STORE_TOOL,
 ]
 
@@ -45,6 +51,7 @@ async def admonster_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_e
     personal_mongo = mydb["personal_mongo"]
 
     ad_account_id = setup.get("ad_account_id", fi_linkedin.AD_ACCOUNT_ID)
+    fb_ad_account_id = setup.get("facebook_ad_account_id", fi_facebook.AD_ACCOUNT_ID)
 
     linkedin_integration = None
     if (LINKEDIN_CLIENT_ID and LINKEDIN_CLIENT_SECRET) or rcx.running_test_scenario:
@@ -60,6 +67,20 @@ async def admonster_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_e
         except Exception as e:
             logger.error("Failed to initialize LinkedIn integration: %s", e)
 
+    facebook_integration = None
+    if (FACEBOOK_APP_ID and FACEBOOK_APP_SECRET) or rcx.running_test_scenario:
+        try:
+            facebook_integration = fi_facebook.IntegrationFacebook(
+                fclient=fclient,
+                rcx=rcx,
+                app_id=FACEBOOK_APP_ID,
+                app_secret=FACEBOOK_APP_SECRET,
+                ad_account_id=fb_ad_account_id,
+            )
+            logger.info("Facebook integration initialized for %s", rcx.persona.persona_id)
+        except Exception as e:
+            logger.error("Failed to initialize Facebook integration: %s", e)
+
     @rcx.on_updated_message
     async def updated_message_in_db(msg: ckit_ask_model.FThreadMessageOutput):
         pass
@@ -73,6 +94,37 @@ async def admonster_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_e
         if not linkedin_integration:
             return "ERROR: LinkedIn integration not configured. Please set LINKEDIN_ACCESS_TOKEN in setup.\n"
         return await linkedin_integration.called_by_model(toolcall, model_produced_args)
+
+    @rcx.on_tool_call(fi_facebook.FACEBOOK_TOOL.name)
+    async def toolcall_facebook(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
+        if not facebook_integration:
+            return "ERROR: Facebook integration not configured. Please set FACEBOOK_APP_ID and FACEBOOK_APP_SECRET.\n"
+        
+        try:
+            op = model_produced_args.get("op", "")
+            
+            if op.startswith("list_ad_accounts") or op.startswith("get_ad_account") or op.startswith("update_spending"):
+                from flexus_simple_bots.admonster.integrations import fb_ad_account
+                return await fb_ad_account.handle(facebook_integration, toolcall, model_produced_args)
+            
+            elif op.startswith("update_campaign") or op.startswith("duplicate_campaign") or op.startswith("archive_campaign") or op.startswith("bulk_update"):
+                from flexus_simple_bots.admonster.integrations import fb_campaign
+                return await fb_campaign.handle(facebook_integration, toolcall, model_produced_args)
+            
+            elif op.startswith("create_adset") or op.startswith("list_adsets") or op.startswith("update_adset") or op.startswith("validate_targeting"):
+                from flexus_simple_bots.admonster.integrations import fb_adset
+                return await fb_adset.handle(facebook_integration, toolcall, model_produced_args)
+            
+            elif op.startswith("upload_image") or op.startswith("create_creative") or op.startswith("create_ad") or op.startswith("preview_ad"):
+                from flexus_simple_bots.admonster.integrations import fb_creative
+                return await fb_creative.handle(facebook_integration, toolcall, model_produced_args)
+            
+            else:
+                return await facebook_integration.called_by_model(toolcall, model_produced_args)
+        
+        except Exception as e:
+            logger.error(f"Facebook tool error: {e}", exc_info=e)
+            return f"ERROR: {str(e)}"
 
     @rcx.on_tool_call(fi_mongo_store.MONGO_STORE_TOOL.name)
     async def toolcall_mongo_store(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
