@@ -1,0 +1,24 @@
+def _find_message(messages, content, role):
+    for m in messages:
+        if role != None:
+            if m["role"] == role and content in str(m["content"]):
+                return m
+        else:
+            if content in str(m["content"]):
+                return m
+    return None
+
+
+warning_text = "💿 Cannot close the task until it's completed"
+has_subchat_result = _find_message(messages, "COMPLETED", None) != None
+if not has_subchat_result:
+    last_assistant_msg = None
+    for m in messages[::-1]:
+        if m.get("role") == "assistant":
+            last_assistant_msg = m
+            break
+    if last_assistant_msg:
+        for t in last_assistant_msg.get("tool_calls", []):
+            if t.name == "bot_kanban":
+                post_cd_instruction = warning_text
+                break

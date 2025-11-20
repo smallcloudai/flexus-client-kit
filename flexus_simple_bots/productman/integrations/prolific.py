@@ -28,7 +28,6 @@ PROLIFIC_TOOL = ckit_cloudtool.CloudTool(
                 "description": "Operation-specific arguments",
                 "order": 2,
                 "properties": {
-                    # create operation
                     "survey_url": {"type": "string", "description": "SurveyMonkey survey URL (for create)", "order": 1001},
                     "study_name": {"type": "string", "description": "Name for the Prolific study (for create)", "order": 1002},
                     "study_description": {"type": "string", "description": "Description for participants (for create)", "order": 1003},

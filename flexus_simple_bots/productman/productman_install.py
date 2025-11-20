@@ -82,7 +82,7 @@ async def install(
             {"feat_question": "Start Node 3: Design experiments", "feat_run_as_setup": False, "feat_depends_on_setup": []},
         ],
         marketable_intro_message="Hi! I'm Productman, your Stage0 Product Validation Coach. I guide you through (1) Problem Challenge, (2) Market Research, (3) Solution Design",
-        marketable_preferred_model_default="grok-4-fast-non-reasoning",
+        marketable_preferred_model_default="grok-4-1-fast-non-reasoning",
         marketable_daily_budget_default=200_000,
         marketable_default_inbox_default=20_000,
         marketable_experts=[
@@ -105,9 +105,9 @@ async def install(
             ("survey", ckit_bot_install.FMarketplaceExpertInput(
                 fexp_name="productman_survey",
                 fexp_system_prompt=productman_skill_survey.prompt,
-                fexp_python_kernel="",
+                fexp_python_kernel=open(Path(__file__).parent / "lark/survey_skill_kernel.lark").read(),
                 fexp_block_tools="",
-                fexp_allow_tools="*bot_kanban,*web,*python_execute",
+                fexp_allow_tools="*bot_kanban",
                 fexp_app_capture_tools=json.dumps([t.openai_style_tool() for t in productman_bot.TOOLS_VERIFY_SUBCHAT + productman_bot.TOOLS_SURVEY]),
             )),
         ],

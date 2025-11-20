@@ -28,14 +28,12 @@ SURVEY_TOOL = ckit_cloudtool.CloudTool(
                 "description": "Operation-specific arguments",
                 "order": 2,
                 "properties": {
-                    # draft operation
                     "idea_name": {"type": "string", "description": "Name of the idea folder (for draft/list)", "order": 1001},
                     "hypothesis_name": {"type": "string", "description": "Name of the hypothesis being tested (for draft)", "order": 1002},
                     "survey_content": {"type": "object", "description": "Complete survey structure with meta and sections (for draft)", "order": 1003},
-                    # push operation
                     "survey_draft_path": {"type": "string", "description": "Path to survey draft document (for push)", "order": 1004},
-                    # responses operation
                     "survey_id": {"type": "string", "description": "SurveyMonkey survey ID (for responses)", "order": 1005},
+                    "target_responses": {"type": "integer", "description": "Target number of responses to collect (for responses)", "order": 1006},
                 }
             }
         },
@@ -60,8 +58,10 @@ survey(op="push", args={"survey_draft_path": "/customer-research/idea/hypothesis
     Push a survey draft from policy document to SurveyMonkey.
     Returns survey URL and ID.
 
-survey(op="responses", args={"survey_id": "123456"})
-    Fetch all responses for a SurveyMonkey survey.
+survey(op="responses", args={"survey_id": "123456", "target_responses": 50})
+    Fetch all responses for a SurveyMonkey survey and save results.
+    Required: survey_id, target_responses
+    Automatically saves results to /customer-research/<idea_name>/<hypothesis_name>-survey-results
     
 survey(op="list", args={"idea_name": "..."})
     List all surveys for an idea (drafts and live).
@@ -600,11 +600,18 @@ class IntegrationSurveyMonkey:
             sm_q["validation"] = mapping["validation"]
 
         if required:
-            sm_q["required"] = {
-                "text": "This question requires an answer.",
-                "type": "all",
-                "amount": "1"
-            }
+            if mapping["family"] == "multiple_choice":
+                sm_q["required"] = {
+                    "text": "Please select at least one option.",
+                    "type": "at_least",
+                    "amount": "1"
+                }
+            else:
+                sm_q["required"] = {
+                    "text": "This question requires an answer.",
+                    "type": "all",
+                    "amount": "1"
+                }
 
         return sm_q
 
@@ -747,8 +754,40 @@ class IntegrationSurveyMonkey:
 
     async def _handle_responses(self, toolcall: ckit_cloudtool.FCloudtoolCall, args: Dict[str, Any]) -> str:
         survey_id = args.get("survey_id", "")
+        target_responses = args.get("target_responses", 0)
+        
         if not survey_id:
             return "Error: survey_id is required"
+        if not target_responses or target_responses <= 0:
+            return "Error: target_responses is required and must be greater than 0"
+        
+        idea_name = ""
+        hypothesis_name = ""
+        if self.pdoc_integration:
+            try:
+                items = await self.pdoc_integration.pdoc_list("/customer-research")
+                for item in items:
+                    if item.is_folder:
+                        idea_items = await self.pdoc_integration.pdoc_list(item.path)
+                        for idea_item in idea_items:
+                            if not idea_item.is_folder and "-survey-monkey" in idea_item.path:
+                                doc = await self.pdoc_integration.pdoc_cat(idea_item.path)
+                                content = doc.pdoc_content
+                                if content and isinstance(content, dict):
+                                    meta = content.get("survey_monkey", {}).get("meta", {})
+                                    if meta.get("survey_id") == survey_id:
+                                        path_parts = idea_item.path.split("/")
+                                        if len(path_parts) >= 3:
+                                            idea_name = path_parts[-2]
+                                            hypothesis_name = path_parts[-1].replace("-survey-monkey", "")
+                                        break
+                        if idea_name:
+                            break
+            except Exception as e:
+                logger.warning(f"Failed to find survey metadata: {e}")
+        
+        if not idea_name or not hypothesis_name:
+            return f"Error: Could not find survey metadata for survey_id {survey_id}. Make sure the survey was created through this system."
 
         all_responses = []
         page, per_page, total = 1, 100, None
@@ -779,15 +818,26 @@ class IntegrationSurveyMonkey:
 
                     page += 1
 
+        completion_rate = (len(all_responses) / target_responses * 100) if target_responses > 0 else 0
+        is_completed = target_responses > 0 and len(all_responses) >= target_responses
+        
         result = f"📊 Survey Responses (Survey ID: {survey_id})\n"
-        result += f"Total responses retrieved: {len(all_responses)}\n"
+        result += f"Total responses: {len(all_responses)} / {target_responses} ({completion_rate:.1f}%)\n"
+        result += f"Status: {'COMPLETED ✅' if is_completed else 'IN_PROGRESS ⏳'}\n"
         result += "=" * 50 + "\n\n"
 
         if not all_responses:
-            result += "No responses found.\n"
-            return result
+            result += "No responses found yet.\n"
 
+        responses_data = []
         for idx, r in enumerate(all_responses, 1):
+            response_entry = {
+                "response_id": r.get('id', 'N/A'),
+                "status": r.get('response_status', 'N/A'),
+                "submitted": r.get('date_modified') or r.get('date_created', 'N/A'),
+                "answers": r
+            }
+            
             result += f"Response #{idx} (ID: {r.get('id', 'N/A')})\n"
             result += f"Status: {r.get('response_status', 'N/A')}\n"
             result += f"Submitted: {r.get('date_modified') or r.get('date_created', 'N/A')}\n\n"
@@ -816,6 +866,47 @@ class IntegrationSurveyMonkey:
                         result += f"A: {', '.join(parts)}\n\n"
 
             result += "-" * 30 + "\n\n"
+            responses_data.append(response_entry)
+
+        if self.pdoc_integration:
+            results_path = f"/customer-research/{idea_name}/{hypothesis_name}-survey-results"
+            results_content = {
+                "survey_results": {
+                    "meta": {
+                        "survey_id": survey_id,
+                        "total_responses": len(all_responses),
+                        "target_responses": target_responses,
+                        "completion_rate": completion_rate,
+                        "saved_at": time.strftime("%Y-%m-%d %H:%M:%S"),
+                        "idea": idea_name,
+                        "hypothesis": hypothesis_name,
+                        "status": "COMPLETED" if is_completed else "IN_PROGRESS"
+                    },
+                    "responses": responses_data,
+                    "summary": {
+                        "total_collected": len(all_responses),
+                        "completion_status": "COMPLETED" if is_completed else "IN_PROGRESS"
+                    }
+                }
+            }
+            
+            try:
+                await self.pdoc_integration.pdoc_overwrite(
+                    results_path,
+                    json.dumps(results_content, indent=2),
+                    toolcall.fcall_ft_id
+                )
+                result += f"\n📁 Results saved to: {results_path}\n"
+                result += f"✍🏻{results_path}\n\n"
+            except Exception as e:
+                result += f"\n⚠️ Failed to save results: {str(e)}\n\n"
+        
+        if is_completed:
+            result += "🎉 SURVEY COMPLETED! All target responses collected.\n"
+            result += "✅ You should now move the kanban task to DONE state.\n"
+        else:
+            result += f"⏳ Survey still in progress. {target_responses - len(all_responses)} more responses needed.\n"
+            result += "❌ DO NOT finish the task yet. Check again later for more responses.\n"
 
         return result
 
@@ -827,14 +918,15 @@ class IntegrationSurveyMonkey:
         survey_id = details.get("survey_id")
         
         if survey_id and task.ktask_done_ts == 0:
-            self.tracked_surveys[survey_id] = {
-                "task_id": task.ktask_id,
-                "thread_id": task.ktask_inprogress_ft_id,
-                "target_responses": details.get("target_responses", 0),
-                "last_response_count": details.get("survey_status", {}).get("responses", 0) if "survey_status" in details else 0,
-                "completed_notified": details.get("survey_status", {}).get("completed_notified", False) if "survey_status" in details else False
-            }
-            logger.info(f"Tracking survey {survey_id} for task {task.ktask_id}")
+            if survey_id not in self.tracked_surveys:
+                self.tracked_surveys[survey_id] = {
+                    "task_id": task.ktask_id,
+                    "thread_id": task.ktask_inprogress_ft_id,
+                    "target_responses": details.get("target_responses", 0),
+                    "last_response_count": details.get("survey_status", {}).get("responses", 0) if "survey_status" in details else 0,
+                    "completed_notified": details.get("survey_status", {}).get("completed_notified", False) if "survey_status" in details else False
+                }
+                logger.info(f"Tracking survey {survey_id} for task {task.ktask_id}")
 
     async def update_active_surveys(self, fclient, update_task_callback):
         if not self.tracked_surveys:

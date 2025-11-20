@@ -92,7 +92,11 @@ TOOLS_DEFAULT = [
     HYPOTHESIS_TEMPLATE_TOOL,
     VERIFY_IDEA_TOOL,
     *TOOLS_VERIFY_SUBCHAT,
-    *TOOLS_SURVEY,
+]
+
+TOOLS_ALL = [
+    *TOOLS_DEFAULT,
+    *TOOLS_SURVEY
 ]
 
 
@@ -284,6 +288,11 @@ async def productman_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_
 
             await ckit_kanban.update_task_details(fclient, task_id, details)
 
+    # Track existing tasks on startup
+    if surveymonkey_integration and rcx.latest_tasks:
+        for task in rcx.latest_tasks.values():
+            surveymonkey_integration.track_survey_task(task)
+
     last_survey_update = 0
     survey_update_interval = 300
 
@@ -293,10 +302,6 @@ async def productman_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_
 
             current_time = time.time()
             if surveymonkey_integration and current_time - last_survey_update > survey_update_interval:
-                if not surveymonkey_integration.tracked_surveys and rcx.latest_tasks:
-                    for task in rcx.latest_tasks.values():
-                        surveymonkey_integration.track_survey_task(task)
-
                 await surveymonkey_integration.update_active_surveys(fclient, update_task_survey_status)
                 last_survey_update = current_time
 
@@ -314,7 +319,7 @@ def main():
         marketable_version=BOT_VERSION_INT,
         fgroup_id=group,
         bot_main_loop=productman_main_loop,
-        inprocess_tools=TOOLS_DEFAULT,
+        inprocess_tools=TOOLS_ALL,
         scenario_fn=scenario_fn,
     ))
 
