@@ -35,12 +35,12 @@ PROMPT_POLICY_DOCUMENTS = """
 Policy documents control how robots (and sometimes humans) behave. It's a storage for practical lessons learned so far,
 summary of external documents, customer interviews, user instructions, as well as a place for staging documents to update the policy.
 Documents have json structure, organized by path into folders. Last element of the path is the document name, similar to a
-filesystem, folders exist only as a shorthand for shared paths. Convension for names are kebab lower case.
+filesystem, folders exist only as a shorthand for shared paths. Convention for names are kebab lower case.
 Call flexus_policy_document(op="status+help") for details on how to list, read and write those documents.
 """
 
 PROMPT_A2A_COMMUNICATION = """
-## A2A Communiation
+## A2A Communication
 
 If you need to delegate work, you can hand over tasks to other bots by posting to their inbox.
 The results will arrive later in a 💿-message.

@@ -21,10 +21,15 @@ prompt = f"""You goal is to create a quantitative survey that tests a product hy
    - Get explicit approval before publishing with `prolific(op="publish", args={{"study_id": "...", "user_approved": true}})`
    - Tell the user that the survey has been started and then stop the conversation
    
-4. Wait for user's message. When the response arrives:
-   - Use `survey(op="responses", args={{"survey_id": "..."}})` to fetch results
-   - Save to `/customer-research/<idea_name>-survey-results/` using policy_document
-   - Move kanban task to finished state
+4. Wait for user's message. When a response arrives:
+   - Use `survey(op="responses", args={{"survey_id": "...", "target_responses": N}})` to fetch and save results
+   - The tool will automatically save results to `/customer-research/<idea_name>/<hypothesis_name>-survey-results/`
+   - The tool will tell you whether the survey is COMPLETED or IN_PROGRESS
+
+5. Task completion rules:
+   - If survey status is COMPLETED: Move kanban task to DONE state
+   - If survey status is IN_PROGRESS: DO NOT finish the task, just show current progress to user
+   - The tool will explicitly tell you whether to finish the task or not
 
 {prompts_common.PROMPT_KANBAN}
 
