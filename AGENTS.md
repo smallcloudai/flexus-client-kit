@@ -165,7 +165,12 @@ Using and Writing Scenarios
 ----------------------------
 
 Scenarios are YAML files that represent how a bot should work, a "happy path" to verify behavior and catch regressions.
-After making lots of changes to a bot, run:
+
+Usually scenarios do not have system prompts inside to avoid confusion, because usually scenarios are made
+using the very first version of the system prompt. Scenarios might include instead "judge_instructions" from
+scenario author: what should be rewarded and penalized in the behavior, what to ignore.
+
+After making changes to a bot, run:
 
 python flexus_simple_bots/my/my_bot.py --scenario flexus_simple_bots/my/default__s1.yaml
 
@@ -173,7 +178,7 @@ The naming convention is $SKILL$__$SCENARIO$.yaml with double underscore, in thi
 the scenario name is "s1".
 
 Don't run this for all bots because it's expensive, but it's a good idea to run one scenario of your choosing
-for the one you've just changed.
+for the one bot you've just changed.
 
 The result is saved into:
 
@@ -184,25 +189,30 @@ scenario-dumps/my__s1-score.yaml
 Note that .gitignore has scenario-dumps/** inside.
 
 How the bot performs is judged by a model on the backend side and saved into -score.yaml. You'll see
-feedback on how the actual trajectory deviates from the happy path and where to make improvements.
+feedback on how the actual trajectory compares to the happy path so you can make improvements.
 
 When running scenarios, human input is simulated by an LLM. Most tools validate their arguments and then
 call an LLM, some simple tools respond without LLMs. The "shaky" you see in -score.yaml means how
 many times human or tools were simulated without sufficient support in the original happy path,
 in other words LLMs are making stuff up trying to have a similar conversation, so it's a measure of trajectory
-deviation from the original if the score is high.
+deviation from the original even if the score is high.
+
+It's a good idea to load -score.yaml into context, because it's small and informative. It MIGHT be a good
+idea to load -happy.yaml and -actual.yaml and judge for yourself, but also it might so happen the trajectories
+are very long and you are better off using the specialized judge feedback, and spending your context tokens on
+loading source code files instead.
 
 
 Improving System Prompt
 -----------------------
 
 Most likely you'll see very specific feedback, like "question 8 didn't work". This feedback comes from
-human users or automated scenario judge. Both can be very specific in what they don't like, because
+human users or an automated scenario judge. Both can be very specific in what they don't like, because
 that is what their particular experience was.
 
 IMPORTANT: YOU MUST NOT FIX ANY SPECIFICS.
 
-Changes in the system prompt must not say "oh if you see file1 later then respond X". That will
+Changes in the system prompt must not say "oh if you see file1 then respond X". That will
 fix the test essentially by cheating and will not make the bot any better.
 
 Think what the root cause is. How do I fix the personality of this bot so an entire class of
@@ -214,6 +224,10 @@ Only use emojis for technical reasons in system prompt, for example 💿 and ✍
 Minimize system prompt size. Prefer re-writing of existing language to adding more and more rules.
 
 Iterate making small changes and running the scenarios again.
+
+Remember each system prompt change requires bot installation, because system prompt is stored in the database:
+
+python -m flexus_simple_bots/my/my_install.py --ws xxx1337
 
 
 Writing Logs

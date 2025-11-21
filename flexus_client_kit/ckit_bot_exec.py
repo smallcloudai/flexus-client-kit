@@ -6,6 +6,7 @@ import os
 import sys
 import time
 import argparse
+import yaml
 from typing import Dict, List, Optional, Any, Callable, Awaitable, NamedTuple, Union
 
 import gql
@@ -491,6 +492,10 @@ async def run_happy_trajectory(
     with open(trajectory_yaml_path) as f:
         trajectory_happy = f.read()
 
+    trajectory_data = yaml.safe_load(trajectory_happy)
+    judge_instructions = trajectory_data.get("judge_instructions", "")
+    trajectory_happy_messages_only = ckit_scenario.yaml_dump_with_multiline({"messages": trajectory_data["messages"]})
+
     skill__scenario = os.path.splitext(os.path.basename(trajectory_yaml_path))[0]
     bot_version = ckit_client.marketplace_version_as_str(scenario.persona.persona_marketable_version)
     await ckit_scenario.bot_scenario_result_upsert(
@@ -601,13 +606,14 @@ async def run_happy_trajectory(
         if ft_id:
             judge_result = await ckit_scenario.scenario_judge(
                 scenario.fclient,
-                trajectory_happy,
+                trajectory_happy_messages_only,
                 ft_id,
+                judge_instructions,
             )
             logger.info(f"Scenario judge happy trajectory rating: {judge_result.rating_happy}/10")
-            logger.info(f"Scenario judge happy trajectory reason: {judge_result.reason_happy}")
+            logger.info(f"Scenario judge happy trajectory feedback: {judge_result.feedback_happy}")
             logger.info(f"Scenario judge actual trajectory rating: {judge_result.rating_actually}/10")
-            logger.info(f"Scenario judge actual trajectory reason: {judge_result.reason_actually}")
+            logger.info(f"Scenario judge actual trajectory feedback: {judge_result.feedback_actually}")
 
             output_dir = os.path.abspath(os.path.join(os.getcwd(), "scenario-dumps"))
             logger.info(f"Scenario output directory: {output_dir}")
@@ -615,13 +621,14 @@ async def run_happy_trajectory(
 
             happy_path = os.path.join(output_dir, f"{skill__scenario}-v{bot_version}-happy.yaml")
             with open(happy_path, "w") as f:
-                f.write(trajectory_happy)
+                f.write("# This is generated file don't edit!\n\n")
+                f.write(trajectory_happy_messages_only)
             logger.info(f"exported {happy_path}")
 
-            messages4export = ckit_scenario.messages_to_dict_list_for_export(sorted_messages)
-            trajectory_actual = ckit_scenario.yaml_dump_with_multiline({"messages": messages4export})
+            trajectory_actual = ckit_scenario.fmessages_to_yaml(sorted_messages)
             actual_path = os.path.join(output_dir, f"{skill__scenario}-v{bot_version}-actual.yaml")
             with open(actual_path, "w") as f:
+                f.write("# This is generated file don't edit!\n\n")
                 f.write(trajectory_actual)
             logger.info(f"exported {actual_path}")
 
@@ -630,9 +637,9 @@ async def run_happy_trajectory(
 
             score_data = {
                 "happy_rating": judge_result.rating_happy,
-                "happy_reason": judge_result.reason_happy,
+                "happy_feedback": judge_result.feedback_happy,
                 "actual_rating": judge_result.rating_actually,
-                "actual_reason": judge_result.reason_actually,
+                "actual_feedback": judge_result.feedback_actually,
                 "shaky_human": shaky_human,
                 "shaky_tool": shaky_tool,
             }

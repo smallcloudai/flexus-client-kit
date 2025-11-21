@@ -25,9 +25,9 @@ class ScenarioHumanMessageOutput:
 @dataclass
 class ScenarioJudgeOutput:
     rating_happy: int
-    reason_happy: str
+    feedback_happy: str
     rating_actually: int
-    reason_actually: str
+    feedback_actually: str
 
 
 @dataclass
@@ -106,6 +106,7 @@ async def scenario_judge(
     client: ckit_client.FlexusClient,
     happy_trajectory: str,
     ft_id: str,
+    judge_instructions: str,
 ) -> ScenarioJudgeOutput:
     http_client = await client.use_http()
     http_client.execute_timeout = 120
@@ -113,11 +114,13 @@ async def scenario_judge(
         r = await http.execute(
             gql.gql(f"""mutation ScenarioJudge(
                 $happy_trajectory: String!,
-                $ft_id: String!
+                $ft_id: String!,
+                $judge_instructions: String!
             ) {{
                 scenario_judge(
                     happy_trajectory: $happy_trajectory,
-                    ft_id: $ft_id
+                    ft_id: $ft_id,
+                    judge_instructions: $judge_instructions
                 ) {{
                     {gql_utils.gql_fields(ScenarioJudgeOutput)}
                 }}
@@ -125,6 +128,7 @@ async def scenario_judge(
             variable_values={
                 "happy_trajectory": happy_trajectory,
                 "ft_id": ft_id,
+                "judge_instructions": judge_instructions,
             },
         )
     return gql_utils.dataclass_from_dict(r["scenario_judge"], ScenarioJudgeOutput)
@@ -136,15 +140,15 @@ def _represent_multiline_str(dumper, data):
     return dumper.represent_scalar('tag:yaml.org,2002:str', data)
 
 
-def messages_to_dict_list_for_export(messages: list) -> list:
-    skip_count = 0
-    if messages and messages[0].ftm_role == "system":
-        skip_count = 1
-        if len(messages) > 1 and messages[1].ftm_role == "cd_instruction":
-            skip_count = 2
+def yaml_dump_with_multiline(data: dict) -> str:
+    dumper = yaml.Dumper
+    dumper.add_representer(str, _represent_multiline_str)
+    return yaml.dump(data, Dumper=dumper, default_flow_style=False, allow_unicode=True, width=100, sort_keys=False)
 
+
+def fmessages_to_yaml(messages: list) -> str:
     export_messages = []
-    for msg in messages[skip_count:]:
+    for msg in messages:
         m = {"role": msg.ftm_role}
         if msg.ftm_content:
             m["content"] = msg.ftm_content
@@ -153,17 +157,6 @@ def messages_to_dict_list_for_export(messages: list) -> list:
         if msg.ftm_call_id:
             m["call_id"] = msg.ftm_call_id
         export_messages.append(m)
-    return export_messages
-
-
-def yaml_dump_with_multiline(data: dict) -> str:
-    dumper = yaml.Dumper
-    dumper.add_representer(str, _represent_multiline_str)
-    return yaml.dump(data, Dumper=dumper, default_flow_style=False, allow_unicode=True, width=100, sort_keys=False)
-
-
-def dump_thread_messages_to_yaml(messages: list) -> str:
-    export_messages = messages_to_dict_list_for_export(messages)
     return yaml_dump_with_multiline({"messages": export_messages})
 
 
