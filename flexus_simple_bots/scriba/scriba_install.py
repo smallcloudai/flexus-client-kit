@@ -47,7 +47,7 @@ async def install(
         ws_id=ws_id,
         marketable_name=scriba_bot.BOT_NAME,
         marketable_version=scriba_bot.BOT_VERSION,
-        marketable_accent_color="#264442",
+        marketable_accent_color="#2B4341",
         marketable_title1="Scriba",
         marketable_title2="Your helpful secretary robot for email, calendar, and Jira management.",
         marketable_author="Flexus",
