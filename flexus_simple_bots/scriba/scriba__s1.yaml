@@ -1,0 +1,392 @@
+messages:
+  - role: user
+    content: Check my meetings for today (my @smallcloud.tech email), if I have a free spot between 17
+      and 20, create a meeting as early as possible, invite frog@smallcloud.tech and
+      productman@smallcloud.tech, and send them an email that I set up a meeting with them, and if
+      time does not fit well the can let me know
+  - role: assistant
+    tool_calls:
+      - id: fakecall_rzEkXSQXdTXN6f4M
+        type: function
+        function:
+          name: flexus_bot_kanban
+          arguments: "{}"
+  - role: tool
+    content: |
+      Inbox:
+      [
+      ]
+
+      Todo:
+      [
+      ]
+
+      In Progress:
+      [
+      ]
+
+      Done:
+      [
+      ]
+
+
+      No current task assigned to this chat
+
+      Help:
+
+      flexus_bot_kanban()
+          Shows the current board.
+
+      flexus_bot_kanban(op="fetch_details", args={"batch": ["task1337", "task1338"]})
+          Returns details, works for any task.
+
+      flexus_bot_kanban(op="inbox_to_todo", args={"join": ["task1337", "task1338"]})
+          Moves a task from inbox into todo column, optionally joining multiple tasks. Only the first task
+          in the join list will move to todo, others will get appended to the details of the first
+          task.
+          Tasks in todo will produce a new chat to address it.
+          Join inbox tasks that appear to refer to the same question.
+
+      flexus_bot_kanban(op="inbox_irrelevant", args={"batch": ["task1337", "task1338"], "resolution_summary": "I don't care about potato knishes"})
+          This moves task(s) to done, sets resolution_code to IRRELEVANT with resolution_summary.
+
+      flexus_bot_kanban(op="current_task_done", args={"resolution_code": "SUCCESS/INCONCLUSIVE/FAIL/IRRELEVANT", "resolution_summary": "Did this and that", "resolution_humanhours": 2.5, "resolution_pdoc_paths": ["/company", "/customer-research/interview-john-doe"]})
+          Mark the task currently assigned as done with a resolution code, 50-character summary, and
+          your estimate of how much time a qualified human would have spent resolving this, in hours.
+          Optionally, a list of policy document paths produced in the task or related to its resolution.
+
+      flexus_bot_kanban(op="add_details", args={"key1": "value1", "key2": "value2"})
+          Adds details to the current task assigned to this chat. This op cannot overwrite existing
+          keys, only create new keys.
+
+      flexus_bot_kanban(op="restart", args={"chat_summary": "I did these actions, and then this guy told me, and I saved this and this file."})
+          Clean up the context, especially after you've completed a piece of work. This will start a new chat
+          that will only see the original message that started this chat, and your chat_summary. If this chat is
+          captured by a messenger thread, the new chat will be too, so you can continue the conversation.
+    call_id: fakecall_rzEkXSQXdTXN6f4M
+  - role: assistant
+    tool_calls:
+      - id: call_29915389
+        type: function
+        function:
+          name: google_calendar
+          arguments: '{"op":"help"}'
+  - role: tool
+    content: |-
+      Google Calendar - All Available Operations:
+
+      ============================================================
+      Operation: create_calendar_event
+      Description: Use this tool to create an event. The input must include the summary, start, and end datetime for the event.
+
+      Arguments:
+        - summary [REQUIRED]
+          type: string
+          The title of the event.
+        - start_datetime [REQUIRED]
+          type: string
+          The start datetime for the event in 'YYYY-MM-DD HH:MM:SS' format.If the event is an all-day event, set the time to 'YYYY-MM-DD' format.If you do not know the current datetime, use the tool to get it.
+        - end_datetime [REQUIRED]
+          type: string
+          The end datetime for the event in 'YYYY-MM-DD HH:MM:SS' format. If the event is an all-day event, set the time to 'YYYY-MM-DD' format.
+        - timezone [REQUIRED]
+          type: string
+          The timezone of the event.
+        - calendar_id [optional]
+          type: string
+          The calendar ID to create the event in.
+        - recurrence [optional]
+          The recurrence of the event. Format: {'FREQ': <'DAILY' or 'WEEKLY'>, 'INTERVAL': <number>, 'COUNT': <number or None>, 'UNTIL': <'YYYYMMDD' or None>, 'BYDAY': <'MO', 'TU', 'WE', 'TH', 'FR', 'SA', 'SU' or None>}. Use either COUNT or UNTIL, but not both; set the other to None.
+        - location [optional]
+          The location of the event.
+        - description [optional]
+          The description of the event.
+        - attendees [optional]
+          A list of attendees' email addresses for the event.
+        - reminders [optional]
+          Reminders for the event. Set to True for default reminders, or provide a list like [{'method': 'email', 'minutes': <minutes>}, ...]. Valid methods are 'email' and 'popup'.
+        - conference_data [optional]
+          Whether to include conference data.
+        - color_id [optional]
+          The color ID of the event. None for default. '1': Lavender, '2': Sage, '3': Grape, '4': Flamingo, '5': Banana, '6': Tangerine, '7': Peacock, '8': Graphite, '9': Blueberry, '10': Basil, '11': Tomato.
+        - transparency [optional]
+          User availability for the event.transparent for available and opaque for busy.
+
+      ============================================================
+      Operation: search_events
+      Description: Use this tool to search events in the calendar.
+
+      Arguments:
+        - calendars_info [REQUIRED]
+          type: string
+          A list with the information about all Calendars in Google CalendarUse the tool 'get_calendars_info' to get it.
+        - min_datetime [REQUIRED]
+          type: string
+          The start datetime for the events in 'YYYY-MM-DD HH:MM:SS' format. If you do not know the current datetime, use the tool to get it.
+        - max_datetime [REQUIRED]
+          type: string
+          The end datetime for the events search.
+        - max_results [optional]
+          type: integer
+          The maximum number of results to return.
+        - single_events [optional]
+          type: boolean
+          Whether to expand recurring events into instances and only return single one-off events and instances of recurring events.'startTime' or 'updated'.
+        - order_by [optional]
+          type: string
+          The order of the events, either 'startTime' or 'updated'.
+        - query [optional]
+          Free text search terms to find events, that match these terms in the following fields: summary, description, location, attendee's displayName, attendee's email, organizer's displayName, organizer's email.
+
+      ============================================================
+      Operation: update_calendar_event
+      Description: Use this tool to update an event. 
+
+      Arguments:
+        - event_id [REQUIRED]
+          type: string
+          The event ID to update.
+        - calendar_id [optional]
+          type: string
+          The calendar ID to create the event in.
+        - summary [optional]
+          The title of the event.
+        - start_datetime [optional]
+          The new start datetime for the event in 'YYYY-MM-DD HH:MM:SS' format. If the event is an all-day event, set the time to 'YYYY-MM-DD' format.
+        - end_datetime [optional]
+          The new end datetime for the event in 'YYYY-MM-DD HH:MM:SS' format. If the event is an all-day event, set the time to 'YYYY-MM-DD' format.
+        - timezone [optional]
+          The timezone of the event.
+        - recurrence [optional]
+          The recurrence of the event. Format: {'FREQ': <'DAILY' or 'WEEKLY'>, 'INTERVAL': <number>, 'COUNT': <number or None>, 'UNTIL': <'YYYYMMDD' or None>, 'BYDAY': <'MO', 'TU', 'WE', 'TH', 'FR', 'SA', 'SU' or None>}. Use either COUNT or UNTIL, but not both; set the other to None.
+        - location [optional]
+          The location of the event.
+        - description [optional]
+          The description of the event.
+        - attendees [optional]
+          A list of attendees' email addresses for the event.
+        - reminders [optional]
+          Reminders for the event. Set to True for default reminders, or provide a list like [{'method': 'email', 'minutes': <minutes>}, ...]. Valid methods are 'email' and 'popup'.
+        - conference_data [optional]
+          Whether to include conference data.
+        - color_id [optional]
+          The color ID of the event. None for default. '1': Lavender, '2': Sage, '3': Grape, '4': Flamingo, '5': Banana, '6': Tangerine, '7': Peacock, '8': Graphite, '9': Blueberry, '10': Basil, '11': Tomato.
+        - transparency [optional]
+          User availability for the event.transparent for available and opaque for busy.
+        - send_updates [optional]
+          Whether to send updates to attendees. Allowed values are 'all', 'externalOnly', or 'none'.
+
+      ============================================================
+      Operation: get_calendars_info
+      Description: Use this tool to get information about the calendars in Google Calendar.
+
+      No arguments required.
+
+      ============================================================
+      Operation: move_calendar_event
+      Description: Use this tool to move an event between calendars.
+
+      Arguments:
+        - event_id [REQUIRED]
+          type: string
+          The event ID to move.
+        - origin_calendar_id [REQUIRED]
+          type: string
+          The origin calendar ID.
+        - destination_calendar_id [REQUIRED]
+          type: string
+          The destination calendar ID.
+        - send_updates [optional]
+          Whether to send updates to attendees.Allowed values are 'all', 'externalOnly', or 'none'.
+
+      ============================================================
+      Operation: delete_calendar_event
+      Description: Use this tool to delete an event.
+
+      Arguments:
+        - event_id [REQUIRED]
+          type: string
+          The event ID to delete.
+        - calendar_id [optional]
+          The origin calendar ID.
+        - send_updates [optional]
+          Whether to send updates to attendees.Allowed values are 'all', 'externalOnly', or 'none'.
+
+      ============================================================
+      Operation: get_current_datetime
+      Description: Use this tool to get the current datetime according to the calendar timezone.The output datetime format is 'YYYY-MM-DD HH:MM:SS'
+
+      Arguments:
+        - calendar_id [optional]
+          The calendar ID. Defaults to 'primary'.
+
+      ============================================================
+      To execute an operation:
+        google_calendar({"op": "get_calendars_info"})
+        google_calendar({"op": "create_calendar_event", "args": {...}})
+    call_id: call_29915389
+  - role: assistant
+    tool_calls:
+      - id: call_16331290
+        type: function
+        function:
+          name: google_calendar
+          arguments: '{"op":"get_calendars_info"}'
+  - role: tool
+    content: '[{"id": "en.spain#holiday@group.v.calendar.google.com", "summary": "Holidays in Spain",
+      "timeZone": "Europe/Madrid"}, {"id": "humberto.yusta@harbour.space", "summary":
+      "humberto.yusta@harbour.space", "timeZone": "Europe/Madrid"}, {"id":
+      "humbertoyusta02@gmail.com", "summary": "humbertoyusta02@gmail.com", "timeZone":
+      "Europe/Madrid"}, {"id": "humberto@smallcloud.tech", "summary": "humberto@smallcloud.tech",
+      "timeZone": "Europe/Madrid"}]'
+    call_id: call_16331290
+  - role: assistant
+    tool_calls:
+      - id: call_33133566
+        type: function
+        function:
+          name: google_calendar
+          arguments: '{"op":"get_current_datetime","args":{"calendar_id":"humberto@smallcloud.tech"}}'
+      - id: call_36287490
+        type: function
+        function:
+          name: google_calendar
+          arguments: '{"op":"search_events","args":{"calendars_info":"[{\"id\": \"humberto@smallcloud.tech\",
+            \"summary\": \"humberto@smallcloud.tech\", \"timeZone\":
+            \"Europe/Madrid\"}]","min_datetime":"2025-11-21 17:00:00","max_datetime":"2025-11-21
+            20:00:00","max_results":20,"single_events":true,"order_by":"startTime"}}'
+  - role: tool
+    content: "Time zone: Europe/Madrid, Date and time: 2025-11-21 12:46:43"
+    call_id: call_33133566
+  - role: tool
+    content: "[]"
+    call_id: call_36287490
+  - role: assistant
+    tool_calls:
+      - id: call_35432874
+        type: function
+        function:
+          name: google_calendar
+          arguments: "{\"op\":\"create_calendar_event\",\"args\":{\"summary\":\"Meeting with frog and
+            productman\",\"start_datetime\":\"2025-11-21 17:00:00\",\"end_datetime\":\"2025-11-21
+            18:00:00\",\"timezone\":\"Europe/Madrid\",\"calendar_id\":\"humberto@smallcloud.tech\",\
+            \"attendees\":[\"frog@smallcloud.tech\",\"productman@smallcloud.tech\"],\"description\":\
+            \"Alice scheduled this meeting. If the time doesn't work for you, please let her know to
+            reschedule.\",\"reminders\":true}}"
+  - role: tool
+    content: "Event created:
+      https://www.google.com/calendar/event?eid=NnJtNG10YWFtcTI3ZnRiNWg4M2VoaGhsNHMgaHVtYmVydG9Ac21\
+      hbGxjbG91ZC50ZWNo"
+    call_id: call_35432874
+  - role: assistant
+    tool_calls:
+      - id: call_72342250
+        type: function
+        function:
+          name: gmail
+          arguments: '{"op":"help"}'
+  - role: tool
+    content: |
+      
+      Help:
+
+      gmail(op="status")
+          Show connection status and available operations.
+
+      # Message Operations
+      gmail(op="send", args={
+          "to": "recipient@example.com",
+          "subject": "Hello",
+          "body": "Plain text message",
+          "cc": "optional@example.com",  # Optional
+          "bcc": "secret@example.com",  # Optional
+          "html": False  # Set to True for HTML emails
+      })
+
+      gmail(op="search", args={
+          "query": "is:unread from:boss@company.com",
+          "maxResults": 10,  # Optional, default 10
+          "labelIds": ["INBOX"]  # Optional
+      })
+          Search using Gmail search syntax. Common queries:
+          - "is:unread" - unread messages
+          - "from:user@example.com" - from specific sender
+          - "subject:urgent" - subject contains word
+          - "has:attachment" - has attachments
+          - "after:2024/01/01" - after date
+
+      gmail(op="get", args={"messageId": "18d4..."})
+          Get full message details including body and attachments.
+
+      gmail(op="delete", args={"messageId": "18d4..."})
+          Permanently delete a message.
+
+      gmail(op="markAsRead", args={"messageId": "18d4..."})
+      gmail(op="markAsUnread", args={"messageId": "18d4..."})
+
+      gmail(op="addLabels", args={"messageId": "18d4...", "labelIds": ["Label_123"]})
+      gmail(op="removeLabels", args={"messageId": "18d4...", "labelIds": ["Label_123"]})
+
+      # Label Operations
+      gmail(op="listLabels")
+          List all Gmail labels.
+
+      gmail(op="createLabel", args={"name": "MyLabel"})
+          Create a new label.
+
+      gmail(op="deleteLabel", args={"labelId": "Label_123"})
+          Delete a label.
+
+      # Draft Operations
+      gmail(op="createDraft", args={
+          "to": "recipient@example.com",
+          "subject": "Draft",
+          "body": "Draft content"
+      })
+
+      gmail(op="listDrafts", args={"maxResults": 10})
+
+      gmail(op="deleteDraft", args={"draftId": "r123..."})
+
+      # Thread Operations
+      gmail(op="getThread", args={"threadId": "18d4..."})
+          Get all messages in a thread.
+
+      gmail(op="searchThreads", args={"query": "is:unread", "maxResults": 10})
+
+      gmail(op="deleteThread", args={"threadId": "18d4..."})
+    call_id: call_72342250
+  - role: assistant
+    tool_calls:
+      - id: call_20183196
+        type: function
+        function:
+          name: gmail
+          arguments: "{\"op\":\"send\",\"args\":{\"to\":\"frog@smallcloud.tech,productman@smallcloud.tech\",\
+            \"subject\":\"Meeting scheduled for today at 17:00\",\"body\":\"Hi,\\n\\nI've set up a
+            meeting for us today at 17:00-18:00 (Europe/Madrid time). Here's the link:
+            https://www.google.com/calendar/event?eid=NnJtNG10YWFtcTI3ZnRiNWg4M2VoaGhsNHMgaHVtYmVyd\
+            G9Ac21hbGxjbG91ZC50ZWNo\\n\\nIf this time doesn't work for you, please let me know so we
+            can reschedule.\\n\\nBest,\\nAlice McCodeface\"}}"
+  - role: tool
+    content: |-
+      ✅ Message sent successfully!
+        Message ID: 19aa63d139157981
+        Thread ID: 19aa63d139157981
+    call_id: call_20183196
+  - role: assistant
+    content: |-
+      Great news, Alice! 🎉
+
+      I checked your calendar (humberto@smallcloud.tech, Europe/Madrid timezone) for today, November 21, 2025. The 17:00-20:00 slot is completely free, so I created a **1-hour meeting at 17:00-18:00** as the earliest option.
+
+      ### Meeting Details:
+      - **Title**: Meeting with frog and productman
+      - **Time**: 2025-11-21 17:00-18:00 (Europe/Madrid)
+      - **Attendees**: frog@smallcloud.tech, productman@smallcloud.tech (and you)
+      - **Link**: [Join the meeting](https://www.google.com/calendar/event?eid=NnJtNG10YWFtcTI3ZnRiNWg4M2VoaGhsNHMgaHVtYmVydG9Ac21hbGxjbG91ZC50ZWNo)
+      - **Description**: Alice scheduled this meeting. If the time doesn't work for you, please let her know to reschedule.
+
+      I also sent a confirmation email to frog@smallcloud.tech and productman@smallcloud.tech with the details and link, noting they can reply if the time doesn't suit.
+
+      Everything's set—let me know if you'd like to adjust anything! 😊

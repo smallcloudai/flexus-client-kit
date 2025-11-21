@@ -43,6 +43,18 @@ JIRA_TOOL = ckit_cloudtool.CloudTool(
     },
 )
 
+JIRA_SETUP_SCHEMA = [
+    {
+        "bs_name": "jira_instance_url",
+        "bs_type": "string_short",
+        "bs_default": "",
+        "bs_group": "Jira",
+        "bs_order": 1,
+        "bs_importance": 1,
+        "bs_description": "Jira instance URL (e.g., https://yourcompany.atlassian.net)",
+    },
+]
+
 
 class IntegrationJira:
     def __init__(
