@@ -11,6 +11,7 @@ from flexus_client_kit import ckit_kanban
 from flexus_client_kit.integrations import fi_gmail
 from flexus_client_kit.integrations import fi_google_calendar
 from flexus_client_kit.integrations import fi_jira
+from flexus_client_kit.integrations import fi_fibery
 from flexus_simple_bots.clerkwing import clerkwing_install
 from flexus_simple_bots.version_common import SIMPLE_BOTS_COMMON_VERSION
 
@@ -24,6 +25,7 @@ TOOLS = [
     fi_gmail.GMAIL_TOOL,
     fi_google_calendar.GOOGLE_CALENDAR_TOOL,
     fi_jira.JIRA_TOOL,
+    fi_fibery.FIBERY_TOOL,
 ]
 
 
@@ -36,6 +38,12 @@ async def clerkwing_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_e
         fclient,
         rcx,
         jira_instance_url=setup["jira_instance_url"],
+    )
+    fibery_integration = fi_fibery.IntegrationFibery(
+        fclient,
+        rcx,
+        fibery_workspace_subdomain=setup.get("fibery_workspace_subdomain", ""),
+        fibery_api_key=setup.get("fibery_api_key", ""),
     )
 
     @rcx.on_updated_message
@@ -61,6 +69,10 @@ async def clerkwing_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_e
     @rcx.on_tool_call(fi_jira.JIRA_TOOL.name)
     async def toolcall_jira(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
         return await jira_integration.called_by_model(toolcall, model_produced_args)
+
+    @rcx.on_tool_call(fi_fibery.FIBERY_TOOL.name)
+    async def toolcall_fibery(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
+        return await fibery_integration.called_by_model(toolcall, model_produced_args)
 
     try:
         while not ckit_shutdown.shutdown_event.is_set():

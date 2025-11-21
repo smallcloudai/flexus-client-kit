@@ -6,6 +6,7 @@ from pathlib import Path
 from flexus_client_kit import ckit_client
 from flexus_client_kit import ckit_bot_install
 from flexus_client_kit.integrations import fi_jira
+from flexus_client_kit.integrations import fi_fibery
 
 from flexus_simple_bots import prompts_common
 from flexus_simple_bots.clerkwing import clerkwing_bot, clerkwing_prompts
@@ -31,7 +32,7 @@ Clerkwing combines professional efficiency with a personable touch, keeping thin
 """
 
 
-clerkwing_setup_schema = fi_jira.JIRA_SETUP_SCHEMA
+clerkwing_setup_schema = fi_jira.JIRA_SETUP_SCHEMA + fi_fibery.FIBERY_SETUP_SCHEMA
 
 
 async def install(
