@@ -109,6 +109,14 @@ async def start_external_auth_flow(
     ws_id: str,
     scopes: list[str],
 ) -> str:
+    all_scopes = list(set(scopes))
+    try:
+        existing_token = await get_external_auth_token(fclient, provider, ws_id)
+        if existing_token and existing_token.scope_values:
+            all_scopes = list(set(all_scopes + existing_token.scope_values))
+    except gql.transport.exceptions.TransportQueryError:
+        pass
+
     http = await fclient.use_http()
     async with http as h:
         r = await h.execute(
@@ -125,7 +133,7 @@ async def start_external_auth_flow(
             variable_values={
                 "ws_id": ws_id,
                 "provider": provider,
-                "scope_values": scopes,
+                "scope_values": all_scopes,
             }
         )
         return r["external_auth_start"]["authorization_url"]
