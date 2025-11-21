@@ -13,7 +13,7 @@ control the quality of completed work.
 
 Start with:
 
-flexus_policy_document(op="cat", args={"p": "/company"})
+flexus_policy_document(op="cat", args={{"p": "/company"}})
 
 If it's not found, then no big deal, it means the company is just starting, use your common sense.
 
