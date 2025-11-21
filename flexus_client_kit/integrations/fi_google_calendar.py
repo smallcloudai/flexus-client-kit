@@ -1,4 +1,5 @@
 from __future__ import annotations
+import json
 import logging
 import time
 from typing import Dict, Any, Optional, TYPE_CHECKING
@@ -112,7 +113,28 @@ class IntegrationGoogleCalendar:
         if op not in self.tool_map:
             return self._all_commands_help()
 
-        result, is_auth_error = await langchain_adapter.run_langchain_tool(self.tool_map[op], args)
+        if op == "search_events" and "calendars_info" in args:
+            try:
+                calendars_info = json.loads(args["calendars_info"]) if isinstance(args["calendars_info"], str) else args["calendars_info"]
+                if calendars_info and (isinstance(calendars_info[0], str) or not calendars_info[0].get("timeZone")):
+                    get_cal_result, is_auth_error = await langchain_adapter.run_langchain_tool(self.tool_map["get_calendars_info"], {})
+                    if is_auth_error:
+                        result, is_auth_error = get_cal_result, is_auth_error
+                    else:
+                        all_calendars = json.loads(get_cal_result)
+                        requested_ids = set(calendars_info if isinstance(calendars_info[0], str) else [cal["id"] for cal in calendars_info])
+                        matched_calendars = [cal for cal in all_calendars if cal["id"] in requested_ids or "primary" in requested_ids]
+                        args["calendars_info"] = json.dumps(matched_calendars)
+                        logger.info("Fetched full calendar info for %d calendars", len(matched_calendars))
+                        result, is_auth_error = await langchain_adapter.run_langchain_tool(self.tool_map[op], args)
+                else:
+                    result, is_auth_error = await langchain_adapter.run_langchain_tool(self.tool_map[op], args)
+            except Exception as e:
+                logger.warning("Error preprocessing search_events args: %s", e)
+                result, is_auth_error = await langchain_adapter.run_langchain_tool(self.tool_map[op], args)
+        else:
+            result, is_auth_error = await langchain_adapter.run_langchain_tool(self.tool_map[op], args)
+
         if is_auth_error:
             self.token_data = None
             auth_url = await ckit_external_auth.start_external_auth_flow(
