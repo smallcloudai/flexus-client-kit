@@ -494,17 +494,34 @@ async def run_happy_trajectory(
 
     trajectory_data = yaml.safe_load(trajectory_happy)
     judge_instructions = trajectory_data.get("judge_instructions", "")
+
+    first_calls = None
+    messages = trajectory_data["messages"]
+    if messages and len(messages) >= 2:
+        first_assistant = messages[1]
+        if first_assistant["role"] == "assistant" and first_assistant["tool_calls"]:
+            first_calls = []
+            for tc in first_assistant["tool_calls"]:
+                first_calls.append({
+                    "type": tc.get("type", "function"),
+                    "function": {
+                        "name": tc["function"]["name"],
+                        "arguments": tc["function"]["arguments"]
+                    }
+                })
+    logger.info(f"bot_activate() first_calls, taken from the happy path:\n{first_calls}")
     trajectory_happy_messages_only = ckit_scenario.yaml_dump_with_multiline({"messages": trajectory_data["messages"]})
 
     skill__scenario = os.path.splitext(os.path.basename(trajectory_yaml_path))[0]
     bot_version = ckit_client.marketplace_version_as_str(scenario.persona.persona_marketable_version)
+    model_name = scenario.explicit_model or scenario.persona.persona_preferred_model
     await ckit_scenario.bot_scenario_result_upsert(
         scenario.fclient,
         ckit_scenario.BotScenarioUpsertInput(
             btest_marketable_name=scenario.persona.persona_marketable_name,
             btest_marketable_version_str=bot_version,
             btest_name=skill__scenario,
-            btest_model=scenario.persona.persona_preferred_model,
+            btest_model=model_name,
             btest_trajectory_happy=trajectory_happy,
             btest_trajectory_actual="",
             btest_rating_happy=0,
@@ -517,6 +534,10 @@ async def run_happy_trajectory(
 
     max_steps = 30
     ft_id: Optional[str] = None
+    cost_judge = 0
+    cost_human = 0
+    cost_tools = 0
+    stop_reason = ""
     try:
         assert "__" in skill__scenario
         skill = skill__scenario.split("__")[0]
@@ -529,7 +550,9 @@ async def run_happy_trajectory(
                 scenario.fgroup_id,
                 ft_id,
             )
-            logger.info(f"Human says: {result.next_human_message!r} shaky={result.shaky}")
+            cost_human += result.cost
+            stop_reason = result.stop_reason
+            logger.info(f"Human says: {result.next_human_message!r} shaky={result.shaky} stop_reason={result.stop_reason!r}")
             if result.scenario_done:
                 break
 
@@ -540,6 +563,7 @@ async def run_happy_trajectory(
                     persona_id=scenario.persona.persona_id,
                     skill=skill,
                     first_question=result.next_human_message,
+                    first_calls=first_calls,
                     title="Trajectory Test",
                     ft_btest_name=skill__scenario,
                     model=scenario.explicit_model,
@@ -618,6 +642,7 @@ async def run_happy_trajectory(
                 ft_id,
                 judge_instructions,
             )
+            cost_judge += judge_result.cost
             logger.info(f"Scenario judge happy trajectory rating: {judge_result.rating_happy}/10")
             logger.info(f"Scenario judge happy trajectory feedback: {judge_result.feedback_happy}")
             logger.info(f"Scenario judge actual trajectory rating: {judge_result.rating_actually}/10")
@@ -627,14 +652,15 @@ async def run_happy_trajectory(
             logger.info(f"Scenario output directory: {output_dir}")
             os.makedirs(output_dir, exist_ok=True)
 
-            happy_path = os.path.join(output_dir, f"{skill__scenario}-v{bot_version}-happy.yaml")
+            experiment_suffix = f"-{scenario.experiment}" if scenario.experiment else ""
+            happy_path = os.path.join(output_dir, f"{skill__scenario}-v{bot_version}-{model_name}{experiment_suffix}-happy.yaml")
             with open(happy_path, "w") as f:
                 f.write("# This is generated file don't edit!\n\n")
                 f.write(trajectory_happy_messages_only)
             logger.info(f"exported {happy_path}")
 
             trajectory_actual = ckit_scenario.fmessages_to_yaml(sorted_messages)
-            actual_path = os.path.join(output_dir, f"{skill__scenario}-v{bot_version}-actual.yaml")
+            actual_path = os.path.join(output_dir, f"{skill__scenario}-v{bot_version}-{model_name}{experiment_suffix}-actual.yaml")
             with open(actual_path, "w") as f:
                 f.write("# This is generated file don't edit!\n\n")
                 f.write(trajectory_actual)
@@ -643,6 +669,11 @@ async def run_happy_trajectory(
             shaky_human = sum(1 for m in sorted_messages if m.ftm_role == "user" and m.ftm_provenance.get("shaky") == True)
             shaky_tool = sum(1 for m in sorted_messages if m.ftm_role == "tool" and m.ftm_provenance.get("shaky") == True)
 
+            cost_assistant = my_thread.thread_fields.ft_coins
+            for m in sorted_messages:
+                if m.ftm_role == "tool" and m.ftm_usage:
+                    cost_tools += m.ftm_usage["coins"]
+
             score_data = {
                 "happy_rating": judge_result.rating_happy,
                 "happy_feedback": judge_result.feedback_happy,
@@ -650,9 +681,16 @@ async def run_happy_trajectory(
                 "actual_feedback": judge_result.feedback_actually,
                 "shaky_human": shaky_human,
                 "shaky_tool": shaky_tool,
+                "stop_reason": stop_reason,
+                "cost": {
+                    "judge": cost_judge,
+                    "human": cost_human,
+                    "tools": cost_tools,
+                    "assistant": cost_assistant,
+                },
             }
             score_yaml = ckit_scenario.yaml_dump_with_multiline(score_data)
-            score_path = os.path.join(output_dir, f"{skill__scenario}-v{bot_version}-score.yaml")
+            score_path = os.path.join(output_dir, f"{skill__scenario}-v{bot_version}-{model_name}{experiment_suffix}-score.yaml")
             with open(score_path, "w") as f:
                 f.write(score_yaml)
             logger.info(f"exported {score_path}")
@@ -663,7 +701,7 @@ async def run_happy_trajectory(
                     btest_marketable_name=scenario.persona.persona_marketable_name,
                     btest_marketable_version_str=bot_version,
                     btest_name=skill__scenario,
-                    btest_model=scenario.persona.persona_preferred_model,
+                    btest_model=model_name,
                     btest_trajectory_happy=trajectory_happy,
                     btest_trajectory_actual=trajectory_actual,
                     btest_rating_happy=judge_result.rating_happy,
@@ -737,10 +775,7 @@ async def run_bots_in_this_group(
 
 
 def parse_bot_args():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--group", type=str, help="Flexus group ID where the bot will run, take it from the address bar in the browser when you are looking on something inside a group.")
-    parser.add_argument("--scenario", type=str, help="Reproduce a happy trajectory emulating human and tools, path to YAML file")
-    parser.add_argument("--no-cleanup", action="store_true", help="(For scenario mode) Skip cleanup of test group")
+    parser = ckit_scenario.bot_launch_argparse()
     args = parser.parse_args()
 
     if not args.scenario and not args.group:

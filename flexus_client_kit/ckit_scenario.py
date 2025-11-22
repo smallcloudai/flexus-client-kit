@@ -13,6 +13,14 @@ from flexus_client_kit import gql_utils, ckit_bot_install, ckit_client, ckit_ask
 logger = logging.getLogger("cksce")
 
 
+def bot_launch_argparse():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--group", type=str, help="Flexus group ID where the bot will run, take it from the address bar in the browser when you are looking on something inside a group.")
+    parser.add_argument("--scenario", type=str, help="Reproduce a happy trajectory emulating human and tools, path to YAML file")
+    parser.add_argument("--no-cleanup", action="store_true", help="Skip cleanup of test group")
+    parser.add_argument("--model", type=str, default="")
+    parser.add_argument("--experiment", "-E", type=str, default="", help="Experiment name to append to output files")
+    return parser
 
 
 @dataclass
@@ -20,6 +28,8 @@ class ScenarioHumanMessageOutput:
     scenario_done: bool
     next_human_message: str
     shaky: bool
+    stop_reason: str
+    cost: int
 
 
 @dataclass
@@ -28,6 +38,7 @@ class ScenarioJudgeOutput:
     feedback_happy: str
     rating_actually: int
     feedback_actually: str
+    cost: int
 
 
 @dataclass
@@ -268,10 +279,8 @@ async def scenario_print_threads(fclient: ckit_client.FlexusClient, fgroup_id: s
 
 class ScenarioSetup:
     def __init__(self, service_name: str = "test_scenario"):
-        parser = argparse.ArgumentParser()
-        parser.add_argument("--no-cleanup", action="store_true", help="Skip cleanup of test group")
-        parser.add_argument("--model", type=str, default="")
-        args, _ = parser.parse_known_args()
+        parser = bot_launch_argparse()
+        args = parser.parse_args()
 
         self.fclient = ckit_client.FlexusClient(service_name=service_name)
         self.fgroup_id: Optional[str] = None
@@ -280,6 +289,7 @@ class ScenarioSetup:
         self.ws: Optional[ckit_client.FWorkspaceOutput] = None
         self.should_cleanup = not args.no_cleanup
         self.explicit_model = args.model
+        self.experiment = args.experiment
 
     async def create_group_and_hire_bot(
         self,
