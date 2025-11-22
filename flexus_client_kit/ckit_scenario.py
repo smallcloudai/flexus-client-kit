@@ -332,7 +332,7 @@ class ScenarioSetup:
                 if marketable_version and self.persona.persona_marketable_version != marketable_version:
                     raise RuntimeError(f"Expected version {marketable_version}, got {self.persona.persona_marketable_version}")
 
-                logger.info("Scenario setup completed in group %s", self.fgroup_name)
+                logger.info("Hired bot %s in group %s", self.persona.persona_id, self.fgroup_name)
 
             except Exception as e:
                 try:
