@@ -85,9 +85,9 @@ async def install(
             {"feat_question": "Review recent task approvals", "feat_run_as_setup": False, "feat_depends_on_setup": []},
         ],
         marketable_intro_message="Hi! I'm Boss, a Chief Orchestration Officer, I review and improve other bot's work to ensure quality and alignment with your goals.",
-        marketable_preferred_model_default="grok-code-fast-1",
-        marketable_daily_budget_default=50_000_000,
-        marketable_default_inbox_default=5_000_000,
+        marketable_preferred_model_default="grok-4-1-fast-reasoning",
+        marketable_daily_budget_default=5_000_000,
+        marketable_default_inbox_default=500_000,
         marketable_experts=[
             ("default", ckit_bot_install.FMarketplaceExpertInput(
                 fexp_name="boss_default",

@@ -580,7 +580,7 @@ async def run_happy_trajectory(
                     ftm_provenance={"who_is_asking": "trajectory_scenario", "shaky": result.shaky},
                 )
 
-            wait_secs = 120
+            wait_secs = 160
             start_time = time.time()
             while time.time() - start_time < wait_secs:
                 my_bot = bc.bots_running.get(scenario.persona.persona_id, None)
@@ -620,6 +620,7 @@ async def run_happy_trajectory(
                 continue  # wait for next second, silently (no "WAIT waiting for the actual reponse")
             else:
                 logger.error("Timeout after %d seconds, no reponse from model or tools :/", wait_secs)
+                stop_reason = "timeout"
                 break
 
             continue  # post the next human message
@@ -635,7 +636,7 @@ async def run_happy_trajectory(
         threads_output = await ckit_scenario.scenario_print_threads(scenario.fclient, scenario.fgroup_id)
         logger.info("Scenario is over, threads in fgroup_id=%s:\n%s", scenario.fgroup_id, threads_output)
 
-        if ft_id:
+        if ft_id and stop_reason != "timeout":
             judge_result = await ckit_scenario.scenario_judge(
                 scenario.fclient,
                 trajectory_happy_messages_only,
@@ -643,10 +644,6 @@ async def run_happy_trajectory(
                 judge_instructions,
             )
             cost_judge += judge_result.cost
-            logger.info(f"Scenario judge happy trajectory rating: {judge_result.rating_happy}/10")
-            logger.info(f"Scenario judge happy trajectory feedback: {judge_result.feedback_happy}")
-            logger.info(f"Scenario judge actual trajectory rating: {judge_result.rating_actually}/10")
-            logger.info(f"Scenario judge actual trajectory feedback: {judge_result.feedback_actually}")
 
             output_dir = os.path.abspath(os.path.join(os.getcwd(), "scenario-dumps"))
             logger.info(f"Scenario output directory: {output_dir}")
@@ -673,6 +670,20 @@ async def run_happy_trajectory(
             for m in sorted_messages:
                 if m.ftm_role == "tool" and m.ftm_usage:
                     cost_tools += m.ftm_usage["coins"]
+
+            cost_stop_output = (
+                f"Happy trajectory rating: {judge_result.rating_happy}/10\n"
+                f"Happy trajectory feedback: {judge_result.feedback_happy}\n"
+                f"Actual trajectory rating: {judge_result.rating_actually}/10\n"
+                f"Actual trajectory feedback: {judge_result.feedback_actually}"
+                f"    Cost breakdown:\n"
+                f"        judge: \033[96m{('%0.2f' % (cost_judge / 1e6))}\033[0m coins\n"
+                f"        human: \033[93m{('%0.2f' % (cost_human / 1e6))}\033[0m coins\n"
+                f"        tools: \033[95m{('%0.2f' % (cost_tools / 1e6))}\033[0m coins\n"
+                f"        assistant: \033[92m{('%0.2f' % (cost_assistant / 1e6))}\033[0m coins\n"
+                f"    Stop reason: \033[97m{stop_reason}\033[0m\n"
+            )
+            logger.info(f"Summary:\n{cost_stop_output}")
 
             score_data = {
                 "happy_rating": judge_result.rating_happy,
