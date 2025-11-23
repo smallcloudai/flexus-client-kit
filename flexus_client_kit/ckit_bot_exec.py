@@ -544,6 +544,7 @@ async def run_happy_trajectory(
     cost_human = 0
     cost_tools = 0
     stop_reason = ""
+    last_human_message = ""
     try:
         assert "__" in skill__scenario
         skill = skill__scenario.split("__")[0]
@@ -560,6 +561,7 @@ async def run_happy_trajectory(
             ht2 = time.time()
             cost_human += result.cost
             stop_reason = result.stop_reason
+            last_human_message = result.next_human_message
             logger.info("human says %0.2fs: %r shaky=%s stop_reason=%r" % (ht2-ht1, result.next_human_message, result.shaky, result.stop_reason))
             if result.scenario_done:
                 break
@@ -702,6 +704,7 @@ async def run_happy_trajectory(
                 "shaky_human": shaky_human,
                 "shaky_tool": shaky_tool,
                 "stop_reason": stop_reason,
+                "stop_but_had_it_not_stopped_the_next_human_message_would_be": last_human_message,
                 "cost": {
                     "judge": cost_judge,
                     "human": cost_human,
