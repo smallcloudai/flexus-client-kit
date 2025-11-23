@@ -273,6 +273,8 @@ async def scenario_print_threads(fclient: ckit_client.FlexusClient, fgroup_id: s
                             if len(str(tool_call.get('function', {}).get('arguments', ''))) > 60:
                                 tool_args += "..."
                             lines.append(f"            🔧 {tool_name}: {tool_args}")
+                    if msg.ftm_role == 'assistant' and msg.ftm_usage:
+                        lines.append(f"            ⏳ {'%0.3f' % msg.ftm_usage['llm_lag']}s")
         if len(lines) == 0:
             lines.append("    No threads")
     return "\n".join(lines)

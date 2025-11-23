@@ -544,15 +544,17 @@ async def run_happy_trajectory(
         if skill == scenario.persona.persona_marketable_name:
             skill = "default"
         for step in range(max_steps):
+            ht1 = time.time()
             result = await ckit_scenario.scenario_generate_human_message(
                 scenario.fclient,
                 trajectory_happy,
                 scenario.fgroup_id,
                 ft_id,
             )
+            ht2 = time.time()
             cost_human += result.cost
             stop_reason = result.stop_reason
-            logger.info(f"Human says: {result.next_human_message!r} shaky={result.shaky} stop_reason={result.stop_reason!r}")
+            logger.info("%0.2f human says: %r shaky=%s stop_reason=%r" % (ht2-ht1, result.next_human_message, result.shaky, result.stop_reason))
             if result.scenario_done:
                 break
 
@@ -672,10 +674,10 @@ async def run_happy_trajectory(
                     cost_tools += m.ftm_usage["coins"]
 
             cost_stop_output = (
-                f"Happy trajectory rating: {judge_result.rating_happy}/10\n"
+                f"Happy trajectory rating: \033[93m{judge_result.rating_happy}/10\033[0m\n"
                 f"Happy trajectory feedback: {judge_result.feedback_happy}\n"
-                f"Actual trajectory rating: {judge_result.rating_actually}/10\n"
-                f"Actual trajectory feedback: {judge_result.feedback_actually}"
+                f"Actual trajectory rating: \033[93m{judge_result.rating_actually}/10\033[0m\n"
+                f"Actual trajectory feedback: {judge_result.feedback_actually}\n"
                 f"    Cost breakdown:\n"
                 f"        judge: \033[93m${('%0.2f' % (cost_judge / 1e6))}\033[0m\n"
                 f"        human: \033[93m${('%0.2f' % (cost_human / 1e6))}\033[0m\n"
