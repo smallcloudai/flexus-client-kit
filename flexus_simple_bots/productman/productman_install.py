@@ -108,7 +108,7 @@ async def install(
                 fexp_python_kernel=open(Path(__file__).parent / "lark/survey_skill_kernel.lark").read(),
                 fexp_block_tools="",
                 fexp_allow_tools="*bot_kanban",
-                fexp_app_capture_tools=json.dumps([t.openai_style_tool() for t in productman_bot.TOOLS_VERIFY_SUBCHAT + productman_bot.TOOLS_SURVEY]),
+                fexp_app_capture_tools=json.dumps([t.openai_style_tool() for t in productman_bot.TOOLS_SURVEY]),
             )),
         ],
         marketable_tags=["Product Management", "Hypothesis Testing"],

@@ -9,9 +9,11 @@ def _find_message(messages, content, role):
     return None
 
 
-warning_text = "💿 Cannot close the task until it's completed"
-has_subchat_result = _find_message(messages, "COMPLETED", None) != None
-if not has_subchat_result:
+warning_text = "💿 Cannot close the task until survey campaign is completed"
+has_campaign_completed = _find_message(messages, "COMPLETED", None) != None
+has_survey_launched = _find_message(messages, "campaign launched successfully", None) != None
+
+if has_survey_launched and not has_campaign_completed:
     last_assistant_msg = None
     for m in messages[::-1]:
         if m.get("role") == "assistant":
@@ -19,6 +21,8 @@ if not has_subchat_result:
             break
     if last_assistant_msg:
         for t in last_assistant_msg.get("tool_calls", []):
-            if t.name == "bot_kanban":
-                post_cd_instruction = warning_text
-                break
+            if t.get("function", {}).get("name") == "flexus_bot_kanban":
+                args = t.get("function", {}).get("arguments", "")
+                if "current_task_done" in args:
+                    post_cd_instruction = warning_text
+                    break

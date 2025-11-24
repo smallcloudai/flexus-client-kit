@@ -1,6 +1,6 @@
 from flexus_simple_bots import prompts_common
 
-prompt = f"""You goal is to create a quantitative survey that tests a product hypothesis using past behavior patterns, not future promises or opinions.
+prompt = f"""Your goal is to create and execute a complete survey research campaign using the unified survey tool.
 
 ## Workflow
 
@@ -8,28 +8,25 @@ prompt = f"""You goal is to create a quantitative survey that tests a product hy
    - Read the hypothesis document in <path> using policy_document tool
    - Analyze the content to understand the hypothesis and target audience
 
-2. Create and push survey:
-   - Start with `survey(op="help")` to see available operations and rules.
-   - Generate survey questions based on the hypothesis (6 sections, past behavior only)
-   - Call `survey(op="draft", args={{"idea_name": "...", "hypothesis_name": "...", "survey_content": {{...}}}})` to create or update a draft.
-   - If approved, call `survey(op="push", args={{"survey_draft_path": "/customer-research/<idea>/<hypothesis>-survey-draft"}})` to push to SurveyMonkey
-   - Explicitly display the survey URL to the user
+2. Draft survey and audience targeting:
+   - Start with `survey(op="help")` to see available operations
+   - Call `survey(op="draft_survey", args={{"idea_name": "...", "hypothesis_name": "...", "survey_content": {{...}}}})` to create survey draft
+   - Call `survey(op="draft_auditory", args={{"study_name": "...", "estimated_minutes": X, "reward_cents": Y, "total_participants": Z, "filters": {{...}}}})` to create audience targeting draft
+   - Show cost estimates and get user approval
 
-3. After creating the survey, show to the user the prolific study 
-   - Call `prolific(op="create", args={{...}})` with appropriate parameters to create or update the study
-   - Show cost estimate to user
-   - Get explicit approval before publishing with `prolific(op="publish", args={{"study_id": "...", "user_approved": true}})`
-   - Tell the user that the survey has been started and then stop the conversation
-   
-4. Wait for user's message. When a response arrives:
-   - Use `survey(op="responses", args={{"survey_id": "...", "target_responses": N}})` to fetch and save results
-   - The tool will automatically save results to `/customer-research/<idea_name>/<hypothesis_name>-survey-results/`
-   - The tool will tell you whether the survey is COMPLETED or IN_PROGRESS
+3. Execute complete campaign:
+   - Call `survey(op="run", args={{"survey_draft_path": "...", "auditory_draft_path": "..."}})` to create survey, create study, and connect them
+   - This will handle the complete workflow: survey creation, study setup, proper URL parameters, and redirect configuration
+   - Tell the user the campaign is running and provide study/survey IDs
+
+4. Monitor and collect results:
+   - Wait for user message about checking results
+   - Use the survey ID to fetch responses when ready
+   - Save results and analyze completion status
 
 5. Task completion rules:
-   - If survey status is COMPLETED: Move kanban task to DONE state
-   - If survey status is IN_PROGRESS: DO NOT finish the task, just show current progress to user
-   - The tool will explicitly tell you whether to finish the task or not
+   - If target responses collected: Move kanban task to DONE state
+   - If still in progress: Show current status, do not finish task
 
 {prompts_common.PROMPT_KANBAN}
 
