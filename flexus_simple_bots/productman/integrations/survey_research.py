@@ -2,6 +2,7 @@ import json
 import logging
 import time
 import aiohttp
+import random
 from typing import Dict, Any, List
 
 from flexus_client_kit import ckit_cloudtool
@@ -257,7 +258,7 @@ class IntegrationSurveyResearch:
             return "Error: idea_name and hypothesis_name are required"
 
         formatted_content = {}
-        
+
         if "survey" in survey_content and "meta" in survey_content["survey"]:
             formatted_content["survey"] = {
                 "meta": survey_content["survey"]["meta"]
@@ -269,7 +270,7 @@ class IntegrationSurveyResearch:
                     "description": ""
                 }
             }
-        
+
         formatted_content["survey"]["meta"]["hypothesis"] = hypothesis_name
         formatted_content["survey"]["meta"]["idea"] = idea_name
         formatted_content["survey"]["meta"]["created_at"] = time.strftime("%Y-%m-%d %H:%M:%S")
@@ -302,10 +303,10 @@ class IntegrationSurveyResearch:
         section_count = sum(1 for k in formatted_content.keys() if k.startswith("section"))
         if section_count == 0:
             return "Error: Survey must contain at least one section (e.g., section01-screening)"
-        
+
         question_count = sum(
-            len(section.get("questions", [])) 
-            for key, section in formatted_content.items() 
+            len(section.get("questions", []))
+            for key, section in formatted_content.items()
             if key.startswith("section") and isinstance(section, dict)
         )
         if question_count == 0:
@@ -337,7 +338,7 @@ class IntegrationSurveyResearch:
 
         if not study_name:
             return "Error: study_name is required"
-        
+
         if not study_description:
             return "Error: study_description is required"
 
@@ -360,7 +361,7 @@ class IntegrationSurveyResearch:
                     "total_participants": total_participants,
                     "filters": prolific_filters,
                     "completion_codes": [{
-                        "code": f"COMPLETE_{study_name.upper().replace(' ', '_').replace('-', '_')[:8]}",
+                        "code": f"COMPLETE_{random.randint(10000000, 99999999)}",
                         "code_type": "COMPLETED",
                         "actions": [{"action": "AUTOMATICALLY_APPROVE"}]
                     }]
@@ -450,7 +451,7 @@ class IntegrationSurveyResearch:
 
             survey_content = survey_doc.pdoc_content
             auditory_content = auditory_doc.pdoc_content
-            
+
             draft = auditory_content.get("prolific_auditory_draft", {})
             completion_codes = draft.get("parameters", {}).get("completion_codes", [])
             completion_code = completion_codes[0]["code"] if completion_codes else "COMPLETE"
@@ -724,10 +725,8 @@ class IntegrationSurveyResearch:
         total_participants = params.get("total_participants", 50)
         filters = params.get("filters", [])
         completion_codes = params.get("completion_codes", [])
-
         survey_url = survey_info["url"]
-        completion_code = completion_codes[0]["code"] if completion_codes else "COMPLETE"
-        
+
         param_str = "PROLIFIC_PID={{%PROLIFIC_PID%}}&STUDY_ID={{%STUDY_ID%}}&SESSION_ID={{%SESSION_ID%}}"
         external_url = f"{survey_url}&{param_str}" if "?" in survey_url else f"{survey_url}?{param_str}"
 
@@ -743,7 +742,8 @@ class IntegrationSurveyResearch:
             "reward": reward_cents,
             "total_available_places": total_participants,
             "device_compatibility": ["desktop", "mobile", "tablet"],
-            "filters": filters
+            "filters": filters,
+            "data_collection_type": "SURVEY"
         }
 
         study = await self._make_request(
@@ -752,7 +752,5 @@ class IntegrationSurveyResearch:
             self._prolific_headers(),
             study_payload
         )
-        
+
         return study["id"]
-
-
