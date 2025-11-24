@@ -1,6 +1,4 @@
-import json
 import logging
-import time
 from typing import Dict, Any, List
 
 logger = logging.getLogger("survey_research_mock")
@@ -30,6 +28,9 @@ class MockSurveyResearchSession:
 
     def patch(self, url, **kwargs):
         return MockSurveyResearchResponse("patch", url, **kwargs)
+
+    def request(self, method, url, **kwargs):
+        return MockSurveyResearchResponse(method.lower(), url, **kwargs)
 
 
 class MockSurveyResearchResponse:
@@ -102,7 +103,7 @@ class MockSurveyResearchResponse:
     def _handle_update_collector(self):
         collector_id = self.url.split("/collectors/")[1]
         collector_data = self.kwargs.get("json", {})
-        
+
         self._json_data = {
             "id": collector_id,
             "redirect_url": collector_data.get("redirect_url"),

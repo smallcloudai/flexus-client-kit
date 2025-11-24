@@ -88,18 +88,19 @@ TOOLS_VERIFY_SUBCHAT = [
 
 TOOLS_SURVEY = [
     survey_research.SURVEY_RESEARCH_TOOL,
+    fi_pdoc.POLICY_DOCUMENT_TOOL
 ]
 
 TOOLS_DEFAULT = [
     IDEA_TEMPLATE_TOOL,
     HYPOTHESIS_TEMPLATE_TOOL,
     VERIFY_IDEA_TOOL,
-    *TOOLS_VERIFY_SUBCHAT,
+    fi_pdoc.POLICY_DOCUMENT_TOOL,
 ]
 
 TOOLS_ALL = [
     *TOOLS_DEFAULT,
-    *TOOLS_SURVEY
+    survey_research.SURVEY_RESEARCH_TOOL
 ]
 
 
@@ -108,12 +109,9 @@ async def productman_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_
     pdoc_integration = fi_pdoc.IntegrationPdoc(rcx, rcx.persona.ws_root_group_id)
     print(rcx.persona.ws_root_group_id)
 
-    surveymonkey_token = os.getenv("SURVEYMONKEY_ACCESS_TOKEN", "")
-    prolific_token = os.getenv("PROLIFIC_API_TOKEN", "")
-    
     survey_research_integration = survey_research.IntegrationSurveyResearch(
-        surveymonkey_token=surveymonkey_token,
-        prolific_token=prolific_token,
+        surveymonkey_token=os.getenv("SURVEYMONKEY_ACCESS_TOKEN", ""),
+        prolific_token=os.getenv("PROLIFIC_API_TOKEN", ""),
         pdoc_integration=pdoc_integration,
         fclient=fclient
     )
@@ -266,10 +264,11 @@ async def productman_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_
             return f"Error: {e}"
 
     try:
-        initial_tasks = await ckit_kanban.persona_kanban_list(fclient, rcx.persona.persona_id)
-        for task in initial_tasks:
-            if task.ktask_done_ts == 0:
-                survey_research_integration.track_survey_task(task)
+        initial_tasks = await ckit_kanban.bot_get_all_tasks(fclient, rcx.persona.persona_id)
+        active_tasks = [t for t in initial_tasks if t.ktask_done_ts == 0]
+        for t in active_tasks:
+            survey_research_integration.track_survey_task(t)
+        logger.info(f"Initialized survey tracking for {len(active_tasks)} active tasks")
     except Exception as e:
         logger.warning(f"Failed to initialize survey tracking: {e}")
 
@@ -282,7 +281,10 @@ async def productman_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_
 
             current_time = time.time()
             if current_time - last_survey_update > survey_update_interval:
-                await survey_research_integration.update_active_surveys(fclient, survey_research_integration.update_task_survey_status)
+                await survey_research_integration.update_active_surveys(
+                    fclient, 
+                    lambda fclient, **kwargs: survey_research_integration.update_task_survey_status(fclient, **kwargs)
+                )
                 last_survey_update = current_time
 
     finally:

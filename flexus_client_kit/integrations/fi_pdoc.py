@@ -134,7 +134,7 @@ class IntegrationPdoc:
                 folder_count = sum(1 for item in result if item.is_folder)
                 r += f"\n{doc_count} documents and {folder_count} folders\n"
 
-            elif op == "cat" or op == "activate":
+            elif op == "cat" or op == "read" or op == "activate":
                 p = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "p", "")
                 if not p:
                     return f"Error: p required\n\n{HELP}"

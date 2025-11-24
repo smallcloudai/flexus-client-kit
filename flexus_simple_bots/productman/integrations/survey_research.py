@@ -4,10 +4,6 @@ import time
 from typing import Dict, Any, List
 
 from flexus_client_kit import ckit_cloudtool
-from . import survey_research_mock
-
-# import aiohttp
-aiohttp = survey_research_mock.MockAiohttp()
 
 logger = logging.getLogger("survey_research")
 
@@ -87,7 +83,13 @@ Examples:
 
 
 class IntegrationSurveyResearch:
-    def __init__(self, surveymonkey_token: str, prolific_token: str, pdoc_integration=None, fclient=None):
+    def __init__(self, surveymonkey_token: str, prolific_token: str, pdoc_integration, fclient):
+        if not surveymonkey_token or not prolific_token:
+            from flexus_simple_bots.productman.integrations import survey_research_mock
+            global aiohttp
+            aiohttp = survey_research_mock.MockAiohttp()
+            logger.warning("Using mock aiohttp client for survey research")
+
         self.surveymonkey_token = surveymonkey_token
         self.prolific_token = prolific_token
         self.pdoc_integration = pdoc_integration
@@ -111,12 +113,12 @@ class IntegrationSurveyResearch:
     async def _make_request(self, method: str, url: str, headers: dict, json_data=None, params=None):
         async with aiohttp.ClientSession() as session:
             async with session.request(
-                method=method,
-                url=url,
-                headers=headers,
-                json=json_data,
-                params=params,
-                timeout=aiohttp.ClientTimeout(total=30),
+                    method=method,
+                    url=url,
+                    headers=headers,
+                    json=json_data,
+                    params=params,
+                    timeout=aiohttp.ClientTimeout(total=30),
             ) as resp:
                 if resp.status >= 400:
                     error_text = await resp.text()
@@ -174,7 +176,7 @@ class IntegrationSurveyResearch:
             survey_content["survey"]["meta"]["prolific_integration"] = True
 
         pdoc_path = f"/customer-research/{idea_name}/{hypothesis_name}-survey-draft"
-        
+
         await self.pdoc_integration.pdoc_create(
             pdoc_path,
             json.dumps(survey_content, indent=2),
@@ -233,7 +235,7 @@ class IntegrationSurveyResearch:
         }
 
         draft_path = f"/customer-research/auditory-drafts/{study_name.lower().replace(' ', '-')}-auditory-draft"
-        
+
         await self.pdoc_integration.pdoc_create(
             draft_path,
             json.dumps(draft_content, indent=2),
@@ -283,23 +285,20 @@ class IntegrationSurveyResearch:
         if not survey_draft_path or not auditory_draft_path:
             return "Error: Both survey_draft_path and auditory_draft_path are required"
 
-        try:
-            auditory_doc = await self.pdoc_integration.pdoc_cat(auditory_draft_path)
-            auditory_content = auditory_doc.pdoc_content
-            
-            if not auditory_content or "prolific_auditory_draft" not in auditory_content:
-                return "Error: Invalid auditory draft format"
-            
-            cost_estimate = auditory_content["prolific_auditory_draft"]["cost_estimate"]
-            total_cost = cost_estimate["total"]
-            
-            raise ckit_cloudtool.NeedsConfirmation(
-                confirm_setup_key="can_run_survey_campaign",
-                confirm_command=f'run survey campaign £{total_cost / 100:.2f}',
-                confirm_explanation=f"This will create SurveyMonkey survey and Prolific study costing £{total_cost / 100:.2f}. Please confirm.",
-            )
-        except Exception as e:
-            return f"Error reading drafts: {str(e)}"
+        auditory_doc = await self.pdoc_integration.pdoc_cat(auditory_draft_path)
+        auditory_content = auditory_doc.pdoc_content
+
+        if not auditory_content or "prolific_auditory_draft" not in auditory_content:
+            return "Error: Invalid auditory draft format"
+
+        cost_estimate = auditory_content["prolific_auditory_draft"]["cost_estimate"]
+        total_cost = cost_estimate["total"]
+
+        raise ckit_cloudtool.NeedsConfirmation(
+            confirm_setup_key="can_run_survey_campaign",
+            confirm_command=f'run survey campaign £{total_cost / 100:.2f}',
+            confirm_explanation=f"This will create SurveyMonkey survey and Prolific study costing £{total_cost / 100:.2f}. Please confirm.",
+        )
 
     async def _handle_run(self, toolcall: ckit_cloudtool.FCloudtoolCall, args: Dict[str, Any]) -> str:
         survey_draft_path = args.get("survey_draft_path", "")
@@ -308,24 +307,24 @@ class IntegrationSurveyResearch:
         try:
             survey_doc = await self.pdoc_integration.pdoc_cat(survey_draft_path)
             auditory_doc = await self.pdoc_integration.pdoc_cat(auditory_draft_path)
-            
+
             survey_content = survey_doc.pdoc_content
             auditory_content = auditory_doc.pdoc_content
-            
+
             survey_info = await self._create_surveymonkey_survey(survey_content)
             study_id = await self._create_prolific_study(auditory_content, survey_info)
-            
+
             survey_id = survey_info["survey_id"]
             survey_url = survey_info["url"]
             auditory_draft = auditory_content.get("prolific_auditory_draft", {})
             target_responses = auditory_draft.get("parameters", {}).get("total_participants", 0)
-            
+
             if survey_id and toolcall.fcall_ft_id and self.fclient:
                 from flexus_client_kit import ckit_kanban
-                
+
                 try:
                     tasks = await ckit_kanban.get_tasks_by_thread(self.fclient, toolcall.fcall_ft_id)
-                    
+
                     for task in tasks:
                         task_details = task.ktask_details if isinstance(task.ktask_details, dict) else json.loads(task.ktask_details or "{}")
                         task_details["survey_id"] = survey_id
@@ -337,21 +336,21 @@ class IntegrationSurveyResearch:
                             "last_checked": time.strftime("%Y-%m-%d %H:%M:%S"),
                             "completed_notified": False
                         }
-                        
+
                         await ckit_kanban.update_task_details(self.fclient, task.ktask_id, task_details)
                         logger.info(f"Updated task {task.ktask_id} with survey tracking info")
                 except Exception as e:
                     logger.error(f"Failed to update task with survey info: {e}")
-            
+
             result = f"✅ Survey campaign launched successfully!\n\n"
             result += f"📋 SurveyMonkey URL: {survey_url}\n"
             result += f"🎯 Prolific Study ID: {study_id}\n"
             result += f"✅ Participants are now being recruited!\n\n"
             result += f"📝 Survey draft: {survey_draft_path}\n"
             result += f"📝 Auditory draft: {auditory_draft_path}"
-            
+
             return result
-            
+
         except Exception as e:
             return f"Error executing campaign: {str(e)}"
 
@@ -375,7 +374,6 @@ class IntegrationSurveyResearch:
                 logger.info(f"Tracking survey {survey_id} for task {task.ktask_id}")
 
     async def update_active_surveys(self, fclient, update_task_callback):
-        """Check status of all tracked surveys and update tasks"""
         if not self.tracked_surveys:
             return
 
@@ -388,7 +386,11 @@ class IntegrationSurveyResearch:
                         self._sm_headers(),
                         params={"per_page": 1}
                     )
-                except Exception:
+                except Exception as e:
+                    logger.warn(f"Could not fetch survey {survey_id} status: {e}")
+                    continue
+
+                if not response_data:
                     continue
 
                 response_count = response_data.get("total", 0)
@@ -396,6 +398,7 @@ class IntegrationSurveyResearch:
                 is_completed = target_responses > 0 and response_count >= target_responses
 
                 await update_task_callback(
+                    fclient,
                     task_id=tracking_info["task_id"],
                     survey_id=survey_id,
                     response_count=response_count,
@@ -423,29 +426,22 @@ class IntegrationSurveyResearch:
                 tracking_info["last_response_count"] = response_count
 
             except Exception as e:
-                logger.error(f"Error updating survey {survey_id}: {e}")
+                logger.error(f"🛑 Error updating survey {survey_id}: {e}")
 
-    async def update_task_survey_status(self, task_id: str, survey_id: str, response_count: int, is_completed: bool, survey_status: str):
-        """Update task details with survey status information"""
+    async def update_task_survey_status(self, fclient, task_id: str, survey_id: str, response_count: int, is_completed: bool, survey_status: str):
         from flexus_client_kit import ckit_kanban
-        
+
         try:
-            tasks = await ckit_kanban.persona_kanban_list(self.fclient, self.fclient.persona_id)
-            task = None
-            for t in tasks:
-                if t.ktask_id == task_id:
-                    task = t
-                    break
-            
+            tasks = await ckit_kanban.bot_get_all_tasks(fclient, fclient.persona_id)
+            task = next((t for t in tasks if t.ktask_id == task_id), None)
             if not task:
                 logger.warning(f"No task found for task_id: {task_id}")
                 return
-                
+
             details = task.ktask_details if isinstance(task.ktask_details, dict) else json.loads(task.ktask_details or "{}")
-            
             target_responses = details.get("target_responses", 1)
             completion_rate = response_count / target_responses if target_responses > 0 else 0
-            
+
             details["survey_status"] = {
                 "responses": response_count,
                 "completion_rate": completion_rate,
@@ -454,19 +450,19 @@ class IntegrationSurveyResearch:
                 "status": survey_status
             }
 
-            await ckit_kanban.update_task_details(self.fclient, task.ktask_id, details)
-            logger.info(f"Updated task {task.ktask_id} with survey status")
-            
+            await ckit_kanban.update_task_details(fclient, task_id, details)
+            logger.info(f"Updated task {task_id} with survey status")
+
         except Exception as e:
             logger.error(f"Failed to update task survey status: {e}")
 
     async def _create_surveymonkey_survey(self, survey_content: Dict) -> Dict:
         survey_data = survey_content.get("survey", {})
         meta = survey_data.get("meta", {})
-        
+
         survey_title = meta.get("title", "Survey")
         survey_description = meta.get("description", "")
-        
+
         questions = []
         for section_key in sorted(survey_data.keys()):
             if not section_key.startswith("section"):
@@ -474,14 +470,14 @@ class IntegrationSurveyResearch:
             section = survey_data[section_key]
             if not isinstance(section, dict):
                 continue
-                
+
             for question_key in sorted(section.keys()):
                 if not question_key.startswith("question"):
                     continue
                 q_data = section[question_key]
                 if not isinstance(q_data, dict):
                     continue
-                    
+
                 questions.append(self._convert_question_to_sm(q_data))
 
         survey_payload = {
@@ -509,7 +505,7 @@ class IntegrationSurveyResearch:
                 "message": "Thank you for your participation!"
             }
         }
-        
+
         collector = await self._make_request(
             "POST",
             f"https://api.surveymonkey.com/v3/surveys/{survey_id}/collectors",
@@ -552,7 +548,7 @@ class IntegrationSurveyResearch:
         }
 
         mapping = question_mappings.get(q_type, question_mappings["open_ended"])
-        
+
         sm_q = {
             "headings": [{"heading": question_text}],
             "family": mapping["family"],
@@ -575,7 +571,7 @@ class IntegrationSurveyResearch:
         draft = auditory_content.get("prolific_auditory_draft", {})
         meta = draft.get("meta", {})
         params = draft.get("parameters", {})
-        
+
         study_name = meta.get("study_name", "Study")
         study_description = params.get("study_description", "")
         estimated_minutes = params.get("estimated_minutes", 5)
@@ -612,7 +608,7 @@ class IntegrationSurveyResearch:
         study_id = study["id"]
 
         await self._update_collector_redirect(survey_info["collector_id"], completion_codes[0]["code"] if completion_codes else "COMPLETE")
-        
+
         return study_id
 
     async def _update_collector_redirect(self, collector_id: str, completion_code: str):
@@ -620,7 +616,7 @@ class IntegrationSurveyResearch:
             return
 
         redirect_url = f"https://app.prolific.com/submissions/complete?cc={completion_code}"
-        
+
         collector_payload = {
             "redirect_url": redirect_url,
             "redirect_type": "url"

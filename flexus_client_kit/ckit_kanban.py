@@ -214,3 +214,41 @@ async def update_task_details(
             }
         )
     return result.get("kanban_task_update_details", False)
+
+
+async def bot_get_all_tasks(
+        client: ckit_client.FlexusClient,
+        persona_id: str,
+) -> List[FPersonaKanbanTaskOutput]:
+    http = await client.use_http()
+    async with http as h:
+        result = await h.execute(
+            gql.gql("""query GetAllTasks($persona_id: String!) {
+                bot_get_all_tasks(persona_id: $persona_id) {
+                    persona_id
+                    ktask_id
+                    ktask_title
+                    ktask_skill
+                    ktask_inbox_ts
+                    ktask_inbox_provenance
+                    ktask_daily_timekey
+                    ktask_coins
+                    ktask_budget
+                    ktask_todo_ts
+                    ktask_inprogress_ts
+                    ktask_inprogress_ft_id
+                    ktask_inprogress_activity_ts
+                    ktask_done_ts
+                    ktask_resolution_code
+                    ktask_resolution_summary
+                    ktask_details
+                    ktask_blocks_ktask_id
+                }
+            }"""),
+            variable_values={"persona_id": persona_id}
+        )
+
+    tasks = []
+    for task_data in result.get("bot_get_all_tasks", []):
+        tasks.append(gql_utils.dataclass_from_dict(task_data, FPersonaKanbanTaskOutput))
+    return tasks
