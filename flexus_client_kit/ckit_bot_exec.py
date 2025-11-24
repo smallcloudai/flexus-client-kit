@@ -660,20 +660,6 @@ async def run_happy_trajectory(
             logger.info(f"Scenario output directory: {output_dir}")
             os.makedirs(output_dir, exist_ok=True)
 
-            experiment_suffix = f"-{scenario.experiment}" if scenario.experiment else ""
-            happy_path = os.path.join(output_dir, f"{skill__scenario}-v{bot_version}-{model_name}{experiment_suffix}-happy.yaml")
-            with open(happy_path, "w") as f:
-                f.write("# This is generated file don't edit!\n\n")
-                f.write(trajectory_happy_messages_only)
-            logger.info(f"exported {happy_path}")
-
-            trajectory_actual = ckit_scenario.fmessages_to_yaml(sorted_messages)
-            actual_path = os.path.join(output_dir, f"{skill__scenario}-v{bot_version}-{model_name}{experiment_suffix}-actual.yaml")
-            with open(actual_path, "w") as f:
-                f.write("# This is generated file don't edit!\n\n")
-                f.write(trajectory_actual)
-            logger.info(f"exported {actual_path}")
-
             shaky_human = sum(1 for m in sorted_messages if m.ftm_role == "user" and m.ftm_provenance.get("shaky") == True)
             shaky_tool = sum(1 for m in sorted_messages if m.ftm_role == "tool" and m.ftm_provenance.get("shaky") == True)
 
@@ -695,6 +681,20 @@ async def run_happy_trajectory(
                 f"    Stop reason: \033[97m{stop_reason}\033[0m\n"
             )
             logger.info(f"Summary:\n{cost_stop_output}")
+
+            experiment_suffix = f"-{scenario.experiment}" if scenario.experiment else ""
+            happy_path = os.path.join(output_dir, f"{skill__scenario}-v{bot_version}{experiment_suffix}-{model_name}-happy.yaml")
+            with open(happy_path, "w") as f:
+                f.write("# This is generated file don't edit!\n\n")
+                f.write(trajectory_happy_messages_only)
+            logger.info(f"exported {happy_path}")
+
+            trajectory_actual = ckit_scenario.fmessages_to_yaml(sorted_messages)
+            actual_path = os.path.join(output_dir, f"{skill__scenario}-v{bot_version}{experiment_suffix}-{model_name}-actual.yaml")
+            with open(actual_path, "w") as f:
+                f.write("# This is generated file don't edit!\n\n")
+                f.write(trajectory_actual)
+            logger.info(f"exported {actual_path}")
 
             score_data = {
                 "happy_rating": judge_result.rating_happy,
