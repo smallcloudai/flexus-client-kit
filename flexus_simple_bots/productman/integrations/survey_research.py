@@ -1,6 +1,7 @@
 import json
 import logging
 import time
+import aiohttp
 from typing import Dict, Any, List
 
 from flexus_client_kit import ckit_cloudtool
@@ -68,6 +69,7 @@ Examples:
     # Draft audience
     survey(op="draft_auditory", args={
         "study_name": "Task Management Survey",
+        "study_description": "We are conducting research on task management practices and tools used by professionals",
         "estimated_minutes": 15,
         "reward_cents": 200,
         "total_participants": 100,
@@ -254,37 +256,73 @@ class IntegrationSurveyResearch:
         if not idea_name or not hypothesis_name:
             return "Error: idea_name and hypothesis_name are required"
 
-        if not survey_content.get("survey", {}).get("meta"):
-            survey_content = {
-                "survey": {
-                    "meta": {
-                        "title": survey_content.get("survey", {}).get("meta", {}).get("title", "Survey"),
-                        "description": survey_content.get("survey", {}).get("meta", {}).get("description", ""),
-                        "hypothesis": hypothesis_name,
-                        "idea": idea_name,
-                        "created_at": time.strftime("%Y-%m-%d %H:%M:%S"),
-                        "prolific_integration": True
-                    },
-                    **survey_content.get("survey", {})
-                }
+        formatted_content = {}
+        
+        if "survey" in survey_content and "meta" in survey_content["survey"]:
+            formatted_content["survey"] = {
+                "meta": survey_content["survey"]["meta"]
             }
         else:
-            survey_content["survey"]["meta"]["hypothesis"] = hypothesis_name
-            survey_content["survey"]["meta"]["idea"] = idea_name
-            survey_content["survey"]["meta"]["created_at"] = time.strftime("%Y-%m-%d %H:%M:%S")
-            survey_content["survey"]["meta"]["prolific_integration"] = True
+            formatted_content["survey"] = {
+                "meta": {
+                    "title": "Survey",
+                    "description": ""
+                }
+            }
+        
+        formatted_content["survey"]["meta"]["hypothesis"] = hypothesis_name
+        formatted_content["survey"]["meta"]["idea"] = idea_name
+        formatted_content["survey"]["meta"]["created_at"] = time.strftime("%Y-%m-%d %H:%M:%S")
+        formatted_content["survey"]["meta"]["prolific_integration"] = True
+
+        for key, value in survey_content.items():
+            if key.startswith("section") and isinstance(value, dict):
+                if "questions" not in value or not isinstance(value["questions"], list):
+                    if "questions" in value:
+                        value["questions"] = [value["questions"]] if not isinstance(value["questions"], list) else value["questions"]
+                    else:
+                        questions_list = []
+                        for q_key in sorted(value.keys()):
+                            if q_key.startswith("question") and isinstance(value[q_key], dict):
+                                questions_list.append(value[q_key])
+                        if questions_list:
+                            value = {
+                                "title": value.get("title", "Section"),
+                                "questions": questions_list
+                            }
+                        else:
+                            value = {
+                                "title": value.get("title", "Section"),
+                                "questions": []
+                            }
+                formatted_content[key] = value
+            elif key != "survey" and isinstance(value, dict):
+                formatted_content[key] = value
+
+        section_count = sum(1 for k in formatted_content.keys() if k.startswith("section"))
+        if section_count == 0:
+            return "Error: Survey must contain at least one section (e.g., section01-screening)"
+        
+        question_count = sum(
+            len(section.get("questions", [])) 
+            for key, section in formatted_content.items() 
+            if key.startswith("section") and isinstance(section, dict)
+        )
+        if question_count == 0:
+            return "Error: Survey must contain at least one question"
 
         pdoc_path = f"/customer-research/{idea_name}/{hypothesis_name}-survey-draft"
 
         await self.pdoc_integration.pdoc_create(
             pdoc_path,
-            json.dumps(survey_content, indent=2),
+            json.dumps(formatted_content, indent=2),
             toolcall.fcall_ft_id
         )
 
         result = f"✅ Survey draft created successfully!\n\n"
         result += f"📝 Draft saved to: {pdoc_path}\n"
         result += f"✍️{pdoc_path}\n\n"
+        result += f"📊 Survey contains {section_count} sections with {question_count} total questions\n\n"
         result += f"Next: Create audience targeting with survey(op=\"draft_auditory\", ...)"
 
         return result
@@ -299,6 +337,9 @@ class IntegrationSurveyResearch:
 
         if not study_name:
             return "Error: study_name is required"
+        
+        if not study_description:
+            return "Error: study_description is required"
 
         prolific_filters = await self._build_prolific_filters(filters)
         service_fee = reward_cents * total_participants * 0.33
@@ -319,7 +360,7 @@ class IntegrationSurveyResearch:
                     "total_participants": total_participants,
                     "filters": prolific_filters,
                     "completion_codes": [{
-                        "code": f"COMPLETE_{study_name[:6].upper()}",
+                        "code": f"COMPLETE_{study_name.upper().replace(' ', '_').replace('-', '_')[:8]}",
                         "code_type": "COMPLETED",
                         "actions": [{"action": "AUTOMATICALLY_APPROVE"}]
                     }]
@@ -409,8 +450,12 @@ class IntegrationSurveyResearch:
 
             survey_content = survey_doc.pdoc_content
             auditory_content = auditory_doc.pdoc_content
+            
+            draft = auditory_content.get("prolific_auditory_draft", {})
+            completion_codes = draft.get("parameters", {}).get("completion_codes", [])
+            completion_code = completion_codes[0]["code"] if completion_codes else "COMPLETE"
 
-            survey_info = await self._create_surveymonkey_survey(survey_content)
+            survey_info = await self._create_surveymonkey_survey(survey_content, completion_code)
             study_id = await self._create_prolific_study(auditory_content, survey_info)
 
             survey_id = survey_info["survey_id"]
@@ -555,29 +600,30 @@ class IntegrationSurveyResearch:
         except Exception as e:
             logger.error(f"Failed to update task survey status: {e}")
 
-    async def _create_surveymonkey_survey(self, survey_content: Dict) -> Dict:
-        survey_data = survey_content.get("survey", {})
-        meta = survey_data.get("meta", {})
-
+    async def _create_surveymonkey_survey(self, survey_content: Dict, completion_code: str) -> Dict:
+        meta = survey_content.get("survey", {}).get("meta", {})
         survey_title = meta.get("title", "Survey")
         survey_description = meta.get("description", "")
 
         questions = []
-        for section_key in sorted(survey_data.keys()):
+        for section_key in sorted(survey_content.keys()):
             if not section_key.startswith("section"):
                 continue
-            section = survey_data[section_key]
+            section = survey_content[section_key]
             if not isinstance(section, dict):
                 continue
 
-            for question_key in sorted(section.keys()):
-                if not question_key.startswith("question"):
-                    continue
-                q_data = section[question_key]
-                if not isinstance(q_data, dict):
-                    continue
-
-                questions.append(self._convert_question_to_sm(q_data))
+            if isinstance(section.get("questions"), list):
+                for q_data in section["questions"]:
+                    if isinstance(q_data, dict):
+                        questions.append(self._convert_question_to_sm(q_data))
+            else:
+                for question_key in sorted(section.keys()):
+                    if not question_key.startswith("question"):
+                        continue
+                    q_data = section[question_key]
+                    if isinstance(q_data, dict):
+                        questions.append(self._convert_question_to_sm(q_data))
 
         survey_payload = {
             "title": survey_title,
@@ -585,7 +631,11 @@ class IntegrationSurveyResearch:
                 "title": "Page 1",
                 "description": survey_description,
                 "questions": questions
-            }]
+            }],
+            "thank_you_page": {
+                "is_enabled": True,
+                "message": f"Thank you for completing this survey!\n\nIMPORTANT: Please copy this completion code and paste it in Prolific to receive your payment:\n\n{completion_code}"
+            }
         }
 
         survey = await self._make_request(
@@ -598,11 +648,7 @@ class IntegrationSurveyResearch:
 
         collector_payload = {
             "type": "weblink",
-            "name": "Prolific Collector",
-            "thank_you_page": {
-                "is_enabled": True,
-                "message": "Thank you for your participation!"
-            }
+            "name": "Prolific Collector"
         }
 
         collector = await self._make_request(
@@ -680,7 +726,9 @@ class IntegrationSurveyResearch:
         completion_codes = params.get("completion_codes", [])
 
         survey_url = survey_info["url"]
-        param_str = "PROLIFIC_PID={%PROLIFIC_PID%}&STUDY_ID={%STUDY_ID%}&SESSION_ID={%SESSION_ID%}"
+        completion_code = completion_codes[0]["code"] if completion_codes else "COMPLETE"
+        
+        param_str = "PROLIFIC_PID={{%PROLIFIC_PID%}}&STUDY_ID={{%STUDY_ID%}}&SESSION_ID={{%SESSION_ID%}}"
         external_url = f"{survey_url}&{param_str}" if "?" in survey_url else f"{survey_url}?{param_str}"
 
         study_payload = {
@@ -688,7 +736,7 @@ class IntegrationSurveyResearch:
             "description": study_description,
             "external_study_url": external_url,
             "prolific_id_option": "url_parameters",
-            "completion_option": "url",
+            "completion_option": "code",
             "completion_codes": completion_codes,
             "estimated_completion_time": estimated_minutes,
             "maximum_allowed_time": estimated_minutes * 5,
@@ -704,26 +752,7 @@ class IntegrationSurveyResearch:
             self._prolific_headers(),
             study_payload
         )
-        study_id = study["id"]
+        
+        return study["id"]
 
-        await self._update_collector_redirect(survey_info["collector_id"], completion_codes[0]["code"] if completion_codes else "COMPLETE")
 
-        return study_id
-
-    async def _update_collector_redirect(self, collector_id: str, completion_code: str):
-        if not collector_id:
-            return
-
-        redirect_url = f"https://app.prolific.com/submissions/complete?cc={completion_code}"
-
-        collector_payload = {
-            "redirect_url": redirect_url,
-            "redirect_type": "url"
-        }
-
-        await self._make_request(
-            "PATCH",
-            f"https://api.surveymonkey.com/v3/collectors/{collector_id}",
-            self._sm_headers(),
-            collector_payload
-        )
