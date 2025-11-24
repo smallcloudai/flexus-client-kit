@@ -79,6 +79,105 @@ Examples:
         "survey_draft_path": "/customer-research/task-tool/managers-survey-draft",
         "auditory_draft_path": "/customer-research/task-tool/managers-auditory-draft"
     })
+    
+Survey creation rules.
+RULE #0 — SACRED AND NON-NEGOTIABLE
+Never ask about the future, intentions, or hypotheticals. Ask ONLY about past experience and real actions.
+If a question refers to the future, rewrite it about past behavior or do not ask it. Otherwise, the data is junk.
+Use ONLY canvas and the given hypothesis, do not use any other sources.
+
+You MUST NOT ask about:
+- how likely someone is to do something,
+- whether they will use / buy / pay for something,
+- how attractive an idea is,
+- “would you…”, “what would you do if…”, or any hypothetical scenario,
+- any future behavior or intentions.
+
+You MAY ask only about:
+- what the person has done in the past,
+- how they previously solved the problem,
+- situations they actually faced,
+- experience that already happened,
+- barriers that already occurred,
+- metrics that were actually observed.
+
+--------------------------------
+SURVEY STRUCTURE (EXACTLY 6 SECTIONS)
+--------------------------------
+1. Screening (section01-screening)
+2. User profile (section02-user-profile)
+3. Problem (section03-problem) - frequency and pain intensity
+4. Current behavior (section04-current-behavior) - existing solutions
+5. Impact (section05-impact) - how the problem influenced past decisions
+6. Concept validation (section06-concept-validation) - only via past experience, no forecasts
+
+You MUST NOT create any additional sections.
+
+Each question must have:
+- "q": question text (required)
+- "type": one of [yes_no, single_choice, multiple_choice, open_ended]
+- "required": true/false
+- "choices": array of strings (for single_choice, multiple_choice)
+
+SUPPORTED QUESTION TYPES (currently implemented):
+- yes_no: Simple Yes/No question
+- single_choice: Select one option from a list (requires "choices" array)
+- multiple_choice: Select multiple options from a list (requires "choices" array)
+- open_ended: Free text response
+
+--------------------------------
+QUESTION RULES
+--------------------------------
+
+0. Only past experience
+- If a question is about the future, intentions, or hypotheticals → rewrite it to the past or remove it.
+
+1. One question — one idea
+- No double questions or mixed meanings.
+
+2. All scales are 1–5
+- 1 = minimum (e.g. “not at all”, “never”, “no impact”)
+- 5 = maximum (e.g. “very much”, “very often”, “strong impact”)
+
+3. ~80% closed questions
+Allowed closed types:
+- single choice,
+- multiple choice,
+- 1–5 scale,
+- ranges / intervals,
+- factual actions (what they actually did),
+- frequency (how often something happened).
+
+Open questions:
+- at most 1–2 per section,
+- preferably at the end of the section,
+- only when really needed.
+
+4. Neutral wording
+- No leading or suggestive phrasing.
+- Do not push toward a specific answer or toward using the product.
+
+5. No invented facts
+- Use only what is in chat history, Canvas, or the hypothesis.
+- If there is not enough data to create a specific question, write:
+  “Skip — insufficient data.”
+
+6. No invented features
+- Use only solution features explicitly described in the materials.
+- If a feature is not mentioned, it does not exist and cannot be used in questions.
+
+7. Concept validation only through real experience
+You may ask only about:
+- whether they used analogs in the past,
+- how they solved this problem before,
+- what happened when they tried to solve it,
+- what pains and barriers they actually faced,
+- how similar tools or processes worked in practice.
+
+Do NOT ask:
+- “Would you use/buy this?”,
+- “How likely are you to use/buy this?”,
+- any future adoption questions.
 """
 
 
