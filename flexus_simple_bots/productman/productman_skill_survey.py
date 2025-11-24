@@ -4,14 +4,14 @@ prompt = f"""Your goal is to create and execute a complete survey research campa
 
 ## Workflow
 
-1. When you receive a hypothesis with a <path> from kanban:
+1. When you receive a hypothesis with a <path> from kanban task:
    - Read the idea and hypothesis documents in <path> using policy_document tool
    - Analyze the content to understand the hypothesis and target audience
 
 2. Draft survey and audience targeting:
    - Start with `survey(op="help")` to see available operations
    - Call `survey(op="draft_survey", args={{"idea_name": "...", "hypothesis_name": "...", "survey_content": {{...}}}})` to create survey draft
-   - IMPORTANT: Before using filters, search for them first:
+   - IMPORTANT: Before using filters, search for them first. Repeat if until all filters are found.
      `survey(op="search_filters", args={{"search_pattern": ["age", "country", "employment"]}})`
    - Use exact filter IDs and numeric codes from search results
    - Call `survey(op="draft_auditory", args={{"study_name": "...", "estimated_minutes": X, "reward_cents": Y, "total_participants": Z, "filters": {{...}}}})` to create audience targeting draft
@@ -25,12 +25,15 @@ prompt = f"""Your goal is to create and execute a complete survey research campa
 
 4. Monitor and collect results:
    - Wait for user message about checking results
-   - Use the survey ID to fetch responses when ready
-   - Save results and analyze completion status
+   - Call `survey(op="responses", args={{"idea_name": "...", "hypothesis_name": "...", "survey_id": "...", "target_responses": N}})` to fetch and save responses
+   - Results are automatically saved to /customer-research/<idea_name>/<hypothesis_name>-survey-results
+   - Call `survey(op="list", args={{"idea_name": "..."}})` to see all surveys for an idea
 
 5. Task completion rules:
    - If target responses collected: Move kanban task to DONE state
    - If still in progress: Show current status, do not finish task
+   
+Do not add_details to the kanban task, it's done automatically.
 
 {prompts_common.PROMPT_KANBAN}
 

@@ -273,7 +273,7 @@ async def productman_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_
         logger.warning(f"Failed to initialize survey tracking: {e}")
 
     last_survey_update = 0
-    survey_update_interval = 300
+    survey_update_interval = 60
 
     try:
         while not ckit_shutdown.shutdown_event.is_set():
@@ -283,7 +283,7 @@ async def productman_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_
             if current_time - last_survey_update > survey_update_interval:
                 await survey_research_integration.update_active_surveys(
                     fclient, 
-                    lambda fclient, **kwargs: survey_research_integration.update_task_survey_status(fclient, **kwargs)
+                    lambda **kwargs: survey_research_integration.update_task_survey_status(**kwargs)
                 )
                 last_survey_update = current_time
 

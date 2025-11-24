@@ -37,7 +37,9 @@ SURVEY_RESEARCH_TOOL = ckit_cloudtool.CloudTool(
                     "filters": {"type": "object", "description": "Demographic and behavioral filters", "order": 1009},
                     "survey_draft_path": {"type": "string", "description": "Path to survey draft", "order": 1010},
                     "auditory_draft_path": {"type": "string", "description": "Path to auditory draft", "order": 1011},
-                    "search_pattern": {"type": "string", "description": "Regex pattern or list of patterns to search filter names", "order": 1012}
+                    "survey_id": {"type": "string", "description": "SurveyMonkey survey ID", "order": 1012},
+                    "target_responses": {"type": "integer", "description": "Target number of responses to collect", "order": 1013},
+                    "search_pattern": {"type": "string", "description": "Regex pattern or list of patterns to search filter names", "order": 1014}
                 }
             }
         },
@@ -60,6 +62,14 @@ survey(op="draft_auditory", args={"study_name": "...", "estimated_minutes": 10, 
 
 survey(op="run", args={"survey_draft_path": "...", "auditory_draft_path": "..."})
     Execute complete workflow: create SurveyMonkey survey, create Prolific study, connect them, and publish for recruitment.
+
+survey(op="responses", args={"idea_name": "...", "hypothesis_name": "...", "survey_id": "123456", "target_responses": 50})
+    Fetch all responses for a SurveyMonkey survey and save results.
+    Required: survey_id, target_responses, idea_name, hypothesis_name
+    Saves results to /customer-research/<idea_name>/<hypothesis_name>-survey-results
+
+survey(op="list", args={"idea_name": "..."})
+    List all surveys for an idea (drafts and live).
 
 survey(op="search_filters", args={"search_pattern": "age|country"})
     Search available Prolific filters by name using regex pattern.
@@ -121,6 +131,12 @@ Examples:
         "auditory_draft_path": "/customer-research/task-tool/managers-auditory-draft"
     })
     
+    # Get survey responses
+    survey(op="responses", args={"idea_name": "task-tool", "hypothesis_name": "managers", "survey_id": "123456", "target_responses": 50})
+    
+    # List all surveys for an idea
+    survey(op="list", args={"idea_name": "task-tool"})
+    
     # Search available filters - ALWAYS DO THIS BEFORE draft_auditory!
     survey(op="search_filters", args={"search_pattern": "age|country|language"})
     # Or search multiple patterns at once:
@@ -164,6 +180,8 @@ Each question must have:
 - "type": one of [yes_no, single_choice, multiple_choice, open_ended]
 - "required": true/false
 - "choices": array of strings (for single_choice, multiple_choice)
+
+Note: For multiple_choice questions, you cannot require all options to be selected (that defeats the purpose)
 
 SUPPORTED QUESTION TYPES (currently implemented):
 - yes_no: Simple Yes/No question
@@ -293,10 +311,14 @@ class IntegrationSurveyResearch:
                 return await self._handle_run(toolcall, args)
             else:
                 return await self._prepare_run_confirmation(toolcall, args)
+        elif op == "responses":
+            return await self._handle_responses(toolcall, args)
+        elif op == "list":
+            return await self._handle_list(toolcall, args)
         elif op == "search_filters":
             return await self._handle_search_filters(args)
         else:
-            return f"Unknown operation '{op}'. Valid operations: help, draft_survey, draft_auditory, run, search_filters"
+            return f"Unknown operation '{op}'. Valid operations: help, draft_survey, draft_auditory, run, responses, list, search_filters"
 
     async def _handle_draft_survey(self, toolcall: ckit_cloudtool.FCloudtoolCall, args: Dict[str, Any]) -> str:
         idea_name = args.get("idea_name", "")
@@ -360,6 +382,31 @@ class IntegrationSurveyResearch:
         )
         if question_count == 0:
             return "Error: Survey must contain at least one question"
+
+        validation_errors = []
+        for key, section in formatted_content.items():
+            if key.startswith("section") and isinstance(section, dict):
+                for q_idx, question in enumerate(section.get("questions", [])):
+                    q_type = question.get("type", "")
+                    q_text = question.get("q", f"Question {q_idx + 1}")
+                    
+                    if q_type == "multiple_choice":
+                        choices = question.get("choices", [])
+                        if not choices:
+                            validation_errors.append(f"Section {key}: Multiple choice question '{q_text[:50]}...' must have choices")
+                        elif question.get("required") and len(choices) > 1:
+                            all_required = question.get("all_required", False)
+                            if all_required:
+                                validation_errors.append(f"Section {key}: Multiple choice question '{q_text[:50]}...' cannot require all options to be selected")
+                    
+                    if q_type in ["single_choice", "dropdown"] and not question.get("choices"):
+                        validation_errors.append(f"Section {key}: {q_type} question '{q_text[:50]}...' must have choices")
+
+        if validation_errors:
+            error_msg = "Survey validation failed:\n"
+            for error in validation_errors:
+                error_msg += f"  - {error}\n"
+            return error_msg
 
         pdoc_path = f"/customer-research/{idea_name}/{hypothesis_name}-survey-draft"
 
@@ -517,6 +564,39 @@ class IntegrationSurveyResearch:
 
         return result
 
+    async def _handle_list(self, toolcall: ckit_cloudtool.FCloudtoolCall, args: Dict[str, Any]) -> str:
+        idea_name = args.get("idea_name", "")
+
+        if not idea_name:
+            return "Error: idea_name is required for list operation"
+
+        if not self.pdoc_integration:
+            return "Error: pdoc integration not configured"
+
+        try:
+            path = f"/customer-research/{idea_name}"
+            items = await self.pdoc_integration.pdoc_list(path)
+
+            surveys = []
+            for item in items:
+                if not item.is_folder and ("-survey-draft" in item.path or "-survey-live" in item.path or "-survey-monkey" in item.path):
+                    surveys.append(item.path)
+
+            if not surveys:
+                return f"No surveys found for idea '{idea_name}'"
+
+            result = f"📋 Surveys for idea '{idea_name}':\n\n"
+            for survey_path in sorted(surveys):
+                if "-survey-draft" in survey_path:
+                    result += f"📝 Draft: {survey_path}\n"
+                else:
+                    result += f"🔗 Live: {survey_path}\n"
+
+            return result
+
+        except Exception as e:
+            return f"Error listing surveys: {str(e)}"
+
     async def _handle_search_filters(self, args: Dict[str, Any]) -> str:
         import re
         search_patterns = args.get("search_pattern", "")
@@ -557,8 +637,7 @@ class IntegrationSurveyResearch:
                 min_val = filter_info.get("min", 0)
                 max_val = filter_info.get("max", 100)
                 result += f"  Range: {min_val} to {max_val}\n"
-                result += f'  Example: "{filter_id}": {{"min": {min_val}, "max": {max_val}}}\n'
-                
+
             elif filter_info["type"] == "select":
                 choices = filter_info.get("choices", {})
                 num_choices = len(choices)
@@ -567,21 +646,17 @@ class IntegrationSurveyResearch:
                     result += f"  Options ({num_choices}):\n"
                     for code, label in choices.items():
                         result += f"    {code} = {label}\n"
-                    result += f'  Example: "{filter_id}": ["{list(choices.keys())[0]}"]\n'
                 elif num_choices <= 15:
                     result += f"  Options ({num_choices}):\n"
                     for code, label in list(choices.items())[:10]:
                         result += f"    {code} = {label}\n"
                     if num_choices > 10:
                         result += f"    ... and {num_choices - 10} more\n"
-                    result += f'  Example: "{filter_id}": ["{list(choices.keys())[0]}"]\n'
                 else:
-                    result += f"  Options ({num_choices} total), first 5:\n"
-                    for code, label in list(choices.items())[:5]:
+                    result += f"  Options ({num_choices} total):\n"
+                    for code, label in list(choices.items()):
                         result += f"    {code} = {label}\n"
-                    result += f"    ... and {num_choices - 5} more\n"
-                    result += f'  Example: "{filter_id}": ["{list(choices.keys())[0]}"]\n'
-            
+
             result += "\n"
         
         if total_found > max_display:
@@ -682,6 +757,142 @@ class IntegrationSurveyResearch:
         except Exception as e:
             return f"Error executing campaign: {str(e)}"
 
+    async def _handle_responses(self, toolcall: ckit_cloudtool.FCloudtoolCall, args: Dict[str, Any]) -> str:
+        survey_id = args.get("survey_id", "")
+        target_responses = args.get("target_responses", 0)
+        idea_name = args.get("idea_name", "")
+        hypothesis_name = args.get("hypothesis_name", "")
+
+        if not survey_id:
+            return "Error: survey_id is required"
+        if not target_responses or target_responses <= 0:
+            return "Error: target_responses is required and must be greater than 0"
+        if not idea_name:
+            return "Error: idea_name is required"
+        if not hypothesis_name:
+            return "Error: hypothesis_name is required"
+
+        all_responses = []
+        page, per_page, total = 1, 100, None
+
+        async with aiohttp.ClientSession() as session:
+            while True:
+                async with session.get(
+                        f"https://api.surveymonkey.com/v3/surveys/{survey_id}/responses/bulk",
+                        headers=self._sm_headers(),
+                        params={
+                            "simple": "true",
+                            "page": page,
+                            "per_page": per_page,
+                        },
+                        timeout=aiohttp.ClientTimeout(total=30),
+                ) as resp:
+                    resp.raise_for_status()
+                    data = await resp.json()
+
+                    if total is None:
+                        total = data.get("total", 0)
+
+                    page_responses = data.get("data", [])
+                    all_responses.extend(page_responses)
+
+                    if len(page_responses) < per_page or len(all_responses) >= total:
+                        break
+
+                    page += 1
+
+        completion_rate = (len(all_responses) / target_responses * 100) if target_responses > 0 else 0
+        is_completed = target_responses > 0 and len(all_responses) >= target_responses
+
+        result = f"📊 Survey Responses (Survey ID: {survey_id})\n"
+        result += f"Total responses: {len(all_responses)} / {target_responses} ({completion_rate:.1f}%)\n"
+        result += f"Status: {'COMPLETED ✅' if is_completed else 'IN_PROGRESS ⏳'}\n"
+        result += "=" * 50 + "\n\n"
+
+        if not all_responses:
+            result += "No responses found yet.\n"
+
+        responses_data = []
+        for idx, r in enumerate(all_responses, 1):
+            response_entry = {
+                "response_id": r.get('id', 'N/A'),
+                "status": r.get('response_status', 'N/A'),
+                "submitted": r.get('date_modified') or r.get('date_created', 'N/A'),
+                "answers": r
+            }
+
+            result += f"Response #{idx} (ID: {r.get('id', 'N/A')})\n"
+            result += f"Status: {r.get('response_status', 'N/A')}\n"
+            result += f"Submitted: {r.get('date_modified') or r.get('date_created', 'N/A')}\n\n"
+
+            for page_obj in r.get("pages", []):
+                for q in page_obj.get("questions", []):
+                    q_text = None
+                    headings = q.get("headings", [])
+                    if headings and isinstance(headings, list):
+                        if isinstance(headings[0], dict):
+                            q_text = headings[0].get("heading", "")
+
+                    answers = q.get("answers", [])
+                    if not answers:
+                        continue
+
+                    parts = []
+                    for a in answers:
+                        if "text" in a and a["text"]:
+                            parts.append(a["text"])
+                        elif "choice_id" in a:
+                            parts.append(f"choice_id={a['choice_id']}")
+
+                    if q_text and parts:
+                        result += f"Q: {q_text}\n"
+                        result += f"A: {', '.join(parts)}\n\n"
+
+            result += "-" * 30 + "\n\n"
+            responses_data.append(response_entry)
+
+        if self.pdoc_integration:
+            results_path = f"/customer-research/{idea_name}/{hypothesis_name}-survey-results"
+            results_content = {
+                "survey_results": {
+                    "meta": {
+                        "survey_id": survey_id,
+                        "total_responses": len(all_responses),
+                        "target_responses": target_responses,
+                        "completion_rate": completion_rate,
+                        "saved_at": time.strftime("%Y-%m-%d %H:%M:%S"),
+                        "idea": idea_name,
+                        "hypothesis": hypothesis_name,
+                        "status": "COMPLETED" if is_completed else "IN_PROGRESS"
+                    },
+                    "responses": responses_data,
+                    "summary": {
+                        "total_collected": len(all_responses),
+                        "completion_status": "COMPLETED" if is_completed else "IN_PROGRESS"
+                    }
+                }
+            }
+
+            try:
+                await self.pdoc_integration.pdoc_overwrite(
+                    results_path,
+                    json.dumps(results_content, indent=2),
+                    toolcall.fcall_ft_id
+                )
+                result += f"\n📁 Results saved to: {results_path}\n"
+                result += f"✍️ {results_path}\n\n"
+            except Exception as e:
+                result += f"\n⚠️ Failed to save results: {str(e)}\n\n"
+
+        if is_completed:
+            result += "🎉 SURVEY COMPLETED! All target responses collected.\n"
+            result += "✅ You should now move the kanban task to DONE state.\n"
+        else:
+            result += f"⏳ Survey still in progress. {target_responses - len(all_responses)} more responses needed.\n"
+            result += "❌ DO NOT finish the task yet. Check again later for more responses.\n"
+
+        return result
+
     def track_survey_task(self, task):
         """Track survey tasks for automatic status updates"""
         if not task.ktask_details:
@@ -726,7 +937,6 @@ class IntegrationSurveyResearch:
                 is_completed = target_responses > 0 and response_count >= target_responses
 
                 await update_task_callback(
-                    fclient,
                     task_id=tracking_info["task_id"],
                     survey_id=survey_id,
                     response_count=response_count,
@@ -756,30 +966,33 @@ class IntegrationSurveyResearch:
             except Exception as e:
                 logger.error(f"🛑 Error updating survey {survey_id}: {e}")
 
-    async def update_task_survey_status(self, fclient, task_id: str, survey_id: str, response_count: int, is_completed: bool, survey_status: str):
+    async def update_task_survey_status(self, task_id: str, survey_id: str, response_count: int, is_completed: bool, survey_status: str):
         from flexus_client_kit import ckit_kanban
 
         try:
-            tasks = await ckit_kanban.bot_get_all_tasks(fclient, fclient.persona_id)
-            task = next((t for t in tasks if t.ktask_id == task_id), None)
-            if not task:
-                logger.warning(f"No task found for task_id: {task_id}")
+            if survey_id not in self.tracked_surveys:
+                logger.warning(f"Survey {survey_id} not in tracked surveys")
                 return
-
-            details = task.ktask_details if isinstance(task.ktask_details, dict) else json.loads(task.ktask_details or "{}")
-            target_responses = details.get("target_responses", 1)
-            completion_rate = response_count / target_responses if target_responses > 0 else 0
-
-            details["survey_status"] = {
-                "responses": response_count,
-                "completion_rate": completion_rate,
-                "last_checked": time.strftime("%Y-%m-%d %H:%M:%S"),
-                "completed_notified": details.get("survey_status", {}).get("completed_notified", False) or is_completed,
-                "status": survey_status
+                
+            tracking_info = self.tracked_surveys[survey_id]
+            target_responses = tracking_info.get("target_responses", 100)
+            completion_rate = (response_count / target_responses * 100) if target_responses > 0 else 0
+            
+            details = {
+                "survey_id": survey_id,
+                "target_responses": target_responses,
+                "survey_status": {
+                    "responses": response_count,
+                    "completion_rate": completion_rate,
+                    "last_checked": time.strftime("%Y-%m-%d %H:%M:%S"),
+                    "is_completed": is_completed,
+                    "status": survey_status,
+                    "completed_notified": tracking_info.get("completed_notified", False)
+                }
             }
 
-            await ckit_kanban.update_task_details(fclient, task_id, details)
-            logger.info(f"Updated task {task_id} with survey status")
+            await ckit_kanban.update_task_details(self.fclient, task_id, details)
+            logger.info(f"Updated task {task_id} survey status: {response_count}/{target_responses} responses, completed={is_completed}")
 
         except Exception as e:
             logger.error(f"Failed to update task survey status: {e}")
