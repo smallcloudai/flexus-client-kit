@@ -3,7 +3,8 @@ import logging
 import time
 import aiohttp
 import random
-from typing import Dict, Any, List
+import os
+from typing import Dict, Any
 
 from flexus_client_kit import ckit_cloudtool
 
@@ -17,7 +18,7 @@ SURVEY_RESEARCH_TOOL = ckit_cloudtool.CloudTool(
         "properties": {
             "op": {
                 "type": "string",
-                "description": "Operation: help, draft_survey, draft_auditory, run",
+                "description": "Operation: help, draft_survey, draft_auditory, run, search_filters",
                 "order": 1
             },
             "args": {
@@ -35,7 +36,8 @@ SURVEY_RESEARCH_TOOL = ckit_cloudtool.CloudTool(
                     "total_participants": {"type": "integer", "description": "Number of participants", "order": 1008},
                     "filters": {"type": "object", "description": "Demographic and behavioral filters", "order": 1009},
                     "survey_draft_path": {"type": "string", "description": "Path to survey draft", "order": 1010},
-                    "auditory_draft_path": {"type": "string", "description": "Path to auditory draft", "order": 1011}
+                    "auditory_draft_path": {"type": "string", "description": "Path to auditory draft", "order": 1011},
+                    "search_pattern": {"type": "string", "description": "Regex pattern or list of patterns to search filter names", "order": 1012}
                 }
             }
         },
@@ -51,30 +53,66 @@ survey(op="help")
     Shows detailed help with examples.
 
 survey(op="draft_survey", args={"idea_name": "...", "hypothesis_name": "...", "survey_content": {...}})
-    Create a survey draft as a policy document for review.
+    Create or update a survey draft as a policy document for review.
 
 survey(op="draft_auditory", args={"study_name": "...", "estimated_minutes": 10, "reward_cents": 150, "total_participants": 50, "filters": {...}})
-    Create an audience targeting draft for Prolific study.
+    Create or update an audience targeting draft for Prolific study.
 
 survey(op="run", args={"survey_draft_path": "...", "auditory_draft_path": "..."})
-    Execute complete workflow: create SurveyMonkey survey, create Prolific study, connect them.
+    Execute complete workflow: create SurveyMonkey survey, create Prolific study, connect them, and publish for recruitment.
+
+survey(op="search_filters", args={"search_pattern": "age|country"})
+    Search available Prolific filters by name using regex pattern.
+    Can also accept multiple patterns: {"search_pattern": ["age", "country", "language"]}
 
 Examples:
-    # Draft survey
+    # Draft survey - IMPORTANT: sections go at root level, not under "survey"
     survey(op="draft_survey", args={
         "idea_name": "task-tool",
         "hypothesis_name": "managers",
-        "survey_content": {"survey": {"meta": {...}, "section01-screening": {...}}}
+        "survey_content": {
+            "survey": {
+                "meta": {
+                    "title": "Task Management Survey",
+                    "description": "Tell us about your task management experience"
+                }
+            },
+            "section01-screening": {
+                "title": "Screening Questions",
+                "questions": [
+                    {"q": "Are you a project manager?", "type": "yes_no", "required": true},
+                    {"q": "Company size?", "type": "single_choice", 
+                     "choices": ["1-10", "11-50", "51-200", "201+"], "required": true}
+                ]
+            },
+            "section02-user-profile": {
+                "title": "Your Role",
+                "questions": [
+                    {"q": "Years of experience?", "type": "single_choice", 
+                     "choices": ["0-2", "3-5", "6-10", "10+"], "required": true},
+                    {"q": "Describe your main challenges", "type": "open_ended", "required": false}
+                ]
+            }
+            # Add sections 03-06 as needed (see structure rules above)
+        }
     })
 
-    # Draft audience
+    # IMPORTANT: Before using filters in draft_auditory, search for them first!
+    # Step 1: Search for the filters you need
+    survey(op="search_filters", args={"search_pattern": ["age", "country", "approval"]})
+    
+    # Step 2: Use the exact filter IDs and value formats from search results
     survey(op="draft_auditory", args={
         "study_name": "Task Management Survey",
         "study_description": "We are conducting research on task management practices and tools used by professionals",
         "estimated_minutes": 15,
         "reward_cents": 200,
         "total_participants": 100,
-        "filters": {"age": {"min": 25, "max": 55}, "countries": ["1", "45"]}
+        "filters": {
+            "age": {"min": 25, "max": 55},
+            "current-country-of-residence": ["0", "1"],
+            "approval_rate": {"min": 95, "max": 100}
+        }
     })
 
     # Run campaign
@@ -82,6 +120,11 @@ Examples:
         "survey_draft_path": "/customer-research/task-tool/managers-survey-draft",
         "auditory_draft_path": "/customer-research/task-tool/managers-auditory-draft"
     })
+    
+    # Search available filters - ALWAYS DO THIS BEFORE draft_auditory!
+    survey(op="search_filters", args={"search_pattern": "age|country|language"})
+    # Or search multiple patterns at once:
+    survey(op="search_filters", args={"search_pattern": ["employment", "student", "sex"]})
     
 Survey creation rules.
 RULE #0 — SACRED AND NON-NEGOTIABLE
@@ -198,6 +241,10 @@ class IntegrationSurveyResearch:
         self.fclient = fclient
         self.tracked_surveys = {}
 
+        filters_file = os.path.join(os.path.dirname(__file__), 'prolific_filters.json')
+        with open(filters_file, 'r') as f:
+            self.prolific_filters = json.load(f)
+
     def _sm_headers(self):
         return {
             "Authorization": f"Bearer {self.surveymonkey_token}",
@@ -246,8 +293,10 @@ class IntegrationSurveyResearch:
                 return await self._handle_run(toolcall, args)
             else:
                 return await self._prepare_run_confirmation(toolcall, args)
+        elif op == "search_filters":
+            return await self._handle_search_filters(args)
         else:
-            return f"Unknown operation '{op}'. Valid operations: help, draft_survey, draft_auditory, run"
+            return f"Unknown operation '{op}'. Valid operations: help, draft_survey, draft_auditory, run, search_filters"
 
     async def _handle_draft_survey(self, toolcall: ckit_cloudtool.FCloudtoolCall, args: Dict[str, Any]) -> str:
         idea_name = args.get("idea_name", "")
@@ -314,7 +363,7 @@ class IntegrationSurveyResearch:
 
         pdoc_path = f"/customer-research/{idea_name}/{hypothesis_name}-survey-draft"
 
-        await self.pdoc_integration.pdoc_create(
+        await self.pdoc_integration.pdoc_overwrite(
             pdoc_path,
             json.dumps(formatted_content, indent=2),
             toolcall.fcall_ft_id
@@ -342,7 +391,80 @@ class IntegrationSurveyResearch:
         if not study_description:
             return "Error: study_description is required"
 
-        prolific_filters = await self._build_prolific_filters(filters)
+        prolific_filters = []
+        for filter_key, filter_value in filters.items():
+            if filter_key in self.prolific_filters:
+                filter_info = self.prolific_filters[filter_key]
+                if filter_info["type"] == "range":
+                    range_filter = {"filter_id": filter_key, "selected_range": {}}
+                    filter_min = filter_info.get("min", 0)
+                    filter_max = filter_info.get("max", 100)
+                    
+                    if isinstance(filter_value, dict):
+                        if "min" in filter_value:
+                            if filter_value["min"] < filter_min or filter_value["min"] > filter_max:
+                                return f"Error: Value {filter_value['min']} for '{filter_key}' min is out of range [{filter_min}, {filter_max}]"
+                            range_filter["selected_range"]["lower"] = filter_value["min"]
+                        if "max" in filter_value:
+                            if filter_value["max"] < filter_min or filter_value["max"] > filter_max:
+                                return f"Error: Value {filter_value['max']} for '{filter_key}' max is out of range [{filter_min}, {filter_max}]"
+                            range_filter["selected_range"]["upper"] = filter_value["max"]
+                    elif isinstance(filter_value, (int, float)):
+                        if filter_value < filter_min or filter_value > filter_max:
+                            return f"Error: Value {filter_value} for '{filter_key}' is out of range [{filter_min}, {filter_max}]"
+                        range_filter["selected_range"]["lower"] = filter_value
+                    prolific_filters.append(range_filter)
+                elif filter_info["type"] == "select":
+                    values = filter_value if isinstance(filter_value, list) else [filter_value]
+                    valid_choices = set(filter_info.get("choices", {}).keys())
+                    
+                    for val in values:
+                        if str(val) not in valid_choices:
+                            error_msg = f"Error: Invalid value '{val}' for filter '{filter_key}'.\n\n"
+                            error_msg += f"Valid options for {filter_info['title']}:\n"
+                            choices = filter_info.get("choices", {})
+                            if len(choices) <= 20:
+                                for code, label in choices.items():
+                                    error_msg += f"  {code} = {label}\n"
+                            else:
+                                for code, label in list(choices.items())[:10]:
+                                    error_msg += f"  {code} = {label}\n"
+                                error_msg += f"  ... and {len(choices) - 10} more\n"
+                            error_msg += f"\nUse string values like: [\"{list(choices.keys())[0]}\"]\n"
+                            return error_msg
+                    
+                    prolific_filters.append({
+                        "filter_id": filter_key,
+                        "selected_values": [str(v) for v in values]
+                    })
+            else:
+                error_msg = f"Error: Unknown filter '{filter_key}'.\n\n"
+                error_msg += f"Use survey(op='search_filters', args={{'search_pattern': '{filter_key}'}}) to find available filters.\n\n"
+
+                import re
+                pattern = re.compile(filter_key, re.IGNORECASE)
+                suggestions = []
+                for fid, finfo in self.prolific_filters.items():
+                    if pattern.search(fid) or pattern.search(finfo.get("title", "")):
+                        suggestions.append(fid)
+
+                if suggestions:
+                    error_msg += f"Did you mean one of these filters?\n"
+                    for s in suggestions[:5]:
+                        filter_info = self.prolific_filters[s]
+                        error_msg += f"\n• {s}: {filter_info['title']} ({filter_info['type']})"
+                        if filter_info['type'] == 'range':
+                            error_msg += f"\n  Schema: {{'min': {filter_info.get('min', 0)}, 'max': {filter_info.get('max', 100)}}}"
+                        elif filter_info['type'] == 'select':
+                            choices = filter_info.get('choices', {})
+                            if len(choices) <= 5:
+                                error_msg += f"\n  Values (use strings!): {list(choices.keys())}"
+                                error_msg += f"\n  Example: \"{s}\": [\"{list(choices.keys())[0]}\"]"
+                            else:
+                                error_msg += f"\n  Values (use strings!): {list(choices.keys())[:5]} ... ({len(choices)} total)"
+                                error_msg += f"\n  Example: \"{s}\": [\"{list(choices.keys())[0]}\"]"
+
+                return error_msg
         service_fee = reward_cents * total_participants * 0.33
         vat = service_fee * 0.20
         total_cost = (reward_cents * total_participants) + service_fee + vat
@@ -360,6 +482,7 @@ class IntegrationSurveyResearch:
                     "reward_cents": reward_cents,
                     "total_participants": total_participants,
                     "filters": prolific_filters,
+                    "reject_fast_submissions": False,
                     "completion_codes": [{
                         "code": f"COMPLETE_{random.randint(10000000, 99999999)}",
                         "code_type": "COMPLETED",
@@ -377,7 +500,7 @@ class IntegrationSurveyResearch:
 
         draft_path = f"/customer-research/auditory-drafts/{study_name.lower().replace(' ', '-')}-auditory-draft"
 
-        await self.pdoc_integration.pdoc_create(
+        await self.pdoc_integration.pdoc_overwrite(
             draft_path,
             json.dumps(draft_content, indent=2),
             toolcall.fcall_ft_id
@@ -394,30 +517,79 @@ class IntegrationSurveyResearch:
 
         return result
 
-    async def _build_prolific_filters(self, filters: Dict[str, Any]) -> List[Dict]:
-        prolific_filters = []
+    async def _handle_search_filters(self, args: Dict[str, Any]) -> str:
+        import re
+        search_patterns = args.get("search_pattern", "")
 
-        if "age" in filters:
-            age_filter = {"filter_id": "age", "selected_range": {}}
-            if "min" in filters["age"]:
-                age_filter["selected_range"]["lower"] = filters["age"]["min"]
-            if "max" in filters["age"]:
-                age_filter["selected_range"]["upper"] = filters["age"]["max"]
-            prolific_filters.append(age_filter)
+        if not search_patterns:
+            return "Error: search_pattern is required"
 
-        if "countries" in filters:
-            prolific_filters.append({
-                "filter_id": "current-country-of-residence",
-                "selected_values": filters["countries"]
-            })
+        if isinstance(search_patterns, str):
+            search_patterns = [search_patterns]
 
-        if "previous_studies" in filters:
-            prolific_filters.append({
-                "filter_id": "previous_studies",
-                "selected_values": filters["previous_studies"]
-            })
+        all_matches = {}
+        for search_pattern in search_patterns:
+            try:
+                pattern = re.compile(search_pattern, re.IGNORECASE)
+            except re.error as e:
+                return f"Error: Invalid regex pattern '{search_pattern}' - {e}"
 
-        return prolific_filters
+            for filter_id, filter_info in self.prolific_filters.items():
+                if pattern.search(filter_info.get("title", "")) or pattern.search(filter_id):
+                    if filter_id not in all_matches:
+                        all_matches[filter_id] = filter_info
+
+        if not all_matches:
+            return f"No filters found matching patterns: {', '.join(search_patterns)}"
+
+        total_found = len(all_matches)
+        max_display = 50
+        
+        result = f"Found {total_found} filters"
+        if total_found > max_display:
+            result += f" (showing first {max_display}, use more specific search to narrow results)"
+        result += ":\n\n"
+        
+        for filter_id, filter_info in list(all_matches.items())[:max_display]:
+            result += f"• {filter_id}: {filter_info.get('title', '')} ({filter_info.get('type', '')})\n"
+            
+            if filter_info["type"] == "range":
+                min_val = filter_info.get("min", 0)
+                max_val = filter_info.get("max", 100)
+                result += f"  Range: {min_val} to {max_val}\n"
+                result += f'  Example: "{filter_id}": {{"min": {min_val}, "max": {max_val}}}\n'
+                
+            elif filter_info["type"] == "select":
+                choices = filter_info.get("choices", {})
+                num_choices = len(choices)
+                
+                if num_choices <= 5:
+                    result += f"  Options ({num_choices}):\n"
+                    for code, label in choices.items():
+                        result += f"    {code} = {label}\n"
+                    result += f'  Example: "{filter_id}": ["{list(choices.keys())[0]}"]\n'
+                elif num_choices <= 15:
+                    result += f"  Options ({num_choices}):\n"
+                    for code, label in list(choices.items())[:10]:
+                        result += f"    {code} = {label}\n"
+                    if num_choices > 10:
+                        result += f"    ... and {num_choices - 10} more\n"
+                    result += f'  Example: "{filter_id}": ["{list(choices.keys())[0]}"]\n'
+                else:
+                    result += f"  Options ({num_choices} total), first 5:\n"
+                    for code, label in list(choices.items())[:5]:
+                        result += f"    {code} = {label}\n"
+                    result += f"    ... and {num_choices - 5} more\n"
+                    result += f'  Example: "{filter_id}": ["{list(choices.keys())[0]}"]\n'
+            
+            result += "\n"
+        
+        if total_found > max_display:
+            result += f"\n⚠️ {total_found - max_display} more filters not shown.\n"
+            result += "Tip: Use more specific search patterns to narrow results.\n"
+            result += f'Example: survey(op="search_filters", args={{"search_pattern": "^age$|^sex$"}})\n'
+        
+        return result
 
     async def _prepare_run_confirmation(self, toolcall: ckit_cloudtool.FCloudtoolCall, args: Dict[str, Any]) -> str:
         survey_draft_path = args.get("survey_draft_path", "")
@@ -458,6 +630,8 @@ class IntegrationSurveyResearch:
 
             survey_info = await self._create_surveymonkey_survey(survey_content, completion_code)
             study_id = await self._create_prolific_study(auditory_content, survey_info)
+            
+            publish_result = await self._publish_prolific_study(study_id)
 
             survey_id = survey_info["survey_id"]
             survey_url = survey_info["url"]
@@ -487,10 +661,19 @@ class IntegrationSurveyResearch:
                 except Exception as e:
                     logger.error(f"Failed to update task with survey info: {e}")
 
-            result = f"✅ Survey campaign launched successfully!\n\n"
-            result += f"📋 SurveyMonkey URL: {survey_url}\n"
-            result += f"🎯 Prolific Study ID: {study_id}\n"
-            result += f"✅ Participants are now being recruited!\n\n"
+            if "error" in publish_result:
+                result = f"⚠️ Survey campaign created but not published!\n\n"
+                result += f"📋 SurveyMonkey URL: {survey_url}\n"
+                result += f"🎯 Prolific Study ID: {study_id}\n"
+                result += f"❌ Publishing error: {publish_result['error']}\n\n"
+                result += f"The study was created but needs manual publishing in Prolific dashboard.\n\n"
+            else:
+                result = f"✅ Survey campaign launched and published successfully!\n\n"
+                result += f"📋 SurveyMonkey URL: {survey_url}\n"
+                result += f"🎯 Prolific Study ID: {study_id}\n"
+                result += f"📊 Status: {publish_result.get('status', 'ACTIVE')}\n"
+                result += f"✅ Participants are now being recruited!\n\n"
+            
             result += f"📝 Survey draft: {survey_draft_path}\n"
             result += f"📝 Auditory draft: {auditory_draft_path}"
 
@@ -632,11 +815,7 @@ class IntegrationSurveyResearch:
                 "title": "Page 1",
                 "description": survey_description,
                 "questions": questions
-            }],
-            "thank_you_page": {
-                "is_enabled": True,
-                "message": f"Thank you for completing this survey!\n\nIMPORTANT: Please copy this completion code and paste it in Prolific to receive your payment:\n\n{completion_code}"
-            }
+            }]
         }
 
         survey = await self._make_request(
@@ -649,7 +828,11 @@ class IntegrationSurveyResearch:
 
         collector_payload = {
             "type": "weblink",
-            "name": "Prolific Collector"
+            "name": "Prolific Collector",
+            "thank_you_message": (
+                "Thank you for completing this survey!\n\n"
+                f"IMPORTANT: Please copy this completion code and paste it in Prolific to receive your payment:\n\n{completion_code}"
+            )
         }
 
         collector = await self._make_request(
@@ -723,8 +906,9 @@ class IntegrationSurveyResearch:
         estimated_minutes = params.get("estimated_minutes", 5)
         reward_cents = params.get("reward_cents", 100)
         total_participants = params.get("total_participants", 50)
-        filters = params.get("filters", [])
         completion_codes = params.get("completion_codes", [])
+
+        filters = params.get("filters", [])
         survey_url = survey_info["url"]
 
         param_str = "PROLIFIC_PID={{%PROLIFIC_PID%}}&STUDY_ID={{%STUDY_ID%}}&SESSION_ID={{%SESSION_ID%}}"
@@ -743,7 +927,10 @@ class IntegrationSurveyResearch:
             "total_available_places": total_participants,
             "device_compatibility": ["desktop", "mobile", "tablet"],
             "filters": filters,
-            "data_collection_type": "SURVEY"
+            "study_labels": ["survey"],
+            "submissions_config": {
+                "max_submissions_per_participant": 1
+            }
         }
 
         study = await self._make_request(
@@ -754,3 +941,30 @@ class IntegrationSurveyResearch:
         )
 
         return study["id"]
+    
+    async def _publish_prolific_study(self, study_id: str) -> Dict:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(
+                    f"https://api.prolific.com/api/v1/studies/{study_id}/",
+                    headers=self._prolific_headers(),
+                    timeout=aiohttp.ClientTimeout(total=30),
+            ) as resp:
+                if resp.status >= 400:
+                    error_body = await resp.text()
+                    logger.error(f"Error getting study details: {error_body}")
+                    return {"error": f"Error getting study details: {error_body}"}
+                study_details = await resp.json()
+
+            async with session.post(
+                    f"https://api.prolific.com/api/v1/studies/{study_id}/transition/",
+                    headers=self._prolific_headers(),
+                    json={"action": "PUBLISH"},
+                    timeout=aiohttp.ClientTimeout(total=30),
+            ) as resp:
+                if resp.status >= 400:
+                    error_body = await resp.text()
+                    logger.error(f"Prolific publish error: {error_body}")
+                    return {"error": f"Error publishing study: {error_body}"}
+
+                study = await resp.json()
+                return {"status": study.get("status", "ACTIVE"), "published": True}
