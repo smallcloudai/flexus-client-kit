@@ -28,6 +28,7 @@ setup(
         "langchain_google_community",
         "langchain-community",
         "atlassian-python-api",
+        "html2text",
     ],
     extras_require={
         "dev": [
