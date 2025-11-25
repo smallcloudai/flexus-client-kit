@@ -16,7 +16,7 @@ Source: `fb_ad_account.py`
 
 ### list_ad_accounts ✅
 
-List all ad accounts, grouped by business portfolio and personal.
+List all ad accounts, grouped by business portfolio and personal. Requires `business_management` scope.
 
 **Request:**
 ```
@@ -101,13 +101,13 @@ Note: `spending_limit` is in cents (500000 = 5000.00)
 
 Source: `fi_facebook.py`
 
-### status 🔧
+### status ✅
 
 Show current ad account status and active campaigns.
 
 **Request:**
 ```
-facebook(op="status")
+facebook(op="status", args={"ad_account_id": "act_111222333444"})
 ```
 
 **Response:**
@@ -144,13 +144,14 @@ Found 5 campaigns:
 
 ---
 
-### create_campaign 🔧
+### create_campaign ✅
 
 Create a new campaign.
 
 **Request:**
 ```
 facebook(op="create_campaign", args={
+    "ad_account_id": "act_111222333444",
     "name": "My New Campaign",
     "objective": "OUTCOME_TRAFFIC",
     "daily_budget": 5000,
@@ -158,6 +159,8 @@ facebook(op="create_campaign", args={
 })
 ```
 Note: `daily_budget` in cents. Valid objectives: OUTCOME_TRAFFIC, OUTCOME_SALES, OUTCOME_ENGAGEMENT, OUTCOME_AWARENESS, OUTCOME_LEADS, OUTCOME_APP_PROMOTION
+
+**⚠️ Important:** `daily_budget` is required! Without it, Facebook API returns error about `is_adset_budget_sharing_enabled`.
 
 **Response:**
 ```
