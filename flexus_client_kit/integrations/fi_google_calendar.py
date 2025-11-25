@@ -116,7 +116,14 @@ class IntegrationGoogleCalendar:
 
         if op == "search_events" and "calendars_info" in args:
             try:
-                calendars_info = json.loads(args["calendars_info"]) if isinstance(args["calendars_info"], str) else args["calendars_info"]
+                if isinstance(args["calendars_info"], str):
+                    cal_str = args["calendars_info"].strip()
+                    if cal_str and cal_str[0] in '[{':
+                        calendars_info = json.loads(cal_str)
+                    else:
+                        calendars_info = [cal_str] if cal_str else []
+                else:
+                    calendars_info = args["calendars_info"]
                 if calendars_info and (isinstance(calendars_info[0], str) or not calendars_info[0].get("timeZone")):
                     get_cal_result, is_auth_error = await langchain_adapter.run_langchain_tool(self.tool_map["get_calendars_info"], {})
                     if is_auth_error:

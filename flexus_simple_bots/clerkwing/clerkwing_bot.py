@@ -11,12 +11,12 @@ from flexus_client_kit import ckit_kanban
 from flexus_client_kit.integrations import fi_gmail
 from flexus_client_kit.integrations import fi_google_calendar
 from flexus_client_kit.integrations import fi_jira
-from flexus_simple_bots.scriba import scriba_install
+from flexus_simple_bots.clerkwing import clerkwing_install
 from flexus_simple_bots.version_common import SIMPLE_BOTS_COMMON_VERSION
 
-logger = logging.getLogger("bot_scriba")
+logger = logging.getLogger("clerk")
 
-BOT_NAME = "scriba"
+BOT_NAME = "clerkwing"
 BOT_VERSION = SIMPLE_BOTS_COMMON_VERSION
 BOT_VERSION_INT = ckit_client.marketplace_version_as_int(BOT_VERSION)
 
@@ -27,8 +27,8 @@ TOOLS = [
 ]
 
 
-async def scriba_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.RobotContext) -> None:
-    setup = ckit_bot_exec.official_setup_mixing_procedure(scriba_install.scriba_setup_schema, rcx.persona.persona_setup)
+async def clerkwing_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.RobotContext) -> None:
+    setup = ckit_bot_exec.official_setup_mixing_procedure(clerkwing_install.clerkwing_setup_schema, rcx.persona.persona_setup)
 
     gmail_integration = fi_gmail.IntegrationGmail(fclient, rcx)
     calendar_integration = fi_google_calendar.IntegrationGoogleCalendar(fclient, rcx)
@@ -79,7 +79,7 @@ def main():
         marketable_name=BOT_NAME,
         marketable_version=BOT_VERSION_INT,
         fgroup_id=group,
-        bot_main_loop=scriba_main_loop,
+        bot_main_loop=clerkwing_main_loop,
         inprocess_tools=TOOLS,
         scenario_fn=scenario_fn,
     ))
