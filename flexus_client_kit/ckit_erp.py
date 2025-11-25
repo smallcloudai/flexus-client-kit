@@ -16,7 +16,12 @@ async def query_erp_table(
     limit: int = 100,
     sort_by: List[str] = [],
     filters: List[str] = [],
+    include: List[str] = [],
 ) -> List[T]:
+    if include:
+        for inc_field in include:
+            assert inc_field in result_class.__annotations__, f"Field {inc_field!r} not in {result_class.__name__}"
+
     http = await client.use_http()
     async with http as h:
         r = await h.execute(
@@ -27,7 +32,8 @@ async def query_erp_table(
                 $skip: Int!,
                 $limit: Int!,
                 $sort_by: [String!]!,
-                $filters: [String!]!
+                $filters: [String!]!,
+                $include: [String!]!
             ) {
                 erp_table_data(
                     schema_name: $schema_name,
@@ -36,7 +42,8 @@ async def query_erp_table(
                     skip: $skip,
                     limit: $limit,
                     sort_by: $sort_by,
-                    filters: $filters
+                    filters: $filters,
+                    include: $include
                 )
             }"""),
             variable_values={
@@ -47,6 +54,7 @@ async def query_erp_table(
                 "limit": limit,
                 "sort_by": sort_by,
                 "filters": filters,
+                "include": include,
             },
         )
         rows = r["erp_table_data"]
@@ -54,19 +62,18 @@ async def query_erp_table(
 
 
 async def test():
-    from flexus_client_kit.erp.product_template import ProductTemplate
+    from flexus_client_kit.erp_schema import ProductTemplate, ProductProduct
     client = ckit_client.FlexusClient("ckit_erp_test")
     ws_id = "solarsystem"
     products = await query_erp_table(
         client,
-        "product_template",
+        "product_product",
         ws_id,
-        ProductTemplate,
+        ProductProduct,
         limit=10,
-        filters=[],
-        sort_by=["prodt_name:ASC"],
+        include=["prodt"],
     )
-    print(f"Found {len(products)} active products:")
+    print(f"Found {len(products)} products:")
     for p in products:
         print(p)
 
