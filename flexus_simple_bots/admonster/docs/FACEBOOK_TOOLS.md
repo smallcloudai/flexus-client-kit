@@ -43,7 +43,7 @@ Found 3 ad accounts:
 
 ---
 
-### get_ad_account_info 🔧
+### get_ad_account_info ✅
 
 Get detailed info about a specific ad account.
 
