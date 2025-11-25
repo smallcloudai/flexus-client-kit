@@ -146,6 +146,9 @@ class IntegrationFacebook:
             r += HELP
 
         elif op == "status":
+            ad_account_id = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "ad_account_id", "")
+            if ad_account_id:
+                self.ad_account_id = ad_account_id
             if self.is_fake:
                 return await ckit_scenario.scenario_generate_tool_result_via_model(self.fclient, toolcall, open(__file__).read())
             
@@ -166,7 +169,10 @@ class IntegrationFacebook:
                 r += "No active campaigns found.\n"
 
         elif op == "list_campaigns":
+            ad_account_id = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "ad_account_id", "")
             status_filter = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "status", None)
+            if ad_account_id:
+                self.ad_account_id = ad_account_id
             if self.is_fake:
                 return await ckit_scenario.scenario_generate_tool_result_via_model(self.fclient, toolcall, open(__file__).read())
             
@@ -179,17 +185,21 @@ class IntegrationFacebook:
                 r += "No campaigns found.\n"
 
         elif op == "create_campaign":
+            ad_account_id = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "ad_account_id", "")
             name = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "name", "")
             objective = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "objective", "OUTCOME_TRAFFIC")
             daily_budget = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "daily_budget", None)
             status = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "status", "PAUSED")
 
+            if not ad_account_id:
+                return "ERROR: ad_account_id parameter required for create_campaign\n"
             if not name:
                 return "ERROR: name parameter required for create_campaign\n"
 
             if self.is_fake:
                 return await ckit_scenario.scenario_generate_tool_result_via_model(self.fclient, toolcall, open(__file__).read())
 
+            self.ad_account_id = ad_account_id
             result = await self._create_campaign(name, objective, status, daily_budget)
             if result:
                 r += f"✅ Campaign created: {result.name} (ID: {result.id})\n"
