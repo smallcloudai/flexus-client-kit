@@ -5,6 +5,7 @@ Available `facebook()` tool operations for the admonster bot.
 **Legend:**
 - ✅ Implemented & Tested
 - 🔧 Implemented, needs testing
+- ⚠️ Implemented, blocked by external constraints
 - ⬜ Not implemented
 
 ---
@@ -74,7 +75,7 @@ Ad Account Details:
 
 ---
 
-### update_spending_limit 🔧
+### update_spending_limit ⚠️
 
 Update the spending cap for an ad account.
 
@@ -86,6 +87,8 @@ facebook(op="update_spending_limit", args={
 })
 ```
 Note: `spending_limit` is in cents (500000 = 5000.00)
+
+**Status:** Requires active ad account with billing configured. May fail on restricted/old accounts.
 
 **Response:**
 ```
