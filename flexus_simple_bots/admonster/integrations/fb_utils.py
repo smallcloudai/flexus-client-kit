@@ -136,7 +136,7 @@ def validate_targeting_spec(spec: Dict[str, Any]) -> tuple[bool, str]:
 
 def format_currency(cents: int, currency: str = "USD") -> str:
     """Format cents to currency string"""
-    return f"${cents/100:.2f} {currency}"
+    return f"{cents/100:.2f} {currency}"
 
 
 def parse_date_preset(preset: str) -> str:

@@ -23,15 +23,12 @@ logger = logging.getLogger("bot_admonster")
 LINKEDIN_CLIENT_ID = os.getenv("LINKEDIN_CLIENT_ID", "")
 LINKEDIN_CLIENT_SECRET = os.getenv("LINKEDIN_CLIENT_SECRET", "")
 
-FACEBOOK_APP_ID = os.getenv("FACEBOOK_APP_ID", "")
-FACEBOOK_APP_SECRET = os.getenv("FACEBOOK_APP_SECRET", "")
-
 
 BOT_NAME = "admonster"
 BOT_VERSION = SIMPLE_BOTS_COMMON_VERSION
 BOT_VERSION_INT = ckit_client.marketplace_version_as_int(BOT_VERSION)
 
-ACCENT_COLOR = "#0077B5"  # LinkedIn blue
+ACCENT_COLOR = "#0077B5"
 
 
 TOOLS = [
@@ -68,18 +65,26 @@ async def admonster_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_e
             logger.error("Failed to initialize LinkedIn integration: %s", e)
 
     facebook_integration = None
-    if (FACEBOOK_APP_ID and FACEBOOK_APP_SECRET) or rcx.running_test_scenario:
+    if rcx.running_test_scenario:
         try:
             facebook_integration = fi_facebook.IntegrationFacebook(
                 fclient=fclient,
                 rcx=rcx,
-                app_id=FACEBOOK_APP_ID,
-                app_secret=FACEBOOK_APP_SECRET,
+                ad_account_id=fb_ad_account_id,
+            )
+            logger.info("Facebook integration initialized for %s (test mode)", rcx.persona.persona_id)
+        except Exception as e:
+            logger.error("Failed to initialize Facebook integration: %s", e, exc_info=e)
+    else:
+        try:
+            facebook_integration = fi_facebook.IntegrationFacebook(
+                fclient=fclient,
+                rcx=rcx,
                 ad_account_id=fb_ad_account_id,
             )
             logger.info("Facebook integration initialized for %s", rcx.persona.persona_id)
         except Exception as e:
-            logger.error("Failed to initialize Facebook integration: %s", e)
+            logger.error("Failed to initialize Facebook integration: %s", e, exc_info=e)
 
     @rcx.on_updated_message
     async def updated_message_in_db(msg: ckit_ask_model.FThreadMessageOutput):
@@ -98,7 +103,7 @@ async def admonster_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_e
     @rcx.on_tool_call(fi_facebook.FACEBOOK_TOOL.name)
     async def toolcall_facebook(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
         if not facebook_integration:
-            return "ERROR: Facebook integration not configured. Please set FACEBOOK_APP_ID and FACEBOOK_APP_SECRET.\n"
+            return "ERROR: Facebook integration not configured.\n"
         
         try:
             op = model_produced_args.get("op", "")

@@ -22,8 +22,8 @@ logger = logging.getLogger("facebook")
 # Default/Fallback ID if not provided in setup
 AD_ACCOUNT_ID = "act_123456789" 
 
-CLIENT_ID = os.getenv("FACEBOOK_APP_ID", "")
-CLIENT_SECRET = os.getenv("FACEBOOK_APP_SECRET", "")
+CLIENT_ID = os.getenv("FACEBOOK_CLIENT_ID", "")
+CLIENT_SECRET = os.getenv("FACEBOOK_CLIENT_SECRET", "")
 REDIRECT_URI = "http://localhost:3000/"
 
 API_BASE = "https://graph.facebook.com"
@@ -99,64 +99,41 @@ class IntegrationFacebook:
         self,
         fclient: ckit_client.FlexusClient,
         rcx: ckit_bot_exec.RobotContext,
-        app_id: str,
-        app_secret: str,
         ad_account_id: str,
     ):
         self.fclient = fclient
         self.rcx = rcx
-        self.app_id = app_id
-        self.app_secret = app_secret
         self.access_token = ""
         self.ad_account_id = ad_account_id or AD_ACCOUNT_ID
-        # Ensure ad_account_id starts with 'act_'
         if self.ad_account_id and not self.ad_account_id.startswith("act_"):
             self.ad_account_id = f"act_{self.ad_account_id}"
-            
         self.problems = []
         self.is_fake = self.rcx.running_test_scenario
+        self.headers = {}
+
+    async def ensure_headers(self) -> Optional[str]:
+        """Ensure access_token and headers are set. Returns error message if failed, None on success."""
+        try:
+            if not self.is_fake and not self.access_token:
+                self.access_token = await self._get_facebook_token()
+            
+            if not self.is_fake:
+                self.headers = {
+                    "Authorization": f"Bearer {self.access_token}",
+                    "Content-Type": "application/json",
+                }
+            return None
+        except Exception as e:
+            logger.error(f"Failed to get Facebook token: {e}", exc_info=e)
+            return await self._prompt_oauth_connection()
 
     async def called_by_model(self, toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Optional[Dict[str, Any]]) -> str:
         if not model_produced_args:
             return HELP
 
-        auth_searchable = None
-        if not self.is_fake and not self.access_token:
-            auth_searchable = hashlib.md5((self.app_id + self.ad_account_id).encode()).hexdigest()[:30]
-            auth_json = await ckit_external_auth.decrypt_external_auth(self.fclient, auth_searchable)
-            self.access_token = auth_json.get("access_token", "")
-
-        if not self.is_fake and not self.access_token:
-            assert auth_searchable
-            auth_json = {
-                "client_id": self.app_id,
-                "client_secret": self.app_secret,
-                "ad_account_id": self.ad_account_id,
-            }
-            await ckit_external_auth.upsert_external_auth(
-                self.fclient,
-                self.rcx.persona.persona_id,
-                auth_searchable,
-                f"Facebook Ads {self.ad_account_id}",
-                "facebook",
-                auth_json,
-            )
-            web_url = os.getenv("FLEXUS_WEB_URL", "http://localhost:3000")
-            oauth_params = {
-                "client_id": self.app_id,
-                "redirect_uri": f"{web_url}/v1/external-auth/facebook",
-                "scope": "ads_management,ads_read,read_insights",
-                "state": auth_searchable,
-                "response_type": "code",
-            }
-            auth_url = f"https://www.facebook.com/{API_VERSION}/dialog/oauth?{urlencode(oauth_params)}"
-            return f"Facebook Authorization Required:\n\n{auth_url}\n\nAfter authorization, try your request again."
-
-        if not self.is_fake:
-            self.headers = {
-                "Authorization": f"Bearer {self.access_token}",
-                "Content-Type": "application/json",
-            }
+        auth_error = await self.ensure_headers()
+        if auth_error:
+            return auth_error
 
         op = model_produced_args.get("op", "")
         args, args_error = ckit_cloudtool.sanitize_args(model_produced_args)
@@ -315,7 +292,7 @@ class IntegrationFacebook:
         url = f"{API_BASE}/{API_VERSION}/{campaign_id}/insights"
         params = {
             "fields": "impressions,clicks,spend,cpc,ctr",
-            "date_preset": "last_30d" if days == 30 else "maximum", # Simplified mapping
+            "date_preset": "last_30d" if days == 30 else "maximum",
         }
         
         try:
@@ -340,3 +317,63 @@ class IntegrationFacebook:
         except Exception as e:
             self.problems.append(f"Exception getting insights: {e}")
             return None
+
+    async def _get_facebook_token(self) -> str:
+        http = await self.fclient.use_http()
+        async with http as h:
+            result = await h.execute(
+                ckit_client.gql.gql("""
+                    query GetFacebookToken($fuser_id: String!, $ws_id: String!, $provider: String!) {
+                        external_auth_token(
+                            fuser_id: $fuser_id
+                            ws_id: $ws_id
+                            provider: $provider
+                        ) {
+                            access_token
+                            expires_at
+                            token_type
+                        }
+                    }
+                """),
+                variable_values={
+                    "fuser_id": self.rcx.persona.owner_fuser_id,
+                    "ws_id": self.rcx.persona.ws_id,
+                    "provider": "facebook",
+                },
+            )
+        
+        token_data = result.get("external_auth_token")
+        if not token_data:
+            raise ValueError("No Facebook OAuth connection found")
+        
+        access_token = token_data.get("access_token", "")
+        if not access_token:
+            raise ValueError("Facebook OAuth exists but has no access token")
+        
+        expires_at = token_data.get("expires_at")
+        if expires_at and expires_at < time.time():
+            raise ValueError("Facebook token expired, please reconnect")
+        
+        logger.info("Facebook token retrieved for %s", self.rcx.persona.persona_id)
+        return access_token
+
+    async def _prompt_oauth_connection(self) -> str:
+        web_url = os.getenv("FLEXUS_WEB_URL", "http://localhost:3000")
+        thread_id = getattr(self.rcx, 'thread_id', None)
+        
+        if thread_id:
+            connect_url = f"{web_url}/profile?connect=facebook&redirect_path=/chat/{thread_id}"
+        else:
+            connect_url = f"{web_url}/profile?connect=facebook"
+        
+        return f"""Facebook authorization required.
+
+Please connect your Facebook account via the Profile page:
+{connect_url}
+
+After connecting, try your request again.
+
+Note: You'll need:
+- Facebook Business Manager account
+- Access to an Ad Account (starts with act_...)
+- Proper permissions (ads_management, ads_read, read_insights)"""

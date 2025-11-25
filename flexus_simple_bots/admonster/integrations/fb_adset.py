@@ -21,6 +21,10 @@ logger = logging.getLogger("fb_adset")
 async def handle(integration, toolcall, model_produced_args: Dict[str, Any]) -> str:
     """Router for ad set operations"""
     try:
+        auth_error = await integration.ensure_headers()
+        if auth_error:
+            return auth_error
+        
         op = model_produced_args.get("op", "")
         args = model_produced_args.get("args", {})
         

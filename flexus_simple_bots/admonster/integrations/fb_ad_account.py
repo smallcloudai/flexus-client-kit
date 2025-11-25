@@ -18,9 +18,35 @@ from flexus_simple_bots.admonster.integrations import fb_utils
 logger = logging.getLogger("fb_ad_account")
 
 
+def _format_account(acc: Dict[str, Any]) -> str:
+    """Format a single ad account for display"""
+    account_status = acc.get("account_status", 1)
+    status_text = "Active" if account_status == 1 else "Disabled" if account_status == 2 else f"Status {account_status}"
+    
+    result = f"   📊 {acc.get('name', 'Unnamed')}\n"
+    result += f"      ID: {acc['id']}\n"
+    result += f"      Currency: {acc.get('currency', 'N/A')}\n"
+    result += f"      Timezone: {acc.get('timezone_name', 'N/A')}\n"
+    result += f"      Status: {status_text}\n"
+    
+    if 'balance' in acc:
+        result += f"      Balance: {fb_utils.format_currency(int(acc['balance']), acc.get('currency', 'USD'))}\n"
+    if 'amount_spent' in acc:
+        result += f"      Total Spent: {fb_utils.format_currency(int(acc['amount_spent']), acc.get('currency', 'USD'))}\n"
+    if 'spend_cap' in acc and int(acc.get('spend_cap', 0)) > 0:
+        result += f"      Spend Cap: {fb_utils.format_currency(int(acc['spend_cap']), acc.get('currency', 'USD'))}\n"
+    
+    result += "\n"
+    return result
+
+
 async def handle(integration, toolcall, model_produced_args: Dict[str, Any]) -> str:
     """Router for ad account operations"""
     try:
+        auth_error = await integration.ensure_headers()
+        if auth_error:
+            return auth_error
+        
         op = model_produced_args.get("op", "")
         args = model_produced_args.get("args", {})
         
@@ -42,7 +68,7 @@ async def handle(integration, toolcall, model_produced_args: Dict[str, Any]) -> 
 
 
 async def list_ad_accounts(integration, args: Dict[str, Any]) -> str:
-    """List all ad accounts accessible by the authenticated user"""
+    """List all ad accounts accessible by the authenticated user, grouped by portfolio"""
     try:
         if integration.is_fake:
             mock_account = fb_utils.generate_mock_ad_account()
@@ -58,7 +84,7 @@ async def list_ad_accounts(integration, args: Dict[str, Any]) -> str:
         
         url = f"{fb_utils.API_BASE}/{fb_utils.API_VERSION}/me/adaccounts"
         params = {
-            "fields": "id,account_id,name,currency,timezone_name,account_status,balance,amount_spent,spend_cap",
+            "fields": "id,account_id,name,currency,timezone_name,account_status,balance,amount_spent,spend_cap,business{id,name}",
             "limit": 50
         }
         
@@ -83,25 +109,33 @@ async def list_ad_accounts(integration, args: Dict[str, Any]) -> str:
         if not accounts:
             return "No ad accounts found. You may need to:\n1. Create an ad account in Facebook Business Manager\n2. Ensure you have proper permissions"
         
-        result = f"Found {len(accounts)} ad account{'s' if len(accounts) != 1 else ''}:\n\n"
+        # Group accounts by business portfolio
+        business_accounts: Dict[str, List[Any]] = {}  # business_name -> accounts
+        personal_accounts: List[Any] = []
+        
         for acc in accounts:
-            account_status = acc.get("account_status", 1)
-            status_text = "Active" if account_status == 1 else "Disabled" if account_status == 2 else "Unknown"
-            
-            result += f"📊 {acc['name']}\n"
-            result += f"   ID: {acc['id']}\n"
-            result += f"   Currency: {acc['currency']}\n"
-            result += f"   Timezone: {acc.get('timezone_name', 'N/A')}\n"
-            result += f"   Status: {status_text}\n"
-            
-            if 'balance' in acc:
-                result += f"   Balance: {fb_utils.format_currency(int(acc['balance']), acc['currency'])}\n"
-            if 'amount_spent' in acc:
-                result += f"   Total Spent: {fb_utils.format_currency(int(acc['amount_spent']), acc['currency'])}\n"
-            if 'spend_cap' in acc:
-                result += f"   Spend Cap: {fb_utils.format_currency(int(acc['spend_cap']), acc['currency'])}\n"
-            
-            result += "\n"
+            business = acc.get("business")
+            if business:
+                biz_name = business.get("name", f"Business {business.get('id', 'Unknown')}")
+                if biz_name not in business_accounts:
+                    business_accounts[biz_name] = []
+                business_accounts[biz_name].append(acc)
+            else:
+                personal_accounts.append(acc)
+        
+        result = f"Found {len(accounts)} ad account{'s' if len(accounts) != 1 else ''}:\n\n"
+        
+        # Display business portfolio accounts
+        for biz_name, biz_accounts in business_accounts.items():
+            result += f"🏢 **Business Portfolio: {biz_name}** ({len(biz_accounts)} account{'s' if len(biz_accounts) != 1 else ''})\n\n"
+            for acc in biz_accounts:
+                result += _format_account(acc)
+        
+        # Display personal accounts
+        if personal_accounts:
+            result += f"👤 **Personal Account** ({len(personal_accounts)} account{'s' if len(personal_accounts) != 1 else ''})\n\n"
+            for acc in personal_accounts:
+                result += _format_account(acc)
         
         return result
     
@@ -163,7 +197,7 @@ async def get_ad_account_info(integration, args: Dict[str, Any]) -> str:
         acc = await fb_utils.retry_with_backoff(make_request)
         
         account_status = acc.get("account_status", 1)
-        status_text = "Active" if account_status == 1 else "Disabled" if account_status == 2 else "Unknown"
+        status_text = "Active" if account_status == 1 else "Disabled" if account_status == 2 else f"Status {account_status}"
         
         result = "Ad Account Details:\n\n"
         result += f"📊 {acc['name']}\n"
