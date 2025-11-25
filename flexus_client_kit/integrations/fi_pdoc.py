@@ -5,10 +5,10 @@ from dataclasses import dataclass
 
 import gql
 
-from flexus_client_kit import ckit_client
 from flexus_client_kit import ckit_cloudtool
 from flexus_client_kit import ckit_scenario
 from flexus_client_kit import ckit_bot_exec
+from flexus_client_kit import ckit_external_auth
 from flexus_client_kit import gql_utils
 
 
@@ -116,6 +116,7 @@ class IntegrationPdoc:
         if op == "help":
             return HELP
 
+        fuser_id = ckit_external_auth.get_fuser_id_from_rcx(self.rcx, toolcall.fcall_ft_id)
         r = ""
 
         try:
@@ -123,7 +124,7 @@ class IntegrationPdoc:
                 p = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "p", "/")
                 if self.is_fake:
                     return await ckit_scenario.scenario_generate_tool_result_via_model(self.fclient, toolcall, open(__file__).read())
-                result = await self.pdoc_list(p)
+                result = await self.pdoc_list(p, fuser_id)
                 r += f"Listing {p}\n\n"
                 for item in result:
                     if item.is_folder:
@@ -141,7 +142,7 @@ class IntegrationPdoc:
                     return f"Error: p required\n\n{HELP}"
                 if self.is_fake:
                     return await ckit_scenario.scenario_generate_tool_result_via_model(self.fclient, toolcall, open(__file__).read())
-                result = await self.pdoc_cat(p)
+                result = await self.pdoc_cat(p, fuser_id)
                 if op == "activate":
                     r += f"✍️ {result.path}\n\n"
                 else:
@@ -167,10 +168,10 @@ class IntegrationPdoc:
                     return await ckit_scenario.scenario_generate_tool_result_via_model(self.fclient, toolcall, open(__file__).read())
 
                 if op == "create":
-                    await self.pdoc_create(p, text, toolcall.fcall_ft_id)
+                    await self.pdoc_create(p, text, fuser_id)
                     r += f"✍️ {p}\n\n✓ Policy document created"
                 else:
-                    await self.pdoc_overwrite(p, text, toolcall.fcall_ft_id)
+                    await self.pdoc_overwrite(p, text, fuser_id)
                     r += f"✍️ {p}\n\n✓ Policy document updated"
 
             elif op == "update_json_text":
@@ -185,7 +186,7 @@ class IntegrationPdoc:
                 if self.is_fake:
                     return await ckit_scenario.scenario_generate_tool_result_via_model(self.fclient, toolcall, open(__file__).read())
 
-                await self.pdoc_update_json_text(p, json_path, text, toolcall.fcall_ft_id)
+                await self.pdoc_update_json_text(p, json_path, text, fuser_id)
                 r += f"✍️ {p}\n\n✓ Updated {json_path}"
 
             elif op == "cp":
@@ -197,7 +198,7 @@ class IntegrationPdoc:
                 if self.is_fake:
                     return await ckit_scenario.scenario_generate_tool_result_via_model(self.fclient, toolcall, open(__file__).read())
 
-                await self.pdoc_cp(p1, p2, toolcall.fcall_ft_id)
+                await self.pdoc_cp(p1, p2, fuser_id)
                 r += f"✍️ {p2}\n\n✓ Copied from {p1}"
 
             elif op == "rm":
@@ -210,7 +211,7 @@ class IntegrationPdoc:
                 if self.is_fake:
                     return await ckit_scenario.scenario_generate_tool_result_via_model(self.fclient, toolcall, open(__file__).read())
 
-                await self.pdoc_rm(p, toolcall.fcall_ft_id)
+                await self.pdoc_rm(p, fuser_id)
                 r += f"✓ Archived policy document: {p}"
 
             else:
@@ -222,96 +223,96 @@ class IntegrationPdoc:
 
         return r
 
-    async def pdoc_list(self, p: str = "/") -> List[PdocListItem]:
+    async def pdoc_list(self, p: str = "/", fuser_id: str = None) -> List[PdocListItem]:
         http = await self.fclient.use_http()
         async with http as h:
             result = await h.execute(
                 gql.gql(f"""
-                    query PdocList($fgroup_id: String!, $p: String!) {{
-                        policydoc_list(fgroup_id: $fgroup_id, p: $p) {{
+                    query PdocList($fgroup_id: String!, $p: String!, $fuser_id: String) {{
+                        policydoc_list(fgroup_id: $fgroup_id, p: $p, fuser_id: $fuser_id) {{
                             {gql_utils.gql_fields(PdocListItem)}
                         }}
                     }}
                 """),
-                variable_values={"fgroup_id": self.fgroup_id, "p": p},
+                variable_values={"fgroup_id": self.fgroup_id, "p": p, "fuser_id": fuser_id},
             )
             items = result.get("policydoc_list", [])
             return [gql_utils.dataclass_from_dict(item, PdocListItem) for item in items]
 
-    async def pdoc_cat(self, p: str) -> PdocDocument:
+    async def pdoc_cat(self, p: str, fuser_id: str = None) -> PdocDocument:
         http = await self.fclient.use_http()
         async with http as h:
             result = await h.execute(
                 gql.gql(f"""
-                    query PdocCat($fgroup_id: String!, $p: String!) {{
-                        policydoc_cat(fgroup_id: $fgroup_id, p: $p) {{
+                    query PdocCat($fgroup_id: String!, $p: String!, $fuser_id: String) {{
+                        policydoc_cat(fgroup_id: $fgroup_id, p: $p, fuser_id: $fuser_id) {{
                             {gql_utils.gql_fields(PdocDocument)}
                         }}
                     }}
                 """),
-                variable_values={"fgroup_id": self.fgroup_id, "p": p},
+                variable_values={"fgroup_id": self.fgroup_id, "p": p, "fuser_id": fuser_id},
             )
             doc = result.get("policydoc_cat")
             if not doc:
                 raise Exception(f"Policy document not found: {p}")
             return gql_utils.dataclass_from_dict(doc, PdocDocument)
 
-    async def pdoc_create(self, p: str, text: str, ft_id: str) -> None:
+    async def pdoc_create(self, p: str, text: str, fuser_id: str) -> None:
         http = await self.fclient.use_http()
         async with http as h:
             await h.execute(
                 gql.gql("""
-                    mutation PdocCreate($fgroup_id: String!, $p: String!, $text: String!, $ft_id: String) {
-                        policydoc_create(fgroup_id: $fgroup_id, p: $p, text: $text, ft_id: $ft_id)
+                    mutation PdocCreate($fgroup_id: String!, $p: String!, $text: String!, $fuser_id: String) {
+                        policydoc_create(fgroup_id: $fgroup_id, p: $p, text: $text, fuser_id: $fuser_id)
                     }
                 """),
-                variable_values={"fgroup_id": self.fgroup_id, "p": p, "text": text, "ft_id": ft_id},
+                variable_values={"fgroup_id": self.fgroup_id, "p": p, "text": text, "fuser_id": fuser_id},
             )
 
-    async def pdoc_overwrite(self, p: str, text: str, ft_id: str) -> None:
+    async def pdoc_overwrite(self, p: str, text: str, fuser_id: str) -> None:
         http = await self.fclient.use_http()
         async with http as h:
             await h.execute(
                 gql.gql("""
-                    mutation PdocOverwrite($fgroup_id: String!, $p: String!, $text: String!, $ft_id: String) {
-                        policydoc_overwrite(fgroup_id: $fgroup_id, p: $p, text: $text, ft_id: $ft_id)
+                    mutation PdocOverwrite($fgroup_id: String!, $p: String!, $text: String!, $fuser_id: String) {
+                        policydoc_overwrite(fgroup_id: $fgroup_id, p: $p, text: $text, fuser_id: $fuser_id)
                     }
                 """),
-                variable_values={"fgroup_id": self.fgroup_id, "p": p, "text": text, "ft_id": ft_id},
+                variable_values={"fgroup_id": self.fgroup_id, "p": p, "text": text, "fuser_id": fuser_id},
             )
 
-    async def pdoc_update_json_text(self, p: str, json_path: str, text: str, ft_id: str) -> None:
+    async def pdoc_update_json_text(self, p: str, json_path: str, text: str, fuser_id: str) -> None:
         http = await self.fclient.use_http()
         async with http as h:
             await h.execute(
                 gql.gql("""
-                    mutation PdocUpdateJsonText($fgroup_id: String!, $p: String!, $json_path: String!, $text: String!, $ft_id: String) {
-                        policydoc_update_json_text(fgroup_id: $fgroup_id, p: $p, json_path: $json_path, text: $text, ft_id: $ft_id)
+                    mutation PdocUpdateJsonText($fgroup_id: String!, $p: String!, $json_path: String!, $text: String!, $fuser_id: String) {
+                        policydoc_update_json_text(fgroup_id: $fgroup_id, p: $p, json_path: $json_path, text: $text, fuser_id: $fuser_id)
                     }
                 """),
-                variable_values={"fgroup_id": self.fgroup_id, "p": p, "json_path": json_path, "text": text, "ft_id": ft_id},
+                variable_values={"fgroup_id": self.fgroup_id, "p": p, "json_path": json_path, "text": text, "fuser_id": fuser_id},
             )
 
-    async def pdoc_cp(self, p1: str, p2: str, ft_id: str) -> None:
+    async def pdoc_cp(self, p1: str, p2: str, fuser_id: str) -> None:
         http = await self.fclient.use_http()
         async with http as h:
             await h.execute(
                 gql.gql("""
-                    mutation PdocCp($fgroup_id: String!, $p1: String!, $p2: String!, $ft_id: String) {
-                        policydoc_cp(fgroup_id: $fgroup_id, p1: $p1, p2: $p2, ft_id: $ft_id)
+                    mutation PdocCp($fgroup_id: String!, $p1: String!, $p2: String!, $fuser_id: String) {
+                        policydoc_cp(fgroup_id: $fgroup_id, p1: $p1, p2: $p2, fuser_id: $fuser_id)
                     }
                 """),
-                variable_values={"fgroup_id": self.fgroup_id, "p1": p1, "p2": p2, "ft_id": ft_id},
+                variable_values={"fgroup_id": self.fgroup_id, "p1": p1, "p2": p2, "fuser_id": fuser_id},
             )
 
-    async def pdoc_rm(self, p: str, ft_id: str) -> None:
+    async def pdoc_rm(self, p: str, fuser_id: str) -> None:
         http = await self.fclient.use_http()
         async with http as h:
             await h.execute(
                 gql.gql("""
-                    mutation PdocRm($fgroup_id: String!, $p: String!, $ft_id: String) {
-                        policydoc_rm(fgroup_id: $fgroup_id, p: $p, ft_id: $ft_id)
+                    mutation PdocRm($fgroup_id: String!, $p: String!, $fuser_id: String) {
+                        policydoc_rm(fgroup_id: $fgroup_id, p: $p, fuser_id: $fuser_id)
                     }
                 """),
-                variable_values={"fgroup_id": self.fgroup_id, "p": p, "ft_id": ft_id},
+                variable_values={"fgroup_id": self.fgroup_id, "p": p, "fuser_id": fuser_id},
             )
