@@ -156,6 +156,7 @@ class IntegrationGoogleAnalytics:
                 self.fclient,
                 "google",
                 self.rcx.persona.ws_id,
+                self.rcx.persona.owner_fuser_id,
             )
         except gql.transport.exceptions.TransportQueryError:
             return False
@@ -200,6 +201,7 @@ class IntegrationGoogleAnalytics:
                         self.fclient,
                         "google",
                         self.rcx.persona.ws_id,
+                        self.rcx.persona.owner_fuser_id,
                         REQUIRED_SCOPES,
                     )
                     r += f"\n❌ Not authenticated. Ask user to authorize at:\n{auth_url}\n"
@@ -216,6 +218,7 @@ class IntegrationGoogleAnalytics:
                     self.fclient,
                     "google",
                     self.rcx.persona.ws_id,
+                    self.rcx.persona.owner_fuser_id,
                     REQUIRED_SCOPES,
                 )
                 return f"❌ Not authenticated. Ask user to authorize at:\n{auth_url}\n\nThen retry this operation."
@@ -244,6 +247,7 @@ class IntegrationGoogleAnalytics:
                     self.fclient,
                     "google",
                     self.rcx.persona.ws_id,
+                    self.rcx.persona.owner_fuser_id,
                     REQUIRED_SCOPES,
                 )
                 return f"❌ Google Analytics authentication error: {e.resp.status} - {e.error_details if hasattr(e, 'error_details') else str(e)}\n\nPlease authorize at:\n{auth_url}\n\nThen retry."
@@ -335,6 +339,7 @@ class IntegrationGoogleAnalytics:
                     self.fclient,
                     "google",
                     self.rcx.persona.ws_id,
+                    self.rcx.persona.owner_fuser_id,
                     REQUIRED_SCOPES,
                 )
                 logger.exception("")
@@ -408,6 +413,7 @@ class IntegrationGoogleAnalytics:
                     self.fclient,
                     "google",
                     self.rcx.persona.ws_id,
+                    self.rcx.persona.owner_fuser_id,
                     REQUIRED_SCOPES,
                 )
                 logger.exception("")
@@ -443,6 +449,7 @@ class IntegrationGoogleAnalytics:
                     self.fclient,
                     "google",
                     self.rcx.persona.ws_id,
+                    self.rcx.persona.owner_fuser_id,
                     REQUIRED_SCOPES,
                 )
                 logger.exception("")
@@ -507,6 +514,7 @@ class IntegrationGoogleAnalytics:
                     self.fclient,
                     "google",
                     self.rcx.persona.ws_id,
+                    self.rcx.persona.owner_fuser_id,
                     REQUIRED_SCOPES,
                 )
                 return f"❌ Access denied. Ask user to authorize at:\n{auth_url}\n\nUser Activity API requires Universal Analytics view access with analytics.readonly scope."

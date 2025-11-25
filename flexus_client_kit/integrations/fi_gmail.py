@@ -150,6 +150,7 @@ class IntegrationGmail:
                 self.fclient,
                 "google",
                 self.rcx.persona.ws_id,
+                self.rcx.persona.owner_fuser_id,
             )
         except gql.transport.exceptions.TransportQueryError:
             return False
@@ -191,6 +192,7 @@ class IntegrationGmail:
                         self.fclient,
                         "google",
                         self.rcx.persona.ws_id,
+                        self.rcx.persona.owner_fuser_id,
                         REQUIRED_SCOPES,
                     )
                     r += f"\n⚠️  Please authorize Gmail access:\n{auth_url}\n"
@@ -207,6 +209,7 @@ class IntegrationGmail:
                     self.fclient,
                     "google",
                     self.rcx.persona.ws_id,
+                    self.rcx.persona.owner_fuser_id,
                     REQUIRED_SCOPES,
                 )
                 return f"⚠️  Gmail not authorized. Please visit:\n{auth_url}\n\nThen try again."
@@ -259,6 +262,7 @@ class IntegrationGmail:
                     self.fclient,
                     "google",
                     self.rcx.persona.ws_id,
+                    self.rcx.persona.owner_fuser_id,
                     REQUIRED_SCOPES,
                 )
                 return f"❌ Gmail authentication error: {e.resp.status} - {e.error_details}\n\nPlease authorize at:\n{auth_url}\n\nThen retry."

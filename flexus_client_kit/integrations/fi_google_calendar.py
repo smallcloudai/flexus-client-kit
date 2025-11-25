@@ -57,6 +57,7 @@ class IntegrationGoogleCalendar:
                 self.fclient,
                 "google",
                 self.rcx.persona.ws_id,
+                self.rcx.persona.owner_fuser_id,
             )
         except gql.transport.exceptions.TransportQueryError:
             return False
@@ -141,6 +142,7 @@ class IntegrationGoogleCalendar:
                 self.fclient,
                 "google",
                 self.rcx.persona.ws_id,
+                self.rcx.persona.owner_fuser_id,
                 REQUIRED_SCOPES,
             )
             return f"❌ Authentication error. Ask user to authorize at:\n{auth_url}\n\nThen retry."
@@ -172,6 +174,7 @@ class IntegrationGoogleCalendar:
                 self.fclient,
                 "google",
                 self.rcx.persona.ws_id,
+                self.rcx.persona.owner_fuser_id,
                 REQUIRED_SCOPES,
             )
             r += f"\n❌ Not authenticated. Ask user to authorize at:\n{auth_url}\n"

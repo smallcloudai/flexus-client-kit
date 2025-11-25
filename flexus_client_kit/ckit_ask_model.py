@@ -43,6 +43,7 @@ class FThreadMessageOutput:
 
 @dataclass
 class FThreadOutput:
+    owner_fuser_id: str
     ft_id: str
     ft_fexp_id: str
     ft_title: str

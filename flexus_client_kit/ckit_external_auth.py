@@ -1,9 +1,13 @@
 import json
 import logging
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 import gql
 from flexus_client_kit import ckit_client, gql_utils
+
+if TYPE_CHECKING:
+    from flexus_client_kit import ckit_bot_exec
 
 logger = logging.getLogger("extauth")
 
@@ -15,6 +19,12 @@ class ExternalAuthToken:
     token_type: str
     scope_values: list[str]
     auth_url: str | None = None
+
+
+def get_fuser_id_from_rcx(rcx: "ckit_bot_exec.RobotContext", ft_id: str | None = None) -> str:
+    if ft_id and ft_id in rcx.latest_threads:
+        return rcx.latest_threads[ft_id].thread_fields.owner_fuser_id
+    return rcx.persona.owner_fuser_id
 
 
 async def upsert_external_auth(
@@ -74,13 +84,14 @@ async def get_external_auth_token(
     fclient: ckit_client.FlexusClient,
     provider: str,
     ws_id: str,
+    fuser_id: str,
 ) -> ExternalAuthToken | None:
     http = await fclient.use_http()
     async with http as h:
         r = await h.execute(
             gql.gql("""
-                query GetExternalAuthToken($ws_id: String!, $provider: String!) {
-                    external_auth_token(ws_id: $ws_id, provider: $provider) {
+                query GetExternalAuthToken($ws_id: String!, $provider: String!, $fuser_id: String) {
+                    external_auth_token(ws_id: $ws_id, provider: $provider, fuser_id: $fuser_id) {
                         access_token
                         expires_at
                         token_type
@@ -90,6 +101,7 @@ async def get_external_auth_token(
             variable_values={
                 "ws_id": ws_id,
                 "provider": provider,
+                "fuser_id": fuser_id,
             }
         )
         token_data = r.get("external_auth_token")
@@ -107,11 +119,12 @@ async def start_external_auth_flow(
     fclient: ckit_client.FlexusClient,
     provider: str,
     ws_id: str,
+    fuser_id: str,
     scopes: list[str],
 ) -> str:
     all_scopes = list(set(scopes))
     try:
-        existing_token = await get_external_auth_token(fclient, provider, ws_id)
+        existing_token = await get_external_auth_token(fclient, provider, ws_id, fuser_id)
         if existing_token and existing_token.scope_values:
             all_scopes = list(set(all_scopes + existing_token.scope_values))
     except gql.transport.exceptions.TransportQueryError:
@@ -121,11 +134,12 @@ async def start_external_auth_flow(
     async with http as h:
         r = await h.execute(
             gql.gql("""
-                mutation StartExternalAuth($ws_id: String!, $provider: String!, $scope_values: [String!]) {
+                mutation StartExternalAuth($ws_id: String!, $provider: String!, $scope_values: [String!], $fuser_id: String) {
                     external_auth_start(
                         ws_id: $ws_id,
                         provider: $provider,
-                        scope_values: $scope_values
+                        scope_values: $scope_values,
+                        fuser_id: $fuser_id
                     ) {
                         authorization_url
                     }
@@ -134,6 +148,7 @@ async def start_external_auth_flow(
                 "ws_id": ws_id,
                 "provider": provider,
                 "scope_values": all_scopes,
+                "fuser_id": fuser_id,
             }
         )
         return r["external_auth_start"]["authorization_url"]
