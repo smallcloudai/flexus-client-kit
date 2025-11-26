@@ -45,10 +45,10 @@ async def handle(integration, toolcall, model_produced_args: Dict[str, Any]) -> 
             return f"Unknown adset operation: {op}\n\nAvailable operations:\n- create_adset\n- list_adsets\n- update_adset\n- validate_targeting"
     
     except fb_utils.FacebookAPIError as e:
-        logger.error(f"Facebook API error in adset: {e}", exc_info=e)
+        logger.info(f"Facebook API error in adset: {e}")  # Expected external API error
         return f"❌ Facebook API Error: {e.message}"
     except Exception as e:
-        logger.error(f"Ad set error: {e}", exc_info=e)
+        logger.warning(f"Ad set error: {e}", exc_info=e)  # Unexpected, log stack for debugging
         return f"ERROR: {str(e)}"
 
 
@@ -165,7 +165,7 @@ Ad set is paused. Activate it when ready to start delivery.
                 )
                 
                 if response.status_code != 200:
-                    logger.error(f"FB API error: status={response.status_code}, body={response.text}")
+                    logger.info(f"FB API error: status={response.status_code}, body={response.text}")  # Expected external API error
                     error_msg = await fb_utils.handle_fb_api_error(response)
                     raise fb_utils.FacebookAPIError(response.status_code, error_msg)
                 
@@ -212,7 +212,7 @@ Billing Event: {billing_event}
     except ValueError as e:
         return f"ERROR: {str(e)}"
     except Exception as e:
-        logger.error(f"Error creating ad set: {e}", exc_info=e)
+        logger.warning(f"Error creating ad set: {e}", exc_info=e)
         return f"ERROR: Failed to create ad set: {str(e)}"
 
 
@@ -295,7 +295,7 @@ async def list_adsets(integration, args: Dict[str, Any]) -> str:
     except fb_utils.FacebookAPIError:
         raise
     except Exception as e:
-        logger.error(f"Error listing ad sets: {e}", exc_info=e)
+        logger.warning(f"Error listing ad sets: {e}", exc_info=e)
         return f"ERROR: Failed to list ad sets: {str(e)}"
 
 
@@ -378,7 +378,7 @@ async def update_adset(integration, args: Dict[str, Any]) -> str:
     except ValueError as e:
         return f"ERROR: {str(e)}"
     except Exception as e:
-        logger.error(f"Error updating ad set: {e}", exc_info=e)
+        logger.warning(f"Error updating ad set: {e}", exc_info=e)
         return f"ERROR: Failed to update ad set: {str(e)}"
 
 
@@ -442,7 +442,7 @@ This is a test validation. In production, Facebook will provide actual estimated
     except fb_utils.FacebookAPIError:
         raise
     except Exception as e:
-        logger.error(f"Error validating targeting: {e}", exc_info=e)
+        logger.warning(f"Error validating targeting: {e}", exc_info=e)
         return f"ERROR: Failed to validate targeting: {str(e)}"
 
 

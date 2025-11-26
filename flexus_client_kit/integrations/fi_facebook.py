@@ -121,7 +121,7 @@ class IntegrationFacebook:
                 }
             return None
         except Exception as e:
-            logger.error(f"Failed to get Facebook token: {e}", exc_info=e)
+            logger.info(f"Failed to get Facebook token: {e}")  # Expected: user may not have connected FB yet
             return await self._prompt_oauth_connection()
 
     async def called_by_model(self, toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Optional[Dict[str, Any]]) -> str:
@@ -333,25 +333,25 @@ class IntegrationFacebook:
         http = await self.fclient.use_http()
         async with http as h:
             result = await h.execute(
-                ckit_client.gql.gql("""
-                    query GetFacebookToken($fuser_id: String!, $ws_id: String!, $provider: String!) {
-                        external_auth_token(
-                            fuser_id: $fuser_id
-                            ws_id: $ws_id
-                            provider: $provider
-                        ) {
-                            access_token
-                            expires_at
-                            token_type
-                        }
+            ckit_client.gql.gql("""
+                query GetFacebookToken($fuser_id: String!, $ws_id: String!, $provider: String!) {
+                    external_auth_token(
+                        fuser_id: $fuser_id
+                        ws_id: $ws_id
+                        provider: $provider
+                    ) {
+                        access_token
+                        expires_at
+                        token_type
                     }
-                """),
-                variable_values={
-                    "fuser_id": self.rcx.persona.owner_fuser_id,
-                    "ws_id": self.rcx.persona.ws_id,
-                    "provider": "facebook",
-                },
-            )
+                }
+            """),
+            variable_values={
+                "fuser_id": self.rcx.persona.owner_fuser_id,
+                "ws_id": self.rcx.persona.ws_id,
+                "provider": "facebook",
+            },
+        )
         
         token_data = result.get("external_auth_token")
         if not token_data:

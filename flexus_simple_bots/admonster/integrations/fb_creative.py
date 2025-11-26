@@ -46,10 +46,10 @@ async def handle(integration, toolcall, model_produced_args: Dict[str, Any]) -> 
             return f"Unknown creative/ad operation: {op}\n\nAvailable operations:\n- upload_image\n- create_creative\n- create_ad\n- preview_ad"
     
     except fb_utils.FacebookAPIError as e:
-        logger.error(f"Facebook API error in creative: {e}", exc_info=e)
+        logger.info(f"Facebook API error in creative: {e}")  # Expected external API error
         return f"❌ Facebook API Error: {e.message}"
     except Exception as e:
-        logger.error(f"Creative/ad error: {e}", exc_info=e)
+        logger.warning(f"Creative/ad error: {e}", exc_info=e)  # Unexpected, log stack for debugging
         return f"ERROR: {str(e)}"
 
 
@@ -77,18 +77,24 @@ You can now use this image hash in create_creative()
         url = f"{fb_utils.API_BASE}/{fb_utils.API_VERSION}/{ad_account_id}/adimages"
         
         if image_url:
-            data = {"url": image_url}
+            # FB API expects form-data with access_token
+            form_data = {
+                "url": image_url,
+                "access_token": integration.access_token,
+            }
+            
+            logger.info(f"Uploading image from URL to {url}")
             
             async def make_request():
                 async with httpx.AsyncClient() as client:
                     response = await client.post(
                         url,
-                        json=data,
-                        headers=integration.headers,
+                        data=form_data,
                         timeout=60.0
                     )
                     
                     if response.status_code != 200:
+                        logger.info(f"FB API error: status={response.status_code}, body={response.text}")  # Expected external API error
                         error_msg = await fb_utils.handle_fb_api_error(response)
                         raise fb_utils.FacebookAPIError(response.status_code, error_msg)
                     
@@ -105,17 +111,23 @@ You can now use this image hash in create_creative()
             files = {
                 "filename": (image_file.name, image_bytes, "image/jpeg")
             }
+            form_data = {
+                "access_token": integration.access_token,
+            }
+            
+            logger.info(f"Uploading image file to {url}")
             
             async def make_request():
                 async with httpx.AsyncClient() as client:
                     response = await client.post(
                         url,
+                        data=form_data,
                         files=files,
-                        headers={k: v for k, v in integration.headers.items() if k != "Content-Type"},
                         timeout=60.0
                     )
                     
                     if response.status_code != 200:
+                        logger.info(f"FB API error: status={response.status_code}, body={response.text}")  # Expected external API error
                         error_msg = await fb_utils.handle_fb_api_error(response)
                         raise fb_utils.FacebookAPIError(response.status_code, error_msg)
                     
@@ -143,7 +155,7 @@ Use this hash in create_creative():
     except fb_utils.FacebookAPIError:
         raise
     except Exception as e:
-        logger.error(f"Error uploading image: {e}", exc_info=e)
+        logger.warning(f"Error uploading image: {e}", exc_info=e)
         return f"ERROR: Failed to upload image: {str(e)}"
 
 
@@ -249,7 +261,7 @@ Now create an ad using this creative:
     except ValueError as e:
         return f"ERROR: {str(e)}"
     except Exception as e:
-        logger.error(f"Error creating creative: {e}", exc_info=e)
+        logger.warning(f"Error creating creative: {e}", exc_info=e)
         return f"ERROR: Failed to create creative: {str(e)}"
 
 
@@ -346,7 +358,7 @@ Preview your ad:
     except ValueError as e:
         return f"ERROR: {str(e)}"
     except Exception as e:
-        logger.error(f"Error creating ad: {e}", exc_info=e)
+        logger.warning(f"Error creating ad: {e}", exc_info=e)
         return f"ERROR: Failed to create ad: {str(e)}"
 
 
@@ -427,7 +439,7 @@ To view full preview, open the ad in Facebook Ads Manager.
     except fb_utils.FacebookAPIError:
         raise
     except Exception as e:
-        logger.error(f"Error previewing ad: {e}", exc_info=e)
+        logger.warning(f"Error previewing ad: {e}", exc_info=e)
         return f"ERROR: Failed to preview ad: {str(e)}"
 
 
