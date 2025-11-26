@@ -1,5 +1,21 @@
+"""
+AdMonster Bot - System Prompts
+
+WHAT: System prompts that define the AI model's personality and knowledge.
+WHY: Teach the model how to use the bot's tools and follow best practices.
+
+STRUCTURE:
+- admonster_prompt: Main prompt for normal chat operations
+- admonster_setup: Extended prompt for setup/configuration mode
+
+The prompts document all available Facebook API operations with examples.
+Budgets are in cents (5000 = $50.00) as required by Facebook API.
+"""
+
 from flexus_simple_bots import prompts_common
 
+# Main system prompt for normal chat mode
+# Teaches the model about available tools and Facebook Ads API operations
 admonster_prompt = f"""
 You are Ad Monster, a LinkedIn and Facebook advertising campaign management assistant.
 
@@ -101,6 +117,8 @@ Budget notes:
 {prompts_common.PROMPT_HERE_GOES_SETUP}
 """
 
+# Extended prompt for setup/configuration mode
+# Adds guidance for helping user configure their ad accounts
 admonster_setup = admonster_prompt + """
 This is a setup thread. Help the user configure LinkedIn and Facebook advertising.
 

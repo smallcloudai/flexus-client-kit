@@ -1,3 +1,27 @@
+"""
+Facebook/Meta Marketing API Integration - Core Module
+
+WHAT: Provides Facebook Ads API access to bots.
+WHY: Enables campaign management, analytics, and automation via AI.
+
+AUTHENTICATION FLOW:
+1. User connects Facebook via OAuth on /profile page
+2. Token stored encrypted in flexus_external_auth.auth_json_encrypted
+3. Bot calls external_auth_token GraphQL query to get decrypted token
+4. Token is used for all subsequent API calls
+
+SECURITY:
+- Tokens never stored in bot code or memory beyond runtime
+- API key auth validates fuser_id matches token owner
+- All tokens have expiration tracking
+
+ARCHITECTURE:
+- IntegrationFacebook: Main class handling API calls and state
+- FACEBOOK_TOOL: Tool definition exposed to AI model
+- Campaign/Insights: Data classes for type-safe responses
+- Extended operations (adset, creative, etc.) in admonster/integrations/fb_*.py
+"""
+
 import asyncio
 import hashlib
 import logging
@@ -19,14 +43,18 @@ from flexus_client_kit import ckit_bot_exec
 logger = logging.getLogger("facebook")
 
 
+# Facebook app credentials (for future OAuth flow, currently using external_auth)
 CLIENT_ID = os.getenv("FACEBOOK_CLIENT_ID", "")
 CLIENT_SECRET = os.getenv("FACEBOOK_CLIENT_SECRET", "")
 REDIRECT_URI = "http://localhost:3000/"
 
+# Facebook Graph API configuration
 API_BASE = "https://graph.facebook.com"
 API_VERSION = "v19.0"
 
 
+# Tool definition exposed to AI model via OpenAI function calling format
+# Model can call facebook(op="status") to invoke this tool
 FACEBOOK_TOOL = ckit_cloudtool.CloudTool(
     name="facebook",
     description="Interact with Facebook/Instagram Marketing API. Call with op=\"help\" for usage.",
@@ -41,6 +69,7 @@ FACEBOOK_TOOL = ckit_cloudtool.CloudTool(
 )
 
 
+# Help text returned when model calls facebook(op="help")
 HELP = """
 Help:
 
@@ -73,43 +102,81 @@ facebook(op="get_insights", args={"campaign_id": "123456", "days": 30})
     Gets performance metrics (impressions, clicks, spend, cpc, ctr).
 """
 
+
+# Data classes for type-safe API responses
 @dataclass
 class Campaign:
+    """Represents a Facebook advertising campaign."""
     id: str
     name: str
-    status: str
-    objective: str
-    daily_budget: Optional[int] = None # In cents
-    lifetime_budget: Optional[int] = None # In cents
+    status: str  # ACTIVE, PAUSED, ARCHIVED
+    objective: str  # OUTCOME_TRAFFIC, OUTCOME_SALES, etc.
+    daily_budget: Optional[int] = None  # In cents (5000 = $50.00)
+    lifetime_budget: Optional[int] = None  # In cents
+
 
 @dataclass
 class Insights:
+    """Campaign performance metrics from Facebook Insights API."""
     impressions: int
     clicks: int
-    spend: float
-    cpc: float
-    ctr: float
+    spend: float  # In dollars
+    cpc: float  # Cost per click in dollars
+    ctr: float  # Click-through rate as percentage
 
 
 class IntegrationFacebook:
+    """
+    Facebook Marketing API integration for Flexus bots.
+    
+    Handles OAuth token retrieval, API calls, and response formatting.
+    Supports both real API calls and test scenario mocking.
+    
+    Attributes:
+        fclient: Flexus API client for backend communication
+        rcx: Robot context with persona info
+        access_token: OAuth access token (fetched lazily)
+        ad_account_id: Default ad account ID (act_123...)
+        problems: List of errors encountered (returned to model)
+        is_fake: True if running test scenario (returns mock data)
+        headers: HTTP headers for API calls (set after auth)
+    """
+    
     def __init__(
         self,
         fclient: ckit_client.FlexusClient,
         rcx: ckit_bot_exec.RobotContext,
         ad_account_id: str,
     ):
+        """
+        Initialize Facebook integration.
+        
+        Args:
+            fclient: Flexus client for backend calls
+            rcx: Robot context with persona and thread info
+            ad_account_id: Facebook ad account ID (act_123... or just 123...)
+        """
         self.fclient = fclient
         self.rcx = rcx
         self.access_token = ""
         self.ad_account_id = ad_account_id or ""
+        # Ensure act_ prefix for ad account ID
         if self.ad_account_id and not self.ad_account_id.startswith("act_"):
             self.ad_account_id = f"act_{self.ad_account_id}"
-        self.problems = []
-        self.is_fake = self.rcx.running_test_scenario
+        self.problems = []  # Errors collected during operations
+        self.is_fake = self.rcx.running_test_scenario  # Test mode uses mock data
         self.headers = {}
 
     async def ensure_headers(self) -> Optional[str]:
-        """Ensure access_token and headers are set. Returns error message if failed, None on success."""
+        """
+        Ensure OAuth token and HTTP headers are ready for API calls.
+        
+        Fetches token from backend if not already loaded.
+        Sets up Authorization header for subsequent requests.
+        
+        Returns:
+            None on success, error message string if auth failed
+        """
         try:
             if not self.is_fake and not self.access_token:
                 self.access_token = await self._get_facebook_token()
@@ -121,13 +188,31 @@ class IntegrationFacebook:
                 }
             return None
         except Exception as e:
-            logger.info(f"Failed to get Facebook token: {e}")  # Expected: user may not have connected FB yet
+            # Expected when user hasn't connected Facebook yet - not an infrastructure error
+            logger.info(f"Failed to get Facebook token: {e}")
             return await self._prompt_oauth_connection()
 
     async def called_by_model(self, toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Optional[Dict[str, Any]]) -> str:
+        """
+        Handle tool calls from AI model for basic operations.
+        
+        Routes to appropriate handler based on 'op' parameter.
+        Handles: help, status, list_campaigns, create_campaign, get_insights
+        
+        Extended operations (adset, creative, etc.) are handled by
+        admonster/integrations/fb_*.py modules.
+        
+        Args:
+            toolcall: Tool call metadata from Flexus
+            model_produced_args: Arguments from model (op, args)
+        
+        Returns:
+            Formatted string response for the model
+        """
         if not model_produced_args:
             return HELP
 
+        # Ensure we have valid auth before any operation
         auth_error = await self.ensure_headers()
         if auth_error:
             return auth_error
@@ -143,6 +228,7 @@ class IntegrationFacebook:
             r += HELP
 
         elif op == "status":
+            # Show ad account status and active campaigns
             ad_account_id = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "ad_account_id", "")
             if ad_account_id:
                 self.ad_account_id = ad_account_id
@@ -168,6 +254,7 @@ class IntegrationFacebook:
                 r += "No active campaigns found.\n"
 
         elif op == "list_campaigns":
+            # List campaigns with optional status filter
             ad_account_id = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "ad_account_id", "")
             status_filter = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "status", None)
             if ad_account_id:
@@ -186,6 +273,7 @@ class IntegrationFacebook:
                 r += "No campaigns found.\n"
 
         elif op == "create_campaign":
+            # Create a new campaign
             ad_account_id = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "ad_account_id", "")
             name = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "name", "")
             objective = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "objective", "OUTCOME_TRAFFIC")
@@ -209,6 +297,7 @@ class IntegrationFacebook:
                 r += "❌ Failed to create campaign. Check logs.\n"
 
         elif op == "get_insights":
+            # Get campaign performance metrics
             campaign_id = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "campaign_id", "")
             days = int(ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "days", "30"))
             
@@ -232,12 +321,22 @@ class IntegrationFacebook:
         else:
             r += f"Unknown operation {op!r}, try \"help\"\n"
 
+        # Append any problems encountered during the operation
         if self.problems:
             r += "\nProblems:\n" + "\n".join(self.problems)
 
         return r
 
     async def _list_campaigns(self, status_filter: Optional[str] = None) -> Optional[List[Campaign]]:
+        """
+        Fetch campaigns from Facebook Graph API.
+        
+        Args:
+            status_filter: Optional filter (ACTIVE, PAUSED, ARCHIVED)
+        
+        Returns:
+            List of Campaign objects, or None on error
+        """
         url = f"{API_BASE}/{API_VERSION}/{self.ad_account_id}/campaigns"
         params = {
             "fields": "id,name,status,objective,daily_budget,lifetime_budget",
@@ -270,12 +369,24 @@ class IntegrationFacebook:
             return None
 
     async def _create_campaign(self, name: str, objective: str, status: str, daily_budget: Optional[int]) -> Optional[Campaign]:
+        """
+        Create a new campaign via Facebook Graph API.
+        
+        Args:
+            name: Campaign name
+            objective: Campaign objective (OUTCOME_TRAFFIC, etc.)
+            status: Initial status (ACTIVE, PAUSED)
+            daily_budget: Daily budget in cents, or None
+        
+        Returns:
+            Created Campaign object, or None on error
+        """
         url = f"{API_BASE}/{API_VERSION}/{self.ad_account_id}/campaigns"
         payload = {
             "name": name,
             "objective": objective,
             "status": status,
-            "special_ad_categories": [], # Required field, empty for general ads
+            "special_ad_categories": [],  # Required by Facebook API, empty for general ads
         }
         if daily_budget:
             payload["daily_budget"] = daily_budget
@@ -300,6 +411,16 @@ class IntegrationFacebook:
             return None
 
     async def _get_insights(self, campaign_id: str, days: int) -> Optional[Insights]:
+        """
+        Fetch campaign insights (performance metrics) from Facebook API.
+        
+        Args:
+            campaign_id: Facebook campaign ID
+            days: Number of days to look back (30 or maximum)
+        
+        Returns:
+            Insights object with metrics, or None on error
+        """
         url = f"{API_BASE}/{API_VERSION}/{campaign_id}/insights"
         params = {
             "fields": "impressions,clicks,spend,cpc,ctr",
@@ -330,6 +451,20 @@ class IntegrationFacebook:
             return None
 
     async def _get_facebook_token(self) -> str:
+        """
+        Fetch Facebook OAuth token from Flexus backend.
+        
+        Calls external_auth_token GraphQL query which:
+        1. Authenticates bot via API key
+        2. Verifies bot can access this user's token (fuser_id check)
+        3. Decrypts and returns the stored OAuth token
+        
+        Returns:
+            Access token string
+        
+        Raises:
+            ValueError: If no token found or token expired
+        """
         http = await self.fclient.use_http()
         async with http as h:
             result = await h.execute(
@@ -361,6 +496,7 @@ class IntegrationFacebook:
         if not access_token:
             raise ValueError("Facebook OAuth exists but has no access token")
         
+        # Check expiration (tokens typically last 60 days for long-lived tokens)
         expires_at = token_data.get("expires_at")
         if expires_at and expires_at < time.time():
             raise ValueError("Facebook token expired, please reconnect")
@@ -369,6 +505,15 @@ class IntegrationFacebook:
         return access_token
 
     async def _prompt_oauth_connection(self) -> str:
+        """
+        Generate user-friendly message prompting OAuth connection.
+        
+        Called when token fetch fails (user hasn't connected Facebook yet).
+        Includes direct link to profile page with redirect back to current thread.
+        
+        Returns:
+            Formatted message with connection instructions
+        """
         web_url = os.getenv("FLEXUS_WEB_URL", "http://localhost:3000")
         thread_id = getattr(self.rcx, 'thread_id', None)
         

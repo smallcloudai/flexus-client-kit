@@ -1,29 +1,44 @@
 """
 Facebook Ads Integration - Shared Utilities
 
-This module provides shared utilities for all Facebook Ads operations:
-- Error handling and retry logic
-- Rate limiting management
-- Data validation and formatting
-- Mock data for testing
+WHAT: Common utilities for all Facebook Ads operations.
+WHY: Centralizes error handling, validation, and mock data for consistent behavior.
+
+CONTENTS:
+- FacebookAPIError: Custom exception for FB API errors
+- Error handling with user-friendly messages
+- Retry logic with exponential backoff
+- Validation functions (budget, targeting, ad_account_id)
+- Currency and date formatting
+- Mock data generators for test scenarios
+
+ERROR HANDLING STRATEGY:
+- Facebook API errors (code 100, 190, etc.) → user-friendly message to model
+- Network/timeout errors → retry with backoff
+- Parse errors → log warning, return raw text
 """
 
 import asyncio
 import hashlib
 import logging
-import time
 from typing import Dict, Any, Optional, List
 
 import httpx
 
 logger = logging.getLogger("fb_utils")
 
+# Facebook Graph API configuration
 API_BASE = "https://graph.facebook.com"
 API_VERSION = "v19.0"
 
 
 class FacebookAPIError(Exception):
-    """Facebook API specific errors"""
+    """
+    Facebook API specific error with structured error info.
+    
+    Raised when Facebook API returns an error response.
+    Contains error code and message for proper handling.
+    """
     def __init__(self, code: int, message: str, error_type: str = ""):
         self.code = code
         self.message = message
@@ -32,7 +47,18 @@ class FacebookAPIError(Exception):
 
 
 async def handle_fb_api_error(response: httpx.Response) -> str:
-    """Parse and format Facebook API errors with user-friendly messages"""
+    """
+    Parse Facebook API error response into user-friendly message.
+    
+    Extracts error_user_title and error_user_msg from FB response when available,
+    as these are designed by Facebook to be shown to end users.
+    
+    Args:
+        response: Failed HTTP response from Facebook API
+    
+    Returns:
+        Formatted error message for the model to show user
+    """
     try:
         error_data = response.json()
         if "error" in error_data:
@@ -42,7 +68,7 @@ async def handle_fb_api_error(response: httpx.Response) -> str:
             user_title = err.get("error_user_title", "")
             user_msg = err.get("error_user_msg", "")
             
-            # Build detailed error for the model
+            # Build detailed error - prefer user-friendly FB messages
             details = []
             if user_title:
                 details.append(f"**{user_title}**")
@@ -53,6 +79,7 @@ async def handle_fb_api_error(response: httpx.Response) -> str:
             
             detail_text = "\n".join(details)
             
+            # Map common error codes to helpful messages
             if code == 190:
                 return f"❌ Authentication failed. Please reconnect Facebook.\n{detail_text}"
             elif code in [17, 32, 4]:
@@ -68,12 +95,29 @@ async def handle_fb_api_error(response: httpx.Response) -> str:
             else:
                 return f"❌ Facebook API Error ({code}):\n{detail_text}"
     except Exception as e:
-        logger.warning(f"Error parsing FB API error: {e}", exc_info=e)  # Unexpected parse error, not FB infra
+        # Parsing failed - return raw text, this is unexpected but not critical
+        logger.warning(f"Error parsing FB API error: {e}", exc_info=e)
         return f"❌ Facebook API Error: {response.text[:500]}"
 
 
 async def retry_with_backoff(func, max_retries: int = 3, initial_delay: float = 1.0):
-    """Retry async function with exponential backoff"""
+    """
+    Execute async function with exponential backoff retry.
+    
+    Retries on network errors and rate limit errors (codes 17, 32, 4, 80004).
+    Useful for transient Facebook API issues.
+    
+    Args:
+        func: Async function to call (no arguments)
+        max_retries: Maximum number of attempts
+        initial_delay: Initial delay in seconds (doubles each retry)
+    
+    Returns:
+        Result from successful function call
+    
+    Raises:
+        Last exception if all retries exhausted
+    """
     for attempt in range(max_retries):
         try:
             return await func()
@@ -84,10 +128,11 @@ async def retry_with_backoff(func, max_retries: int = 3, initial_delay: float = 
             logger.warning(f"Retry {attempt + 1}/{max_retries} after {delay}s due to: {e}")
             await asyncio.sleep(delay)
         except FacebookAPIError as e:
+            # Only retry rate limit errors
             if e.code in [17, 32, 4, 80004]:
                 if attempt == max_retries - 1:
                     raise
-                delay = initial_delay * (2 ** attempt) * 2
+                delay = initial_delay * (2 ** attempt) * 2  # Extra delay for rate limits
                 logger.warning(f"Rate limit hit, retry {attempt + 1}/{max_retries} after {delay}s")
                 await asyncio.sleep(delay)
             else:
@@ -95,7 +140,18 @@ async def retry_with_backoff(func, max_retries: int = 3, initial_delay: float = 
 
 
 def validate_ad_account_id(ad_account_id: str) -> str:
-    """Ensure ad_account_id has act_ prefix"""
+    """
+    Validate and normalize ad account ID to act_ format.
+    
+    Args:
+        ad_account_id: Account ID with or without act_ prefix
+    
+    Returns:
+        Normalized ID with act_ prefix
+    
+    Raises:
+        ValueError: If ad_account_id is empty
+    """
     if not ad_account_id:
         raise ValueError("ad_account_id is required")
     ad_account_id = str(ad_account_id).strip()
@@ -105,7 +161,20 @@ def validate_ad_account_id(ad_account_id: str) -> str:
 
 
 def validate_budget(budget: int, min_budget: int = 100, currency: str = "USD") -> bool:
-    """Validate budget is above minimum (in cents)"""
+    """
+    Validate budget meets Facebook minimum requirements.
+    
+    Args:
+        budget: Budget in cents
+        min_budget: Minimum allowed (default 100 = $1.00)
+        currency: Currency code for error message
+    
+    Returns:
+        True if valid
+    
+    Raises:
+        ValueError: If budget invalid or too low
+    """
     if not isinstance(budget, int):
         raise ValueError("Budget must be an integer (cents)")
     if budget < min_budget:
@@ -114,11 +183,23 @@ def validate_budget(budget: int, min_budget: int = 100, currency: str = "USD") -
 
 
 def validate_targeting_spec(spec: Dict[str, Any]) -> tuple[bool, str]:
-    """Validate basic targeting specification structure"""
+    """
+    Validate basic targeting specification structure.
+    
+    Checks required fields and value ranges before sending to Facebook.
+    Facebook does additional validation on their end.
+    
+    Args:
+        spec: Targeting specification dict
+    
+    Returns:
+        Tuple of (is_valid, error_message)
+    """
     try:
         if not spec:
             return False, "Targeting spec cannot be empty"
         
+        # geo_locations is required by Facebook
         if "geo_locations" not in spec:
             return False, "geo_locations is required in targeting"
         
@@ -126,6 +207,7 @@ def validate_targeting_spec(spec: Dict[str, Any]) -> tuple[bool, str]:
         if not geo.get("countries") and not geo.get("regions") and not geo.get("cities"):
             return False, "At least one geo_location (country, region, or city) is required"
         
+        # Facebook age limits: 13-65
         if "age_min" in spec:
             age_min = spec["age_min"]
             if not isinstance(age_min, int) or age_min < 13 or age_min > 65:
@@ -147,12 +229,32 @@ def validate_targeting_spec(spec: Dict[str, Any]) -> tuple[bool, str]:
 
 
 def format_currency(cents: int, currency: str = "USD") -> str:
-    """Format cents to currency string"""
+    """
+    Format cents to readable currency string.
+    
+    Args:
+        cents: Amount in cents (5000 = $50.00)
+        currency: Currency code (USD, EUR, etc.)
+    
+    Returns:
+        Formatted string like "50.00 USD"
+    """
     return f"{cents/100:.2f} {currency}"
 
 
 def parse_date_preset(preset: str) -> str:
-    """Validate and normalize date preset"""
+    """
+    Validate Facebook Insights date preset.
+    
+    Args:
+        preset: Date preset string
+    
+    Returns:
+        Validated preset
+    
+    Raises:
+        ValueError: If preset not recognized
+    """
     valid_presets = [
         "today", "yesterday", "last_3d", "last_7d", "last_14d", "last_30d",
         "last_90d", "this_month", "last_month", "this_quarter", "last_quarter",
@@ -164,7 +266,18 @@ def parse_date_preset(preset: str) -> str:
 
 
 def normalize_insights_data(raw_data: Dict[str, Any]) -> Dict[str, Any]:
-    """Normalize insights data from Facebook API to consistent format"""
+    """
+    Normalize raw insights data from Facebook API.
+    
+    Converts string numbers to proper types, calculates derived metrics
+    (CTR, CPC, CPM) if not provided by Facebook.
+    
+    Args:
+        raw_data: Raw insights response from Facebook
+    
+    Returns:
+        Normalized dict with consistent types
+    """
     try:
         normalized = {
             "impressions": int(raw_data.get("impressions", 0)),
@@ -174,6 +287,7 @@ def normalize_insights_data(raw_data: Dict[str, Any]) -> Dict[str, Any]:
             "frequency": float(raw_data.get("frequency", 0.0)),
         }
         
+        # CTR (Click-Through Rate) = clicks / impressions * 100
         ctr = raw_data.get("ctr")
         if ctr:
             normalized["ctr"] = float(ctr)
@@ -182,6 +296,7 @@ def normalize_insights_data(raw_data: Dict[str, Any]) -> Dict[str, Any]:
         else:
             normalized["ctr"] = 0.0
         
+        # CPC (Cost Per Click) = spend / clicks
         cpc = raw_data.get("cpc")
         if cpc:
             normalized["cpc"] = float(cpc)
@@ -190,6 +305,7 @@ def normalize_insights_data(raw_data: Dict[str, Any]) -> Dict[str, Any]:
         else:
             normalized["cpc"] = 0.0
         
+        # CPM (Cost Per Mille) = spend / impressions * 1000
         cpm = raw_data.get("cpm")
         if cpm:
             normalized["cpm"] = float(cpm)
@@ -198,6 +314,7 @@ def normalize_insights_data(raw_data: Dict[str, Any]) -> Dict[str, Any]:
         else:
             normalized["cpm"] = 0.0
         
+        # Actions breakdown (link_click, post_engagement, etc.)
         actions = raw_data.get("actions", [])
         normalized["actions"] = {}
         if isinstance(actions, list):
@@ -209,80 +326,42 @@ def normalize_insights_data(raw_data: Dict[str, Any]) -> Dict[str, Any]:
         return normalized
     
     except Exception as e:
-        logger.warning(f"Error normalizing insights data: {e}", exc_info=e)  # Unexpected, return raw data
-        return raw_data
+        logger.warning(f"Error normalizing insights data: {e}", exc_info=e)
+        return raw_data  # Return raw data if normalization fails
 
 
 def hash_for_audience(value: str, field_type: str) -> str:
     """
-    Hash data for Custom Audiences (PII must be hashed)
+    Hash PII data for Custom Audiences.
+    
+    Facebook requires SHA256 hashing of personal data (email, phone, etc.)
+    when uploading to Custom Audiences.
     
     Args:
-        value: The value to hash (email, phone, etc)
-        field_type: Type of field (EMAIL, PHONE, FN, LN, etc)
+        value: Raw value to hash (email, phone, name)
+        field_type: Type of field (EMAIL, PHONE, FN, LN, CT, ST)
     
     Returns:
-        SHA256 hash of normalized value
+        SHA256 hex digest of normalized value
     """
     value = value.strip().lower()
     
+    # Normalize based on field type
     if field_type == "EMAIL":
-        pass
+        pass  # Email just needs lowercase
     elif field_type == "PHONE":
-        value = ''.join(c for c in value if c.isdigit())
+        value = ''.join(c for c in value if c.isdigit())  # Keep only digits
     elif field_type in ["FN", "LN", "CT", "ST"]:
-        value = value.replace(" ", "")
+        value = value.replace(" ", "")  # Remove spaces
     
     return hashlib.sha256(value.encode()).hexdigest()
 
 
-class RateLimiter:
-    """Simple rate limiter for Facebook API calls"""
-    
-    def __init__(self, max_calls_per_hour: int = 200):
-        self.max_calls = max_calls_per_hour
-        self.calls: List[float] = []
-        self.lock = asyncio.Lock()
-    
-    async def wait_if_needed(self):
-        """Wait if rate limit would be exceeded"""
-        async with self.lock:
-            now = time.time()
-            hour_ago = now - 3600
-            
-            self.calls = [t for t in self.calls if t > hour_ago]
-            
-            if len(self.calls) >= self.max_calls:
-                oldest_call = min(self.calls)
-                wait_time = (oldest_call + 3600) - now
-                if wait_time > 0:
-                    logger.warning(f"Rate limit reached, waiting {wait_time:.1f}s")
-                    await asyncio.sleep(wait_time)
-                    self.calls = []
-            
-            self.calls.append(now)
-    
-    def update_from_headers(self, headers: Dict[str, str]):
-        """Update rate limit info from response headers"""
-        usage = headers.get("X-Business-Use-Case-Usage") or headers.get("X-App-Usage")
-        if usage:
-            try:
-                import json
-                usage_data = json.loads(usage)
-                call_count = usage_data.get("call_count", 0)
-                total_cputime = usage_data.get("total_cputime", 0)
-                total_time = usage_data.get("total_time", 0)
-                
-                logger.debug(f"FB API usage: calls={call_count}, cpu={total_cputime}, time={total_time}")
-                
-                if call_count > 75:
-                    logger.warning(f"Facebook API usage high: {call_count}% of limit")
-            except Exception as e:
-                logger.debug(f"Could not parse rate limit headers: {e}")
-
+# ==================== MOCK DATA GENERATORS ====================
+# Used in test scenarios when is_fake=True to avoid real API calls
 
 def generate_mock_campaign() -> Dict[str, Any]:
-    """Generate mock campaign data for testing"""
+    """Generate mock campaign data for testing."""
     return {
         "id": "123456789012345",
         "name": "Test Campaign",
@@ -295,7 +374,7 @@ def generate_mock_campaign() -> Dict[str, Any]:
 
 
 def generate_mock_adset() -> Dict[str, Any]:
-    """Generate mock ad set data for testing"""
+    """Generate mock ad set data for testing."""
     return {
         "id": "234567890123456",
         "campaign_id": "123456789012345",
@@ -313,7 +392,7 @@ def generate_mock_adset() -> Dict[str, Any]:
 
 
 def generate_mock_insights() -> Dict[str, Any]:
-    """Generate mock insights data for testing"""
+    """Generate mock insights data for testing."""
     return {
         "impressions": "12345",
         "clicks": "567",
@@ -333,7 +412,7 @@ def generate_mock_insights() -> Dict[str, Any]:
 
 
 def generate_mock_ad_account() -> Dict[str, Any]:
-    """Generate mock ad account data for testing"""
+    """Generate mock ad account data for testing."""
     return {
         "id": "act_MOCK_TEST_000",
         "account_id": "MOCK_TEST_000",
@@ -345,5 +424,3 @@ def generate_mock_ad_account() -> Dict[str, Any]:
         "amount_spent": "123456",
         "spend_cap": "1000000",
     }
-
-
