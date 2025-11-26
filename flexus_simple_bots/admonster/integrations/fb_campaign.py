@@ -44,10 +44,10 @@ async def handle(integration, toolcall, model_produced_args: Dict[str, Any]) -> 
             return f"Unknown campaign operation: {op}\n\nAvailable operations:\n- update_campaign\n- duplicate_campaign\n- archive_campaign\n- bulk_update_campaigns"
     
     except fb_utils.FacebookAPIError as e:
-        logger.error(f"Facebook API error in campaign: {e}", exc_info=e)
+        logger.info(f"Facebook API error in campaign: {e}")  # Expected external API error
         return f"❌ Facebook API Error: {e.message}"
     except Exception as e:
-        logger.error(f"Campaign error: {e}", exc_info=e)
+        logger.warning(f"Campaign error: {e}", exc_info=e)  # Unexpected, log stack for debugging
         return f"ERROR: {str(e)}"
 
 
@@ -133,7 +133,7 @@ async def update_campaign(integration, args: Dict[str, Any]) -> str:
     except ValueError as e:
         return f"ERROR: {str(e)}"
     except Exception as e:
-        logger.error(f"Error updating campaign: {e}", exc_info=e)
+        logger.warning(f"Error updating campaign: {e}", exc_info=e)
         return f"ERROR: Failed to update campaign: {str(e)}"
 
 
@@ -230,7 +230,7 @@ Note: Only the campaign was copied. To copy ad sets and ads, use the Facebook Ad
     except fb_utils.FacebookAPIError:
         raise
     except Exception as e:
-        logger.error(f"Error duplicating campaign: {e}", exc_info=e)
+        logger.warning(f"Error duplicating campaign: {e}", exc_info=e)
         return f"ERROR: Failed to duplicate campaign: {str(e)}"
 
 
@@ -272,7 +272,7 @@ async def archive_campaign(integration, args: Dict[str, Any]) -> str:
     except fb_utils.FacebookAPIError:
         raise
     except Exception as e:
-        logger.error(f"Error archiving campaign: {e}", exc_info=e)
+        logger.warning(f"Error archiving campaign: {e}", exc_info=e)
         return f"ERROR: Failed to archive campaign: {str(e)}"
 
 
@@ -372,7 +372,7 @@ async def bulk_update_campaigns(integration, args: Dict[str, Any]) -> str:
         return output
     
     except Exception as e:
-        logger.error(f"Error in bulk update: {e}", exc_info=e)
+        logger.warning(f"Error in bulk update: {e}", exc_info=e)
         return f"ERROR: Failed bulk update: {str(e)}"
 
 

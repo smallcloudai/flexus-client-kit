@@ -64,10 +64,10 @@ async def handle(integration, toolcall, model_produced_args: Dict[str, Any]) -> 
             return f"Unknown ad_account operation: {op}\n\nAvailable operations:\n- list_ad_accounts\n- get_ad_account_info\n- update_spending_limit"
     
     except fb_utils.FacebookAPIError as e:
-        logger.error(f"Facebook API error in ad_account: {e}", exc_info=e)
+        logger.info(f"Facebook API error in ad_account: {e}")  # Expected external API error
         return f"❌ Facebook API Error: {e.message}"
     except Exception as e:
-        logger.error(f"Ad account error: {e}", exc_info=e)
+        logger.warning(f"Ad account error: {e}", exc_info=e)  # Unexpected, log stack for debugging
         return f"ERROR: {str(e)}"
 
 
@@ -146,7 +146,7 @@ async def list_ad_accounts(integration, args: Dict[str, Any]) -> str:
     except fb_utils.FacebookAPIError:
         raise
     except Exception as e:
-        logger.error(f"Error listing ad accounts: {e}", exc_info=e)
+        logger.warning(f"Error listing ad accounts: {e}", exc_info=e)
         return f"ERROR: Failed to list ad accounts: {str(e)}"
 
 
@@ -243,7 +243,7 @@ async def get_ad_account_info(integration, args: Dict[str, Any]) -> str:
     except ValueError as e:
         return f"ERROR: {str(e)}"
     except Exception as e:
-        logger.error(f"Error getting ad account info: {e}", exc_info=e)
+        logger.warning(f"Error getting ad account info: {e}", exc_info=e)
         return f"ERROR: Failed to get ad account info: {str(e)}"
 
 
@@ -300,7 +300,7 @@ async def update_spending_limit(integration, args: Dict[str, Any]) -> str:
     except ValueError as e:
         return f"ERROR: {str(e)}"
     except Exception as e:
-        logger.error(f"Error updating spending limit: {e}", exc_info=e)
+        logger.warning(f"Error updating spending limit: {e}", exc_info=e)
         return f"ERROR: Failed to update spending limit: {str(e)}"
 
 

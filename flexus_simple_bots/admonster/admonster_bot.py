@@ -62,7 +62,7 @@ async def admonster_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_e
             )
             logger.info("LinkedIn integration initialized for %s", rcx.persona.persona_id)
         except Exception as e:
-            logger.error("Failed to initialize LinkedIn integration: %s", e)
+            logger.warning("Failed to initialize LinkedIn integration: %s", e)  # Bot init issue, not infra
 
     facebook_integration = None
     if rcx.running_test_scenario:
@@ -74,7 +74,7 @@ async def admonster_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_e
             )
             logger.info("Facebook integration initialized for %s (test mode)", rcx.persona.persona_id)
         except Exception as e:
-            logger.error("Failed to initialize Facebook integration: %s", e, exc_info=e)
+            logger.warning("Failed to initialize Facebook integration: %s", e, exc_info=e)  # Bot init issue
     else:
         try:
             facebook_integration = fi_facebook.IntegrationFacebook(
@@ -84,7 +84,7 @@ async def admonster_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_e
             )
             logger.info("Facebook integration initialized for %s", rcx.persona.persona_id)
         except Exception as e:
-            logger.error("Failed to initialize Facebook integration: %s", e, exc_info=e)
+            logger.warning("Failed to initialize Facebook integration: %s", e, exc_info=e)  # Bot init issue
 
     @rcx.on_updated_message
     async def updated_message_in_db(msg: ckit_ask_model.FThreadMessageOutput):
@@ -128,7 +128,7 @@ async def admonster_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_e
                 return await facebook_integration.called_by_model(toolcall, model_produced_args)
         
         except Exception as e:
-            logger.error(f"Facebook tool error: {e}", exc_info=e)
+            logger.warning(f"Facebook tool error: {e}", exc_info=e)  # Bot error, not infra
             return f"ERROR: {str(e)}"
 
     @rcx.on_tool_call(fi_mongo_store.MONGO_STORE_TOOL.name)

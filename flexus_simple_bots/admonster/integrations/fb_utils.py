@@ -68,7 +68,7 @@ async def handle_fb_api_error(response: httpx.Response) -> str:
             else:
                 return f"❌ Facebook API Error ({code}):\n{detail_text}"
     except Exception as e:
-        logger.error(f"Error parsing FB API error: {e}", exc_info=e)
+        logger.warning(f"Error parsing FB API error: {e}", exc_info=e)  # Unexpected parse error, not FB infra
         return f"❌ Facebook API Error: {response.text[:500]}"
 
 
@@ -209,7 +209,7 @@ def normalize_insights_data(raw_data: Dict[str, Any]) -> Dict[str, Any]:
         return normalized
     
     except Exception as e:
-        logger.error(f"Error normalizing insights data: {e}", exc_info=e)
+        logger.warning(f"Error normalizing insights data: {e}", exc_info=e)  # Unexpected, return raw data
         return raw_data
 
 
