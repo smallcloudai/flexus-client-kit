@@ -296,7 +296,7 @@ facebook(op="create_adset", args={
 
 ---
 
-### update_adset 🔧
+### update_adset ✅
 
 Update ad set settings.
 
