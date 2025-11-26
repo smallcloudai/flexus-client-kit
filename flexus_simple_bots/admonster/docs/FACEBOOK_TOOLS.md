@@ -75,7 +75,7 @@ Ad Account Details:
 
 ---
 
-### update_spending_limit ⚠️
+### update_spending_limit ✅
 
 Update the spending cap for an ad account.
 
@@ -87,8 +87,6 @@ facebook(op="update_spending_limit", args={
 })
 ```
 Note: `spending_limit` is in cents (500000 = 5000.00)
-
-**Status:** Requires active ad account with billing configured. May fail on restricted/old accounts.
 
 **Response:**
 ```
@@ -123,15 +121,15 @@ Active Campaigns (2):
 
 ---
 
-### list_campaigns 🔧
+### list_campaigns ✅
 
 List campaigns with optional status filter.
 
 **Request:**
 ```
-facebook(op="list_campaigns")
-facebook(op="list_campaigns", args={"status": "ACTIVE"})
-facebook(op="list_campaigns", args={"status": "PAUSED"})
+facebook(op="list_campaigns", args={"ad_account_id": "act_111222333444"})
+facebook(op="list_campaigns", args={"ad_account_id": "act_111222333444", "status": "ACTIVE"})
+facebook(op="list_campaigns", args={"ad_account_id": "act_111222333444", "status": "PAUSED"})
 ```
 
 **Response:**
@@ -170,7 +168,7 @@ Note: `daily_budget` in cents. Valid objectives: OUTCOME_TRAFFIC, OUTCOME_SALES,
 
 ---
 
-### get_insights 🔧
+### get_insights ✅
 
 Get performance metrics for a campaign.
 
@@ -198,7 +196,7 @@ Insights for Campaign 123456 (Last 30 days):
 
 Source: `fb_campaign.py`
 
-### update_campaign 🔧
+### update_campaign ✅
 
 Update campaign settings.
 
@@ -214,9 +212,9 @@ facebook(op="update_campaign", args={
 
 ---
 
-### duplicate_campaign 🔧
+### duplicate_campaign ✅
 
-Duplicate an existing campaign.
+Duplicate an existing campaign (campaign only, ad sets/ads require manual copy in Ads Manager).
 
 **Request:**
 ```
@@ -228,7 +226,7 @@ facebook(op="duplicate_campaign", args={
 
 ---
 
-### archive_campaign 🔧
+### archive_campaign ✅
 
 Archive (soft delete) a campaign.
 
@@ -239,7 +237,7 @@ facebook(op="archive_campaign", args={"campaign_id": "123"})
 
 ---
 
-### bulk_update_campaigns 🔧
+### bulk_update_campaigns ✅
 
 Update multiple campaigns at once.
 
@@ -257,7 +255,7 @@ facebook(op="bulk_update_campaigns", args={
 
 Source: `fb_adset.py`
 
-### list_adsets 🔧
+### list_adsets ✅
 
 List ad sets for a campaign.
 
@@ -268,23 +266,33 @@ facebook(op="list_adsets", args={"campaign_id": "123"})
 
 ---
 
-### create_adset 🔧
+### create_adset ✅
 
 Create ad set with targeting.
 
-**Request:**
+**Request (for CBO campaign - no adset budget):**
 ```
 facebook(op="create_adset", args={
-    "campaign_id": "123",
-    "name": "US 18-35 Interest",
-    "daily_budget": 2000,
+    "ad_account_id": "act_111222333444",
+    "campaign_id": "123456789",
+    "name": "US 25-45 Traffic",
+    "optimization_goal": "LINK_CLICKS",
+    "billing_event": "IMPRESSIONS",
+    "bid_amount": 5,
     "targeting": {
         "geo_locations": {"countries": ["US"]},
-        "age_min": 18,
-        "age_max": 35
-    }
+        "age_min": 25,
+        "age_max": 45
+    },
+    "status": "PAUSED"
 })
 ```
+
+**Notes:**
+- For CBO campaigns (Campaign Budget Optimization): don't include `daily_budget`/`lifetime_budget`
+- For non-CBO campaigns: include `daily_budget` or `lifetime_budget`
+- `bid_amount` is often required depending on bid strategy
+- `promoted_object` with `page_id` may be required for OUTCOME_TRAFFIC campaigns
 
 ---
 
@@ -303,7 +311,7 @@ facebook(op="update_adset", args={
 
 ---
 
-### validate_targeting 🔧
+### validate_targeting ✅
 
 Validate targeting spec and get audience estimate.
 

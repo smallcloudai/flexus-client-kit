@@ -8,6 +8,7 @@ Handles ad sets and targeting:
 - List ad sets
 """
 
+import json
 import logging
 from typing import Dict, Any, Optional, List
 
@@ -27,6 +28,10 @@ async def handle(integration, toolcall, model_produced_args: Dict[str, Any]) -> 
         
         op = model_produced_args.get("op", "")
         args = model_produced_args.get("args", {})
+        # Merge top-level params into args (model may pass ad_account_id at top level)
+        for key in ["ad_account_id", "campaign_id"]:
+            if key in model_produced_args and key not in args:
+                args[key] = model_produced_args[key]
         
         if op == "create_adset":
             return await create_adset(integration, args)
@@ -50,6 +55,7 @@ async def handle(integration, toolcall, model_produced_args: Dict[str, Any]) -> 
 async def create_adset(integration, args: Dict[str, Any]) -> str:
     """Create a new ad set with targeting"""
     try:
+        ad_account_id = args.get("ad_account_id", "")
         campaign_id = args.get("campaign_id", "")
         name = args.get("name", "")
         optimization_goal = args.get("optimization_goal", "LINK_CLICKS")
@@ -61,15 +67,18 @@ async def create_adset(integration, args: Dict[str, Any]) -> str:
         start_time = args.get("start_time")
         end_time = args.get("end_time")
         bid_amount = args.get("bid_amount")
+        promoted_object = args.get("promoted_object")
         
+        if not ad_account_id:
+            return "ERROR: ad_account_id is required (e.g. act_123456)"
         if not campaign_id:
             return "ERROR: campaign_id is required"
         if not name:
             return "ERROR: name is required"
         if not targeting:
             return "ERROR: targeting is required"
-        if not daily_budget and not lifetime_budget:
-            return "ERROR: Either daily_budget or lifetime_budget is required"
+        # Note: budget is optional for CBO campaigns (Campaign Budget Optimization)
+        # Let Facebook validate whether budget is needed based on campaign settings
         
         targeting_valid, targeting_error = fb_utils.validate_targeting_spec(targeting)
         if not targeting_valid:
@@ -86,6 +95,14 @@ async def create_adset(integration, args: Dict[str, Any]) -> str:
             mock_adset["name"] = name
             mock_adset["optimization_goal"] = optimization_goal
             
+            budget_line = ""
+            if daily_budget:
+                budget_line = f"Daily Budget: {fb_utils.format_currency(daily_budget)}\n"
+            elif lifetime_budget:
+                budget_line = f"Lifetime Budget: {fb_utils.format_currency(lifetime_budget)}\n"
+            else:
+                budget_line = "Budget: Using Campaign Budget (CBO)\n"
+            
             return f"""✅ Ad Set created successfully!
 
 ID: {mock_adset['id']}
@@ -94,8 +111,7 @@ Campaign ID: {mock_adset['campaign_id']}
 Status: PAUSED
 Optimization Goal: {optimization_goal}
 Billing Event: {billing_event}
-Daily Budget: {fb_utils.format_currency(daily_budget if daily_budget else lifetime_budget)}
-
+{budget_line}
 Targeting:
   • Locations: {', '.join(targeting.get('geo_locations', {}).get('countries', ['Not specified']))}
   • Age: {targeting.get('age_min', 18)}-{targeting.get('age_max', 65)}
@@ -103,41 +119,53 @@ Targeting:
 Ad set is paused. Activate it when ready to start delivery.
 """
         
-        ad_account_id = "act_" + campaign_id.split("_")[0] if "_" in campaign_id else integration.ad_account_id
         url = f"{fb_utils.API_BASE}/{fb_utils.API_VERSION}/{ad_account_id}/adsets"
         
-        data = {
+        # FB API expects form-data with JSON strings for complex fields
+        bid_strategy = args.get("bid_strategy", "LOWEST_COST_WITHOUT_CAP")
+        
+        form_data = {
             "name": name,
             "campaign_id": campaign_id,
             "optimization_goal": optimization_goal,
             "billing_event": billing_event,
-            "targeting": targeting,
+            "bid_strategy": bid_strategy,
+            "targeting": json.dumps(targeting),  # Must be JSON string
             "status": status,
+            "access_token": integration.access_token,
         }
         
         if daily_budget:
-            data["daily_budget"] = daily_budget
+            form_data["daily_budget"] = str(daily_budget)
         if lifetime_budget:
-            data["lifetime_budget"] = lifetime_budget
+            form_data["lifetime_budget"] = str(lifetime_budget)
         
         if start_time:
-            data["start_time"] = start_time
+            form_data["start_time"] = start_time
         if end_time:
-            data["end_time"] = end_time
+            form_data["end_time"] = end_time
         
         if bid_amount:
-            data["bid_amount"] = bid_amount
+            form_data["bid_amount"] = str(bid_amount)
+            # Override bid_strategy if bid_amount is provided
+            if bid_strategy == "LOWEST_COST_WITHOUT_CAP":
+                form_data["bid_strategy"] = "LOWEST_COST_WITH_BID_CAP"
+        
+        if promoted_object:
+            form_data["promoted_object"] = json.dumps(promoted_object)
+        
+        logger.info(f"Creating adset at {url} with form_data: {form_data}")
         
         async def make_request():
             async with httpx.AsyncClient() as client:
                 response = await client.post(
                     url,
-                    json=data,
-                    headers=integration.headers,
+                    data=form_data,  # Form-encoded, not JSON
                     timeout=30.0
                 )
                 
                 if response.status_code != 200:
+                    logger.error(f"FB API error: status={response.status_code}, body={response.text}")
                     error_msg = await fb_utils.handle_fb_api_error(response)
                     raise fb_utils.FacebookAPIError(response.status_code, error_msg)
                 

@@ -19,9 +19,6 @@ from flexus_client_kit import ckit_bot_exec
 logger = logging.getLogger("facebook")
 
 
-# Default/Fallback ID if not provided in setup
-AD_ACCOUNT_ID = "act_123456789" 
-
 CLIENT_ID = os.getenv("FACEBOOK_CLIENT_ID", "")
 CLIENT_SECRET = os.getenv("FACEBOOK_CLIENT_SECRET", "")
 REDIRECT_URI = "http://localhost:3000/"
@@ -104,7 +101,7 @@ class IntegrationFacebook:
         self.fclient = fclient
         self.rcx = rcx
         self.access_token = ""
-        self.ad_account_id = ad_account_id or AD_ACCOUNT_ID
+        self.ad_account_id = ad_account_id or ""
         if self.ad_account_id and not self.ad_account_id.startswith("act_"):
             self.ad_account_id = f"act_{self.ad_account_id}"
         self.problems = []
@@ -149,6 +146,8 @@ class IntegrationFacebook:
             ad_account_id = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "ad_account_id", "")
             if ad_account_id:
                 self.ad_account_id = ad_account_id
+            if not self.ad_account_id:
+                return "ERROR: ad_account_id parameter required for status\n"
             if self.is_fake:
                 return await ckit_scenario.scenario_generate_tool_result_via_model(self.fclient, toolcall, open(__file__).read())
             
@@ -173,6 +172,8 @@ class IntegrationFacebook:
             status_filter = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "status", None)
             if ad_account_id:
                 self.ad_account_id = ad_account_id
+            if not self.ad_account_id:
+                return "ERROR: ad_account_id parameter required for list_campaigns\n"
             if self.is_fake:
                 return await ckit_scenario.scenario_generate_tool_result_via_model(self.fclient, toolcall, open(__file__).read())
             

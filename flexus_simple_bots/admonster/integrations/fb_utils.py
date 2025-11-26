@@ -39,25 +39,37 @@ async def handle_fb_api_error(response: httpx.Response) -> str:
             err = error_data["error"]
             code = err.get("code", 0)
             message = err.get("message", "Unknown error")
-            error_type = err.get("type", "")
+            user_title = err.get("error_user_title", "")
+            user_msg = err.get("error_user_msg", "")
+            
+            # Build detailed error for the model
+            details = []
+            if user_title:
+                details.append(f"**{user_title}**")
+            if user_msg:
+                details.append(user_msg)
+            if not details:
+                details.append(message)
+            
+            detail_text = "\n".join(details)
             
             if code == 190:
-                return "❌ Authentication failed. Please reconnect Facebook in /profile page."
-            elif code in [17, 32, 4, 80004]:
-                return "⏱️ Rate limit reached. Please try again in a few minutes."
+                return f"❌ Authentication failed. Please reconnect Facebook.\n{detail_text}"
+            elif code in [17, 32, 4]:
+                return f"⏱️ Rate limit reached. Please try again in a few minutes.\n{detail_text}"
             elif code == 100:
-                return f"❌ Invalid parameters: {message}"
+                return f"❌ Invalid parameters (code {code}):\n{detail_text}"
             elif code == 2635:
-                return "❌ Ad account is disabled. Please check Facebook Business Manager."
+                return f"❌ Ad account is disabled.\n{detail_text}"
             elif code == 1487387:
-                return f"❌ Budget too low: {message}"
+                return f"❌ Budget too low:\n{detail_text}"
             elif code == 80004:
-                return "❌ Insufficient permissions. Please reconnect Facebook with required permissions."
+                return f"❌ Insufficient permissions.\n{detail_text}"
             else:
-                return f"❌ Facebook API Error ({code}): {message}"
+                return f"❌ Facebook API Error ({code}):\n{detail_text}"
     except Exception as e:
         logger.error(f"Error parsing FB API error: {e}", exc_info=e)
-        return f"❌ Facebook API Error: {response.text[:200]}"
+        return f"❌ Facebook API Error: {response.text[:500]}"
 
 
 async def retry_with_backoff(func, max_retries: int = 3, initial_delay: float = 1.0):
@@ -323,8 +335,8 @@ def generate_mock_insights() -> Dict[str, Any]:
 def generate_mock_ad_account() -> Dict[str, Any]:
     """Generate mock ad account data for testing"""
     return {
-        "id": "act_123456789",
-        "account_id": "123456789",
+        "id": "act_MOCK_TEST_000",
+        "account_id": "MOCK_TEST_000",
         "name": "Test Ad Account",
         "currency": "USD",
         "timezone_name": "America/Los_Angeles",

@@ -49,6 +49,10 @@ async def handle(integration, toolcall, model_produced_args: Dict[str, Any]) -> 
         
         op = model_produced_args.get("op", "")
         args = model_produced_args.get("args", {})
+        # Merge top-level params into args (model may pass them at top level)
+        for key in ["ad_account_id"]:
+            if key in model_produced_args and key not in args:
+                args[key] = model_produced_args[key]
         
         if op == "list_ad_accounts":
             return await list_ad_accounts(integration, args)

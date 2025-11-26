@@ -168,7 +168,7 @@ messages:
     type: function
 - call_id: call_fb_status
   content: |-
-    Facebook Ads Account: act_123456789
+    Facebook Ads Account: act_MOCK_TEST_000
     Active Campaigns (1):
       📊 Summer Sale 2025 (ID: 111222333)
          Status: ACTIVE, Objective: OUTCOME_TRAFFIC, Daily Budget: $50.00
@@ -176,7 +176,7 @@ messages:
 - content: |-
     Here is your Facebook Ads status:
     
-    **Account**: act_123456789
+    **Account**: act_MOCK_TEST_000
     
     **Active Campaigns**:
     - **Summer Sale 2025** (ID: 111222333)

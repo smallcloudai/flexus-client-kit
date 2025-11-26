@@ -29,6 +29,10 @@ async def handle(integration, toolcall, model_produced_args: Dict[str, Any]) -> 
         
         op = model_produced_args.get("op", "")
         args = model_produced_args.get("args", {})
+        # Merge top-level params into args (model may pass them at top level)
+        for key in ["ad_account_id", "adset_id", "creative_id"]:
+            if key in model_produced_args and key not in args:
+                args[key] = model_produced_args[key]
         
         if op == "upload_image":
             return await upload_image(integration, args)
