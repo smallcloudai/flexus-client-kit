@@ -24,12 +24,7 @@ async def run_typical_single_subscription_with_restart_on_network_errors(fclient
                 ckit_shutdown.give_ws_client(fclient.service_name, ws_client)
                 await subscribe_and_do_something(fclient, ws_client, *func_args, **func_kwargs)
                 if not ckit_shutdown.shutdown_event.is_set():
-                    if func_args and hasattr(func_args[0], 'need_reconnect') and func_args[0].need_reconnect:
-                        logger.info("Intentional reconnect requested")
-                        func_args[0].need_reconnect = False
-                    else:
-                        logger.error("🛑 The only way we get there is shutdown, what happened?")
-                    continue
+                    logger.error("🛑 The only way we get there is shutdown, what happened?")
             finally:
                 ckit_shutdown.take_away_ws_client(fclient.service_name)
 
