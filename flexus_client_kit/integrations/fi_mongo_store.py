@@ -52,6 +52,8 @@ Examples:
   mongo_store(op="grep", args={"path": "tasks.txt", "pattern": "TODO", "context": 2})
 """
 
+# There's also a secret op="undelete" command that can bring deleted files
+
 
 async def handle_mongo_store(
     workdir: str,

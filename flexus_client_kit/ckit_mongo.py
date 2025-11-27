@@ -38,18 +38,13 @@ async def mongo_store_file(
     assert ttl > 0
     if len(file_data) > MAX_FILE_SIZE:
         raise ValueError(f"File size {len(file_data)} exceeds maximum {MAX_FILE_SIZE}")
-    existing_doc = await mongo_collection.find_one({"path": file_path}, {"mon_ctime": 1})
-    old_ctime = existing_doc["mon_ctime"] if existing_doc else None
+    existing_doc = await mongo_collection.find_one({"path": file_path}, {"_id": 1})
     if existing_doc:
-        await mongo_collection.delete_one({"path": file_path})
-    # Old names:
-    # "ctime"
-    # "mtime"
-    # "size_bytes"
+        raise ValueError(f"File already exists at path: {file_path}")
     t = time.time()
     document = {
         "path": file_path,
-        "mon_ctime": old_ctime if old_ctime else t,
+        "mon_ctime": t,
         "mon_mtime": t,
         "mon_size": len(file_data),
         "mon_expires_ts": t + ttl,
@@ -103,6 +98,10 @@ async def mongo_retrieve_file(
     document = await mongo_collection.find_one({"path": file_path})
     if not document:
         return None
+
+    if "mon_new_location" in document:
+        return await mongo_retrieve_file(mongo_collection, document["mon_new_location"])
+
     document["_id"] = str(document["_id"])
 
     # XXX remove after 20260101, leftovers after rename
@@ -122,7 +121,7 @@ async def mongo_ls(
     path_prefix: Optional[str] = None,
     limit: Optional[int] = None,
 ) -> List[Dict[str, Any]]:
-    query = {}
+    query = {"mon_archived": {"$ne": True}}
     if path_prefix:
         query["path"] = {"$regex": f"^{path_prefix}"}
     cursor = mongo_collection.find(query, {"data": 0, "json": 0}).sort("mon_ctime", -1)
@@ -149,7 +148,7 @@ async def mongo_ls_subdir(
     mongo_collection: Collection,
     path: str,
 ) -> List[Dict[str, Any]]:
-    path_filter = {"path": {"$exists": True, "$ne": None}}
+    path_filter = {"path": {"$exists": True, "$ne": None}, "mon_archived": {"$ne": True}}
     if path:
         path_filter["path"] = {"$regex": f"^{path.rstrip('/')}/"}
     cursor = mongo_collection.find(path_filter, {"path": 1, "mon_ctime": 1, "mon_mtime": 1, "mon_size": 1, "ctime": 1, "mtime": 1, "size_bytes": 1, "_id": 0}).sort([("mon_mtime", -1), ("mtime", -1)])
@@ -178,9 +177,44 @@ async def mongo_ls_subdir(
     return list(items.values())
 
 
+async def mongo_mv(
+    mongo_collection: Collection,
+    old_path: str,
+    new_path: str,
+) -> bool:
+    doc = await mongo_collection.find_one({"path": old_path})
+    if not doc:
+        return False
+    doc["_id"] = None
+    doc["path"] = new_path
+    await mongo_collection.insert_one(doc)
+    t = time.time()
+    await mongo_collection.update_one(
+        {"path": old_path},
+        {"$set": {
+            "mon_new_location": new_path,
+            "mon_mtime": t,
+            "mon_archived": True,
+            "mon_expires_ts": t + 2*86400
+        },
+        "$unset": {
+            "data": "",
+            "json": ""
+        }}
+    )
+    return True
+
+
 async def mongo_rm(
     mongo_collection: Collection,
     file_path: str,
 ) -> bool:
-    result = await mongo_collection.delete_one({"path": file_path})
-    return result.deleted_count > 0
+    t = time.time()
+    result = await mongo_collection.update_one(
+        {"path": file_path},
+        {"$set": {
+            "mon_archived": True,
+            "mon_expires_ts": t + 2*86400
+        }}
+    )
+    return result.modified_count > 0
