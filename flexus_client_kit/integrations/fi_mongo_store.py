@@ -84,10 +84,9 @@ async def handle_mongo_store(
         if path_error:
             return f"Error: {path_error}"
         mongo_path = path
-        existing_doc = await mongo_collection.find_one({"path": mongo_path}, {"ctime": 1})
+        existing_doc = await mongo_collection.find_one({"path": mongo_path}, {"mon_ctime": 1})
         was_overwritten = existing_doc is not None
-        result_id = await ckit_mongo.mongo_store_file(mongo_collection, mongo_path, file_data)
-        # doc_id = str(result.inserted_id)
+        result_id = await ckit_mongo.mongo_store_file(mongo_collection, mongo_path, file_data, 60 * 60 * 24 * 365)
         result_msg = f"Uploaded {path} -> MongoDB"
         if was_overwritten:
             result_msg += " [OVERWRITTEN existing file]"
@@ -107,7 +106,7 @@ async def handle_mongo_store(
         result = f"Found {len(documents)} files with prefix '{path}':\n"
         for doc in documents:
             file_path = doc["path"]
-            size = doc["size_bytes"]
+            size = doc["mon_size"]
             result += f"  {file_path} (size: {size})\n"
         return result
 

@@ -131,6 +131,16 @@ async def mongo_ls(
     documents = []
     async for doc in cursor:
         doc["_id"] = str(doc["_id"])
+
+        # XXX remove after 20260101, leftovers after rename
+        if "mon_ctime" not in doc and "ctime" in doc:
+            doc["mon_ctime"] = doc["ctime"]
+        if "mon_mtime" not in doc and "mtime" in doc:
+            doc["mon_mtime"] = doc["mtime"]
+        if "mon_size" not in doc and "size_bytes" in doc:
+            doc["mon_size"] = doc["size_bytes"]
+        # /XXX
+
         documents.append(doc)
     return documents
 

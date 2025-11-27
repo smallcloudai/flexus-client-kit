@@ -275,13 +275,10 @@ async def botticelli_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_
         if not crops:
             return "Error: crops list required"
 
-        try:
-            source_doc = await ckit_mongo.mongo_retrieve_file(personal_mongo, source_path)
-            if not source_doc:
-                return f"Error: source image not found: {source_path}"
-            source_bytes = source_doc["data"]
-        except Exception as e:
-            return f"Error loading source image: {str(e)}"
+        source_doc = await ckit_mongo.mongo_retrieve_file(personal_mongo, source_path)
+        if not source_doc:
+            return f"Error: source image not found: {source_path}"
+        source_bytes = source_doc["data"]
 
         with Image.open(io.BytesIO(source_bytes)) as src_img:
             src_w, src_h = src_img.size
@@ -341,8 +338,8 @@ async def botticelli_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_
                 await ckit_mongo.mongo_store_file(personal_mongo, crop_resized_path, webp_resized_bytes, 90 * 86400)
                 existing_files.add(crop_resized_path)
 
-                logger.info(f"Saved crop {crop_num}: {crop_path} ({w}x{h} @ {x},{y})")
-                logger.info(f"Saved crop {crop_num} resized: {crop_resized_path}")
+                logger.info(f"Saved crop {crop_path} ({w}x{h} @ {x},{y})")
+                logger.info(f"Saved crop {crop_resized_path}")
 
                 image_url1 = f"{fclient.base_url_http}/v1/docs/{rcx.persona.persona_id}/{crop_path}"
                 image_url2 = f"{fclient.base_url_http}/v1/docs/{rcx.persona.persona_id}/{crop_resized_path}"
@@ -364,8 +361,8 @@ async def botticelli_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_
                 result_text += f"    {r['url2']}\n"
 
             response = [{"m_type": "text", "m_content": result_text}]
-            if results:
-                response.append({"m_type": "image/webp", "m_content": results[0]["url2"]})
+            for r in results:
+                response.append({"m_type": "image/webp", "m_content": r["url2"]})
             return response
 
     @rcx.on_tool_call(fi_mongo_store.MONGO_STORE_TOOL.name)
