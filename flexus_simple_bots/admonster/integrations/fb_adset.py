@@ -240,15 +240,7 @@ async def list_adsets(integration, args: Dict[str, Any]) -> str:
         "limit": 50
     }
     
-    async def make_request():
-        async with httpx.AsyncClient() as client:
-            response = await client.get(url, params=params, headers=integration.headers, timeout=30.0)
-            if response.status_code != 200:
-                error_msg = await fb_utils.handle_fb_api_error(response)
-                raise fb_utils.FacebookAPIError(response.status_code, error_msg)
-            return response.json()
-    
-    data = await fb_utils.retry_with_backoff(make_request)
+    data = await fb_utils.fb_api_request("GET", url, integration.headers, params=params)
     adsets = data.get("data", [])
     
     if not adsets:
@@ -326,15 +318,7 @@ async def update_adset(integration, args: Dict[str, Any]) -> str:
     if bid_amount is not None:
         data["bid_amount"] = bid_amount
     
-    async def make_request():
-        async with httpx.AsyncClient() as client:
-            response = await client.post(url, json=data, headers=integration.headers, timeout=30.0)
-            if response.status_code != 200:
-                error_msg = await fb_utils.handle_fb_api_error(response)
-                raise fb_utils.FacebookAPIError(response.status_code, error_msg)
-            return response.json()
-    
-    result = await fb_utils.retry_with_backoff(make_request)
+    result = await fb_utils.fb_api_request("POST", url, integration.headers, data=data)
     
     if result.get("success"):
         updates = []
@@ -378,15 +362,7 @@ This is a test validation. In production, Facebook will provide actual estimated
     url = f"{fb_utils.API_BASE}/{fb_utils.API_VERSION}/{ad_account_id}/targetingsentencelines"
     params = {"targeting_spec": targeting_spec}
     
-    async def make_request():
-        async with httpx.AsyncClient() as client:
-            response = await client.get(url, params=params, headers=integration.headers, timeout=30.0)
-            if response.status_code != 200:
-                error_msg = await fb_utils.handle_fb_api_error(response)
-                raise fb_utils.FacebookAPIError(response.status_code, error_msg)
-            return response.json()
-    
-    result = await fb_utils.retry_with_backoff(make_request)
+    result = await fb_utils.fb_api_request("GET", url, integration.headers, params=params)
     
     output = "✅ Targeting is valid!\n\n"
     

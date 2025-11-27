@@ -101,23 +101,6 @@ async def handle_fb_api_error(response: httpx.Response) -> str:
 
 
 async def retry_with_backoff(func, max_retries: int = 3, initial_delay: float = 1.0):
-    """
-    Execute async function with exponential backoff retry.
-    
-    Retries on network errors and rate limit errors (codes 17, 32, 4, 80004).
-    Useful for transient Facebook API issues.
-    
-    Args:
-        func: Async function to call (no arguments)
-        max_retries: Maximum number of attempts
-        initial_delay: Initial delay in seconds (doubles each retry)
-    
-    Returns:
-        Result from successful function call
-    
-    Raises:
-        Last exception if all retries exhausted
-    """
     for attempt in range(max_retries):
         try:
             return await func()
@@ -128,15 +111,49 @@ async def retry_with_backoff(func, max_retries: int = 3, initial_delay: float = 
             logger.warning(f"Retry {attempt + 1}/{max_retries} after {delay}s due to: {e}")
             await asyncio.sleep(delay)
         except FacebookAPIError as e:
-            # Only retry rate limit errors
-            if e.code in [17, 32, 4, 80004]:
+            if e.code in [17, 32, 4, 80004]:  # rate limit codes
                 if attempt == max_retries - 1:
                     raise
-                delay = initial_delay * (2 ** attempt) * 2  # Extra delay for rate limits
+                delay = initial_delay * (2 ** attempt) * 2
                 logger.warning(f"Rate limit hit, retry {attempt + 1}/{max_retries} after {delay}s")
                 await asyncio.sleep(delay)
             else:
                 raise
+
+
+async def fb_api_request(
+    method: str,
+    url: str,
+    headers: Dict[str, str],
+    params: Dict[str, Any] = None,
+    data: Dict[str, Any] = None,
+    form_data: Dict[str, Any] = None,
+    timeout: float = 30.0,
+) -> Dict[str, Any]:
+    """
+    Universal Facebook API request with retry and error handling.
+    Use form_data for form-encoded POST (adimages, adsets), data for JSON POST.
+    """
+    async def make_request():
+        async with httpx.AsyncClient() as client:
+            if method == "GET":
+                response = await client.get(url, params=params, headers=headers, timeout=timeout)
+            elif method == "POST":
+                if form_data:
+                    response = await client.post(url, data=form_data, headers=headers, timeout=timeout)
+                else:
+                    response = await client.post(url, json=data, headers=headers, timeout=timeout)
+            elif method == "DELETE":
+                response = await client.delete(url, headers=headers, timeout=timeout)
+            else:
+                raise ValueError(f"Unsupported method: {method}")
+            
+            if response.status_code != 200:
+                error_msg = await handle_fb_api_error(response)
+                raise FacebookAPIError(response.status_code, error_msg)
+            return response.json()
+    
+    return await retry_with_backoff(make_request)
 
 
 def validate_ad_account_id(ad_account_id: str) -> str:
