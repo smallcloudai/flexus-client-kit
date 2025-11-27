@@ -296,6 +296,7 @@ class BotsCollection:
         marketable_version: int,
         inprocess_tools: List[ckit_cloudtool.CloudTool],
         bot_main_loop: Callable[[ckit_client.FlexusClient, RobotContext], Awaitable[None]],
+        subscribe_to_erp_tables: List[str] = [],
         running_test_scenario: bool = False,
         running_happy_yaml: str = "",
     ):
@@ -304,11 +305,11 @@ class BotsCollection:
         self.marketable_version = marketable_version
         self.inprocess_tools = inprocess_tools
         self.bot_main_loop = bot_main_loop
+        self.subscribe_to_erp_tables = subscribe_to_erp_tables
         self.bots_running: Dict[str, BotInstance] = {}
         self.thread_tracker: Dict[str, ckit_bot_query.FThreadWithMessages] = {}
         self.running_test_scenario = running_test_scenario
         self.running_happy_yaml = running_happy_yaml
-        self.need_reconnect = False  # Intentional reconnect (for ERP tables detection)
 
 
 async def subscribe_and_produce_callbacks(
@@ -322,10 +323,6 @@ async def subscribe_and_produce_callbacks(
 
     bc.thread_tracker.clear()  # Control reaches this after exception and reconnect, a new subscription will send all the threads anew, need to clear
 
-    want_erp_tables = set()
-    for bot in bc.bots_running.values():
-        want_erp_tables.update(bot.instance_rcx._handler_per_erp_table.keys())
-
     async with ws_client as ws:
         async for r in ws.subscribe(
             gql.gql(f"""subscription KarenThreads($fgroup_id: String!, $marketable_name: String!, $marketable_version: Int!, $inprocess_tool_names: [String!]!, $want_erp_tables: [String!]!) {{
@@ -338,7 +335,7 @@ async def subscribe_and_produce_callbacks(
                 "marketable_name": bc.marketable_name,
                 "marketable_version": bc.marketable_version,
                 "inprocess_tool_names": [t.name for t in bc.inprocess_tools],
-                "want_erp_tables": list(want_erp_tables),
+                "want_erp_tables": bc.subscribe_to_erp_tables,
             },
         ):
             upd = gql_utils.dataclass_from_dict(r["bot_threads_calls_tasks"], ckit_bot_query.FBotThreadsCallsTasks)
@@ -371,20 +368,6 @@ async def subscribe_and_produce_callbacks(
                             instance_rcx=rcx,
                         )
                         reassign_threads = True
-
-                        # If this is first bot and we didn't have ERP tables, check if it registered and restart subscription
-                        if not want_erp_tables:
-                            for _ in range(20):
-                                if rcx._reached_main_loop:
-                                    break
-                                if await ckit_shutdown.wait(0.1):
-                                    break
-                            await asyncio.sleep(0.1)
-                            new_erp_tables = set(rcx._handler_per_erp_table.keys())
-                            if new_erp_tables:
-                                logger.info("First bot registered ERP tables %s, reconnecting to subscribe to them" % list(new_erp_tables))
-                                bc.need_reconnect = True
-                                break
 
                 elif upd.news_action == "DELETE":
                     handled = True
@@ -831,6 +814,7 @@ async def run_bots_in_this_group(
     inprocess_tools: List[ckit_cloudtool.CloudTool],
     bot_main_loop: Callable[[ckit_client.FlexusClient, RobotContext], Awaitable[None]],
     scenario_fn: str,
+    subscribe_to_erp_tables: List[str] = [],
 ) -> None:
     scenario = None
     scenario_task = None
@@ -857,6 +841,7 @@ async def run_bots_in_this_group(
         marketable_version=marketable_version,
         inprocess_tools=inprocess_tools,
         bot_main_loop=bot_main_loop,
+        subscribe_to_erp_tables=subscribe_to_erp_tables,
         running_test_scenario=running_test_scenario,
         running_happy_yaml=running_happy_yaml,
     )
