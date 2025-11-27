@@ -7,13 +7,14 @@ import sys
 import time
 import argparse
 import yaml
-from typing import Dict, List, Optional, Any, Callable, Awaitable, NamedTuple, Union
+from typing import Dict, List, Optional, Any, Callable, Awaitable, NamedTuple, Union, Type, TypeVar
 
 import gql
 import gql.transport.exceptions
 
 from flexus_client_kit import ckit_client, gql_utils, ckit_service_exec, ckit_kanban, ckit_cloudtool
 from flexus_client_kit import ckit_ask_model, ckit_shutdown, ckit_utils, ckit_bot_query, ckit_scenario
+from flexus_client_kit import erp_schema
 
 
 logger = logging.getLogger("btexe")
@@ -65,12 +66,14 @@ class RobotContext:
         self._handler_upd_thread: Optional[Callable[[ckit_ask_model.FThreadOutput], Awaitable[None]]] = None
         self._handler_updated_task: Optional[Callable[[ckit_kanban.FPersonaKanbanTaskOutput], Awaitable[None]]] = None
         self._handler_per_tool: Dict[str, Callable[[Dict[str, Any]], Awaitable[str]]] = {}
+        self._handler_per_erp_table: Dict[str, Callable[[Any], Awaitable[None]]] = {}
         self._reached_main_loop = False
         self._completed_initial_unpark = False
         self._parked_messages: Dict[str, ckit_ask_model.FThreadMessageOutput] = {}
         self._parked_threads: Dict[str, ckit_ask_model.FThreadOutput] = {}
         self._parked_tasks: Dict[str, ckit_kanban.FPersonaKanbanTaskOutput] = {}
         self._parked_toolcalls: List[ckit_cloudtool.FCloudtoolCall] = []
+        self._parked_erp_records: List[tuple[str, Any]] = []
         self._parked_anything_new = asyncio.Event()
         # These fields are designed for direct access:
         self.fclient = fclient
@@ -98,6 +101,14 @@ class RobotContext:
     def on_tool_call(self, tool_name: str):
         def decorator(handler: Callable[[ckit_cloudtool.FCloudtoolCall, Dict[str, Any]], Awaitable[Union[str, List[Dict[str, str]]]]]):
             self._handler_per_tool[tool_name] = handler
+            return handler
+        return decorator
+
+    def on_updated_erp_record(self, table_name: str):
+        def decorator(handler: Callable[[Any], Awaitable[None]]):
+            if table_name not in erp_schema.ERP_TABLE_TO_SCHEMA:
+                raise ValueError(f"Unknown ERP table {table_name!r}. Known tables: {list(erp_schema.ERP_TABLE_TO_SCHEMA.keys())}")
+            self._handler_per_erp_table[table_name] = handler
             return handler
         return decorator
 
@@ -136,6 +147,17 @@ class RobotContext:
                     await self._handler_updated_task(task)
                 except Exception as e:
                     logger.error("%s error in on_updated_task handler: %s\n%s", self.persona.persona_id, type(e).__name__, e, exc_info=e)
+
+        erp_records = list(self._parked_erp_records)
+        self._parked_erp_records.clear()
+        for table_name, typed_record in erp_records:
+            did_anything = True
+            handler = self._handler_per_erp_table.get(table_name)
+            if handler:
+                try:
+                    await handler(typed_record)
+                except Exception as e:
+                    logger.error("%s error in on_updated_erp_record(%r) handler: %s\n%s", self.persona.persona_id, table_name, type(e).__name__, e, exc_info=e)
 
         mycalls = list(self._parked_toolcalls)
         self._parked_toolcalls.clear()
@@ -284,6 +306,7 @@ class BotsCollection:
         self.thread_tracker: Dict[str, ckit_bot_query.FThreadWithMessages] = {}
         self.running_test_scenario = running_test_scenario
         self.running_happy_yaml = running_happy_yaml
+        self.need_reconnect = False  # Intentional reconnect (for ERP tables detection)
 
 
 async def subscribe_and_produce_callbacks(
@@ -297,10 +320,14 @@ async def subscribe_and_produce_callbacks(
 
     bc.thread_tracker.clear()  # Control reaches this after exception and reconnect, a new subscription will send all the threads anew, need to clear
 
+    want_erp_tables = set()
+    for bot in bc.bots_running.values():
+        want_erp_tables.update(bot.instance_rcx._handler_per_erp_table.keys())
+
     async with ws_client as ws:
         async for r in ws.subscribe(
-            gql.gql(f"""subscription KarenThreads($fgroup_id: String!, $marketable_name: String!, $marketable_version: Int!, $inprocess_tool_names: [String!]!) {{
-                bot_threads_calls_tasks(fgroup_id: $fgroup_id, marketable_name: $marketable_name, marketable_version: $marketable_version, inprocess_tool_names: $inprocess_tool_names, max_threads: {MAX_THREADS}, want_personas: true, want_threads: true, want_messages: true, want_tasks: true) {{
+            gql.gql(f"""subscription KarenThreads($fgroup_id: String!, $marketable_name: String!, $marketable_version: Int!, $inprocess_tool_names: [String!]!, $want_erp_tables: [String!]!) {{
+                bot_threads_calls_tasks(fgroup_id: $fgroup_id, marketable_name: $marketable_name, marketable_version: $marketable_version, inprocess_tool_names: $inprocess_tool_names, max_threads: {MAX_THREADS}, want_personas: true, want_threads: true, want_messages: true, want_tasks: true, want_erp_tables: $want_erp_tables) {{
                     {gql_utils.gql_fields(ckit_bot_query.FBotThreadsCallsTasks)}
                 }}
             }}"""),
@@ -309,6 +336,7 @@ async def subscribe_and_produce_callbacks(
                 "marketable_name": bc.marketable_name,
                 "marketable_version": bc.marketable_version,
                 "inprocess_tool_names": [t.name for t in bc.inprocess_tools],
+                "want_erp_tables": list(want_erp_tables),
             },
         ):
             upd = gql_utils.dataclass_from_dict(r["bot_threads_calls_tasks"], ckit_bot_query.FBotThreadsCallsTasks)
@@ -341,6 +369,20 @@ async def subscribe_and_produce_callbacks(
                             instance_rcx=rcx,
                         )
                         reassign_threads = True
+
+                        # If this is first bot and we didn't have ERP tables, check if it registered and restart subscription
+                        if not want_erp_tables:
+                            for _ in range(20):
+                                if rcx._reached_main_loop:
+                                    break
+                                if await ckit_shutdown.wait(0.1):
+                                    break
+                            await asyncio.sleep(0.1)
+                            new_erp_tables = set(rcx._handler_per_erp_table.keys())
+                            if new_erp_tables:
+                                logger.info("First bot registered ERP tables %s, reconnecting to subscribe to them" % list(new_erp_tables))
+                                bc.need_reconnect = True
+                                break
 
                 elif upd.news_action == "DELETE":
                     handled = True
@@ -444,6 +486,17 @@ async def subscribe_and_produce_callbacks(
                     for p in bc.bots_running.values():
                         if upd.news_payload_id in p.instance_rcx.latest_tasks:
                             del p.instance_rcx.latest_tasks[upd.news_payload_id]
+
+            elif upd.news_about.startswith("erp."):
+                table_name = upd.news_about[4:]
+                if upd.news_action in ["INSERT", "UPDATE"]:
+                    handled = True
+                    typed_record = upd.news_payload_erp_record
+                    for bot in bc.bots_running.values():
+                        bot.instance_rcx._parked_erp_records.append((table_name, typed_record))
+                        bot.instance_rcx._parked_anything_new.set()
+                elif upd.news_action == "DELETE":
+                    handled = True
 
             elif upd.news_action == "INITIAL_UPDATES_OVER":
                 if len(bc.bots_running) == 0:
