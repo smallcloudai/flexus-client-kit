@@ -29,8 +29,6 @@ ACCOUNT STATUS CODES (from Facebook):
 import logging
 from typing import Dict, Any, List
 
-import httpx
-
 from flexus_simple_bots.admonster.integrations import fb_utils
 
 logger = logging.getLogger("fb_ad_account")
@@ -114,15 +112,7 @@ async def list_ad_accounts(integration, args: Dict[str, Any]) -> str:
         "limit": 50
     }
     
-    async def make_request():
-        async with httpx.AsyncClient() as client:
-            response = await client.get(url, params=params, headers=integration.headers, timeout=30.0)
-            if response.status_code != 200:
-                error_msg = await fb_utils.handle_fb_api_error(response)
-                raise fb_utils.FacebookAPIError(response.status_code, error_msg)
-            return response.json()
-    
-    data = await fb_utils.retry_with_backoff(make_request)
+    data = await fb_utils.fb_api_request("GET", url, integration.headers, params=params)
     accounts = data.get("data", [])
     
     if not accounts:
@@ -192,15 +182,7 @@ async def get_ad_account_info(integration, args: Dict[str, Any]) -> str:
         "fields": "id,account_id,name,currency,timezone_name,account_status,balance,amount_spent,spend_cap,business,funding_source_details,min_daily_budget,created_time"
     }
     
-    async def make_request():
-        async with httpx.AsyncClient() as client:
-            response = await client.get(url, params=params, headers=integration.headers, timeout=30.0)
-            if response.status_code != 200:
-                error_msg = await fb_utils.handle_fb_api_error(response)
-                raise fb_utils.FacebookAPIError(response.status_code, error_msg)
-            return response.json()
-    
-    acc = await fb_utils.retry_with_backoff(make_request)
+    acc = await fb_utils.fb_api_request("GET", url, integration.headers, params=params)
     
     account_status = acc.get("account_status", 1)
     status_text = "Active" if account_status == 1 else "Disabled" if account_status == 2 else f"Status {account_status}"
@@ -265,17 +247,8 @@ async def update_spending_limit(integration, args: Dict[str, Any]) -> str:
         return f"✅ Spending limit updated to {fb_utils.format_currency(spending_limit)} for account {ad_account_id}\n\n(Note: This is a test/mock operation)"
     
     url = f"{fb_utils.API_BASE}/{fb_utils.API_VERSION}/{ad_account_id}"
-    data = {"spend_cap": spending_limit}
     
-    async def make_request():
-        async with httpx.AsyncClient() as client:
-            response = await client.post(url, json=data, headers=integration.headers, timeout=30.0)
-            if response.status_code != 200:
-                error_msg = await fb_utils.handle_fb_api_error(response)
-                raise fb_utils.FacebookAPIError(response.status_code, error_msg)
-            return response.json()
-    
-    result = await fb_utils.retry_with_backoff(make_request)
+    result = await fb_utils.fb_api_request("POST", url, integration.headers, data={"spend_cap": spending_limit})
     
     if result.get("success"):
         return f"✅ Spending limit updated to {fb_utils.format_currency(spending_limit)} for account {ad_account_id}"

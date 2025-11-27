@@ -115,6 +115,7 @@ async def install(client: ckit_client.FlexusClient, ws_id: str):
                 fexp_block_tools="*setup*",  # Block setup-related tools in normal mode
                 fexp_allow_tools="",
                 fexp_app_capture_tools=bot_internal_tools,
+                fexp_inactivity_timeout=0,
             )),
             ("setup", ckit_bot_install.FMarketplaceExpertInput(
                 fexp_name="admonster_setup",
@@ -123,6 +124,7 @@ async def install(client: ckit_client.FlexusClient, ws_id: str):
                 fexp_block_tools="",
                 fexp_allow_tools="",
                 fexp_app_capture_tools=bot_internal_tools,
+                fexp_inactivity_timeout=0,
             )),
         ],
         

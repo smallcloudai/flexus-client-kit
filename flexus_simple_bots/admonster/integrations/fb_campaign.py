@@ -19,8 +19,6 @@ EXCEPTION HANDLING:
 import logging
 from typing import Dict, Any
 
-import httpx
-
 from flexus_simple_bots.admonster.integrations import fb_utils
 
 logger = logging.getLogger("fb_campaign")
@@ -107,15 +105,7 @@ async def update_campaign(integration, args: Dict[str, Any]) -> str:
         fb_utils.validate_budget(lifetime_budget)
         data["lifetime_budget"] = lifetime_budget
     
-    async def make_request():
-        async with httpx.AsyncClient() as client:
-            response = await client.post(url, json=data, headers=integration.headers, timeout=30.0)
-            if response.status_code != 200:
-                error_msg = await fb_utils.handle_fb_api_error(response)
-                raise fb_utils.FacebookAPIError(response.status_code, error_msg)
-            return response.json()
-    
-    result = await fb_utils.retry_with_backoff(make_request)
+    result = await fb_utils.fb_api_request("POST", url, integration.headers, data=data)
     
     if result.get("success"):
         updates = []
@@ -161,15 +151,7 @@ Note: Ad sets and ads from the original campaign were also copied.
     get_url = f"{fb_utils.API_BASE}/{fb_utils.API_VERSION}/{campaign_id}"
     get_params = {"fields": "name,objective,status,daily_budget,lifetime_budget,special_ad_categories"}
     
-    async def get_campaign():
-        async with httpx.AsyncClient() as client:
-            response = await client.get(get_url, params=get_params, headers=integration.headers, timeout=30.0)
-            if response.status_code != 200:
-                error_msg = await fb_utils.handle_fb_api_error(response)
-                raise fb_utils.FacebookAPIError(response.status_code, error_msg)
-            return response.json()
-    
-    original = await fb_utils.retry_with_backoff(get_campaign)
+    original = await fb_utils.fb_api_request("GET", get_url, integration.headers, params=get_params)
     
     # Extract ad account ID
     ad_account_id = "act_" + campaign_id.split("_")[0] if "_" in campaign_id else integration.ad_account_id
@@ -186,15 +168,7 @@ Note: Ad sets and ads from the original campaign were also copied.
     if "lifetime_budget" in original:
         create_data["lifetime_budget"] = original["lifetime_budget"]
     
-    async def create_campaign():
-        async with httpx.AsyncClient() as client:
-            response = await client.post(create_url, json=create_data, headers=integration.headers, timeout=30.0)
-            if response.status_code != 200:
-                error_msg = await fb_utils.handle_fb_api_error(response)
-                raise fb_utils.FacebookAPIError(response.status_code, error_msg)
-            return response.json()
-    
-    new_campaign = await fb_utils.retry_with_backoff(create_campaign)
+    new_campaign = await fb_utils.fb_api_request("POST", create_url, integration.headers, data=create_data)
     
     return f"""✅ Campaign duplicated successfully!
 
@@ -217,17 +191,8 @@ async def archive_campaign(integration, args: Dict[str, Any]) -> str:
         return f"✅ Campaign {campaign_id} archived successfully.\n\nThe campaign is now hidden from active views but can be restored if needed."
     
     url = f"{fb_utils.API_BASE}/{fb_utils.API_VERSION}/{campaign_id}"
-    data = {"status": "ARCHIVED"}
     
-    async def make_request():
-        async with httpx.AsyncClient() as client:
-            response = await client.post(url, json=data, headers=integration.headers, timeout=30.0)
-            if response.status_code != 200:
-                error_msg = await fb_utils.handle_fb_api_error(response)
-                raise fb_utils.FacebookAPIError(response.status_code, error_msg)
-            return response.json()
-    
-    result = await fb_utils.retry_with_backoff(make_request)
+    result = await fb_utils.fb_api_request("POST", url, integration.headers, data={"status": "ARCHIVED"})
     
     if result.get("success"):
         return f"✅ Campaign {campaign_id} archived successfully.\n\nThe campaign is now hidden from active views but can be restored if needed."
@@ -286,15 +251,7 @@ async def bulk_update_campaigns(integration, args: Dict[str, Any]) -> str:
             continue
         
         try:
-            async def make_request():
-                async with httpx.AsyncClient() as client:
-                    response = await client.post(url, json=data, headers=integration.headers, timeout=30.0)
-                    if response.status_code != 200:
-                        error_msg = await fb_utils.handle_fb_api_error(response)
-                        raise fb_utils.FacebookAPIError(response.status_code, error_msg)
-                    return response.json()
-            
-            result = await fb_utils.retry_with_backoff(make_request)
+            result = await fb_utils.fb_api_request("POST", url, integration.headers, data=data)
             
             if result.get("success"):
                 updates = ", ".join([f"{k}={v}" for k, v in data.items()])
