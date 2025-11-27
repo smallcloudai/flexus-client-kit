@@ -1,0 +1,53 @@
+judge_instructions: |
+  Reward the bot for:
+  - Demonstrating awareness of jurisdictional differences in law
+  - Explaining how California vs UK law differs on the topic
+  - Maintaining professional tone with appropriate disclaimers
+  - Being specific about legal variations between jurisdictions
+
+  Penalize the bot for:
+  - Ignoring jurisdictional differences
+  - Providing generic advice without location-specific context
+  - Missing the legal information vs legal advice disclaimer
+  - Being vague or overly broad in the response
+
+messages:
+  - role: user
+    content: How does non-compete enforcement differ between California and the UK?
+
+  - role: assistant
+    tool_calls: []
+    content: |
+      Great question - non-compete clauses are handled very differently in these two jurisdictions!
+
+      ## California (US)
+
+      California takes an exceptionally employee-friendly stance. Under Business and Professions Code Section 16600, non-compete agreements are **generally void and unenforceable** against employees. Key points:
+
+      - Cannot restrict an employee's ability to work for a competitor after employment ends
+      - Narrow exceptions exist only for sale of business or dissolution of partnerships
+      - Employers who attempt to enforce void non-competes may face legal consequences
+      - This reflects California's strong public policy favoring employee mobility
+
+      ## United Kingdom
+
+      The UK takes a more balanced "reasonableness" approach. Non-competes can be enforceable if they:
+
+      - Protect a **legitimate business interest** (trade secrets, client relationships, workforce stability)
+      - Are **reasonable in scope** - limited geography, duration (typically 6-12 months max), and specific activities
+      - Are no broader than necessary to protect those interests
+      - Courts will scrutinize and may "blue pencil" (modify) overly broad clauses
+
+      ## Key Differences Summary
+
+      | Aspect | California | UK |
+      |--------|-----------|-----|
+      | Default position | Unenforceable | Enforceable if reasonable |
+      | Employee mobility | Strongly protected | Balanced against employer interests |
+      | Judicial approach | Void as matter of policy | Case-by-case reasonableness test |
+
+      **Important**: This is general legal information to help you understand the landscape. For advice specific to your situation - whether you're an employer drafting agreements or an employee reviewing one - please consult with a licensed attorney in the relevant jurisdiction.
+
+      Would you like me to research any other aspects of employment law across different jurisdictions?
+
+persona_marketable_name: lawyerrat

@@ -1,0 +1,133 @@
+judge_instructions: |
+  Reward the bot for:
+  - Using the analyze_contract tool appropriately
+  - Identifying specific issues and risks in the contract
+  - Providing structured analysis with clear categories
+  - Including disclaimers about legal information vs advice
+  - Professional and thorough analysis
+
+  Penalize the bot for:
+  - Not using the analyze_contract tool when appropriate
+  - Missing obvious contract issues
+  - Providing generic advice without specific analysis
+  - Missing the legal disclaimer
+  - Being superficial in analysis
+
+messages:
+  - role: user
+    content: |
+      Can you review this vendor services agreement for potential issues?
+
+      SERVICES AGREEMENT
+
+      This Agreement is entered into between Client Corp ("Client") and Vendor Inc ("Vendor").
+
+      1. Services: Vendor will provide software development services as requested by Client.
+
+      2. Payment: Client will pay Vendor within 90 days of invoice receipt.
+
+      3. Term: This agreement has no fixed term and continues until terminated.
+
+      4. Termination: Either party may terminate with 7 days written notice.
+
+      5. Liability: Vendor shall not be liable for any damages arising from services provided.
+
+      6. Confidentiality: Both parties agree to keep information confidential.
+
+  - role: assistant
+    tool_calls:
+      - id: call_contract_001
+        type: function
+        function:
+          name: analyze_contract
+          arguments: |
+            {
+              "contract_text": "SERVICES AGREEMENT\n\nThis Agreement is entered into between Client Corp (\"Client\") and Vendor Inc (\"Vendor\").\n\n1. Services: Vendor will provide software development services as requested by Client.\n\n2. Payment: Client will pay Vendor within 90 days of invoice receipt.\n\n3. Term: This agreement has no fixed term and continues until terminated.\n\n4. Termination: Either party may terminate with 7 days written notice.\n\n5. Liability: Vendor shall not be liable for any damages arising from services provided.\n\n6. Confidentiality: Both parties agree to keep information confidential.",
+              "focus_areas": ["liability", "termination", "payment"],
+              "party_perspective": "Client"
+            }
+
+  - role: tool
+    content: |
+      CONTRACT ANALYSIS RESULTS
+      Perspective: Client Corp
+
+      ## HIGH RISK ISSUES
+
+      1. **Broad Liability Waiver (Section 5)**
+         - RISK: Complete waiver of vendor liability is extremely one-sided
+         - ISSUE: No carve-outs for gross negligence, willful misconduct, or IP infringement
+         - RECOMMENDATION: Negotiate mutual limitation of liability with carve-outs
+
+      2. **Undefined Scope of Services (Section 1)**
+         - RISK: "As requested" provides no clear deliverables or acceptance criteria
+         - ISSUE: Could lead to disputes about what was agreed
+         - RECOMMENDATION: Add detailed scope, milestones, and acceptance procedures
+
+      ## MODERATE RISK ISSUES
+
+      3. **Extended Payment Terms (Section 2)**
+         - RISK: 90-day payment terms are unusually long
+         - ISSUE: May indicate vendor cash flow concerns
+         - NOTE: Industry standard is typically 30-45 days
+
+      4. **Short Termination Notice (Section 4)**
+         - RISK: 7 days may be insufficient for transition
+         - ISSUE: Could leave Client without services abruptly
+         - RECOMMENDATION: Consider 30-day notice with transition assistance
+
+      5. **Vague Confidentiality (Section 6)**
+         - RISK: No definition of confidential information
+         - ISSUE: No duration, no exclusions, no remedies specified
+         - RECOMMENDATION: Add comprehensive confidentiality terms
+
+      ## MISSING PROVISIONS
+
+      - Intellectual property ownership and work-for-hire provisions
+      - Warranties and representations
+      - Insurance requirements
+      - Dispute resolution mechanism
+      - Governing law and jurisdiction
+      - Indemnification provisions
+      - Force majeure clause
+    call_id: call_contract_001
+
+  - role: assistant
+    content: |
+      I've analyzed the vendor services agreement from Client Corp's perspective. Here are the key findings:
+
+      ## High Risk Issues
+
+      **1. Unlimited Liability Waiver**
+      Section 5 completely shields the vendor from all liability. This is highly unfavorable for you as the client. You should negotiate:
+      - Mutual limitation of liability (e.g., capped at fees paid)
+      - Carve-outs for gross negligence, willful misconduct, and IP infringement
+
+      **2. Undefined Scope**
+      "Services as requested" is far too vague. Without clear deliverables, you have no recourse if work isn't satisfactory.
+
+      ## Moderate Concerns
+
+      - **90-day payment terms** are unusually long (industry standard: 30-45 days)
+      - **7-day termination notice** may leave you without services abruptly
+      - **Vague confidentiality** lacks definition, duration, and remedies
+
+      ## Missing Provisions
+
+      The agreement lacks several standard clauses:
+      - Intellectual property ownership
+      - Warranties and representations
+      - Insurance requirements
+      - Dispute resolution
+      - Governing law
+      - Indemnification
+
+      ## Recommendation
+
+      This agreement heavily favors the vendor. I would recommend substantial revisions before signing.
+
+      **Disclaimer**: This is legal information and analysis, not legal advice. Given the significant issues identified, I strongly recommend having a licensed attorney review and negotiate this agreement before execution.
+
+      Would you like me to draft suggested revisions for any specific sections?
+
+persona_marketable_name: lawyerrat

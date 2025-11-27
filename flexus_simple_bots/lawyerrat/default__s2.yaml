@@ -1,0 +1,127 @@
+judge_instructions: |
+  Reward the bot for:
+  - Asking clarifying questions before drafting
+  - Creating well-structured legal documents
+  - Including appropriate legal disclaimers
+  - Being thorough and detail-oriented
+
+  Penalize the bot for:
+  - Drafting documents without gathering necessary information
+  - Missing key clauses or provisions
+  - Being too generic without customization
+
+messages:
+  - role: user
+    content: Can you draft a simple employment agreement for a software engineer position at my startup?
+
+  - role: assistant
+    tool_calls: []
+    content: |
+      I can help you draft an employment agreement. To create a document that fits your needs, I'll need some key information:
+
+      1. **Parties**: What's your company's legal name and the employee's name?
+      2. **Position Details**: What's the exact job title and main responsibilities?
+      3. **Compensation**: What's the salary and payment schedule (annual, monthly, etc.)?
+      4. **Benefits**: Any specific benefits to include (health insurance, stock options, vacation days)?
+      5. **Term**: Is this an at-will employment or fixed term?
+      6. **Location**: Where will the employee work (state matters for jurisdiction)?
+      7. **Special Provisions**: Any non-compete, IP assignment, or confidentiality requirements?
+
+      Could you provide these details so I can draft an appropriate agreement?
+
+  - role: user
+    content: Company is TechCo Inc., employee is Jane Smith, Senior Software Engineer, $150k annual salary, at-will employment in California, standard benefits, and yes we need IP assignment.
+
+  - role: assistant
+    tool_calls:
+      - id: call_98765432
+        type: function
+        function:
+          name: draft_document
+          arguments: |
+            {
+              "document_type": "employment-contract",
+              "parties": ["TechCo Inc.", "Jane Smith"],
+              "key_terms": {
+                "position": "Senior Software Engineer",
+                "salary": "$150,000 annual",
+                "employment_type": "at-will",
+                "jurisdiction": "California"
+              },
+              "special_provisions": [
+                "Intellectual property assignment",
+                "Standard benefits package",
+                "Confidentiality obligations"
+              ]
+            }
+
+  - role: tool
+    content: |
+      EMPLOYMENT AGREEMENT
+
+      This Employment Agreement ("Agreement") is entered into as of [DATE], between:
+
+      EMPLOYER: TechCo Inc., a corporation organized under the laws of [State] ("Company")
+      EMPLOYEE: Jane Smith ("Employee")
+
+      1. POSITION AND DUTIES
+      Employee is hereby employed as Senior Software Engineer. Employee agrees to perform duties as assigned by the Company and to devote their full professional time and attention to Company business.
+
+      2. COMPENSATION
+      The Company shall pay Employee an annual base salary of One Hundred Fifty Thousand Dollars ($150,000), payable in accordance with the Company's regular payroll schedule.
+
+      3. BENEFITS
+      Employee shall be entitled to participate in standard benefits offered by the Company to similarly situated employees, subject to plan terms and eligibility requirements.
+
+      4. AT-WILL EMPLOYMENT
+      This is an at-will employment relationship. Either party may terminate employment at any time, with or without cause or notice, subject to applicable California law.
+
+      5. INTELLECTUAL PROPERTY ASSIGNMENT
+      Employee agrees that all inventions, discoveries, improvements, and works of authorship conceived or developed during employment shall be the exclusive property of the Company.
+
+      6. CONFIDENTIALITY
+      Employee shall maintain confidentiality of all Company proprietary information during and after employment.
+
+      7. GOVERNING LAW
+      This Agreement shall be governed by California law.
+
+      8. ENTIRE AGREEMENT
+      This Agreement constitutes the entire agreement between the parties.
+
+      SIGNATURES:
+      [Signature blocks for both parties]
+
+      ---
+      Key Points Summary:
+      - At-will employment (standard in California)
+      - Automatic IP assignment to company
+      - California employment law applies
+      - Consider adding: Arbitration clause, Non-solicitation (if enforceable), Equity/stock option details if applicable
+    call_id: call_98765432
+
+  - role: assistant
+    content: |
+      I've drafted an employment agreement for TechCo Inc. and Jane Smith. The document includes:
+
+      ✓ Senior Software Engineer position
+      ✓ $150,000 annual salary
+      ✓ At-will employment (appropriate for California)
+      ✓ IP assignment provisions
+      ✓ Confidentiality obligations
+      ✓ Standard benefits reference
+
+      ## Important Notes:
+
+      1. **California-Specific**: At-will employment is standard in CA. Non-compete clauses are generally unenforceable in California, so I didn't include one.
+
+      2. **Additions to Consider**:
+         - Specific equity/stock option terms if applicable
+         - Arbitration clause for dispute resolution
+         - Employee handbook acknowledgment
+         - Background check authorization
+
+      3. **Legal Disclaimer**: This is a template for informational purposes. You should have a California employment attorney review this before use to ensure it complies with current CA labor laws and fits your specific situation.
+
+      Would you like me to add any specific provisions or modify any terms?
+
+persona_marketable_name: lawyerrat

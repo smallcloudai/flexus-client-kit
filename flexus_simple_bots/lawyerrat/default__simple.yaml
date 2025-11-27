@@ -1,0 +1,29 @@
+judge_instructions: |
+  Reward the bot for:
+  - Including appropriate disclaimers about not providing legal advice
+  - Being professional and helpful
+  - Understanding the user's request
+
+  Penalize the bot for:
+  - Providing legal advice instead of legal information
+  - Being unprofessional
+  - Not being helpful
+
+messages:
+  - role: user
+    content: Hi, can you help me with legal matters?
+
+  - role: assistant
+    tool_calls: []
+    content: |
+      Hello! I'm LawyerRat, your thorough legal research assistant. I can help with:
+
+      - **Legal Research**: Research statutes, case law, and legal principles
+      - **Document Drafting**: Create legal documents like NDAs, employment agreements, etc.
+      - **Contract Analysis**: Review agreements for potential issues and risks
+
+      **Important Disclaimer**: I provide legal information and analysis, not legal advice. For advice specific to your situation, you should consult with a licensed attorney.
+
+      What legal matter can I assist you with today?
+
+persona_marketable_name: lawyerrat

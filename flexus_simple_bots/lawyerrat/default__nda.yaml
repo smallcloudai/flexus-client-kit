@@ -1,0 +1,169 @@
+judge_instructions: |
+  Reward the bot for:
+  - Asking clarifying questions before drafting
+  - Gathering necessary information (parties, jurisdiction, mutual/unilateral)
+  - Using the draft_document tool with appropriate parameters
+  - Including disclaimers about legal information vs advice
+  - Professional and thorough drafting
+
+  Penalize the bot for:
+  - Drafting without asking clarifying questions
+  - Using generic template without customization
+  - Missing important NDA elements
+  - Not including legal disclaimer
+  - Unprofessional response
+
+messages:
+  - role: user
+    content: I need an NDA for discussions with a potential business partner.
+
+  - role: assistant
+    tool_calls: []
+    content: |
+      I can help draft an NDA for your business discussions. To create an appropriate agreement, I need some information:
+
+      1. **Type of NDA**: Should this be mutual (both parties share confidential information) or unilateral (only one party shares)?
+
+      2. **Parties**: What are the names of the parties involved?
+
+      3. **Purpose**: What is the general purpose of the discussions (e.g., potential partnership, acquisition, joint venture)?
+
+      4. **Jurisdiction**: Which state or country's laws should govern the agreement?
+
+      5. **Duration**: How long should the confidentiality obligations last after the agreement ends?
+
+      6. **Special Provisions**: Are there any specific types of information that must be protected (e.g., trade secrets, customer lists, financial data)?
+
+  - role: user
+    content: |
+      It should be mutual since we'll both be sharing information. The parties are TechStart LLC and Innovation Partners Inc. We're discussing a potential joint venture for a new product. California law should govern. Confidentiality should last 3 years after termination. We particularly need to protect our proprietary algorithms and customer data.
+
+  - role: assistant
+    tool_calls:
+      - id: call_nda_001
+        type: function
+        function:
+          name: draft_document
+          arguments: |
+            {
+              "document_type": "NDA",
+              "parties": ["TechStart LLC", "Innovation Partners Inc"],
+              "key_terms": {
+                "type": "mutual",
+                "purpose": "joint venture discussions for new product development",
+                "governing_law": "California",
+                "confidentiality_duration": "3 years after termination",
+                "protected_information": ["proprietary algorithms", "customer data", "trade secrets"]
+              },
+              "special_provisions": ["Mutual confidentiality obligations", "Specific protection for algorithms and customer data", "California choice of law"]
+            }
+
+  - role: tool
+    content: |
+      MUTUAL NON-DISCLOSURE AGREEMENT
+
+      This Mutual Non-Disclosure Agreement ("Agreement") is entered into as of [DATE] by and between:
+
+      TechStart LLC ("Party A")
+      and
+      Innovation Partners Inc ("Party B")
+
+      (collectively, the "Parties")
+
+      RECITALS
+
+      WHEREAS, the Parties wish to explore a potential joint venture for new product development (the "Purpose"); and
+
+      WHEREAS, in connection with the Purpose, each Party may disclose certain Confidential Information to the other Party.
+
+      NOW, THEREFORE, the Parties agree as follows:
+
+      1. DEFINITION OF CONFIDENTIAL INFORMATION
+
+      "Confidential Information" means any non-public information disclosed by either Party, including but not limited to:
+      (a) Proprietary algorithms and software code
+      (b) Customer data and customer lists
+      (c) Trade secrets and know-how
+      (d) Business plans and financial information
+      (e) Technical specifications and designs
+      (f) Any information marked as "Confidential" or disclosed under circumstances indicating confidentiality
+
+      2. OBLIGATIONS
+
+      Each Party agrees to:
+      (a) Maintain the confidentiality of the other Party's Confidential Information
+      (b) Use Confidential Information solely for the Purpose
+      (c) Limit disclosure to employees and contractors with a need to know
+      (d) Protect Confidential Information with reasonable care, but no less than the care used to protect its own confidential information
+
+      3. EXCLUSIONS
+
+      Confidential Information does not include information that:
+      (a) Is or becomes publicly available without breach of this Agreement
+      (b) Was known to the Receiving Party prior to disclosure
+      (c) Is independently developed without use of Confidential Information
+      (d) Is rightfully obtained from a third party without restriction
+
+      4. TERM AND DURATION
+
+      This Agreement shall remain in effect for two (2) years from the Effective Date or until terminated by either Party with thirty (30) days written notice. Confidentiality obligations shall survive termination for three (3) years.
+
+      5. RETURN OF MATERIALS
+
+      Upon termination or request, each Party shall return or destroy all Confidential Information and certify such destruction in writing.
+
+      6. REMEDIES
+
+      Each Party acknowledges that breach may cause irreparable harm and agrees that the non-breaching Party shall be entitled to seek injunctive relief in addition to other remedies.
+
+      7. GOVERNING LAW
+
+      This Agreement shall be governed by the laws of the State of California, without regard to conflicts of law principles.
+
+      8. ENTIRE AGREEMENT
+
+      This Agreement constitutes the entire agreement between the Parties regarding the subject matter hereof.
+
+      IN WITNESS WHEREOF, the Parties have executed this Agreement as of the date first written above.
+
+      TechStart LLC                    Innovation Partners Inc
+      By: _____________________        By: _____________________
+      Name:                            Name:
+      Title:                           Title:
+      Date:                            Date:
+    call_id: call_nda_001
+
+  - role: assistant
+    content: |
+      I've drafted a mutual NDA for TechStart LLC and Innovation Partners Inc. Here's a summary of the key provisions:
+
+      ## Document Summary
+
+      **Type**: Mutual NDA (both parties protected)
+      **Parties**: TechStart LLC and Innovation Partners Inc
+      **Purpose**: Joint venture discussions for new product development
+      **Governing Law**: California
+
+      ## Key Provisions
+
+      1. **Protected Information**: Specifically covers proprietary algorithms, customer data, trade secrets, business plans, and technical specifications
+
+      2. **Confidentiality Duration**: Obligations survive for 3 years after termination, as you requested
+
+      3. **Standard Exclusions**: Public information, prior knowledge, independent development, and third-party sources
+
+      4. **Remedies**: Includes injunctive relief provision for breach
+
+      5. **Return of Materials**: Requires return or destruction with written certification
+
+      ## Next Steps
+
+      - Fill in the effective date
+      - Have authorized representatives sign for each party
+      - Consider having your attorney review before execution
+
+      **Important Disclaimer**: This is a template document providing legal information. Before executing this NDA, I recommend having a licensed California attorney review it to ensure it meets your specific needs and complies with current California law.
+
+      Would you like me to modify any provisions or add additional terms?
+
+persona_marketable_name: lawyerrat

@@ -1,0 +1,93 @@
+judge_instructions: |
+  Reward the bot for:
+  - Including appropriate disclaimers about not providing legal advice
+  - Providing thorough and structured legal analysis
+  - Using proper legal terminology
+  - Being professional and detail-oriented
+
+  Penalize the bot for:
+  - Providing legal advice instead of legal information
+  - Missing important disclaimers
+  - Being too casual or unprofessional
+  - Providing incomplete or superficial analysis
+
+messages:
+  - role: user
+    content: I need help understanding non-disclosure agreements. What are the key elements I should look for?
+
+  - role: assistant
+    tool_calls:
+      - id: call_12345678
+        type: function
+        function:
+          name: legal_research
+          arguments: '{"topic":"non-disclosure agreements key elements","depth":3}'
+
+  - role: tool
+    content: |
+      Research completed on non-disclosure agreements (NDAs).
+
+      Key Elements of NDAs:
+
+      1. Definition of Confidential Information
+      - Must clearly specify what constitutes confidential information
+      - Can use broad or narrow definitions depending on needs
+
+      2. Obligations and Duties
+      - Recipient's duty to maintain confidentiality
+      - Permitted uses of confidential information
+      - Standard of care required (reasonable care, best efforts, etc.)
+
+      3. Exclusions from Confidential Information
+      - Publicly available information
+      - Information independently developed
+      - Information received from third parties
+      - Information known prior to disclosure
+
+      4. Term and Duration
+      - How long confidentiality obligations last
+      - Survival provisions after agreement termination
+
+      5. Return or Destruction
+      - Requirements for returning/destroying confidential materials
+      - Timing and certification requirements
+
+      6. Remedies
+      - Injunctive relief provisions
+      - Damages and liability
+      - Attorney's fees clauses
+
+      7. Governing Law and Jurisdiction
+      - Which state/country law applies
+      - Venue for disputes
+
+      Citation: See generally, Restatement (Third) of Unfair Competition § 39 (1995); Uniform Trade Secrets Act.
+    call_id: call_12345678
+
+  - role: assistant
+    content: |
+      Based on my research, here are the key elements you should look for in a non-disclosure agreement (NDA):
+
+      ## Essential NDA Components
+
+      1. **Definition of Confidential Information** - The agreement should clearly specify what information is protected
+
+      2. **Obligations and Duties** - How the receiving party must handle the confidential information
+
+      3. **Exclusions** - Standard carve-outs like publicly available information or independently developed information
+
+      4. **Term and Duration** - How long the confidentiality obligations last
+
+      5. **Return or Destruction** - What happens to confidential materials when the agreement ends
+
+      6. **Remedies** - What happens if there's a breach (injunctions, damages, etc.)
+
+      7. **Governing Law** - Which jurisdiction's laws apply
+
+      ## Important Disclaimer
+
+      Please note: I'm providing legal information to help you understand NDAs, not legal advice for your specific situation. For advice tailored to your particular circumstances, you should consult with a licensed attorney who can review your specific needs and draft or review an NDA appropriate for your situation.
+
+      Would you like me to draft a sample NDA or analyze a specific NDA you're reviewing?
+
+persona_marketable_name: lawyerrat

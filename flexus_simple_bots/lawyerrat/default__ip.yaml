@@ -1,0 +1,161 @@
+judge_instructions: |
+  Reward the bot for:
+  - Using the legal_research tool appropriately for IP protection research
+  - Providing structured, thorough analysis of IP protection strategies
+  - Including appropriate legal disclaimers
+  - Being specific about different types of IP (patents, trademarks, copyrights, trade secrets)
+  - Offering practical next steps
+
+  Penalize the bot for:
+  - Not using the legal_research tool when appropriate
+  - Being too generic without specific IP protection strategies
+  - Missing key IP categories
+  - Failing to include legal disclaimer
+  - Providing actual legal advice rather than information
+
+messages:
+  - role: user
+    content: I'm launching a software startup and need to understand how to protect my intellectual property. What should I know?
+
+  - role: assistant
+    tool_calls:
+      - id: call_ip_research_001
+        type: function
+        function:
+          name: legal_research
+          arguments: |
+            {
+              "topic": "intellectual property protection strategies for software startups",
+              "jurisdiction": "US-Federal",
+              "depth": 4
+            }
+
+  - role: tool
+    content: |
+      # IP Protection Strategies for Software Startups
+
+      ## 1. Trade Secrets (Strongest for Early-Stage Startups)
+
+      **What qualifies**: Source code, algorithms, customer lists, business processes, technical know-how
+
+      **Protection methods**:
+      - Implement confidentiality agreements (NDAs) with all employees, contractors, and partners
+      - Restrict access to sensitive code and documentation on need-to-know basis
+      - Use technical measures: encryption, access logs, secure development environments
+      - Mark confidential materials clearly
+      - Conduct exit interviews and remind departing employees of obligations
+
+      **Legal framework**: Defend Trade Secrets Act (2016), state UTSA adoptions
+
+      **Duration**: Indefinite, as long as secrecy is maintained
+
+      ## 2. Copyright (Automatic Protection)
+
+      **What's protected**: Source code, documentation, UI designs, graphics, training materials
+
+      **Key points**:
+      - Automatic upon creation (no registration required for basic protection)
+      - Registration recommended: enables statutory damages ($150K max per willful infringement) and attorney fees
+      - Work-for-hire doctrine: ensure employee agreements assign copyright
+      - Independent contractor work requires explicit written assignment
+
+      **Registration**: US Copyright Office, $45-65 per application
+
+      ## 3. Patents (For Novel Innovations)
+
+      **Patentable subject matter**:
+      - Novel algorithms with technical effect (post-Alice considerations)
+      - Hardware-software integrations
+      - User interface innovations tied to technical improvements
+      - Data processing methods with concrete technical benefits
+
+      **Considerations**:
+      - Provisional application: 12-month placeholder, ~$1,600 (small entity)
+      - Full utility patent: 3-5 years, $15,000-30,000 total cost
+      - Software patents face heightened scrutiny under Alice v. CLS Bank
+      - Consider international filing (PCT) within 12 months of provisional
+
+      ## 4. Trademarks (Brand Protection)
+
+      **Protectable elements**: Company name, product names, logos, taglines, distinctive UI elements
+
+      **Recommended actions**:
+      - Clearance search before launch ($500-2,000 with attorney)
+      - Federal registration: $250-350 per class, stronger enforcement
+      - Common law rights from use, but limited geographic scope
+      - Monitor for infringement once established
+
+      ## 5. Employee and Contractor Agreements
+
+      **Essential provisions**:
+      - IP assignment: All work product owned by company
+      - Confidentiality: Ongoing obligation beyond employment
+      - Prior inventions disclosure: Clear what employee brings in
+      - Non-solicitation (where enforceable)
+
+      ## 6. Open Source Compliance
+
+      **Risks to manage**:
+      - Copyleft licenses (GPL) may require source disclosure
+      - Attribution requirements (Apache, MIT)
+      - License compatibility in combined works
+
+      **Best practices**:
+      - Maintain software bill of materials (SBOM)
+      - Establish approval process for new dependencies
+      - Consider commercial tools for license scanning
+
+      ---
+
+      **Priority Actions for New Startups**:
+      1. Implement NDAs and IP assignment agreements immediately
+      2. Register trademarks for company/product names before launch
+      3. Consider provisional patent filing if core technology is novel
+      4. Copyright registration for flagship product code
+      5. Establish open source usage policy
+
+      *Citations: 17 U.S.C. §§ 101-122 (Copyright); 35 U.S.C. §§ 101-103 (Patents); 15 U.S.C. § 1051 (Trademarks); 18 U.S.C. § 1836 (DTSA)*
+    call_id: call_ip_research_001
+
+  - role: assistant
+    content: |
+      I've researched IP protection strategies for software startups. Here's a comprehensive overview of what you should know:
+
+      ## Key IP Protection Categories
+
+      ### 1. Trade Secrets - Your First Line of Defense
+      This is often the most practical protection for startups. Your source code, algorithms, and business processes can be protected indefinitely through:
+      - NDAs with everyone who has access
+      - Access controls and security measures
+      - Clear confidentiality policies
+
+      ### 2. Copyright - Automatic but Registration Helps
+      Your code is automatically copyrighted when written, but I'd recommend federal registration for your core product. Benefits include:
+      - Statutory damages up to $150K per willful infringement
+      - Ability to recover attorney fees
+      - Cost: Only $45-65 per application
+
+      ### 3. Patents - For Truly Novel Technology
+      Software patents face scrutiny post-Alice, but can still protect:
+      - Novel algorithms with technical effects
+      - Hardware-software integrations
+      - Innovative data processing methods
+
+      Consider a provisional patent ($1,600) as a 12-month placeholder while you evaluate full patent filing.
+
+      ### 4. Trademarks - Brand Protection
+      Register your company name and product names before launch. A clearance search ($500-2,000) prevents costly rebranding later.
+
+      ## Immediate Action Items
+
+      1. Get IP assignment agreements signed by all team members
+      2. Implement NDAs for anyone seeing your code or business plans
+      3. File trademark applications for your brand
+      4. Establish open source compliance policy
+      5. Consider provisional patent if you have novel technology
+
+      **Important Disclaimer**: This is legal information to help you understand your options. For specific advice on your startup's IP strategy, patent applications, or trademark filings, please consult with an IP attorney who can evaluate your particular technology and business situation.
+
+      Would you like me to draft any specific agreements or research any of these areas in more depth?
+
+persona_marketable_name: lawyerrat

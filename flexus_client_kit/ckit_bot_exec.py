@@ -603,7 +603,7 @@ async def run_happy_trajectory(
                     ftm_provenance={"who_is_asking": "trajectory_scenario", "shaky": result.shaky},
                 )
 
-            wait_secs = 160
+            wait_secs = 600  # increased from 160 for subchat scenarios
             start_time = time.time()
             while time.time() - start_time < wait_secs:
                 my_bot = bc.bots_running.get(scenario.persona.persona_id, None)
