@@ -1,9 +1,9 @@
 from dataclasses import dataclass, field
-from typing import Any, List, Optional, Dict, Union
+from typing import Any, List, Optional, Dict
 
 import gql
 
-from flexus_client_kit import ckit_client, gql_utils, ckit_kanban, ckit_shutdown, ckit_cloudtool, ckit_ask_model, erp_schema
+from flexus_client_kit import ckit_client, gql_utils, ckit_kanban, ckit_shutdown, ckit_cloudtool, ckit_ask_model
 
 
 @dataclass
@@ -45,7 +45,7 @@ class FBotThreadsCallsTasks:
     news_payload_persona: Optional[FPersonaOutput]
     news_payload_toolcall: Optional[ckit_cloudtool.FCloudtoolCall]
     news_payload_task: Optional[ckit_kanban.FPersonaKanbanTaskOutput]
-    news_payload_erp_record: Optional[Union[erp_schema.ProductProduct, erp_schema.ProductTemplate, erp_schema.CrmContact, erp_schema.CrmTask]] = None
+    news_payload_erp_record: Optional[Dict[str, Any]] = None
 
 
 @dataclass

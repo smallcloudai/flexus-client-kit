@@ -64,20 +64,7 @@ def dataclass_from_dict(data: Dict[str, Any], cls: Type[T]) -> T:
             if hasattr(field_type, "__origin__") and field_type.__origin__ is Union:
                 inner_types = [arg for arg in field_type.__args__ if arg is not type(None)]
                 if inner_types:
-                    # Try to discriminate between Union types based on which has matching fields
-                    if len(inner_types) > 1 and isinstance(field_value, dict) and all(hasattr(t, "__annotations__") for t in inner_types):
-                        best_match = None
-                        best_match_count = 0
-                        for candidate_type in inner_types:
-                            candidate_fields = set(candidate_type.__annotations__.keys())
-                            data_fields = set(field_value.keys())
-                            match_count = len(candidate_fields & data_fields)
-                            if match_count > best_match_count:
-                                best_match = candidate_type
-                                best_match_count = match_count
-                        field_type = best_match if best_match else inner_types[0]
-                    else:
-                        field_type = inner_types[0]
+                    field_type = inner_types[0]
             # JSON scalar types should pass through as-is (already parsed)
             is_json = (
                 getattr(field_type, '__name__', None) == 'JSON' or
@@ -121,43 +108,16 @@ def gql_fields(cls: Type[Any], depth: int = 4) -> str:
         origin = getattr(field_type, "__origin__", None)
         args = getattr(field_type, "__args__", [])
 
-        # Optional: unwrap only if Union[T, None] or Union[None, T]
-        unwrapped_type = field_type
+        # Unwrap Optional
         if origin is Union and len(args) == 2 and type(None) in args:
             non_none_args = [arg for arg in args if arg is not type(None)]
             if len(non_none_args) == 1:
-                unwrapped_type = non_none_args[0]
-                field_type = unwrapped_type
+                field_type = non_none_args[0]
                 origin = getattr(field_type, "__origin__", None)
                 args = getattr(field_type, "__args__", [])
 
-        # Skip ERP relation fields
-        if dataclasses.is_dataclass(unwrapped_type):
-            module_name = getattr(unwrapped_type, '__module__', '')
-            if module_name == 'flexus_client_kit.erp_schema':
-                continue
-
-        # Union (non-optional unions, or after unwrapping Optional)
-        if origin is Union:
-            union_types = [arg for arg in args if arg is not type(None)]
-            if union_types and all(hasattr(t, "__annotations__") for t in union_types):
-                fragments = []
-                for union_member in union_types:
-                    type_name = union_member.__name__
-                    if not type_name.endswith("Output"):
-                        type_name = type_name + "Output"
-                    nested_fields = gql_fields(union_member, depth + 1)
-                    if nested_fields:
-                        fragments.append(f"{indent}    ... on {type_name} {{\n{nested_fields}\n{indent}    }}")
-                if fragments:
-                    result.append(f"{indent}{field_name} {{\n" + "\n".join(fragments) + f"\n{indent}}}")
-                else:
-                    result.append(f"{indent}{field_name}")
-            else:
-                result.append(f"{indent}{field_name}")
-
         # List
-        elif origin is list and args:
+        if origin is list and args:
             inner_type = args[0]
             if hasattr(inner_type, "__annotations__"):
                 nested_fields = gql_fields(inner_type, depth + 1)

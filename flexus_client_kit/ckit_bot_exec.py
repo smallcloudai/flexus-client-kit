@@ -73,7 +73,7 @@ class RobotContext:
         self._parked_threads: Dict[str, ckit_ask_model.FThreadOutput] = {}
         self._parked_tasks: Dict[str, ckit_kanban.FPersonaKanbanTaskOutput] = {}
         self._parked_toolcalls: List[ckit_cloudtool.FCloudtoolCall] = []
-        self._parked_erp_records: List[tuple[str, Any]] = []
+        self._parked_erp_records: List[tuple[str, Dict[str, Any]]] = []
         self._parked_anything_new = asyncio.Event()
         # These fields are designed for direct access:
         self.fclient = fclient
@@ -150,11 +150,13 @@ class RobotContext:
 
         erp_records = list(self._parked_erp_records)
         self._parked_erp_records.clear()
-        for table_name, typed_record in erp_records:
+        for table_name, record_dict in erp_records:
             did_anything = True
             handler = self._handler_per_erp_table.get(table_name)
             if handler:
                 try:
+                    dataclass_type = erp_schema.ERP_TABLE_TO_SCHEMA[table_name]
+                    typed_record = gql_utils.dataclass_from_dict(record_dict, dataclass_type)
                     await handler(typed_record)
                 except Exception as e:
                     logger.error("%s error in on_updated_erp_record(%r) handler: %s\n%s", self.persona.persona_id, table_name, type(e).__name__, e, exc_info=e)
