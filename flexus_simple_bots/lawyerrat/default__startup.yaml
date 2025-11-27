@@ -1,0 +1,88 @@
+judge_instructions: |
+  Reward the bot for:
+  - Providing comprehensive checklist of legal requirements for startups
+  - Organizing information by category (formation, IP, employment, etc.)
+  - Mentioning timing considerations (what to do first vs. later)
+  - Including practical action items
+  - Recommending attorney consultation for key decisions
+
+  Penalize the bot for:
+  - Missing major legal areas important for startups
+  - Providing advice without understanding the startup's specifics
+  - Not mentioning the importance of professional legal guidance
+  - Overwhelming with too much detail without structure
+  - Failing to prioritize what's most urgent
+
+messages:
+  - role: user
+    content: I'm starting a tech company. What legal documents and structures do I need to have in place?
+
+  - role: assistant
+    tool_calls: []
+    content: |
+      Congratulations on starting your tech company! Here's a comprehensive legal checklist organized by priority:
+
+      ## Phase 1: Foundation (Do First)
+
+      **Entity Formation**
+      - Choose entity type (LLC, C-Corp, S-Corp) - C-Corp typically preferred for VC funding
+      - Select incorporation state (Delaware is common for startups seeking investment)
+      - File formation documents
+      - Obtain EIN from IRS
+
+      **Founder Agreements**
+      - Founders' agreement covering roles, equity splits, vesting
+      - Intellectual property assignment from all founders
+      - Vesting schedules (typically 4 years with 1-year cliff)
+
+      ## Phase 2: Protect Your IP
+
+      **Intellectual Property**
+      - Trademark search and registration for company name/logo
+      - Trade secret protection policies
+      - Patent evaluation if applicable
+      - Copyright registration for software/content
+
+      **Confidentiality**
+      - NDA template for discussions with third parties
+      - Employee/contractor confidentiality agreements
+
+      ## Phase 3: Operations
+
+      **Employment/Contractor Documents**
+      - Employment agreements with IP assignment clauses
+      - Contractor agreements (careful with classification!)
+      - Employee handbook
+      - Offer letter templates
+
+      **Customer/Vendor**
+      - Terms of Service
+      - Privacy Policy (essential if collecting user data)
+      - Service Level Agreements
+      - Vendor contracts review process
+
+      ## Phase 4: Growth Preparation
+
+      **Equity and Investment**
+      - Stock option plan (ISO/NSO)
+      - SAFE or convertible note templates
+      - Cap table management
+      - 83(b) election awareness for founders
+
+      **Compliance**
+      - State business registrations
+      - Industry-specific licenses if needed
+      - Data protection compliance (GDPR, CCPA)
+
+      ## Key Recommendations
+
+      1. **Prioritize founder agreements and IP assignment** - These are hardest to fix later
+      2. **Incorporate in Delaware** if seeking venture funding
+      3. **Budget for legal counsel** - Some decisions have long-term implications
+      4. **Document everything** from day one
+
+      **Important Disclaimer:** This is general information. Your specific situation may require different approaches. I recommend consulting with a startup attorney, especially for entity formation, equity structure, and founder agreements.
+
+      Would you like me to dive deeper into any of these areas?
+
+persona_marketable_name: lawyerrat

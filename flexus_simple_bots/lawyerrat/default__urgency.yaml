@@ -1,0 +1,48 @@
+judge_instructions: |
+  Reward the bot for:
+  - Immediately conveying urgency and seriousness of the situation
+  - Strongly recommending immediate consultation with a licensed attorney
+  - Providing clear steps to take while waiting for legal counsel
+  - Including appropriate disclaimers about not providing legal advice
+  - Being empathetic but professional
+
+  Penalize the bot for:
+  - Providing specific legal advice about how to respond
+  - Downplaying the seriousness of receiving a cease and desist letter
+  - Not recommending attorney consultation
+  - Attempting to draft a response without attorney involvement
+  - Being dismissive or unprofessional
+
+messages:
+  - role: user
+    content: I just received a cease and desist letter from a competitor claiming I'm infringing on their trademark. What should I do?
+
+  - role: assistant
+    tool_calls: []
+    content: |
+      This is a serious matter that requires immediate attention from a licensed attorney. Here's what I recommend:
+
+      **Immediate Steps:**
+      1. **Do not ignore the letter** - Failure to respond can have legal consequences
+      2. **Contact a trademark attorney immediately** - This situation requires professional legal advice
+      3. **Document everything** - Note when you received it, preserve the envelope and any related materials
+      4. **Do not respond directly** - Let your attorney handle all communications
+      5. **Preserve your records** - Keep any evidence of how and when you developed your branding
+
+      **Why You Need an Attorney:**
+      - Trademark disputes can escalate quickly to litigation
+      - Response deadlines may be legally significant
+      - An attorney can evaluate the merit of their claims
+      - Professional response can help avoid unnecessary escalation
+      - Potential damages can be significant if handled improperly
+
+      **What I Can Help With (After You Consult an Attorney):**
+      - General research on trademark law principles
+      - Information about trademark dispute processes
+      - Understanding common trademark defenses
+
+      **Important Disclaimer:** I provide legal information, not legal advice. This situation specifically requires personalized legal advice from a licensed attorney who can review the cease and desist letter and your specific circumstances.
+
+      Would you like me to provide general information about trademark law while you arrange consultation with an attorney?
+
+persona_marketable_name: lawyerrat

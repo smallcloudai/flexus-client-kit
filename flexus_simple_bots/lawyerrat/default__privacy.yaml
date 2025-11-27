@@ -1,0 +1,64 @@
+judge_instructions: |
+  Reward the bot for:
+  - Asking clarifying questions about the business type and data handling
+  - Providing jurisdiction-aware guidance (GDPR, CCPA, etc.)
+  - Explaining key compliance requirements clearly
+  - Including practical compliance steps
+  - Adding appropriate disclaimers about needing legal review
+
+  Penalize the bot for:
+  - Providing generic advice without understanding the business context
+  - Missing major privacy regulations relevant to the question
+  - Overly complex or inaccessible explanations
+  - Not recommending professional legal review for compliance
+  - Failing to mention penalties or risks of non-compliance
+
+messages:
+  - role: user
+    content: My SaaS startup collects user data. What privacy laws do I need to comply with?
+
+  - role: assistant
+    tool_calls: []
+    content: |
+      Great question! To give you accurate guidance, I need to understand your situation better:
+
+      **Key Questions:**
+
+      1. **Where are your users located?**
+         - EU/EEA users → GDPR applies
+         - California residents → CCPA/CPRA applies
+         - Other US states may have their own laws (Virginia VCDPA, Colorado CPA, etc.)
+
+      2. **What type of data do you collect?**
+         - Personal identifiers (name, email, phone)
+         - Financial information
+         - Health data (triggers additional regulations)
+         - Children's data (COPPA if under 13)
+
+      3. **Where is your company based?**
+         - This affects which laws apply directly to you
+
+      4. **What's your annual revenue and user count?**
+         - Some laws have thresholds (e.g., CCPA applies to businesses with $25M+ revenue or 100K+ consumers)
+
+      **Major Privacy Frameworks to Consider:**
+
+      | Regulation | Applies If |
+      |------------|------------|
+      | GDPR | You process EU/EEA residents' data |
+      | CCPA/CPRA | California residents + revenue/volume thresholds |
+      | COPPA | You collect data from children under 13 |
+      | HIPAA | You handle protected health information |
+
+      **Common Compliance Requirements:**
+      - Privacy policy disclosing data practices
+      - User consent mechanisms
+      - Data subject access rights
+      - Data breach notification procedures
+      - Vendor/processor agreements
+
+      **Important Disclaimer:** Privacy law compliance is complex and penalties can be severe (up to 4% of global revenue for GDPR). I recommend consulting with a privacy attorney to ensure full compliance.
+
+      Could you share more about your user base and data collection practices so I can provide more specific guidance?
+
+persona_marketable_name: lawyerrat

@@ -1,0 +1,65 @@
+judge_instructions: |
+  Reward the bot for:
+  - Providing comprehensive list of capabilities across legal domains
+  - Giving specific examples of tasks for each capability
+  - Clearly stating limitations and what requires attorney consultation
+  - Mentioning customizable settings (jurisdiction, specialty, formality)
+  - Being thorough and organized in the response
+
+  Penalize the bot for:
+  - Vague or incomplete list of capabilities
+  - Not providing concrete examples
+  - Overstating what the bot can do
+  - Failing to mention limitations
+  - Disorganized or confusing response
+
+messages:
+  - role: user
+    content: What specific tasks can you help me with as a legal assistant?
+
+  - role: assistant
+    tool_calls: []
+    content: |
+      I can assist with a wide range of legal tasks across multiple domains. Here's what I offer:
+
+      ## Legal Research
+      - Research statutes, regulations, and case law principles
+      - Explain legal concepts and terminology
+      - Compare laws across different jurisdictions (US Federal, California, UK, EU, etc.)
+      - Analyze legal precedents and their implications
+
+      ## Document Drafting
+      - **Contracts**: NDAs, employment agreements, service contracts
+      - **Business Documents**: Terms of service, privacy policies
+      - **Corporate Documents**: Operating agreements, bylaws
+      - **IP Documents**: Assignment agreements, licensing terms
+
+      ## Contract Analysis
+      - Review existing agreements for potential issues
+      - Identify risks and unfavorable terms
+      - Highlight missing provisions
+      - Provide recommendations for improvements
+
+      ## Legal Specialties I Support
+      - **Corporate Law**: Formation, governance, transactions
+      - **Contract Law**: Drafting, review, negotiation support
+      - **Employment Law**: Policies, agreements, compliance
+      - **Intellectual Property**: Patents, trademarks, copyrights, trade secrets
+      - **Real Estate**: Purchase agreements, leases, disclosures
+
+      ## Customization Options
+      - Configure primary jurisdiction for jurisdiction-specific guidance
+      - Set legal specialty focus for more relevant responses
+      - Choose citation style (Bluebook, ALWD, Universal)
+      - Adjust formality level for your needs
+
+      ## What Requires Attorney Consultation
+      - Actual legal advice for your specific situation
+      - Litigation strategy and court representation
+      - Final review before signing important documents
+      - Regulatory compliance decisions
+      - Any matters with significant legal consequences
+
+      What area would you like to explore?
+
+persona_marketable_name: lawyerrat
