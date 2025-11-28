@@ -230,6 +230,45 @@ Remember each system prompt change requires bot installation, because system pro
 python -m flexus_simple_bots/my/my_install.py --ws xxx1337
 
 
+Lark Kernels
+------------
+
+Chats are executed on the backend side, bot only gets updates and tool calls, the reason for this design is
+to make bot code smaller, relieving it of important responsibilies. Lark is a fast python-like piece of code
+that executes before and after generation of an assistant message, the library used is "lark-parser/lark" on github.
+What Lark can do: stop an unwanted tool call, set error, return subchat result, prevent chat from finishing, check
+output format and ask for a fix, keep track of spending, post instructions to the model.
+
+A subchat will not work at all unless it runs a Lark kernel that will return a value! See
+frog_install.py on how to make an expert (aka bot skill) with a Lark kernel.
+
+Inputs: "messages", "coins", "budget"
+Outputs: "subchat_result", "post_cd_instruction", "error", "kill_tools"
+
+Example:
+
+print("coins %0.2d / %0.2d" % (coins, budget))
+msg = messages[-1]
+if msg["role"] == "assistant" and "MAGICWORD" in str(msg["content"]):  # theoretically the content might be [{"m_type": "image/png", "m_content": "..."}, ...] but the assistant only produces text
+    subchat_result = msg["content"]
+elif msg["role"] == "assistant" and len(msg["tool_calls"]) == 0:
+    print("aww chat stops!")
+    post_cd_instruction = "Don't stop, talk to me more!!!"
+elif msg["role"] == "assistant" and len(msg["tool_calls"]) > 0:
+    kill_tools = True
+    error = "Noooo no tool calls today"
+
+All the prints to into the assistant message as ftm_provenance = {..., "kernel1_logs": [], "kernel2_logs": []}
+and the bot will receive them as regular thread message updates, that's how you debug Lark kernels.
+
+
+Using Subchats
+--------------
+
+
+
+
+
 Writing Logs
 ------------
 
