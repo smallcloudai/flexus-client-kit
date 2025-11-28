@@ -1,4 +1,5 @@
-from dataclasses import dataclass
+import time
+from dataclasses import dataclass, field
 from typing import Optional, Dict, Type, List
 
 
@@ -59,17 +60,17 @@ class ProductProduct:
 
 @dataclass
 class CrmTask:
-    task_id: int
     ws_id: str
     contact_id: int
     task_type: str
     task_title: str
-    task_notes: str
-    task_details: dict
-    task_due_ts: float
-    task_completed_ts: float
-    task_created_ts: float
-    task_updated_ts: float
+    task_notes: str = ""
+    task_details: dict = field(default_factory=dict)
+    task_id: int = 0
+    task_due_ts: float = 0.0
+    task_completed_ts: float = 0.0
+    task_created_ts: float = field(default_factory=time.time)
+    task_updated_ts: float = field(default_factory=time.time)
 
 
 ERP_TABLE_TO_SCHEMA: Dict[str, Type] = {
