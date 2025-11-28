@@ -50,23 +50,9 @@ CATCH_INSECTS_TOOL = ckit_cloudtool.CloudTool(
     },
 )
 
-SWITCH_CHAT_MODE_TOOL = ckit_cloudtool.CloudTool(
-    name="print_chat_restart_widget",
-    description="Switch between regular chat and setup chat modes. This will show a widget for the user to click.",
-    parameters={
-        "type": "object",
-        "properties": {
-            "mode": {"type": "string", "enum": ["regular", "setup"], "description": "The chat mode to switch to"},
-            "start_with_user_message": {"type": "string"},
-        },
-        "required": ["mode", "prompt"],
-    },
-)
-
 TOOLS = [
     RIBBIT_TOOL,
     CATCH_INSECTS_TOOL,
-    SWITCH_CHAT_MODE_TOOL,
     fi_mongo_store.MONGO_STORE_TOOL,
     fi_pdoc.POLICY_DOCUMENT_TOOL,
 ]
@@ -141,12 +127,6 @@ async def frog_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.R
             skill="huntmode",
         )
         raise ckit_cloudtool.WaitForSubchats()
-
-    @rcx.on_tool_call(SWITCH_CHAT_MODE_TOOL.name)
-    async def print_chat_restart_widget(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
-        _mode = model_produced_args.get("mode")
-        _start_with_user_message = model_produced_args.get("start_with_user_message")
-        return f"Printing UI widget"
 
     @rcx.on_tool_call(fi_mongo_store.MONGO_STORE_TOOL.name)
     async def toolcall_mongo_store(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
