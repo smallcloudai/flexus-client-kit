@@ -1,10 +1,21 @@
-from typing import List, Type, TypeVar
+from typing import List, Type, TypeVar, Any
 import asyncio
+import dataclasses
+import json
 import gql
 
 from flexus_client_kit import ckit_client, gql_utils
 
 T = TypeVar('T')
+
+
+def dataclass_or_dict_to_dict(x: Any) -> dict:
+    if dataclasses.is_dataclass(x):
+        return dataclasses.asdict(x)
+    elif isinstance(x, dict):
+        return x
+    else:
+        raise ValueError(f"must be a dataclass or dict, got {type(x)}")
 
 
 async def query_erp_table(
@@ -59,6 +70,106 @@ async def query_erp_table(
         )
         rows = r["erp_table_data"]
         return [gql_utils.dataclass_from_dict(row, result_class) for row in rows]
+
+
+async def create_erp_record(
+    client: ckit_client.FlexusClient,
+    table_name: str,
+    ws_id: str,
+    record: Any,
+) -> int:
+    http = await client.use_http()
+    async with http as h:
+        r = await h.execute(
+            gql.gql("""mutation ErpTableCreate(
+                $schema_name: String!,
+                $table_name: String!,
+                $ws_id: String!,
+                $record_json: String!
+            ) {
+                erp_table_create(
+                    schema_name: $schema_name,
+                    table_name: $table_name,
+                    ws_id: $ws_id,
+                    record_json: $record_json
+                )
+            }"""),
+            variable_values={
+                "schema_name": "erp",
+                "table_name": table_name,
+                "ws_id": ws_id,
+                "record_json": json.dumps(dataclass_or_dict_to_dict(record)),
+            },
+        )
+        return r["erp_table_create"]
+
+
+async def patch_erp_record(
+    client: ckit_client.FlexusClient,
+    table_name: str,
+    ws_id: str,
+    pk_value: int,
+    updates: Any,
+) -> bool:
+    http = await client.use_http()
+    async with http as h:
+        r = await h.execute(
+            gql.gql("""mutation ErpTablePatch(
+                $schema_name: String!,
+                $table_name: String!,
+                $ws_id: String!,
+                $pk_value: Int!,
+                $updates_json: String!
+            ) {
+                erp_table_patch(
+                    schema_name: $schema_name,
+                    table_name: $table_name,
+                    ws_id: $ws_id,
+                    pk_value: $pk_value,
+                    updates_json: $updates_json
+                )
+            }"""),
+            variable_values={
+                "schema_name": "erp",
+                "table_name": table_name,
+                "ws_id": ws_id,
+                "pk_value": pk_value,
+                "updates_json": json.dumps(dataclass_or_dict_to_dict(updates)),
+            },
+        )
+        return r["erp_table_patch"]
+
+
+async def delete_erp_record(
+    client: ckit_client.FlexusClient,
+    table_name: str,
+    ws_id: str,
+    pk_value: int,
+) -> bool:
+    http = await client.use_http()
+    async with http as h:
+        r = await h.execute(
+            gql.gql("""mutation ErpTableDelete(
+                $schema_name: String!,
+                $table_name: String!,
+                $ws_id: String!,
+                $pk_value: Int!
+            ) {
+                erp_table_delete(
+                    schema_name: $schema_name,
+                    table_name: $table_name,
+                    ws_id: $ws_id,
+                    pk_value: $pk_value
+                )
+            }"""),
+            variable_values={
+                "schema_name": "erp",
+                "table_name": table_name,
+                "ws_id": ws_id,
+                "pk_value": pk_value,
+            },
+        )
+        return r["erp_table_delete"]
 
 
 async def test():

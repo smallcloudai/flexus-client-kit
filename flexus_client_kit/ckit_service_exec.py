@@ -25,6 +25,7 @@ async def run_typical_single_subscription_with_restart_on_network_errors(fclient
                 await subscribe_and_do_something(fclient, ws_client, *func_args, **func_kwargs)
                 if not ckit_shutdown.shutdown_event.is_set():
                     logger.error("🛑 The only way we get there is shutdown, what happened?")
+                    continue
             finally:
                 ckit_shutdown.take_away_ws_client(fclient.service_name)
 
