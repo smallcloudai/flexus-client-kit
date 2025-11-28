@@ -68,7 +68,6 @@ async def install(
         marketable_default_inbox_default=10_000,
         marketable_experts=[
             ("default", ckit_bot_install.FMarketplaceExpertInput(
-                fexp_name="clerkwing_default",
                 fexp_system_prompt=clerkwing_prompts.clerkwing_prompt,
                 fexp_python_kernel="",
                 fexp_block_tools="*setup*",
@@ -76,7 +75,6 @@ async def install(
                 fexp_app_capture_tools=bot_internal_tools,
             )),
             ("setup", ckit_bot_install.FMarketplaceExpertInput(
-                fexp_name="clerkwing_setup",
                 fexp_system_prompt=clerkwing_prompts.clerkwing_setup,
                 fexp_python_kernel="",
                 fexp_block_tools="",

@@ -101,7 +101,6 @@ async def install(
         marketable_default_inbox_default=100_000,
         marketable_experts=[
             ("default", ckit_bot_install.FMarketplaceExpertInput(
-                fexp_name="karen_default",
                 fexp_system_prompt=karen_prompts.short_prompt,
                 fexp_python_kernel=KAREN_BUDGET_KERNEL,
                 fexp_block_tools="*setup*",
@@ -110,7 +109,6 @@ async def install(
                 fexp_app_capture_tools=bot_internal_tools,
             )),
             ("setup", ckit_bot_install.FMarketplaceExpertInput(
-                fexp_name="karen_setup",
                 fexp_system_prompt=karen_prompts.karen_setup,
                 fexp_python_kernel=KAREN_BUDGET_KERNEL,
                 fexp_block_tools="",

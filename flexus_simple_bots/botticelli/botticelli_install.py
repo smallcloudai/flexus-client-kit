@@ -62,7 +62,6 @@ async def install(
         marketable_default_inbox_default=10_000,
         marketable_experts=[
             ("default", ckit_bot_install.FMarketplaceExpertInput(
-                fexp_name="botticelli_default",
                 fexp_system_prompt=botticelli_prompts.botticelli_prompt,
                 fexp_python_kernel=BOTTICELLI_DEFAULT_LARK,
                 fexp_block_tools="*setup*",

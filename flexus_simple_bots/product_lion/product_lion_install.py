@@ -77,7 +77,6 @@ async def install(
         marketable_daily_budget_default=200_000,
         marketable_default_inbox_default=20_000,
         marketable_expert_default=ckit_bot_install.FMarketplaceExpertInput(
-            fexp_name="product_lion_default",
             fexp_system_prompt=product_lion_prompts.product_lion_prompt,
             fexp_python_kernel="",
             fexp_block_tools="*setup*",
@@ -85,7 +84,6 @@ async def install(
             fexp_app_capture_tools=bot_internal_tools,
         ),
         marketable_expert_setup=ckit_bot_install.FMarketplaceExpertInput(
-            fexp_name="product_lion_setup",
             fexp_system_prompt=product_lion_prompts.product_lion_prompt,
             fexp_python_kernel="",
             fexp_block_tools="",

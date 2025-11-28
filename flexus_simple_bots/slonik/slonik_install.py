@@ -53,7 +53,6 @@ async def install(client: ckit_client.FlexusClient, ws_id: str):
         marketable_default_inbox_default=5_000_000,
         marketable_experts=[
             ("default", ckit_bot_install.FMarketplaceExpertInput(
-                fexp_name="slonik_default",
                 fexp_system_prompt=slonik_prompts.slonik_prompt,
                 fexp_python_kernel="",
                 fexp_block_tools="*setup*",
@@ -61,7 +60,6 @@ async def install(client: ckit_client.FlexusClient, ws_id: str):
                 fexp_app_capture_tools=bot_internal_tools,
             )),
             ("setup", ckit_bot_install.FMarketplaceExpertInput(
-                fexp_name="slonik_setup",
                 fexp_system_prompt=slonik_prompts.slonik_setup,
                 fexp_python_kernel="",
                 fexp_block_tools="",

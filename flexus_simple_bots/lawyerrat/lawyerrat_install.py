@@ -147,7 +147,6 @@ async def install(
         marketable_default_inbox_default=10_000,
         marketable_experts=[
             ("default", ckit_bot_install.FMarketplaceExpertInput(
-                fexp_name="lawyerrat_default",
                 fexp_system_prompt=lawyerrat_prompts.short_prompt,
                 fexp_python_kernel=LAWYERRAT_DEFAULT_LARK,
                 fexp_block_tools="*setup*",
@@ -155,7 +154,6 @@ async def install(
                 fexp_app_capture_tools=bot_internal_tools,
             )),
             ("setup", ckit_bot_install.FMarketplaceExpertInput(
-                fexp_name="lawyerrat_setup",
                 fexp_system_prompt=lawyerrat_prompts.lawyerrat_setup,
                 fexp_python_kernel=LAWYERRAT_DEFAULT_LARK,
                 fexp_block_tools="",

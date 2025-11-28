@@ -70,7 +70,7 @@ FROG_DEFAULT_LARK = f"""
 print("I see %d messages" % len(messages))
 msg = messages[-1]
 if msg["role"] == "assistant":
-    assistant_says1 = str(msg["content"]  )  # assistant produces only text
+    assistant_says1 = str(msg["content"])    # assistant can only produce text, there will not be [{{"m_type": "image/png", "m_content": "..."}}, ...]
     assistant_says2 = str(msg["tool_calls"]) # that might be a big json but it still converts to string, good enough for a frog
     print("assistant_says1", assistant_says1)
     print("assistant_says2", assistant_says2)
@@ -112,7 +112,6 @@ async def install(
         marketable_default_inbox_default=10_000,
         marketable_experts=[
             ("default", ckit_bot_install.FMarketplaceExpertInput(
-                fexp_name="frog_default",
                 fexp_system_prompt=frog_prompts.short_prompt,
                 fexp_python_kernel=FROG_DEFAULT_LARK,
                 fexp_block_tools="*setup*",
@@ -120,7 +119,6 @@ async def install(
                 fexp_app_capture_tools=bot_internal_tools,
             )),
             ("setup", ckit_bot_install.FMarketplaceExpertInput(
-                fexp_name="frog_setup",
                 fexp_system_prompt=frog_prompts.frog_setup,
                 fexp_python_kernel=FROG_DEFAULT_LARK,
                 fexp_block_tools="",
@@ -128,7 +126,6 @@ async def install(
                 fexp_app_capture_tools=bot_internal_tools,
             )),
             ("huntmode", ckit_bot_install.FMarketplaceExpertInput(
-                fexp_name="frog_subchat",
                 fexp_system_prompt=frog_prompts.frog_setup,
                 fexp_python_kernel=FROG_SUBCHAT_LARK,
                 fexp_block_tools="*setup*,frog_catch_insects",

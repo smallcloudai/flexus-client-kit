@@ -109,7 +109,6 @@ async def install(client: ckit_client.FlexusClient, ws_id: str):
         # "default" expert used for normal chat, "setup" expert used during configuration
         marketable_experts=[
             ("default", ckit_bot_install.FMarketplaceExpertInput(
-                fexp_name="admonster_default",
                 fexp_system_prompt=admonster_prompts.admonster_prompt,
                 fexp_python_kernel="",
                 fexp_block_tools="*setup*",  # Block setup-related tools in normal mode
@@ -118,7 +117,6 @@ async def install(client: ckit_client.FlexusClient, ws_id: str):
                 fexp_inactivity_timeout=0,
             )),
             ("setup", ckit_bot_install.FMarketplaceExpertInput(
-                fexp_name="admonster_setup",
                 fexp_system_prompt=admonster_prompts.admonster_setup,
                 fexp_python_kernel="",
                 fexp_block_tools="",

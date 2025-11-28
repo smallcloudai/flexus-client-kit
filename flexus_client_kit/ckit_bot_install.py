@@ -29,14 +29,12 @@ class InstallationResult:
 
 @dataclass
 class FMarketplaceExpertInput:
-    fexp_name: str
     fexp_system_prompt: str
     fexp_python_kernel: str
     fexp_block_tools: str
     fexp_allow_tools: str
     fexp_inactivity_timeout: int = 0
     fexp_app_capture_tools: str = ""
-    fexp_inactivity_timeout: int = 0
 
 
 async def marketplace_upsert_dev_bot(
