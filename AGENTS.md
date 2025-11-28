@@ -262,11 +262,29 @@ All the prints to into the assistant message as ftm_provenance = {..., "kernel1_
 and the bot will receive them as regular thread message updates, that's how you debug Lark kernels.
 
 
-Using Subchats
---------------
+Skills, Subchats and A2A Communication
+--------------------------------------
 
+Bot skills AKA experts are necessary when you need a separate system prompt and toolset.
 
+When you need a subtask completed, there are two choices: run subchat or use A2A to hand over the task
+to your different skill, or another agent.
 
+Subchat applicability:
+- Subchats works as tool calls: it runs an additional thread, puts subchat_result produced by Lark kernel back as a
+  tool response message into the original thread.
+- TIMEOUT_TOOL_CALLS is 3600s (one hour), subchats as tool calls cannot last for more then that. That means: no human confirmations
+  inside a subchat (might be no human available for 1 hour), no external lasting process that might last long.
+- Can only return text.
+
+A2A communication applicability:
+- You can tell me model to call flexus_hand_over_task(to_bot="", description="", skill=""), that will create a kanban task
+  in the inbox of that bot.
+- Once the task is completed (moved to kanban "done") a message will appear after the flexus_hand_over_task() call informing
+  about that.
+- It's slower because the task goes into a queue, not gets executed immediately.
+- The original chat does not wait, it continues and the model needs to call nothing (wait for user to respond) for
+  waiting to happen.
 
 
 Writing Logs
