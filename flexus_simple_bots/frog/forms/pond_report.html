@@ -128,16 +128,17 @@
       document.getElementById('observations').value = report.observations || '';
       document.getElementById('mood').value = report.mood || '';
 
-      const meta = content._meta || {};
-      if (meta.updated_at) {
-        document.getElementById('meta').textContent = 'Last updated: ' + new Date(meta.updated_at * 1000).toLocaleString();
+      const meta = report.meta || {};
+      if (meta.created_at) {
+        document.getElementById('meta').textContent = 'Created: ' + meta.created_at;
       }
     }
 
     function getContent() {
+      const report = content.pond_report || {};
       return {
-        ...content,
         pond_report: {
+          meta: report.meta || {},
           pond_name: document.getElementById('pond_name').value,
           weather: document.getElementById('weather').value,
           insects_caught: parseInt(document.getElementById('insects_caught').textContent) || 0,

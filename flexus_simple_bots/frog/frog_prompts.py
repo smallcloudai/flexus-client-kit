@@ -11,8 +11,8 @@ Path: /reports/pond-report-YYYY-MM-DD (use current date)
 Structure:
 ```json
 {
-  "_meta": {"doc_type": "pond_report"},
   "pond_report": {
+    "meta": {"created_at": "2024-01-15"},
     "pond_name": "My Lily Pond",
     "weather": "sunny",
     "insects_caught": 0,

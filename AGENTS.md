@@ -133,18 +133,18 @@ File structure:
 ```
 mybot/
   forms/
-    my_report.html     -- form for doc_type="my_report"
-    survey.html        -- form for doc_type="survey"
+    my_report.html     -- form for documents with "my_report" top-level key
+    survey.html        -- form for documents with "survey" top-level key
   mybot_install.py
   ...
 ```
 
-The bot's system prompt should create documents with `_meta.doc_type` matching the form filename:
+The document type is determined by the top-level key that contains an object with a `meta` subobject:
 ```
-{"_meta": {"doc_type": "my_report"}, "my_report": {...}}
+{"my_report": {"meta": {"created_at": "..."}, "title": "...", "content": "..."}}
 ```
 
-See flexus_simple_bots/frog/forms/pond_report.html for a complete example.
+The form filename must match the top-level key. See flexus_simple_bots/frog/forms/pond_report.html for a complete example.
 
 Protocol messages:
 - Parent → Form: INIT (content, themeCss), CONTENT_UPDATE (content), FOCUS (focused)

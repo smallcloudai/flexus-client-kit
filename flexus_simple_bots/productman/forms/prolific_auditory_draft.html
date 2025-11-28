@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Audience Targeting Editor</title>
   <link rel="stylesheet" href="https://unpkg.com/primeicons@7.0.0/primeicons.css">
-  <link rel="stylesheet" href="https://unpkg.com/@primeuix/themes@1.1.1/lara/lara-light-noir/theme.css">
   <style>
     * { box-sizing: border-box; }
     body {
@@ -167,29 +166,14 @@
     }
     .cost-total .cost-label { font-weight: 600; font-size: 1.1rem; }
     .cost-total .cost-value { font-size: 1.25rem; color: var(--p-primary-color); }
-    .status-toast {
-      position: fixed;
-      bottom: 20px;
-      right: 20px;
-      padding: 12px 20px;
-      border-radius: var(--p-border-radius);
-      font-size: 0.9rem;
-      z-index: 100;
-      display: none;
-    }
-    .status-toast.success { background: var(--p-green-500); color: white; }
-    .status-toast.error { background: var(--p-red-500); color: white; }
-    .status-toast.show { display: block; }
     .p-inputtext, .p-textarea, .p-select { width: 100%; }
   </style>
+  <style id="theme-css"></style>
 </head>
 <body>
   <div id="app">
     <div class="header">
       <h1>🎯 Audience Targeting</h1>
-      <button class="p-button p-component" id="saveBtn" onclick="save()">
-        <span class="pi pi-save" style="margin-right:8px"></span>Save Changes
-      </button>
     </div>
 
     <div class="card">
@@ -273,7 +257,6 @@
     </div>
   </div>
 
-  <div id="statusToast" class="status-toast"></div>
 
   <script>
     const FormBridge = {
@@ -309,7 +292,7 @@
     ];
     const filterMap = Object.fromEntries(FILTERS.map(f => [f.value, f]));
 
-    FormBridge.on('INIT', data => { content = data.content || {}; render(); });
+    FormBridge.on('INIT', data => { content = data.content || {}; if (data.themeCss) document.getElementById('theme-css').textContent = data.themeCss; render(); });
     FormBridge.on('CONTENT_UPDATE', data => { content = data.content || {}; render(); });
     FormBridge.init('productman-auditory');
 
@@ -510,37 +493,7 @@
 
     function notifyChange() { FormBridge.send('FORM_CONTENT_CHANGED', { content }); }
 
-    function showStatus(msg, isError) {
-      const el = document.getElementById('statusToast');
-      el.textContent = msg;
-      el.className = 'status-toast show ' + (isError ? 'error' : 'success');
-      setTimeout(() => el.classList.remove('show'), 3000);
-    }
 
-    function save() {
-      const btn = document.getElementById('saveBtn');
-      btn.disabled = true;
-      btn.innerHTML = '<span class="pi pi-spin pi-spinner" style="margin-right:8px"></span>Saving...';
-
-      const handler = data => {
-        FormBridge.off('SAVE_RESULT', handler);
-        btn.disabled = false;
-        btn.innerHTML = '<span class="pi pi-save" style="margin-right:8px"></span>Save Changes';
-        showStatus(data.success ? '✓ Saved!' : 'Failed: ' + (data.error || 'Unknown'), !data.success);
-      };
-
-      FormBridge.on('SAVE_RESULT', handler);
-      FormBridge.send('FORM_SAVE_REQUEST', { content });
-
-      setTimeout(() => {
-        FormBridge.off('SAVE_RESULT', handler);
-        if (btn.disabled) {
-          btn.disabled = false;
-          btn.innerHTML = '<span class="pi pi-save" style="margin-right:8px"></span>Save Changes';
-          showStatus('Timeout', true);
-        }
-      }, 10000);
-    }
   </script>
 </body>
 </html>
