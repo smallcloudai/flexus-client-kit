@@ -80,19 +80,9 @@ async def create_erp_record(
 ) -> int:
     http = await client.use_http()
     async with http as h:
-        r = await h.execute(
-            gql.gql("""mutation ErpTableCreate(
-                $schema_name: String!,
-                $table_name: String!,
-                $ws_id: String!,
-                $record_json: String!
-            ) {
-                erp_table_create(
-                    schema_name: $schema_name,
-                    table_name: $table_name,
-                    ws_id: $ws_id,
-                    record_json: $record_json
-                )
+        r = await h.execute(gql.gql("""
+            mutation ErpTableCreate($schema_name: String!, $table_name: String!, $ws_id: String!, $record_json: String!) {
+                erp_table_create(schema_name: $schema_name, table_name: $table_name, ws_id: $ws_id, record_json: $record_json)
             }"""),
             variable_values={
                 "schema_name": "erp",
@@ -113,21 +103,9 @@ async def patch_erp_record(
 ) -> bool:
     http = await client.use_http()
     async with http as h:
-        r = await h.execute(
-            gql.gql("""mutation ErpTablePatch(
-                $schema_name: String!,
-                $table_name: String!,
-                $ws_id: String!,
-                $pk_value: Int!,
-                $updates_json: String!
-            ) {
-                erp_table_patch(
-                    schema_name: $schema_name,
-                    table_name: $table_name,
-                    ws_id: $ws_id,
-                    pk_value: $pk_value,
-                    updates_json: $updates_json
-                )
+        r = await h.execute(gql.gql("""
+            mutation ErpTablePatch($schema_name: String!, $table_name: String!, $ws_id: String!, $pk_value: Int!, $updates_json: String!) {
+                erp_table_patch(schema_name: $schema_name, table_name: $table_name, ws_id: $ws_id, pk_value: $pk_value, updates_json: $updates_json)
             }"""),
             variable_values={
                 "schema_name": "erp",
@@ -148,19 +126,9 @@ async def delete_erp_record(
 ) -> bool:
     http = await client.use_http()
     async with http as h:
-        r = await h.execute(
-            gql.gql("""mutation ErpTableDelete(
-                $schema_name: String!,
-                $table_name: String!,
-                $ws_id: String!,
-                $pk_value: Int!
-            ) {
-                erp_table_delete(
-                    schema_name: $schema_name,
-                    table_name: $table_name,
-                    ws_id: $ws_id,
-                    pk_value: $pk_value
-                )
+        r = await h.execute(gql.gql("""
+            mutation ErpTableDelete($schema_name: String!, $table_name: String!, $ws_id: String!, $pk_value: Int!) {
+                erp_table_delete(schema_name: $schema_name, table_name: $table_name, ws_id: $ws_id, pk_value: $pk_value)
             }"""),
             variable_values={
                 "schema_name": "erp",
