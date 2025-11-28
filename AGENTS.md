@@ -150,14 +150,33 @@ Protocol messages:
 - Parent → Form: INIT (content, themeCss), CONTENT_UPDATE (content), FOCUS (focused)
 - Form → Parent: FORM_READY (formName), FORM_CONTENT_CHANGED (content)
 
-Available CSS variables (injected via themeCss):
-- `--p-content-background`, `--p-surface-card`, `--p-surface-ground` - backgrounds
-- `--p-text-color`, `--p-text-muted-color` - text colors
-- `--p-surface-border` - borders
-- `--p-primary-color`, `--p-primary-contrast-color` - buttons
-- `--p-border-radius`, `--p-border-radius-lg` - corners
+Styling convention - "paper on desk" look matching WorksheetEditor:
+- The parent injects themeCss with body styling - do NOT redefine body background/font
+- Use a `.paper` container with fixed width (440-540px), white background, shadow
+- Use `.p-inputtext`, `.p-select`, `.p-textarea` classes for inputs (styled by themeCss)
+- Section titles use `--p-primary-color`
 
-Forms should NOT include their own theme CSS - all colors come from the parent.
+Available CSS variables (injected via themeCss):
+- `--p-surface-0` to `--p-surface-950` - surface color scale
+- `--p-surface-ground`, `--p-surface-card`, `--p-surface-overlay` - semantic surfaces
+- `--p-surface-border` - borders
+- `--p-text-color`, `--p-text-muted-color` - text colors
+- `--p-primary-color`, `--p-primary-contrast-color`, `--p-primary-hover-color` - accent
+- `--p-border-radius`, `--p-border-radius-sm`, `--p-border-radius-lg` - corners
+- `--p-green-500`, `--p-red-500` - status colors
+
+Example paper container (adapts to dark/light theme):
+```css
+.paper {
+  width: 440px;
+  padding: 24px;
+  background: var(--p-surface-card, var(--p-surface-overlay));
+  border: 1px solid var(--p-surface-border);
+  border-radius: var(--p-border-radius-lg, 8px);
+  min-height: calc(100vh - 40px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+```
 
 
 Bot Main Loop

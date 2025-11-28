@@ -6,36 +6,33 @@
   <title>Audience Targeting Editor</title>
   <link rel="stylesheet" href="https://unpkg.com/primeicons@7.0.0/primeicons.css">
   <style>
-    * { box-sizing: border-box; }
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      background: var(--p-surface-100);
-      margin: 0;
-      padding: 20px;
-      min-height: 100vh;
+    #app {
+      width: 540px;
+      background: var(--p-surface-card, var(--p-surface-overlay));
+      min-height: calc(100vh - 40px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      border: 1px solid var(--p-surface-border);
+      border-radius: var(--p-border-radius-lg, 8px);
+      padding: 24px;
     }
-    #app { max-width: 800px; margin: 0 auto; }
-    .header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 24px;
-      padding-bottom: 16px;
-      border-bottom: 2px solid var(--p-surface-border);
+    h1 {
+      font-size: 1.25rem;
+      font-weight: 600;
+      color: var(--p-primary-color);
+      margin: 0 0 1.5rem 0;
     }
-    .header h1 { color: var(--p-text-color); font-size: 1.5rem; margin: 0; }
     .card {
-      background: var(--p-surface-0);
-      border-radius: var(--p-border-radius-lg);
-      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
-      padding: 20px;
-      margin-bottom: 20px;
+      background: var(--p-surface-ground);
+      border: 1px solid var(--p-surface-border);
+      border-radius: var(--p-border-radius-lg, 8px);
+      padding: 16px;
+      margin-bottom: 16px;
     }
     .card h3 {
-      color: var(--p-text-color);
-      margin: 0 0 16px 0;
-      font-size: 1.1rem;
+      margin: 0 0 12px 0;
+      font-size: 1rem;
       font-weight: 600;
+      color: var(--p-primary-color);
     }
     .field { margin-bottom: 16px; }
     .field label {
@@ -172,9 +169,7 @@
 </head>
 <body>
   <div id="app">
-    <div class="header">
-      <h1>🎯 Audience Targeting</h1>
-    </div>
+    <h1>🎯 Audience Targeting</h1>
 
     <div class="card">
       <h3>Study Information</h3>
