@@ -1,11 +1,22 @@
+import base64
 import json
 from dataclasses import dataclass
 import dataclasses
+from pathlib import Path
 from typing import Dict, Union, Optional, List, Any, Tuple
 import argparse
 import gql
 
 from flexus_client_kit import ckit_client, gql_utils
+
+
+def load_form_bundles(install_file: str) -> Dict[str, str]:
+    forms_dir = Path(install_file).parent / "forms"
+    bundles = {}
+    if forms_dir.exists():
+        for html_file in forms_dir.glob("*.html"):
+            bundles[html_file.stem] = base64.b64encode(html_file.read_bytes()).decode("ascii")
+    return bundles
 
 
 def bot_install_argparse():
@@ -63,6 +74,7 @@ async def marketplace_upsert_dev_bot(
     marketable_experts: List[Tuple[str, FMarketplaceExpertInput]],
     marketable_tags: List[str] = [],
     marketable_stage: str = "MARKETPLACE_DEV",
+    marketable_forms: Optional[Dict[str, str]] = None,
 ) -> FBotInstallOutput:
     assert not ws_id.startswith("fx-"), "You can find workspace id in the browser address bar, when visiting for example the statistics page"
     http = await client.use_http()
@@ -73,7 +85,7 @@ async def marketplace_upsert_dev_bot(
             expert_dict["fexp_name"] = f"{marketable_name}_{expert_type}"
             experts_input.append(expert_dict)
         r = await h.execute(
-            gql.gql(f"""mutation InstallBot($ws: String!, $name: String!, $ver: String!, $title1: String!, $title2: String!, $author: String!, $accent_color: String!, $occupation: String!, $desc: String!, $typical_group: String!, $repo: String!, $run: String!, $setup: String!, $featured: [FFeaturedActionInput!]!, $intro: String!, $model: String!, $daily: Int!, $inbox: Int!, $experts: [FMarketplaceExpertInput!]!, $schedule: String!, $big: String!, $small: String!, $tags: [String!]!, $stage: String!) {{
+            gql.gql(f"""mutation InstallBot($ws: String!, $name: String!, $ver: String!, $title1: String!, $title2: String!, $author: String!, $accent_color: String!, $occupation: String!, $desc: String!, $typical_group: String!, $repo: String!, $run: String!, $setup: String!, $featured: [FFeaturedActionInput!]!, $intro: String!, $model: String!, $daily: Int!, $inbox: Int!, $experts: [FMarketplaceExpertInput!]!, $schedule: String!, $big: String!, $small: String!, $tags: [String!]!, $stage: String!, $forms: String) {{
                 marketplace_upsert_dev_bot(
                     ws_id: $ws,
                     marketable_name: $name,
@@ -98,7 +110,8 @@ async def marketplace_upsert_dev_bot(
                     marketable_picture_big_b64: $big,
                     marketable_picture_small_b64: $small,
                     marketable_stage: $stage,
-                    marketable_tags: $tags
+                    marketable_tags: $tags,
+                    marketable_forms: $forms
                 ) {{
                     {gql_utils.gql_fields(FBotInstallOutput)}
                 }}
@@ -128,6 +141,7 @@ async def marketplace_upsert_dev_bot(
                 "stage": marketable_stage,
                 "big": marketable_picture_big_b64,
                 "small": marketable_picture_small_b64,
+                "forms": json.dumps(marketable_forms or {}),
             },
         )
         return gql_utils.dataclass_from_dict(r["marketplace_upsert_dev_bot"], FBotInstallOutput)

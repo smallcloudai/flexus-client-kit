@@ -1,15 +1,14 @@
 import asyncio
-import json
 import base64
 from pathlib import Path
 from typing import List
 
-from flexus_client_kit import ckit_client
-from flexus_client_kit import ckit_bot_install
+from flexus_client_kit import ckit_client, ckit_bot_install
 from flexus_client_kit import ckit_cloudtool
 
 from flexus_simple_bots import prompts_common
 from flexus_simple_bots.productman import productman_bot, productman_prompts, productman_skill_survey
+
 
 BOT_DESCRIPTION = """
 ## Productman - Stage0 Product Validation Coach
@@ -119,7 +118,8 @@ async def install(
             # NOTE: After first use, Productman will formulate modifications to company's strategy, this will require a weekly scheduled task or something
             prompts_common.SCHED_TASK_SORT_10M,
             prompts_common.SCHED_TODO_5M,
-        ]
+        ],
+        marketable_forms=ckit_bot_install.load_form_bundles(__file__),
     )
 
 

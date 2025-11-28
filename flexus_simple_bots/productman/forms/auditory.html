@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Audience Targeting Editor</title>
+  <link rel="stylesheet" href="https://unpkg.com/primeicons@7.0.0/primeicons.css">
+  <link rel="stylesheet" href="https://unpkg.com/@primeuix/themes@1.1.1/lara/lara-light-noir/theme.css">
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--p-surface-100);
+      margin: 0;
+      padding: 20px;
+      min-height: 100vh;
+    }
+    #app { max-width: 800px; margin: 0 auto; }
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 24px;
+      padding-bottom: 16px;
+      border-bottom: 2px solid var(--p-surface-border);
+    }
+    .header h1 { color: var(--p-text-color); font-size: 1.5rem; margin: 0; }
+    .card {
+      background: var(--p-surface-0);
+      border-radius: var(--p-border-radius-lg);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+    .card h3 {
+      color: var(--p-text-color);
+      margin: 0 0 16px 0;
+      font-size: 1.1rem;
+      font-weight: 600;
+    }
+    .field { margin-bottom: 16px; }
+    .field label {
+      display: block;
+      font-weight: 600;
+      color: var(--p-text-color);
+      margin-bottom: 8px;
+      font-size: 0.875rem;
+    }
+    .hint { font-size: 0.8rem; color: var(--p-text-muted-color); margin-top: 4px; }
+    .info-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 16px;
+    }
+    .info-item label { font-size: 0.85rem; color: var(--p-text-muted-color); margin-bottom: 4px; }
+    .info-value { font-weight: 500; color: var(--p-text-color); }
+    .tag {
+      display: inline-block;
+      padding: 4px 12px;
+      background: var(--p-surface-100);
+      color: var(--p-text-color);
+      border-radius: var(--p-border-radius);
+      font-size: 0.85rem;
+      font-weight: 500;
+    }
+    .tag-success { background: var(--p-green-100); color: var(--p-green-700); }
+    .param-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+    }
+    .filter-card {
+      background: var(--p-surface-50);
+      border: 1px solid var(--p-surface-border);
+      border-radius: var(--p-border-radius);
+      padding: 16px;
+      margin-bottom: 12px;
+    }
+    .filter-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+      gap: 8px;
+    }
+    .filter-header select { flex: 1; }
+    .range-inputs { display: flex; gap: 12px; }
+    .range-field { flex: 1; }
+    .range-field label { font-size: 0.85rem; margin-bottom: 4px; display: block; }
+    .multiselect-container { position: relative; }
+    .multiselect-display {
+      min-height: 40px;
+      padding: 8px 12px;
+      border: 1px solid var(--p-surface-border);
+      border-radius: var(--p-border-radius);
+      cursor: pointer;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      align-items: center;
+      background: var(--p-surface-0);
+    }
+    .multiselect-display:hover { border-color: var(--p-primary-color); }
+    .multiselect-chip {
+      background: var(--p-surface-200);
+      color: var(--p-text-color);
+      padding: 2px 8px;
+      border-radius: var(--p-border-radius);
+      font-size: 0.85rem;
+    }
+    .multiselect-dropdown {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      right: 0;
+      background: var(--p-surface-0);
+      border: 1px solid var(--p-surface-border);
+      border-radius: var(--p-border-radius);
+      max-height: 200px;
+      overflow-y: auto;
+      z-index: 100;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      display: none;
+    }
+    .multiselect-dropdown.open { display: block; }
+    .multiselect-option {
+      padding: 10px 12px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .multiselect-option:hover { background: var(--p-surface-100); }
+    .multiselect-option.selected { background: var(--p-surface-200); }
+    .completion-code {
+      background: var(--p-surface-50);
+      padding: 12px;
+      border-radius: var(--p-border-radius);
+      border: 1px solid var(--p-surface-border);
+      margin-bottom: 8px;
+    }
+    .code-info { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+    .code-label { font-weight: 600; }
+    .code-value {
+      background: var(--p-surface-0);
+      padding: 4px 8px;
+      border-radius: var(--p-border-radius);
+      font-family: monospace;
+      color: var(--p-primary-color);
+      border: 1px solid var(--p-surface-border);
+    }
+    .code-type { display: flex; align-items: center; gap: 8px; }
+    .code-action { color: var(--p-text-muted-color); font-size: 0.85rem; }
+    .cost-breakdown { display: flex; flex-direction: column; gap: 10px; }
+    .cost-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 0;
+    }
+    .cost-label { color: var(--p-text-color); }
+    .cost-value { font-weight: 600; }
+    .cost-total {
+      border-top: 2px solid var(--p-surface-border);
+      padding-top: 12px;
+      margin-top: 8px;
+    }
+    .cost-total .cost-label { font-weight: 600; font-size: 1.1rem; }
+    .cost-total .cost-value { font-size: 1.25rem; color: var(--p-primary-color); }
+    .status-toast {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      padding: 12px 20px;
+      border-radius: var(--p-border-radius);
+      font-size: 0.9rem;
+      z-index: 100;
+      display: none;
+    }
+    .status-toast.success { background: var(--p-green-500); color: white; }
+    .status-toast.error { background: var(--p-red-500); color: white; }
+    .status-toast.show { display: block; }
+    .p-inputtext, .p-textarea, .p-select { width: 100%; }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div class="header">
+      <h1>🎯 Audience Targeting</h1>
+      <button class="p-button p-component" id="saveBtn" onclick="save()">
+        <span class="pi pi-save" style="margin-right:8px"></span>Save Changes
+      </button>
+    </div>
+
+    <div class="card">
+      <h3>Study Information</h3>
+      <div class="info-grid">
+        <div class="info-item">
+          <label>Study Name</label>
+          <div class="info-value" id="study_name">-</div>
+        </div>
+        <div class="info-item">
+          <label>Status</label>
+          <span class="tag" id="status_tag">draft</span>
+        </div>
+        <div class="info-item">
+          <label>Created</label>
+          <div class="info-value" id="created_at">-</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Study Parameters</h3>
+      <div class="field">
+        <label>Study Description</label>
+        <textarea id="study_description" class="p-textarea p-component" rows="3"
+          oninput="updateParameter('study_description', this.value)"></textarea>
+      </div>
+      <div class="param-grid">
+        <div class="field">
+          <label>Estimated Minutes</label>
+          <input type="number" id="estimated_minutes" class="p-inputtext p-component" min="1" max="120"
+            onchange="updateParameter('estimated_minutes', parseInt(this.value))">
+        </div>
+        <div class="field">
+          <label>Reward per Participant (pence)</label>
+          <input type="number" id="reward_cents" class="p-inputtext p-component" min="10" max="10000"
+            onchange="updateParameter('reward_cents', parseInt(this.value))">
+          <div class="hint" id="reward_hint">£0.00 per participant</div>
+        </div>
+        <div class="field">
+          <label>Total Participants</label>
+          <input type="number" id="total_participants" class="p-inputtext p-component" min="1" max="1000"
+            onchange="updateParameter('total_participants', parseInt(this.value))">
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Participant Filters</h3>
+      <div id="filters_list"></div>
+      <button class="p-button p-component p-button-outlined" onclick="addFilter()" style="width:100%;margin-top:12px">
+        <span class="pi pi-plus" style="margin-right:8px"></span>Add Filter
+      </button>
+    </div>
+
+    <div class="card">
+      <h3>Completion Settings</h3>
+      <div id="completion_codes"></div>
+    </div>
+
+    <div class="card">
+      <h3>Cost Estimate (Live)</h3>
+      <div class="cost-breakdown">
+        <div class="cost-item">
+          <span class="cost-label">Participant Rewards:</span>
+          <span class="cost-value" id="cost_rewards">£0.00</span>
+        </div>
+        <div class="cost-item">
+          <span class="cost-label">Service Fee (33%):</span>
+          <span class="cost-value" id="cost_service">£0.00</span>
+        </div>
+        <div class="cost-item">
+          <span class="cost-label">VAT (20%):</span>
+          <span class="cost-value" id="cost_vat">£0.00</span>
+        </div>
+        <div class="cost-item cost-total">
+          <span class="cost-label">Total Cost:</span>
+          <span class="cost-value" id="cost_total">£0.00</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="statusToast" class="status-toast"></div>
+
+  <script>
+    const FormBridge = {
+      handlers: {},
+      init(name) {
+        window.addEventListener('message', e => {
+          if (e.data?.type && this.handlers[e.data.type]) {
+            this.handlers[e.data.type].forEach(h => h(e.data));
+          }
+        });
+        setTimeout(() => this.send('FORM_READY', { formName: name }), 0);
+      },
+      send(type, data) { window.parent.postMessage({ type, ...data }, '*'); },
+      on(type, handler) {
+        if (!this.handlers[type]) this.handlers[type] = [];
+        this.handlers[type].push(handler);
+      },
+      off(type, handler) {
+        if (this.handlers[type]) this.handlers[type] = this.handlers[type].filter(h => h !== handler);
+      }
+    };
+
+    let content = {};
+    const FILTERS = [
+      { value: 'age', label: 'Age', type: 'range', min: 18, max: 100 },
+      { value: 'approval_rate', label: 'Approval Rate', type: 'range', min: 0, max: 100 },
+      { value: 'number_of_submissions', label: 'Number of Submissions', type: 'range', min: 0, max: 10000 },
+      { value: 'sex', label: 'Sex', type: 'select', choices: { male: 'Male', female: 'Female' } },
+      { value: 'country_of_birth', label: 'Country of Birth', type: 'select', choices: { GB: 'United Kingdom', US: 'United States', DE: 'Germany', FR: 'France' } },
+      { value: 'current_country_of_residence', label: 'Country of Residence', type: 'select', choices: { GB: 'United Kingdom', US: 'United States', DE: 'Germany', FR: 'France' } },
+      { value: 'employment_status', label: 'Employment Status', type: 'select', choices: { full_time: 'Full-time', part_time: 'Part-time', unemployed: 'Unemployed', student: 'Student', retired: 'Retired' } },
+      { value: 'student_status', label: 'Student Status', type: 'select', choices: { yes: 'Yes', no: 'No' } },
+    ];
+    const filterMap = Object.fromEntries(FILTERS.map(f => [f.value, f]));
+
+    FormBridge.on('INIT', data => { content = data.content || {}; render(); });
+    FormBridge.on('CONTENT_UPDATE', data => { content = data.content || {}; render(); });
+    FormBridge.init('productman-auditory');
+
+    function render() {
+      const draft = content.prolific_auditory_draft || {};
+      const meta = draft.meta || {};
+      const params = draft.parameters || {};
+
+      document.getElementById('study_name').textContent = meta.study_name || '-';
+      document.getElementById('status_tag').textContent = meta.status || 'draft';
+      document.getElementById('created_at').textContent = meta.created_at || '-';
+      document.getElementById('study_description').value = params.study_description || '';
+      document.getElementById('estimated_minutes').value = params.estimated_minutes || '';
+      document.getElementById('reward_cents').value = params.reward_cents || '';
+      document.getElementById('total_participants').value = params.total_participants || '';
+
+      updateRewardHint();
+      updateCost();
+      renderFilters();
+      renderCompletionCodes();
+    }
+
+    function updateRewardHint() {
+      const cents = parseInt(document.getElementById('reward_cents').value) || 0;
+      document.getElementById('reward_hint').textContent = formatCurrency(cents) + ' per participant';
+    }
+
+    function updateCost() {
+      const reward = parseInt(document.getElementById('reward_cents').value) || 0;
+      const participants = parseInt(document.getElementById('total_participants').value) || 0;
+      const rewards = reward * participants;
+      const service = Math.round(rewards * 0.33);
+      const vat = Math.round(service * 0.20);
+      const total = rewards + service + vat;
+
+      document.getElementById('cost_rewards').textContent = formatCurrency(rewards);
+      document.getElementById('cost_service').textContent = formatCurrency(service);
+      document.getElementById('cost_vat').textContent = formatCurrency(vat);
+      document.getElementById('cost_total').textContent = formatCurrency(total);
+
+      if (content.prolific_auditory_draft) {
+        content.prolific_auditory_draft.cost_estimate = { rewards, service_fee: service, vat, total };
+      }
+    }
+
+    function formatCurrency(cents) { return '£' + (cents / 100).toFixed(2); }
+
+    function renderFilters() {
+      const params = content.prolific_auditory_draft?.parameters || {};
+      const filters = params.filters || [];
+      const container = document.getElementById('filters_list');
+
+      container.innerHTML = filters.map((f, i) => {
+        const info = filterMap[f.filter_id] || {};
+        const typeOptions = FILTERS.map(t =>
+          `<option value="${t.value}" ${f.filter_id === t.value ? 'selected' : ''}>${t.label}</option>`
+        ).join('');
+
+        let valueHtml = '';
+        if (info.type === 'range') {
+          valueHtml = `
+            <div class="range-inputs">
+              <div class="range-field">
+                <label>Min</label>
+                <input type="number" class="p-inputtext p-component" value="${f.selected_range?.lower || info.min || 0}"
+                  onchange="updateFilter(${i}, 'min', parseInt(this.value))">
+              </div>
+              <div class="range-field">
+                <label>Max</label>
+                <input type="number" class="p-inputtext p-component" value="${f.selected_range?.upper || info.max || 100}"
+                  onchange="updateFilter(${i}, 'max', parseInt(this.value))">
+              </div>
+            </div>
+          `;
+        } else if (info.type === 'select' && info.choices) {
+          const selected = f.selected_values || [];
+          const chips = selected.map(v => `<span class="multiselect-chip">${info.choices[v] || v}</span>`).join('') || '<span style="color:var(--p-text-muted-color)">Click to select...</span>';
+          const options = Object.entries(info.choices).map(([v, l]) => `
+            <div class="multiselect-option ${selected.includes(v) ? 'selected' : ''}" onclick="toggleOption(${i}, '${v}', event)">
+              <input type="checkbox" ${selected.includes(v) ? 'checked' : ''} style="pointer-events:none">
+              <span>${l}</span>
+            </div>
+          `).join('');
+          valueHtml = `
+            <div class="multiselect-container">
+              <div class="multiselect-display" tabindex="0" onclick="toggleDropdown(${i})">${chips}</div>
+              <div class="multiselect-dropdown" id="dropdown_${i}">${options}</div>
+            </div>
+          `;
+        }
+
+        return `
+          <div class="filter-card">
+            <div class="filter-header">
+              <select class="p-select p-component" onchange="updateFilter(${i}, 'filter_id', this.value)">${typeOptions}</select>
+              <button class="p-button p-component p-button-danger p-button-text p-button-sm" onclick="removeFilter(${i})">
+                <span class="pi pi-trash"></span>
+              </button>
+            </div>
+            ${valueHtml}
+          </div>
+        `;
+      }).join('');
+    }
+
+    function renderCompletionCodes() {
+      const params = content.prolific_auditory_draft?.parameters || {};
+      const codes = params.completion_codes || [];
+      const container = document.getElementById('completion_codes');
+
+      if (!codes.length) {
+        container.innerHTML = '<div style="color:var(--p-text-muted-color);font-size:0.9rem">No completion codes configured</div>';
+        return;
+      }
+
+      container.innerHTML = codes.map(c => `
+        <div class="completion-code">
+          <div class="code-info">
+            <span class="code-label">Completion Code:</span>
+            <code class="code-value">${c.code}</code>
+          </div>
+          <div class="code-type">
+            <span class="tag tag-success">${c.code_type}</span>
+            ${c.actions?.length ? `<span class="code-action">→ ${c.actions[0].action.replace(/_/g, ' ')}</span>` : ''}
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function toggleDropdown(i) {
+      const dd = document.getElementById('dropdown_' + i);
+      document.querySelectorAll('.multiselect-dropdown').forEach(d => { if (d !== dd) d.classList.remove('open'); });
+      dd.classList.toggle('open');
+    }
+
+    function toggleOption(i, val, e) {
+      e.stopPropagation();
+      const filters = content.prolific_auditory_draft?.parameters?.filters || [];
+      const f = filters[i];
+      if (!f.selected_values) f.selected_values = [];
+      const idx = f.selected_values.indexOf(val);
+      if (idx >= 0) f.selected_values.splice(idx, 1);
+      else f.selected_values.push(val);
+      notifyChange();
+      renderFilters();
+    }
+
+    document.addEventListener('click', e => {
+      if (!e.target.closest('.multiselect-container')) {
+        document.querySelectorAll('.multiselect-dropdown').forEach(d => d.classList.remove('open'));
+      }
+    });
+
+    function updateParameter(field, value) {
+      if (!content.prolific_auditory_draft) content.prolific_auditory_draft = {};
+      if (!content.prolific_auditory_draft.parameters) content.prolific_auditory_draft.parameters = {};
+      content.prolific_auditory_draft.parameters[field] = value;
+      updateRewardHint();
+      updateCost();
+      notifyChange();
+    }
+
+    function addFilter() {
+      if (!content.prolific_auditory_draft) content.prolific_auditory_draft = {};
+      if (!content.prolific_auditory_draft.parameters) content.prolific_auditory_draft.parameters = {};
+      if (!content.prolific_auditory_draft.parameters.filters) content.prolific_auditory_draft.parameters.filters = [];
+      content.prolific_auditory_draft.parameters.filters.push({ filter_id: 'age', selected_range: { lower: 18, upper: 65 } });
+      notifyChange();
+      renderFilters();
+    }
+
+    function updateFilter(i, field, value) {
+      const filters = content.prolific_auditory_draft?.parameters?.filters || [];
+      const f = filters[i];
+      if (field === 'filter_id') {
+        f.filter_id = value;
+        delete f.selected_range;
+        delete f.selected_values;
+        const info = filterMap[value];
+        if (info?.type === 'range') f.selected_range = { lower: info.min || 0, upper: info.max || 100 };
+        else if (info?.type === 'select') f.selected_values = [];
+        renderFilters();
+      } else if (field === 'min') {
+        if (!f.selected_range) f.selected_range = {};
+        f.selected_range.lower = value;
+      } else if (field === 'max') {
+        if (!f.selected_range) f.selected_range = {};
+        f.selected_range.upper = value;
+      }
+      notifyChange();
+    }
+
+    function removeFilter(i) {
+      content.prolific_auditory_draft.parameters.filters.splice(i, 1);
+      notifyChange();
+      renderFilters();
+    }
+
+    function notifyChange() { FormBridge.send('FORM_CONTENT_CHANGED', { content }); }
+
+    function showStatus(msg, isError) {
+      const el = document.getElementById('statusToast');
+      el.textContent = msg;
+      el.className = 'status-toast show ' + (isError ? 'error' : 'success');
+      setTimeout(() => el.classList.remove('show'), 3000);
+    }
+
+    function save() {
+      const btn = document.getElementById('saveBtn');
+      btn.disabled = true;
+      btn.innerHTML = '<span class="pi pi-spin pi-spinner" style="margin-right:8px"></span>Saving...';
+
+      const handler = data => {
+        FormBridge.off('SAVE_RESULT', handler);
+        btn.disabled = false;
+        btn.innerHTML = '<span class="pi pi-save" style="margin-right:8px"></span>Save Changes';
+        showStatus(data.success ? '✓ Saved!' : 'Failed: ' + (data.error || 'Unknown'), !data.success);
+      };
+
+      FormBridge.on('SAVE_RESULT', handler);
+      FormBridge.send('FORM_SAVE_REQUEST', { content });
+
+      setTimeout(() => {
+        FormBridge.off('SAVE_RESULT', handler);
+        if (btn.disabled) {
+          btn.disabled = false;
+          btn.innerHTML = '<span class="pi pi-save" style="margin-right:8px"></span>Save Changes';
+          showStatus('Timeout', true);
+        }
+      }, 10000);
+    }
+  </script>
+</body>
+</html>

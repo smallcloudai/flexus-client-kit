@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Survey Editor</title>
+  <link rel="stylesheet" href="https://unpkg.com/primeicons@7.0.0/primeicons.css">
+  <link rel="stylesheet" href="https://unpkg.com/@primeuix/themes@1.1.1/lara/lara-light-noir/theme.css">
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--p-surface-100);
+      margin: 0;
+      padding: 20px;
+      min-height: 100vh;
+    }
+    #app { max-width: 800px; margin: 0 auto; }
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 24px;
+      padding-bottom: 16px;
+      border-bottom: 2px solid var(--p-surface-border);
+    }
+    .header h1 { color: var(--p-text-color); font-size: 1.5rem; margin: 0; }
+    .card {
+      background: var(--p-surface-0);
+      border-radius: var(--p-border-radius-lg);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+    .card h3 {
+      color: var(--p-text-color);
+      margin: 0 0 16px 0;
+      font-size: 1.1rem;
+      font-weight: 600;
+    }
+    .field { margin-bottom: 16px; }
+    .field label {
+      display: block;
+      font-weight: 600;
+      color: var(--p-text-color);
+      margin-bottom: 8px;
+      font-size: 0.875rem;
+    }
+    .meta-info {
+      display: flex;
+      gap: 24px;
+      font-size: 0.85rem;
+      color: var(--p-text-muted-color);
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px solid var(--p-surface-border);
+    }
+    .meta-info strong { color: var(--p-text-color); }
+    .section-header {
+      margin-bottom: 16px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--p-surface-border);
+    }
+    .question-card {
+      background: var(--p-surface-50);
+      border: 1px solid var(--p-surface-border);
+      border-radius: var(--p-border-radius);
+      padding: 16px;
+      margin-bottom: 12px;
+    }
+    .question-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+    .question-number {
+      font-weight: 700;
+      color: var(--p-primary-color);
+      font-size: 0.9rem;
+    }
+    .question-options {
+      display: flex;
+      gap: 20px;
+      margin: 12px 0;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    .option-field {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .choices-section {
+      margin-top: 12px;
+      padding: 12px;
+      background: var(--p-surface-0);
+      border-radius: var(--p-border-radius);
+      border: 1px solid var(--p-surface-border);
+    }
+    .choices-section > label { margin-bottom: 8px; }
+    .choice-item {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 8px;
+      align-items: center;
+    }
+    .choice-item input { flex: 1; }
+    .scale-section {
+      display: flex;
+      gap: 16px;
+      margin-top: 12px;
+    }
+    .scale-field { display: flex; flex-direction: column; gap: 4px; }
+    .scale-field input { width: 80px; }
+    .status-toast {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      padding: 12px 20px;
+      border-radius: var(--p-border-radius);
+      font-size: 0.9rem;
+      z-index: 100;
+      display: none;
+    }
+    .status-toast.success { background: var(--p-green-500); color: white; }
+    .status-toast.error { background: var(--p-red-500); color: white; }
+    .status-toast.show { display: block; }
+    .p-inputtext, .p-textarea, .p-select { width: 100%; }
+    .checkbox-wrapper { display: flex; align-items: center; gap: 6px; }
+    .checkbox-wrapper input[type="checkbox"] { width: 18px; height: 18px; }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div class="header">
+      <h1>📋 Survey Editor</h1>
+      <button class="p-button p-component" id="saveBtn" onclick="save()">
+        <span class="pi pi-save" style="margin-right:8px"></span>Save Changes
+      </button>
+    </div>
+
+    <div class="card">
+      <h3>Survey Information</h3>
+      <div class="field">
+        <label>Title</label>
+        <input type="text" id="meta_title" class="p-inputtext p-component" oninput="notifyChange()">
+      </div>
+      <div class="field">
+        <label>Description</label>
+        <textarea id="meta_description" class="p-textarea p-component" rows="2" oninput="notifyChange()"></textarea>
+      </div>
+      <div class="meta-info">
+        <span><strong>Hypothesis:</strong> <span id="meta_hypothesis">-</span></span>
+        <span><strong>Idea:</strong> <span id="meta_idea">-</span></span>
+      </div>
+    </div>
+
+    <div id="sections"></div>
+  </div>
+
+  <div id="statusToast" class="status-toast"></div>
+
+  <script>
+    const QUESTION_TYPES = [
+      { label: 'Single Choice', value: 'single_choice' },
+      { label: 'Multiple Choice', value: 'multiple_choice' },
+      { label: 'Open Ended', value: 'open_ended' },
+      { label: 'Rating Scale', value: 'rating_scale' },
+      { label: 'Yes/No', value: 'yes_no' },
+      { label: 'Likert Scale', value: 'likert' },
+      { label: 'NPS', value: 'nps' },
+      { label: 'Dropdown', value: 'dropdown' },
+      { label: 'Numeric', value: 'numeric' },
+      { label: 'Date', value: 'date' }
+    ];
+
+    const FormBridge = {
+      handlers: {},
+      init(name) {
+        window.addEventListener('message', e => {
+          if (e.data?.type && this.handlers[e.data.type]) {
+            this.handlers[e.data.type].forEach(h => h(e.data));
+          }
+        });
+        setTimeout(() => this.send('FORM_READY', { formName: name }), 0);
+      },
+      send(type, data) { window.parent.postMessage({ type, ...data }, '*'); },
+      on(type, handler) {
+        if (!this.handlers[type]) this.handlers[type] = [];
+        this.handlers[type].push(handler);
+      },
+      off(type, handler) {
+        if (this.handlers[type]) this.handlers[type] = this.handlers[type].filter(h => h !== handler);
+      }
+    };
+
+    let content = {};
+
+    FormBridge.on('INIT', data => {
+      content = data.content || {};
+      render();
+    });
+
+    FormBridge.on('CONTENT_UPDATE', data => {
+      content = data.content || {};
+      render();
+    });
+
+    FormBridge.init('productman-survey');
+
+    function render() {
+      const survey = content.survey || {};
+      const meta = survey.meta || {};
+
+      document.getElementById('meta_title').value = meta.title || '';
+      document.getElementById('meta_description').value = meta.description || '';
+      document.getElementById('meta_hypothesis').textContent = meta.hypothesis || '-';
+      document.getElementById('meta_idea').textContent = meta.idea || '-';
+
+      const sectionKeys = Object.keys(content).filter(k => k.match(/^section\d{2,}/)).sort();
+      const sectionsEl = document.getElementById('sections');
+      sectionsEl.innerHTML = sectionKeys.map(key => renderSection(key, content[key])).join('');
+    }
+
+    function renderSection(key, section) {
+      const questions = section.questions || [];
+      return `
+        <div class="card" data-section="${key}">
+          <div class="section-header">
+            <input type="text" class="p-inputtext p-component" value="${escapeHtml(section.title || '')}"
+              onchange="updateSectionTitle('${key}', this.value)" placeholder="Section Title"
+              style="font-size:1.1rem;font-weight:600">
+          </div>
+          ${questions.map((q, i) => renderQuestion(key, i, q)).join('')}
+          <button class="p-button p-component p-button-outlined" onclick="addQuestion('${key}')" style="width:100%">
+            <span class="pi pi-plus" style="margin-right:8px"></span>Add Question
+          </button>
+        </div>
+      `;
+    }
+
+    function renderQuestion(sectionKey, index, q) {
+      const typeOptions = QUESTION_TYPES.map(t =>
+        `<option value="${t.value}" ${q.type === t.value ? 'selected' : ''}>${t.label}</option>`
+      ).join('');
+
+      let extraFields = '';
+      if (['single_choice', 'multiple_choice', 'dropdown'].includes(q.type)) {
+        const choices = (q.choices || []).map((c, ci) => `
+          <div class="choice-item">
+            <input type="text" class="p-inputtext p-component" value="${escapeHtml(c)}"
+              onchange="updateChoice('${sectionKey}', ${index}, ${ci}, this.value)">
+            <button class="p-button p-component p-button-danger p-button-text p-button-sm"
+              onclick="removeChoice('${sectionKey}', ${index}, ${ci})">
+              <span class="pi pi-times"></span>
+            </button>
+          </div>
+        `).join('');
+        extraFields = `
+          <div class="choices-section">
+            <label>Answer Choices</label>
+            ${choices}
+            <button class="p-button p-component p-button-text p-button-sm" onclick="addChoice('${sectionKey}', ${index})">
+              <span class="pi pi-plus" style="margin-right:4px"></span>Add Choice
+            </button>
+          </div>
+        `;
+      } else if (q.type === 'rating_scale') {
+        extraFields = `
+          <div class="scale-section">
+            <div class="scale-field">
+              <label>Min</label>
+              <input type="number" class="p-inputtext p-component" value="${q.scale_min || 1}"
+                onchange="updateQuestion('${sectionKey}', ${index}, 'scale_min', parseInt(this.value))">
+            </div>
+            <div class="scale-field">
+              <label>Max</label>
+              <input type="number" class="p-inputtext p-component" value="${q.scale_max || 5}"
+                onchange="updateQuestion('${sectionKey}', ${index}, 'scale_max', parseInt(this.value))">
+            </div>
+          </div>
+        `;
+      }
+
+      return `
+        <div class="question-card">
+          <div class="question-header">
+            <span class="question-number">Q${index + 1}</span>
+            <button class="p-button p-component p-button-danger p-button-text p-button-sm"
+              onclick="removeQuestion('${sectionKey}', ${index})">
+              <span class="pi pi-trash"></span>
+            </button>
+          </div>
+          <div class="field">
+            <label>Question Text</label>
+            <textarea class="p-textarea p-component" rows="2"
+              onchange="updateQuestion('${sectionKey}', ${index}, 'q', this.value)">${escapeHtml(q.q || '')}</textarea>
+          </div>
+          <div class="question-options">
+            <div class="option-field">
+              <label style="margin:0">Type:</label>
+              <select class="p-select p-component" style="width:auto;min-width:150px"
+                onchange="updateQuestion('${sectionKey}', ${index}, 'type', this.value)">${typeOptions}</select>
+            </div>
+            <div class="option-field checkbox-wrapper">
+              <input type="checkbox" ${q.required ? 'checked' : ''}
+                onchange="updateQuestion('${sectionKey}', ${index}, 'required', this.checked)">
+              <label style="margin:0">Required</label>
+            </div>
+          </div>
+          ${extraFields}
+        </div>
+      `;
+    }
+
+    function escapeHtml(str) {
+      return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    function getContent() {
+      const survey = content.survey || {};
+      survey.meta = survey.meta || {};
+      survey.meta.title = document.getElementById('meta_title').value;
+      survey.meta.description = document.getElementById('meta_description').value;
+      content.survey = survey;
+      return content;
+    }
+
+    function updateSectionTitle(key, title) {
+      content[key].title = title;
+      notifyChange();
+    }
+
+    function updateQuestion(sectionKey, index, field, value) {
+      content[sectionKey].questions[index][field] = value;
+      notifyChange();
+      if (field === 'type') render();
+    }
+
+    function addQuestion(sectionKey) {
+      if (!content[sectionKey].questions) content[sectionKey].questions = [];
+      content[sectionKey].questions.push({ q: 'New question', type: 'open_ended', required: false });
+      notifyChange();
+      render();
+    }
+
+    function removeQuestion(sectionKey, index) {
+      content[sectionKey].questions.splice(index, 1);
+      notifyChange();
+      render();
+    }
+
+    function addChoice(sectionKey, qIndex) {
+      if (!content[sectionKey].questions[qIndex].choices) {
+        content[sectionKey].questions[qIndex].choices = [];
+      }
+      content[sectionKey].questions[qIndex].choices.push('New option');
+      notifyChange();
+      render();
+    }
+
+    function updateChoice(sectionKey, qIndex, cIndex, value) {
+      content[sectionKey].questions[qIndex].choices[cIndex] = value;
+      notifyChange();
+    }
+
+    function removeChoice(sectionKey, qIndex, cIndex) {
+      content[sectionKey].questions[qIndex].choices.splice(cIndex, 1);
+      notifyChange();
+      render();
+    }
+
+    function notifyChange() {
+      FormBridge.send('FORM_CONTENT_CHANGED', { content: getContent() });
+    }
+
+    function showStatus(msg, isError) {
+      const el = document.getElementById('statusToast');
+      el.textContent = msg;
+      el.className = 'status-toast show ' + (isError ? 'error' : 'success');
+      setTimeout(() => el.classList.remove('show'), 3000);
+    }
+
+    function save() {
+      const btn = document.getElementById('saveBtn');
+      btn.disabled = true;
+      btn.innerHTML = '<span class="pi pi-spin pi-spinner" style="margin-right:8px"></span>Saving...';
+
+      const handler = data => {
+        FormBridge.off('SAVE_RESULT', handler);
+        btn.disabled = false;
+        btn.innerHTML = '<span class="pi pi-save" style="margin-right:8px"></span>Save Changes';
+        showStatus(data.success ? '✓ Saved!' : 'Failed: ' + (data.error || 'Unknown'), !data.success);
+      };
+
+      FormBridge.on('SAVE_RESULT', handler);
+      FormBridge.send('FORM_SAVE_REQUEST', { content: getContent() });
+
+      setTimeout(() => {
+        FormBridge.off('SAVE_RESULT', handler);
+        if (btn.disabled) {
+          btn.disabled = false;
+          btn.innerHTML = '<span class="pi pi-save" style="margin-right:8px"></span>Save Changes';
+          showStatus('Timeout', true);
+        }
+      }, 10000);
+    }
+  </script>
+</body>
+</html>
