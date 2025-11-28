@@ -561,6 +561,7 @@ async def run_happy_trajectory(
     try:
         assert "__" in skill__scenario
         skill = skill__scenario.split("__")[0]
+        assert skill != "default", "the first part before \"__\" in scenario name should be the bot name, not \"default\""
         if skill == scenario.persona.persona_marketable_name:
             skill = "default"
         for step in range(max_steps):
@@ -619,7 +620,9 @@ async def run_happy_trajectory(
                 if ckit_shutdown.shutdown_event.is_set():
                     break
                 if not my_bot.instance_rcx._completed_initial_unpark:
-                    logger.info("WAIT for bot to complete initial unpark...")
+                    logger.info("WAIT for bot to complete initial unpark, it might have crashed or still initializing")
+                    if await ckit_shutdown.wait(1):
+                        break
                     continue
                 my_thread: Optional[ckit_bot_query.FThreadWithMessages] = my_bot.instance_rcx.latest_threads.get(ft_id, None)
                 if my_thread is None:
