@@ -45,6 +45,7 @@ NAME_prompts.py    -- prompts live in a separate file
 NAME_install.py    -- installation script, uses _bot and _prompts to construct a marketplace record
 NAME-1024x1536.jpg -- detailed marketplace picture under 0.3M
 NAME-256x256.png   -- small avatar picture with either transparent or white background
+forms/             -- optional directory with custom HTML forms for policy documents
 
 
 Kanban Board
@@ -120,6 +121,43 @@ A setup dialog is visible to the user in Flexus UI, automatically generated base
 Panels or tabs are generated based on bs_group, so related parameters group together.
 
 The full list of all bs_type: string_short, string_long, string_multiline, bool, int, float.
+
+
+Custom Forms
+------------
+
+Bots can provide custom HTML forms to edit policy documents instead of the default JSON editor.
+Forms are embedded in an iframe and communicate with the parent via postMessage.
+
+File structure:
+```
+mybot/
+  forms/
+    my_report.html     -- form for doc_type="my_report"
+    survey.html        -- form for doc_type="survey"
+  mybot_install.py
+  ...
+```
+
+The bot's system prompt should create documents with `_meta.doc_type` matching the form filename:
+```
+{"_meta": {"doc_type": "my_report"}, "my_report": {...}}
+```
+
+See flexus_simple_bots/frog/forms/pond_report.html for a complete example.
+
+Protocol messages:
+- Parent → Form: INIT (content, themeCss), CONTENT_UPDATE (content), FOCUS (focused)
+- Form → Parent: FORM_READY (formName), FORM_CONTENT_CHANGED (content)
+
+Available CSS variables (injected via themeCss):
+- `--p-content-background`, `--p-surface-card`, `--p-surface-ground` - backgrounds
+- `--p-text-color`, `--p-text-muted-color` - text colors
+- `--p-surface-border` - borders
+- `--p-primary-color`, `--p-primary-contrast-color` - buttons
+- `--p-border-radius`, `--p-border-radius-lg` - corners
+
+Forms should NOT include their own theme CSS - all colors come from the parent.
 
 
 Bot Main Loop

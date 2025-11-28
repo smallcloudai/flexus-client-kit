@@ -5,73 +5,27 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Frog Pond Report</title>
   <link rel="stylesheet" href="https://unpkg.com/primeicons@7.0.0/primeicons.css">
-  <link rel="stylesheet" href="https://unpkg.com/@primeuix/themes@1.1.1/lara/lara-light-noir/theme.css">
   <style>
-    * { box-sizing: border-box; }
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      background: var(--p-surface-100);
-      margin: 0;
-      padding: 20px;
-      min-height: 100vh;
-    }
-    #app {
-      max-width: 500px;
-      margin: 0 auto;
-    }
+    #app { max-width: 500px; margin: 0 auto; }
     .card {
-      background: var(--p-surface-0);
-      border-radius: var(--p-border-radius-lg);
+      background: var(--p-surface-card, var(--p-content-background));
+      border-radius: var(--p-border-radius-lg, 8px);
       box-shadow: 0 4px 20px rgba(0,0,0,0.08);
       padding: 24px;
     }
-    h1 {
-      color: var(--p-text-color);
-      font-size: 1.5rem;
-      margin: 0 0 8px 0;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
+    h1 { font-size: 1.5rem; margin: 0 0 8px 0; display: flex; align-items: center; gap: 8px; }
     .subtitle { color: var(--p-text-muted-color); font-size: 0.9rem; margin-bottom: 24px; }
     .field { margin-bottom: 20px; }
-    .field label {
-      display: block;
-      font-weight: 600;
-      color: var(--p-text-color);
-      margin-bottom: 8px;
-      font-size: 0.9rem;
-    }
-    .counter {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
+    .field label { display: block; font-weight: 600; margin-bottom: 8px; font-size: 0.9rem; }
+    .counter { display: flex; align-items: center; gap: 12px; }
     .counter-value {
-      width: 60px;
-      text-align: center;
-      font-weight: bold;
-      font-size: 1.2rem;
-      padding: 8px;
-      border: 1px solid var(--p-surface-border);
-      border-radius: var(--p-border-radius);
-      background: var(--p-surface-0);
+      width: 60px; text-align: center; font-weight: bold; font-size: 1.2rem;
+      padding: 8px; border: 1px solid var(--p-surface-border);
+      border-radius: var(--p-border-radius, 6px); background: var(--p-surface-card, var(--p-content-background));
     }
     .meta { font-size: 0.8rem; color: var(--p-text-muted-color); margin-top: 16px; text-align: center; }
-    .status-toast {
-      position: fixed;
-      bottom: 20px;
-      right: 20px;
-      padding: 12px 20px;
-      border-radius: var(--p-border-radius);
-      font-size: 0.9rem;
-      z-index: 100;
-      display: none;
-    }
-    .status-toast.success { background: var(--p-green-500); color: white; }
-    .status-toast.error { background: var(--p-red-500); color: white; }
-    .status-toast.show { display: block; }
   </style>
+  <style id="theme-css"></style>
 </head>
 <body>
   <div id="app">
@@ -126,16 +80,9 @@
         </select>
       </div>
 
-      <button class="p-button p-component" id="saveBtn" style="width:100%" onclick="save()">
-        <span class="pi pi-save" style="margin-right:8px"></span>
-        Save Report
-      </button>
-
       <div class="meta" id="meta"></div>
     </div>
   </div>
-
-  <div id="statusToast" class="status-toast"></div>
 
   <script>
     const FormBridge = {
@@ -162,6 +109,7 @@
 
     FormBridge.on('INIT', data => {
       content = data.content || {};
+      if (data.themeCss) document.getElementById('theme-css').textContent = data.themeCss;
       render();
     });
 
@@ -208,38 +156,6 @@
 
     function notifyChange() {
       FormBridge.send('FORM_CONTENT_CHANGED', { content: getContent() });
-    }
-
-    function showStatus(msg, isError) {
-      const el = document.getElementById('statusToast');
-      el.textContent = msg;
-      el.className = 'status-toast show ' + (isError ? 'error' : 'success');
-      setTimeout(() => el.classList.remove('show'), 3000);
-    }
-
-    function save() {
-      const btn = document.getElementById('saveBtn');
-      btn.disabled = true;
-      btn.innerHTML = '<span class="pi pi-spin pi-spinner" style="margin-right:8px"></span>Saving...';
-
-      const handler = data => {
-        FormBridge.off('SAVE_RESULT', handler);
-        btn.disabled = false;
-        btn.innerHTML = '<span class="pi pi-save" style="margin-right:8px"></span>Save Report';
-        showStatus(data.success ? '🐸 Ribbit! Report saved!' : 'Failed: ' + (data.error || 'Unknown'), !data.success);
-      };
-
-      FormBridge.on('SAVE_RESULT', handler);
-      FormBridge.send('FORM_SAVE_REQUEST', { content: getContent() });
-
-      setTimeout(() => {
-        FormBridge.off('SAVE_RESULT', handler);
-        if (btn.disabled) {
-          btn.disabled = false;
-          btn.innerHTML = '<span class="pi pi-save" style="margin-right:8px"></span>Save Report';
-          showStatus('Timeout', true);
-        }
-      }, 10000);
     }
   </script>
 </body>
