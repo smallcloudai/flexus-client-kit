@@ -66,14 +66,14 @@ class RobotContext:
         self._handler_upd_thread: Optional[Callable[[ckit_ask_model.FThreadOutput], Awaitable[None]]] = None
         self._handler_updated_task: Optional[Callable[[ckit_kanban.FPersonaKanbanTaskOutput], Awaitable[None]]] = None
         self._handler_per_tool: Dict[str, Callable[[Dict[str, Any]], Awaitable[str]]] = {}
-        self._handler_per_erp_table: Dict[str, Callable[[Any], Awaitable[None]]] = {}
+        self._handler_per_erp_table_change: Dict[str, Callable[[str, Optional[Any], Optional[Any]], Awaitable[None]]] = {}
         self._reached_main_loop = False
         self._completed_initial_unpark = False
         self._parked_messages: Dict[str, ckit_ask_model.FThreadMessageOutput] = {}
         self._parked_threads: Dict[str, ckit_ask_model.FThreadOutput] = {}
         self._parked_tasks: Dict[str, ckit_kanban.FPersonaKanbanTaskOutput] = {}
         self._parked_toolcalls: List[ckit_cloudtool.FCloudtoolCall] = []
-        self._parked_erp_records: List[tuple[str, Dict[str, Any]]] = []
+        self._parked_erp_changes: List[tuple[str, str, Optional[Dict[str, Any]], Optional[Dict[str, Any]]]] = []
         self._parked_anything_new = asyncio.Event()
         # These fields are designed for direct access:
         self.fclient = fclient
@@ -104,11 +104,11 @@ class RobotContext:
             return handler
         return decorator
 
-    def on_updated_erp_record(self, table_name: str):
-        def decorator(handler: Callable[[Any], Awaitable[None]]):
+    def on_erp_change(self, table_name: str):
+        def decorator(handler: Callable[[str, Optional[Any], Optional[Any]], Awaitable[None]]):
             if table_name not in erp_schema.ERP_TABLE_TO_SCHEMA:
                 raise ValueError(f"Unknown ERP table {table_name!r}. Known tables: {list(erp_schema.ERP_TABLE_TO_SCHEMA.keys())}")
-            self._handler_per_erp_table[table_name] = handler
+            self._handler_per_erp_table_change[table_name] = handler
             return handler
         return decorator
 
@@ -148,18 +148,19 @@ class RobotContext:
                 except Exception as e:
                     logger.error("%s error in on_updated_task handler: %s\n%s", self.persona.persona_id, type(e).__name__, e, exc_info=e)
 
-        erp_records = list(self._parked_erp_records)
-        self._parked_erp_records.clear()
-        for table_name, record_dict in erp_records:
+        erp_changes = list(self._parked_erp_changes)
+        self._parked_erp_changes.clear()
+        for table_name, action, new_record_dict, old_record_dict in erp_changes:
             did_anything = True
-            handler = self._handler_per_erp_table.get(table_name)
+            handler = self._handler_per_erp_table_change.get(table_name)
             if handler:
                 try:
                     dataclass_type = erp_schema.ERP_TABLE_TO_SCHEMA[table_name]
-                    typed_record = gql_utils.dataclass_from_dict(record_dict, dataclass_type)
-                    await handler(typed_record)
+                    new_record = gql_utils.dataclass_from_dict(new_record_dict, dataclass_type) if new_record_dict else None
+                    old_record = gql_utils.dataclass_from_dict(old_record_dict, dataclass_type) if old_record_dict else None
+                    await handler(action, new_record, old_record)
                 except Exception as e:
-                    logger.error("%s error in on_updated_erp_record(%r) handler: %s\n%s", self.persona.persona_id, table_name, type(e).__name__, e, exc_info=e)
+                    logger.error("%s error in on_erp_change(%r) handler: %s\n%s", self.persona.persona_id, table_name, type(e).__name__, e, exc_info=e)
 
         mycalls = list(self._parked_toolcalls)
         self._parked_toolcalls.clear()
@@ -474,14 +475,13 @@ async def subscribe_and_produce_callbacks(
 
             elif upd.news_about.startswith("erp."):
                 table_name = upd.news_about[4:]
-                if upd.news_action in ["INSERT", "UPDATE"]:
+                if upd.news_action in ["INSERT", "UPDATE", "DELETE"]:
                     handled = True
-                    typed_record = upd.news_payload_erp_record
+                    new_record = upd.news_payload_erp_record_new
+                    old_record = upd.news_payload_erp_record_old
                     for bot in bc.bots_running.values():
-                        bot.instance_rcx._parked_erp_records.append((table_name, typed_record))
+                        bot.instance_rcx._parked_erp_changes.append((table_name, upd.news_action, new_record, old_record))
                         bot.instance_rcx._parked_anything_new.set()
-                elif upd.news_action == "DELETE":
-                    handled = True
 
             elif upd.news_action == "INITIAL_UPDATES_OVER":
                 if len(bc.bots_running) == 0:

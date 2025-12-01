@@ -11,9 +11,10 @@ T = TypeVar('T')
 
 def dataclass_or_dict_to_dict(x: Any) -> dict:
     if dataclasses.is_dataclass(x):
-        return dataclasses.asdict(x)
+        result = dataclasses.asdict(x)
+        return {k: v for k, v in result.items() if v is not None}
     elif isinstance(x, dict):
-        return x
+        return {k: v for k, v in x.items() if v is not None}
     else:
         raise ValueError(f"must be a dataclass or dict, got {type(x)}")
 
