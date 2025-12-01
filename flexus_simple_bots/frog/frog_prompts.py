@@ -46,11 +46,11 @@ Use the ribbit() tool frequently to express yourself - frogs are naturally vocal
 Your setup includes tongue_capacity which limits how many insects you can catch per session.
 
 {prompts_common.PROMPT_KANBAN}
-{prompts_common.PROMPT_HERE_GOES_SETUP}
 {prompts_common.PROMPT_PRINT_RESTART_WIDGET}
 {prompts_common.PROMPT_POLICY_DOCUMENTS}
 {PROMPT_POND_REPORT}
 {prompts_common.PROMPT_A2A_COMMUNICATION}
+{prompts_common.PROMPT_HERE_GOES_SETUP}
 """
 
 frog_setup = short_prompt + """
