@@ -108,13 +108,11 @@ def gql_fields(cls: Type[Any], depth: int = 4) -> str:
         origin = getattr(field_type, "__origin__", None)
         args = getattr(field_type, "__args__", [])
 
-        # Unwrap Optional
-        if origin is Union and len(args) == 2 and type(None) in args:
-            non_none_args = [arg for arg in args if arg is not type(None)]
-            if len(non_none_args) == 1:
-                field_type = non_none_args[0]
-                origin = getattr(field_type, "__origin__", None)
-                args = getattr(field_type, "__args__", [])
+        # Optional
+        if origin is Union and type(None) in args:
+            field_type = next(arg for arg in args if arg is not type(None))
+            origin = getattr(field_type, "__origin__", None)
+            args = getattr(field_type, "__args__", [])
 
         # List
         if origin is list and args:
