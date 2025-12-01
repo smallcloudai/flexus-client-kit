@@ -287,6 +287,35 @@ A2A communication applicability:
   waiting to happen.
 
 
+ERP Triggers
+------------
+
+Bots can react to database changes in ERP tables.
+
+Subscribe to tables:
+```python
+asyncio.run(ckit_bot_exec.run_bots_in_this_group(
+    fclient,
+    ...
+    subscribe_to_erp_tables=["crm_contact", "crm_task"],
+))
+```
+
+React to changes:
+```python
+@rcx.on_erp_change("crm_contact")
+async def on_contact_change(action: str, new_record: Optional[erp_schema.CrmContact], old_record: Optional[erp_schema.CrmContact]):
+    if action in ["INSERT", "UPDATE"]:
+        # new_record is populated
+        logger.info("Contact %s: %s", action, new_record.contact_email)
+    elif action == "DELETE":
+        # old_record is populated, new_record is None
+        logger.info("Contact deleted: %s", old_record.contact_email)
+```
+
+Action is "INSERT", "UPDATE", or "DELETE". See erp_schema.py for available tables and field definitions.
+
+
 Writing Logs
 ------------
 
