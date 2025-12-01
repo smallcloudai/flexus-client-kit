@@ -76,16 +76,7 @@ async def install(
         marketable_default_inbox_default=10_000,
         marketable_experts=[
             ("default", ckit_bot_install.FMarketplaceExpertInput(
-                fexp_name="rick_default",
-                fexp_system_prompt=rick_prompts.rick_default,
-                fexp_python_kernel="",
-                fexp_block_tools="",
-                fexp_allow_tools="",
-                fexp_app_capture_tools=bot_internal_tools,
-            )),
-            ("welcome_email", ckit_bot_install.FMarketplaceExpertInput(
-                fexp_name="rick_welcome_email",
-                fexp_system_prompt=rick_prompts.welcome_email_skill,
+                fexp_system_prompt=rick_prompts.rick_prompt_default,
                 fexp_python_kernel="",
                 fexp_block_tools="",
                 fexp_allow_tools="",
