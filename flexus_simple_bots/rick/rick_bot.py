@@ -3,7 +3,7 @@ import json
 import logging
 import time
 from collections import deque
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 
 from flexus_client_kit import ckit_client
 from flexus_client_kit import ckit_cloudtool
@@ -38,7 +38,7 @@ async def rick_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.R
     gmail_integration = fi_gmail.IntegrationGmail(fclient, rcx)
     pdoc_integration = fi_pdoc.IntegrationPdoc(rcx, rcx.persona.ws_root_group_id)
 
-    recent_tasks = deque(maxlen=100)
+    recent_tasks: Dict[str, erp_schema.CrmTask] = {}
 
     @rcx.on_updated_message
     async def updated_message_in_db(msg: ckit_ask_model.FThreadMessageOutput):
@@ -52,83 +52,58 @@ async def rick_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.R
     async def updated_task_in_db(t: ckit_kanban.FPersonaKanbanTaskOutput):
         pass
 
-    @rcx.on_updated_erp_record("crm_task")
-    async def updated_crm_task(task: erp_schema.CrmTask):
-        recent_tasks.append(task)
-        logger.info("CRM task added to recent queue: task_id=%s contact_id=%s type=%s", task.task_id, task.contact_id, task.task_type)
+    @rcx.on_erp_change("crm_task")
+    async def on_task_change(action: str, new_record: Optional[erp_schema.CrmTask], old_record: Optional[erp_schema.CrmTask]):
+        if action == "DELETE" and old_record:
+            recent_tasks.pop(old_record.task_id, None)
+        elif action in ["INSERT", "UPDATE"] and new_record:
+            if old_record:
+                recent_tasks.pop(old_record.task_id, None)
+            recent_tasks[new_record.task_id] = new_record
+            if len(recent_tasks) > 100:
+                del recent_tasks[next(iter(recent_tasks))]
+            logger.info("CRM task cached: task_id=%s contact_id=%s type=%s", new_record.task_id, new_record.contact_id, new_record.task_type)
 
-    @rcx.on_updated_erp_record("crm_contact")
-    async def updated_crm_contact(contact: erp_schema.CrmContact):
-        logger.info("New CRM contact: id=%s email=%s name=%s %s", contact.contact_id, contact.contact_email, contact.contact_first_name, contact.contact_last_name)
-        if not setup.get("auto_welcome_email", True):
-            logger.info("Auto welcome email disabled, skipping")
-            return
-
-        has_welcome_task_in_recent = any(
-            t.contact_id == contact.contact_id and
-            t.task_type == "email" and
-            t.task_details.get("email_subtype") == "welcome"
-            for t in recent_tasks
-        )
-        if has_welcome_task_in_recent:
-            logger.info("Welcome email task already exists in recent tasks for contact_id=%s", contact.contact_id)
-            return
-
-        try:
-            existing_tasks = await ckit_erp.query_erp_table(
-                fclient,
-                "crm_task",
-                rcx.persona.ws_id,
-                erp_schema.CrmTask,
-                limit=100,
-                filters=[
-                    f"contact_id:=:{contact.contact_id}",
-                    "task_type:=:email",
-                    "task_details->email_subtype:=:welcome",
-                ],
-            )
-            if existing_tasks:
-                logger.info("Welcome email task already exists in ERP for contact_id=%s", contact.contact_id)
+    @rcx.on_erp_change("crm_contact")
+    async def on_contact_change(action: str, new_record: Optional[erp_schema.CrmContact], old_record: Optional[erp_schema.CrmContact]):
+        if action in ["INSERT", "UPDATE"]:
+            logger.info("CRM contact %s: id=%s email=%s", action, new_record.contact_id, new_record.contact_email)
+            if not setup["auto_welcome_email"]:
                 return
-        except Exception as e:
-            logger.error("Error querying ERP for existing tasks: %s", e, exc_info=e)
-            return
 
-        try:
+            if any(t.contact_id == new_record.contact_id and t.task_type == "email" and t.task_details.get("email_subtype") == "welcome" for t in recent_tasks.values()):
+                return
+
+            existing = await ckit_erp.query_erp_table(
+                fclient, "crm_task", rcx.persona.ws_id, erp_schema.CrmTask, limit=1,
+                filters=[f"contact_id:=:{new_record.contact_id}", "task_type:=:email", "task_details->email_subtype:=:welcome"],
+            )
+            if existing:
+                return
+
             task_details = {
                 "email_subtype": "welcome",
-                "contact_id": contact.contact_id,
-                "contact_email": contact.contact_email,
-                "contact_first_name": contact.contact_first_name,
-                "contact_last_name": contact.contact_last_name,
-                "description": f"Send welcome email to {contact.contact_first_name} {contact.contact_last_name} ({contact.contact_email})",
+                "contact_id": new_record.contact_id,
+                "description": f"Send a personalized welcome email to {new_record.contact_first_name} {new_record.contact_last_name} ({new_record.contact_email}) following the template and company strategy",
             }
+            if new_record.contact_address_city or new_record.contact_address_state:
+                task_details["location"] = f"{new_record.contact_address_city}, {new_record.contact_address_state}".strip(", ")
+            if new_record.contact_utm_first_source:
+                task_details["source"] = new_record.contact_utm_first_source
             await ckit_kanban.bot_kanban_post_into_inbox(
-                fclient,
-                rcx.persona.persona_id,
-                title=f"Welcome email: {contact.contact_first_name} {contact.contact_last_name}",
+                fclient, rcx.persona.persona_id,
+                title=f"Welcome: {new_record.contact_first_name} {new_record.contact_last_name}",
                 details_json=json.dumps(task_details),
-                provenance_message=f"New CRM contact detected: {contact.contact_email}",
-            )
-            logger.info("Created kanban welcome email task for contact_id=%s", contact.contact_id)
-
-            crm_task = erp_schema.CrmTask(
-                ws_id=rcx.persona.ws_id,
-                contact_id=contact.contact_id,
-                task_type="email",
-                task_title=f"Welcome email: {contact.contact_first_name} {contact.contact_last_name}",
-                task_notes=f"Auto-generated welcome email task for {contact.contact_email}",
-                task_details=task_details,
+                provenance_message=f"CRM contact {action.lower()}",
             )
             await ckit_erp.create_erp_record(
-                fclient,
-                "crm_task",
-                rcx.persona.ws_id,
-                crm_task,
+                fclient, "crm_task", rcx.persona.ws_id,
+                erp_schema.CrmTask(
+                    ws_id=rcx.persona.ws_id, contact_id=new_record.contact_id, task_type="email",
+                    task_title=f"Welcome: {new_record.contact_first_name} {new_record.contact_last_name}",
+                    task_details=task_details,
+                ),
             )
-            logger.info("Created ERP crm_task record for contact_id=%s", contact.contact_id)
-        except Exception as e:
-            logger.error("Error creating welcome email task: %s", e, exc_info=e)
 
     @rcx.on_tool_call(fi_gmail.GMAIL_TOOL.name)
     async def toolcall_gmail(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
