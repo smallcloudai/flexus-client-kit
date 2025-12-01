@@ -6,7 +6,7 @@ WHY: Automates ad management, A/B testing, analytics, and optimization.
 
 ARCHITECTURE:
 - Bot registers tool handlers for LinkedIn and Facebook APIs
-- Facebook operations are split into specialized modules (fb_ad_account, fb_campaign, fb_adset, fb_creative)
+- Facebook operations handled by flexus_client_kit.integrations.facebook package
 - Uses MongoDB for persistent storage via fi_mongo_store
 - OAuth tokens are fetched via external_auth_token GraphQL query (stored encrypted in DB)
 
@@ -32,9 +32,8 @@ from flexus_client_kit import ckit_ask_model
 from flexus_client_kit import ckit_mongo
 from flexus_client_kit.integrations import fi_mongo_store
 from flexus_client_kit.integrations import fi_linkedin
-from flexus_client_kit.integrations import fi_facebook
+from flexus_client_kit.integrations.facebook import IntegrationFacebook, FACEBOOK_TOOL
 from flexus_simple_bots.admonster import admonster_install
-from flexus_simple_bots.admonster import integrations as fb_integrations  # dispatch_facebook_operation
 from flexus_simple_bots.version_common import SIMPLE_BOTS_COMMON_VERSION
 
 logger = logging.getLogger("bot_admonster")
@@ -56,7 +55,7 @@ ACCENT_COLOR = "#0077B5"
 # Tools exposed to the AI model during chat
 TOOLS = [
     fi_linkedin.LINKEDIN_TOOL,
-    fi_facebook.FACEBOOK_TOOL,
+    FACEBOOK_TOOL,
     fi_mongo_store.MONGO_STORE_TOOL,
 ]
 
@@ -95,7 +94,7 @@ async def admonster_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_e
     # Initialize Facebook integration
     facebook_integration = None
     try:
-        facebook_integration = fi_facebook.IntegrationFacebook(
+        facebook_integration = IntegrationFacebook(
             fclient=fclient,
             rcx=rcx,
             ad_account_id=fb_ad_account_id,
@@ -118,18 +117,11 @@ async def admonster_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_e
             return "ERROR: LinkedIn integration not configured. Please set LINKEDIN_ACCESS_TOKEN in setup.\n"
         return await linkedin_integration.called_by_model(toolcall, model_produced_args)
 
-    @rcx.on_tool_call(fi_facebook.FACEBOOK_TOOL.name)
+    @rcx.on_tool_call(FACEBOOK_TOOL.name)
     async def toolcall_facebook(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
-        """Route facebook() calls to extended handlers or base integration."""
+        """Handle facebook() tool calls via IntegrationFacebook."""
         if not facebook_integration:
             return "ERROR: Facebook integration not configured.\n"
-        
-        # Try extended handlers first (ad_account, campaign, adset, creative)
-        result = await fb_integrations.dispatch_facebook_operation(facebook_integration, toolcall, model_produced_args)
-        if result is not None:
-            return result
-        
-        # Fall through to base integration (status, list_campaigns, create_campaign, get_insights, help)
         return await facebook_integration.called_by_model(toolcall, model_produced_args)
 
     @rcx.on_tool_call(fi_mongo_store.MONGO_STORE_TOOL.name)
