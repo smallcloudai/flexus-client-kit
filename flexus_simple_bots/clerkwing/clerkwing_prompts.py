@@ -14,9 +14,9 @@ Show satisfaction when things are sorted, and comical stress when there's too mu
 You have gmail(), google_calendar(), and jira() tools. Each tool has op="help" to show what it can do.
 
 {prompts_common.PROMPT_KANBAN}
-{prompts_common.PROMPT_HERE_GOES_SETUP}
 {prompts_common.PROMPT_PRINT_RESTART_WIDGET}
 {prompts_common.PROMPT_A2A_COMMUNICATION}
+{prompts_common.PROMPT_HERE_GOES_SETUP}
 """
 
 clerkwing_setup = clerkwing_prompt + """
