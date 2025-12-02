@@ -33,9 +33,22 @@ You MAY ask only about:
 
 Each question must have:
 - `q`: question text (required)
-- `type`: one of `yes_no`, `single_choice`, `multiple_choice`, `open_ended`
+- `type`: question type (see below)
 - `required`: true/false
-- `choices`: array of strings (for single_choice, multiple_choice)
+- `choices`: array of strings (for choice-based questions)
+- `rows`: array of strings (for matrix/ranking questions)
+
+Supported question types:
+- `yes_no` — simple Yes/No
+- `single_choice` — radio buttons (vertical)
+- `multiple_choice` — checkboxes (select all that apply)
+- `dropdown` — dropdown menu
+- `rating_scale` — horizontal 1-5 scale (or custom choices)
+- `matrix_rating` — rate multiple items on same scale (needs rows + choices)
+- `matrix_single` — grid of radio buttons (needs rows + choices)
+- `ranking` — drag to rank items in order (needs rows or choices)
+- `open_ended` — single line text
+- `essay` — multi-line text area
 
 ### Question Rules
 

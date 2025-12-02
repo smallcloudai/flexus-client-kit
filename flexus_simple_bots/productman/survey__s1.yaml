@@ -501,7 +501,7 @@ messages:
       ✍️/customer-research/dentist-samples/private-practice-dentists/survey-draft  
       ✍️/customer-research/dentist-samples/private-practice-dentists/auditory-draft
   - role: user
-    content: Yes
+    content: "Yes"
   - role: assistant
     tool_calls:
       - id: call_87712461

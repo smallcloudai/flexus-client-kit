@@ -910,6 +910,7 @@ class IntegrationSurveyResearch:
         question_text = q_data.get("q", "")
         q_type = q_data.get("type", "open_ended")
         choices = q_data.get("choices", [])
+        rows = q_data.get("rows", [])
         required = q_data.get("required", False)
 
         question_mappings = {
@@ -928,9 +929,44 @@ class IntegrationSurveyResearch:
                 "subtype": "vertical",
                 "answers": {"choices": [{"text": c} for c in choices]}
             },
+            "dropdown": {
+                "family": "single_choice",
+                "subtype": "menu",
+                "answers": {"choices": [{"text": c} for c in choices]}
+            },
+            "rating_scale": {
+                "family": "single_choice",
+                "subtype": "horiz",
+                "answers": {"choices": [{"text": c} for c in choices] or [{"text": str(i)} for i in range(1, 6)]}
+            },
+            "matrix_rating": {
+                "family": "matrix",
+                "subtype": "rating",
+                "answers": {
+                    "rows": [{"text": r} for r in rows],
+                    "choices": [{"text": c} for c in choices] or [{"text": str(i)} for i in range(1, 6)]
+                }
+            },
+            "matrix_single": {
+                "family": "matrix",
+                "subtype": "single",
+                "answers": {
+                    "rows": [{"text": r} for r in rows],
+                    "choices": [{"text": c} for c in choices]
+                }
+            },
+            "ranking": {
+                "family": "matrix",
+                "subtype": "ranking",
+                "answers": {"rows": [{"text": r} for r in rows] or [{"text": c} for c in choices]}
+            },
             "open_ended": {
                 "family": "open_ended",
                 "subtype": "single"
+            },
+            "essay": {
+                "family": "open_ended",
+                "subtype": "essay"
             }
         }
 
@@ -946,10 +982,13 @@ class IntegrationSurveyResearch:
             sm_q["answers"] = mapping["answers"]
 
         if required:
+            # single_choice only accepts type="all"; multiple_choice and matrix accept "at_least"
+            family = mapping["family"]
+            req_type = "at_least" if family in ("multiple_choice", "matrix") else "all"
             sm_q["required"] = {
                 "text": "This question requires an answer.",
-                "type": "at_least",
-                "amount": "1"
+                "type": req_type,
+                "amount": "1",
             }
 
         return sm_q
