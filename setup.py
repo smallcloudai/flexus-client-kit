@@ -4,6 +4,10 @@ setup(
     name="flexus-client-kit",
     version="0.1.0",
     packages=find_packages(),
+    include_package_data=True,
+    package_data={
+        "": ["*.json", "*.lark"],
+    },
     install_requires=[
         "gql",
         "httpx",

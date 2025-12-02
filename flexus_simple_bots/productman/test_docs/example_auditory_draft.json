@@ -1,0 +1,46 @@
+{
+  "prolific_auditory_draft": {
+    "meta": {
+      "study_name": "Dental Product Sample Access - Private Practice Dentists",
+      "created_at": "2024-11-18 10:35:00",
+      "status": "DRAFT"
+    },
+    "parameters": {
+      "study_description": "We are researching how dental professionals discover and access new product samples. This 8-minute survey asks about your past experiences with obtaining dental product samples, trade show attendance, and purchasing decisions. Your responses will help improve sample distribution in the dental industry.",
+      "estimated_minutes": 8,
+      "reward_cents": 200,
+      "total_participants": 30,
+      "filters": [
+        {
+          "filter_id": "current-country-of-residence",
+          "selected_values": ["1"]
+        },
+        {
+          "filter_id": "age",
+          "selected_range": {
+            "lower": 25,
+            "upper": 65
+          }
+        },
+        {
+          "filter_id": "employment-status",
+          "selected_values": ["0", "1"]
+        }
+      ],
+      "reject_fast_submissions": false,
+      "completion_codes": [
+        {
+          "code": "COMPLETE_84729163",
+          "code_type": "COMPLETED",
+          "actions": [{"action": "AUTOMATICALLY_APPROVE"}]
+        }
+      ]
+    },
+    "cost_estimate": {
+      "rewards": 6000,
+      "service_fee": 1980,
+      "vat": 396,
+      "total": 8376
+    }
+  }
+}

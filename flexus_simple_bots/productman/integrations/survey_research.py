@@ -184,13 +184,14 @@ class IntegrationSurveyResearch:
         if not survey_content["survey"]["meta"].get("title"):
             return "Error: survey.meta.title is required"
 
-        formatted_content = {"survey": {"meta": survey_content["survey"]["meta"]}}
+        survey_obj = survey_content["survey"]
+        formatted_content = {"survey": {"meta": survey_obj["meta"]}}
         formatted_content["survey"]["meta"]["hypothesis"] = hypothesis_name
         formatted_content["survey"]["meta"]["idea"] = idea_name
         formatted_content["survey"]["meta"]["created_at"] = time.strftime("%Y-%m-%d %H:%M:%S")
 
         validation_errors = []
-        for key, value in survey_content.items():
+        for key, value in survey_obj.items():
             if not key.startswith("section"):
                 continue
             if not isinstance(value, dict):
@@ -209,16 +210,16 @@ class IntegrationSurveyResearch:
                     validation_errors.append(f"{key}.questions[{q_idx}] missing 'type' field")
                 if q.get("type") in ["single_choice", "multiple_choice"] and not q.get("choices"):
                     validation_errors.append(f"{key}.questions[{q_idx}] type={q['type']} requires 'choices' array")
-            formatted_content[key] = value
+            formatted_content["survey"][key] = value
 
-        section_count = sum(1 for k in formatted_content.keys() if k.startswith("section"))
+        section_count = sum(1 for k in formatted_content["survey"].keys() if k.startswith("section"))
         if section_count == 0:
             return "Error: survey_content must have section01-screening through section06-concept-validation"
 
         if validation_errors:
             return "Survey validation failed:\n  - " + "\n  - ".join(validation_errors)
 
-        question_count = sum(len(s.get("questions", [])) for k, s in formatted_content.items() if k.startswith("section"))
+        question_count = sum(len(s.get("questions", [])) for k, s in formatted_content["survey"].items() if k.startswith("section"))
         pdoc_path = f"/customer-research/{idea_name}/{hypothesis_name}/survey-draft"
 
         await self.pdoc_integration.pdoc_overwrite(
@@ -841,15 +842,16 @@ class IntegrationSurveyResearch:
             logger.error(f"Failed to update task survey status: missing key {e}")
 
     async def _create_surveymonkey_survey(self, survey_content: Dict, completion_code: str) -> Dict:
-        meta = survey_content.get("survey", {}).get("meta", {})
+        survey_obj = survey_content.get("survey", {})
+        meta = survey_obj.get("meta", {})
         survey_title = meta.get("title", "Survey")
         survey_description = meta.get("description", "")
 
         questions = []
-        for section_key in sorted(survey_content.keys()):
+        for section_key in sorted(survey_obj.keys()):
             if not section_key.startswith("section"):
                 continue
-            section = survey_content[section_key]
+            section = survey_obj[section_key]
             if not isinstance(section, dict):
                 continue
 
@@ -946,7 +948,7 @@ class IntegrationSurveyResearch:
         if required:
             sm_q["required"] = {
                 "text": "This question requires an answer.",
-                "type": "all",
+                "type": "at_least",
                 "amount": "1"
             }
 

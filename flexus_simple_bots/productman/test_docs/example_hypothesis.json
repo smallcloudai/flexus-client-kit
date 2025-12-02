@@ -1,0 +1,98 @@
+{
+  "hypothesis": {
+    "meta": {
+      "author": "User",
+      "date": "20251118"
+    },
+    "section01-formula": {
+      "title": "Magic Formula",
+      "question01-formula": {
+        "q": "The clients are [segment] who want [goal] but cannot [action] because [one reason].",
+        "a": "Private practice dentists who want to stay on trend but cannot regularly receive multi-vendor samples without attending trade shows, because suppliers focus only on their own products and ignore competitors."
+      }
+    },
+    "section02-profile": {
+      "title": "Ideal Customer Profile",
+      "question01": {
+        "q": "Who are the clients?",
+        "a": "Private practice dentists in the USA with individual practices, holding licenses, actively seeking new products for patients."
+      },
+      "question02": {
+        "q": "What do they want to accomplish?",
+        "a": "Stay current with market innovations to offer patients fresh solutions and remain competitive."
+      },
+      "question03": {
+        "q": "What can't they do today?",
+        "a": "Regularly receive diverse samples from different suppliers without significant effort at trade shows or personal negotiations."
+      },
+      "question04": {
+        "q": "Why can't they do it?",
+        "a": "Suppliers aren't interested in multi-vendor distribution, and channels like trade shows are rare and inconvenient for busy professionals."
+      }
+    },
+    "section03-context": {
+      "title": "Customer Context",
+      "question01": {
+        "q": "Where do they hang out (channels)?",
+        "a": "Professional networks (ADA forums), social media (LinkedIn, dental groups), trade shows, online platforms for dentists."
+      },
+      "question02": {
+        "q": "What are their pains and frustrations?",
+        "a": "Rare access to new samples, time wasted on trade shows, lack of overview of 'the full menu' from competitors."
+      },
+      "question03": {
+        "q": "What outcomes do they desire?",
+        "a": "Regular packages with new products within a month of release, without effort to search."
+      },
+      "question04": {
+        "q": "Geography and languages?",
+        "a": "USA, English language."
+      }
+    },
+    "section04-solution": {
+      "title": "Solution Hypothesis",
+      "question01": {
+        "q": "What is the minimum viable solution for this segment?",
+        "a": "Subscription for monthly packages with multi-vendor samples after license verification."
+      },
+      "question02": {
+        "q": "What value metric matters most to them?",
+        "a": "Frequency and variety of samples, delivery time <1 month."
+      },
+      "question03": {
+        "q": "What would make them choose this over alternatives?",
+        "a": "Convenience of regular delivery of 'the full menu' without travel, plus time savings."
+      }
+    },
+    "section05-validation": {
+      "title": "Validation Strategy",
+      "question01": {
+        "q": "How can we test this hypothesis quickly?",
+        "a": "Survey 20-30 private practice dentists about willingness to pay for sample subscription."
+      },
+      "question02": {
+        "q": "What evidence would prove/disprove this?",
+        "a": "Confirmation: >50% willing to pay $20-50/month. Disproval: <20% interested."
+      },
+      "question03": {
+        "q": "What is the success metric?",
+        "a": "At least 60% positive responses in survey on interest in service."
+      }
+    },
+    "section06-ice": {
+      "title": "ICE Verdict",
+      "question01-impact": {
+        "q": "Impact (0-5): how important it is",
+        "a": "4"
+      },
+      "question02-confidence": {
+        "q": "Confidence (0-5): how sure we are",
+        "a": "3"
+      },
+      "question03-ease": {
+        "q": "Ease (0-5): how easy to verify/ship",
+        "a": "4"
+      }
+    }
+  }
+}

@@ -73,43 +73,43 @@ def make_valid_survey_content() -> Dict[str, Any]:
             "meta": {
                 "title": "Test Survey",
                 "description": "A test survey for validation"
+            },
+            "section01-screening": {
+                "title": "Screening Questions",
+                "questions": [
+                    {"q": "Are you a software developer?", "type": "yes_no", "required": True}
+                ]
+            },
+            "section02-user-profile": {
+                "title": "User Profile",
+                "questions": [
+                    {"q": "What is your role?", "type": "single_choice", "choices": ["Developer", "Manager", "Designer"]}
+                ]
+            },
+            "section03-problem": {
+                "title": "Problem Discovery",
+                "questions": [
+                    {"q": "What challenges do you face?", "type": "open_ended"}
+                ]
+            },
+            "section04-current-behavior": {
+                "title": "Current Behavior",
+                "questions": [
+                    {"q": "How do you currently solve this?", "type": "open_ended"}
+                ]
+            },
+            "section05-impact": {
+                "title": "Impact Assessment",
+                "questions": [
+                    {"q": "How severe is this problem?", "type": "single_choice", "choices": ["Low", "Medium", "High"]}
+                ]
+            },
+            "section06-concept-validation": {
+                "title": "Concept Validation",
+                "questions": [
+                    {"q": "Would you use this solution?", "type": "yes_no"}
+                ]
             }
-        },
-        "section01-screening": {
-            "title": "Screening Questions",
-            "questions": [
-                {"q": "Are you a software developer?", "type": "yes_no", "required": True}
-            ]
-        },
-        "section02-user-profile": {
-            "title": "User Profile",
-            "questions": [
-                {"q": "What is your role?", "type": "single_choice", "choices": ["Developer", "Manager", "Designer"]}
-            ]
-        },
-        "section03-problem": {
-            "title": "Problem Discovery",
-            "questions": [
-                {"q": "What challenges do you face?", "type": "open_ended"}
-            ]
-        },
-        "section04-current-behavior": {
-            "title": "Current Behavior",
-            "questions": [
-                {"q": "How do you currently solve this?", "type": "open_ended"}
-            ]
-        },
-        "section05-impact": {
-            "title": "Impact Assessment",
-            "questions": [
-                {"q": "How severe is this problem?", "type": "single_choice", "choices": ["Low", "Medium", "High"]}
-            ]
-        },
-        "section06-concept-validation": {
-            "title": "Concept Validation",
-            "questions": [
-                {"q": "Would you use this solution?", "type": "yes_no"}
-            ]
         }
     }
 
@@ -212,7 +212,7 @@ class TestDraftSurvey:
     @pytest.mark.asyncio
     async def test_section_must_be_object(self, integration, toolcall):
         content = make_valid_survey_content()
-        content["section01-screening"] = "not an object"
+        content["survey"]["section01-screening"] = "not an object"
         result = await integration.handle_survey_research(toolcall, {
             "op": "draft_survey",
             "args": {"idea_name": "test-idea", "hypothesis_name": "test-hyp", "survey_content": content}
@@ -222,7 +222,7 @@ class TestDraftSurvey:
     @pytest.mark.asyncio
     async def test_section_must_have_questions_array(self, integration, toolcall):
         content = make_valid_survey_content()
-        content["section01-screening"] = {"title": "Test", "questions": "not an array"}
+        content["survey"]["section01-screening"] = {"title": "Test", "questions": "not an array"}
         result = await integration.handle_survey_research(toolcall, {
             "op": "draft_survey",
             "args": {"idea_name": "test-idea", "hypothesis_name": "test-hyp", "survey_content": content}
@@ -232,7 +232,7 @@ class TestDraftSurvey:
     @pytest.mark.asyncio
     async def test_section_must_have_title(self, integration, toolcall):
         content = make_valid_survey_content()
-        content["section01-screening"] = {"questions": []}
+        content["survey"]["section01-screening"] = {"questions": []}
         result = await integration.handle_survey_research(toolcall, {
             "op": "draft_survey",
             "args": {"idea_name": "test-idea", "hypothesis_name": "test-hyp", "survey_content": content}
@@ -242,7 +242,7 @@ class TestDraftSurvey:
     @pytest.mark.asyncio
     async def test_question_missing_q_field(self, integration, toolcall):
         content = make_valid_survey_content()
-        content["section01-screening"]["questions"] = [{"type": "yes_no"}]
+        content["survey"]["section01-screening"]["questions"] = [{"type": "yes_no"}]
         result = await integration.handle_survey_research(toolcall, {
             "op": "draft_survey",
             "args": {"idea_name": "test-idea", "hypothesis_name": "test-hyp", "survey_content": content}
@@ -252,7 +252,7 @@ class TestDraftSurvey:
     @pytest.mark.asyncio
     async def test_question_missing_type_field(self, integration, toolcall):
         content = make_valid_survey_content()
-        content["section01-screening"]["questions"] = [{"q": "Test question"}]
+        content["survey"]["section01-screening"]["questions"] = [{"q": "Test question"}]
         result = await integration.handle_survey_research(toolcall, {
             "op": "draft_survey",
             "args": {"idea_name": "test-idea", "hypothesis_name": "test-hyp", "survey_content": content}
@@ -262,7 +262,7 @@ class TestDraftSurvey:
     @pytest.mark.asyncio
     async def test_choice_question_missing_choices(self, integration, toolcall):
         content = make_valid_survey_content()
-        content["section01-screening"]["questions"] = [{"q": "Pick one", "type": "single_choice"}]
+        content["survey"]["section01-screening"]["questions"] = [{"q": "Pick one", "type": "single_choice"}]
         result = await integration.handle_survey_research(toolcall, {
             "op": "draft_survey",
             "args": {"idea_name": "test-idea", "hypothesis_name": "test-hyp", "survey_content": content}
@@ -272,7 +272,7 @@ class TestDraftSurvey:
     @pytest.mark.asyncio
     async def test_multiple_choice_missing_choices(self, integration, toolcall):
         content = make_valid_survey_content()
-        content["section01-screening"]["questions"] = [{"q": "Pick many", "type": "multiple_choice"}]
+        content["survey"]["section01-screening"]["questions"] = [{"q": "Pick many", "type": "multiple_choice"}]
         result = await integration.handle_survey_research(toolcall, {
             "op": "draft_survey",
             "args": {"idea_name": "test-idea", "hypothesis_name": "test-hyp", "survey_content": content}

@@ -13,16 +13,25 @@ warning_text = "💿 Cannot close the task until survey campaign is completed"
 has_campaign_completed = _find_message(messages, "ompleted", None) != None
 has_survey_launched = _find_message(messages, "campaign launched successfully", None) != None
 
-if has_survey_launched and not has_campaign_completed:
-    last_assistant_msg = None
-    for m in messages[::-1]:
-        if m.get("role") == "assistant":
-            last_assistant_msg = m
-            break
-    if last_assistant_msg:
-        for t in last_assistant_msg.get("tool_calls", []):
-            if t.get("function", {}).get("name") == "flexus_bot_kanban":
-                args = t.get("function", {}).get("arguments", "")
-                if "current_task_done" in args:
-                    post_cd_instruction = warning_text
-                    break
+last_assistant_msg = None
+for m in messages[::-1]:
+    if m.get("role") == "assistant":
+        last_assistant_msg = m
+        break
+
+if last_assistant_msg:
+    for t in last_assistant_msg.get("tool_calls", []):
+        func = t.get("function", {})
+        name = func.get("name", "")
+        args = func.get("arguments", "")
+
+        if name == "flexus_policy_document":
+            if ("survey-draft" in args or "auditory-draft" in args) and ('"overwrite"' in args or '"write"' in args):
+                post_cd_instruction = "💿 Do not call flexus_policy_document directly for survey-draft or auditory-draft. Use survey(op=\"draft_survey\") or survey(op=\"draft_auditory\") instead."
+                kill_tools = [t.get("id")]
+                break
+
+        if has_survey_launched and not has_campaign_completed:
+            if name == "flexus_bot_kanban" and "current_task_done" in args:
+                post_cd_instruction = warning_text
+                break

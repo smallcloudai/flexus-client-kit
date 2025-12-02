@@ -44,6 +44,42 @@ Each question must have:
 3. ~80% closed questions, open questions at end of section
 4. Neutral wording (no leading questions)
 5. Use only what is in Canvas or hypothesis (no invented facts/features)
+
+### Survey Content Structure (EXACT FORMAT)
+
+```json
+{
+  "survey": {
+    "meta": {"title": "Your Survey Title"},
+    "section01-screening": {
+      "title": "Screening",
+      "questions": [{"q": "Are you a licensed dentist?", "type": "yes_no", "required": true}]
+    },
+    "section02-user-profile": {"title": "User Profile", "questions": [...]},
+    "section03-problem": {"title": "Problem Assessment", "questions": [...]},
+    "section04-current-behavior": {"title": "Current Behavior", "questions": [...]},
+    "section05-impact": {"title": "Impact", "questions": [...]},
+    "section06-concept-validation": {"title": "Concept Validation", "questions": [...]}
+  }
+}
+```
+
+Each section MUST have both "title" and "questions" fields. All 6 sections inside "survey" object.
+
+### IMPORTANT: Creating Survey/Auditory Drafts
+
+NEVER call `flexus_policy_document(op="overwrite")` or `flexus_policy_document(op="write")` directly to create survey-draft or auditory-draft documents.
+
+ALWAYS use the dedicated survey tool operations:
+- `survey(op="draft_survey", ...)` — creates and validates survey structure
+- `survey(op="draft_auditory", ...)` — creates and validates audience targeting
+
+These tools perform structural validation that raw policy_document calls bypass.
+
+### Filter Search Tips
+
+If specific filters don't exist, use broad filters + screening questions in section01.
+One search call with multiple terms, don't make separate calls.
 """
 
 prompt = f"""{PRODUCTMAN_BASE}
@@ -56,9 +92,10 @@ prompt = f"""{PRODUCTMAN_BASE}
    - Analyze content to understand target audience and what to validate
 
 2. Draft survey and audience targeting:
-   - Search filters FIRST: `survey(op="search_filters", args={{"search_pattern": ["age", "country", "employment"]}})`
-   - Create survey draft: `survey(op="draft_survey", args={{"idea_name": "...", "hypothesis_name": "...", "survey_content": {...}}})`
-   - Create audience draft: `survey(op="draft_auditory", args={{"idea_name": "...", "hypothesis_name": "...", "study_name": "...", "estimated_minutes": X, "reward_cents": Y, "total_participants": Z, "filters": {...}}})`
+   - Search filters (use `|` for OR): `survey(op="search_filters", args={{"search_pattern": "dentist|dental|age|employment"}})`
+   - Create survey draft: `survey(op="draft_survey", args={{"idea_name": "...", "hypothesis_name": "...", "survey_content": {{...}}}})`
+   - Create audience draft: `survey(op="draft_auditory", args={{"idea_name": "...", "hypothesis_name": "...", "study_name": "...", "estimated_minutes": 5, "reward_cents": 200, "total_participants": 30, "filters": {{...}}}})`
+   - If no specific filter exists, use screening questions in section01
    - Show cost estimates and get user approval
 
 3. Execute campaign:
