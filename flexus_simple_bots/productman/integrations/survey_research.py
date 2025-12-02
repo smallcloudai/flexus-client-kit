@@ -12,13 +12,13 @@ logger = logging.getLogger("survey_research")
 
 SURVEY_RESEARCH_TOOL = ckit_cloudtool.CloudTool(
     name="survey",
-    description="Unified survey research tool: draft surveys, draft audience targeting, and run complete campaigns. Start with op=\"help\".",
+    description="Survey research: draft surveys, draft audience targeting, run campaigns. Start with op=\"help\".",
     parameters={
         "type": "object",
         "properties": {
             "op": {
                 "type": "string",
-                "description": "Operation: help, draft_survey, draft_auditory, run, search_filters",
+                "description": "Operation: help, draft_survey, draft_auditory, run, responses, list, search_filters",
                 "order": 1
             },
             "args": {
@@ -26,20 +26,18 @@ SURVEY_RESEARCH_TOOL = ckit_cloudtool.CloudTool(
                 "description": "Operation-specific arguments",
                 "order": 2,
                 "properties": {
-                    "idea_name": {"type": "string", "description": "Name of the idea folder", "order": 1001},
-                    "hypothesis_name": {"type": "string", "description": "Name of the hypothesis being tested", "order": 1002},
-                    "survey_content": {"type": "object", "description": "Complete survey structure", "order": 1003},
-                    "study_name": {"type": "string", "description": "Name for the Prolific study", "order": 1004},
+                    "idea_name": {"type": "string", "description": "Idea folder name (kebab-case)", "order": 1001},
+                    "hypothesis_name": {"type": "string", "description": "Hypothesis folder name (kebab-case)", "order": 1002},
+                    "survey_content": {"type": "object", "description": "Survey with meta and section01-06", "order": 1003},
+                    "study_name": {"type": "string", "description": "Prolific study name", "order": 1004},
                     "study_description": {"type": "string", "description": "Description for participants", "order": 1005},
-                    "estimated_minutes": {"type": "integer", "description": "Estimated completion time", "order": 1006},
-                    "reward_cents": {"type": "integer", "description": "Payment per participant in cents", "order": 1007},
-                    "total_participants": {"type": "integer", "description": "Number of participants", "order": 1008},
-                    "filters": {"type": "object", "description": "Demographic and behavioral filters", "order": 1009},
-                    "survey_draft_path": {"type": "string", "description": "Path to survey draft", "order": 1010},
-                    "auditory_draft_path": {"type": "string", "description": "Path to auditory draft", "order": 1011},
-                    "survey_id": {"type": "string", "description": "SurveyMonkey survey ID", "order": 1012},
-                    "target_responses": {"type": "integer", "description": "Target number of responses to collect", "order": 1013},
-                    "search_pattern": {"type": "string", "description": "Regex pattern or list of patterns to search filter names", "order": 1014}
+                    "estimated_minutes": {"type": "integer", "description": "Estimated completion time (required)", "order": 1006},
+                    "reward_cents": {"type": "integer", "description": "Payment per participant in cents (required)", "order": 1007},
+                    "total_participants": {"type": "integer", "description": "Number of participants (required)", "order": 1008},
+                    "filters": {"type": "object", "description": "Prolific filters from search_filters", "order": 1009},
+                    "survey_id": {"type": "string", "description": "SurveyMonkey survey ID", "order": 1010},
+                    "target_responses": {"type": "integer", "description": "Target responses to collect", "order": 1011},
+                    "search_pattern": {"type": "string", "description": "Regex or list of patterns for filter search", "order": 1012}
                 }
             }
         },
@@ -48,200 +46,49 @@ SURVEY_RESEARCH_TOOL = ckit_cloudtool.CloudTool(
 )
 
 SURVEY_RESEARCH_HELP = """
-survey()
+survey(op="help")
     Shows this help.
 
-survey(op="help")
-    Shows detailed help with examples.
+survey(op="search_filters", args={"search_pattern": "age|country"})
+    Search Prolific filters. ALWAYS DO THIS BEFORE draft_auditory.
+    Can accept list: {"search_pattern": ["age", "country"]}
 
 survey(op="draft_survey", args={"idea_name": "...", "hypothesis_name": "...", "survey_content": {...}})
-    Create or update a survey draft as a policy document for review.
+    Create survey draft at /customer-research/{idea}/{hypothesis}/survey-draft
+    survey_content must have: survey.meta.title, section01-screening through section06-concept-validation
 
-survey(op="draft_auditory", args={"study_name": "...", "estimated_minutes": 10, "reward_cents": 150, "total_participants": 50, "filters": {...}})
-    Create or update an audience targeting draft for Prolific study.
+survey(op="draft_auditory", args={"idea_name": "...", "hypothesis_name": "...", "study_name": "...", "estimated_minutes": 10, "reward_cents": 150, "total_participants": 50, "filters": {...}})
+    Create audience draft at /customer-research/{idea}/{hypothesis}/auditory-draft
+    All numeric params are REQUIRED, no defaults.
 
-survey(op="run", args={"survey_draft_path": "...", "auditory_draft_path": "..."})
-    Execute complete workflow: create SurveyMonkey survey, create Prolific study, connect them, and publish for recruitment.
+survey(op="run", args={"idea_name": "...", "hypothesis_name": "..."})
+    Execute campaign: create SurveyMonkey survey, Prolific study, connect, publish.
+    Reads drafts from /customer-research/{idea}/{hypothesis}/
 
 survey(op="responses", args={"idea_name": "...", "hypothesis_name": "...", "survey_id": "123456", "target_responses": 50})
-    Fetch all responses for a SurveyMonkey survey and save results.
-    Required: survey_id, target_responses, idea_name, hypothesis_name
-    Saves results to /customer-research/<idea_name>/<hypothesis_name>-survey-results
+    Fetch responses, save to /customer-research/{idea}/{hypothesis}/survey-results
 
 survey(op="list", args={"idea_name": "..."})
-    List all surveys for an idea (drafts and live).
+    List all survey files for an idea.
 
-survey(op="search_filters", args={"search_pattern": "age|country"})
-    Search available Prolific filters by name using regex pattern.
-    Can also accept multiple patterns: {"search_pattern": ["age", "country", "language"]}
+Example survey_content structure:
+{
+    "survey": {"meta": {"title": "Survey Title", "description": "..."}},
+    "section01-screening": {
+        "title": "Screening",
+        "questions": [
+            {"q": "Are you a project manager?", "type": "yes_no", "required": true}
+        ]
+    },
+    "section02-user-profile": {...},
+    "section03-problem": {...},
+    "section04-current-behavior": {...},
+    "section05-impact": {...},
+    "section06-concept-validation": {...}
+}
 
-Examples:
-    # Draft survey - IMPORTANT: sections go at root level, not under "survey"
-    survey(op="draft_survey", args={
-        "idea_name": "task-tool",
-        "hypothesis_name": "managers",
-        "survey_content": {
-            "survey": {
-                "meta": {
-                    "title": "Task Management Survey",
-                    "description": "Tell us about your task management experience"
-                }
-            },
-            "section01-screening": {
-                "title": "Screening Questions",
-                "questions": [
-                    {"q": "Are you a project manager?", "type": "yes_no", "required": true},
-                    {"q": "Company size?", "type": "single_choice", 
-                     "choices": ["1-10", "11-50", "51-200", "201+"], "required": true}
-                ]
-            },
-            "section02-user-profile": {
-                "title": "Your Role",
-                "questions": [
-                    {"q": "Years of experience?", "type": "single_choice", 
-                     "choices": ["0-2", "3-5", "6-10", "10+"], "required": true},
-                    {"q": "Describe your main challenges", "type": "open_ended", "required": false}
-                ]
-            }
-            # Add sections 03-06 as needed (see structure rules above)
-        }
-    })
-
-    # IMPORTANT: Before using filters in draft_auditory, search for them first!
-    # Step 1: Search for the filters you need
-    survey(op="search_filters", args={"search_pattern": ["age", "country", "approval"]})
-    
-    # Step 2: Use the exact filter IDs and value formats from search results
-    survey(op="draft_auditory", args={
-        "study_name": "Task Management Survey",
-        "study_description": "We are conducting research on task management practices and tools used by professionals",
-        "estimated_minutes": 15,
-        "reward_cents": 200,
-        "total_participants": 100,
-        "filters": {
-            "age": {"min": 25, "max": 55},
-            "current-country-of-residence": ["0", "1"],
-            "approval_rate": {"min": 95, "max": 100}
-        }
-    })
-
-    # Run campaign
-    survey(op="run", args={
-        "survey_draft_path": "/customer-research/task-tool/managers-survey-draft",
-        "auditory_draft_path": "/customer-research/task-tool/managers-auditory-draft"
-    })
-    
-    # Get survey responses
-    survey(op="responses", args={"idea_name": "task-tool", "hypothesis_name": "managers", "survey_id": "123456", "target_responses": 50})
-    
-    # List all surveys for an idea
-    survey(op="list", args={"idea_name": "task-tool"})
-    
-    # Search available filters - ALWAYS DO THIS BEFORE draft_auditory!
-    survey(op="search_filters", args={"search_pattern": "age|country|language"})
-    # Or search multiple patterns at once:
-    survey(op="search_filters", args={"search_pattern": ["employment", "student", "sex"]})
-    
-Survey creation rules.
-RULE #0 — SACRED AND NON-NEGOTIABLE
-Never ask about the future, intentions, or hypotheticals. Ask ONLY about past experience and real actions.
-If a question refers to the future, rewrite it about past behavior or do not ask it. Otherwise, the data is junk.
-Use ONLY canvas and the given hypothesis, do not use any other sources.
-
-You MUST NOT ask about:
-- how likely someone is to do something,
-- whether they will use / buy / pay for something,
-- how attractive an idea is,
-- “would you…”, “what would you do if…”, or any hypothetical scenario,
-- any future behavior or intentions.
-
-You MAY ask only about:
-- what the person has done in the past,
-- how they previously solved the problem,
-- situations they actually faced,
-- experience that already happened,
-- barriers that already occurred,
-- metrics that were actually observed.
-
---------------------------------
-SURVEY STRUCTURE (EXACTLY 6 SECTIONS)
---------------------------------
-1. Screening (section01-screening)
-2. User profile (section02-user-profile)
-3. Problem (section03-problem) - frequency and pain intensity
-4. Current behavior (section04-current-behavior) - existing solutions
-5. Impact (section05-impact) - how the problem influenced past decisions
-6. Concept validation (section06-concept-validation) - only via past experience, no forecasts
-
-You MUST NOT create any additional sections.
-
-Each question must have:
-- "q": question text (required)
-- "type": one of [yes_no, single_choice, multiple_choice, open_ended]
-- "required": true/false
-- "choices": array of strings (for single_choice, multiple_choice)
-
-Note: For multiple_choice questions, you cannot require all options to be selected (that defeats the purpose)
-
-SUPPORTED QUESTION TYPES (currently implemented):
-- yes_no: Simple Yes/No question
-- single_choice: Select one option from a list (requires "choices" array)
-- multiple_choice: Select multiple options from a list (requires "choices" array)
-- open_ended: Free text response
-
---------------------------------
-QUESTION RULES
---------------------------------
-
-0. Only past experience
-- If a question is about the future, intentions, or hypotheticals → rewrite it to the past or remove it.
-
-1. One question — one idea
-- No double questions or mixed meanings.
-
-2. All scales are 1–5
-- 1 = minimum (e.g. “not at all”, “never”, “no impact”)
-- 5 = maximum (e.g. “very much”, “very often”, “strong impact”)
-
-3. ~80% closed questions
-Allowed closed types:
-- single choice,
-- multiple choice,
-- 1–5 scale,
-- ranges / intervals,
-- factual actions (what they actually did),
-- frequency (how often something happened).
-
-Open questions:
-- at most 1–2 per section,
-- preferably at the end of the section,
-- only when really needed.
-
-4. Neutral wording
-- No leading or suggestive phrasing.
-- Do not push toward a specific answer or toward using the product.
-
-5. No invented facts
-- Use only what is in chat history, Canvas, or the hypothesis.
-- If there is not enough data to create a specific question, write:
-  “Skip — insufficient data.”
-
-6. No invented features
-- Use only solution features explicitly described in the materials.
-- If a feature is not mentioned, it does not exist and cannot be used in questions.
-
-7. Concept validation only through real experience
-You may ask only about:
-- whether they used analogs in the past,
-- how they solved this problem before,
-- what happened when they tried to solve it,
-- what pains and barriers they actually faced,
-- how similar tools or processes worked in practice.
-
-Do NOT ask:
-- “Would you use/buy this?”,
-- “How likely are you to use/buy this?”,
-- any future adoption questions.
+Question types: yes_no, single_choice, multiple_choice, open_ended
+For single_choice/multiple_choice: include "choices": ["option1", "option2", ...]
 """
 
 
@@ -323,92 +170,56 @@ class IntegrationSurveyResearch:
     async def _handle_draft_survey(self, toolcall: ckit_cloudtool.FCloudtoolCall, args: Dict[str, Any]) -> str:
         idea_name = args.get("idea_name", "")
         hypothesis_name = args.get("hypothesis_name", "")
-        survey_content = args.get("survey_content", {})
+        survey_content = args.get("survey_content")
 
-        if not idea_name or not hypothesis_name:
-            return "Error: idea_name and hypothesis_name are required"
+        if not idea_name:
+            return "Error: idea_name is required"
+        if not hypothesis_name:
+            return "Error: hypothesis_name is required"
+        if not survey_content:
+            return "Error: survey_content is required"
 
-        formatted_content = {}
+        if "survey" not in survey_content or "meta" not in survey_content.get("survey", {}):
+            return "Error: survey_content must have survey.meta with title"
+        if not survey_content["survey"]["meta"].get("title"):
+            return "Error: survey.meta.title is required"
 
-        if "survey" in survey_content and "meta" in survey_content["survey"]:
-            formatted_content["survey"] = {
-                "meta": survey_content["survey"]["meta"]
-            }
-        else:
-            formatted_content["survey"] = {
-                "meta": {
-                    "title": "Survey",
-                    "description": ""
-                }
-            }
-
+        formatted_content = {"survey": {"meta": survey_content["survey"]["meta"]}}
         formatted_content["survey"]["meta"]["hypothesis"] = hypothesis_name
         formatted_content["survey"]["meta"]["idea"] = idea_name
         formatted_content["survey"]["meta"]["created_at"] = time.strftime("%Y-%m-%d %H:%M:%S")
-        formatted_content["survey"]["meta"]["prolific_integration"] = True
 
+        validation_errors = []
         for key, value in survey_content.items():
-            if key.startswith("section") and isinstance(value, dict):
-                if "questions" not in value or not isinstance(value["questions"], list):
-                    if "questions" in value:
-                        value["questions"] = [value["questions"]] if not isinstance(value["questions"], list) else value["questions"]
-                    else:
-                        questions_list = []
-                        for q_key in sorted(value.keys()):
-                            if q_key.startswith("question") and isinstance(value[q_key], dict):
-                                questions_list.append(value[q_key])
-                        if questions_list:
-                            value = {
-                                "title": value.get("title", "Section"),
-                                "questions": questions_list
-                            }
-                        else:
-                            value = {
-                                "title": value.get("title", "Section"),
-                                "questions": []
-                            }
-                formatted_content[key] = value
-            elif key != "survey" and isinstance(value, dict):
-                formatted_content[key] = value
+            if not key.startswith("section"):
+                continue
+            if not isinstance(value, dict):
+                validation_errors.append(f"{key} must be an object")
+                continue
+            if "questions" not in value or not isinstance(value["questions"], list):
+                validation_errors.append(f"{key} must have 'questions' array")
+                continue
+            if not value.get("title"):
+                validation_errors.append(f"{key} must have 'title'")
+                continue
+            for q_idx, q in enumerate(value["questions"]):
+                if not q.get("q"):
+                    validation_errors.append(f"{key}.questions[{q_idx}] missing 'q' field")
+                if not q.get("type"):
+                    validation_errors.append(f"{key}.questions[{q_idx}] missing 'type' field")
+                if q.get("type") in ["single_choice", "multiple_choice"] and not q.get("choices"):
+                    validation_errors.append(f"{key}.questions[{q_idx}] type={q['type']} requires 'choices' array")
+            formatted_content[key] = value
 
         section_count = sum(1 for k in formatted_content.keys() if k.startswith("section"))
         if section_count == 0:
-            return "Error: Survey must contain at least one section (e.g., section01-screening)"
-
-        question_count = sum(
-            len(section.get("questions", []))
-            for key, section in formatted_content.items()
-            if key.startswith("section") and isinstance(section, dict)
-        )
-        if question_count == 0:
-            return "Error: Survey must contain at least one question"
-
-        validation_errors = []
-        for key, section in formatted_content.items():
-            if key.startswith("section") and isinstance(section, dict):
-                for q_idx, question in enumerate(section.get("questions", [])):
-                    q_type = question.get("type", "")
-                    q_text = question.get("q", f"Question {q_idx + 1}")
-                    
-                    if q_type == "multiple_choice":
-                        choices = question.get("choices", [])
-                        if not choices:
-                            validation_errors.append(f"Section {key}: Multiple choice question '{q_text[:50]}...' must have choices")
-                        elif question.get("required") and len(choices) > 1:
-                            all_required = question.get("all_required", False)
-                            if all_required:
-                                validation_errors.append(f"Section {key}: Multiple choice question '{q_text[:50]}...' cannot require all options to be selected")
-                    
-                    if q_type in ["single_choice", "dropdown"] and not question.get("choices"):
-                        validation_errors.append(f"Section {key}: {q_type} question '{q_text[:50]}...' must have choices")
+            return "Error: survey_content must have section01-screening through section06-concept-validation"
 
         if validation_errors:
-            error_msg = "Survey validation failed:\n"
-            for error in validation_errors:
-                error_msg += f"  - {error}\n"
-            return error_msg
+            return "Survey validation failed:\n  - " + "\n  - ".join(validation_errors)
 
-        pdoc_path = f"/customer-research/{idea_name}/{hypothesis_name}-survey-draft"
+        question_count = sum(len(s.get("questions", [])) for k, s in formatted_content.items() if k.startswith("section"))
+        pdoc_path = f"/customer-research/{idea_name}/{hypothesis_name}/survey-draft"
 
         await self.pdoc_integration.pdoc_overwrite(
             pdoc_path,
@@ -425,18 +236,29 @@ class IntegrationSurveyResearch:
         return result
 
     async def _handle_draft_auditory(self, toolcall: ckit_cloudtool.FCloudtoolCall, args: Dict[str, Any]) -> str:
+        idea_name = args.get("idea_name", "")
+        hypothesis_name = args.get("hypothesis_name", "")
         study_name = args.get("study_name", "")
         study_description = args.get("study_description", "")
-        estimated_minutes = args.get("estimated_minutes", 5)
-        reward_cents = args.get("reward_cents", 100)
-        total_participants = args.get("total_participants", 50)
+        estimated_minutes = args.get("estimated_minutes")
+        reward_cents = args.get("reward_cents")
+        total_participants = args.get("total_participants")
         filters = args.get("filters", {})
 
+        if not idea_name:
+            return "Error: idea_name is required"
+        if not hypothesis_name:
+            return "Error: hypothesis_name is required"
         if not study_name:
             return "Error: study_name is required"
-
         if not study_description:
             return "Error: study_description is required"
+        if estimated_minutes is None:
+            return "Error: estimated_minutes is required (no default)"
+        if reward_cents is None:
+            return "Error: reward_cents is required (no default)"
+        if total_participants is None:
+            return "Error: total_participants is required (no default)"
 
         prolific_filters = []
         for filter_key, filter_value in filters.items():
@@ -545,7 +367,7 @@ class IntegrationSurveyResearch:
             }
         }
 
-        draft_path = f"/customer-research/auditory-drafts/{study_name.lower().replace(' ', '-')}-auditory-draft"
+        draft_path = f"/customer-research/{idea_name}/{hypothesis_name}/auditory-draft"
 
         await self.pdoc_integration.pdoc_overwrite(
             draft_path,
@@ -568,34 +390,41 @@ class IntegrationSurveyResearch:
         idea_name = args.get("idea_name", "")
 
         if not idea_name:
-            return "Error: idea_name is required for list operation"
+            return "Error: idea_name is required"
 
         if not self.pdoc_integration:
             return "Error: pdoc integration not configured"
 
         try:
-            path = f"/customer-research/{idea_name}"
-            items = await self.pdoc_integration.pdoc_list(path)
+            base_path = f"/customer-research/{idea_name}"
+            items = await self.pdoc_integration.pdoc_list(base_path)
 
-            surveys = []
+            survey_files = []
             for item in items:
-                if not item.is_folder and ("-survey-draft" in item.path or "-survey-live" in item.path or "-survey-monkey" in item.path):
-                    surveys.append(item.path)
+                if item.is_folder:
+                    hyp_items = await self.pdoc_integration.pdoc_list(item.path)
+                    for hi in hyp_items:
+                        if not hi.is_folder and ("survey-draft" in hi.path or "survey-results" in hi.path or "auditory-draft" in hi.path):
+                            survey_files.append(hi.path)
 
-            if not surveys:
-                return f"No surveys found for idea '{idea_name}'"
+            if not survey_files:
+                return f"No survey files found for idea '{idea_name}'"
 
-            result = f"📋 Surveys for idea '{idea_name}':\n\n"
-            for survey_path in sorted(surveys):
-                if "-survey-draft" in survey_path:
-                    result += f"📝 Draft: {survey_path}\n"
-                else:
-                    result += f"🔗 Live: {survey_path}\n"
+            result = f"📋 Survey files for '{idea_name}':\n\n"
+            for p in sorted(survey_files):
+                if "survey-draft" in p:
+                    result += f"📝 {p}\n"
+                elif "auditory-draft" in p:
+                    result += f"🎯 {p}\n"
+                elif "survey-results" in p:
+                    result += f"📊 {p}\n"
 
             return result
 
-        except Exception as e:
-            return f"Error listing surveys: {str(e)}"
+        except KeyError as e:
+            return f"Error listing surveys: missing key {e}"
+        except json.JSONDecodeError as e:
+            return f"Error listing surveys: invalid JSON - {e}"
 
     async def _handle_search_filters(self, args: Dict[str, Any]) -> str:
         import re
@@ -667,17 +496,18 @@ class IntegrationSurveyResearch:
         return result
 
     async def _prepare_run_confirmation(self, toolcall: ckit_cloudtool.FCloudtoolCall, args: Dict[str, Any]) -> str:
-        survey_draft_path = args.get("survey_draft_path", "")
-        auditory_draft_path = args.get("auditory_draft_path", "")
+        idea_name = args.get("idea_name", "")
+        hypothesis_name = args.get("hypothesis_name", "")
 
-        if not survey_draft_path or not auditory_draft_path:
-            return "Error: Both survey_draft_path and auditory_draft_path are required"
+        if not idea_name or not hypothesis_name:
+            return "Error: idea_name and hypothesis_name are required"
 
+        auditory_draft_path = f"/customer-research/{idea_name}/{hypothesis_name}/auditory-draft"
         auditory_doc = await self.pdoc_integration.pdoc_cat(auditory_draft_path)
         auditory_content = auditory_doc.pdoc_content
 
         if not auditory_content or "prolific_auditory_draft" not in auditory_content:
-            return "Error: Invalid auditory draft format"
+            return f"Error: Invalid auditory draft at {auditory_draft_path}"
 
         cost_estimate = auditory_content["prolific_auditory_draft"]["cost_estimate"]
         total_cost = cost_estimate["total"]
@@ -689,8 +519,14 @@ class IntegrationSurveyResearch:
         )
 
     async def _handle_run(self, toolcall: ckit_cloudtool.FCloudtoolCall, args: Dict[str, Any]) -> str:
-        survey_draft_path = args.get("survey_draft_path", "")
-        auditory_draft_path = args.get("auditory_draft_path", "")
+        idea_name = args.get("idea_name", "")
+        hypothesis_name = args.get("hypothesis_name", "")
+
+        if not idea_name or not hypothesis_name:
+            return "Error: idea_name and hypothesis_name are required"
+
+        survey_draft_path = f"/customer-research/{idea_name}/{hypothesis_name}/survey-draft"
+        auditory_draft_path = f"/customer-research/{idea_name}/{hypothesis_name}/auditory-draft"
 
         try:
             survey_doc = await self.pdoc_integration.pdoc_cat(survey_draft_path)
@@ -754,8 +590,10 @@ class IntegrationSurveyResearch:
 
             return result
 
-        except Exception as e:
-            return f"Error executing campaign: {str(e)}"
+        except KeyError as e:
+            return f"Error executing campaign: missing key {e}"
+        except aiohttp.ClientError as e:
+            return f"Error executing campaign: API request failed - {e}"
 
     async def _handle_responses(self, toolcall: ckit_cloudtool.FCloudtoolCall, args: Dict[str, Any]) -> str:
         survey_id = args.get("survey_id", "")
@@ -852,7 +690,7 @@ class IntegrationSurveyResearch:
             responses_data.append(response_entry)
 
         if self.pdoc_integration:
-            results_path = f"/customer-research/{idea_name}/{hypothesis_name}-survey-results"
+            results_path = f"/customer-research/{idea_name}/{hypothesis_name}/survey-results"
             results_content = {
                 "survey_results": {
                     "meta": {
@@ -881,8 +719,10 @@ class IntegrationSurveyResearch:
                 )
                 result += f"\n📁 Results saved to: {results_path}\n"
                 result += f"✍️ {results_path}\n\n"
-            except Exception as e:
-                result += f"\n⚠️ Failed to save results: {str(e)}\n\n"
+            except aiohttp.ClientError as e:
+                result += f"\n⚠️ Failed to save results (API error): {e}\n\n"
+            except json.JSONDecodeError as e:
+                result += f"\n⚠️ Failed to save results (JSON error): {e}\n\n"
 
         if is_completed:
             result += "🎉 SURVEY COMPLETED! All target responses collected.\n"
@@ -894,7 +734,6 @@ class IntegrationSurveyResearch:
         return result
 
     def track_survey_task(self, task):
-        """Track survey tasks for automatic status updates"""
         if not task.ktask_details:
             return
 
@@ -963,8 +802,10 @@ class IntegrationSurveyResearch:
 
                 tracking_info["last_response_count"] = response_count
 
-            except Exception as e:
-                logger.error(f"🛑 Error updating survey {survey_id}: {e}")
+            except aiohttp.ClientError as e:
+                logger.error(f"Error updating survey {survey_id}: API request failed", exc_info=e)
+            except KeyError as e:
+                logger.error(f"Error updating survey {survey_id}: missing key {e}")
 
     async def update_task_survey_status(self, task_id: str, survey_id: str, response_count: int, is_completed: bool, survey_status: str):
         from flexus_client_kit import ckit_kanban
@@ -994,8 +835,10 @@ class IntegrationSurveyResearch:
             await ckit_kanban.update_task_details(self.fclient, task_id, details)
             logger.info(f"Updated task {task_id} survey status: {response_count}/{target_responses} responses, completed={is_completed}")
 
-        except Exception as e:
-            logger.error(f"Failed to update task survey status: {e}")
+        except aiohttp.ClientError as e:
+            logger.error(f"Failed to update task survey status: API request failed", exc_info=e)
+        except KeyError as e:
+            logger.error(f"Failed to update task survey status: missing key {e}")
 
     async def _create_surveymonkey_survey(self, survey_content: Dict, completion_code: str) -> Dict:
         meta = survey_content.get("survey", {}).get("meta", {})
@@ -1114,12 +957,12 @@ class IntegrationSurveyResearch:
         meta = draft.get("meta", {})
         params = draft.get("parameters", {})
 
-        study_name = meta.get("study_name", "Study")
-        study_description = params.get("study_description", "")
-        estimated_minutes = params.get("estimated_minutes", 5)
-        reward_cents = params.get("reward_cents", 100)
-        total_participants = params.get("total_participants", 50)
-        completion_codes = params.get("completion_codes", [])
+        study_name = meta["study_name"]
+        study_description = params["study_description"]
+        estimated_minutes = params["estimated_minutes"]
+        reward_cents = params["reward_cents"]
+        total_participants = params["total_participants"]
+        completion_codes = params["completion_codes"]
 
         filters = params.get("filters", [])
         survey_url = survey_info["url"]

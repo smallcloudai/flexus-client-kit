@@ -4,6 +4,7 @@ import json
 import os
 import time
 from typing import Dict, Any
+from pathlib import Path
 
 from flexus_client_kit import ckit_client, ckit_kanban
 from flexus_client_kit import ckit_cloudtool
@@ -27,17 +28,17 @@ BOT_VERSION_INT = ckit_client.marketplace_version_as_int(BOT_VERSION)
 
 IDEA_TEMPLATE_TOOL = ckit_cloudtool.CloudTool(
     name="template_idea",
-    description="Create idea file in pdoc. Ideas are the top-level concept, with multiple hypotheses exploring different customer segments or approaches. Path format: /customer-research/{idea-name}",
+    description="Create idea document. Path: /customer-research/<idea-name>/idea",
     parameters={
         "type": "object",
         "properties": {
             "path": {
                 "type": "string",
-                "description": "Path where to write idea. Should be /customer-research/{idea-name} using kebab-case: '/customer-research/unicorn-horn-car-idea'"
+                "description": "Path: /customer-research/<idea-name>/idea (kebab-case)"
             },
             "text": {
                 "type": "string",
-                "description": "JSON text of the idea document. Must match the structure of example_idea with exact keys. Only 'q' values can be translated."
+                "description": "JSON matching example_idea structure. Only 'q' values can be translated."
             },
         },
         "required": ["path", "text"],
@@ -46,17 +47,17 @@ IDEA_TEMPLATE_TOOL = ckit_cloudtool.CloudTool(
 
 HYPOTHESIS_TEMPLATE_TOOL = ckit_cloudtool.CloudTool(
     name="template_hypothesis",
-    description="Create hypothesis file in pdoc. Hypotheses explore specific customer segments or approaches for an idea. Path format: /customer-research/{idea-name}-hypotheses/{hypothesis-name}",
+    description="Create hypothesis document. Path: /customer-research/<idea-name>/<hypothesis-name>/hypothesis",
     parameters={
         "type": "object",
         "properties": {
             "path": {
                 "type": "string",
-                "description": "Path where to write hypothesis, such as '/customer-research/unicorn-horn-car-hypotheses/social-media-influencers'"
+                "description": "Path: /customer-research/<idea-name>/<hypothesis-name>/hypothesis (kebab-case)"
             },
             "text": {
                 "type": "string",
-                "description": "JSON text of the hypothesis document. Must match the structure of example_hypothesis with exact keys. Only 'q' and 'title' values can be translated."
+                "description": "JSON matching example_hypothesis structure. Only 'q' and 'title' can be translated."
             },
         },
         "required": ["path", "text"],
@@ -65,17 +66,17 @@ HYPOTHESIS_TEMPLATE_TOOL = ckit_cloudtool.CloudTool(
 
 VERIFY_IDEA_TOOL = ckit_cloudtool.CloudTool(
     name="verify_idea",
-    description="Launch a subchat to critically review and rate an idea document. Each question in the canvas will be rated as PASS, PASS-WITH-WARNINGS, or FAIL.",
+    description="Launch subchat to rate idea as PASS/PASS-WITH-WARNINGS/FAIL per question.",
     parameters={
         "type": "object",
         "properties": {
             "path": {
                 "type": "string",
-                "description": "Path to the idea document to verify, e.g. '/customer-research/unicorn-horn-car-idea'"
+                "description": "Path: /customer-research/<idea-name>/idea"
             },
             "language": {
                 "type": "string",
-                "description": "Language for comments (e.g. 'English', 'Spanish', 'French'), should be the same as you are talking to the user in."
+                "description": "Language for comments (same as conversation language)"
             },
         },
         "required": ["path", "language"],
@@ -107,7 +108,6 @@ TOOLS_ALL = [
 async def productman_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.RobotContext) -> None:
     setup = ckit_bot_exec.official_setup_mixing_procedure(productman_install.productman_setup_schema, rcx.persona.persona_setup)
     pdoc_integration = fi_pdoc.IntegrationPdoc(rcx, rcx.persona.ws_root_group_id)
-    print(rcx.persona.ws_root_group_id)
 
     survey_research_integration = survey_research.IntegrationSurveyResearch(
         surveymonkey_token=os.getenv("SURVEYMONKEY_ACCESS_TOKEN", ""),
@@ -115,14 +115,6 @@ async def productman_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_
         pdoc_integration=pdoc_integration,
         fclient=fclient
     )
-
-    @rcx.on_updated_message
-    async def updated_message_in_db(msg: ckit_ask_model.FThreadMessageOutput):
-        pass
-
-    @rcx.on_updated_thread
-    async def updated_thread_in_db(th: ckit_ask_model.FThreadOutput):
-        pass
 
     @rcx.on_updated_task
     async def updated_task_in_db(t: ckit_kanban.FPersonaKanbanTaskOutput):
@@ -155,6 +147,12 @@ async def productman_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_
                     return error
         return ""
 
+    def validate_path_kebab(path: str) -> str:
+        for segment in path.strip("/").split("/"):
+            if segment and not all(c.islower() or c.isdigit() or c == "-" for c in segment):
+                return f"Path segment '{segment}' must be kebab-case (lowercase, numbers, hyphens)"
+        return ""
+
     @rcx.on_tool_call(IDEA_TEMPLATE_TOOL.name)
     async def toolcall_idea_template(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
         path = model_produced_args.get("path", "")
@@ -164,15 +162,13 @@ async def productman_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_
         if not text:
             return "Error: text required"
         if rcx.running_test_scenario:
-            return await ckit_scenario.scenario_generate_tool_result_via_model(fclient, toolcall, open(__file__).read())
+            return await ckit_scenario.scenario_generate_tool_result_via_model(fclient, toolcall, Path(__file__).read_text())
+        if not path.endswith("/idea"):
+            return "Error: idea path must end with /idea (e.g. /customer-research/unicorn-horn-car/idea)"
         if not path.startswith("/customer-research/"):
-            return "Error: path must start with /customer-research/ (e.g. /customer-research/my-product-idea)"
-        path_segments = path.strip("/").split("/")
-        for segment in path_segments:
-            if not segment:
-                continue
-            if not all(c.islower() or c.isdigit() or c == "-" for c in segment):
-                return f"Error: Path segment '{segment}' must use kebab-case (lowercase letters, numbers, hyphens only). Example: 'unicorn-horn-car-idea'"
+            return "Error: path must start with /customer-research/"
+        if err := validate_path_kebab(path):
+            return f"Error: {err}"
 
         try:
             idea_doc = json.loads(text)
@@ -181,7 +177,7 @@ async def productman_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_
 
         validation_error = validate_idea_structure(idea_doc, productman_prompts.example_idea)
         if validation_error:
-            return f"Error: Structure validation failed: {validation_error}"
+            return f"Error: {validation_error}"
 
         await pdoc_integration.pdoc_create(path, json.dumps(idea_doc, indent=2), toolcall.fcall_ft_id)
         logger.info(f"Created idea at {path}")
@@ -196,17 +192,13 @@ async def productman_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_
         if not text:
             return "Error: text required"
         if rcx.running_test_scenario:
-            return await ckit_scenario.scenario_generate_tool_result_via_model(fclient, toolcall, open(__file__).read())
+            return await ckit_scenario.scenario_generate_tool_result_via_model(fclient, toolcall, Path(__file__).read_text())
+        if not path.endswith("/hypothesis"):
+            return "Error: hypothesis path must end with /hypothesis (e.g. /customer-research/unicorn-horn-car/social-media-influencers/hypothesis)"
         if not path.startswith("/customer-research/"):
-            return "Error: path must start with /customer-research/ (e.g. /customer-research/my-idea-hypotheses/segment-name)"
-        if "-hypotheses/" not in path:
-            return "Error: hypothesis path must include '-hypotheses/' (e.g. /customer-research/unicorn-horn-car-hypotheses/social-media-influencers)"
-        path_segments = path.strip("/").split("/")
-        for segment in path_segments:
-            if not segment:
-                continue
-            if not all(c.islower() or c.isdigit() or c == "-" for c in segment):
-                return f"Error: Path segment '{segment}' must use kebab-case (lowercase letters, numbers, hyphens only). Example: 'social-media-influencers'"
+            return "Error: path must start with /customer-research/"
+        if err := validate_path_kebab(path):
+            return f"Error: {err}"
 
         try:
             hypothesis_doc = json.loads(text)
@@ -215,11 +207,11 @@ async def productman_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_
 
         validation_error = validate_idea_structure(hypothesis_doc, productman_prompts.example_hypothesis)
         if validation_error:
-            return f"Error: Structure validation failed: {validation_error}"
+            return f"Error: {validation_error}"
 
         await pdoc_integration.pdoc_create(path, json.dumps(hypothesis_doc, indent=2), toolcall.fcall_ft_id)
         logger.info(f"Created hypothesis at {path}")
-        return f"✍️ {path}\n\n✓ Created hypothesis document for specific customer segment"
+        return f"✍️ {path}\n\n✓ Created hypothesis document"
 
     @rcx.on_tool_call(VERIFY_IDEA_TOOL.name)
     async def toolcall_verify_idea(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
@@ -229,11 +221,13 @@ async def productman_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_
             return "Error: path required"
         if not language:
             return "Error: language required"
+        if not path.endswith("/idea"):
+            return "Error: path must end with /idea"
         if not path.startswith("/customer-research/"):
             return "Error: path must start with /customer-research/"
 
         if rcx.running_test_scenario:
-            return await ckit_scenario.scenario_generate_tool_result_via_model(fclient, toolcall, open(__file__).read())
+            return await ckit_scenario.scenario_generate_tool_result_via_model(fclient, toolcall, Path(__file__).read_text())
 
         await ckit_ask_model.bot_subchat_create_multiple(
             client=fclient,
@@ -243,7 +237,7 @@ async def productman_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_
             first_calls=["null"],
             title=[f"Verifying Idea {path.split('/')[-1]}"],
             fcall_id=toolcall.fcall_id,
-            skill="verify_idea",
+            skill="criticize_idea",
         )
         # Subchat adds "c" (for "criticism") for every question to the document.
         # Returns "Read the file using flexus_policy_document(op=activate, ...) to see the ratings."
@@ -255,22 +249,13 @@ async def productman_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_
 
     @rcx.on_tool_call(survey_research.SURVEY_RESEARCH_TOOL.name)
     async def toolcall_survey(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
-        try:
-            return await survey_research_integration.handle_survey_research(toolcall, model_produced_args)
-        except ckit_cloudtool.NeedsConfirmation as e:
-            raise e
-        except Exception as e:
-            logger.info(f"toolcall_survey error: {e}")
-            return f"Error: {e}"
+        return await survey_research_integration.handle_survey_research(toolcall, model_produced_args)
 
-    try:
-        initial_tasks = await ckit_kanban.bot_get_all_tasks(fclient, rcx.persona.persona_id)
-        active_tasks = [t for t in initial_tasks if t.ktask_done_ts == 0]
-        for t in active_tasks:
-            survey_research_integration.track_survey_task(t)
-        logger.info(f"Initialized survey tracking for {len(active_tasks)} active tasks")
-    except Exception as e:
-        logger.warning(f"Failed to initialize survey tracking: {e}")
+    initial_tasks = await ckit_kanban.bot_get_all_tasks(fclient, rcx.persona.persona_id)
+    active_tasks = [t for t in initial_tasks if t.ktask_done_ts == 0]
+    for t in active_tasks:
+        survey_research_integration.track_survey_task(t)
+    logger.info(f"Initialized survey tracking for {len(active_tasks)} active tasks")
 
     last_survey_update = 0
     survey_update_interval = 60
@@ -282,8 +267,8 @@ async def productman_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_
             current_time = time.time()
             if current_time - last_survey_update > survey_update_interval:
                 await survey_research_integration.update_active_surveys(
-                    fclient, 
-                    lambda **kwargs: survey_research_integration.update_task_survey_status(**kwargs)
+                    fclient,
+                    survey_research_integration.update_task_survey_status
                 )
                 last_survey_update = current_time
 

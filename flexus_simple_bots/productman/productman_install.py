@@ -50,7 +50,7 @@ if messages[-1]["role"] == "assistant":
     elif "RATING-ERROR" in content:
         print("Rating completed, apparently an error")
         subchat_result = content
-    elif len(messages[-1]["tool_calls"]) == 0:
+    elif len(messages[-1].get("tool_calls", [])) == 0:
         post_cd_instruction = "Follow the system prompt, your answer need to end with RATING-COMPLETED or RATING-ERROR"
 """
 
@@ -77,9 +77,8 @@ async def install(
         marketable_run_this="python -m flexus_simple_bots.productman.productman_bot",
         marketable_setup_default=productman_setup_schema,
         marketable_featured_actions=[
-            {"feat_question": "Start Node 1: Challenge my product idea", "feat_run_as_setup": False, "feat_depends_on_setup": []},
-            {"feat_question": "Start Node 2: Research and prioritize hypotheses", "feat_run_as_setup": False, "feat_depends_on_setup": []},
-            {"feat_question": "Start Node 3: Design experiments", "feat_run_as_setup": False, "feat_depends_on_setup": []},
+            {"feat_question": "A1: Challenge my product idea", "feat_run_as_setup": False, "feat_depends_on_setup": []},
+            {"feat_question": "A2: Research and prioritize hypotheses", "feat_run_as_setup": False, "feat_depends_on_setup": []},
         ],
         marketable_intro_message="Hi! I'm Productman, your Stage0 Product Validation Coach. I guide you through (1) Problem Challenge, (2) Market Research, (3) Solution Design",
         marketable_preferred_model_default="grok-4-1-fast-non-reasoning",
