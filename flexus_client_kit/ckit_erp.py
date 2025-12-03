@@ -99,13 +99,13 @@ async def patch_erp_record(
     client: ckit_client.FlexusClient,
     table_name: str,
     ws_id: str,
-    pk_value: int,
+    pk_value: str,
     updates: Any,
 ) -> bool:
     http = await client.use_http()
     async with http as h:
         r = await h.execute(gql.gql("""
-            mutation ErpTablePatch($schema_name: String!, $table_name: String!, $ws_id: String!, $pk_value: Int!, $updates_json: String!) {
+            mutation ErpTablePatch($schema_name: String!, $table_name: String!, $ws_id: String!, $pk_value: String!, $updates_json: String!) {
                 erp_table_patch(schema_name: $schema_name, table_name: $table_name, ws_id: $ws_id, pk_value: $pk_value, updates_json: $updates_json)
             }"""),
             variable_values={
@@ -123,12 +123,12 @@ async def delete_erp_record(
     client: ckit_client.FlexusClient,
     table_name: str,
     ws_id: str,
-    pk_value: int,
+    pk_value: str,
 ) -> bool:
     http = await client.use_http()
     async with http as h:
         r = await h.execute(gql.gql("""
-            mutation ErpTableDelete($schema_name: String!, $table_name: String!, $ws_id: String!, $pk_value: Int!) {
+            mutation ErpTableDelete($schema_name: String!, $table_name: String!, $ws_id: String!, $pk_value: String!) {
                 erp_table_delete(schema_name: $schema_name, table_name: $table_name, ws_id: $ws_id, pk_value: $pk_value)
             }"""),
             variable_values={
