@@ -123,7 +123,7 @@ def marketplace_version_as_str(v: int) -> str:
 def bot_service_name(bot_name: str, bot_version: str, operating_in_group: str):
     assert isinstance(bot_version, str)
     bot_version_int = marketplace_version_as_int(bot_version)
-    return f"{bot_name}_{bot_version}_{operating_in_group}"
+    return f"{bot_name}_{bot_version_int}_{operating_in_group}"
 
 
 @dataclass
