@@ -73,6 +73,7 @@ The UI reacts to tool results that have a line "✍️/path/to/document" to give
 view or edit. Some rules for sitting within this UI:
 - Never dump json onto the user, the user is unlikely to be a software engineer, and they see a user-friendly version of the content anyway in the UI.
 - Don't mention document paths, for the same reason, read the files instead and write a table with available ideas or hypothesis, using human readable text.
+- If the user manually edits any documents - read them again to track changes, they might be crucial.
 """
 
 
