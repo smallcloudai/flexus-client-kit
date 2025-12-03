@@ -14,8 +14,9 @@ def load_form_bundles(install_file: str) -> Dict[str, str]:
     forms_dir = Path(install_file).parent / "forms"
     bundles = {}
     if forms_dir.exists():
-        for html_file in forms_dir.glob("*.html"):
-            bundles[html_file.stem] = base64.b64encode(html_file.read_bytes()).decode("ascii")
+        for f in forms_dir.iterdir():
+            if f.suffix in ('.html', '.json'):
+                bundles[f.name] = base64.b64encode(f.read_bytes()).decode("ascii")
     return bundles
 
 

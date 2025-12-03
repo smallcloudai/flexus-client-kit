@@ -147,36 +147,54 @@ The document type is determined by the top-level key that contains an object wit
 The form filename must match the top-level key. See flexus_simple_bots/frog/forms/pond_report.html for a complete example.
 
 Protocol messages:
-- Parent → Form: INIT (content, themeCss), CONTENT_UPDATE (content), FOCUS (focused)
+- Parent → Form: INIT (content, themeCss, marketplace), CONTENT_UPDATE (content), FOCUS (focused)
 - Form → Parent: FORM_READY (formName), FORM_CONTENT_CHANGED (content)
 
-Styling convention - "paper on desk" look matching WorksheetEditor:
-- The parent injects themeCss with body styling - do NOT redefine body background/font
-- Use a `.paper` container with fixed width (440-540px), white background, shadow
-- Use `.p-inputtext`, `.p-select`, `.p-textarea` classes for inputs (styled by themeCss)
-- Section titles use `--p-primary-color`
 
-Available CSS variables (injected via themeCss):
-- `--p-surface-0` to `--p-surface-950` - surface color scale
-- `--p-surface-ground`, `--p-surface-card`, `--p-surface-overlay` - semantic surfaces
+### Styling - Theme-Aware Paper Pattern
+
+Custom forms should match preexisting forms (like WorksheetEditor.vue) using theme-aware CSS variables
+that automatically adapt to light/dark mode:
+
+- `--p-primary-contrast-color` - paper background (white in light mode, black in dark mode)
+- `--p-primary-color` - paper text color (black in light mode, white in dark mode)
+- `--p-content-hover-background` - desk/input backgrounds (adapts to theme)
+- `--p-text-color` - standard text color (adapts to theme)
+- `--p-text-muted-color` - muted text, dashed border color
 - `--p-surface-border` - borders
-- `--p-text-color`, `--p-text-muted-color` - text colors
-- `--p-primary-color`, `--p-primary-contrast-color`, `--p-primary-hover-color` - accent
-- `--p-border-radius`, `--p-border-radius-sm`, `--p-border-radius-lg` - corners
-- `--p-green-500`, `--p-red-500` - status colors
+- `--p-red-500` - red for criticism/error text
 
-Example paper container (adapts to dark/light theme):
+**Never hardcode colors** like `white`, `#1f1f1f`, etc. - always use CSS variables.
+
+CSS template:
 ```css
+body { background: var(--p-content-hover-background); margin: 0; padding: 10px; }
 .paper {
-  width: 440px;
-  padding: 24px;
-  background: var(--p-surface-card, var(--p-surface-overlay));
-  border: 1px solid var(--p-surface-border);
-  border-radius: var(--p-border-radius-lg, 8px);
-  min-height: calc(100vh - 40px);
+  width: 440px; padding: 20px; min-height: calc(100vh - 20px);
+  background: var(--p-primary-contrast-color); color: var(--p-primary-color);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
+.meta-box {
+  width: 400px; display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 3rem; padding: 1rem;
+  border: 2px dashed var(--p-text-muted-color); border-radius: 8px; position: relative; font-size: 0.8rem;
+}
+.meta-label {
+  position: absolute; top: -0.65rem; left: 1rem; background: var(--p-primary-contrast-color);
+  padding: 0 0.5rem; font-weight: 700; font-size: 0.75rem; letter-spacing: 0.05em; color: var(--p-text-muted-color);
+}
+h1 { font-size: 1.25rem; font-weight: 600; color: var(--p-primary-color); margin: 0 0 1.5rem 0; }
+.field { margin-bottom: 1rem; width: 400px; }
+.field > label { display: block; font-weight: 600; margin-bottom: 0.5rem; font-size: 0.875rem; }
+input, textarea, select {
+  border: 1px solid var(--p-surface-border); border-radius: 6px;
+  padding: 0.5rem 0.75rem; font-size: 1rem; font-family: inherit; box-sizing: border-box;
+  background: var(--p-content-hover-background); color: var(--p-text-color);
+}
+input:focus, textarea:focus, select:focus { outline: none; border-color: var(--p-primary-color); }
+textarea { resize: none; field-sizing: content; min-height: 2.5rem; width: 100%; }
 ```
+
+See flexus_simple_bots/frog/forms/pond_report.html for a complete example.
 
 
 Bot Main Loop

@@ -6,90 +6,56 @@
   <title>Frog Pond Report</title>
   <link rel="stylesheet" href="https://unpkg.com/primeicons@7.0.0/primeicons.css">
   <style>
+    /* Animations */
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    /* Paper on dark desk pattern - matches WorksheetEditor.vue, theme-aware */
+    body { background: var(--p-content-hover-background); margin: 0; padding: 10px; }
     .paper {
-      width: 440px;
-      padding: 24px;
-      background: var(--p-surface-card, var(--p-surface-overlay));
-      min-height: calc(100vh - 40px);
+      width: 440px; padding: 20px; min-height: calc(100vh - 20px);
+      background: var(--p-primary-contrast-color); color: var(--p-primary-color);
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-      border: 1px solid var(--p-surface-border);
-      border-radius: var(--p-border-radius-lg, 8px);
     }
     .meta-box {
-      display: flex;
-      flex-direction: column;
-      gap: 0.5rem;
-      margin-bottom: 2rem;
-      padding: 1rem;
-      border: 2px dashed var(--p-surface-border);
-      border-radius: 8px;
-      position: relative;
-      font-size: 0.8rem;
+      width: 400px; display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 3rem; padding: 1rem;
+      border: 2px dashed var(--p-text-muted-color); border-radius: 8px; position: relative; font-size: 0.8rem;
+      animation: fadeIn 0.3s ease-out;
     }
     .meta-label {
-      position: absolute;
-      top: -0.65rem;
-      left: 1rem;
-      background: var(--p-surface-card, var(--p-surface-overlay));
-      padding: 0 0.5rem;
-      font-weight: 700;
-      font-size: 0.75rem;
-      letter-spacing: 0.05em;
-      color: var(--p-text-muted-color);
+      position: absolute; top: -0.65rem; left: 1rem; background: var(--p-primary-contrast-color);
+      padding: 0 0.5rem; font-weight: 700; font-size: 0.75rem; letter-spacing: 0.05em; color: var(--p-text-muted-color);
     }
-    .header-row {
-      display: flex;
-      gap: 0.5rem;
+    .header-row { display: flex; gap: 0.5rem; }
+    .header-row label { font-weight: 600; color: var(--p-text-muted-color); }
+    h1 { font-size: 1.25rem; font-weight: 600; color: var(--p-primary-color); margin: 0 0 1.5rem 0; }
+    .field { margin-bottom: 1.5rem; width: 100%; max-width: 400px; animation: fadeIn 0.4s ease-out; }
+    .field > label { display: block; font-weight: 600; margin-bottom: 0.5rem; font-size: 0.875rem; }
+    input, textarea, select {
+      border: 1px solid var(--p-surface-border); border-radius: 6px;
+      padding: 0.5rem 0.75rem; font-size: 1rem; font-family: inherit; box-sizing: border-box;
+      background: var(--p-content-hover-background); color: var(--p-text-color);
+      transition: border-color 0.15s ease; max-width: 100%;
     }
-    .header-row label {
-      font-weight: 600;
-      color: var(--p-text-muted-color);
-    }
-    h1 {
-      font-size: 1.25rem;
-      font-weight: 600;
-      color: var(--p-primary-color);
-      margin: 0 0 1.5rem 0;
-    }
-    .field {
-      margin-bottom: 1.5rem;
-    }
-    .field > label {
-      display: block;
-      font-weight: 600;
-      margin-bottom: 0.5rem;
-      font-size: 0.875rem;
-    }
-    .counter {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
+    input:focus, textarea:focus, select:focus { outline: none; border-color: var(--p-primary-color); }
+    select option { background: var(--p-content-hover-background); color: var(--p-text-color); }
+    textarea { resize: none; width: 100%; min-height: 40px; overflow: hidden; display: block; }
+    input[type="text"] { width: 100%; }
+    select { width: 100%; }
+    .counter { display: flex; align-items: center; gap: 12px; }
     .counter-btn {
-      width: 36px;
-      height: 36px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      border: 1px solid var(--p-surface-border);
-      border-radius: var(--p-border-radius, 6px);
-      background: transparent;
-      cursor: pointer;
-      transition: background 0.2s, border-color 0.2s;
+      width: 36px; height: 36px; display: flex; align-items: center; justify-content: center;
+      border: 1px solid var(--p-surface-border); border-radius: 6px; background: transparent; cursor: pointer;
+      color: var(--p-text-muted-color); transition: all 0.15s ease;
     }
-    .counter-btn:hover {
-      background: var(--p-surface-ground);
-      border-color: var(--p-primary-color);
-    }
+    .counter-btn:hover { border-color: var(--p-primary-color); color: var(--p-primary-color); transform: scale(1.05); }
+    .counter-btn:active { transform: scale(0.95); }
     .counter-value {
-      width: 60px;
-      text-align: center;
-      font-weight: 600;
-      font-size: 1.1rem;
-      padding: 0.5rem;
-      border: 1px solid var(--p-surface-border);
-      border-radius: var(--p-border-radius, 6px);
-      background: var(--p-surface-ground);
+      width: 60px; text-align: center; font-weight: 600; font-size: 1.1rem; padding: 0.5rem;
+      border: 1px solid var(--p-surface-border); border-radius: 6px;
+      background: var(--p-content-hover-background); color: var(--p-text-color);
+      transition: transform 0.15s ease;
     }
   </style>
   <style id="theme-css"></style>
@@ -125,11 +91,11 @@
     <div class="field">
       <label>Insects Caught Today</label>
       <div class="counter">
-        <button type="button" class="counter-btn p-button-outlined" onclick="adjustCount(-1)">
+        <button type="button" class="counter-btn" onclick="adjustCount(-1)">
           <span class="pi pi-minus"></span>
         </button>
         <span class="counter-value" id="insects_caught">0</span>
-        <button type="button" class="counter-btn p-button-outlined" onclick="adjustCount(1)">
+        <button type="button" class="counter-btn" onclick="adjustCount(1)">
           <span class="pi pi-plus"></span>
         </button>
       </div>
@@ -137,7 +103,7 @@
 
     <div class="field">
       <label>Observations</label>
-      <textarea id="observations" class="p-textarea" style="min-height:100px" placeholder="What did you see today?" oninput="notifyChange()"></textarea>
+      <textarea id="observations" class="p-textarea" placeholder="What did you see today?" oninput="notifyChange()"></textarea>
     </div>
 
     <div class="field">
@@ -192,9 +158,8 @@
       document.getElementById('insects_caught').textContent = report.insects_caught || 0;
       document.getElementById('observations').value = report.observations || '';
       document.getElementById('mood').value = report.mood || '';
-
-      const meta = report.meta || {};
-      document.getElementById('meta_created').textContent = meta.created_at || '—';
+      document.getElementById('meta_created').textContent = (report.meta || {}).created_at || '—';
+      setTimeout(resizeAllTextareas, 0);
     }
 
     function getContent() {
@@ -220,6 +185,19 @@
     function notifyChange() {
       FormBridge.send('FORM_CONTENT_CHANGED', { content: getContent() });
     }
+
+    function autoResize(el) {
+      el.style.height = '0';
+      el.style.height = Math.max(40, el.scrollHeight) + 'px';
+    }
+
+    function resizeAllTextareas() {
+      document.querySelectorAll('textarea').forEach(autoResize);
+    }
+
+    document.addEventListener('input', e => {
+      if (e.target.tagName === 'TEXTAREA') autoResize(e.target);
+    });
   </script>
 </body>
 </html>
