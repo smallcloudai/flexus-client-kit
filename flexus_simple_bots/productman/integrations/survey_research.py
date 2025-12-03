@@ -335,10 +335,6 @@ class IntegrationSurveyResearch:
                                 error_msg += f"\n  Example: \"{s}\": [\"{list(choices.keys())[0]}\"]"
 
                 return error_msg
-        service_fee = reward_cents * total_participants * 0.33
-        vat = service_fee * 0.20
-        total_cost = (reward_cents * total_participants) + service_fee + vat
-
         draft_content = {
             "prolific_auditory_draft": {
                 "meta": {
@@ -358,15 +354,14 @@ class IntegrationSurveyResearch:
                         "code_type": "COMPLETED",
                         "actions": [{"action": "AUTOMATICALLY_APPROVE"}]
                     }]
-                },
-                "cost_estimate": {
-                    "rewards": reward_cents * total_participants,
-                    "service_fee": int(service_fee),
-                    "vat": int(vat),
-                    "total": int(total_cost)
                 }
             }
         }
+
+        rewards = reward_cents * total_participants
+        service_fee = rewards * 0.33
+        vat = service_fee * 0.20
+        total_cost = int(rewards + service_fee + vat)
 
         draft_path = f"/customer-research/{idea_name}/{hypothesis_name}/auditory-draft"
 
@@ -510,8 +505,13 @@ class IntegrationSurveyResearch:
         if not auditory_content or "prolific_auditory_draft" not in auditory_content:
             return f"Error: Invalid auditory draft at {auditory_draft_path}"
 
-        cost_estimate = auditory_content["prolific_auditory_draft"]["cost_estimate"]
-        total_cost = cost_estimate["total"]
+        params = auditory_content["prolific_auditory_draft"].get("parameters", {})
+        reward_cents = params.get("reward_cents", 0)
+        total_participants = params.get("total_participants", 0)
+        rewards = reward_cents * total_participants
+        service_fee = rewards * 0.33
+        vat = service_fee * 0.20
+        total_cost = int(rewards + service_fee + vat)
 
         raise ckit_cloudtool.NeedsConfirmation(
             confirm_setup_key="can_run_survey_campaign",
