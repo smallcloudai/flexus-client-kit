@@ -254,23 +254,22 @@ async def i_am_still_alive(
     fclient: ckit_client.FlexusClient,
     marketable_name: str,
     marketable_version: int,
-    fgroup_id: str,
 ) -> None:
     while not ckit_shutdown.shutdown_event.is_set():
         try:
             http_client = await fclient.use_http()
             async with http_client as http:
                 await http.execute(
-                    gql.gql("""mutation BotConfirmExists($marketable_name: String!, $marketable_version: Int!, $fgroup_id: String) {
-                        bot_confirm_exists(marketable_name: $marketable_name, marketable_version: $marketable_version, fgroup_id: $fgroup_id)
+                    gql.gql("""mutation BotConfirmExists($marketable_name: String!, $marketable_version: Int!, $ws_id_prefix: String!) {
+                        bot_confirm_exists(marketable_name: $marketable_name, marketable_version: $marketable_version, ws_id_prefix: $ws_id_prefix)
                     }"""),
                     variable_values={
                         "marketable_name": marketable_name,
                         "marketable_version": marketable_version,
-                        "fgroup_id": fgroup_id,
+                        "ws_id_prefix": fclient.ws_id,
                     },
                 )
-                logger.info("i_am_still_alive %s:%d group=%s", marketable_name, marketable_version, fgroup_id)
+                logger.info("i_am_still_alive %s:%d ws_id=%s", marketable_name, marketable_version, fclient.ws_id)
             if await ckit_shutdown.wait(120):
                 break
 
@@ -292,7 +291,7 @@ async def i_am_still_alive(
 class BotsCollection:
     def __init__(
         self,
-        fgroup_id: str,
+        ws_id_prefix: str,
         marketable_name: str,
         marketable_version: int,
         inprocess_tools: List[ckit_cloudtool.CloudTool],
@@ -301,7 +300,7 @@ class BotsCollection:
         running_test_scenario: bool = False,
         running_happy_yaml: str = "",
     ):
-        self.fgroup_id = fgroup_id
+        self.ws_id_prefix = ws_id_prefix
         self.marketable_name = marketable_name
         self.marketable_version = marketable_version
         self.inprocess_tools = inprocess_tools
@@ -326,23 +325,23 @@ async def subscribe_and_produce_callbacks(
 
     async with ws_client as ws:
         async for r in ws.subscribe(
-            gql.gql(f"""subscription KarenThreads($fgroup_id: String!, $marketable_name: String!, $marketable_version: Int!, $inprocess_tool_names: [String!]!, $want_erp_tables: [String!]!) {{
-                bot_threads_calls_tasks(fgroup_id: $fgroup_id, marketable_name: $marketable_name, marketable_version: $marketable_version, inprocess_tool_names: $inprocess_tool_names, max_threads: {MAX_THREADS}, want_personas: true, want_threads: true, want_messages: true, want_tasks: true, want_erp_tables: $want_erp_tables) {{
+            gql.gql(f"""subscription KarenThreads($marketable_name: String!, $marketable_version: Int!, $inprocess_tool_names: [String!]!, $want_erp_tables: [String!]!, $ws_id_prefix: String) {{
+                bot_threads_calls_tasks(marketable_name: $marketable_name, marketable_version: $marketable_version, inprocess_tool_names: $inprocess_tool_names, max_threads: {MAX_THREADS}, want_personas: true, want_threads: true, want_messages: true, want_tasks: true, want_erp_tables: $want_erp_tables, ws_id_prefix: $ws_id_prefix) {{
                     {gql_utils.gql_fields(ckit_bot_query.FBotThreadsCallsTasks)}
                 }}
             }}"""),
             variable_values={
-                "fgroup_id": bc.fgroup_id,
                 "marketable_name": bc.marketable_name,
                 "marketable_version": bc.marketable_version,
                 "inprocess_tool_names": [t.name for t in bc.inprocess_tools],
                 "want_erp_tables": bc.subscribe_to_erp_tables,
+                "ws_id_prefix": fclient.ws_id,
             },
         ):
             upd = gql_utils.dataclass_from_dict(r["bot_threads_calls_tasks"], ckit_bot_query.FBotThreadsCallsTasks)
             handled = False
             reassign_threads = False
-            logger.debug("subs %s %s %s" % (upd.news_action, upd.news_about, upd.news_payload_id))
+            logger.info("subs %s %s %s" % (upd.news_action, upd.news_about, upd.news_payload_id))
 
             if upd.news_about == "flexus_persona":
                 if upd.news_action in ["INSERT", "UPDATE"]:
@@ -485,8 +484,8 @@ async def subscribe_and_produce_callbacks(
 
             elif upd.news_action == "INITIAL_UPDATES_OVER":
                 if len(bc.bots_running) == 0:
-                    logger.warning("backend knows of zero bots located in group %s, with marketable_name=%r and marketable_version=%r, if you are trying to run a dev bot, the previous dev bot might got upgraded to a build (not dev) version" % (
-                        bc.fgroup_id, bc.marketable_name, bc.marketable_version
+                    logger.warning("backend knows of zero bots with marketable_name=%r and marketable_version=%r, if you are trying to run a dev bot, the previous dev bot might got upgraded to a build (not dev) version" % (
+                        bc.marketable_name, bc.marketable_version
                     ))
                 handled = True
 
@@ -808,7 +807,6 @@ async def run_happy_trajectory(
 async def run_bots_in_this_group(
     fclient: ckit_client.FlexusClient,
     *,
-    fgroup_id: str,
     marketable_name: str,
     marketable_version_str: str,
     inprocess_tools: List[ckit_cloudtool.CloudTool],
@@ -828,16 +826,19 @@ async def run_bots_in_this_group(
             return
         logger.info("Installing %s:%s into workspace %s", marketable_name, marketable_version_str, fclient.ws_id)
         await install_func(fclient, fclient.ws_id, marketable_name, marketable_version_str, inprocess_tools)
+        ws_id_prefix = fclient.ws_id
+    else:
+        ws_id_prefix = "KIRILL-FIX-ME"
     scenario = None
     scenario_task = None
     running_test_scenario = False
     running_happy_yaml = ""
+    fgroup_id = ""
     if scenario_fn:
         with open(scenario_fn) as f:
             running_happy_yaml = f.read()
         running_test_scenario = True
         scenario = ckit_scenario.ScenarioSetup(service_name="trajectory_replay")
-    if fgroup_id == "TMP":
         await scenario.create_group_and_hire_bot(
             marketable_name=marketable_name,
             marketable_version=marketable_version,
@@ -845,10 +846,8 @@ async def run_bots_in_this_group(
         )
         fgroup_id = scenario.fgroup_id
         assert fgroup_id
-    else:
-        assert not scenario_fn, "XXX might test in a specific group for some good reason?"
     bc = BotsCollection(
-        fgroup_id=fgroup_id,
+        ws_id_prefix=ws_id_prefix,
         marketable_name=marketable_name,
         marketable_version=marketable_version,
         inprocess_tools=inprocess_tools,
@@ -860,7 +859,7 @@ async def run_bots_in_this_group(
     if scenario_fn:
         scenario_task = asyncio.create_task(run_happy_trajectory(bc, scenario, scenario_fn))
         scenario_task.add_done_callback(lambda t: ckit_utils.report_crash(t, ckit_scenario.logger))
-    keepalive_task = asyncio.create_task(i_am_still_alive(fclient, marketable_name, marketable_version, fgroup_id))
+    keepalive_task = asyncio.create_task(i_am_still_alive(fclient, marketable_name, marketable_version))
     keepalive_task.add_done_callback(lambda t: ckit_utils.report_crash(t, logger))
     try:
         await ckit_service_exec.run_typical_single_subscription_with_restart_on_network_errors(fclient, subscribe_and_produce_callbacks, bc)
@@ -875,12 +874,10 @@ def parse_bot_args():
     parser = ckit_scenario.bot_launch_argparse()
     args = parser.parse_args()
 
-    if not args.scenario and not args.group:
-        parser.error("specify --group or --scenario")
     if args.scenario:
         if not os.path.exists(args.scenario):
             fallback = os.path.join(os.path.dirname(os.path.abspath(sys.argv[0])), os.path.basename(args.scenario))
             assert os.path.exists(fallback), f"scenario file not found at {args.scenario} or {fallback}"
             args.scenario = fallback
 
-    return args.group or "TMP", args.scenario
+    return args.scenario

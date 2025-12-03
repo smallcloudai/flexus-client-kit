@@ -15,7 +15,6 @@ logger = logging.getLogger("cksce")
 
 def bot_launch_argparse():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--group", type=str, help="Flexus group ID where the bot will run, take it from the address bar in the browser when you are looking on something inside a group.")
     parser.add_argument("--scenario", type=str, help="Reproduce a happy trajectory emulating human and tools, path to YAML file")
     parser.add_argument("--no-cleanup", action="store_true", help="Skip cleanup of test group")
     parser.add_argument("--model", type=str, default="")
