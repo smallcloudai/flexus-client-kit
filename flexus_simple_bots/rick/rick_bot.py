@@ -5,6 +5,8 @@ import time
 from collections import deque
 from typing import Dict, Any, Optional
 
+from pymongo import AsyncMongoClient
+
 from flexus_client_kit import ckit_client
 from flexus_client_kit import ckit_cloudtool
 from flexus_client_kit import ckit_bot_exec
@@ -12,9 +14,12 @@ from flexus_client_kit import ckit_shutdown
 from flexus_client_kit import ckit_ask_model
 from flexus_client_kit import ckit_kanban
 from flexus_client_kit import ckit_erp
+from flexus_client_kit import ckit_mongo
 from flexus_client_kit import erp_schema
 from flexus_client_kit.integrations import fi_gmail
 from flexus_client_kit.integrations import fi_pdoc
+from flexus_client_kit.integrations import fi_erp
+from flexus_client_kit.integrations import fi_mongo_store
 from flexus_simple_bots.rick import rick_install
 from flexus_simple_bots.version_common import SIMPLE_BOTS_COMMON_VERSION
 
@@ -29,14 +34,25 @@ BOT_VERSION_INT = ckit_client.marketplace_version_as_int(BOT_VERSION)
 TOOLS = [
     fi_gmail.GMAIL_TOOL,
     fi_pdoc.POLICY_DOCUMENT_TOOL,
+    fi_erp.ERP_TABLE_META_TOOL,
+    fi_erp.ERP_TABLE_DATA_TOOL,
+    fi_erp.ERP_TABLE_CRUD_TOOL,
+    fi_mongo_store.MONGO_STORE_TOOL,
 ]
 
 
 async def rick_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.RobotContext) -> None:
     setup = ckit_bot_exec.official_setup_mixing_procedure(rick_install.rick_setup_schema, rcx.persona.persona_setup)
 
+    dbname = f"{rcx.persona.ws_id}__{rcx.persona.persona_id}"
+    mongo_conn_str = await ckit_mongo.mongo_fetch_creds(fclient, rcx.persona.persona_id)
+    mongo = AsyncMongoClient(mongo_conn_str)
+    mydb = mongo[dbname]
+    mongo_collection = mydb["personal_mongo"]
+
     gmail_integration = fi_gmail.IntegrationGmail(fclient, rcx)
     pdoc_integration = fi_pdoc.IntegrationPdoc(rcx, rcx.persona.ws_root_group_id)
+    erp_integration = fi_erp.IntegrationErp(fclient, rcx.persona.ws_id, mongo_collection)
 
     recent_tasks: Dict[str, erp_schema.CrmTask] = {}
 
@@ -81,10 +97,15 @@ async def rick_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.R
             if existing:
                 return
 
+            task_title = f"Welcome email: {new_record.contact_first_name} {new_record.contact_last_name}"
+            task_description = (
+                f"Send a personalized welcome email to {new_record.contact_first_name} {new_record.contact_last_name} ({new_record.contact_email}) following the template and company strategy."
+                f"After email is sent, mark the crm task with title \"{task_title}\" as completed."
+            )
             task_details = {
                 "email_subtype": "welcome",
                 "contact_id": new_record.contact_id,
-                "description": f"Send a personalized welcome email to {new_record.contact_first_name} {new_record.contact_last_name} ({new_record.contact_email}) following the template and company strategy",
+                "description": task_description,
             }
             if new_record.contact_address_city or new_record.contact_address_state:
                 task_details["location"] = f"{new_record.contact_address_city}, {new_record.contact_address_state}".strip(", ")
@@ -92,7 +113,7 @@ async def rick_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.R
                 task_details["source"] = new_record.contact_utm_first_source
             await ckit_kanban.bot_kanban_post_into_inbox(
                 fclient, rcx.persona.persona_id,
-                title=f"Welcome: {new_record.contact_first_name} {new_record.contact_last_name}",
+                title=task_title,
                 details_json=json.dumps(task_details),
                 provenance_message=f"CRM contact {action.lower()}",
             )
@@ -100,7 +121,7 @@ async def rick_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.R
                 fclient, "crm_task", rcx.persona.ws_id,
                 erp_schema.CrmTask(
                     ws_id=rcx.persona.ws_id, contact_id=new_record.contact_id, task_type="email",
-                    task_title=f"Welcome: {new_record.contact_first_name} {new_record.contact_last_name}",
+                    task_title=task_title,
                     task_details=task_details,
                 ),
             )
@@ -112,6 +133,22 @@ async def rick_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.R
     @rcx.on_tool_call(fi_pdoc.POLICY_DOCUMENT_TOOL.name)
     async def toolcall_pdoc(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
         return await pdoc_integration.called_by_model(toolcall, model_produced_args)
+
+    @rcx.on_tool_call(fi_erp.ERP_TABLE_META_TOOL.name)
+    async def toolcall_erp_meta(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
+        return await erp_integration.handle_erp_meta(toolcall, model_produced_args)
+
+    @rcx.on_tool_call(fi_erp.ERP_TABLE_DATA_TOOL.name)
+    async def toolcall_erp_data(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
+        return await erp_integration.handle_erp_data(toolcall, model_produced_args)
+
+    @rcx.on_tool_call(fi_erp.ERP_TABLE_CRUD_TOOL.name)
+    async def toolcall_erp_crud(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
+        return await erp_integration.handle_erp_crud(toolcall, model_produced_args)
+
+    @rcx.on_tool_call(fi_mongo_store.MONGO_STORE_TOOL.name)
+    async def toolcall_mongo_store(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
+        return await fi_mongo_store.handle_mongo_store(rcx.workdir, mongo_collection, toolcall, model_produced_args)
 
     try:
         while not ckit_shutdown.shutdown_event.is_set():

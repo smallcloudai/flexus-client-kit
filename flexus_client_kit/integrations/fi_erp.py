@@ -1,0 +1,340 @@
+import json
+import time
+import logging
+from typing import Dict, Any, Optional, List
+from pymongo.collection import Collection
+
+import gql.transport.exceptions
+
+from flexus_client_kit import ckit_cloudtool, ckit_client, ckit_erp, ckit_mongo
+from flexus_client_kit import erp_schema
+
+logger = logging.getLogger("fi_erp")
+
+
+ERP_TABLE_META_TOOL = ckit_cloudtool.CloudTool(
+    name="erp_table_meta",
+    description=(
+        "Get metadata about ERP tables including columns and relations. "
+        "Use '', '*', or 'all' to list all tables with column names only. "
+        "Use 'table1,table2' to get detailed info for multiple specific tables."
+    ),
+    parameters={
+        "type": "object",
+        "properties": {
+            "table_name": {"type": "string", "description": "Table name, '*' for all tables, or 'table1,table2' for multiple"},
+        },
+        "required": ["table_name"],
+    },
+)
+
+
+ERP_TABLE_DATA_TOOL = ckit_cloudtool.CloudTool(
+    name="erp_table_data",
+    description=(
+        "Query ERP table data with filtering. "
+        "Filters: 'column:op' or 'column:op:value'. Operators: =, !=, >, >=, <, <=, LIKE, ILIKE, IN, NOT_IN, IS_NULL, IS_NOT_NULL. "
+        "JSON path: 'task_details->email_subtype:=:welcome'. "
+        "Logic: {'OR': ['status:=:active', 'status:=:pending']} or {'AND': [...]} or {'NOT': {...}}. "
+        "Sort: 'column:ASC' or 'column:DESC'. Include: relation field names to include (e.g., 'prodt', 'pcat'). "
+        "Examples: ['contact_email:ILIKE:%john%'], ['status:IN:active,pending'], [{'OR': ['status:=:active', 'status:=:pending']}]."
+    ),
+    parameters={
+        "type": "object",
+        "properties": {
+            "table_name": {"type": "string", "description": "Name of the ERP table to query", "order": 1},
+            "options": {
+                "type": "object",
+                "description": "Query options",
+                "order": 2,
+                "properties": {
+                    "skip": {"type": "integer", "description": "Number of rows to skip (default 0)", "order": 1001},
+                    "limit": {"type": "integer", "description": "Maximum number of rows to return (default 100, max 1000)", "order": 1002},
+                    "sort_by": {"type": "array", "items": {"type": "string"}, "description": "Sort expressions ['column:ASC', 'another:DESC']", "order": 1003},
+                    "filters": {"type": "array", "description": "Filter expressions: strings like 'status:=:active' or dicts like {'OR': [...]}", "order": 1004},
+                    "include": {"type": "array", "items": {"type": "string"}, "description": "Relation names to include ['prodt', 'pcat']", "order": 1005},
+                    "safety_valve": {"type": "string", "description": "Output character limit '5k' or '10000' (default 5k)", "order": 1006},
+                },
+            },
+        },
+        "required": ["table_name"],
+    },
+)
+
+
+ERP_TABLE_CRUD_TOOL = ckit_cloudtool.CloudTool(
+    name="erp_table_crud",
+    description=(
+        "Create, update (patch), or delete records in ERP tables. "
+        "First call erp_table_meta to see available columns. "
+        "Example: erp_table_crud(op='create', table_name='crm_task', fields={'contact_id': '123', 'task_type': 'call', 'task_title': 'Follow up'})"
+    ),
+    parameters={
+        "type": "object",
+        "properties": {
+            "op": {"type": "string", "enum": ["create", "patch", "delete"], "order": 1},
+            "table_name": {"type": "string", "description": "Table name", "order": 2},
+            "id": {"type": "string", "description": "Record ID (for patch and delete)", "order": 3},
+            "fields": {"type": "object", "description": "Field values (for create and patch)", "order": 4},
+        },
+        "required": ["op", "table_name"],
+    },
+)
+
+
+def _format_table_meta_text(table_name: str, schema_class: type) -> str:
+    result = f"Table: erp.{table_name}\n"
+    result += "\nColumns:\n"
+
+    for field_name, field_type in schema_class.__annotations__.items():
+        type_str = str(field_type).replace("typing.", "")
+        result += f"  • {field_name}: {type_str}\n"
+
+    return result
+
+
+def _rows_to_text(rows: list, table_name: str, safety_valve_chars: int = 5000) -> tuple[str, Optional[str]]:
+    """
+    Convert rows to text output. If output is large, return cropped version and full json for mongo storage.
+    Returns: (display_text, optional_full_json_for_mongo)
+    """
+    header_lines = [f"Table: {table_name}"]
+
+    full_json = json.dumps(rows, default=str, indent=2)
+    full_size = len(full_json)
+
+    if full_size <= safety_valve_chars:
+        header_lines.append(f"{len(rows)} rows")
+        result = header_lines + [""] + [json.dumps(row, default=str) for row in rows]
+        return "\n".join(result), None
+
+    result = []
+    ctx_left = safety_valve_chars
+
+    for i in range(len(rows)):
+        line = json.dumps(rows[i], default=str)
+        if len(line) > safety_valve_chars:
+            if len(result) > 0:
+                header_lines.append(f"⚠️ Row {i+1} is too large, output truncated. Full result saved to mongo.")
+                break
+            else:
+                header_lines.append(f"⚠️ Row {i+1} is {len(line)} chars, truncated. Full result saved to mongo.")
+                result = [line[:safety_valve_chars]]
+                break
+        ctx_left -= len(line)
+        result.append(line)
+        if ctx_left < 0:
+            header_lines.append(f"⚠️ {len(rows)} rows total, showing rows 1:{i+1}. Full result saved to mongo.")
+            break
+
+    if ctx_left >= 0 and len(rows) > len(result):
+        header_lines.append(f"⚠️ {len(rows)} rows total, showing {len(result)}. Full result saved to mongo.")
+
+    result = header_lines + [""] + result
+    return "\n".join(result), full_json
+
+
+class IntegrationErp:
+    def __init__(
+        self,
+        client: ckit_client.FlexusClient,
+        ws_id: str,
+        mongo_collection: Optional[Collection] = None,
+    ):
+        self.client = client
+        self.ws_id = ws_id
+        self.mongo_collection = mongo_collection
+
+
+    async def handle_erp_meta(self, toolcall: ckit_cloudtool.FCloudtoolCall, args: Dict[str, Any]) -> str:
+        table_name = args.get("table_name", "").strip()
+
+        if table_name in ("", "*", "all"):
+            result = f"ERP schema has {len(erp_schema.ERP_TABLE_TO_SCHEMA)} tables.\n"
+            result += "Call again with specific table names to show column types and relations.\n\n"
+            for tbl_name in sorted(erp_schema.ERP_TABLE_TO_SCHEMA.keys()):
+                schema_class = erp_schema.ERP_TABLE_TO_SCHEMA[tbl_name]
+                columns = list(schema_class.__annotations__.keys())
+                result += json.dumps({"table": tbl_name, "columns": columns}) + "\n"
+            return result
+
+        table_names = [t.strip() for t in table_name.split(",") if t.strip()]
+
+        if not table_names:
+            return "❌ Error: table_name is required"
+
+        if len(table_names) > 5:
+            logger.warning(f"ERP table meta: requested {len(table_names)} tables, limiting to 5")
+            table_names = table_names[:5]
+
+        result_text = ""
+        for tn in table_names:
+            if tn not in erp_schema.ERP_TABLE_TO_SCHEMA:
+                if result_text:
+                    result_text += "\n\n"
+                result_text += f"❌ Error: Table '{tn}' not found in schema\n"
+                continue
+
+            schema_class = erp_schema.ERP_TABLE_TO_SCHEMA[tn]
+            if result_text:
+                result_text += "\n\n"
+            result_text += _format_table_meta_text(tn, schema_class)
+
+        return result_text
+
+
+    async def handle_erp_data(self, toolcall: ckit_cloudtool.FCloudtoolCall, args: Dict[str, Any]) -> str:
+        table_name = args.get("table_name", "").strip()
+        options = args.get("options", {})
+
+        if not table_name:
+            return "❌ Error: table_name is required"
+
+        if table_name not in erp_schema.ERP_TABLE_TO_SCHEMA:
+            return f"❌ Error: Table '{table_name}' not found in schema"
+
+        skip = options.get("skip", 0)
+        limit = options.get("limit", 100)
+        sort_by = options.get("sort_by", [])
+        filters = options.get("filters", [])
+        include = options.get("include", [])
+        safety_valve = options.get("safety_valve", "5k")
+
+        if not isinstance(sort_by, list):
+            sort_by = []
+        if not isinstance(filters, list):
+            filters = []
+        if not isinstance(include, list):
+            include = []
+
+        safety_valve_chars = 0
+        if safety_valve.lower().endswith('k'):
+            safety_valve_chars = int(safety_valve[:-1]) * 1000
+        else:
+            safety_valve_chars = int(safety_valve)
+        safety_valve_chars = max(1000, safety_valve_chars)
+
+        schema_class = erp_schema.ERP_TABLE_TO_SCHEMA[table_name]
+
+        try:
+            rows = await ckit_erp.query_erp_table(
+                self.client,
+                table_name,
+                self.ws_id,
+                schema_class,
+                skip=skip,
+                limit=min(limit, 1000),
+                sort_by=sort_by,
+                filters=filters,
+                include=include,
+            )
+        except gql.transport.exceptions.TransportQueryError as e:
+            logger.info(f"ERP query validation fail: {e}")
+            return f"❌ Error querying table: {e}"
+
+        rows_as_dicts = [ckit_erp.dataclass_or_dict_to_dict(r) for r in rows]
+
+        display_text, full_json = _rows_to_text(rows_as_dicts, table_name, safety_valve_chars)
+
+        if full_json and self.mongo_collection:
+            mongo_path = f"erp_query_results/{table_name}_{int(time.time())}.json"
+            try:
+                await ckit_mongo.mongo_overwrite(
+                    self.mongo_collection,
+                    mongo_path,
+                    full_json.encode('utf-8'),
+                    ttl=86400,
+                )
+                display_text += f"\n\n💾 Full results stored in mongo at: {mongo_path}"
+                display_text += f"\nUse mongo_store(op='cat', args={{'path': '{mongo_path}'}}) to view full results."
+            except Exception as e:
+                logger.error(f"Failed to save to mongo: {e}", exc_info=e)
+                display_text += f"\n\n⚠️ Failed to save full results to mongo: {e}"
+
+        return display_text
+
+    async def handle_erp_crud(self, toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
+        op = model_produced_args.get("op", "")
+
+        if not op:
+            return "❌ Error: op parameter required (create, patch, or delete)"
+
+        table_name = model_produced_args.get("table_name", "")
+
+        if not table_name:
+            return "❌ Error: table_name parameter required"
+
+        if table_name not in erp_schema.ERP_TABLE_TO_SCHEMA:
+            return f"❌ Error: Table '{table_name}' not found in schema"
+
+        if op == "create":
+            fields = model_produced_args.get("fields", {})
+
+            if not fields or not isinstance(fields, dict):
+                return "❌ Error: fields parameter required and must be a dict for create operation"
+
+            try:
+                new_id = await ckit_erp.create_erp_record(
+                    self.client,
+                    table_name,
+                    self.ws_id,
+                    fields,
+                )
+                return f"✅ Created new record in {table_name} with ID: {new_id}"
+            except gql.transport.exceptions.TransportQueryError as e:
+                logger.info(f"ERP create validation fail: {e}")
+                return f"❌ Error creating record: {e}"
+
+        elif op == "patch":
+            record_id = model_produced_args.get("id")
+            fields = model_produced_args.get("fields", {})
+
+            if record_id is None:
+                return "❌ Error: id parameter required for patch operation"
+
+            if not fields or not isinstance(fields, dict):
+                return "❌ Error: fields parameter required and must be a dict for patch operation"
+
+            record_id = str(record_id)
+
+            try:
+                success = await ckit_erp.patch_erp_record(
+                    self.client,
+                    table_name,
+                    self.ws_id,
+                    record_id,
+                    fields,
+                )
+                if success:
+                    return f"✅ Updated record {record_id} in {table_name}"
+                else:
+                    return f"❌ Failed to update record {record_id} in {table_name}"
+            except gql.transport.exceptions.TransportQueryError as e:
+                logger.info(f"ERP patch validation fail: {e}")
+                return f"❌ Error updating record: {e}"
+
+        elif op == "delete":
+            record_id = model_produced_args.get("id")
+
+            if record_id is None:
+                return "❌ Error: id parameter required for delete operation"
+
+            record_id = str(record_id)
+
+            try:
+                success = await ckit_erp.delete_erp_record(
+                    self.client,
+                    table_name,
+                    self.ws_id,
+                    record_id,
+                )
+                if success:
+                    return f"✅ Deleted record {record_id} from {table_name}"
+                else:
+                    return f"❌ Failed to delete record {record_id} from {table_name} (may not exist)"
+            except gql.transport.exceptions.TransportQueryError as e:
+                logger.info(f"ERP delete validation fail: {e}")
+                return f"❌ Error deleting record: {e}"
+
+        else:
+            return f"❌ Error: Unknown operation '{op}'. Use create, patch, or delete."
