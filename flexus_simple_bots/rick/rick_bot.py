@@ -160,16 +160,17 @@ async def rick_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.R
 
 def main():
     group, scenario_fn = ckit_bot_exec.parse_bot_args()
-    fclient = ckit_client.FlexusClient(ckit_client.bot_service_name(BOT_NAME, BOT_VERSION_INT, group), endpoint="/v1/jailed-bot")
+    fclient = ckit_client.FlexusClient(ckit_client.bot_service_name(BOT_NAME, BOT_VERSION, group), endpoint="/v1/jailed-bot")
 
     asyncio.run(ckit_bot_exec.run_bots_in_this_group(
         fclient,
         marketable_name=BOT_NAME,
-        marketable_version=BOT_VERSION_INT,
+        marketable_version_str=BOT_VERSION,
         fgroup_id=group,
         bot_main_loop=rick_main_loop,
         inprocess_tools=TOOLS,
         scenario_fn=scenario_fn,
+        install_func=rick_install.install,
         subscribe_to_erp_tables=["crm_contact", "crm_task"],
     ))
 
