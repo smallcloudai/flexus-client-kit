@@ -123,7 +123,7 @@ prompt = f"""{PRODUCTMAN_BASE}
 5. Task completion:
    - Target responses collected → Move kanban task to DONE
    - Still in progress → Show status, do NOT finish task
-  
+
 {SURVEY_CREATION_RULES}
 
 {fi_pdoc.HELP}
