@@ -189,7 +189,7 @@ def format_binary_output(
 
     try:
         text_content = data.decode('utf-8')
-        return format_text_output(path, text_content, lines_range, safety_valve)
+        return result + format_text_output(path, text_content, lines_range, safety_valve)
     except UnicodeDecodeError:
         pass
 
