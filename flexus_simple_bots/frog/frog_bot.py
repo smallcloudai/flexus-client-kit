@@ -1,7 +1,7 @@
 import asyncio
 import logging
 import os
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 
 from pymongo import AsyncMongoClient
 
@@ -12,6 +12,7 @@ from flexus_client_kit import ckit_shutdown
 from flexus_client_kit import ckit_ask_model
 from flexus_client_kit import ckit_mongo
 from flexus_client_kit import ckit_kanban
+from flexus_client_kit import erp_schema
 from flexus_client_kit.integrations import fi_mongo_store
 from flexus_client_kit.integrations import fi_pdoc
 from flexus_simple_bots.frog import frog_install
@@ -82,6 +83,15 @@ async def frog_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.R
     async def updated_task_in_db(t: ckit_kanban.FPersonaKanbanTaskOutput):
         print("FROG TASK", t)
         pass
+
+    @rcx.on_erp_change("crm_contact")
+    async def on_contact_change(action: str, new_record: Optional[erp_schema.CrmContact], old_record: Optional[erp_schema.CrmContact]):
+        if action == "INSERT":
+            logger.info(f"Ribbit! Yay, we have a new contact: {new_record.contact_first_name}!")
+        elif action == "UPDATE":
+            logger.info(f"Ribbit ribbit! Ooh, {new_record.contact_first_name} is being updated!")
+        elif action == "DELETE":
+            logger.info(f"Ribbit... Sorry to see you go, {old_record.contact_first_name}.")
 
     @rcx.on_tool_call(RIBBIT_TOOL.name)
     async def toolcall_ribbit(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
@@ -161,6 +171,7 @@ def main():
         inprocess_tools=TOOLS,
         scenario_fn=scenario_fn,
         install_func=frog_install.install,
+        subscribe_to_erp_tables=["crm_contact"],
     ))
 
 

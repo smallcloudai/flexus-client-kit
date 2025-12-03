@@ -89,7 +89,8 @@ async def install(
         marketable_schedule=[
             prompts_common.SCHED_TASK_SORT_10M | {"sched_when": "EVERY:5m", "sched_first_question": "Sort inbox tasks according to priority and move them to todo."},
             prompts_common.SCHED_TODO_5M | {"sched_when": "EVERY:2m", "sched_first_question": "Work on the assigned task."},
-        ]
+        ],
+        marketable_forms={},
     )
 
 
