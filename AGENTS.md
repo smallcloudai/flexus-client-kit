@@ -45,6 +45,7 @@ NAME_prompts.py    -- prompts live in a separate file
 NAME_install.py    -- installation script, uses _bot and _prompts to construct a marketplace record
 NAME-1024x1536.jpg -- detailed marketplace picture under 0.3M
 NAME-256x256.png   -- small avatar picture with either transparent or white background
+forms/             -- optional directory with custom HTML forms for policy documents
 
 
 Kanban Board
@@ -120,6 +121,80 @@ A setup dialog is visible to the user in Flexus UI, automatically generated base
 Panels or tabs are generated based on bs_group, so related parameters group together.
 
 The full list of all bs_type: string_short, string_long, string_multiline, bool, int, float.
+
+
+Custom Forms
+------------
+
+Bots can provide custom HTML forms to edit policy documents instead of the default JSON editor.
+Forms are embedded in an iframe and communicate with the parent via postMessage.
+
+File structure:
+```
+mybot/
+  forms/
+    my_report.html     -- form for documents with "my_report" top-level key
+    survey.html        -- form for documents with "survey" top-level key
+  mybot_install.py
+  ...
+```
+
+The document type is determined by the top-level key that contains an object with a `meta` subobject:
+```
+{"my_report": {"meta": {"created_at": "..."}, "title": "...", "content": "..."}}
+```
+
+The form filename must match the top-level key. See flexus_simple_bots/frog/forms/pond_report.html for a complete example.
+
+Protocol messages:
+- Parent → Form: INIT (content, themeCss, marketplace), CONTENT_UPDATE (content), FOCUS (focused)
+- Form → Parent: FORM_READY (formName), FORM_CONTENT_CHANGED (content)
+
+
+### Styling - Theme-Aware Paper Pattern
+
+Custom forms should match preexisting forms (like WorksheetEditor.vue) using theme-aware CSS variables
+that automatically adapt to light/dark mode:
+
+- `--p-primary-contrast-color` - paper background (white in light mode, black in dark mode)
+- `--p-primary-color` - paper text color (black in light mode, white in dark mode)
+- `--p-content-hover-background` - desk/input backgrounds (adapts to theme)
+- `--p-text-color` - standard text color (adapts to theme)
+- `--p-text-muted-color` - muted text, dashed border color
+- `--p-surface-border` - borders
+- `--p-red-500` - red for criticism/error text
+
+**Never hardcode colors** like `white`, `#1f1f1f`, etc. - always use CSS variables.
+
+CSS template:
+```css
+body { background: var(--p-content-hover-background); margin: 0; padding: 10px; }
+.paper {
+  width: 440px; padding: 20px; min-height: calc(100vh - 20px);
+  background: var(--p-primary-contrast-color); color: var(--p-primary-color);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+.meta-box {
+  width: 400px; display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 3rem; padding: 1rem;
+  border: 2px dashed var(--p-text-muted-color); border-radius: 8px; position: relative; font-size: 0.8rem;
+}
+.meta-label {
+  position: absolute; top: -0.65rem; left: 1rem; background: var(--p-primary-contrast-color);
+  padding: 0 0.5rem; font-weight: 700; font-size: 0.75rem; letter-spacing: 0.05em; color: var(--p-text-muted-color);
+}
+h1 { font-size: 1.25rem; font-weight: 600; color: var(--p-primary-color); margin: 0 0 1.5rem 0; }
+.field { margin-bottom: 1rem; width: 400px; }
+.field > label { display: block; font-weight: 600; margin-bottom: 0.5rem; font-size: 0.875rem; }
+input, textarea, select {
+  border: 1px solid var(--p-surface-border); border-radius: 6px;
+  padding: 0.5rem 0.75rem; font-size: 1rem; font-family: inherit; box-sizing: border-box;
+  background: var(--p-content-hover-background); color: var(--p-text-color);
+}
+input:focus, textarea:focus, select:focus { outline: none; border-color: var(--p-primary-color); }
+textarea { resize: none; field-sizing: content; min-height: 2.5rem; width: 100%; }
+```
+
+See flexus_simple_bots/frog/forms/pond_report.html for a complete example.
 
 
 Bot Main Loop

@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Survey Editor</title>
+  <link rel="stylesheet" href="https://unpkg.com/primeicons@7.0.0/primeicons.css">
+  <style>
+    /* Animations */
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    /* Paper on dark desk pattern - matches WorksheetEditor.vue, theme-aware */
+    body { background: var(--p-content-hover-background); margin: 0; padding: 10px; }
+    .paper {
+      width: 440px; padding: 20px; min-height: calc(100vh - 20px);
+      background: var(--p-primary-contrast-color); color: var(--p-primary-color);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+    .meta-box {
+      width: 400px; display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 3rem; padding: 1rem;
+      border: 2px dashed var(--p-text-muted-color); border-radius: 8px; position: relative; font-size: 0.8rem;
+      animation: fadeIn 0.3s ease-out;
+    }
+    .meta-label {
+      position: absolute; top: -0.65rem; left: 1rem; background: var(--p-primary-contrast-color);
+      padding: 0 0.5rem; font-weight: 700; font-size: 0.75rem; letter-spacing: 0.05em; color: var(--p-text-muted-color);
+    }
+    .meta-row { display: flex; gap: 0.5rem; }
+    .meta-row label { font-weight: 600; color: var(--p-text-muted-color); }
+    h1 { font-size: 1.25rem; font-weight: 600; color: var(--p-primary-color); margin: 0 0 1.5rem 0; }
+    .field { margin-bottom: 1rem; width: 100%; max-width: 400px; }
+    .field > label { display: block; font-weight: 600; margin-bottom: 0.5rem; font-size: 0.875rem; }
+    .section-card {
+      width: 400px; margin-bottom: 2rem; padding: 16px; box-sizing: border-box;
+      border-left: 3px solid var(--p-primary-color); background: var(--p-content-hover-background);
+      border-radius: 0 8px 8px 0; animation: fadeIn 0.4s ease-out;
+    }
+    .section-header {
+      display: flex; gap: 8px; align-items: center; margin-bottom: 16px; padding-bottom: 12px;
+      border-bottom: 1px solid var(--p-surface-border);
+    }
+    .section-header input { flex: 1; font-weight: 600; }
+    .question-item {
+      padding: 12px; margin-bottom: 12px; border: 1px solid var(--p-surface-border); border-radius: 6px;
+      background: var(--p-primary-contrast-color); transition: border-color 0.15s ease;
+      overflow: hidden;
+    }
+    .question-item:hover { border-color: var(--p-primary-color); }
+    .question-item:last-of-type { margin-bottom: 16px; }
+    .question-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+    .question-num { font-weight: 700; color: var(--p-primary-color); font-size: 0.85rem; }
+    .question-opts { display: flex; gap: 16px; margin: 10px 0; flex-wrap: wrap; align-items: center; }
+    .opt-item { display: flex; align-items: center; gap: 6px; font-size: 0.9rem; }
+    .opt-item input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--p-primary-color); }
+    .opt-item select { min-width: 120px; }
+    input, textarea, select {
+      border: 1px solid var(--p-surface-border); border-radius: 6px;
+      padding: 0.5rem 0.75rem; font-size: 1rem; font-family: inherit; box-sizing: border-box;
+      background: var(--p-content-hover-background); color: var(--p-text-color);
+      transition: border-color 0.15s ease; max-width: 100%;
+    }
+    input:focus, textarea:focus, select:focus { outline: none; border-color: var(--p-primary-color); }
+    select option { background: var(--p-content-hover-background); color: var(--p-text-color); }
+    textarea { resize: none; width: 100%; min-height: 40px; overflow: hidden; display: block; }
+    input[type="text"] { width: 100%; }
+    input[type="number"] { width: 80px; }
+    select { width: auto; }
+    .choices-box {
+      margin-top: 12px; padding: 10px; border-radius: 6px;
+      border: 1px dashed var(--p-surface-border); background: transparent;
+    }
+    .choices-box > label { display: block; font-weight: 600; margin-bottom: 8px; font-size: 0.85rem; color: var(--p-text-muted-color); }
+    .choice-row { display: flex; gap: 8px; margin-bottom: 6px; align-items: center; animation: fadeIn 0.2s ease-out; }
+    .choice-row input { flex: 1; }
+    .scale-row { display: flex; gap: 16px; margin-top: 12px; }
+    .scale-item { display: flex; flex-direction: column; gap: 4px; }
+    .scale-item label { font-size: 0.8rem; color: var(--p-text-muted-color); }
+    .scale-item input { width: 70px; }
+    .btn-icon {
+      background: transparent; border: 1px solid var(--p-surface-border); border-radius: 6px;
+      width: 32px; height: 32px; cursor: pointer; display: flex; align-items: center; justify-content: center;
+      color: var(--p-text-muted-color); transition: all 0.15s ease;
+    }
+    .btn-icon:hover { border-color: var(--p-primary-color); color: var(--p-primary-color); }
+    .btn-icon.danger:hover { border-color: var(--p-red-500); color: var(--p-red-500); }
+    .btn-text {
+      background: transparent; border: none; color: var(--p-primary-color); cursor: pointer;
+      padding: 6px 12px; font-size: 0.85rem; display: flex; align-items: center; gap: 4px;
+      transition: opacity 0.15s ease;
+    }
+    .btn-text:hover { opacity: 0.8; }
+    .empty-hint { color: var(--p-text-muted-color); font-size: 0.9rem; text-align: center; padding: 2rem; }
+    .p-button { transition: all 0.15s ease; }
+  </style>
+  <style id="theme-css"></style>
+</head>
+<body>
+  <div class="paper">
+    <div class="meta-box">
+      <div class="meta-label">SURVEY</div>
+      <div class="meta-row"><label>Hypothesis:</label> <span id="meta_hypothesis">—</span></div>
+      <div class="meta-row"><label>Idea:</label> <span id="meta_idea">—</span></div>
+      <div class="meta-row"><label>Created:</label> <span id="meta_created">—</span></div>
+    </div>
+
+    <h1>📋 Survey Editor</h1>
+
+    <div class="field">
+      <label>Survey Title</label>
+      <input type="text" id="meta_title" class="p-inputtext" oninput="updateMeta('title', this.value)">
+    </div>
+
+    <div class="field">
+      <label>Description</label>
+      <textarea id="meta_description" class="p-textarea" oninput="updateMeta('description', this.value)"></textarea>
+    </div>
+
+    <div id="sections_container"></div>
+  </div>
+
+  <script>
+    const FormBridge = {
+      handlers: {},
+      init(name) {
+        window.addEventListener('message', e => {
+          if (e.data?.type && this.handlers[e.data.type]) {
+            this.handlers[e.data.type].forEach(h => h(e.data));
+          }
+        });
+        setTimeout(() => this.send('FORM_READY', { formName: name }), 0);
+      },
+      send(type, data) { window.parent.postMessage({ type, ...data }, '*'); },
+      on(type, handler) {
+        if (!this.handlers[type]) this.handlers[type] = [];
+        this.handlers[type].push(handler);
+      }
+    };
+
+    const QTYPES = [
+      { value: 'yes_no', label: 'Yes/No' },
+      { value: 'single_choice', label: 'Single Choice' },
+      { value: 'multiple_choice', label: 'Multiple Choice' },
+      { value: 'open_ended', label: 'Open Ended' },
+      { value: 'rating_scale', label: 'Rating Scale' },
+      { value: 'likert', label: 'Likert Scale' },
+      { value: 'dropdown', label: 'Dropdown' },
+      { value: 'numeric', label: 'Numeric' },
+    ];
+
+    let content = {};
+
+    FormBridge.on('INIT', data => {
+      content = data.content || {};
+      if (data.themeCss) document.getElementById('theme-css').textContent = data.themeCss;
+      render();
+    });
+
+    FormBridge.on('CONTENT_UPDATE', data => {
+      console.log('SURVEY FORM UPDATE:', JSON.stringify(data.content, null, 2));
+      content = data.content || {};
+      render();
+    });
+
+    FormBridge.init('productman-survey');
+
+    function getSurvey() { return content.survey || {}; }
+    function getMeta() { return getSurvey().meta || {}; }
+
+    function getSectionKeys() {
+      const survey = getSurvey();
+      return Object.keys(survey).filter(k => /^section\d{2}/.test(k)).sort();
+    }
+
+    function render() {
+      const meta = getMeta();
+      document.getElementById('meta_title').value = meta.title || '';
+      document.getElementById('meta_description').value = meta.description || '';
+      document.getElementById('meta_hypothesis').textContent = meta.hypothesis || '—';
+      document.getElementById('meta_idea').textContent = meta.idea || '—';
+      document.getElementById('meta_created').textContent = meta.created_at || '—';
+
+      const sectionKeys = getSectionKeys();
+      const container = document.getElementById('sections_container');
+
+      if (!sectionKeys.length) {
+        container.innerHTML = '<div class="empty-hint">No survey sections found.<br>Survey keys: ' + Object.keys(getSurvey()).join(', ') + '</div>';
+        return;
+      }
+
+      container.innerHTML = sectionKeys.map(key => renderSection(key)).join('');
+      setTimeout(resizeAllTextareas, 0);
+    }
+
+    function renderSection(key) {
+      const section = getSurvey()[key] || {};
+      const questions = section.questions || [];
+      return `
+        <div class="section-card" data-key="${key}">
+          <div class="section-header">
+            <input type="text" class="p-inputtext" value="${esc(section.title || key)}"
+              onchange="updateSectionTitle('${key}', this.value)" placeholder="Section Title">
+          </div>
+          ${questions.map((q, i) => renderQuestion(key, i, q)).join('')}
+          <button class="p-button p-button-outlined" onclick="addQuestion('${key}')" style="width:100%">
+            <span class="pi pi-plus" style="margin-right:6px"></span>Add Question
+          </button>
+        </div>`;
+    }
+
+    function renderQuestion(sectionKey, idx, q) {
+      const typeOpts = QTYPES.map(t => `<option value="${t.value}" ${q.type === t.value ? 'selected' : ''}>${t.label}</option>`).join('');
+      let extra = '';
+      if (['single_choice', 'multiple_choice', 'dropdown'].includes(q.type)) {
+        const choices = (q.choices || []).map((c, ci) => `
+          <div class="choice-row">
+            <input type="text" class="p-inputtext" value="${esc(c)}" onchange="updateChoice('${sectionKey}', ${idx}, ${ci}, this.value)">
+            <button class="btn-icon danger" onclick="removeChoice('${sectionKey}', ${idx}, ${ci})"><span class="pi pi-times"></span></button>
+          </div>`).join('');
+        extra = `
+          <div class="choices-box">
+            <label>Answer Choices</label>
+            ${choices}
+            <button class="btn-text" onclick="addChoice('${sectionKey}', ${idx})"><span class="pi pi-plus"></span> Add Choice</button>
+          </div>`;
+      } else if (q.type === 'rating_scale') {
+        extra = `
+          <div class="scale-row">
+            <div class="scale-item"><label>Min</label><input type="number" class="p-inputtext" value="${q.scale_min || 1}" onchange="updateQ('${sectionKey}', ${idx}, 'scale_min', parseInt(this.value))"></div>
+            <div class="scale-item"><label>Max</label><input type="number" class="p-inputtext" value="${q.scale_max || 5}" onchange="updateQ('${sectionKey}', ${idx}, 'scale_max', parseInt(this.value))"></div>
+          </div>`;
+      }
+      return `
+        <div class="question-item">
+          <div class="question-header">
+            <span class="question-num">Q${idx + 1}</span>
+            <button class="btn-icon danger" onclick="removeQuestion('${sectionKey}', ${idx})"><span class="pi pi-trash"></span></button>
+          </div>
+          <div class="field">
+            <textarea class="p-textarea" onchange="updateQ('${sectionKey}', ${idx}, 'q', this.value)">${esc(q.q || '')}</textarea>
+          </div>
+          <div class="question-opts">
+            <div class="opt-item">
+              <label>Type:</label>
+              <select class="p-select" onchange="updateQ('${sectionKey}', ${idx}, 'type', this.value)">${typeOpts}</select>
+            </div>
+            <div class="opt-item">
+              <input type="checkbox" ${q.required ? 'checked' : ''} onchange="updateQ('${sectionKey}', ${idx}, 'required', this.checked)">
+              <label>Required</label>
+            </div>
+          </div>
+          ${extra}
+        </div>`;
+    }
+
+    function esc(str) {
+      return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    function updateMeta(key, value) {
+      if (!content.survey) content.survey = {};
+      if (!content.survey.meta) content.survey.meta = {};
+      content.survey.meta[key] = value;
+      notifyChange();
+    }
+
+    function getSection(key) {
+      if (!content.survey) content.survey = {};
+      if (!content.survey[key]) content.survey[key] = {};
+      return content.survey[key];
+    }
+
+    function updateSectionTitle(key, title) {
+      getSection(key).title = title;
+      notifyChange();
+    }
+
+    function updateQ(sectionKey, idx, field, value) {
+      getSection(sectionKey).questions[idx][field] = value;
+      notifyChange();
+      if (field === 'type') render();
+    }
+
+    function addQuestion(sectionKey) {
+      const sec = getSection(sectionKey);
+      if (!sec.questions) sec.questions = [];
+      sec.questions.push({ q: '', type: 'open_ended', required: false });
+      notifyChange();
+      render();
+    }
+
+    function removeQuestion(sectionKey, idx) {
+      getSection(sectionKey).questions.splice(idx, 1);
+      notifyChange();
+      render();
+    }
+
+    function addChoice(sectionKey, qIdx) {
+      const q = getSection(sectionKey).questions[qIdx];
+      if (!q.choices) q.choices = [];
+      q.choices.push('');
+      notifyChange();
+      render();
+    }
+
+    function updateChoice(sectionKey, qIdx, cIdx, value) {
+      getSection(sectionKey).questions[qIdx].choices[cIdx] = value;
+      notifyChange();
+    }
+
+    function removeChoice(sectionKey, qIdx, cIdx) {
+      getSection(sectionKey).questions[qIdx].choices.splice(cIdx, 1);
+      notifyChange();
+      render();
+    }
+
+    function notifyChange() {
+      FormBridge.send('FORM_CONTENT_CHANGED', { content });
+    }
+
+    function autoResize(el) {
+      el.style.height = '0';
+      el.style.height = Math.max(40, el.scrollHeight) + 'px';
+    }
+
+    function resizeAllTextareas() {
+      document.querySelectorAll('textarea').forEach(autoResize);
+    }
+
+    document.addEventListener('input', e => {
+      if (e.target.tagName === 'TEXTAREA') autoResize(e.target);
+    });
+
+    const mo = new MutationObserver(() => setTimeout(resizeAllTextareas, 10));
+    mo.observe(document.body, { childList: true, subtree: true });
+  </script>
+</body>
+</html>

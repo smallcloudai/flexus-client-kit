@@ -97,6 +97,10 @@ One search call with multiple terms, don't make separate calls.
 
 prompt = f"""{PRODUCTMAN_BASE}
 
+{fi_pdoc.HELP}
+
+{prompts_common.PROMPT_KANBAN}
+
 ## Survey Skill Workflow
 
 1. When you receive a hypothesis path from kanban task:
@@ -125,8 +129,4 @@ prompt = f"""{PRODUCTMAN_BASE}
    - Still in progress → Show status, do NOT finish task
 
 {SURVEY_CREATION_RULES}
-
-{fi_pdoc.HELP}
-
-{prompts_common.PROMPT_KANBAN}
 """

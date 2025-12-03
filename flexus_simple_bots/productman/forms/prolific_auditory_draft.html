@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Audience Targeting Editor</title>
+  <link rel="stylesheet" href="https://unpkg.com/primeicons@7.0.0/primeicons.css">
+  <style>
+    /* Animations */
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    /* Paper on dark desk pattern - matches WorksheetEditor.vue, theme-aware */
+    body { background: var(--p-content-hover-background); margin: 0; padding: 10px; }
+    .paper {
+      width: 440px; padding: 20px; min-height: calc(100vh - 20px);
+      background: var(--p-primary-contrast-color); color: var(--p-primary-color);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+    .meta-box {
+      width: 400px; display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 3rem; padding: 1rem;
+      border: 2px dashed var(--p-text-muted-color); border-radius: 8px; position: relative; font-size: 0.8rem;
+      animation: fadeIn 0.3s ease-out;
+    }
+    .meta-label {
+      position: absolute; top: -0.65rem; left: 1rem; background: var(--p-primary-contrast-color);
+      padding: 0 0.5rem; font-weight: 700; font-size: 0.75rem; letter-spacing: 0.05em; color: var(--p-text-muted-color);
+    }
+    .meta-row { display: flex; gap: 0.5rem; }
+    .meta-row label { font-weight: 600; color: var(--p-text-muted-color); }
+    h1 { font-size: 1.25rem; font-weight: 600; color: var(--p-primary-color); margin: 0 0 1.5rem 0; }
+    h2 {
+      font-size: 1rem; font-weight: 600; color: var(--p-text-muted-color); margin: 2rem 0 1rem 0;
+      padding-bottom: 0.5rem; border-bottom: 1px solid var(--p-surface-border);
+    }
+    .field { margin-bottom: 1rem; width: 100%; max-width: 400px; }
+    .field > label { display: block; font-weight: 600; margin-bottom: 0.5rem; font-size: 0.875rem; }
+    .hint { font-size: 0.8rem; color: var(--p-text-muted-color); margin-top: 4px; }
+    .row { display: flex; gap: 1rem; width: 400px; }
+    .row .field { flex: 1; width: auto; }
+    .filter-item {
+      padding: 12px; border: 1px solid var(--p-surface-border); border-radius: 6px; margin-bottom: 10px;
+      width: 400px; box-sizing: border-box; background: var(--p-content-hover-background);
+      animation: fadeIn 0.3s ease-out; transition: border-color 0.15s ease;
+    }
+    .filter-item:hover { border-color: var(--p-primary-color); }
+    .filter-header { display: flex; gap: 8px; align-items: center; margin-bottom: 10px; }
+    .filter-header select { flex: 1; }
+    .range-row { display: flex; gap: 12px; }
+    .range-row .field { flex: 1; width: auto; margin-bottom: 0; }
+    .range-row .field label { font-size: 0.8rem; color: var(--p-text-muted-color); font-weight: 500; }
+    input, textarea, select {
+      border: 1px solid var(--p-surface-border); border-radius: 6px;
+      padding: 0.5rem 0.75rem; font-size: 1rem; font-family: inherit; box-sizing: border-box;
+      background: var(--p-content-hover-background); color: var(--p-text-color);
+      transition: border-color 0.15s ease; max-width: 100%;
+    }
+    input:focus, textarea:focus, select:focus { outline: none; border-color: var(--p-primary-color); }
+    select option { background: var(--p-content-hover-background); color: var(--p-text-color); }
+    textarea { resize: none; width: 100%; min-height: 40px; overflow: hidden; display: block; }
+    input[type="text"] { width: 100%; }
+    input[type="number"] { width: 80px; }
+    select { width: 100%; }
+    .chip-container {
+      display: flex; flex-wrap: wrap; gap: 6px; min-height: 32px; padding: 8px;
+      border: 1px solid var(--p-surface-border); border-radius: 6px; cursor: pointer;
+      background: var(--p-content-hover-background); transition: border-color 0.15s ease;
+    }
+    .chip-container:hover { border-color: var(--p-primary-color); }
+    .chip {
+      background: var(--p-primary-color); color: var(--p-primary-contrast-color);
+      padding: 2px 10px; border-radius: 12px; font-size: 0.8rem; animation: fadeIn 0.2s ease-out;
+    }
+    .dropdown {
+      position: absolute; top: 100%; left: 0; right: 0;
+      background: var(--p-content-hover-background);
+      border: 1px solid var(--p-surface-border); border-radius: 6px; max-height: 180px;
+      overflow-y: auto; z-index: 100; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3); display: none;
+    }
+    .dropdown.open { display: block; animation: fadeIn 0.15s ease-out; }
+    .dropdown-item {
+      padding: 8px 12px; cursor: pointer; display: flex; align-items: center; gap: 8px;
+      transition: background-color 0.1s ease;
+    }
+    .dropdown-item:hover { background: var(--p-highlight-background); }
+    .dropdown-item.selected { background: var(--p-highlight-background); }
+    .dropdown-item input[type="checkbox"] { accent-color: var(--p-primary-color); width: auto; }
+
+    .cost-grid {
+      display: grid; grid-template-columns: 1fr auto; gap: 8px 16px; font-size: 0.9rem; width: 400px;
+      padding: 16px; background: var(--p-content-hover-background); border-radius: 8px;
+      border: 1px solid var(--p-surface-border);
+    }
+    .cost-grid .label { color: var(--p-text-muted-color); }
+    .cost-grid .value { text-align: right; font-weight: 500; }
+    .cost-grid .total { font-weight: 700; font-size: 1.1rem; color: var(--p-primary-color); border-top: 2px solid var(--p-surface-border); padding-top: 8px; margin-top: 8px; }
+    .btn-icon {
+      background: transparent; border: 1px solid var(--p-surface-border); border-radius: 6px;
+      width: 32px; height: 32px; cursor: pointer; display: flex; align-items: center; justify-content: center;
+      color: var(--p-text-muted-color); transition: all 0.15s ease;
+    }
+    .btn-icon:hover { border-color: var(--p-primary-color); color: var(--p-primary-color); }
+    .btn-icon.danger:hover { border-color: var(--p-red-500); color: var(--p-red-500); }
+    .multiselect-wrapper { position: relative; }
+    .empty-hint { color: var(--p-text-muted-color); font-size: 0.85rem; }
+    .p-button { width: 400px; transition: all 0.15s ease; }
+  </style>
+  <style id="theme-css"></style>
+</head>
+<body>
+  <div class="paper">
+    <div class="meta-box">
+      <div class="meta-label">PROLIFIC_AUDITORY_DRAFT</div>
+      <div class="meta-row"><label>Study:</label> <span id="study_name">—</span></div>
+      <div class="meta-row"><label>Status:</label> <span id="status">—</span></div>
+      <div class="meta-row"><label>Created:</label> <span id="created_at">—</span></div>
+    </div>
+
+    <h1>🎯 Audience Targeting</h1>
+
+    <h2>Study Parameters</h2>
+    <div class="field">
+      <label>Study Description</label>
+      <textarea id="study_description" class="p-textarea"></textarea>
+    </div>
+    <div class="row">
+      <div class="field">
+        <label>Est. Minutes</label>
+        <input type="number" id="estimated_minutes" class="p-inputtext" min="1" max="120" onchange="updateParam('estimated_minutes', parseInt(this.value))">
+      </div>
+      <div class="field">
+        <label>Reward (pence)</label>
+        <input type="number" id="reward_cents" class="p-inputtext" min="10" onchange="updateParam('reward_cents', parseInt(this.value))">
+        <div class="hint" id="reward_hint">£0.00 / participant</div>
+      </div>
+      <div class="field">
+        <label>Participants</label>
+        <input type="number" id="total_participants" class="p-inputtext" min="1" max="1000" onchange="updateParam('total_participants', parseInt(this.value))">
+      </div>
+    </div>
+
+    <h2>Participant Filters</h2>
+    <div id="filters_container"></div>
+    <button class="p-button p-button-outlined" onclick="addFilter()" style="width:100%">
+      <span class="pi pi-plus" style="margin-right:8px"></span>Add Filter
+    </button>
+
+    <h2>Cost Estimate</h2>
+    <div class="cost-grid">
+      <span class="label">Participant Rewards:</span><span class="value" id="cost_rewards">£0.00</span>
+      <span class="label">Service Fee (33%):</span><span class="value" id="cost_service">£0.00</span>
+      <span class="label">VAT (20%):</span><span class="value" id="cost_vat">£0.00</span>
+      <span class="label total">Total:</span><span class="value total" id="cost_total">£0.00</span>
+    </div>
+  </div>
+
+  <script>
+    const FormBridge = {
+      handlers: {},
+      init(name) {
+        window.addEventListener('message', e => {
+          if (e.data?.type && this.handlers[e.data.type]) {
+            this.handlers[e.data.type].forEach(h => h(e.data));
+          }
+        });
+        setTimeout(() => this.send('FORM_READY', { formName: name }), 0);
+      },
+      send(type, data) { window.parent.postMessage({ type, ...data }, '*'); },
+      on(type, handler) {
+        if (!this.handlers[type]) this.handlers[type] = [];
+        this.handlers[type].push(handler);
+      }
+    };
+
+    let content = {};
+    let FILTERS = [];
+    let filterMap = {};
+    let marketplaceInfo = null;
+
+    async function loadFilters() {
+      if (!marketplaceInfo) return;
+      try {
+        const url = `/v1/marketplace/${marketplaceInfo.name}/${marketplaceInfo.version}/forms/prolific_filters.json`;
+        const resp = await fetch(url);
+        if (resp.ok) {
+          const data = await resp.json();
+          FILTERS = Object.entries(data).map(([key, val]) => ({
+            value: key,
+            label: val.title || key,
+            type: val.type,
+            min: val.min,
+            max: val.max,
+            choices: val.choices
+          }));
+          filterMap = Object.fromEntries(FILTERS.map(f => [f.value, f]));
+          renderFilters();
+        }
+      } catch (e) {
+        console.error('Failed to load filters:', e);
+      }
+    }
+
+    FormBridge.on('INIT', data => {
+      content = data.content || {};
+      marketplaceInfo = data.marketplace || null;
+      if (data.themeCss) document.getElementById('theme-css').textContent = data.themeCss;
+      render();
+      loadFilters();
+    });
+    FormBridge.on('CONTENT_UPDATE', data => { content = data.content || {}; render(); });
+    FormBridge.init('productman-auditory');
+
+    function getDraft() { return content.prolific_auditory_draft || {}; }
+    function getParams() { return getDraft().parameters || {}; }
+
+    function render() {
+      const draft = getDraft();
+      const meta = draft.meta || {};
+      const params = draft.parameters || {};
+
+      document.getElementById('study_name').textContent = meta.study_name || '—';
+      document.getElementById('status').textContent = meta.status || 'DRAFT';
+      document.getElementById('created_at').textContent = meta.created_at || '—';
+
+      document.getElementById('study_description').value = params.study_description || '';
+      document.getElementById('estimated_minutes').value = params.estimated_minutes || '';
+      document.getElementById('reward_cents').value = params.reward_cents || '';
+      document.getElementById('total_participants').value = params.total_participants || '';
+
+      updateCostDisplay();
+      renderFilters();
+    }
+
+    function updateCostDisplay() {
+      const p = getParams();
+      const reward = p.reward_cents || 0;
+      const participants = p.total_participants || 0;
+      const rewards = reward * participants;
+      const service = Math.round(rewards * 0.33);
+      const vat = Math.round(service * 0.20);
+      const total = rewards + service + vat;
+      const fmt = c => '£' + (c / 100).toFixed(2);
+      document.getElementById('reward_hint').textContent = fmt(reward) + ' / participant';
+      document.getElementById('cost_rewards').textContent = fmt(rewards);
+      document.getElementById('cost_service').textContent = fmt(service);
+      document.getElementById('cost_vat').textContent = fmt(vat);
+      document.getElementById('cost_total').textContent = fmt(total);
+      setTimeout(resizeAllTextareas, 0);
+    }
+
+    function renderFilters() {
+      const filters = getParams().filters || [];
+      const container = document.getElementById('filters_container');
+      if (!filters.length) {
+        container.innerHTML = '<p class="empty-hint">No filters configured. Add filters to target specific participants.</p>';
+        return;
+      }
+      container.innerHTML = filters.map((f, i) => {
+        const info = filterMap[f.filter_id] || { label: f.filter_id, type: 'range' };
+        const opts = FILTERS.map(t => `<option value="${t.value}" ${f.filter_id === t.value ? 'selected' : ''}>${t.label}</option>`).join('');
+        let valueHtml = '';
+        if (info.type === 'range') {
+          const range = f.selected_range || {};
+          valueHtml = `<div class="range-row">
+            <div class="field"><label>Min</label><input type="number" class="p-inputtext" value="${range.lower ?? info.min ?? 0}" onchange="updateFilterRange(${i}, 'lower', parseInt(this.value))"></div>
+            <div class="field"><label>Max</label><input type="number" class="p-inputtext" value="${range.upper ?? info.max ?? 100}" onchange="updateFilterRange(${i}, 'upper', parseInt(this.value))"></div>
+          </div>`;
+        } else if (info.type === 'select' && info.choices) {
+          const selected = f.selected_values || [];
+          const chips = selected.map(v => `<span class="chip">${info.choices[v] || v}</span>`).join('') || '<span class="empty-hint">Click to select...</span>';
+          const items = Object.entries(info.choices).map(([v, l]) => `
+            <div class="dropdown-item ${selected.includes(v) ? 'selected' : ''}" onclick="toggleOption(${i}, '${v}', event)">
+              <input type="checkbox" ${selected.includes(v) ? 'checked' : ''} style="pointer-events:none">
+              <span>${l}</span>
+            </div>`).join('');
+          valueHtml = `<div class="multiselect-wrapper">
+            <div class="chip-container" onclick="toggleDropdown(${i})">${chips}</div>
+            <div class="dropdown" id="dropdown_${i}">${items}</div>
+          </div>`;
+        }
+        return `<div class="filter-item">
+          <div class="filter-header">
+            <select class="p-select" onchange="changeFilterType(${i}, this.value)">${opts}</select>
+            <button class="btn-icon danger" onclick="removeFilter(${i})"><span class="pi pi-trash"></span></button>
+          </div>
+          ${valueHtml}
+        </div>`;
+      }).join('');
+    }
+
+    function updateParam(key, value) {
+      if (!content.prolific_auditory_draft) content.prolific_auditory_draft = {};
+      if (!content.prolific_auditory_draft.parameters) content.prolific_auditory_draft.parameters = {};
+      content.prolific_auditory_draft.parameters[key] = value;
+      updateCostDisplay();
+      notifyChange();
+    }
+
+    document.getElementById('study_description').addEventListener('input', function() {
+      if (!content.prolific_auditory_draft) content.prolific_auditory_draft = {};
+      if (!content.prolific_auditory_draft.parameters) content.prolific_auditory_draft.parameters = {};
+      content.prolific_auditory_draft.parameters.study_description = this.value;
+      notifyChange();
+    });
+
+    function addFilter() {
+      if (!content.prolific_auditory_draft) content.prolific_auditory_draft = {};
+      if (!content.prolific_auditory_draft.parameters) content.prolific_auditory_draft.parameters = {};
+      if (!content.prolific_auditory_draft.parameters.filters) content.prolific_auditory_draft.parameters.filters = [];
+      content.prolific_auditory_draft.parameters.filters.push({ filter_id: 'age', selected_range: { lower: 18, upper: 65 } });
+      notifyChange();
+      renderFilters();
+    }
+
+    function removeFilter(i) {
+      content.prolific_auditory_draft.parameters.filters.splice(i, 1);
+      notifyChange();
+      renderFilters();
+    }
+
+    function changeFilterType(i, newType) {
+      const f = content.prolific_auditory_draft.parameters.filters[i];
+      f.filter_id = newType;
+      delete f.selected_range;
+      delete f.selected_values;
+      const info = filterMap[newType];
+      if (info?.type === 'range') f.selected_range = { lower: info.min || 0, upper: info.max || 100 };
+      else if (info?.type === 'select') f.selected_values = [];
+      notifyChange();
+      renderFilters();
+    }
+
+    function updateFilterRange(i, key, value) {
+      const f = content.prolific_auditory_draft.parameters.filters[i];
+      if (!f.selected_range) f.selected_range = {};
+      f.selected_range[key] = value;
+      notifyChange();
+    }
+
+    function toggleDropdown(i) {
+      document.querySelectorAll('.dropdown').forEach((d, idx) => idx !== i && d.classList.remove('open'));
+      document.getElementById('dropdown_' + i).classList.toggle('open');
+    }
+
+    function toggleOption(i, val, e) {
+      e.stopPropagation();
+      const f = content.prolific_auditory_draft.parameters.filters[i];
+      if (!f.selected_values) f.selected_values = [];
+      const idx = f.selected_values.indexOf(val);
+      if (idx >= 0) f.selected_values.splice(idx, 1);
+      else f.selected_values.push(val);
+      notifyChange();
+      renderFilters();
+    }
+
+    document.addEventListener('click', e => {
+      if (!e.target.closest('.multiselect-wrapper')) {
+        document.querySelectorAll('.dropdown').forEach(d => d.classList.remove('open'));
+      }
+    });
+
+    function notifyChange() {
+      FormBridge.send('FORM_CONTENT_CHANGED', { content });
+    }
+
+    function autoResize(el) {
+      el.style.height = '0';
+      el.style.height = Math.max(40, el.scrollHeight) + 'px';
+    }
+
+    function resizeAllTextareas() {
+      document.querySelectorAll('textarea').forEach(autoResize);
+    }
+
+    document.addEventListener('input', e => {
+      if (e.target.tagName === 'TEXTAREA') autoResize(e.target);
+    });
+
+    const mo = new MutationObserver(() => setTimeout(resizeAllTextareas, 10));
+    mo.observe(document.body, { childList: true, subtree: true });
+  </script>
+</body>
+</html>
