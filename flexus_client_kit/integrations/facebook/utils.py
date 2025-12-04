@@ -2,9 +2,13 @@ from __future__ import annotations
 import hashlib
 import logging
 from typing import Any, Dict, List, Optional, Tuple
-from .exceptions import FacebookValidationError
-from .models import Insights
+
+from flexus_client_kit.integrations.facebook.exceptions import FacebookValidationError
+from flexus_client_kit.integrations.facebook.models import Insights
+
 logger = logging.getLogger("facebook.utils")
+
+
 def validate_ad_account_id(ad_account_id: str) -> str:
     if not ad_account_id:
         raise FacebookValidationError("ad_account_id", "is required")
@@ -14,6 +18,8 @@ def validate_ad_account_id(ad_account_id: str) -> str:
     if not ad_account_id.startswith("act_"):
         return f"act_{ad_account_id}"
     return ad_account_id
+
+
 def validate_budget(budget: int, min_budget: int = 100, currency: str = "USD") -> int:
     if not isinstance(budget, int):
         try:
@@ -23,6 +29,8 @@ def validate_budget(budget: int, min_budget: int = 100, currency: str = "USD") -
     if budget < min_budget:
         raise FacebookValidationError("budget", f"must be at least {format_currency(min_budget, currency)}")
     return budget
+
+
 def validate_targeting_spec(spec: Dict[str, Any]) -> Tuple[bool, str]:
     try:
         if not spec:
@@ -48,8 +56,12 @@ def validate_targeting_spec(spec: Dict[str, Any]) -> Tuple[bool, str]:
         return True, ""
     except Exception as e:
         return False, f"Validation error: {str(e)}"
+
+
 def format_currency(cents: int, currency: str = "USD") -> str:
     return f"{cents / 100:.2f} {currency}"
+
+
 def format_account_status(status_code: int) -> str:
     status_map = {
         1: "Active",
@@ -63,6 +75,8 @@ def format_account_status(status_code: int) -> str:
         201: "Temporarily Unavailable",
     }
     return status_map.get(status_code, f"Unknown ({status_code})")
+
+
 def normalize_insights_data(raw_data: Dict[str, Any]) -> Insights:
     try:
         impressions = int(raw_data.get("impressions", 0))
@@ -115,6 +129,8 @@ def normalize_insights_data(raw_data: Dict[str, Any]) -> Insights:
     except Exception as e:
         logger.warning(f"Error normalizing insights data: {e}", exc_info=e)
         return Insights()
+
+
 def hash_for_audience(value: str, field_type: str) -> str:
     value = value.strip().lower()
     if field_type == "PHONE":

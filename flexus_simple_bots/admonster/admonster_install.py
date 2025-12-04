@@ -3,10 +3,12 @@ import json
 import base64
 from pathlib import Path
 from typing import List
+
 from flexus_client_kit import ckit_client
 from flexus_client_kit import ckit_bot_install
 from flexus_client_kit import ckit_cloudtool
 from flexus_simple_bots.admonster import admonster_prompts
+
 admonster_setup_schema = [
     {
         "bs_name": "ad_account_id",
@@ -25,6 +27,8 @@ admonster_setup_schema = [
         "bs_description": "Facebook Ads Account ID (act_...)",
     },
 ]
+
+
 async def install(
     client: ckit_client.FlexusClient,
     ws_id: str,
@@ -85,6 +89,8 @@ async def install(
         marketable_picture_small_b64=small,
         marketable_schedule=[]
     )
+
+
 if __name__ == "__main__":
     from flexus_simple_bots.admonster import admonster_bot
     args = ckit_bot_install.bot_install_argparse()

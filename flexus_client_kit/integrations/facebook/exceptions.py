@@ -1,17 +1,24 @@
 from __future__ import annotations
 import logging
 from typing import Optional
+
 import httpx
+
 logger = logging.getLogger("facebook.exceptions")
+
+
 class FacebookError(Exception):
     def __init__(self, message: str, details: Optional[str] = None):
         self.message = message
         self.details = details
         super().__init__(message)
+
     def __str__(self) -> str:
         if self.details:
             return f"{self.message}\n{self.details}"
         return self.message
+
+
 class FacebookAPIError(FacebookError):
     CODE_INVALID_PARAMS = 100
     CODE_AUTH_EXPIRED = 190
@@ -22,6 +29,7 @@ class FacebookAPIError(FacebookError):
     CODE_AD_ACCOUNT_DISABLED = 2635
     CODE_BUDGET_TOO_LOW = 1487387
     RATE_LIMIT_CODES = {CODE_RATE_LIMIT_1, CODE_RATE_LIMIT_2, CODE_RATE_LIMIT_3}
+
     def __init__(
         self,
         code: int,
@@ -45,12 +53,15 @@ class FacebookAPIError(FacebookError):
             details_parts.append(message)
         details = "\n".join(details_parts)
         super().__init__(message, details)
+
     @property
     def is_rate_limit(self) -> bool:
         return self.code in self.RATE_LIMIT_CODES
+
     @property
     def is_auth_error(self) -> bool:
         return self.code == self.CODE_AUTH_EXPIRED
+
     def format_for_user(self) -> str:
         if self.code == self.CODE_AUTH_EXPIRED:
             return f"Authentication failed. Please reconnect Facebook.\n{self.details}"
@@ -66,16 +77,24 @@ class FacebookAPIError(FacebookError):
             return f"Insufficient permissions.\n{self.details}"
         else:
             return f"Facebook API Error ({self.code}):\n{self.details}"
+
+
 class FacebookAuthError(FacebookError):
     def __init__(self, message: str = "Facebook authentication required"):
         super().__init__(message)
+
+
 class FacebookValidationError(FacebookError):
     def __init__(self, field: str, message: str):
         self.field = field
         super().__init__(f"Validation error for '{field}': {message}")
+
+
 class FacebookTimeoutError(FacebookError):
     def __init__(self, timeout: float):
         super().__init__(f"Request timed out after {timeout} seconds")
+
+
 async def parse_api_error(response: httpx.Response) -> FacebookAPIError:
     try:
         error_data = response.json()

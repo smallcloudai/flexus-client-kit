@@ -1,10 +1,12 @@
 from __future__ import annotations
 import logging
 from typing import Any, Dict, List, TYPE_CHECKING
-from .utils import format_currency, format_account_status, validate_ad_account_id
-from .exceptions import FacebookValidationError
+from flexus_client_kit.integrations.facebook.utils import format_currency, format_account_status, validate_ad_account_id
+from flexus_client_kit.integrations.facebook.exceptions import FacebookValidationError
+
 if TYPE_CHECKING:
-    from ..client import FacebookAdsClient
+    from flexus_client_kit.integrations.facebook.client import FacebookAdsClient
+
 AD_ACCOUNT_FIELDS = (
     "id,account_id,name,currency,timezone_name,account_status,"
     "balance,amount_spent,spend_cap,business{id,name}"

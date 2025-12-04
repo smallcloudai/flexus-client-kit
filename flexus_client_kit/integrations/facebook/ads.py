@@ -3,11 +3,11 @@ import logging
 from pathlib import Path
 from typing import Any, Dict, Optional, TYPE_CHECKING
 import httpx
-from .models import AdFormat, CallToActionType
-from .utils import validate_ad_account_id
-from .exceptions import FacebookValidationError
+from flexus_client_kit.integrations.facebook.models import AdFormat, CallToActionType
+from flexus_client_kit.integrations.facebook.utils import validate_ad_account_id
+from flexus_client_kit.integrations.facebook.exceptions import FacebookValidationError
 if TYPE_CHECKING:
-    from ..client import FacebookAdsClient
+    from flexus_client_kit.integrations.facebook.client import FacebookAdsClient
 logger = logging.getLogger("facebook.operations.ads")
 async def upload_image(
     client: "FacebookAdsClient",
@@ -44,7 +44,7 @@ You can now use this image hash in create_creative()
         await client.ensure_auth()
         with open(image_file, 'rb') as f:
             image_bytes = f.read()
-        from ..client import API_BASE, API_VERSION
+        from flexus_client_kit.integrations.facebook.client import API_BASE, API_VERSION
         files = {"filename": (image_file.name, image_bytes, "image/jpeg")}
         form_data = {"access_token": client.access_token}
         url = f"{API_BASE}/{API_VERSION}/{endpoint}"

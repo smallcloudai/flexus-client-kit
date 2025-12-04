@@ -1,11 +1,11 @@
 from __future__ import annotations
 import logging
 from typing import Any, Dict, List, Optional, TYPE_CHECKING
-from .models import CampaignObjective
-from .utils import format_currency, validate_budget, normalize_insights_data
-from .exceptions import FacebookAPIError, FacebookValidationError
+from flexus_client_kit.integrations.facebook.models import CampaignObjective
+from flexus_client_kit.integrations.facebook.utils import format_currency, validate_budget, normalize_insights_data
+from flexus_client_kit.integrations.facebook.exceptions import FacebookAPIError, FacebookValidationError
 if TYPE_CHECKING:
-    from ..client import FacebookAdsClient
+    from flexus_client_kit.integrations.facebook.client import FacebookAdsClient
 logger = logging.getLogger("facebook.operations.campaigns")
 CAMPAIGN_FIELDS = "id,name,status,objective,daily_budget,lifetime_budget"
 async def list_campaigns(
