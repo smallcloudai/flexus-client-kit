@@ -4,22 +4,29 @@ import logging
 import os
 import time
 from typing import Any, Dict, Optional, TYPE_CHECKING
+
 import httpx
-from .exceptions import (
+
+from flexus_client_kit.integrations.facebook.exceptions import (
     FacebookAPIError,
     FacebookAuthError,
     FacebookTimeoutError,
     parse_api_error,
 )
-from .utils import validate_ad_account_id
+from flexus_client_kit.integrations.facebook.utils import validate_ad_account_id
+
 if TYPE_CHECKING:
     from flexus_client_kit import ckit_client, ckit_bot_exec
+
 logger = logging.getLogger("facebook.client")
+
 API_BASE = "https://graph.facebook.com"
 API_VERSION = "v19.0"
 DEFAULT_TIMEOUT = 30.0
 MAX_RETRIES = 3
 INITIAL_RETRY_DELAY = 1.0
+
+
 class FacebookAdsClient:
     def __init__(
         self,
@@ -34,21 +41,26 @@ class FacebookAdsClient:
             self._ad_account_id = validate_ad_account_id(ad_account_id)
         self._access_token: str = ""
         self._headers: Dict[str, str] = {}
+
     @property
     def ad_account_id(self) -> str:
         return self._ad_account_id
+
     @ad_account_id.setter
     def ad_account_id(self, value: str) -> None:
         if value:
             self._ad_account_id = validate_ad_account_id(value)
         else:
             self._ad_account_id = ""
+
     @property
     def is_test_mode(self) -> bool:
         return self.rcx.running_test_scenario
+
     @property
     def access_token(self) -> str:
         return self._access_token
+
     async def ensure_auth(self) -> Optional[str]:
         try:
             if self.is_test_mode:
@@ -63,6 +75,7 @@ class FacebookAdsClient:
         except Exception as e:
             logger.info(f"Failed to get Facebook token: {e}")
             return await self._prompt_oauth_connection()
+
     async def request(
         self,
         method: str,
@@ -76,6 +89,7 @@ class FacebookAdsClient:
         if auth_error:
             raise FacebookAuthError(auth_error)
         url = f"{API_BASE}/{API_VERSION}/{endpoint}"
+
         async def make_request() -> Dict[str, Any]:
             async with httpx.AsyncClient() as client:
                 if method == "GET":
@@ -93,7 +107,9 @@ class FacebookAdsClient:
                     error = await parse_api_error(response)
                     raise error
                 return response.json()
+
         return await self._retry_with_backoff(make_request)
+
     async def _retry_with_backoff(
         self,
         func,
@@ -124,6 +140,7 @@ class FacebookAdsClient:
         if last_exception:
             raise last_exception
         raise FacebookAPIError(500, "Unexpected retry loop exit")
+
     async def _fetch_token(self) -> str:
         from flexus_client_kit import ckit_client
         http = await self.fclient.use_http()
@@ -159,6 +176,7 @@ class FacebookAdsClient:
             raise ValueError("Facebook token expired, please reconnect")
         logger.info("Facebook token retrieved for %s", self.rcx.persona.persona_id)
         return access_token
+
     async def _prompt_oauth_connection(self) -> str:
         web_url = os.getenv("FLEXUS_WEB_URL", "http://localhost:3000")
         thread_id = getattr(self.rcx, 'thread_id', None)

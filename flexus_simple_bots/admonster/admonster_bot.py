@@ -12,7 +12,7 @@ from flexus_client_kit import ckit_shutdown
 from flexus_client_kit import ckit_mongo
 from flexus_client_kit.integrations import fi_mongo_store
 from flexus_client_kit.integrations import fi_linkedin
-from flexus_client_kit.integrations.facebook import IntegrationFacebook, FACEBOOK_TOOL
+from flexus_client_kit.integrations.facebook.fi_facebook import IntegrationFacebook, FACEBOOK_TOOL
 from flexus_simple_bots.admonster import admonster_install
 from flexus_simple_bots.version_common import SIMPLE_BOTS_COMMON_VERSION
 

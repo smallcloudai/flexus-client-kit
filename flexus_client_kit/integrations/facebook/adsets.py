@@ -2,10 +2,10 @@ from __future__ import annotations
 import json
 import logging
 from typing import Any, Dict, Optional, TYPE_CHECKING
-from .utils import format_currency, validate_budget, validate_targeting_spec
-from .exceptions import FacebookValidationError
+from flexus_client_kit.integrations.facebook.utils import format_currency, validate_budget, validate_targeting_spec
+from flexus_client_kit.integrations.facebook.exceptions import FacebookValidationError
 if TYPE_CHECKING:
-    from ..client import FacebookAdsClient
+    from flexus_client_kit.integrations.facebook.client import FacebookAdsClient
 logger = logging.getLogger("facebook.operations.adsets")
 ADSET_FIELDS = "id,name,status,optimization_goal,billing_event,daily_budget,lifetime_budget,targeting"
 async def list_adsets(client: "FacebookAdsClient", campaign_id: str) -> str:
