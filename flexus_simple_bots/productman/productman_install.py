@@ -97,7 +97,7 @@ async def install(
                 fexp_allow_tools="",
                 fexp_app_capture_tools=json.dumps([t.openai_style_tool() for t in productman_bot.TOOLS_DEFAULT]),
             )),
-            ("criticize_idea", ckit_bot_install.FMarketplaceExpertInput(
+            ("verify_idea", ckit_bot_install.FMarketplaceExpertInput(
                 fexp_system_prompt=productman_prompts.productman_prompt_criticize_idea,
                 fexp_python_kernel=PRODUCTMAN_CRITICIZE_LARK,
                 fexp_block_tools="*setup*",

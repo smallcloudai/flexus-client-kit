@@ -110,10 +110,13 @@ Save this JSON to /strategies/{strategy_name}/diagnostic.json:
 {
   "normalized_hypothesis": "Clear restatement of what we're testing",
   "primary_type": "value|segment|messaging|channel|pricing|conversion|retention",
+  "primary_type_reasoning": "WHY this type — explain in 2-3 sentences what makes this a messaging/value/etc hypothesis",
   "secondary_types": ["..."],
+  "secondary_types_reasoning": "WHY these secondary types apply",
   "testable_with_traffic": true,
   "recommended_test_mechanisms": ["paid_traffic", "content", "waitlist"],
   "uncertainty_level": "low|medium|high|extreme",
+  "uncertainty_reasoning": "WHY this level — what makes it high/low uncertainty",
   "key_unknowns": [
     "Will they believe the time-saving claim?",
     "Do they care more about time or money?"
@@ -122,9 +125,29 @@ Save this JSON to /strategies/{strategy_name}/diagnostic.json:
     "No real product to back the claim yet"
   ],
   "needs_additional_methods": ["none|custdev|desk_research|product_experiment"],
-  "feasibility_score": 0.7
+  "feasibility_score": 0.7,
+  "feasibility_reasoning": "WHY this score — what makes it feasible or not",
+  
+  "detailed_analysis": "## Markdown summary of the full analysis\n\nInclude:\n- What exactly we're testing and what we're NOT testing\n- Why this framing matters for the business\n- What the answer will tell us\n- Cultural/market context if relevant",
+  
+  "key_decisions_ahead": [
+    "Decision 1 that depends on this hypothesis result",
+    "Decision 2 — e.g. product language, onboarding flow, positioning"
+  ],
+  
+  "next_steps": [
+    "Concrete action 1 for the next 1-2 weeks",
+    "Concrete action 2"
+  ],
+  
+  "questions_to_resolve": [
+    "Open question 1 to discuss with user before proceeding",
+    "Open question 2"
+  ]
 }
 ```
+
+IMPORTANT: The `detailed_analysis` field should be rich markdown (3-5 paragraphs) that captures the REASONING behind the diagnosis. When a new chat starts with only this document, the AI should understand not just WHAT was decided but WHY.
 
 ## Process
 
@@ -178,16 +201,19 @@ Save this JSON to /strategies/{strategy_name}/metrics.json:
 ```json
 {
   "primary_kpi": "waitlist_signups|leads|purchases|clicks",
+  "primary_kpi_reasoning": "WHY this KPI — what makes it the right success metric for this hypothesis",
   "secondary_kpis": ["ctr", "cpc", "cvr"],
   "target_values": {
     "ctr": 0.02,
     "cpc": 1.0,
     "cpl": 20.0
   },
+  "target_values_reasoning": "WHY these targets — based on what benchmarks or constraints",
   "mde": {
     "relative_change": 0.3,
     "confidence": 0.8
   },
+  "mde_reasoning": "WHY these MDE parameters — tradeoff between precision and budget",
   "min_samples": {
     "impressions_per_cell": 3000,
     "clicks_per_cell": 100,
@@ -202,6 +228,7 @@ Save this JSON to /strategies/{strategy_name}/metrics.json:
       "action": "pause_campaign"
     }
   ],
+  "stop_rules_reasoning": "WHY these thresholds — what signals a lost cause",
   "accelerate_rules": [
     {
       "metric": "cvr",
@@ -211,9 +238,25 @@ Save this JSON to /strategies/{strategy_name}/metrics.json:
       "action": "double_budget"
     }
   ],
-  "analysis_plan": "Compare CVR and CPL between test cells; if difference >30% with >=80% confidence, keep winner"
+  "accelerate_rules_reasoning": "WHY these thresholds — what signals a winner worth scaling",
+  "analysis_plan": "Compare CVR and CPL between test cells; if difference >30% with >=80% confidence, keep winner",
+  
+  "detailed_analysis": "## Markdown summary\n\nExplain:\n- Why these specific KPIs matter for this hypothesis\n- How budget constraints shaped the targets\n- What 'success' and 'failure' look like in plain language\n- Statistical caveats the founder should understand",
+  
+  "interpretation_guide": {
+    "success_scenario": "What it means if we hit targets — next steps",
+    "failure_scenario": "What it means if we miss — pivot options",
+    "inconclusive_scenario": "What if results are mixed — how to decide"
+  },
+  
+  "next_steps": [
+    "Set up tracking for these KPIs",
+    "Configure stop/accelerate alerts"
+  ]
 }
 ```
+
+IMPORTANT: The `detailed_analysis` should help a founder understand the metrics framework without needing to decode the JSON.
 
 ## Process
 
@@ -254,6 +297,7 @@ Save this JSON to /strategies/{strategy_name}/segment.json:
 {
   "segment_id": "seg_01",
   "label": "EN side-hustle founders in US/UK",
+  "segment_reasoning": "WHY this segment — what makes them the right audience to test with",
   "icp": {
     "b2x": "b2c|b2b|prosumer",
     "company_size": "solo|1-10|11-50",
@@ -264,6 +308,7 @@ Save this JSON to /strategies/{strategy_name}/segment.json:
     "tech_savviness": "high",
     "decision_maker": "self"
   },
+  "icp_reasoning": "WHY these characteristics — what evidence or assumptions",
   "jtbds": {
     "functional_jobs": [
       "validate startup idea quickly",
@@ -277,6 +322,7 @@ Save this JSON to /strategies/{strategy_name}/segment.json:
       "look competent to peers and investors"
     ]
   },
+  "jtbd_reasoning": "WHY these jobs matter most — connection to the hypothesis",
   "current_solutions": ["courses", "mentors", "manual marketing"],
   "main_pains": ["no time", "no marketing skills", "too many tools"],
   "desired_gains": ["clarity on weekly actions", "proof idea is worth pursuing"],
@@ -286,9 +332,26 @@ Save this JSON to /strategies/{strategy_name}/segment.json:
     "consideration": ["reviews", "twitter_threads"],
     "purchase_triggers": ["social_proof", "deadline"]
   },
-  "segment_risks": ["hard_to_target", "low_intent_early_stage"]
+  "segment_risks": ["hard_to_target", "low_intent_early_stage"],
+  
+  "detailed_analysis": "## Markdown summary\n\nExplain:\n- Who this person is in human terms (day in their life)\n- Why they would care about this product\n- What triggers them to seek solutions\n- How they make purchase decisions\n- What competitors they're comparing against",
+  
+  "persona_narrative": "A brief story of a typical person in this segment — their situation, frustrations, and what success looks like for them",
+  
+  "targeting_implications": {
+    "easy_to_reach_via": ["channels where they hang out"],
+    "hard_to_reach_because": ["targeting limitations"],
+    "best_hooks": ["what messaging will grab attention"]
+  },
+  
+  "next_steps": [
+    "Validate segment assumptions via...",
+    "Test targeting options on..."
+  ]
 }
 ```
+
+IMPORTANT: The `persona_narrative` should be vivid enough that anyone reading it can picture this person.
 
 ## Process
 
@@ -333,11 +396,13 @@ Save this JSON to /strategies/{strategy_name}/messaging.json:
 ```json
 {
   "core_value_prop": "Turn your side-hustle chaos into a clear weekly plan powered by AI",
+  "core_value_prop_reasoning": "WHY this framing — what insight about the audience drives this",
   "supporting_value_props": [
     "Save up to 10 hours/week on GTM tasks",
     "Know exactly what to do this week"
   ],
   "positioning_statement": "For side-hustle founders who struggle with marketing, our AI co-founder creates actionable weekly plans unlike courses that teach theory",
+  "positioning_reasoning": "WHY position against courses — competitive landscape insight",
   "key_messages": [
     "Stop guessing your next move — let AI plan it",
     "Focus on building, not on learning marketing"
@@ -346,32 +411,58 @@ Save this JSON to /strategies/{strategy_name}/messaging.json:
     {
       "name": "time_saving",
       "hook": "Save 10 hours/week on marketing",
-      "description": "Highlight time saved and reduced overwhelm"
+      "description": "Highlight time saved and reduced overwhelm",
+      "when_to_use": "Best for busy founders who value efficiency"
     },
     {
       "name": "clarity",
       "hook": "Know exactly what to do this week",
-      "description": "Emphasize getting a simple, actionable plan"
+      "description": "Emphasize getting a simple, actionable plan",
+      "when_to_use": "Best for overwhelmed founders who feel lost"
     },
     {
       "name": "ai_leverage",
       "hook": "Your AI marketing co-founder",
-      "description": "Position AI as a team member, not just a tool"
+      "description": "Position AI as a team member, not just a tool",
+      "when_to_use": "Best for tech-savvy founders excited about AI"
     }
   ],
+  "angles_reasoning": "WHY these specific angles — connection to JTBD and hypothesis",
   "objection_handling": [
     {
       "objection": "I don't trust AI with business decisions",
-      "rebuttal": "You stay in control — AI suggests, you decide"
+      "rebuttal": "You stay in control — AI suggests, you decide",
+      "when_this_comes_up": "Usually from experienced founders"
     },
     {
       "objection": "I can't afford another subscription",
-      "rebuttal": "It costs less than one hour of a consultant's time"
+      "rebuttal": "It costs less than one hour of a consultant's time",
+      "when_this_comes_up": "Budget-conscious early stage"
     }
   ],
-  "tone": "confident but friendly, no hype, practical"
+  "tone": "confident but friendly, no hype, practical",
+  
+  "detailed_analysis": "## Markdown summary\n\nExplain:\n- The core insight that drives this messaging strategy\n- How each angle connects to different emotional triggers\n- What makes this positioning defensible\n- How messaging ties back to the hypothesis being tested\n- Competitive differentiation rationale",
+  
+  "messaging_hierarchy": {
+    "primary_message": "The ONE thing we want them to remember",
+    "supporting_proof": "What evidence supports the claim",
+    "emotional_trigger": "What feeling we're tapping into"
+  },
+  
+  "test_priority": [
+    {"angle": "time_saving", "priority": 1, "why": "Most direct connection to pain"},
+    {"angle": "clarity", "priority": 2, "why": "Secondary pain point"}
+  ],
+  
+  "next_steps": [
+    "Create ad copy variants for each angle",
+    "Test hooks in organic content first"
+  ]
 }
 ```
+
+IMPORTANT: The `detailed_analysis` should explain the STRATEGY behind the messaging, not just list the messages.
 
 ## Process
 
@@ -448,6 +539,7 @@ Save this JSON to /strategies/{strategy_name}/channels.json:
       "rationale": "High share of target demographic"
     }
   ],
+  "channel_selection_reasoning": "WHY this channel mix — tradeoffs considered, alternatives rejected",
   "excluded_channels": [
     {
       "channel": "linkedin",
@@ -461,7 +553,8 @@ Save this JSON to /strategies/{strategy_name}/channels.json:
       "segment": "US side-hustlers",
       "angle": "time_saving",
       "landing_variant": "L1",
-      "budget": 300
+      "budget": 300,
+      "hypothesis": "Time-saving angle will resonate most"
     },
     {
       "cell_id": "A2",
@@ -469,20 +562,46 @@ Save this JSON to /strategies/{strategy_name}/channels.json:
       "segment": "US side-hustlers",
       "angle": "clarity",
       "landing_variant": "L1",
-      "budget": 200
+      "budget": 200,
+      "hypothesis": "Clarity angle as control/alternative"
     }
   ],
+  "test_design_reasoning": "WHY this cell structure — what variables we're isolating and why",
   "total_budget": 500,
+  "budget_allocation_reasoning": "WHY this split — priorities and constraints",
   "test_duration_days": 14,
+  "duration_reasoning": "WHY this timeline — tradeoff between speed and statistical power",
   "expected_metrics": {
     "meta": {
       "ctr_range": [0.01, 0.03],
       "cpc_range": [0.5, 1.5],
       "cpl_range": [10, 25]
     }
-  }
+  },
+  
+  "detailed_analysis": "## Markdown summary\n\nExplain:\n- The overall experiment design philosophy\n- What we'll learn from each test cell\n- How results will inform the next decision\n- Risks and contingency plans\n- What 'success' looks like for this test phase",
+  
+  "experiment_logic": {
+    "primary_question": "The main thing this experiment answers",
+    "secondary_questions": ["Other insights we might get"],
+    "what_we_wont_learn": "Limitations of this test design"
+  },
+  
+  "decision_tree": {
+    "if_cell_A1_wins": "Next action if time-saving angle wins",
+    "if_cell_A2_wins": "Next action if clarity angle wins",
+    "if_no_clear_winner": "What to do if results are inconclusive"
+  },
+  
+  "next_steps": [
+    "Set up campaigns in ad platforms",
+    "Create tracking links with UTMs",
+    "Prepare landing page variants"
+  ]
 }
 ```
+
+IMPORTANT: The `decision_tree` helps the founder understand what happens AFTER the test, making the experiment feel less abstract.
 
 ## Process
 
@@ -542,6 +661,7 @@ Save this JSON to /strategies/{strategy_name}/tactics.json:
       "daily_budget": 50,
       "start_date": "2025-12-03",
       "duration_days": 14,
+      "campaign_reasoning": "WHY this setup — objective choice, budget level",
       "adsets": [
         {
           "adset_id": "meta_adset_A1",
@@ -552,6 +672,7 @@ Save this JSON to /strategies/{strategy_name}/tactics.json:
             "interests": ["startups", "side hustle", "entrepreneurship"],
             "behaviors": []
           },
+          "audience_reasoning": "WHY these targeting options",
           "placements": ["feed", "stories", "reels"],
           "optimization_goal": "leads",
           "creatives": ["creative_A1_1", "creative_A1_2"]
@@ -569,9 +690,11 @@ Save this JSON to /strategies/{strategy_name}/tactics.json:
       "headline": "Save 10 hours/week on your side-hustle",
       "description": "Get a clear action plan, not another course.",
       "cta": "Sign Up",
-      "visual_brief": "Founder at laptop with peaceful expression, calendar showing cleared tasks, soft lighting"
+      "visual_brief": "Founder at laptop with peaceful expression, calendar showing cleared tasks, soft lighting",
+      "creative_reasoning": "WHY this copy and visual approach for this angle"
     }
   ],
+  "creatives_strategy": "Overall creative philosophy — what makes these ads work for this audience",
   "landing": {
     "primary_goal": "waitlist_signup",
     "structure": [
@@ -582,6 +705,7 @@ Save this JSON to /strategies/{strategy_name}/tactics.json:
       {"block": "social_proof", "content": "Join 500+ founders on the waitlist"},
       {"block": "cta", "text": "Join waitlist", "button": "Get Early Access"}
     ],
+    "landing_reasoning": "WHY this structure and flow — conversion psychology",
     "variants": [
       {"variant_id": "L1", "focus": "time_saving"},
       {"variant_id": "L2", "focus": "clarity"}
@@ -602,9 +726,32 @@ Save this JSON to /strategies/{strategy_name}/tactics.json:
       "campaign": "{campaign_id}",
       "content": "{creative_id}"
     }
-  }
+  },
+  
+  "detailed_analysis": "## Markdown summary\n\nExplain:\n- The overall creative strategy and why it fits this audience\n- How ads and landing page work together\n- Key conversion triggers we're leveraging\n- What to watch for in early results\n- How to iterate based on performance",
+  
+  "execution_checklist": [
+    {"task": "Create ad images/videos", "owner": "designer", "deadline": "before launch"},
+    {"task": "Build landing page", "owner": "developer", "deadline": "before launch"},
+    {"task": "Set up pixel tracking", "owner": "marketer", "deadline": "before launch"},
+    {"task": "Create campaigns in ads manager", "owner": "marketer", "deadline": "launch day"}
+  ],
+  
+  "iteration_guide": {
+    "day_1_3": "What to check and adjust in first 3 days",
+    "day_4_7": "Mid-test optimization opportunities",
+    "day_8_14": "Final push and data collection focus"
+  },
+  
+  "next_steps": [
+    "Brief designer on creative specs",
+    "Set up landing page",
+    "Configure tracking"
+  ]
 }
 ```
+
+IMPORTANT: The `execution_checklist` turns strategy into actionable tasks with clear ownership.
 
 ## Process
 
@@ -677,7 +824,8 @@ Save this JSON to /strategies/{strategy_name}/compliance.json:
       "description": "Budget might be insufficient for 3 test cells",
       "probability": "medium",
       "impact": "high",
-      "mitigation": "Reduce to 2 cells or extend duration to 21 days"
+      "mitigation": "Reduce to 2 cells or extend duration to 21 days",
+      "if_ignored": "What happens if we don't mitigate this risk"
     },
     {
       "risk_id": "R2",
@@ -685,9 +833,11 @@ Save this JSON to /strategies/{strategy_name}/compliance.json:
       "description": "May not reach min conversions for significance",
       "probability": "medium",
       "impact": "medium",
-      "mitigation": "Use directional insights even without significance"
+      "mitigation": "Use directional insights even without significance",
+      "if_ignored": "We might make decisions based on noise"
     }
   ],
+  "risk_assessment_reasoning": "Overall risk landscape — what's the biggest concern and why",
   "compliance_issues": [
     {
       "issue_id": "C1",
@@ -696,9 +846,11 @@ Save this JSON to /strategies/{strategy_name}/compliance.json:
       "issue": "Time-saved claim might be considered exaggerated",
       "severity": "low",
       "recommendation": "Use 'up to 10 hours' wording and add disclaimer",
-      "affected_creatives": ["creative_A1_1"]
+      "affected_creatives": ["creative_A1_1"],
+      "what_if_rejected": "Ad gets disapproved, we lose 1-2 days fixing"
     }
   ],
+  "compliance_reasoning": "Why these issues matter and how confident we are in the fixes",
   "privacy_check": {
     "gdpr_compliant": true,
     "ccpa_compliant": true,
@@ -709,10 +861,34 @@ Save this JSON to /strategies/{strategy_name}/compliance.json:
     "ads_policies_ok": true,
     "privacy_ok": true,
     "business_risks_acceptable": true,
-    "recommendation": "Proceed with minor wording adjustments"
-  }
+    "recommendation": "Proceed with minor wording adjustments",
+    "confidence_level": "How confident are we this will work"
+  },
+  
+  "detailed_analysis": "## Markdown summary\n\nExplain:\n- The overall risk profile of this test\n- Which risks are acceptable and why\n- What could derail the test and how to prevent it\n- Compliance concerns in plain language\n- Go/no-go recommendation with reasoning",
+  
+  "pre_launch_checklist": [
+    {"check": "Ad copy reviewed for policy compliance", "status": "pending"},
+    {"check": "Landing page has privacy policy link", "status": "pending"},
+    {"check": "Cookie consent banner configured", "status": "pending"},
+    {"check": "Tracking tested end-to-end", "status": "pending"}
+  ],
+  
+  "contingency_plans": {
+    "if_ads_rejected": "Steps to take if ads don't get approved",
+    "if_budget_runs_out_early": "What to do if we burn budget faster than expected",
+    "if_results_inconclusive": "How to salvage learnings from a failed test"
+  },
+  
+  "next_steps": [
+    "Review and fix flagged compliance issues",
+    "Complete pre-launch checklist",
+    "Get final approval to launch"
+  ]
 }
 ```
+
+IMPORTANT: The `contingency_plans` prepare the founder for things going wrong, reducing panic when (not if) issues arise.
 
 ## Process
 

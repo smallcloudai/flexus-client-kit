@@ -212,3 +212,10 @@ flexus_frontend/schema.graphql
 
 # dev certs folder
 certs
+
+# All docs folders
+**/docs/
+
+# All tests folders
+**/tests/
+**/test_docs/
