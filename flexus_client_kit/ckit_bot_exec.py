@@ -329,7 +329,6 @@ class BotsCollection:
         self.thread_tracker: Dict[str, ckit_bot_query.FThreadWithMessages] = {}
         self.running_test_scenario = running_test_scenario
         self.running_happy_yaml = running_happy_yaml
-        self.need_resubscribe = asyncio.Event()
         self.current_erp_tables = list(subscribe_to_erp_tables)
         self.restart_requested = False
 
