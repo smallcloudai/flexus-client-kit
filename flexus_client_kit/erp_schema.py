@@ -5,32 +5,33 @@ from typing import Optional, Dict, Type, List
 
 @dataclass
 class CrmContact:
-    contact_id: str
     ws_id: str
     contact_first_name: str
     contact_last_name: str
     contact_email: str
-    contact_notes: str
-    contact_details: dict
-    contact_address_line1: str
-    contact_address_line2: str
-    contact_address_city: str
-    contact_address_state: str
-    contact_address_zip: str
-    contact_address_country: str
-    contact_utm_first_source: str
-    contact_utm_first_medium: str
-    contact_utm_first_campaign: str
-    contact_utm_first_term: str
-    contact_utm_first_content: str
-    contact_utm_last_source: str
-    contact_utm_last_medium: str
-    contact_utm_last_campaign: str
-    contact_utm_last_term: str
-    contact_utm_last_content: str
-    contact_created_ts: float
-    contact_updated_ts: float
-    contact_deleted_ts: float
+    contact_id: str = ""
+    contact_notes: str = ""
+    contact_details: dict = field(default_factory=dict)
+    contact_tags: List[str] = field(default_factory=list)
+    contact_address_line1: str = ""
+    contact_address_line2: str = ""
+    contact_address_city: str = ""
+    contact_address_state: str = ""
+    contact_address_zip: str = ""
+    contact_address_country: str = ""
+    contact_utm_first_source: str = ""
+    contact_utm_first_medium: str = ""
+    contact_utm_first_campaign: str = ""
+    contact_utm_first_term: str = ""
+    contact_utm_first_content: str = ""
+    contact_utm_last_source: str = ""
+    contact_utm_last_medium: str = ""
+    contact_utm_last_campaign: str = ""
+    contact_utm_last_term: str = ""
+    contact_utm_last_content: str = ""
+    contact_created_ts: float = 0.0
+    contact_updated_ts: float = 0.0
+    contact_deleted_ts: float = 0.0
 
 
 @dataclass
