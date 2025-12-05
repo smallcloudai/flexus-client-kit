@@ -160,7 +160,7 @@ async def frog_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.R
 
 def main():
     scenario_fn = ckit_bot_exec.parse_bot_args()
-    fclient = ckit_client.FlexusClient(ckit_client.bot_service_name(BOT_NAME, BOT_VERSION, ""), endpoint="/v1/jailed-bot")
+    fclient = ckit_client.FlexusClient(ckit_client.bot_service_name(BOT_NAME, BOT_VERSION), endpoint="/v1/jailed-bot")
 
     asyncio.run(ckit_bot_exec.run_bots_in_this_group(
         fclient,

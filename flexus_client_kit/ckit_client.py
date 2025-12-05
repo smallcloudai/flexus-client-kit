@@ -57,6 +57,9 @@ class FlexusClient:
         self.endpoint = endpoint
         self.service_name = service_name
         self.ws_id = os.getenv("FLEXUS_WORKSPACE")
+        if os.getenv("FLEXUS_IS_RADIX_WORKSPACE") and self.ws_id:
+            self.service_name = f"{self.service_name}_r_{self.ws_id}"
+
         logger.info("FlexusClient service_name=%s api_key=%s %s", self.service_name, ("..." + self.api_key[-4:]) if self.api_key else "None", self.http_url)
         if have_api_key:
             assert not have_api_key.startswith("http:")
@@ -120,10 +123,10 @@ def marketplace_version_as_str(v: int) -> str:
     return f"{a}.{b}.{c}"
 
 
-def bot_service_name(bot_name: str, bot_version: str, operating_in_group: str):
+def bot_service_name(bot_name: str, bot_version: str):
     assert isinstance(bot_version, str)
     bot_version_int = marketplace_version_as_int(bot_version)
-    return f"{bot_name}_{bot_version_int}_{operating_in_group}"
+    return f"{bot_name}_{bot_version_int}"
 
 
 @dataclass

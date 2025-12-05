@@ -170,16 +170,12 @@ Read previous result from /strategies/{strategy_name}/{agent}.json, apply the fe
 
 
 def main():
-    group, scenario_fn = ckit_bot_exec.parse_bot_args()
-    fclient = ckit_client.FlexusClient(
-        ckit_client.bot_service_name(BOT_NAME, BOT_VERSION_INT, group),
-        endpoint="/v1/jailed-bot",
-    )
+    scenario_fn = ckit_bot_exec.parse_bot_args()
+    fclient = ckit_client.FlexusClient(ckit_client.bot_service_name(BOT_NAME, BOT_VERSION_INT), endpoint="/v1/jailed-bot")
     asyncio.run(ckit_bot_exec.run_bots_in_this_group(
         fclient,
         marketable_name=BOT_NAME,
         marketable_version=BOT_VERSION_INT,
-        fgroup_id=group,
         bot_main_loop=owl_strategist_main_loop,
         inprocess_tools=TOOLS,
         scenario_fn=scenario_fn,
