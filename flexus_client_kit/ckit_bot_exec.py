@@ -827,8 +827,10 @@ async def run_bots_in_this_group(
         logger.info("Installing %s:%s into workspace %s", marketable_name, marketable_version_str, fclient.ws_id)
         await install_func(fclient, fclient.ws_id, marketable_name, marketable_version_str, inprocess_tools)
         ws_id_prefix = fclient.ws_id
+    elif fclient.use_ws_ticket:
+        ws_id_prefix = fclient.ws_id
     else:
-        ws_id_prefix = fclient.ws_id[0] # radix first symbol of ws_id
+        assert False
     scenario = None
     scenario_task = None
     running_test_scenario = False
