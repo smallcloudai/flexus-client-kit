@@ -62,7 +62,7 @@ async def install(
         marketable_setup_default=botticelli_setup_schema,
         marketable_featured_actions=[],
         marketable_intro_message="Hello, I am Botticelli.",
-        marketable_preferred_model_default="grok-4-fast-non-reasoning",
+        marketable_preferred_model_default="grok-4-1-fast-non-reasoning",
         marketable_daily_budget_default=100_000,
         marketable_default_inbox_default=10_000,
         marketable_experts=[
