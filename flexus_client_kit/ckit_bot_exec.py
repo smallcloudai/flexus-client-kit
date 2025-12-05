@@ -76,6 +76,7 @@ class RobotContext:
         self._parked_toolcalls: List[ckit_cloudtool.FCloudtoolCall] = []
         self._parked_erp_changes: List[tuple[str, str, Optional[Dict[str, Any]], Optional[Dict[str, Any]]]] = []
         self._parked_anything_new = asyncio.Event()
+        self._restart_requested = asyncio.Event()
         # These fields are designed for direct access:
         self.fclient = fclient
         self.persona = p
@@ -117,6 +118,11 @@ class RobotContext:
     async def unpark_collected_events(self, sleep_if_no_work: float, turn_tool_calls_into_tasks: bool = False) -> List[asyncio.Task]:
         # logger.info("%s unpark_collected_events() started %d %d %d" % (self.persona.persona_id, len(self._parked_messages), len(self._parked_threads), len(self._parked_toolcalls)))
         self._reached_main_loop = True
+        if self._restart_requested.is_set():
+            await ckit_shutdown.wait(sleep_if_no_work)
+            return []
+        if ckit_shutdown.shutdown_event.is_set():
+            return []
         did_anything = False
         self._parked_anything_new.clear()
 
@@ -240,13 +246,15 @@ class BotInstance(NamedTuple):
 
 async def crash_boom_bang(fclient: ckit_client.FlexusClient, rcx: RobotContext, bot_main_loop: Callable[[ckit_client.FlexusClient, RobotContext], Awaitable[None]]) -> None:
     logger.info("%s START name=%r" % (rcx.persona.persona_id, rcx.persona.persona_name))
-    while not ckit_shutdown.shutdown_event.is_set():
+    while not ckit_shutdown.shutdown_event.is_set() and not rcx._restart_requested.is_set():
         try:
             await bot_main_loop(fclient, rcx)
         except asyncio.CancelledError:
             break
         except Exception as e:
             logger.error("%s Bot main loop problem: %s %s", rcx.persona.persona_id, type(e).__name__, e, exc_info=True)
+        if rcx._restart_requested.is_set():
+            break
         logger.info("%s will sleep 60 seconds and restart", rcx.persona.persona_id)
         await ckit_shutdown.wait(60)
     logger.info("%s STOP" % rcx.persona.persona_id)
@@ -314,6 +322,7 @@ class BotsCollection:
         self.running_happy_yaml = running_happy_yaml
         self.need_resubscribe = asyncio.Event()
         self.current_erp_tables = list(subscribe_to_erp_tables)
+        self.restart_requested = False
 
 
 async def subscribe_and_produce_callbacks(
@@ -359,12 +368,18 @@ async def subscribe_and_produce_callbacks(
 
                     if bot := bc.bots_running.get(persona_id, None):
                         if bot.instance_rcx.persona.persona_setup != upd.news_payload_persona.persona_setup:
-                            logger.info("Persona %s setup changed, restarting bot." % persona_id)
-                            bc.bots_running[persona_id].atask.cancel()
+                            logger.info("Persona %s setup changed, requesting graceful shutdown" % persona_id)
+                            bot.instance_rcx._restart_requested.set()
+                            bot.instance_rcx._parked_anything_new.set()
                             try:
-                                await bc.bots_running[persona_id].atask
-                            except asyncio.CancelledError:
-                                pass
+                                await asyncio.wait_for(bot.atask, timeout=10.0)
+                            except asyncio.TimeoutError:
+                                logger.warning("Bot %s did not shut down gracefully in 10s, cancelling" % persona_id)
+                                bot.atask.cancel()
+                                try:
+                                    await bot.atask
+                                except asyncio.CancelledError:
+                                    pass
                             del bc.bots_running[persona_id]
                     if persona_id not in bc.bots_running:
                         rcx = RobotContext(fclient, upd.news_payload_persona)
@@ -391,6 +406,7 @@ async def subscribe_and_produce_callbacks(
                         if set(new_tables) != set(bc.current_erp_tables):
                             logger.info("ERP tables changed from %s to %s, resubscribing", bc.current_erp_tables, new_tables)
                             bc.current_erp_tables = new_tables
+                            bc.restart_requested = True
                             break
 
                 elif upd.news_action == "DELETE":
