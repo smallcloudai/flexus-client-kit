@@ -5,6 +5,7 @@ from pathlib import Path
 
 from flexus_client_kit import ckit_client
 from flexus_client_kit import ckit_bot_install
+from flexus_client_kit.integrations import fi_crm_automations
 
 from flexus_simple_bots import prompts_common
 from flexus_simple_bots.rick import rick_bot, rick_prompts
@@ -31,31 +32,24 @@ Rick helps you never miss a new lead and ensures every contact gets a timely, pe
 """
 
 
-rick_setup_schema = [
-    {
-        "bs_name": "auto_welcome_email",
-        "bs_type": "bool",
-        "bs_default": True,
-        "bs_group": "Automation",
-        "bs_order": 1,
-        "bs_importance": 1,
-        "bs_description": "Automatically send welcome emails to new CRM contacts without email tasks",
-    },
-]
+rick_setup_schema = fi_crm_automations.CRM_AUTOMATIONS_SETUP_SCHEMA
 
 
 async def install(
     client: ckit_client.FlexusClient,
     ws_id: str,
+    bot_name: str,
+    bot_version: str,
+    tools: list,
 ):
-    bot_internal_tools = json.dumps([t.openai_style_tool() for t in rick_bot.TOOLS])
+    bot_internal_tools = json.dumps([t.openai_style_tool() for t in tools])
     pic_big = base64.b64encode(open(Path(__file__).with_name("rick-1024x1536.webp"), "rb").read()).decode("ascii")
     pic_small = base64.b64encode(open(Path(__file__).with_name("rick-256x256.webp"), "rb").read()).decode("ascii")
     await ckit_bot_install.marketplace_upsert_dev_bot(
         client,
         ws_id=ws_id,
-        marketable_name=rick_bot.BOT_NAME,
-        marketable_version=rick_bot.BOT_VERSION,
+        marketable_name=bot_name,
+        marketable_version=bot_version,
         marketable_accent_color="#d9c093",
         marketable_title1="Rick",
         marketable_title2="The Deal King - Smart sales assistant for lead generation, nurturing, and closing deals.",
@@ -97,4 +91,4 @@ async def install(
 if __name__ == "__main__":
     args = ckit_bot_install.bot_install_argparse()
     client = ckit_client.FlexusClient("rick_install")
-    asyncio.run(install(client, ws_id=args.ws))
+    asyncio.run(install(client, ws_id=args.ws, bot_name=rick_bot.BOT_NAME, bot_version=rick_bot.BOT_VERSION, tools=rick_bot.TOOLS))

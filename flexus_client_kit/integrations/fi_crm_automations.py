@@ -558,13 +558,22 @@ def _resolve_field_value(field_value: str, context: Dict[str, Any], field_name: 
     if value.startswith('='):
         value = value[1:].strip()
 
-    enhanced_context = {**context, "now": time.time()}
     is_timestamp_field = field_name.endswith('_ts')
 
     matches = re.findall(r'\{\{(.+?)\}\}', value)
     for match in matches:
-        parts = match.strip().split(".")
-        resolved_value = enhanced_context
+        match_content = match.strip()
+
+        if any(c in match_content for c in '+-*/()'):
+            try:
+                result = eval(match_content, {"__builtins__": {}, "now": lambda: time.time()}, {})
+                value = value.replace(f"{{{{{match}}}}}", repr(result))
+                continue
+            except:
+                pass
+
+        parts = match_content.split(".")
+        resolved_value = context
         for part in parts:
             if isinstance(resolved_value, dict):
                 resolved_value = resolved_value.get(part)
@@ -573,15 +582,9 @@ def _resolve_field_value(field_value: str, context: Dict[str, Any], field_name: 
                 break
 
         if resolved_value is not None:
-            if match.strip() == 'now()':
-                value = value.replace(f"{{{{{match}}}}}", str(resolved_value))
-            else:
-                value = value.replace(f"{{{{{match}}}}}", repr(resolved_value))
+            value = value.replace(f"{{{{{match}}}}}", repr(resolved_value))
         else:
-            if field_name.endswith('_tags') or field_name.endswith('_list'):
-                value = value.replace(f"{{{{{match}}}}}", '[]')
-            else:
-                value = value.replace(f"{{{{{match}}}}}", repr(None))
+            value = value.replace(f"{{{{{match}}}}}", '[]' if field_name.endswith(('_tags', '_list')) else repr(None))
 
     logger.debug(f"_resolve_field_value: field_name={field_name} original={field_value!r} after_template={value!r}")
 
