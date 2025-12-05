@@ -85,6 +85,7 @@ class RobotContext:
         self.workdir = "/tmp/bot_workspace/%s/" % p.persona_id
         self.running_test_scenario = False
         self.running_happy_yaml = ""
+        self.wanted_erp_tables: List[str] = []
         os.makedirs(self.workdir, exist_ok=True)
 
     def on_updated_message(self, handler: Callable[[ckit_ask_model.FThreadMessageOutput], Awaitable[None]]):
@@ -320,6 +321,8 @@ class BotsCollection:
         self.thread_tracker: Dict[str, ckit_bot_query.FThreadWithMessages] = {}
         self.running_test_scenario = running_test_scenario
         self.running_happy_yaml = running_happy_yaml
+        self.need_resubscribe = asyncio.Event()
+        self.current_erp_tables = list(subscribe_to_erp_tables)
 
 
 async def subscribe_and_produce_callbacks(
@@ -332,6 +335,8 @@ async def subscribe_and_produce_callbacks(
     assert fclient.service_name.startswith(bc.marketable_name)
 
     bc.thread_tracker.clear()  # Control reaches this after exception and reconnect, a new subscription will send all the threads anew, need to clear
+
+    logger.info("Subscribing to ERP tables: %s", bc.current_erp_tables)
 
     async with ws_client as ws:
         assert fclient.ws_id is not None or fclient.group_id is not None
@@ -348,7 +353,7 @@ async def subscribe_and_produce_callbacks(
                 "marketable_name": bc.marketable_name,
                 "marketable_version": bc.marketable_version,
                 "inprocess_tool_names": [t.name for t in bc.inprocess_tools],
-                "want_erp_tables": bc.subscribe_to_erp_tables,
+                "want_erp_tables": bc.current_erp_tables,
                 "ws_id_prefix": use_ws_id_prefix,
                 "group_id": use_group_id,
             },
@@ -364,6 +369,7 @@ async def subscribe_and_produce_callbacks(
                     assert upd.news_payload_persona.ws_timezone
                     handled = True
                     persona_id = upd.news_payload_id
+
                     if bot := bc.bots_running.get(persona_id, None):
                         if bot.instance_rcx.persona.persona_setup != upd.news_payload_persona.persona_setup:
                             logger.info("Persona %s setup changed, restarting bot." % persona_id)
@@ -383,6 +389,22 @@ async def subscribe_and_produce_callbacks(
                             instance_rcx=rcx,
                         )
                         reassign_threads = True
+
+                        for _ in range(20):
+                            if rcx._reached_main_loop:
+                                await ckit_shutdown.wait(0.2)
+                                break
+                            await ckit_shutdown.wait(0.1)
+
+                        all_wanted_tables = set()
+                        for bot_inst in bc.bots_running.values():
+                            all_wanted_tables.update(bot_inst.instance_rcx.wanted_erp_tables)
+                        new_tables = sorted(all_wanted_tables)
+
+                        if set(new_tables) != set(bc.current_erp_tables):
+                            logger.info("ERP tables changed from %s to %s, resubscribing", bc.current_erp_tables, new_tables)
+                            bc.current_erp_tables = new_tables
+                            break
 
                 elif upd.news_action == "DELETE":
                     handled = True
