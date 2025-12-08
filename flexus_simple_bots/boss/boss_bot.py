@@ -135,7 +135,7 @@ async def handle_a2a_resolution(fclient: ckit_client.FlexusClient, model_produce
     return f"Task {task_id} {msg}"
 
 
-async def handle_setup_colleagues(fclient: ckit_client.FlexusClient, toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
+async def handle_setup_colleagues(fclient: ckit_client.FlexusClient, ws_id: str, toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
     op = model_produced_args.get("op", "")
     if not op or op == "help":
         return SETUP_COLLEAGUES_HELP
@@ -156,10 +156,10 @@ async def handle_setup_colleagues(fclient: ckit_client.FlexusClient, toolcall: c
         # XXX try catch here?
         async with http as h:
             r = await h.execute(
-                gql.gql("""mutation BossSetupColleagues($bot_name: String!, $op: String!, $key: String) {
-                    boss_setup_colleagues(bot_name: $bot_name, op: $op, key: $key)
+                gql.gql("""mutation BossSetupColleagues($ws_id: String!, $bot_name: String!, $op: String!, $key: String) {
+                    boss_setup_colleagues(ws_id: $ws_id, bot_name: $bot_name, op: $op, key: $key)
                 }"""),
-                variable_values={"bot_name": bot_name, "op": "get", "key": set_key},
+                variable_values={"ws_id": ws_id, "bot_name": bot_name, "op": "get", "key": set_key},
             )
             prev_val = r.get("boss_setup_colleagues", "")
 
@@ -182,10 +182,10 @@ async def handle_setup_colleagues(fclient: ckit_client.FlexusClient, toolcall: c
     async with http as h:
         try:
             r = await h.execute(
-                gql.gql("""mutation BossSetupColleagues($bot_name: String!, $op: String!, $key: String, $val: String) {
-                    boss_setup_colleagues(bot_name: $bot_name, op: $op, key: $key, val: $val)
+                gql.gql("""mutation BossSetupColleagues($ws_id: String!, $bot_name: String!, $op: String!, $key: String, $val: String) {
+                    boss_setup_colleagues(ws_id: $ws_id, bot_name: $bot_name, op: $op, key: $key, val: $val)
                 }"""),
-                variable_values={"bot_name": bot_name, "op": op, "key": set_key, "val": set_val},
+                variable_values={"ws_id": ws_id, "bot_name": bot_name, "op": op, "key": set_key, "val": set_val},
             )
             return r.get("boss_setup_colleagues", f"Error: Failed to {op} setup for {bot_name}")
         except gql.transport.exceptions.TransportQueryError as e:
@@ -329,7 +329,7 @@ async def boss_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.R
 
     # @rcx.on_tool_call(BOSS_SETUP_COLLEAGUES_TOOL.name)
     # async def toolcall_colleague_setup(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
-    #     return await handle_setup_colleagues(fclient, toolcall, model_produced_args)
+    #     return await handle_setup_colleagues(fclient, rcx.persona.ws_id, toolcall, model_produced_args)
 
     @rcx.on_tool_call(THREAD_MESSAGES_PRINTED_TOOL.name)
     async def toolcall_thread_messages_printed(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
