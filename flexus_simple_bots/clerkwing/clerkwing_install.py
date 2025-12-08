@@ -59,7 +59,7 @@ async def install(
         marketable_occupation="Secretary Assistant",
         marketable_description=BOT_DESCRIPTION,
         marketable_typical_group="Productivity",
-        marketable_github_repo="https://github.com/smallcloudai/flexus-client-kit.git#langchain-integrations",
+        marketable_github_repo="https://github.com/smallcloudai/flexus-client-kit.git",
         marketable_run_this="python -m flexus_simple_bots.clerkwing.clerkwing_bot",
         marketable_setup_default=clerkwing_setup_schema,
         marketable_featured_actions=[
