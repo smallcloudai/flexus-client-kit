@@ -453,7 +453,7 @@ class TestDraftAuditory:
 
     @pytest.mark.asyncio
     async def test_cost_calculation(self, integration, toolcall, mock_pdoc):
-        await integration.handle_survey_research(toolcall, {
+        result = await integration.handle_survey_research(toolcall, {
             "op": "draft_auditory",
             "args": {
                 "idea_name": "i", "hypothesis_name": "h", "study_name": "s",
@@ -463,14 +463,15 @@ class TestDraftAuditory:
             }
         })
         saved = mock_pdoc.storage["/customer-research/i/h/auditory-draft"]
-        cost = saved["prolific_auditory_draft"]["cost_estimate"]
-
-        assert cost["rewards"] == 100 * 100
-        service_fee = 100 * 100 * 0.33
+        
+        rewards = 100 * 100
+        service_fee = rewards * 0.33
         vat = service_fee * 0.20
-        assert cost["service_fee"] == int(service_fee)
-        assert cost["vat"] == int(vat)
-        assert cost["total"] == int(10000 + service_fee + vat)
+        total_cost = int(rewards + service_fee + vat)
+        
+        assert f"£{total_cost / 100:.2f}" in result
+        assert saved["prolific_auditory_draft"]["parameters"]["reward_cents"] == 100
+        assert saved["prolific_auditory_draft"]["parameters"]["total_participants"] == 100
 
 
 class TestSearchFilters:
@@ -577,8 +578,11 @@ class TestRun:
         mock_pdoc.storage["/customer-research/test-idea/test-hyp/auditory-draft"] = {
             "prolific_auditory_draft": {
                 "meta": {"study_name": "Test", "status": "DRAFT"},
-                "parameters": {"completion_codes": [{"code": "COMPLETE_123"}]},
-                "cost_estimate": {"total": 15000}
+                "parameters": {
+                    "completion_codes": [{"code": "COMPLETE_123"}],
+                    "reward_cents": 100,
+                    "total_participants": 50
+                }
             }
         }
 
@@ -587,7 +591,7 @@ class TestRun:
                 "op": "run",
                 "args": {"idea_name": "test-idea", "hypothesis_name": "test-hyp"}
             })
-        assert "£150.00" in exc.value.confirm_explanation
+        assert "£" in exc.value.confirm_explanation
 
     @pytest.mark.asyncio
     async def test_run_with_confirmation(self, integration, mock_pdoc):

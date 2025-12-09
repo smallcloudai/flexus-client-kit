@@ -1,0 +1,51 @@
+{
+  "idea": {
+    "meta": {
+      "author": "User",
+      "date": "20251118"
+    },
+    "section01-canvas": {
+      "title": "First Principles Canvas",
+      "question01-facts": {
+        "q": "What verified facts support this problem exists?",
+        "a": "From conversations with 3 commercial directors of major manufacturers (including Colgate): it's an industry-wide problem — manufacturers want to reach more end consumers, deliver fresh samples, and establish D2C sales. 17 private practice dentists said they regularly take all available free samples of new products whenever possible, but this rarely happens — only at trade shows when they have time. There's no regular solution for accessing new samples.",
+        "c": "PASS"
+      },
+      "question02-outcome": {
+        "q": "What is the measurable outcome for the customer?",
+        "a": "For suppliers: increased reach to end consumers through regular sample delivery to dentists, leading to D2C sales growth. For dentists: receiving new products within one month of market release to stay on trend.",
+        "c": "PASS"
+      },
+      "question03-constraints": {
+        "q": "What external conditions limit the solution?",
+        "a": "Sample storage conditions (focusing on simple products without special requirements for now, excluding general-purpose injectable drugs). Mandatory dentist license for verification. Location limited to USA only.",
+        "c": "PASS"
+      },
+      "question04-existing": {
+        "q": "How do people solve this problem today?",
+        "a": "Mainly through trade shows. Sales reps from suppliers visit large chain clinics irregularly, with no consistent process. Individual dentists don't share samples, and manufacturers aren't interested in distributing competitors' samples. Dentists want to see 'the full menu' from different suppliers, but there's no vendor-agnostic intermediary for aggregation and smart distribution.",
+        "c": "PASS"
+      },
+      "question05-userflow": {
+        "q": "What is the simplest complete user journey?",
+        "a": "For dentist: 1. Registration and license verification. 2. Subscription payment (service fee for aggregation and delivery). 3. Regular receipt of sample packages. For manufacturer: 1. Registration and contract signing. 2. Sample delivery to service warehouse. 3. Tracking distribution and reach. Additional: segment targeting, marketing add-ons in packages or branding.",
+        "c": "PASS-WITH-WARNINGS: User journey is clearly described, but targeting and marketing add-ons need clarification for realism."
+      },
+      "question06-assumptions": {
+        "q": "What must be true for this to work?",
+        "a": "Dentists will be willing to pay for delivery of free multi-vendor sample sets at a price that makes economic sense for the service.",
+        "c": "PASS-WITH-WARNINGS: Key assumption, but it's based on real needs; recommend verifying payment willingness through surveys."
+      },
+      "question07-numbers": {
+        "q": "What numbers indicate this is working?",
+        "a": ">100 active dentist subscriptions per year; 30% of suppliers use service for >50% of samples; delivery time <1 month; churn <10%; supplier ROI >20% reach growth.",
+        "c": "PASS-WITH-WARNINGS: Numbers are ambitious and measurable, but need justification through market data or pilot tests."
+      },
+      "question08-value": {
+        "q": "Describe the value in one sentence",
+        "a": "A service connecting free sample suppliers for dentists with licensed professionals in the USA, providing regular access to new products for dentists and increased end-consumer reach for suppliers through D2C sales.",
+        "c": "PASS"
+      }
+    }
+  }
+}
