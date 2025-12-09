@@ -108,6 +108,17 @@ async def dev_environment_delete(fclient: ckit_client.FlexusClient, devenv_id: s
             variable_values={"id": devenv_id, "fuser_id": fuser_id},
         )
 
+async def dev_environment_get_github_auth_url(fclient: ckit_client.FlexusClient, devenv_id: str) -> str:
+    http = await fclient.use_http()
+    async with http as h:
+        r = await h.execute(gql.gql("""
+            mutation BobGetGitHubAuthUrl($devenv_id: String!) {
+                dev_environment_get_github_auth_url(devenv_id: $devenv_id)
+            }"""),
+            variable_values={"devenv_id": devenv_id},
+        )
+    return r["dev_environment_get_github_auth_url"]
+
 async def format_devenv_list(fclient: ckit_client.FlexusClient, fgroup_id: str) -> str:
     devenv_list = await dev_environments_list_in_subgroups(fclient, fgroup_id)
     if devenv_list:
