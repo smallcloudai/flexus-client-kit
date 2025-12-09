@@ -112,7 +112,7 @@ async def dev_environment_get_github_auth_url(fclient: ckit_client.FlexusClient,
     http = await fclient.use_http()
     async with http as h:
         r = await h.execute(gql.gql("""
-            mutation BobGetGitHubAuthUrl($devenv_id: String!) {
+            query BobGetGitHubAuthUrl($devenv_id: String!) {
                 dev_environment_get_github_auth_url(devenv_id: $devenv_id)
             }"""),
             variable_values={"devenv_id": devenv_id},
