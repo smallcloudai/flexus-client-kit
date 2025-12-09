@@ -24,9 +24,9 @@ CREATE_REPORT_TOOL = ckit_cloudtool.CloudTool(
     parameters={
         "type": "object",
         "properties": {
-            "name": {"type": "string", "description": "Base name for the report"},
-            "report_type": {"type": "string", "description": "Type of report (e.g., 'adspy')"},
-            "parameters": {"type": "string", "description": "JSON object with report parameters. Arrays will be iterated over, scalars used for string interpolation."},
+            "name": {"type": "string", "description": "Base name for the report", "order": 1},
+            "report_type": {"type": "string", "description": "Type of report (e.g., 'adspy')", "order": 2},
+            "parameters": {"type": "string", "description": "JSON object with report parameters. Arrays will be iterated over, scalars used for string interpolation.", "order": 3},
         },
         "required": ["name", "report_type", "parameters"],
     },
@@ -38,7 +38,7 @@ PROCESS_REPORT_TOOL = ckit_cloudtool.CloudTool(
     parameters={
         "type": "object",
         "properties": {
-            "report_id": {"type": "string", "description": "Report ID"},
+            "report_id": {"type": "string", "description": "Report ID", "order": 1},
         },
         "required": ["report_id"],
     },
@@ -50,10 +50,10 @@ FILL_SECTION_TOOL = ckit_cloudtool.CloudTool(
     parameters={
         "type": "object",
         "properties": {
-            "report_id": {"type": "string", "description": "Report ID"},
-            "section_name": {"type": "string", "description": "Section name to fill"},
-            "content": {"type": "string", "description": "Data that will be stored in the section. Use null if there is no data to report"},
-            "json_filename": {"type": "string", "description": "MongoDB json path to load content from"},
+            "report_id": {"type": "string", "description": "Report ID", "order": 1},
+            "section_name": {"type": "string", "description": "Section name to fill", "order": 2},
+            "content": {"type": "string", "description": "Data that will be stored in the section. Use null if there is no data to report", "order": 3},
+            "json_filename": {"type": "string", "description": "MongoDB json path to load content from", "order": 4},
         },
         "required": ["report_id", "section_name"],
     },
@@ -65,7 +65,7 @@ REPORT_STATUS_TOOL = ckit_cloudtool.CloudTool(
     parameters={
         "type": "object",
         "properties": {
-            "report_id": {"type": "string", "description": "Report ID (optional, lists all if not provided)"},
+            "report_id": {"type": "string", "description": "Report ID (optional, lists all if not provided)", "order": 1},
         },
         "required": [],
     },
@@ -77,8 +77,8 @@ LOAD_METADATA_TOOL = ckit_cloudtool.CloudTool(
     parameters={
         "type": "object",
         "properties": {
-            "report_id": {"type": "string"},
-            "safety_valve": {"type": "integer", "description": "Max output size in KB (default 20KB)"},
+            "report_id": {"type": "string", "order": 1},
+            "safety_valve": {"type": "integer", "description": "Max output size in KB (default 20KB)", "order": 2},
         },
         "required": ["report_id"],
     },
@@ -90,7 +90,7 @@ REMOVE_REPORT_TOOL = ckit_cloudtool.CloudTool(
     parameters={
         "type": "object",
         "properties": {
-            "report_id": {"type": "string", "description": "Report ID to remove"},
+            "report_id": {"type": "string", "description": "Report ID to remove", "order": 1},
         },
         "required": ["report_id"],
     },

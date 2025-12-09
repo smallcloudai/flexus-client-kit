@@ -33,7 +33,7 @@ async def mongo_store_file(
     mongo_collection: Collection,
     file_path: str,
     file_data: bytes,
-    ttl: int,
+    ttl: int = 30 * 86400,
 ) -> str:
     assert ttl > 0
     if len(file_data) > MAX_FILE_SIZE:
@@ -64,7 +64,7 @@ async def mongo_overwrite(
     mongo_collection: Collection,
     file_path: str,
     file_data: bytes,
-    ttl: int,
+    ttl: int = 30 * 86400,
 ) -> str:
     if len(file_data) > MAX_FILE_SIZE:
         raise ValueError(f"File size {len(file_data)} exceeds maximum {MAX_FILE_SIZE}")
