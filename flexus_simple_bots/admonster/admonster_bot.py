@@ -10,6 +10,7 @@ from flexus_client_kit import ckit_cloudtool
 from flexus_client_kit import ckit_bot_exec
 from flexus_client_kit import ckit_shutdown
 from flexus_client_kit import ckit_mongo
+from flexus_client_kit.integrations import fi_pdoc
 from flexus_client_kit.integrations import fi_mongo_store
 from flexus_client_kit.integrations import fi_linkedin
 from flexus_client_kit.integrations.facebook.fi_facebook import IntegrationFacebook, FACEBOOK_TOOL
@@ -30,6 +31,7 @@ TOOLS = [
     fi_linkedin.LINKEDIN_TOOL,
     FACEBOOK_TOOL,
     fi_mongo_store.MONGO_STORE_TOOL,
+    fi_pdoc.POLICY_DOCUMENT_TOOL,
 ]
 
 
@@ -43,6 +45,8 @@ async def admonster_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_e
 
     ad_account_id = setup.get("ad_account_id", "")
     fb_ad_account_id = setup.get("facebook_ad_account_id", "")
+
+    pdoc_integration = fi_pdoc.IntegrationPdoc(rcx, rcx.persona.ws_root_group_id)
 
     linkedin_integration = None
     if (LINKEDIN_CLIENT_ID and LINKEDIN_CLIENT_SECRET) or rcx.running_test_scenario:
@@ -84,6 +88,10 @@ async def admonster_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_e
     @rcx.on_tool_call(fi_mongo_store.MONGO_STORE_TOOL.name)
     async def toolcall_mongo_store(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
         return await fi_mongo_store.handle_mongo_store(rcx.workdir, personal_mongo, toolcall, model_produced_args)
+
+    @rcx.on_tool_call(fi_pdoc.POLICY_DOCUMENT_TOOL.name)
+    async def toolcall_pdoc(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
+        return await pdoc_integration.called_by_model(toolcall, model_produced_args)
 
     try:
         while not ckit_shutdown.shutdown_event.is_set():

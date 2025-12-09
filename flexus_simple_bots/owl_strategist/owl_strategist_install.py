@@ -7,6 +7,7 @@ from flexus_client_kit import ckit_client
 from flexus_client_kit import ckit_bot_install
 
 from flexus_simple_bots.owl_strategist import owl_strategist_bot, owl_strategist_prompts
+from flexus_simple_bots.owl_strategist.skills import diagnostic as skill_diagnostic
 
 
 BOT_DESCRIPTION = """
@@ -14,14 +15,15 @@ BOT_DESCRIPTION = """
 
 Expert bot for hypothesis validation and go-to-market strategy creation.
 
-**7 specialized agents:**
-- 🔍 Diagnostic — hypothesis classification, identifying unknowns
-- 📊 Metrics — KPIs, stop-rules, MDE calculation
-- 👥 Segment — ICP, JTBD, Customer Journey
-- 💬 Messaging — value proposition, positioning
-- 📡 Channels — channel selection, experiment design
-- 🎯 Tactics — campaign specs, creatives, landing pages
-- ⚖️ Compliance — risk assessment, platform policies
+**8-step pipeline (strict order):**
+1. 📝 Input — product, hypothesis, budget, timeline
+2. 🔍 Diagnostic — hypothesis classification, identifying unknowns
+3. 📊 Metrics — KPIs, stop-rules, MDE calculation
+4. 👥 Segment — ICP, JTBD, Customer Journey
+5. 💬 Messaging — value proposition, positioning
+6. 📡 Channels — channel selection, experiment design
+7. 🎯 Tactics — campaign specs, creatives, landing pages
+8. ⚖️ Compliance — risk assessment, platform policies
 
 **Human-in-the-Loop:**
 Every step is discussed with you — no automation without your understanding and approval.
@@ -33,8 +35,8 @@ Every step is discussed with you — no automation without your understanding an
 """
 
 
-# Lark kernel for agent subchats — detects AGENT_COMPLETE marker and returns result
-AGENT_LARK = '''
+# Default Lark kernel for agent subchats — used by skills that don't define their own
+DEFAULT_AGENT_LARK = '''
 msg = messages[-1]
 if msg["role"] == "assistant":
     content = str(msg["content"])
@@ -50,8 +52,11 @@ if msg["role"] == "assistant":
 async def install(
     client: ckit_client.FlexusClient,
     ws_id: str,
+    bot_name: str,
+    bot_version: str,
+    tools: list,
 ):
-    bot_tools_json = json.dumps([t.openai_style_tool() for t in owl_strategist_bot.TOOLS])
+    bot_tools_json = json.dumps([t.openai_style_tool() for t in tools])
     agent_tools_json = json.dumps([t.openai_style_tool() for t in owl_strategist_bot.AGENT_TOOLS])
 
     # XXX pictures will be added later
@@ -67,8 +72,8 @@ async def install(
     await ckit_bot_install.marketplace_upsert_dev_bot(
         client,
         ws_id=ws_id,
-        marketable_name=owl_strategist_bot.BOT_NAME,
-        marketable_version=owl_strategist_bot.BOT_VERSION,
+        marketable_name=bot_name,
+        marketable_version=bot_version,
         marketable_accent_color="#8B4513",
         marketable_title1="Owl Strategist",
         marketable_title2="AI expert for marketing strategies and hypothesis validation",
@@ -83,7 +88,7 @@ async def install(
             {"feat_question": "Help me create a strategy for my hypothesis", "feat_run_as_setup": False, "feat_depends_on_setup": []},
             {"feat_question": "Analyze my product idea", "feat_run_as_setup": False, "feat_depends_on_setup": []},
         ],
-        marketable_intro_message="Hi! I'm Owl Strategist 🦉 I help founders validate hypotheses and create marketing strategies. Tell me about your product — what do you want to test?",
+        marketable_intro_message="Привет! Я Сова-Стратег 🦉 Помогаю фаундерам валидировать гипотезы и создавать маркетинговые стратегии. Расскажи о продукте — что хочешь протестировать?",
         marketable_preferred_model_default="gpt-5.1",
         marketable_daily_budget_default=500_000,
         marketable_default_inbox_default=50_000,
@@ -96,58 +101,58 @@ async def install(
                 fexp_allow_tools="",
                 fexp_app_capture_tools=bot_tools_json,
             )),
-            # Agent A: Diagnostic — classify hypothesis, identify unknowns
+            # Agent: Diagnostic — classify hypothesis, identify unknowns (from skills/diagnostic.py)
             ("diagnostic", ckit_bot_install.FMarketplaceExpertInput(
-                fexp_system_prompt=owl_strategist_prompts.DIAGNOSTIC_PROMPT,
-                fexp_python_kernel=AGENT_LARK,
+                fexp_system_prompt=skill_diagnostic.SYSTEM_PROMPT,
+                fexp_python_kernel=skill_diagnostic.LARK_KERNEL,
                 fexp_block_tools="*setup*",
                 fexp_allow_tools="",
                 fexp_app_capture_tools=agent_tools_json,
             )),
-            # Agent G: Metrics — KPI, MDE, stop/accelerate rules
+            # Agent: Metrics — KPI, MDE, stop/accelerate rules (TODO: move to skills/)
             ("metrics", ckit_bot_install.FMarketplaceExpertInput(
                 fexp_system_prompt=owl_strategist_prompts.METRICS_PROMPT,
-                fexp_python_kernel=AGENT_LARK,
+                fexp_python_kernel=DEFAULT_AGENT_LARK,
                 fexp_block_tools="*setup*",
                 fexp_allow_tools="",
                 fexp_app_capture_tools=agent_tools_json,
             )),
-            # Agent B: Segment — ICP, JTBD, customer journey
+            # Agent: Segment — ICP, JTBD, customer journey (TODO: move to skills/)
             ("segment", ckit_bot_install.FMarketplaceExpertInput(
                 fexp_system_prompt=owl_strategist_prompts.SEGMENT_PROMPT,
-                fexp_python_kernel=AGENT_LARK,
+                fexp_python_kernel=DEFAULT_AGENT_LARK,
                 fexp_block_tools="*setup*",
                 fexp_allow_tools="",
                 fexp_app_capture_tools=agent_tools_json,
             )),
-            # Agent C: Messaging — value prop, angles, objections
+            # Agent: Messaging — value prop, angles, objections (TODO: move to skills/)
             ("messaging", ckit_bot_install.FMarketplaceExpertInput(
                 fexp_system_prompt=owl_strategist_prompts.MESSAGING_PROMPT,
-                fexp_python_kernel=AGENT_LARK,
+                fexp_python_kernel=DEFAULT_AGENT_LARK,
                 fexp_block_tools="*setup*",
                 fexp_allow_tools="",
                 fexp_app_capture_tools=agent_tools_json,
             )),
-            # Agent D: Channels — channel selection, test cells, budget
+            # Agent: Channels — channel selection, test cells, budget (TODO: move to skills/)
             ("channels", ckit_bot_install.FMarketplaceExpertInput(
                 fexp_system_prompt=owl_strategist_prompts.CHANNELS_PROMPT,
-                fexp_python_kernel=AGENT_LARK,
+                fexp_python_kernel=DEFAULT_AGENT_LARK,
                 fexp_block_tools="*setup*",
                 fexp_allow_tools="",
                 fexp_app_capture_tools=agent_tools_json,
             )),
-            # Agent E: Tactics — campaigns, creatives, landing, tracking
+            # Agent: Tactics — campaigns, creatives, landing, tracking (TODO: move to skills/)
             ("tactics", ckit_bot_install.FMarketplaceExpertInput(
                 fexp_system_prompt=owl_strategist_prompts.TACTICS_PROMPT,
-                fexp_python_kernel=AGENT_LARK,
+                fexp_python_kernel=DEFAULT_AGENT_LARK,
                 fexp_block_tools="*setup*",
                 fexp_allow_tools="",
                 fexp_app_capture_tools=agent_tools_json,
             )),
-            # Agent F: Compliance — risks, ads policies, privacy
+            # Agent: Compliance — risks, ads policies, privacy (TODO: move to skills/)
             ("compliance", ckit_bot_install.FMarketplaceExpertInput(
                 fexp_system_prompt=owl_strategist_prompts.COMPLIANCE_PROMPT,
-                fexp_python_kernel=AGENT_LARK,
+                fexp_python_kernel=DEFAULT_AGENT_LARK,
                 fexp_block_tools="*setup*",
                 fexp_allow_tools="",
                 fexp_app_capture_tools=agent_tools_json,
@@ -163,4 +168,10 @@ async def install(
 if __name__ == "__main__":
     args = ckit_bot_install.bot_install_argparse()
     client = ckit_client.FlexusClient("owl_strategist_install")
-    asyncio.run(install(client, ws_id=args.ws))
+    asyncio.run(install(
+        client,
+        ws_id=args.ws,
+        bot_name=owl_strategist_bot.BOT_NAME,
+        bot_version=owl_strategist_bot.BOT_VERSION,
+        tools=owl_strategist_bot.TOOLS,
+    ))
