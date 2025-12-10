@@ -172,6 +172,21 @@ async def cloudtool_post_result(fclient: ckit_client.FlexusClient, fcall_id: str
         )
 
 
+async def cloudtool_update_progress(fclient: ckit_client.FlexusClient, fcall_id: str, fcall_untrusted_key: str, progress_content: str):
+    http_client = await fclient.use_http()
+    async with http_client as http:
+        await http.execute(
+            gql.gql("""mutation CloudtoolProgress($fcall_id: String!, $fcall_untrusted_key: String!, $progress_content: String!) {
+                cloudtool_update_progress(fcall_id: $fcall_id, fcall_untrusted_key: $fcall_untrusted_key, progress_content: $progress_content)
+            }"""),
+            variable_values={
+                "fcall_id": fcall_id,
+                "fcall_untrusted_key": fcall_untrusted_key,
+                "progress_content": progress_content,
+            },
+        )
+
+
 async def cloudtool_confirmation_request(
     fclient: ckit_client.FlexusClient,
     fcall_id: str,
