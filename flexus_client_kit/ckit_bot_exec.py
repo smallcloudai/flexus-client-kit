@@ -325,8 +325,9 @@ async def subscribe_and_produce_callbacks(
     bc.thread_tracker.clear()  # Control reaches this after exception and reconnect, a new subscription will send all the threads anew, need to clear
 
     async with ws_client as ws:
+        assert fclient.ws_id is not None
         async for r in ws.subscribe(
-            gql.gql(f"""subscription KarenThreads($marketable_name: String!, $marketable_version: Int!, $inprocess_tool_names: [String!]!, $want_erp_tables: [String!]!, $ws_id_prefix: String) {{
+            gql.gql(f"""subscription KarenThreads($marketable_name: String!, $marketable_version: Int!, $inprocess_tool_names: [String!]!, $want_erp_tables: [String!]!, $ws_id_prefix: String!) {{
                 bot_threads_calls_tasks(marketable_name: $marketable_name, marketable_version: $marketable_version, inprocess_tool_names: $inprocess_tool_names, max_threads: {MAX_THREADS}, want_personas: true, want_threads: true, want_messages: true, want_tasks: true, want_erp_tables: $want_erp_tables, ws_id_prefix: $ws_id_prefix) {{
                     {gql_utils.gql_fields(ckit_bot_query.FBotThreadsCallsTasks)}
                 }}
@@ -342,7 +343,7 @@ async def subscribe_and_produce_callbacks(
             upd = gql_utils.dataclass_from_dict(r["bot_threads_calls_tasks"], ckit_bot_query.FBotThreadsCallsTasks)
             handled = False
             reassign_threads = False
-            logger.info("subs %s %s %s" % (upd.news_action, upd.news_about, upd.news_payload_id))
+            # logger.info("subs %s %s %s" % (upd.news_action, upd.news_about, upd.news_payload_id))
 
             if upd.news_about == "flexus_persona":
                 if upd.news_action in ["INSERT", "UPDATE"]:
