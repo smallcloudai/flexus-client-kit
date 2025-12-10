@@ -80,8 +80,11 @@ class RobotContext:
         self._parked_tasks: Dict[str, ckit_kanban.FPersonaKanbanTaskOutput] = {}
         self._parked_toolcalls: Dict[str, ckit_cloudtool.FCloudtoolCall] = {}
         self._processing_toolcalls: set[str] = set()
+        self._parked_erp_changes: Dict[tuple[str, str], tuple[str, Optional[Dict[str, Any]], Optional[Dict[str, Any]]]] = {}
         self._parked_anything_new = asyncio.Event()
         # These fields are designed for direct access:
+        self.wanted_erp_tables: List[str] = []
+        self.erp_tables_dirty = False
         self.fclient = fclient
         self.persona = p
         self.latest_threads: Dict[str, ckit_bot_query.FThreadWithMessages] = dict()
@@ -90,7 +93,6 @@ class RobotContext:
         self.workdir = "/tmp/bot_workspace/%s/" % p.persona_id
         self.running_test_scenario = False
         self.running_happy_yaml = ""
-        self.wanted_erp_tables: List[str] = []
         os.makedirs(self.workdir, exist_ok=True)
 
     def on_updated_message(self, handler: Callable[[ckit_ask_model.FThreadMessageOutput], Awaitable[None]]):
@@ -157,9 +159,9 @@ class RobotContext:
                 except Exception as e:
                     logger.error("%s error in on_updated_task handler: %s\n%s", self.persona.persona_id, type(e).__name__, e, exc_info=e)
 
-        erp_changes = list(self._parked_erp_changes)
+        erp_changes = list(self._parked_erp_changes.items())
         self._parked_erp_changes.clear()
-        for table_name, action, new_record_dict, old_record_dict in erp_changes:
+        for (table_name, _record_id), (action, new_record_dict, old_record_dict) in erp_changes:
             did_anything = True
             handler = self._handler_per_erp_table_change.get(table_name)
             if handler:
@@ -326,13 +328,12 @@ class BotsCollection:
         self.marketable_version = marketable_version
         self.inprocess_tools = inprocess_tools
         self.bot_main_loop = bot_main_loop
-        self.subscribe_to_erp_tables = subscribe_to_erp_tables
         self.bots_running: Dict[str, BotInstance] = {}
         self.shutting_down_tasks: set[asyncio.Task] = set()
         self.thread_tracker: Dict[str, ckit_bot_query.FThreadWithMessages] = {}
         self.running_test_scenario = running_test_scenario
         self.running_happy_yaml = running_happy_yaml
-        self.current_erp_tables = list(subscribe_to_erp_tables)
+        self.subscribe_to_erp_tables = set(subscribe_to_erp_tables)
         self.restart_requested = False
 
 
@@ -347,7 +348,8 @@ async def subscribe_and_produce_callbacks(
 
     bc.thread_tracker.clear()  # Control reaches this after exception and reconnect, a new subscription will send all the threads anew, need to clear
 
-    logger.info("Subscribing to ERP tables: %s", bc.current_erp_tables)
+    if bc.subscribe_to_erp_tables:
+        logger.info(f"Subscribing to ERP tables: {sorted(bc.subscribe_to_erp_tables)}")
 
     async with ws_client as ws:
         assert fclient.ws_id is not None
@@ -361,7 +363,7 @@ async def subscribe_and_produce_callbacks(
                 "marketable_name": bc.marketable_name,
                 "marketable_version": bc.marketable_version,
                 "inprocess_tool_names": [t.name for t in bc.inprocess_tools],
-                "want_erp_tables": bc.current_erp_tables,
+                "want_erp_tables": sorted(bc.subscribe_to_erp_tables),
                 "ws_id_prefix": fclient.ws_id,
             },
         ):
@@ -395,23 +397,6 @@ async def subscribe_and_produce_callbacks(
                             instance_rcx=rcx,
                         )
                         reassign_threads = True
-
-                        for _ in range(20):
-                            if rcx._reached_main_loop:
-                                await ckit_shutdown.wait(0.2)
-                                break
-                            await ckit_shutdown.wait(0.1)
-
-                        all_wanted_tables = set()
-                        for bot_inst in bc.bots_running.values():
-                            all_wanted_tables.update(bot_inst.instance_rcx.wanted_erp_tables)
-                        new_tables = sorted(all_wanted_tables)
-
-                        if set(new_tables) != set(bc.current_erp_tables):
-                            logger.info("ERP tables changed from %s to %s, resubscribing", bc.current_erp_tables, new_tables)
-                            bc.current_erp_tables = new_tables
-                            bc.restart_requested = True
-                            break
 
                 elif upd.news_action == "DELETE":
                     handled = True
@@ -523,7 +508,7 @@ async def subscribe_and_produce_callbacks(
                     new_record = upd.news_payload_erp_record_new
                     old_record = upd.news_payload_erp_record_old
                     for bot in bc.bots_running.values():
-                        bot.instance_rcx._parked_erp_changes.append((table_name, upd.news_action, new_record, old_record))
+                        bot.instance_rcx._parked_erp_changes[(table_name, upd.news_payload_id)] = (upd.news_action, new_record, old_record)
                         bot.instance_rcx._parked_anything_new.set()
 
             elif upd.news_action == "INITIAL_UPDATES_OVER":
@@ -563,7 +548,18 @@ async def subscribe_and_produce_callbacks(
                         ckit_utils.log_with_throttle(logger.info,
                             "Thread %s belongs to persona %s, but no bot is running for it, maybe a little async not a big deal.", tid, persona_id)
 
-            if ckit_shutdown.shutdown_event.is_set():
+            if any(bot.instance_rcx.erp_tables_dirty for bot in bc.bots_running.values()):
+                new_tables = set()
+                for bot in bc.bots_running.values():
+                    new_tables.update(bot.instance_rcx.wanted_erp_tables)
+                    bot.instance_rcx.erp_tables_dirty = False
+                if new_tables != bc.subscribe_to_erp_tables:
+                    logger.info("ERP tables changed from %s to %s, restarting subscription", sorted(bc.subscribe_to_erp_tables), sorted(new_tables))
+                    bc.subscribe_to_erp_tables = new_tables
+                    bc.restart_requested = True
+                    break
+
+            if ckit_shutdown.shutdown_event.is_set() or bc.restart_requested:
                 break
 
 
