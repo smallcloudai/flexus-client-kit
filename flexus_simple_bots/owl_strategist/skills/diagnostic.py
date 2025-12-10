@@ -41,7 +41,19 @@ if msg["role"] == "assistant":
     # Check completion
     if "AGENT_COMPLETE" in content:
         print("Agent finished, returning result")
-        subchat_result = content
+        # Find created/updated pdoc path from tool results to auto-activate in UI
+        pdoc_path = ""
+        for m in messages:
+            if m.get("role") == "tool":
+                tc = str(m.get("content", ""))
+                for line in tc.split("\\n"):
+                    if line.startswith("✍️"):
+                        pdoc_path = line
+                        break
+        if pdoc_path:
+            subchat_result = pdoc_path + "\\n\\n" + content
+        else:
+            subchat_result = content
     elif len(tool_calls) == 0:
         print("Agent stopped without AGENT_COMPLETE marker")
         post_cd_instruction = "You must save your result and end with AGENT_COMPLETE."

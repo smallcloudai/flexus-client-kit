@@ -8,6 +8,12 @@ from flexus_client_kit import ckit_bot_install
 
 from flexus_simple_bots.owl_strategist import owl_strategist_bot, owl_strategist_prompts
 from flexus_simple_bots.owl_strategist.skills import diagnostic as skill_diagnostic
+from flexus_simple_bots.owl_strategist.skills import metrics as skill_metrics
+from flexus_simple_bots.owl_strategist.skills import segment as skill_segment
+from flexus_simple_bots.owl_strategist.skills import messaging as skill_messaging
+from flexus_simple_bots.owl_strategist.skills import channels as skill_channels
+from flexus_simple_bots.owl_strategist.skills import tactics as skill_tactics
+from flexus_simple_bots.owl_strategist.skills import compliance as skill_compliance
 
 
 BOT_DESCRIPTION = """
@@ -109,50 +115,50 @@ async def install(
                 fexp_allow_tools="",
                 fexp_app_capture_tools=agent_tools_json,
             )),
-            # Agent: Metrics — KPI, MDE, stop/accelerate rules (TODO: move to skills/)
+            # Agent: Metrics — KPI, MDE, stop/accelerate rules (from skills/metrics.py)
             ("metrics", ckit_bot_install.FMarketplaceExpertInput(
-                fexp_system_prompt=owl_strategist_prompts.METRICS_PROMPT,
-                fexp_python_kernel=DEFAULT_AGENT_LARK,
+                fexp_system_prompt=skill_metrics.SYSTEM_PROMPT,
+                fexp_python_kernel=skill_metrics.LARK_KERNEL,
                 fexp_block_tools="*setup*",
                 fexp_allow_tools="",
                 fexp_app_capture_tools=agent_tools_json,
             )),
-            # Agent: Segment — ICP, JTBD, customer journey (TODO: move to skills/)
+            # Agent: Segment — ICP, JTBD, customer journey (from skills/segment.py)
             ("segment", ckit_bot_install.FMarketplaceExpertInput(
-                fexp_system_prompt=owl_strategist_prompts.SEGMENT_PROMPT,
-                fexp_python_kernel=DEFAULT_AGENT_LARK,
+                fexp_system_prompt=skill_segment.SYSTEM_PROMPT,
+                fexp_python_kernel=skill_segment.LARK_KERNEL,
                 fexp_block_tools="*setup*",
                 fexp_allow_tools="",
                 fexp_app_capture_tools=agent_tools_json,
             )),
-            # Agent: Messaging — value prop, angles, objections (TODO: move to skills/)
+            # Agent: Messaging — value prop, angles, objections (from skills/messaging.py)
             ("messaging", ckit_bot_install.FMarketplaceExpertInput(
-                fexp_system_prompt=owl_strategist_prompts.MESSAGING_PROMPT,
-                fexp_python_kernel=DEFAULT_AGENT_LARK,
+                fexp_system_prompt=skill_messaging.SYSTEM_PROMPT,
+                fexp_python_kernel=skill_messaging.LARK_KERNEL,
                 fexp_block_tools="*setup*",
                 fexp_allow_tools="",
                 fexp_app_capture_tools=agent_tools_json,
             )),
-            # Agent: Channels — channel selection, test cells, budget (TODO: move to skills/)
+            # Agent: Channels — channel selection, test cells, budget (from skills/channels.py)
             ("channels", ckit_bot_install.FMarketplaceExpertInput(
-                fexp_system_prompt=owl_strategist_prompts.CHANNELS_PROMPT,
-                fexp_python_kernel=DEFAULT_AGENT_LARK,
+                fexp_system_prompt=skill_channels.SYSTEM_PROMPT,
+                fexp_python_kernel=skill_channels.LARK_KERNEL,
                 fexp_block_tools="*setup*",
                 fexp_allow_tools="",
                 fexp_app_capture_tools=agent_tools_json,
             )),
-            # Agent: Tactics — campaigns, creatives, landing, tracking (TODO: move to skills/)
+            # Agent: Tactics — campaigns, creatives, landing, tracking (from skills/tactics.py)
             ("tactics", ckit_bot_install.FMarketplaceExpertInput(
-                fexp_system_prompt=owl_strategist_prompts.TACTICS_PROMPT,
-                fexp_python_kernel=DEFAULT_AGENT_LARK,
+                fexp_system_prompt=skill_tactics.SYSTEM_PROMPT,
+                fexp_python_kernel=skill_tactics.LARK_KERNEL,
                 fexp_block_tools="*setup*",
                 fexp_allow_tools="",
                 fexp_app_capture_tools=agent_tools_json,
             )),
-            # Agent: Compliance — risks, ads policies, privacy (TODO: move to skills/)
+            # Agent: Compliance — risks, ads policies, privacy (from skills/compliance.py)
             ("compliance", ckit_bot_install.FMarketplaceExpertInput(
-                fexp_system_prompt=owl_strategist_prompts.COMPLIANCE_PROMPT,
-                fexp_python_kernel=DEFAULT_AGENT_LARK,
+                fexp_system_prompt=skill_compliance.SYSTEM_PROMPT,
+                fexp_python_kernel=skill_compliance.LARK_KERNEL,
                 fexp_block_tools="*setup*",
                 fexp_allow_tools="",
                 fexp_app_capture_tools=agent_tools_json,
