@@ -21,6 +21,10 @@ from flexus_client_kit import erp_schema
 logger = logging.getLogger("btexe")
 
 
+class RestartBot(Exception):
+    pass
+
+
 def official_setup_mixing_procedure(marketable_setup_default, persona_setup) -> Dict[str, Union[str, int, float, bool, list]]:
     """
     Returns setup dict for a bot to run with. If a value is not set in persona_setup by the user, returns the default.
@@ -69,6 +73,7 @@ class RobotContext:
         self._handler_per_tool: Dict[str, Callable[[Dict[str, Any]], Awaitable[str]]] = {}
         self._handler_per_erp_table_change: Dict[str, Callable[[str, Optional[Any], Optional[Any]], Awaitable[None]]] = {}
         self._reached_main_loop = asyncio.Event()
+        self._restart_requested = False
         self._completed_initial_unpark = False
         self._parked_messages: Dict[str, ckit_ask_model.FThreadMessageOutput] = {}
         self._parked_threads: Dict[str, ckit_ask_model.FThreadOutput] = {}
@@ -76,7 +81,6 @@ class RobotContext:
         self._parked_toolcalls: List[ckit_cloudtool.FCloudtoolCall] = []
         self._parked_erp_changes: List[tuple[str, str, Optional[Dict[str, Any]], Optional[Dict[str, Any]]]] = []
         self._parked_anything_new = asyncio.Event()
-        self._restart_requested = asyncio.Event()
         # These fields are designed for direct access:
         self.fclient = fclient
         self.persona = p
@@ -117,10 +121,7 @@ class RobotContext:
 
     async def unpark_collected_events(self, sleep_if_no_work: float, turn_tool_calls_into_tasks: bool = False) -> List[asyncio.Task]:
         # logger.info("%s unpark_collected_events() started %d %d %d" % (self.persona.persona_id, len(self._parked_messages), len(self._parked_threads), len(self._parked_toolcalls)))
-        self._reached_main_loop = True
-        if self._restart_requested.is_set():
-            await ckit_shutdown.wait(sleep_if_no_work)
-            return []
+        self._reached_main_loop.set()
         if ckit_shutdown.shutdown_event.is_set():
             return []
         did_anything = False
@@ -185,6 +186,8 @@ class RobotContext:
 
         if not did_anything:
             self._completed_initial_unpark = True
+            if self._restart_requested:
+                raise RestartBot()
             try:
                 await asyncio.wait_for(self._parked_anything_new.wait(), timeout=sleep_if_no_work)
             except asyncio.TimeoutError:
@@ -246,15 +249,16 @@ class BotInstance(NamedTuple):
 
 async def crash_boom_bang(fclient: ckit_client.FlexusClient, rcx: RobotContext, bot_main_loop: Callable[[ckit_client.FlexusClient, RobotContext], Awaitable[None]]) -> None:
     logger.info("%s START name=%r" % (rcx.persona.persona_id, rcx.persona.persona_name))
-    while not ckit_shutdown.shutdown_event.is_set() and not rcx._restart_requested.is_set():
+    while not ckit_shutdown.shutdown_event.is_set():
         try:
             await bot_main_loop(fclient, rcx)
+        except RestartBot:
+            logger.info("%s restart requested after completing all pending work", rcx.persona.persona_id)
+            break
         except asyncio.CancelledError:
             break
         except Exception as e:
             logger.error("%s Bot main loop problem: %s %s", rcx.persona.persona_id, type(e).__name__, e, exc_info=True)
-        if rcx._restart_requested.is_set():
-            break
         logger.info("%s will sleep 60 seconds and restart", rcx.persona.persona_id)
         await ckit_shutdown.wait(60)
     logger.info("%s STOP" % rcx.persona.persona_id)
@@ -317,6 +321,7 @@ class BotsCollection:
         self.bot_main_loop = bot_main_loop
         self.subscribe_to_erp_tables = subscribe_to_erp_tables
         self.bots_running: Dict[str, BotInstance] = {}
+        self.shutting_down_tasks: set[asyncio.Task] = set()
         self.thread_tracker: Dict[str, ckit_bot_query.FThreadWithMessages] = {}
         self.running_test_scenario = running_test_scenario
         self.running_happy_yaml = running_happy_yaml
@@ -368,18 +373,11 @@ async def subscribe_and_produce_callbacks(
                     if bot := bc.bots_running.get(persona_id, None):
                         if bot.instance_rcx.persona.persona_setup != upd.news_payload_persona.persona_setup:
                             logger.info("Persona %s setup changed, requesting graceful shutdown" % persona_id)
-                            bot.instance_rcx._restart_requested.set()
-                            bot.instance_rcx._parked_anything_new.set()
-                            try:
-                                await asyncio.wait_for(bot.atask, timeout=10.0)
-                            except asyncio.TimeoutError:
-                                logger.warning("Bot %s did not shut down gracefully in 10s, cancelling" % persona_id)
-                                bot.atask.cancel()
-                                try:
-                                    await bot.atask
-                                except asyncio.CancelledError:
-                                    pass
                             del bc.bots_running[persona_id]
+                            bc.shutting_down_tasks.add(bot.atask)
+                            bot.atask.add_done_callback(bc.shutting_down_tasks.discard)
+                            bot.instance_rcx._restart_requested = True
+                            bot.instance_rcx._parked_anything_new.set()
                     if persona_id not in bc.bots_running:
                         rcx = RobotContext(fclient, upd.news_payload_persona)
                         rcx.running_test_scenario = bc.running_test_scenario
