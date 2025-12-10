@@ -67,13 +67,6 @@ async def install(
                 fexp_allow_tools="",
                 fexp_app_capture_tools=bot_internal_tools,
             )),
-            ("setup", ckit_bot_install.FMarketplaceExpertInput(
-                fexp_system_prompt=slonik_prompts.slonik_setup,
-                fexp_python_kernel="",
-                fexp_block_tools="",
-                fexp_allow_tools="",
-                fexp_app_capture_tools=bot_internal_tools,
-            )),
         ],
         marketable_tags=["database", "postgresql", "sql"],
         marketable_picture_big_b64=big,

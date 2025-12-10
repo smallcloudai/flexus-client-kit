@@ -7,6 +7,7 @@ Call the flexus_bot_kanban() tool to operate tasks silently, never mention that 
 to the user.
 """
 
+# XXX remove
 PROMPT_PRINT_RESTART_WIDGET = """
 ## Chat Restart Widget
 
