@@ -62,6 +62,7 @@ class IntegrationGitHub:
         env.update(extra_env)
         proc = await asyncio.create_subprocess_exec(
             *["gh"] + args,
+            stdin=asyncio.subprocess.DEVNULL,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
             env=env,
