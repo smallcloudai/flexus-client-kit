@@ -45,6 +45,7 @@ class FlexusClient:
         self.endpoint = endpoint
         self.service_name = service_name
         self.ws_id = os.getenv("FLEXUS_WORKSPACE")
+        self.group_id = os.getenv("FLEXUS_GROUP")
         self.inside_radix_process = self.ws_id is not None and (len(self.ws_id) in [0, 1, 2])
         if self.inside_radix_process:
             self.service_name = f"{self.service_name}_r_{self.ws_id}"

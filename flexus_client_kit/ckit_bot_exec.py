@@ -325,10 +325,13 @@ async def subscribe_and_produce_callbacks(
     bc.thread_tracker.clear()  # Control reaches this after exception and reconnect, a new subscription will send all the threads anew, need to clear
 
     async with ws_client as ws:
-        assert fclient.ws_id is not None
+        assert fclient.ws_id is not None or fclient.group_id is not None
+        # group_id takes priority over ws_id, send only one (not both)
+        use_group_id = fclient.group_id if fclient.group_id else None
+        use_ws_id_prefix = None if use_group_id else fclient.ws_id
         async for r in ws.subscribe(
-            gql.gql(f"""subscription KarenThreads($marketable_name: String!, $marketable_version: Int!, $inprocess_tool_names: [String!]!, $want_erp_tables: [String!]!, $ws_id_prefix: String!) {{
-                bot_threads_calls_tasks(marketable_name: $marketable_name, marketable_version: $marketable_version, inprocess_tool_names: $inprocess_tool_names, max_threads: {MAX_THREADS}, want_personas: true, want_threads: true, want_messages: true, want_tasks: true, want_erp_tables: $want_erp_tables, ws_id_prefix: $ws_id_prefix) {{
+            gql.gql(f"""subscription KarenThreads($marketable_name: String!, $marketable_version: Int!, $inprocess_tool_names: [String!]!, $want_erp_tables: [String!]!, $ws_id_prefix: String, $group_id: String) {{
+                bot_threads_calls_tasks(marketable_name: $marketable_name, marketable_version: $marketable_version, inprocess_tool_names: $inprocess_tool_names, max_threads: {MAX_THREADS}, want_personas: true, want_threads: true, want_messages: true, want_tasks: true, want_erp_tables: $want_erp_tables, ws_id_prefix: $ws_id_prefix, group_id: $group_id) {{
                     {gql_utils.gql_fields(ckit_bot_query.FBotThreadsCallsTasks)}
                 }}
             }}"""),
@@ -337,7 +340,8 @@ async def subscribe_and_produce_callbacks(
                 "marketable_version": bc.marketable_version,
                 "inprocess_tool_names": [t.name for t in bc.inprocess_tools],
                 "want_erp_tables": bc.subscribe_to_erp_tables,
-                "ws_id_prefix": fclient.ws_id,
+                "ws_id_prefix": use_ws_id_prefix,
+                "group_id": use_group_id,
             },
         ):
             upd = gql_utils.dataclass_from_dict(r["bot_threads_calls_tasks"], ckit_bot_query.FBotThreadsCallsTasks)
