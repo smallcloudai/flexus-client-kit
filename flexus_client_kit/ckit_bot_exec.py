@@ -78,8 +78,8 @@ class RobotContext:
         self._parked_messages: Dict[str, ckit_ask_model.FThreadMessageOutput] = {}
         self._parked_threads: Dict[str, ckit_ask_model.FThreadOutput] = {}
         self._parked_tasks: Dict[str, ckit_kanban.FPersonaKanbanTaskOutput] = {}
-        self._parked_toolcalls: List[ckit_cloudtool.FCloudtoolCall] = []
-        self._parked_erp_changes: List[tuple[str, str, Optional[Dict[str, Any]], Optional[Dict[str, Any]]]] = []
+        self._parked_toolcalls: Dict[str, ckit_cloudtool.FCloudtoolCall] = {}
+        self._processing_toolcalls: set[str] = set()
         self._parked_anything_new = asyncio.Event()
         # These fields are designed for direct access:
         self.fclient = fclient
@@ -171,18 +171,25 @@ class RobotContext:
                 except Exception as e:
                     logger.error("%s error in on_erp_change(%r) handler: %s\n%s", self.persona.persona_id, table_name, type(e).__name__, e, exc_info=e)
 
-        mycalls = list(self._parked_toolcalls)
+        mycalls = list(self._parked_toolcalls.values())
         self._parked_toolcalls.clear()
+        self._processing_toolcalls.update(c.fcall_id for c in mycalls)
+        if mycalls:
+            logger.info("%s unparking %d tool calls: %s", self.persona.persona_id, len(mycalls), [c.fcall_id for c in mycalls])
         bg_calls = []
         for c in mycalls:
             did_anything = True
-            if not turn_tool_calls_into_tasks:  # run immediately and wait
+            if not turn_tool_calls_into_tasks:
                 try:
                     await self._local_tool_call(self.fclient, c)
                 except Exception as e:
                     logger.error("%s error in on_tool_call() handler: %s\n%s", self.persona.persona_id, type(e).__name__, e, exc_info=e)
+                finally:
+                    self._processing_toolcalls.discard(c.fcall_id)
             else:
-                bg_calls.append(asyncio.create_task(self._local_tool_call(self.fclient, c)))
+                task = asyncio.create_task(self._local_tool_call(self.fclient, c))
+                task.add_done_callback(lambda _t, call_id=c.fcall_id: self._processing_toolcalls.discard(call_id))
+                bg_calls.append(task)
 
         if not did_anything:
             self._completed_initial_unpark = True
@@ -485,8 +492,10 @@ async def subscribe_and_produce_callbacks(
                             break
                         assert toolcall.fcall_name in set1
                         assert toolcall.fcall_name in set2
-                        bot.instance_rcx._parked_toolcalls.append(toolcall)
-                        bot.instance_rcx._parked_anything_new.set()
+                        if toolcall.fcall_id not in bot.instance_rcx._parked_toolcalls and toolcall.fcall_id not in bot.instance_rcx._processing_toolcalls:
+                            logger.info("%s parked tool call %s %s", persona_id, toolcall.fcall_id, toolcall.fcall_name)
+                            bot.instance_rcx._parked_toolcalls[toolcall.fcall_id] = toolcall
+                            bot.instance_rcx._parked_anything_new.set()
                     else:
                         logger.info("%s is about persona=%s which is not running here." % (toolcall.fcall_id, persona_id))
 
