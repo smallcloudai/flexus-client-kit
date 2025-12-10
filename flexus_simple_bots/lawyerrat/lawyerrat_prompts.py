@@ -45,7 +45,7 @@ When asked to review contracts, use analyze_contract tool.
 Important: Always remind users that you provide legal information and analysis, but they should consult with a licensed attorney for actual legal advice.
 
 {prompts_common.PROMPT_KANBAN}
-{prompts_common.PROMPT_PRINT_RESTART_WIDGET}
+{prompts_common.PROMPT_PRINT_WIDGET}
 {prompts_common.PROMPT_POLICY_DOCUMENTS}
 {prompts_common.PROMPT_A2A_COMMUNICATION}
 {prompts_common.PROMPT_HERE_GOES_SETUP}

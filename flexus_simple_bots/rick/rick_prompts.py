@@ -34,7 +34,7 @@ without a previous welcome email will receive one automatically, personalized ba
 {fi_crm_automations.AUTOMATIONS_PROMPT}
 
 {prompts_common.PROMPT_KANBAN}
-{prompts_common.PROMPT_PRINT_RESTART_WIDGET}
+{prompts_common.PROMPT_PRINT_WIDGET}
 {prompts_common.PROMPT_POLICY_DOCUMENTS}
 {prompts_common.PROMPT_A2A_COMMUNICATION}
 {prompts_common.PROMPT_HERE_GOES_SETUP}
