@@ -68,7 +68,7 @@ class RobotContext:
         self._handler_updated_task: Optional[Callable[[ckit_kanban.FPersonaKanbanTaskOutput], Awaitable[None]]] = None
         self._handler_per_tool: Dict[str, Callable[[Dict[str, Any]], Awaitable[str]]] = {}
         self._handler_per_erp_table_change: Dict[str, Callable[[str, Optional[Any], Optional[Any]], Awaitable[None]]] = {}
-        self._reached_main_loop = False
+        self._reached_main_loop = asyncio.Event()
         self._completed_initial_unpark = False
         self._parked_messages: Dict[str, ckit_ask_model.FThreadMessageOutput] = {}
         self._parked_threads: Dict[str, ckit_ask_model.FThreadOutput] = {}
@@ -485,12 +485,10 @@ async def subscribe_and_produce_callbacks(
                     if persona_id in bc.bots_running:
                         bot = bc.bots_running[persona_id]
                         if toolcall.fcall_name not in bot.instance_rcx._handler_per_tool:
-                            # give bot main loop a couple of seconds to start up and install the handler, it's async everything here ... :/
-                            for _ in range(10):
-                                if bot.instance_rcx._reached_main_loop:
-                                    break
-                                if await ckit_shutdown.wait(1):
-                                    break
+                            try:
+                                await asyncio.wait_for(bot.instance_rcx._reached_main_loop.wait(), timeout=10.0)
+                            except asyncio.TimeoutError:
+                                pass
                         set1 = set(t.name for t in bc.inprocess_tools)
                         set2 = set(bot.instance_rcx._handler_per_tool.keys())
                         if set1 != set2:
