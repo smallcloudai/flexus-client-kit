@@ -46,13 +46,11 @@ Template Variables:
 
 Use `{{trigger.new_record.field_name}}` or `{{trigger.old_record.field_name}}`:
 - `{{trigger.new_record.contact_id}}`
-- `{{trigger.new_record.contact_first_name}}`
 - `{{trigger.old_record.contact_email}}` (for updates/deletes)
-- `{{now()}}` - current Unix timestamp
 
-Python expressions (templates resolved first, then evaluated):
-- `{{trigger.new_record.contact_tags}} + ['new_tag']` - append to array
-- `{{now()}} + 86400` - timestamp one day from now
+Special functions:
+- `{{now()}}` - current Unix timestamp
+- `{{now() + 86400}}` - timestamp calculations
 
 Important Notes:
 - Actions execute in sequence
@@ -129,7 +127,7 @@ Each automation has:
       "table": "crm_contact",
       "record_id": "{{trigger.new_record.contact_id}}",
       "fields": {
-        "contact_tags": "{{trigger.new_record.contact_tags}} + ['welcome_email_sent']"
+        "contact_tags": {"op": "append", "values": ["welcome_email_sent"]}
       }
     }
   ]
@@ -140,16 +138,35 @@ Each automation has:
 
 Use {{path.to.value}} to reference trigger data:
 - {{trigger.new_record.contact_id}}
-- {{trigger.new_record.contact_first_name}}
 - {{trigger.old_record.contact_email}} (for updates/deletes)
+
+Special functions:
 - {{now()}} - current Unix timestamp
+- {{now() + 86400}} - timestamp one day from now
+- {{now() - 3600}} - timestamp one hour ago
 
-Python expressions (templates are resolved first, then expression is evaluated):
-- {{trigger.new_record.contact_tags}} + ['new_tag'] - append to array
-- {{now()}} + 86400 - timestamp one day from now
-- {{now()}} - 3600 - timestamp one hour ago
+## Field Operations
 
-Note: Leading '=' is stripped from field values automatically.
+For atomic operations on fields:
+
+```json
+"fields": {
+  "contact_tags": {"op": "append", "values": ["tag1", "tag2"]},
+  "contact_score": {"op": "increment", "value": 10}
+}
+```
+
+Supported operations:
+- append: Add items to a list field
+- remove: Remove items from a list field
+- increment: Add to a numeric field
+- decrement: Subtract from a numeric field
+- set: Set value directly (default when using string)
+
+Template values work in operations:
+```json
+"contact_tags": {"op": "append", "values": ["{{trigger.new_record.source_tag}}"]}
+```
 
 ## Trigger Filter Syntax
 
@@ -187,25 +204,24 @@ class IntegrationCrmAutomations:
             logger.error(f"Failed to parse crm_automations from setup: {e}")
             return {}
 
-    async def _save_automations(self, automations: Dict[str, Any]) -> None:
-        setup = self.get_setup()
-        setup["crm_automations"] = json.dumps(automations, indent=2)
-
+    async def _save_automation(self, automation_name: str, automation_config: Optional[Dict[str, Any]]) -> None:
         http = await self.client.use_http()
         async with http as h:
             await h.execute(
-                gql.gql("""mutation PersonaUpdateSetup($persona_id: String!, $persona_setup: String!) {
-                    persona_patch_setup(
+                gql.gql("""mutation PersonaSetupSetKey($persona_id: String!, $set_key: String!, $set_val: String) {
+                    persona_setup_set_key(
                         persona_id: $persona_id,
-                        persona_setup: $persona_setup
+                        set_key: $set_key,
+                        set_val: $set_val
                     )
                 }"""),
                 variable_values={
                     "persona_id": self.rcx.persona.persona_id,
-                    "persona_setup": json.dumps(setup),
+                    "set_key": f"crm_automations.{automation_name}",
+                    "set_val": json.dumps(automation_config) if automation_config is not None else None,
                 },
             )
-        logger.info("Updated persona setup in backend")
+        logger.info(f"{'Deleted' if automation_config is None else 'Updated'} automation '{automation_name}' in backend")
 
     async def handle_crm_automation(self, toolcall: ckit_cloudtool.FCloudtoolCall, model_args: Dict[str, Any]) -> str:
         op = model_args.get("op", "").lower()
@@ -295,8 +311,7 @@ class IntegrationCrmAutomations:
         if validation_error:
             return validation_error
 
-        automations[automation_name] = automation_config
-        await self._save_automations(automations)
+        await self._save_automation(automation_name, automation_config)
 
         return f"✅ Created automation '{automation_name}'"
 
@@ -323,8 +338,7 @@ class IntegrationCrmAutomations:
         if validation_error:
             return validation_error
 
-        automations[automation_name] = automation_config
-        await self._save_automations(automations)
+        await self._save_automation(automation_name, automation_config)
 
         return f"✅ Updated automation '{automation_name}'"
 
@@ -339,8 +353,7 @@ class IntegrationCrmAutomations:
         if automation_name not in automations:
             return f"❌ Error: Automation '{automation_name}' not found"
 
-        del automations[automation_name]
-        await self._save_automations(automations)
+        await self._save_automation(automation_name, None)
 
         return f"✅ Deleted automation '{automation_name}'"
 
@@ -473,10 +486,7 @@ async def _execute_actions(
 
                 resolved_fields = {}
                 for k, v in fields.items():
-                    if isinstance(v, str):
-                        resolved_fields[k] = _resolve_field_value(v, context, k)
-                    else:
-                        resolved_fields[k] = v
+                    resolved_fields[k] = _resolve_field_value(v, context, k)
 
                 resolved_fields["ws_id"] = rcx.persona.ws_id
 
@@ -495,10 +505,7 @@ async def _execute_actions(
 
                 resolved_fields = {}
                 for k, v in fields.items():
-                    if isinstance(v, str):
-                        resolved_fields[k] = _resolve_field_value(v, context, k)
-                    else:
-                        resolved_fields[k] = v
+                    resolved_fields[k] = _resolve_field_value(v, context, k)
 
                 logger.info(f"update_erp_record: table={table} record_id={record_id} resolved_fields={resolved_fields}")
                 await ckit_erp.patch_erp_record(
@@ -553,14 +560,36 @@ def _resolve_template(template: str, context: Dict[str, Any]) -> str:
     return result
 
 
-def _resolve_field_value(field_value: str, context: Dict[str, Any], field_name: str) -> Any:
+def _resolve_field_value(field_value: Any, context: Dict[str, Any], field_name: str) -> Any:
     import time
 
-    value = field_value.strip()
-    if value.startswith('='):
-        value = value[1:].strip()
+    if isinstance(field_value, dict) and "op" in field_value:
+        op = field_value["op"]
 
-    is_timestamp_field = field_name.endswith('_ts')
+        if op == "append":
+            values = field_value.get("values", [])
+            return {"$append": [_resolve_template(str(v), context) for v in values]}
+
+        elif op == "remove":
+            values = field_value.get("values", [])
+            return {"$remove": [_resolve_template(str(v), context) for v in values]}
+
+        elif op == "increment":
+            value = field_value.get("value", 0)
+            return {"$increment": float(_resolve_template(str(value), context))}
+
+        elif op == "decrement":
+            value = field_value.get("value", 0)
+            return {"$decrement": float(_resolve_template(str(value), context))}
+
+        elif op == "set":
+            value = field_value.get("value")
+            return _resolve_template(str(value), context)
+
+    if not isinstance(field_value, str):
+        return field_value
+
+    value = field_value.strip()
 
     matches = re.findall(r'\{\{(.+?)\}\}', value)
     for match in matches:
@@ -569,7 +598,7 @@ def _resolve_field_value(field_value: str, context: Dict[str, Any], field_name: 
         if any(c in match_content for c in '+-*/()'):
             try:
                 result = eval(match_content, {"__builtins__": {}, "now": lambda: time.time()}, {})
-                value = value.replace(f"{{{{{match}}}}}", repr(result))
+                value = value.replace(f"{{{{{match}}}}}", str(result))
                 continue
             except:
                 pass
@@ -584,25 +613,9 @@ def _resolve_field_value(field_value: str, context: Dict[str, Any], field_name: 
                 break
 
         if resolved_value is not None:
-            value = value.replace(f"{{{{{match}}}}}", repr(resolved_value))
-        else:
-            value = value.replace(f"{{{{{match}}}}}", '[]' if field_name.endswith(('_tags', '_list')) else repr(None))
+            value = value.replace(f"{{{{{match}}}}}", str(resolved_value))
 
-    logger.debug(f"_resolve_field_value: field_name={field_name} original={field_value!r} after_template={value!r}")
-
-    if any(op in value for op in ['+', '-', '*', '/']):
-        if re.match(r'^[\[\]\d\s+\-.*/()\'"a-zA-Z_,]+$', value):
-            try:
-                result = eval(value, {"__builtins__": {}}, {})
-                logger.debug(f"_resolve_field_value: evaluated {value!r} to {result!r}")
-                if is_timestamp_field:
-                    return float(result)
-                return result
-            except Exception as e:
-                logger.warning(f"Failed to evaluate expression '{value}': {e}")
-                return None
-
-    if is_timestamp_field:
+    if field_name.endswith('_ts'):
         try:
             return float(value)
         except (ValueError, TypeError):
