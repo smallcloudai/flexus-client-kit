@@ -13,8 +13,13 @@ from flexus_client_kit import ckit_kanban
 from flexus_client_kit.integrations import fi_pdoc
 from flexus_simple_bots.owl_strategist import owl_strategist_install
 from flexus_simple_bots.version_common import SIMPLE_BOTS_COMMON_VERSION
-from flexus_simple_bots.owl_strategist import owl_strategist_install
 from flexus_simple_bots.owl_strategist.skills import diagnostic as skill_diagnostic
+from flexus_simple_bots.owl_strategist.skills import metrics as skill_metrics
+from flexus_simple_bots.owl_strategist.skills import segment as skill_segment
+from flexus_simple_bots.owl_strategist.skills import messaging as skill_messaging
+from flexus_simple_bots.owl_strategist.skills import channels as skill_channels
+from flexus_simple_bots.owl_strategist.skills import tactics as skill_tactics
+from flexus_simple_bots.owl_strategist.skills import compliance as skill_compliance
 
 logger = logging.getLogger("bot_owl_strategist")
 
@@ -31,12 +36,12 @@ AGENTS = ["diagnostic", "metrics", "segment", "messaging", "channels", "tactics"
 # Import descriptions from skill modules
 AGENT_DESCRIPTIONS = {
     "diagnostic": skill_diagnostic.SKILL_DESCRIPTION,
-    "metrics": "Metrics Framework — defining KPIs, stop-rules, MDE",
-    "segment": "Segment Analysis — ICP, JTBD, customer journey",
-    "messaging": "Messaging Strategy — value proposition, angles",
-    "channels": "Channel Strategy — channel selection, test cells",
-    "tactics": "Tactical Spec — campaigns, creatives, landing",
-    "compliance": "Risk & Compliance — policies, privacy, risks",
+    "metrics": skill_metrics.SKILL_DESCRIPTION,
+    "segment": skill_segment.SKILL_DESCRIPTION,
+    "messaging": skill_messaging.SKILL_DESCRIPTION,
+    "channels": skill_channels.SKILL_DESCRIPTION,
+    "tactics": skill_tactics.SKILL_DESCRIPTION,
+    "compliance": skill_compliance.SKILL_DESCRIPTION,
 }
 
 STEP_DESCRIPTIONS = {
@@ -172,20 +177,37 @@ async def owl_strategist_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_
         "compliance": ["input", "tactics"],
     }
 
-    async def _load_agent_context(pdoc: fi_pdoc.IntegrationPdoc, fuser_id: str, strategy_name: str, agent: str) -> Dict[str, Any]:
-        required = AGENT_REQUIRED_DOCS.get(agent, ["input"])
+    async def _load_agent_context(pdoc: fi_pdoc.IntegrationPdoc, fuser_id: str, strategy_name: str, agent: str, soft: bool = False, include_current: bool = False) -> Dict[str, Any]:
+        """Load required documents for agent.
+        
+        soft=True: don't fail if document is missing, just skip it
+        include_current=True: also load the agent's own output (for rerun)
+        """
+        required = list(AGENT_REQUIRED_DOCS.get(agent, ["input"]))
+        if include_current and agent not in required:
+            required.append(agent)
+        
         docs = {}
+        missing = []
         for doc_name in required:
             try:
                 content = await pdoc.pdoc_cat(f"/strategies/{strategy_name}/{doc_name}", fuser_id)
                 docs[doc_name] = content
             except Exception as e:
-                return {"error": f"Cannot run {agent}: missing required document '{doc_name}'. Error: {e}"}
+                if soft:
+                    missing.append(doc_name)
+                else:
+                    return {"error": f"Cannot run {agent}: missing required document '{doc_name}'. Error: {e}"}
+
+        if not docs:
+            return {"error": f"Cannot run {agent}: no documents found"}
 
         # Format as readable context
         lines = ["## Input Documents"]
         for doc_name, content in docs.items():
             lines.append(f"\n### {doc_name}\n```json\n{content}\n```")
+        if missing:
+            lines.append(f"\n(Note: documents not found: {', '.join(missing)})")
         return {"content": "\n".join(lines)}
 
     @rcx.on_updated_message
@@ -316,12 +338,20 @@ Output path: /strategies/{strategy_name}/{agent}
         if not await step_exists(strategy_name, agent):
             return f"Error: {agent} ещё не был запущен, нечего перезапускать. Используй run_agent."
 
+        # Load all context docs + current result (soft mode — don't fail on missing)
+        context_docs = await _load_agent_context(pdoc_integration, fuser_id, strategy_name, agent, soft=True, include_current=True)
+        if context_docs.get("error"):
+            return context_docs["error"]
+
         q = f"""Strategy: {strategy_name}
+Output path: /strategies/{strategy_name}/{agent}
 
-RERUN with corrections. Previous result needs changes:
-{feedback}
+{context_docs["content"]}
 
-Read previous result from /strategies/{strategy_name}/{agent}, apply the feedback, and save updated result to the same path."""
+---
+
+RERUN with corrections. Apply this feedback to the current {agent} document and save updated result:
+{feedback}"""
 
         logger.info(f"Rerunning agent '{agent}' for strategy '{strategy_name}' with feedback")
 
