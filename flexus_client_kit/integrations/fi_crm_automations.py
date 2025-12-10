@@ -365,7 +365,9 @@ class IntegrationCrmAutomations:
         for t in tables:
             self.rcx._handler_per_erp_table_change[t] = make_handler(t)
 
-        self.rcx.wanted_erp_tables = sorted(self.rcx._handler_per_erp_table_change.keys())
+        if set(self.rcx._handler_per_erp_table_change.keys()) != set(self.rcx.wanted_erp_tables):
+            self.rcx.wanted_erp_tables = sorted(self.rcx._handler_per_erp_table_change.keys())
+            self.rcx.erp_tables_dirty = True
 
 
 def get_erp_tables_from_automations(automations_dict: Dict[str, Any]) -> List[str]:
