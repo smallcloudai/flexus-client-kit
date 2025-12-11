@@ -268,9 +268,10 @@ async def i_am_still_alive(
                         "marketable_name": marketable_name,
                         "marketable_version": marketable_version,
                         "ws_id_prefix": fclient.ws_id,
+                        "group_id": fclient.group_id,
                     },
                 )
-                logger.info("i_am_still_alive %s:%d ws_id=%s", marketable_name, marketable_version, fclient.ws_id)
+                logger.info("i_am_still_alive %s:%d %s=%s", marketable_name, marketable_version, "ws_id" if fclient.ws_id else "group_id", fclient.ws_id or fclient.group_id)
             if await ckit_shutdown.wait(120):
                 break
 
