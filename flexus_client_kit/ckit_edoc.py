@@ -26,15 +26,6 @@ class FExternalDataSourceSubs:
     news_payload: Optional[FExternalDataSourceOutput]
 
 @dataclass
-class FEphemeralDocumentOutput:
-    edoc_id: str
-    edoc_mtime: int
-    edoc_size_bytes: int
-    edoc_status_download: str
-    edoc_status_graphdb: str
-    edoc_status_vectordb: str
-
-@dataclass
 class FEdocOutput:
     ws_id: str
     eds_id: str
@@ -49,67 +40,6 @@ class FEdocOutput:
     edoc_status_vectordb: str
 
 
-@dataclass
-class FWorkspaceStorageStatus:
-    ws_storage_limit_bytes: int
-    ws_storage_used_bytes: int
-
-
-_WORKSPACE_STORAGE_CACHE_TTL = 60.0
-_workspace_storage_cache: Dict[str, tuple[FWorkspaceStorageStatus, float]] = {}
-
-
-async def _fetch_workspace_storage_status(
-    client: ckit_client.FlexusClient,
-    ws_id: str,
-) -> Optional[FWorkspaceStorageStatus]:
-    http = await client.use_http()
-    async with http as h:
-        r = await h.execute(
-            gql.gql(
-                """query WorkspaceStorageStatus($ws_id: String!) {
-                    workspace_storage_status(ws_id: $ws_id) {
-                        ws_storage_limit_bytes
-                        ws_storage_used_bytes
-                    }
-                }"""
-            ),
-            variable_values={"ws_id": ws_id},
-        )
-    payload = r.get("workspace_storage_status")
-    if not payload:
-        return None
-    return gql_utils.dataclass_from_dict(payload, FWorkspaceStorageStatus)
-
-
-async def _get_workspace_storage_status(
-    client: ckit_client.FlexusClient,
-    ws_id: str,
-    *,
-    force_refresh: bool = False,
-) -> Optional[FWorkspaceStorageStatus]:
-    now = time.time()
-    cached = _workspace_storage_cache.get(ws_id)
-    if not force_refresh and cached and (now - cached[1]) < _WORKSPACE_STORAGE_CACHE_TTL:
-        return cached[0]
-    try:
-        latest = await _fetch_workspace_storage_status(client, ws_id)
-    except Exception as exc:
-        logger.warning("workspace_storage_status(%s) failed: %s", ws_id, exc)
-        return cached[0] if cached else None
-    if latest:
-        _workspace_storage_cache[ws_id] = (latest, now)
-    return latest
-
-
-async def _workspace_storage_has_capacity(
-    client: ckit_client.FlexusClient,
-    ws_id: str,
-) -> tuple[bool, Optional[FWorkspaceStorageStatus]]:
-    status = await _get_workspace_storage_status(client, ws_id)
-    if not status:
-        return True, None
-    return status.ws_storage_used_bytes < status.ws_storage_limit_bytes, status
 
 async def edoc_get_existing_documents_for_eds(
     client: ckit_client.FlexusClient,
@@ -191,20 +121,7 @@ async def edoc_create(
     edoc_title: str,
     edoc_size_bytes: int,
     edoc_icon: Optional[str] = None,
-) -> bool:
-    has_capacity, storage = await _workspace_storage_has_capacity(client, ws_id)
-    if not has_capacity:
-        if storage:
-            logger.warning(
-                "Skipping edoc_create for %s: workspace %s storage limit reached (%d/%d bytes)",
-                edoc_id,
-                ws_id,
-                storage.ws_storage_used_bytes,
-                storage.ws_storage_limit_bytes,
-            )
-        else:
-            logger.warning("Skipping edoc_create for %s: workspace %s storage limit reached", edoc_id, ws_id)
-        return False
+) -> FEdocOutput:
     if not edoc_icon:
         ext = edoc_title.split(".")[-1].lower() if "." in edoc_title else ""
         edoc_icon = _EXT_ICONS.get(ext, "📎")
@@ -223,34 +140,21 @@ async def edoc_create(
     }
     http_client = await client.use_http()
     async with http_client as http:
-        result = await http.execute(
-            gql.gql(
-                """mutation EdocUpsert($p: FEdocInput!) {
-                    edoc_upsert(p: $p)
-                }""",
-            ),
-            variable_values={
-                "p": payload,
-            },
+        res = await http.execute(
+            gql.gql("mutation($p:FEdocInput!){edoc_upsert(p:$p)}"),
+            variable_values={"p": payload},
         )
-    logger.info("edoc_create: %s", edoc_title)
-    return result["edoc_upsert"]
+        return res["edoc_upsert"]
 
 async def edoc_patch(
     client: ckit_client.FlexusClient,
     p: Dict[str, Any]
-) -> bool:
+) -> FEdocOutput | None:
     http_client = await client.use_http()
     async with http_client as http:
         result = await http.execute(
-            gql.gql(
-                """mutation EdocUpdate($p: FEdocUpdateInput!) {
-                    edoc_update(p: $p)
-                }""",
-            ),
-            variable_values={
-                "p": p,
-            },
+            gql.gql("mutation($p:FEdocUpdateInput!){edoc_update(p:$p)}"),
+            variable_values={"p": p},
         )
     logger.debug("edoc_patch %s updated with %s", p["edoc_id"], {k: v for k, v in p.items()})
     return result["edoc_update"]
