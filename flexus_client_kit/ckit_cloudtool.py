@@ -226,7 +226,7 @@ async def i_am_still_alive(
                             "shared": shared,
                         },
                     )
-                    logger.debug("i_am_still_alive %s", t.name)
+                    logger.info("i_am_still_alive %s", t.name)
             if await ckit_shutdown.wait(120):
                 break
 

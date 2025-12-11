@@ -4,8 +4,8 @@ Skill: Metrics & Decision Framework
 Определяет KPI, рассчитывает MDE, устанавливает stop/accelerate rules.
 Второй шаг после diagnostic.
 
-Входные данные: /strategies/{strategy}/input, /strategies/{strategy}/diagnostic
-Выходные данные: /strategies/{strategy}/metrics
+Входные данные: /marketing-experiments/{experiment_id}/input, /marketing-experiments/{experiment_id}/diagnostic
+Выходные данные: /marketing-experiments/{experiment_id}/metrics
 """
 
 SKILL_NAME = "metrics"
@@ -109,7 +109,7 @@ The input and diagnostic documents are provided below in your first message — 
 
 ## Output Format
 
-Save this JSON to /strategies/{strategy_name}/metrics:
+Save this JSON to /marketing-experiments/{experiment_id}/metrics:
 
 ```json
 {

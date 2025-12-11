@@ -4,8 +4,8 @@ Skill: Segment & JTBD Analysis
 Уточняет целевой сегмент, ICP, jobs-to-be-done, customer journey.
 Третий шаг после diagnostic.
 
-Входные данные: /strategies/{strategy}/input, /strategies/{strategy}/diagnostic
-Выходные данные: /strategies/{strategy}/segment
+Входные данные: /marketing-experiments/{experiment_id}/input, /marketing-experiments/{experiment_id}/diagnostic
+Выходные данные: /marketing-experiments/{experiment_id}/segment
 """
 
 SKILL_NAME = "segment"
@@ -94,7 +94,7 @@ The input and diagnostic documents are provided below in your first message — 
 
 ## Output Format
 
-Save this JSON to /strategies/{strategy_name}/segment:
+Save this JSON to /marketing-experiments/{experiment_id}/segment:
 
 ```json
 {

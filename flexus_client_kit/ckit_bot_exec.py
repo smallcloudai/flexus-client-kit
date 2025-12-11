@@ -270,7 +270,7 @@ async def i_am_still_alive(
                         "ws_id_prefix": fclient.ws_id,
                     },
                 )
-                logger.debug("i_am_still_alive %s:%d ws_id=%s", marketable_name, marketable_version, fclient.ws_id)
+                logger.info("i_am_still_alive %s:%d ws_id=%s", marketable_name, marketable_version, fclient.ws_id)
             if await ckit_shutdown.wait(120):
                 break
 

@@ -5,7 +5,7 @@ Skill: Channel & Experiment Design
 Пятый шаг после messaging.
 
 Входные данные: input, diagnostic, metrics, segment, messaging
-Выходные данные: /strategies/{strategy}/channels
+Выходные данные: /marketing-experiments/{experiment_id}/channels
 """
 
 SKILL_NAME = "channels"
@@ -119,7 +119,7 @@ Budget allocation: prioritize cells with highest uncertainty or potential.
 
 ## Output Format
 
-Save this JSON to /strategies/{strategy_name}/channels:
+Save this JSON to /marketing-experiments/{experiment_id}/channels:
 
 ```json
 {

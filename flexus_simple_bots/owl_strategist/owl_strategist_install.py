@@ -21,15 +21,14 @@ BOT_DESCRIPTION = """
 
 Expert bot for hypothesis validation and go-to-market strategy creation.
 
-**8-step pipeline (strict order):**
-1. 📝 Input — product, hypothesis, budget, timeline
-2. 🔍 Diagnostic — hypothesis classification, identifying unknowns
-3. 📊 Metrics — KPIs, stop-rules, MDE calculation
-4. 👥 Segment — ICP, JTBD, Customer Journey
-5. 💬 Messaging — value proposition, positioning
-6. 📡 Channels — channel selection, experiment design
-7. 🎯 Tactics — campaign specs, creatives, landing pages
-8. ⚖️ Compliance — risk assessment, platform policies
+**7 specialized agents:**
+- 🔍 Diagnostic — hypothesis classification, identifying unknowns
+- 📊 Metrics — KPIs, stop-rules, MDE calculation
+- 👥 Segment — ICP, JTBD, Customer Journey
+- 💬 Messaging — value proposition, positioning
+- 📡 Channels — channel selection, experiment design
+- 🎯 Tactics — campaign specs, creatives, landing pages
+- ⚖️ Compliance — risk assessment, platform policies
 
 **Human-in-the-Loop:**
 Every step is discussed with you — no automation without your understanding and approval.
@@ -39,20 +38,6 @@ Every step is discussed with you — no automation without your understanding an
 - Product managers exploring new markets
 - Marketers planning experiments
 """
-
-
-# Default Lark kernel for agent subchats — used by skills that don't define their own
-DEFAULT_AGENT_LARK = '''
-msg = messages[-1]
-if msg["role"] == "assistant":
-    content = str(msg["content"])
-    if "AGENT_COMPLETE" in content:
-        print("Agent finished, returning result")
-        subchat_result = content
-    elif len(msg["tool_calls"]) == 0:
-        print("Agent stopped without completion marker")
-        post_cd_instruction = "You must complete your analysis. Save your result via flexus_policy_document and end with AGENT_COMPLETE."
-'''
 
 
 async def install(
@@ -94,7 +79,7 @@ async def install(
             {"feat_question": "Help me create a strategy for my hypothesis", "feat_run_as_setup": False, "feat_depends_on_setup": []},
             {"feat_question": "Analyze my product idea", "feat_run_as_setup": False, "feat_depends_on_setup": []},
         ],
-        marketable_intro_message="Привет! Я Сова-Стратег 🦉 Помогаю фаундерам валидировать гипотезы и создавать маркетинговые стратегии. Расскажи о продукте — что хочешь протестировать?",
+        marketable_intro_message="Hi! I'm Owl Strategist 🦉 I help founders validate hypotheses and create marketing strategies. Tell me about your product — what do you want to test?",
         marketable_preferred_model_default="gpt-5.1",
         marketable_daily_budget_default=500_000,
         marketable_default_inbox_default=50_000,
@@ -107,7 +92,7 @@ async def install(
                 fexp_allow_tools="",
                 fexp_app_capture_tools=bot_tools_json,
             )),
-            # Agent: Diagnostic — classify hypothesis, identify unknowns (from skills/diagnostic.py)
+            # Agent A: Diagnostic — classify hypothesis, identify unknowns
             ("diagnostic", ckit_bot_install.FMarketplaceExpertInput(
                 fexp_system_prompt=skill_diagnostic.SYSTEM_PROMPT,
                 fexp_python_kernel=skill_diagnostic.LARK_KERNEL,
@@ -115,7 +100,7 @@ async def install(
                 fexp_allow_tools="",
                 fexp_app_capture_tools=agent_tools_json,
             )),
-            # Agent: Metrics — KPI, MDE, stop/accelerate rules (from skills/metrics.py)
+            # Agent G: Metrics — KPI, MDE, stop/accelerate rules
             ("metrics", ckit_bot_install.FMarketplaceExpertInput(
                 fexp_system_prompt=skill_metrics.SYSTEM_PROMPT,
                 fexp_python_kernel=skill_metrics.LARK_KERNEL,
@@ -123,7 +108,7 @@ async def install(
                 fexp_allow_tools="",
                 fexp_app_capture_tools=agent_tools_json,
             )),
-            # Agent: Segment — ICP, JTBD, customer journey (from skills/segment.py)
+            # Agent B: Segment — ICP, JTBD, customer journey
             ("segment", ckit_bot_install.FMarketplaceExpertInput(
                 fexp_system_prompt=skill_segment.SYSTEM_PROMPT,
                 fexp_python_kernel=skill_segment.LARK_KERNEL,
@@ -131,7 +116,7 @@ async def install(
                 fexp_allow_tools="",
                 fexp_app_capture_tools=agent_tools_json,
             )),
-            # Agent: Messaging — value prop, angles, objections (from skills/messaging.py)
+            # Agent C: Messaging — value prop, angles, objections
             ("messaging", ckit_bot_install.FMarketplaceExpertInput(
                 fexp_system_prompt=skill_messaging.SYSTEM_PROMPT,
                 fexp_python_kernel=skill_messaging.LARK_KERNEL,
@@ -139,7 +124,7 @@ async def install(
                 fexp_allow_tools="",
                 fexp_app_capture_tools=agent_tools_json,
             )),
-            # Agent: Channels — channel selection, test cells, budget (from skills/channels.py)
+            # Agent D: Channels — channel selection, test cells, budget
             ("channels", ckit_bot_install.FMarketplaceExpertInput(
                 fexp_system_prompt=skill_channels.SYSTEM_PROMPT,
                 fexp_python_kernel=skill_channels.LARK_KERNEL,
@@ -147,7 +132,7 @@ async def install(
                 fexp_allow_tools="",
                 fexp_app_capture_tools=agent_tools_json,
             )),
-            # Agent: Tactics — campaigns, creatives, landing, tracking (from skills/tactics.py)
+            # Agent E: Tactics — campaigns, creatives, landing, tracking
             ("tactics", ckit_bot_install.FMarketplaceExpertInput(
                 fexp_system_prompt=skill_tactics.SYSTEM_PROMPT,
                 fexp_python_kernel=skill_tactics.LARK_KERNEL,
@@ -155,7 +140,7 @@ async def install(
                 fexp_allow_tools="",
                 fexp_app_capture_tools=agent_tools_json,
             )),
-            # Agent: Compliance — risks, ads policies, privacy (from skills/compliance.py)
+            # Agent F: Compliance — risks, ads policies, privacy
             ("compliance", ckit_bot_install.FMarketplaceExpertInput(
                 fexp_system_prompt=skill_compliance.SYSTEM_PROMPT,
                 fexp_python_kernel=skill_compliance.LARK_KERNEL,
@@ -174,10 +159,4 @@ async def install(
 if __name__ == "__main__":
     args = ckit_bot_install.bot_install_argparse()
     client = ckit_client.FlexusClient("owl_strategist_install")
-    asyncio.run(install(
-        client,
-        ws_id=args.ws,
-        bot_name=owl_strategist_bot.BOT_NAME,
-        bot_version=owl_strategist_bot.BOT_VERSION,
-        tools=owl_strategist_bot.TOOLS,
-    ))
+    asyncio.run(install(client, ws_id=args.ws))

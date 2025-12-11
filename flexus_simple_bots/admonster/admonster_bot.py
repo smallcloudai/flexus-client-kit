@@ -10,9 +10,9 @@ from flexus_client_kit import ckit_cloudtool
 from flexus_client_kit import ckit_bot_exec
 from flexus_client_kit import ckit_shutdown
 from flexus_client_kit import ckit_mongo
-from flexus_client_kit.integrations import fi_pdoc
 from flexus_client_kit.integrations import fi_mongo_store
 from flexus_client_kit.integrations import fi_linkedin
+from flexus_client_kit.integrations import fi_pdoc
 from flexus_client_kit.integrations.facebook.fi_facebook import IntegrationFacebook, FACEBOOK_TOOL
 from flexus_simple_bots.admonster import admonster_install
 from flexus_simple_bots.version_common import SIMPLE_BOTS_COMMON_VERSION
@@ -43,10 +43,10 @@ async def admonster_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_e
     mydb = mongo[rcx.persona.persona_id + "_db"]
     personal_mongo = mydb["personal_mongo"]
 
+    pdoc_integration = fi_pdoc.IntegrationPdoc(rcx, rcx.persona.ws_root_group_id)
+
     ad_account_id = setup.get("ad_account_id", "")
     fb_ad_account_id = setup.get("facebook_ad_account_id", "")
-
-    pdoc_integration = fi_pdoc.IntegrationPdoc(rcx, rcx.persona.ws_root_group_id)
 
     linkedin_integration = None
     if (LINKEDIN_CLIENT_ID and LINKEDIN_CLIENT_SECRET) or rcx.running_test_scenario:

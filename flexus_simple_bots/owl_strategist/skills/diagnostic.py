@@ -4,8 +4,8 @@ Skill: Diagnostic Analysis
 Классифицирует гипотезу, выявляет unknowns, оценивает feasibility.
 Первый шаг после сбора input.
 
-Входные данные: /strategies/{strategy}/input
-Выходные данные: /strategies/{strategy}/diagnostic
+Входные данные: /marketing-experiments/{experiment_id}/input
+Выходные данные: /marketing-experiments/{experiment_id}/diagnostic
 """
 
 SKILL_NAME = "diagnostic"
@@ -108,7 +108,7 @@ The input document is provided below in your first message — no need to read i
 
 ## Output Format
 
-Save this JSON to /strategies/{strategy_name}/diagnostic:
+Save this JSON to /marketing-experiments/{experiment_id}/diagnostic:
 
 ```json
 {

@@ -4,8 +4,8 @@ Skill: Value & Messaging Strategy
 Создаёт value proposition, ключевые сообщения, углы подачи, работу с возражениями.
 Четвёртый шаг после segment.
 
-Входные данные: /strategies/{strategy}/input, /strategies/{strategy}/diagnostic, /strategies/{strategy}/segment
-Выходные данные: /strategies/{strategy}/messaging
+Входные данные: /marketing-experiments/{experiment_id}/input, diagnostic, segment
+Выходные данные: /marketing-experiments/{experiment_id}/messaging
 """
 
 SKILL_NAME = "messaging"
@@ -99,7 +99,7 @@ The input, diagnostic, and segment documents are provided below in your first me
 
 ## Output Format
 
-Save this JSON to /strategies/{strategy_name}/messaging:
+Save this JSON to /marketing-experiments/{experiment_id}/messaging:
 
 ```json
 {

@@ -1,7 +1,6 @@
 import asyncio
 import json
 import logging
-import time
 from typing import Dict, Any, Optional
 
 from flexus_client_kit import ckit_client
@@ -11,15 +10,9 @@ from flexus_client_kit import ckit_shutdown
 from flexus_client_kit import ckit_ask_model
 from flexus_client_kit import ckit_kanban
 from flexus_client_kit.integrations import fi_pdoc
-from flexus_simple_bots.owl_strategist import owl_strategist_install
 from flexus_simple_bots.version_common import SIMPLE_BOTS_COMMON_VERSION
+from flexus_simple_bots.owl_strategist import owl_strategist_install
 from flexus_simple_bots.owl_strategist.skills import diagnostic as skill_diagnostic
-from flexus_simple_bots.owl_strategist.skills import metrics as skill_metrics
-from flexus_simple_bots.owl_strategist.skills import segment as skill_segment
-from flexus_simple_bots.owl_strategist.skills import messaging as skill_messaging
-from flexus_simple_bots.owl_strategist.skills import channels as skill_channels
-from flexus_simple_bots.owl_strategist.skills import tactics as skill_tactics
-from flexus_simple_bots.owl_strategist.skills import compliance as skill_compliance
 
 logger = logging.getLogger("bot_owl_strategist")
 
@@ -36,12 +29,12 @@ AGENTS = ["diagnostic", "metrics", "segment", "messaging", "channels", "tactics"
 # Import descriptions from skill modules
 AGENT_DESCRIPTIONS = {
     "diagnostic": skill_diagnostic.SKILL_DESCRIPTION,
-    "metrics": skill_metrics.SKILL_DESCRIPTION,
-    "segment": skill_segment.SKILL_DESCRIPTION,
-    "messaging": skill_messaging.SKILL_DESCRIPTION,
-    "channels": skill_channels.SKILL_DESCRIPTION,
-    "tactics": skill_tactics.SKILL_DESCRIPTION,
-    "compliance": skill_compliance.SKILL_DESCRIPTION,
+    "metrics": "Metrics Framework — defining KPIs, stop-rules, MDE",
+    "segment": "Segment Analysis — ICP, JTBD, customer journey",
+    "messaging": "Messaging Strategy — value proposition, angles",
+    "channels": "Channel Strategy — channel selection, test cells",
+    "tactics": "Tactical Spec — campaigns, creatives, landing",
+    "compliance": "Risk & Compliance — policies, privacy, risks",
 }
 
 STEP_DESCRIPTIONS = {
@@ -52,20 +45,19 @@ STEP_DESCRIPTIONS = {
 
 SAVE_INPUT_TOOL = ckit_cloudtool.CloudTool(
     name="save_input",
-    description="Save collected input data to start the strategy pipeline. Call after collecting product/hypothesis/budget/timeline from user.",
+    description="Save collected input data to start marketing experiment. Call after collecting product/hypothesis/budget/timeline from user.",
     parameters={
         "type": "object",
         "properties": {
-            "strategy_name": {"type": "string", "description": "kebab-case strategy name, should relate to hypothesis source"},
+            "experiment_id": {"type": "string", "description": "{hyp_id}-{experiment-slug} e.g. hyp001-meta-ads-test"},
             "product_description": {"type": "string", "description": "What the product/service does"},
             "hypothesis": {"type": "string", "description": "What we want to test"},
             "stage": {"type": "string", "enum": ["idea", "mvp", "scaling"], "description": "Current stage"},
             "budget": {"type": "string", "description": "Budget constraints"},
             "timeline": {"type": "string", "description": "Timeline expectations"},
             "additional_context": {"type": "string", "description": "Any other relevant context"},
-            "hypothesis_source": {"type": "string", "description": "Path to source doc if hypothesis came from /customer-research/, e.g. /customer-research/b2b-saas/hypothesis"},
         },
-        "required": ["strategy_name", "product_description", "hypothesis", "stage"],
+        "required": ["experiment_id", "product_description", "hypothesis", "stage"],
     },
 )
 
@@ -75,7 +67,7 @@ RUN_AGENT_TOOL = ckit_cloudtool.CloudTool(
     parameters={
         "type": "object",
         "properties": {
-            "strategy_name": {"type": "string", "description": "kebab-case strategy name"},
+            "experiment_id": {"type": "string", "description": "{hyp_id}-{experiment-slug} e.g. hyp001-meta-ads-test"},
             "agent": {
                 "type": "string",
                 "enum": AGENTS,
@@ -83,7 +75,7 @@ RUN_AGENT_TOOL = ckit_cloudtool.CloudTool(
             },
             "user_additions": {"type": "string", "description": "Important context from user to consider"},
         },
-        "required": ["strategy_name", "agent"],
+        "required": ["experiment_id", "agent"],
     },
 )
 
@@ -93,26 +85,26 @@ RERUN_AGENT_TOOL = ckit_cloudtool.CloudTool(
     parameters={
         "type": "object",
         "properties": {
-            "strategy_name": {"type": "string", "description": "Strategy name"},
+            "experiment_id": {"type": "string", "description": "{hyp_id}-{experiment-slug}"},
             "agent": {
                 "type": "string",
                 "enum": AGENTS,
             },
             "feedback": {"type": "string", "description": "What to change based on user feedback"},
         },
-        "required": ["strategy_name", "agent", "feedback"],
+        "required": ["experiment_id", "agent", "feedback"],
     },
 )
 
 GET_PIPELINE_STATUS_TOOL = ckit_cloudtool.CloudTool(
     name="get_pipeline_status",
-    description="Get current pipeline status for a strategy — which steps are done, which is next.",
+    description="Get current pipeline status for marketing experiment — which steps are done, which is next.",
     parameters={
         "type": "object",
         "properties": {
-            "strategy_name": {"type": "string", "description": "Strategy name"},
+            "experiment_id": {"type": "string", "description": "{hyp_id}-{experiment-slug}"},
         },
-        "required": ["strategy_name"],
+        "required": ["experiment_id"],
     },
 )
 
@@ -128,25 +120,33 @@ AGENT_TOOLS = [
     fi_pdoc.POLICY_DOCUMENT_TOOL,
 ]
 
+# Which previous docs each agent needs (all steps before it in pipeline)
+AGENT_REQUIRED_DOCS = {
+    "diagnostic": ["input"],
+    "metrics": ["input", "diagnostic"],
+    "segment": ["input", "diagnostic", "metrics"],
+    "messaging": ["input", "diagnostic", "segment"],
+    "channels": ["input", "diagnostic", "metrics", "segment", "messaging"],
+    "tactics": ["input", "diagnostic", "metrics", "segment", "messaging", "channels"],
+    "compliance": ["input", "diagnostic", "metrics", "segment", "messaging", "channels", "tactics"],
+}
+
 
 async def owl_strategist_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.RobotContext) -> None:
     pdoc_integration = fi_pdoc.IntegrationPdoc(rcx, rcx.persona.ws_root_group_id)
     fuser_id = rcx.persona.persona_id
 
-    # Protection against duplicate tool call processing (race condition fix)
-    processed_fcalls: set = set()
-
-    async def step_exists(strategy_name: str, step: str) -> bool:
+    async def step_exists(experiment_id: str, step: str) -> bool:
         try:
-            await pdoc_integration.pdoc_cat(f"/strategies/{strategy_name}/{step}", fuser_id)
+            await pdoc_integration.pdoc_cat(f"/marketing-experiments/{experiment_id}/{step}", fuser_id)
             return True
         except Exception:
             return False
 
-    async def get_pipeline_status(strategy_name: str) -> Dict[str, Any]:
+    async def get_pipeline_status(experiment_id: str) -> Dict[str, Any]:
         completed = []
         for step in PIPELINE:
-            if await step_exists(strategy_name, step):
+            if await step_exists(experiment_id, step):
                 completed.append(step)
             else:
                 break
@@ -157,58 +157,32 @@ async def owl_strategist_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_
             "all_done": len(completed) == len(PIPELINE),
         }
 
-    async def check_can_run_agent(strategy_name: str, agent: str) -> Optional[str]:
+    async def check_can_run_agent(experiment_id: str, agent: str) -> Optional[str]:
         agent_idx = PIPELINE.index(agent)
         if agent_idx == 0:
             return None
         prev_step = PIPELINE[agent_idx - 1]
-        if not await step_exists(strategy_name, prev_step):
+        if not await step_exists(experiment_id, prev_step):
             return f"Нельзя запустить {agent} — сначала нужно завершить {prev_step}. Порядок: {' → '.join(PIPELINE)}"
         return None
 
-    # What documents each agent needs as input
-    AGENT_REQUIRED_DOCS = {
-        "diagnostic": ["input"],
-        "metrics": ["input", "diagnostic"],
-        "segment": ["input", "diagnostic"],
-        "messaging": ["input", "diagnostic", "segment"],
-        "channels": ["input", "diagnostic", "metrics", "segment", "messaging"],
-        "tactics": ["input", "diagnostic", "metrics", "segment", "messaging", "channels"],
-        "compliance": ["input", "tactics"],
-    }
-
-    async def _load_agent_context(pdoc: fi_pdoc.IntegrationPdoc, fuser_id: str, strategy_name: str, agent: str, soft: bool = False, include_current: bool = False) -> Dict[str, Any]:
-        """Load required documents for agent.
-        
-        soft=True: don't fail if document is missing, just skip it
-        include_current=True: also load the agent's own output (for rerun)
-        """
-        required = list(AGENT_REQUIRED_DOCS.get(agent, ["input"]))
+    async def load_agent_context(experiment_id: str, agent: str, include_current: bool = False) -> str:
+        """Load all required documents for an agent and format them for the first message."""
+        required = list(AGENT_REQUIRED_DOCS.get(agent, []))
         if include_current and agent not in required:
             required.append(agent)
-        
-        docs = {}
-        missing = []
+
+        docs = []
         for doc_name in required:
             try:
-                content = await pdoc.pdoc_cat(f"/strategies/{strategy_name}/{doc_name}", fuser_id)
-                docs[doc_name] = content
+                content = await pdoc_integration.pdoc_cat(f"/marketing-experiments/{experiment_id}/{doc_name}", fuser_id)
+                docs.append(f"### {doc_name}\n```json\n{content}\n```")
             except Exception as e:
-                if soft:
-                    missing.append(doc_name)
-                else:
-                    return {"error": f"Cannot run {agent}: missing required document '{doc_name}'. Error: {e}"}
+                logger.warning(f"Could not load {doc_name}: {e}")
 
         if not docs:
-            return {"error": f"Cannot run {agent}: no documents found"}
-
-        # Format as readable context
-        lines = ["## Input Documents"]
-        for doc_name, content in docs.items():
-            lines.append(f"\n### {doc_name}\n```json\n{content}\n```")
-        if missing:
-            lines.append(f"\n(Note: documents not found: {', '.join(missing)})")
-        return {"content": "\n".join(lines)}
+            return ""
+        return "## Input Documents\n\n" + "\n\n".join(docs)
 
     @rcx.on_updated_message
     async def updated_message_in_db(msg: ckit_ask_model.FThreadMessageOutput):
@@ -224,9 +198,9 @@ async def owl_strategist_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_
 
     @rcx.on_tool_call(SAVE_INPUT_TOOL.name)
     async def toolcall_save_input(toolcall: ckit_cloudtool.FCloudtoolCall, args: Dict[str, Any]) -> str:
-        strategy_name = args.get("strategy_name", "")
-        if not strategy_name:
-            return "Error: strategy_name is required"
+        experiment_id = args.get("experiment_id", "")
+        if not experiment_id:
+            return "Error: experiment_id is required (format: {hyp_id}-{slug}, e.g. hyp001-meta-ads-test)"
 
         input_doc = {
             "product_description": args.get("product_description", ""),
@@ -235,10 +209,9 @@ async def owl_strategist_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_
             "budget": args.get("budget", ""),
             "timeline": args.get("timeline", ""),
             "additional_context": args.get("additional_context", ""),
-            "hypothesis_source": args.get("hypothesis_source", ""),  # link to /customer-research/... doc
         }
 
-        path = f"/strategies/{strategy_name}/input"
+        path = f"/marketing-experiments/{experiment_id}/input"
         try:
             await pdoc_integration.pdoc_create(path, json.dumps(input_doc, ensure_ascii=False), fuser_id)
         except Exception as e:
@@ -247,10 +220,10 @@ async def owl_strategist_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_
             else:
                 return f"Error saving input: {e}"
 
-        status = await get_pipeline_status(strategy_name)
+        status = await get_pipeline_status(experiment_id)
         return f"""✍️ {path}
 
-✓ Input сохранён для стратегии "{strategy_name}"
+✓ Input сохранён для эксперимента "{experiment_id}"
 
 Pipeline status:
 - Завершено: {', '.join(status['completed']) or 'ничего'}
@@ -260,43 +233,25 @@ Pipeline status:
 
     @rcx.on_tool_call(RUN_AGENT_TOOL.name)
     async def toolcall_run_agent(toolcall: ckit_cloudtool.FCloudtoolCall, args: Dict[str, Any]) -> str:
-        age = time.time() - toolcall.fcall_created_ts
-        logger.info("run_agent ENTRY: fcall_id=%s age=%.1fs processed_count=%d args=%s",
-            toolcall.fcall_id, age, len(processed_fcalls), args)
-
-        # Dedupe: prevent processing same tool call multiple times (race condition)
-        if toolcall.fcall_id in processed_fcalls:
-            logger.warning("DEDUPE BLOCK: run_agent call %s already in processed_fcalls", toolcall.fcall_id)
-            return "Already processing this request"
-        processed_fcalls.add(toolcall.fcall_id)
-        logger.info("run_agent ACCEPTED: fcall_id=%s, now processed_fcalls=%s", toolcall.fcall_id, processed_fcalls)
-
-        strategy_name = args.get("strategy_name", "")
+        experiment_id = args.get("experiment_id", "")
         agent = args.get("agent", "")
         user_additions = args.get("user_additions", "")
 
-        if not strategy_name:
-            return "Error: strategy_name is required"
+        if not experiment_id:
+            return "Error: experiment_id is required (format: {hyp_id}-{slug})"
         if agent not in AGENTS:
             return f"Error: agent must be one of {AGENTS}"
 
-        error = await check_can_run_agent(strategy_name, agent)
+        error = await check_can_run_agent(experiment_id, agent)
         if error:
             return error
 
-        # Load required context for the agent
-        context_docs = await _load_agent_context(pdoc_integration, fuser_id, strategy_name, agent)
-        if context_docs.get("error"):
-            return context_docs["error"]
-
-        q = f"""Strategy: {strategy_name}
-Output path: /strategies/{strategy_name}/{agent}
-
-{context_docs["content"]}"""
+        context = await load_agent_context(experiment_id, agent)
+        q = f"Experiment: {experiment_id}\nOutput path: /marketing-experiments/{experiment_id}/{agent}\n\n{context}"
         if user_additions:
-            q += f"\n\nAdditional context from user:\n{user_additions}"
+            q += f"\n\n## User Context\n{user_additions}"
 
-        logger.info(f"Starting agent '{agent}' for strategy '{strategy_name}'")
+        logger.info(f"Starting agent '{agent}' for experiment '{experiment_id}'")
 
         await ckit_ask_model.bot_subchat_create_multiple(
             client=fclient,
@@ -312,48 +267,31 @@ Output path: /strategies/{strategy_name}/{agent}
 
     @rcx.on_tool_call(RERUN_AGENT_TOOL.name)
     async def toolcall_rerun_agent(toolcall: ckit_cloudtool.FCloudtoolCall, args: Dict[str, Any]) -> str:
-        # Reject stale tool calls from previous bot runs
-        age = time.time() - toolcall.fcall_created_ts
-        if age > 60:
-            logger.warning("Stale rerun_agent call %s ignored (age=%.1fs)", toolcall.fcall_id, age)
-            return f"Stale request ignored (created {age:.0f}s ago). Please retry."
-
-        # Dedupe: prevent processing same tool call multiple times
-        if toolcall.fcall_id in processed_fcalls:
-            logger.warning("Duplicate rerun_agent call %s ignored", toolcall.fcall_id)
-            return "Already processing this request"
-        processed_fcalls.add(toolcall.fcall_id)
-
-        strategy_name = args.get("strategy_name", "")
+        experiment_id = args.get("experiment_id", "")
         agent = args.get("agent", "")
         feedback = args.get("feedback", "")
 
-        if not strategy_name:
-            return "Error: strategy_name is required"
+        if not experiment_id:
+            return "Error: experiment_id is required (format: {hyp_id}-{slug})"
         if agent not in AGENTS:
             return f"Error: agent must be one of {AGENTS}"
         if not feedback:
             return "Error: feedback is required for rerun"
 
-        if not await step_exists(strategy_name, agent):
+        if not await step_exists(experiment_id, agent):
             return f"Error: {agent} ещё не был запущен, нечего перезапускать. Используй run_agent."
 
-        # Load all context docs + current result (soft mode — don't fail on missing)
-        context_docs = await _load_agent_context(pdoc_integration, fuser_id, strategy_name, agent, soft=True, include_current=True)
-        if context_docs.get("error"):
-            return context_docs["error"]
+        # Load all docs including current one for rerun
+        context = await load_agent_context(experiment_id, agent, include_current=True)
+        q = f"""Experiment: {experiment_id}
+Output path: /marketing-experiments/{experiment_id}/{agent}
 
-        q = f"""Strategy: {strategy_name}
-Output path: /strategies/{strategy_name}/{agent}
+RERUN with corrections. Apply this feedback to the current document:
+{feedback}
 
-{context_docs["content"]}
+{context}"""
 
----
-
-RERUN with corrections. Apply this feedback to the current {agent} document and save updated result:
-{feedback}"""
-
-        logger.info(f"Rerunning agent '{agent}' for strategy '{strategy_name}' with feedback")
+        logger.info(f"Rerunning agent '{agent}' for experiment '{experiment_id}' with feedback")
 
         await ckit_ask_model.bot_subchat_create_multiple(
             client=fclient,
@@ -369,13 +307,13 @@ RERUN with corrections. Apply this feedback to the current {agent} document and 
 
     @rcx.on_tool_call(GET_PIPELINE_STATUS_TOOL.name)
     async def toolcall_get_pipeline_status(toolcall: ckit_cloudtool.FCloudtoolCall, args: Dict[str, Any]) -> str:
-        strategy_name = args.get("strategy_name", "")
-        if not strategy_name:
-            return "Error: strategy_name is required"
+        experiment_id = args.get("experiment_id", "")
+        if not experiment_id:
+            return "Error: experiment_id is required (format: {hyp_id}-{slug})"
 
-        status = await get_pipeline_status(strategy_name)
+        status = await get_pipeline_status(experiment_id)
 
-        lines = [f"Pipeline status for \"{strategy_name}\":\n"]
+        lines = [f"Pipeline status for \"{experiment_id}\":\n"]
         for step in PIPELINE:
             if step in status["completed"]:
                 lines.append(f"  ✓ {step} — {STEP_DESCRIPTIONS.get(step, step)}")
@@ -385,7 +323,7 @@ RERUN with corrections. Apply this feedback to the current {agent} document and 
                 lines.append(f"  ○ {step} — {STEP_DESCRIPTIONS.get(step, step)}")
 
         if status["all_done"]:
-            lines.append("\n✓ Все шаги завершены! Стратегия готова к передаче Ad Monster.")
+            lines.append("\n✓ Все шаги завершены! Эксперимент готов к запуску Ad Monster.")
         else:
             lines.append(f"\nСледующий шаг: {status['next_step']}")
 

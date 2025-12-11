@@ -5,7 +5,7 @@ Skill: Risk & Compliance Check
 Последний шаг перед запуском.
 
 Входные данные: input, tactics
-Выходные данные: /strategies/{strategy}/compliance
+Выходные данные: /marketing-experiments/{experiment_id}/compliance
 """
 
 SKILL_NAME = "compliance"
@@ -121,7 +121,7 @@ The input and tactics documents are provided below — no need to read them.
 
 ## Output Format
 
-Save this JSON to /strategies/{strategy_name}/compliance:
+Save this JSON to /marketing-experiments/{experiment_id}/compliance:
 
 ```json
 {

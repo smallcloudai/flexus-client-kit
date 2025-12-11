@@ -106,6 +106,26 @@ class IntegrationPdoc:
         self.problems = []
         self.is_fake = rcx.running_test_scenario
 
+    def _is_empty_document(self, parsed: Any) -> bool:
+        """Check if document is empty/template — only empty arrays, empty strings, empty dicts."""
+        if parsed == {} or parsed == []:
+            return True
+        if not isinstance(parsed, dict):
+            return False
+        # Check if all values are empty (arrays, strings, dicts)
+        for v in parsed.values():
+            if isinstance(v, str) and v.strip():
+                return False
+            if isinstance(v, list) and len(v) > 0:
+                return False
+            if isinstance(v, dict) and len(v) > 0 and not self._is_empty_document(v):
+                return False
+            if isinstance(v, (int, float)) and v != 0:
+                return False
+            if isinstance(v, bool):
+                return False  # bool values are meaningful
+        return True
+
     async def called_by_model(self, toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Optional[Dict[str, Any]]) -> str:
         if not model_produced_args:
             return HELP
@@ -162,9 +182,21 @@ class IntegrationPdoc:
                     return f"Error: text parameter required\n\n{HELP}"
 
                 try:
-                    json.loads(text)
+                    parsed = json.loads(text)
                 except json.JSONDecodeError as e:
                     return f"Error: text must be valid JSON: {str(e)}"
+
+                # Block empty/template documents — model must generate real content
+                if self._is_empty_document(parsed):
+                    return (
+                        f"REJECTED: Cannot save empty document to {p}.\n\n"
+                        "You provided an empty JSON object or a template with empty arrays/strings.\n"
+                        "Generate REAL content first:\n"
+                        "- Fill arrays with actual items\n"
+                        "- Write real text in string fields\n"
+                        "- Provide concrete values, not placeholders\n\n"
+                        "Then call policy_document(op=overwrite) again with the filled document."
+                    )
 
                 if self.is_fake:
                     return await ckit_scenario.scenario_generate_tool_result_via_model(self.fclient, toolcall, open(__file__).read())

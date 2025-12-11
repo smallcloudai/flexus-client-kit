@@ -5,7 +5,7 @@ Skill: Tactics & Spec Generator
 Шестой шаг после channels.
 
 Входные данные: input, diagnostic, metrics, segment, messaging, channels
-Выходные данные: /strategies/{strategy}/tactics
+Выходные данные: /marketing-experiments/{experiment_id}/tactics
 """
 
 SKILL_NAME = "tactics"
@@ -25,7 +25,7 @@ if msg["role"] == "assistant":
         print("BLOCKED: %d parallel tool calls, only first allowed" % len(tool_calls))
         kill_tools = [tc["id"] for tc in tool_calls[1:]]
 
-    # Block dangerous operations
+    # Block dangerous operations (rm)
     for tc in tool_calls:
         fn = tc.get("function", {})
         args_str = fn.get("arguments", "{}")
@@ -34,6 +34,7 @@ if msg["role"] == "assistant":
             kill_tools = [tc["id"]]
             post_cd_instruction = "NEVER use op=rm. Use op=overwrite if document exists."
             break
+    # Empty document validation moved to fi_pdoc.py — returns clear error as tool result
 
     # Check completion
     if "AGENT_COMPLETE" in content:
@@ -59,7 +60,16 @@ if msg["role"] == "assistant":
 SYSTEM_PROMPT = """
 # Agent: Tactics & Spec Generator
 
-You are a specialized subchat agent. You run as an isolated task, save your result to a policy document, and exit.
+You are a specialized subchat agent. Your ONLY job: turn channel strategy into concrete campaign specs.
+
+## CRITICAL: Generate Real Content, Not Templates
+
+You will receive a LOT of context (~30k tokens). DO NOT get overwhelmed. Focus on:
+1. **test_cells** from channels doc → these become your campaigns
+2. **angles** from messaging doc → these become your creatives  
+3. **target_values** from metrics doc → use for tracking setup
+
+**NEVER save empty templates or placeholders.** The system blocks documents under 3000 chars.
 
 ## How This Works
 
@@ -73,18 +83,22 @@ You are a specialized subchat agent. You run as an isolated task, save your resu
 - **ONE tool call at a time** — parallel calls are blocked by the system
 - **NEVER use op="rm"** — if document exists, use op="overwrite" instead
 - **MUST end with AGENT_COMPLETE** — or the system will keep prompting you
-- **Be concise** — you're a worker, not a conversationalist
+- **Generate REAL content** — actual campaigns, actual copy, actual specs
 
 ## Your Task
 
-All previous documents (input, diagnostic, metrics, segment, messaging, channels) are provided below — no need to read them.
+All previous documents are provided in your first message. Extract:
+- From **channels**: test_cells array → each cell becomes an adset
+- From **messaging**: angles array → use hooks/descriptions for ad copy
+- From **segment**: ICP details → use for targeting
+- From **metrics**: target_values → use for optimization goals
 
-1. Generate campaign specifications for each channel
-2. Create creative briefs for each angle
-3. Define landing page structure
-4. Specify tracking requirements and UTM schema
-5. Save result to the output path (use "create" or "overwrite")
-6. Write AGENT_COMPLETE
+Then generate:
+1. Campaign specs for each channel (Meta, LinkedIn, Twitter, YouTube)
+2. Creative briefs with REAL copy (not placeholders)
+3. Landing page structure with actual headlines
+4. Tracking requirements
+5. Save result and write AGENT_COMPLETE
 
 ## Campaign Structure
 
@@ -106,7 +120,7 @@ For each creative:
 
 ## Output Format
 
-Save this JSON to /strategies/{strategy_name}/tactics:
+Save this JSON to /marketing-experiments/{experiment_id}/tactics:
 
 ```json
 {
