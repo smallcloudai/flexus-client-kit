@@ -31,7 +31,9 @@ class NeedsConfirmation(Exception):
 
 
 class WaitForSubchats(Exception):
-    pass
+    def __init__(self, subchats: List[str]):
+        self.subchats = subchats
+        super().__init__(f"Waiting for subchats: {subchats}")
 
 
 @dataclass
@@ -150,12 +152,12 @@ async def call_python_function_and_save_result(
         await cloudtool_post_result(fclient, call.fcall_id, call.fcall_untrusted_key, content, prov)
 
 
-async def cloudtool_post_result(fclient: ckit_client.FlexusClient, fcall_id: str, fcall_untrusted_key: str, content: str, prov: str, dollars: float = 0.0):
+async def cloudtool_post_result(fclient: ckit_client.FlexusClient, fcall_id: str, fcall_untrusted_key: str, content: str, prov: str, dollars: float = 0.0, as_placeholder: bool = False):
     http_client = await fclient.use_http()
     async with http_client as http:
         await http.execute(
-            gql.gql("""mutation CloudtoolPost($input: CloudtoolResultInput!) {
-                cloudtool_post_result(input: $input)
+            gql.gql("""mutation CloudtoolPost($input: CloudtoolResultInput!, $as_placeholder: Boolean!) {
+                cloudtool_post_result(input: $input, as_placeholder: $as_placeholder)
             }"""),
             variable_values={
                 "input": {
@@ -164,7 +166,8 @@ async def cloudtool_post_result(fclient: ckit_client.FlexusClient, fcall_id: str
                     "ftm_content": content,
                     "ftm_provenance": prov,
                     "dollars": dollars,
-                }
+                },
+                "as_placeholder": as_placeholder,
             },
         )
 

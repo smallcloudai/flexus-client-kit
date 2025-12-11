@@ -125,7 +125,7 @@ async def frog_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.R
         tongue_capacity_used[toolcall.fcall_ft_id] = used + N
         remaining = setup["tongue_capacity"] - tongue_capacity_used[toolcall.fcall_ft_id]
 
-        await ckit_ask_model.bot_subchat_create_multiple(
+        subchats = await ckit_ask_model.bot_subchat_create_multiple(
             client=fclient,
             who_is_asking="frog_catch_insects",
             persona_id=rcx.persona.persona_id,
@@ -135,7 +135,7 @@ async def frog_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.R
             fcall_id=toolcall.fcall_id,
             skill="huntmode",
         )
-        raise ckit_cloudtool.WaitForSubchats()
+        raise ckit_cloudtool.WaitForSubchats(subchats)
 
     @rcx.on_tool_call(fi_mongo_store.MONGO_STORE_TOOL.name)
     async def toolcall_mongo_store(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:

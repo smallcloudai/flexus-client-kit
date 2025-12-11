@@ -112,7 +112,7 @@ async def owl_strategist_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_
 
         logger.info(f"Starting agent '{agent}' for strategy '{strategy_name}'")
 
-        await ckit_ask_model.bot_subchat_create_multiple(
+        subchats = await ckit_ask_model.bot_subchat_create_multiple(
             client=fclient,
             who_is_asking=f"owl_{agent}",
             persona_id=rcx.persona.persona_id,
@@ -122,7 +122,7 @@ async def owl_strategist_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_
             fcall_id=toolcall.fcall_id,
             skill=agent,
         )
-        raise ckit_cloudtool.WaitForSubchats()
+        raise ckit_cloudtool.WaitForSubchats(subchats)
 
     @rcx.on_tool_call(RERUN_AGENT_TOOL.name)
     async def toolcall_rerun_agent(toolcall: ckit_cloudtool.FCloudtoolCall, args: Dict[str, Any]) -> str:
@@ -147,7 +147,7 @@ Read previous result from /strategies/{strategy_name}/{agent}.json, apply the fe
 
         logger.info(f"Rerunning agent '{agent}' for strategy '{strategy_name}' with feedback")
 
-        await ckit_ask_model.bot_subchat_create_multiple(
+        subchats = await ckit_ask_model.bot_subchat_create_multiple(
             client=fclient,
             who_is_asking=f"owl_{agent}_rerun",
             persona_id=rcx.persona.persona_id,
@@ -157,7 +157,7 @@ Read previous result from /strategies/{strategy_name}/{agent}.json, apply the fe
             fcall_id=toolcall.fcall_id,
             skill=agent,
         )
-        raise ckit_cloudtool.WaitForSubchats()
+        raise ckit_cloudtool.WaitForSubchats(subchats)
 
     @rcx.on_tool_call(fi_pdoc.POLICY_DOCUMENT_TOOL.name)
     async def toolcall_pdoc(toolcall: ckit_cloudtool.FCloudtoolCall, args: Dict[str, Any]) -> str:

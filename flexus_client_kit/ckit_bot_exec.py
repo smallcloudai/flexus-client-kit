@@ -189,6 +189,7 @@ class RobotContext:
     async def _local_tool_call(self, fclient: ckit_client.FlexusClient, toolcall: ckit_cloudtool.FCloudtoolCall) -> None:
         logger.info("%s local_tool_call %s %s(%s) from thread %s" % (self.persona.persona_id, toolcall.fcall_id, toolcall.fcall_name, toolcall.fcall_arguments, toolcall.fcall_ft_id))
         already_serialized = False
+        subchats_list = None
         try:
             args = json.loads(toolcall.fcall_arguments)
             if not isinstance(args, dict):
@@ -212,8 +213,9 @@ class RobotContext:
         except json.JSONDecodeError:
             # nothing in logs -- normal for a model to produce garbage on occasion
             tool_result = "Arguments expected to be a valid json, instead got: %r" % args
-        except ckit_cloudtool.WaitForSubchats:
+        except ckit_cloudtool.WaitForSubchats as e:
             tool_result = "WAIT_SUBCHATS"
+            subchats_list = e.subchats
         except ckit_cloudtool.NeedsConfirmation as e:
             logger.info("%s needs human confirmation: %s" % (toolcall.fcall_id, e.confirm_explanation))
             await ckit_cloudtool.cloudtool_confirmation_request(fclient, toolcall.fcall_id, e.confirm_setup_key, e.confirm_command, e.confirm_explanation)
@@ -224,11 +226,17 @@ class RobotContext:
         except Exception as e:
             logger.error("%s Tool call failed: %s" % (toolcall.fcall_id, e), exc_info=e)  # full error and stack for the author of the bot
             tool_result = "Tool error, see logs for details"  # Not too much visible for end user
-        prov = json.dumps({"system": fclient.service_name})
+        prov_dict = {"system": fclient.service_name}
+        if subchats_list is not None:
+            prov_dict["subchats"] = subchats_list
+        prov = json.dumps(prov_dict)
         if tool_result != "WAIT_SUBCHATS" and tool_result != "POSTED_NEED_CONFIRMATION" and tool_result != "ALREADY_POSTED_RESULT":
             if not already_serialized:
                 tool_result = json.dumps(tool_result)
             await ckit_cloudtool.cloudtool_post_result(fclient, toolcall.fcall_id, toolcall.fcall_untrusted_key, tool_result, prov)
+        print("QQQQQQQ", prov)
+        import time
+        time.sleep(10)
 
 
 class BotInstance(NamedTuple):
