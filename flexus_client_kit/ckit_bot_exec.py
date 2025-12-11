@@ -181,6 +181,15 @@ class RobotContext:
         bg_calls = []
         for c in mycalls:
             did_anything = True
+            if c.fcall_name not in self._handler_per_tool:
+                try:
+                    await asyncio.wait_for(self._reached_main_loop.wait(), timeout=10.0)
+                except asyncio.TimeoutError:
+                    logger.warning("%s tool call %s for %s waiting for main loop timed out after 10s", self.persona.persona_id, c.fcall_id, c.fcall_name)
+                if c.fcall_name not in self._handler_per_tool:
+                    logger.error("%s tool call %s for %s has no handler. Available handlers: %r", self.persona.persona_id, c.fcall_id, c.fcall_name, list(self._handler_per_tool.keys()))
+                    self._processing_toolcalls.discard(c.fcall_id)
+                    continue
             if not turn_tool_calls_into_tasks:
                 try:
                     await self._local_tool_call(self.fclient, c)
@@ -474,22 +483,6 @@ async def subscribe_and_produce_callbacks(
                     persona_id = toolcall.connected_persona_id
                     if persona_id in bc.bots_running:
                         bot = bc.bots_running[persona_id]
-                        if toolcall.fcall_name not in bot.instance_rcx._handler_per_tool:
-                            try:
-                                await asyncio.wait_for(bot.instance_rcx._reached_main_loop.wait(), timeout=10.0)
-                            except asyncio.TimeoutError:
-                                pass
-                        set1 = set(t.name for t in bc.inprocess_tools)
-                        set2 = set(bot.instance_rcx._handler_per_tool.keys())
-                        if set1 != set2:
-                            logger.error(
-                                "Whoops make sure you call on_tool_call() for each of inprocess_tools.\nYou advertise: %r\nYou have hanlders: %r"
-                                % (set1, set2)
-                            )
-                            ckit_shutdown.shutdown_event.set()
-                            break
-                        assert toolcall.fcall_name in set1
-                        assert toolcall.fcall_name in set2
                         if toolcall.fcall_id not in bot.instance_rcx._parked_toolcalls and toolcall.fcall_id not in bot.instance_rcx._processing_toolcalls:
                             logger.info("%s parked tool call %s %s", persona_id, toolcall.fcall_id, toolcall.fcall_name)
                             bot.instance_rcx._parked_toolcalls[toolcall.fcall_id] = toolcall
