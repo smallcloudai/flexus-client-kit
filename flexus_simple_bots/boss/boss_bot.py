@@ -155,15 +155,17 @@ async def handle_setup_colleagues(fclient: ckit_client.FlexusClient, ws_id: str,
 
     if op == "update" and not toolcall.confirmed_by_human:
         http = await fclient.use_http()
-        # XXX try catch here?
         async with http as h:
-            r = await h.execute(
-                gql.gql("""mutation BossSetupColleagues($ws_id: String!, $bot_name: String!, $op: String!, $key: String) {
-                    boss_setup_colleagues(ws_id: $ws_id, bot_name: $bot_name, op: $op, key: $key)
-                }"""),
-                variable_values={"ws_id": ws_id, "bot_name": bot_name, "op": "get", "key": set_key},
-            )
-            prev_val = r.get("boss_setup_colleagues", "")
+            try:
+                r = await h.execute(
+                    gql.gql("""mutation BossSetupColleagues($ws_id: String!, $bot_name: String!, $op: String!, $key: String) {
+                        boss_setup_colleagues(ws_id: $ws_id, bot_name: $bot_name, op: $op, key: $key)
+                    }"""),
+                    variable_values={"ws_id": ws_id, "bot_name": bot_name, "op": "get", "key": set_key},
+                )
+                prev_val = r.get("boss_setup_colleagues", "")
+            except gql.transport.exceptions.TransportQueryError as e:
+                return f"Error: {e}"
 
         new_val = set_val if set_val is not None else "(default)"
 
