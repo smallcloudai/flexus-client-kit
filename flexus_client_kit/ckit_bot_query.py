@@ -24,6 +24,7 @@ class FPersonaOutput:
     ws_root_group_id: str
     marketable_run_this: Optional[str] = None
     marketable_stage: Optional[str] = None
+    marketable_radix: Optional[int] = None
 
 
 @dataclass
