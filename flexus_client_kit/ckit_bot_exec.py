@@ -360,7 +360,7 @@ async def subscribe_and_produce_callbacks(
     ws_client: gql.Client,
     bc: BotsCollection,
 ):
-    MAX_THREADS = 100
+    MAX_THREADS = 1000
     # XXX check if it will really crash downstream without this check
     assert fclient.service_name.startswith(bc.marketable_name)
 
