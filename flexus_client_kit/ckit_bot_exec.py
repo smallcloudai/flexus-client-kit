@@ -822,20 +822,27 @@ async def run_bots_in_this_group(
     subscribe_to_erp_tables: List[str] = [],
 ) -> None:
     marketable_version = ckit_client.marketplace_version_as_int(marketable_version_str)
+
+    if fclient.ws_id and fclient.group_id:
+        raise ValueError("Both ws_id and group_id are set, only one is allowed")
+
     if fclient.use_ws_ticket:
-        ws_id_prefix = fclient.ws_id
+        if not fclient.ws_id and not fclient.group_id:
+            raise ValueError("Neither ws_id nor group_id is set, one is required")
+        ws_id_prefix = fclient.ws_id  # None if using group_id
 
     elif fclient.api_key:
         # This is a dev bot, meaning it runs at bot author's console, using their api key
-        if not fclient.ws_id:
+        if not fclient.ws_id and not fclient.group_id:
             r = await ckit_client.query_basic_stuff(fclient)
             for ws in r.workspaces:
                 logger.info("  Workspace %r, owned by %s, name %r" % (ws.ws_id, ws.ws_owner_fuser_id, ws.root_group_name))
-            logger.info("Please set FLEXUS_WORKSPACE to one of the above")
+            logger.info("Please set FLEXUS_WORKSPACE or FLEXUS_GROUP to one of the above")
             return
-        logger.info("Installing %s:%s into workspace %s", marketable_name, marketable_version_str, fclient.ws_id)
-        await install_func(fclient, fclient.ws_id, marketable_name, marketable_version_str, inprocess_tools)
-        ws_id_prefix = fclient.ws_id
+        if fclient.ws_id:
+            logger.info("Installing %s:%s into workspace %s", marketable_name, marketable_version_str, fclient.ws_id)
+            await install_func(fclient, fclient.ws_id, marketable_name, marketable_version_str, inprocess_tools)
+        ws_id_prefix = fclient.ws_id  # None if using group_id
 
     elif fclient.inside_radix_process:
         # Dev computer, detected by absence of FLEXUS_WS_TICKET, for testing a radix process
