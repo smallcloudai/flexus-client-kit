@@ -48,6 +48,7 @@ class FCloudtoolCall:
     fcall_call_n: int
     fcall_name: str
     fcall_arguments: str
+    fcall_result_ftm_num: int
     fcall_created_ts: float
     fcall_untrusted_key: str
     connected_persona_id: str
@@ -170,6 +171,57 @@ async def cloudtool_post_result(fclient: ckit_client.FlexusClient, fcall_id: str
                 "as_placeholder": as_placeholder,
             },
         )
+
+
+class DeltaStreamer:
+    """
+    Streams tool output deltas via /v1/delta/ws WebSocket.
+    Frontend receives DELTA events and appends content in real-time.
+    """
+
+    def __init__(self, ws_url: str, call: FCloudtoolCall, role: str = "tool"):
+        self._ws_url = ws_url
+        self._call = call
+        self._role = role
+        self._ws: Optional[websockets.WebSocketClientProtocol] = None
+        self._closed = False
+
+    @classmethod
+    async def connect(
+        cls,
+        fclient: ckit_client.FlexusClient,
+        call: FCloudtoolCall,
+        role: str = "tool",
+    ) -> "DeltaStreamer":
+        ws_url = fclient.base_url_ws.rstrip("/") + "/v1/delta/ws"
+        streamer = cls(ws_url, call, role)
+        streamer._ws = await websockets.connect(ws_url, ping_interval=20, ping_timeout=20)
+        logger.debug("DeltaStreamer connected to %s for call %s", ws_url, call.fcall_id)
+        return streamer
+
+    async def send(self, text: str) -> None:
+        if not text or self._closed or not self._ws:
+            return
+        payload = {
+            "ftm_belongs_to_ft_id": self._call.fcall_ft_id,
+            "ftm_alt": self._call.fcall_ftm_alt,
+            "ftm_num": self._call.fcall_result_ftm_num,
+            "ftm_prev_alt": self._call.fcall_ftm_alt,
+            "delta": {"ftm_role": self._role, "ftm_content": text, "ftm_call_id": self._call.fcall_id},
+        }
+        await self._ws.send(json.dumps(payload))
+
+    async def close(self) -> None:
+        if self._closed:
+            return
+        self._closed = True
+        if self._ws:
+            try:
+                await self._ws.close()
+            except Exception:
+                pass
+            self._ws = None
+        logger.debug("DeltaStreamer closed for call %s", self._call.fcall_id)
 
 
 async def cloudtool_confirmation_request(
