@@ -26,8 +26,8 @@ SURVEY_RESEARCH_TOOL = ckit_cloudtool.CloudTool(
                 "description": "Operation-specific arguments",
                 "order": 2,
                 "properties": {
-                    "idea_name": {"type": "string", "description": "Idea folder name (kebab-case)", "order": 1001},
-                    "hypothesis_name": {"type": "string", "description": "Hypothesis folder name (kebab-case)", "order": 1002},
+                    "hyp_unique_id": {"type": "string", "description": "Hypothesis unique ID (e.g. hyp001)", "order": 1001},
+                    "survey_name": {"type": "string", "description": "Survey name (kebab-case)", "order": 1002},
                     "survey_content": {"type": "object", "description": "Survey with meta and section01-06", "order": 1003},
                     "study_name": {"type": "string", "description": "Prolific study name", "order": 1004},
                     "study_description": {"type": "string", "description": "Description for participants", "order": 1005},
@@ -53,23 +53,23 @@ survey(op="search_filters", args={"search_pattern": "age|country"})
     Search Prolific filters. ALWAYS DO THIS BEFORE draft_auditory.
     Can accept list: {"search_pattern": ["age", "country"]}
 
-survey(op="draft_survey", args={"idea_name": "...", "hypothesis_name": "...", "survey_content": {...}})
-    Create survey draft at /customer-research/{idea}/{hypothesis}/survey-draft
+survey(op="draft_survey", args={"hyp_unique_id": "hyp001", "survey_name": "ask-social-influencers", "survey_content": {...}})
+    Create survey draft at /survey-experiments/{hyp_unique_id}-{survey_name}/survey-draft
     survey_content must have: survey.meta.title, section01-screening through section06-concept-validation
 
-survey(op="draft_auditory", args={"idea_name": "...", "hypothesis_name": "...", "study_name": "...", "estimated_minutes": 10, "reward_cents": 150, "total_participants": 50, "filters": {...}})
-    Create audience draft at /customer-research/{idea}/{hypothesis}/auditory-draft
+survey(op="draft_auditory", args={"hyp_unique_id": "hyp001", "survey_name": "ask-social-influencers", "study_name": "...", "estimated_minutes": 10, "reward_cents": 150, "total_participants": 50, "filters": {...}})
+    Create audience draft at /survey-experiments/{hyp_unique_id}-{survey_name}/auditory-draft
     All numeric params are REQUIRED, no defaults.
 
-survey(op="run", args={"idea_name": "...", "hypothesis_name": "..."})
+survey(op="run", args={"hyp_unique_id": "hyp001", "survey_name": "ask-social-influencers"})
     Execute campaign: create SurveyMonkey survey, Prolific study, connect, publish.
-    Reads drafts from /customer-research/{idea}/{hypothesis}/
+    Reads drafts from /survey-experiments/{hyp_unique_id}-{survey_name}/
 
-survey(op="responses", args={"idea_name": "...", "hypothesis_name": "...", "survey_id": "123456", "target_responses": 50})
-    Fetch responses, save to /customer-research/{idea}/{hypothesis}/survey-results
+survey(op="responses", args={"hyp_unique_id": "hyp001", "survey_name": "ask-social-influencers", "survey_id": "123456", "target_responses": 50})
+    Fetch responses, save to /survey-experiments/{hyp_unique_id}-{survey_name}/survey-results
 
-survey(op="list", args={"idea_name": "..."})
-    List all survey files for an idea.
+survey(op="list", args={"hyp_unique_id": "hyp001"})
+    List all survey files for a hypothesis.
 
 Example survey_content structure:
 {
@@ -168,14 +168,14 @@ class IntegrationSurveyResearch:
             return f"Unknown operation '{op}'. Valid operations: help, draft_survey, draft_auditory, run, responses, list, search_filters"
 
     async def _handle_draft_survey(self, toolcall: ckit_cloudtool.FCloudtoolCall, args: Dict[str, Any]) -> str:
-        idea_name = args.get("idea_name", "")
-        hypothesis_name = args.get("hypothesis_name", "")
+        hyp_unique_id = args.get("hyp_unique_id", "")
+        survey_name = args.get("survey_name", "")
         survey_content = args.get("survey_content")
 
-        if not idea_name:
-            return "Error: idea_name is required"
-        if not hypothesis_name:
-            return "Error: hypothesis_name is required"
+        if not hyp_unique_id:
+            return "Error: hyp_unique_id is required (e.g. 'hyp001')"
+        if not survey_name:
+            return "Error: survey_name is required (e.g. 'ask-social-influencers')"
         if not survey_content:
             return "Error: survey_content is required"
 
@@ -186,8 +186,8 @@ class IntegrationSurveyResearch:
 
         survey_obj = survey_content["survey"]
         formatted_content = {"survey": {"meta": survey_obj["meta"]}}
-        formatted_content["survey"]["meta"]["hypothesis"] = hypothesis_name
-        formatted_content["survey"]["meta"]["idea"] = idea_name
+        formatted_content["survey"]["meta"]["hyp_unique_id"] = hyp_unique_id
+        formatted_content["survey"]["meta"]["survey_name"] = survey_name
         formatted_content["survey"]["meta"]["created_at"] = time.strftime("%Y-%m-%d %H:%M:%S")
 
         validation_errors = []
@@ -220,7 +220,7 @@ class IntegrationSurveyResearch:
             return "Survey validation failed:\n  - " + "\n  - ".join(validation_errors)
 
         question_count = sum(len(s.get("questions", [])) for k, s in formatted_content["survey"].items() if k.startswith("section"))
-        pdoc_path = f"/customer-research/{idea_name}/{hypothesis_name}/survey-draft"
+        pdoc_path = f"/survey-experiments/{hyp_unique_id}-{survey_name}/survey-draft"
 
         await self.pdoc_integration.pdoc_overwrite(
             pdoc_path,
@@ -237,8 +237,8 @@ class IntegrationSurveyResearch:
         return result
 
     async def _handle_draft_auditory(self, toolcall: ckit_cloudtool.FCloudtoolCall, args: Dict[str, Any]) -> str:
-        idea_name = args.get("idea_name", "")
-        hypothesis_name = args.get("hypothesis_name", "")
+        hyp_unique_id = args.get("hyp_unique_id", "")
+        survey_name = args.get("survey_name", "")
         study_name = args.get("study_name", "")
         study_description = args.get("study_description", "")
         estimated_minutes = args.get("estimated_minutes")
@@ -246,10 +246,10 @@ class IntegrationSurveyResearch:
         total_participants = args.get("total_participants")
         filters = args.get("filters", {})
 
-        if not idea_name:
-            return "Error: idea_name is required"
-        if not hypothesis_name:
-            return "Error: hypothesis_name is required"
+        if not hyp_unique_id:
+            return "Error: hyp_unique_id is required (e.g. 'hyp001')"
+        if not survey_name:
+            return "Error: survey_name is required (e.g. 'ask-social-influencers')"
         if not study_name:
             return "Error: study_name is required"
         if not study_description:
@@ -363,7 +363,7 @@ class IntegrationSurveyResearch:
         vat = service_fee * 0.20
         total_cost = int(rewards + service_fee + vat)
 
-        draft_path = f"/customer-research/{idea_name}/{hypothesis_name}/auditory-draft"
+        draft_path = f"/survey-experiments/{hyp_unique_id}-{survey_name}/auditory-draft"
 
         await self.pdoc_integration.pdoc_overwrite(
             draft_path,
@@ -383,30 +383,30 @@ class IntegrationSurveyResearch:
         return result
 
     async def _handle_list(self, toolcall: ckit_cloudtool.FCloudtoolCall, args: Dict[str, Any]) -> str:
-        idea_name = args.get("idea_name", "")
+        hyp_unique_id = args.get("hyp_unique_id", "")
 
-        if not idea_name:
-            return "Error: idea_name is required"
+        if not hyp_unique_id:
+            return "Error: hyp_unique_id is required (e.g. 'hyp001')"
 
         if not self.pdoc_integration:
             return "Error: pdoc integration not configured"
 
         try:
-            base_path = f"/customer-research/{idea_name}"
+            base_path = f"/survey-experiments"
             items = await self.pdoc_integration.pdoc_list(base_path)
 
             survey_files = []
             for item in items:
-                if item.is_folder:
-                    hyp_items = await self.pdoc_integration.pdoc_list(item.path)
-                    for hi in hyp_items:
-                        if not hi.is_folder and ("survey-draft" in hi.path or "survey-results" in hi.path or "auditory-draft" in hi.path):
-                            survey_files.append(hi.path)
+                if item.is_folder and item.path.startswith(f"/survey-experiments/{hyp_unique_id}-"):
+                    survey_items = await self.pdoc_integration.pdoc_list(item.path)
+                    for si in survey_items:
+                        if not si.is_folder:
+                            survey_files.append(si.path)
 
             if not survey_files:
-                return f"No survey files found for idea '{idea_name}'"
+                return f"No survey files found for hypothesis '{hyp_unique_id}'"
 
-            result = f"📋 Survey files for '{idea_name}':\n\n"
+            result = f"📋 Survey files for hypothesis '{hyp_unique_id}':\n\n"
             for p in sorted(survey_files):
                 if "survey-draft" in p:
                     result += f"📝 {p}\n"
@@ -492,13 +492,13 @@ class IntegrationSurveyResearch:
         return result
 
     async def _prepare_run_confirmation(self, toolcall: ckit_cloudtool.FCloudtoolCall, args: Dict[str, Any]) -> str:
-        idea_name = args.get("idea_name", "")
-        hypothesis_name = args.get("hypothesis_name", "")
+        hyp_unique_id = args.get("hyp_unique_id", "")
+        survey_name = args.get("survey_name", "")
 
-        if not idea_name or not hypothesis_name:
-            return "Error: idea_name and hypothesis_name are required"
+        if not hyp_unique_id or not survey_name:
+            return "Error: hyp_unique_id and survey_name are required"
 
-        auditory_draft_path = f"/customer-research/{idea_name}/{hypothesis_name}/auditory-draft"
+        auditory_draft_path = f"/survey-experiments/{hyp_unique_id}-{survey_name}/auditory-draft"
         auditory_doc = await self.pdoc_integration.pdoc_cat(auditory_draft_path)
         auditory_content = auditory_doc.pdoc_content
 
@@ -520,14 +520,14 @@ class IntegrationSurveyResearch:
         )
 
     async def _handle_run(self, toolcall: ckit_cloudtool.FCloudtoolCall, args: Dict[str, Any]) -> str:
-        idea_name = args.get("idea_name", "")
-        hypothesis_name = args.get("hypothesis_name", "")
+        hyp_unique_id = args.get("hyp_unique_id", "")
+        survey_name = args.get("survey_name", "")
 
-        if not idea_name or not hypothesis_name:
-            return "Error: idea_name and hypothesis_name are required"
+        if not hyp_unique_id or not survey_name:
+            return "Error: hyp_unique_id and survey_name are required"
 
-        survey_draft_path = f"/customer-research/{idea_name}/{hypothesis_name}/survey-draft"
-        auditory_draft_path = f"/customer-research/{idea_name}/{hypothesis_name}/auditory-draft"
+        survey_draft_path = f"/survey-experiments/{hyp_unique_id}-{survey_name}/survey-draft"
+        auditory_draft_path = f"/survey-experiments/{hyp_unique_id}-{survey_name}/auditory-draft"
 
         try:
             survey_doc = await self.pdoc_integration.pdoc_cat(survey_draft_path)
@@ -599,17 +599,17 @@ class IntegrationSurveyResearch:
     async def _handle_responses(self, toolcall: ckit_cloudtool.FCloudtoolCall, args: Dict[str, Any]) -> str:
         survey_id = args.get("survey_id", "")
         target_responses = args.get("target_responses", 0)
-        idea_name = args.get("idea_name", "")
-        hypothesis_name = args.get("hypothesis_name", "")
+        hyp_unique_id = args.get("hyp_unique_id", "")
+        survey_name = args.get("survey_name", "")
 
         if not survey_id:
             return "Error: survey_id is required"
         if not target_responses or target_responses <= 0:
             return "Error: target_responses is required and must be greater than 0"
-        if not idea_name:
-            return "Error: idea_name is required"
-        if not hypothesis_name:
-            return "Error: hypothesis_name is required"
+        if not hyp_unique_id:
+            return "Error: hyp_unique_id is required (e.g. 'hyp001')"
+        if not survey_name:
+            return "Error: survey_name is required (e.g. 'ask-social-influencers')"
 
         all_responses = []
         page, per_page, total = 1, 100, None
@@ -691,7 +691,7 @@ class IntegrationSurveyResearch:
             responses_data.append(response_entry)
 
         if self.pdoc_integration:
-            results_path = f"/customer-research/{idea_name}/{hypothesis_name}/survey-results"
+            results_path = f"/survey-experiments/{hyp_unique_id}-{survey_name}/survey-results"
             results_content = {
                 "survey_results": {
                     "meta": {
@@ -700,8 +700,8 @@ class IntegrationSurveyResearch:
                         "target_responses": target_responses,
                         "completion_rate": completion_rate,
                         "saved_at": time.strftime("%Y-%m-%d %H:%M:%S"),
-                        "idea": idea_name,
-                        "hypothesis": hypothesis_name,
+                        "hyp_unique_id": hyp_unique_id,
+                        "survey_name": survey_name,
                         "status": "COMPLETED" if is_completed else "IN_PROGRESS"
                     },
                     "responses": responses_data,

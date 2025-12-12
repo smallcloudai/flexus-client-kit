@@ -27,39 +27,43 @@ BOT_VERSION = SIMPLE_BOTS_COMMON_VERSION
 
 IDEA_TEMPLATE_TOOL = ckit_cloudtool.CloudTool(
     name="template_idea",
-    description="Create idea document. Path: /customer-research/<idea-name>/idea",
+    description="Create idea document. Provide idea_name (kebab-case), server generates unique ID.",
     parameters={
         "type": "object",
         "properties": {
-            "path": {
+            "idea_name": {
                 "type": "string",
-                "description": "Path: /customer-research/<idea-name>/idea (kebab-case)"
+                "description": "Human-readable idea name in kebab-case (e.g. 'dental-samples', 'unicorn-horn-car')"
             },
             "text": {
                 "type": "string",
                 "description": "JSON matching example_idea structure. Only 'q' values can be translated."
             },
         },
-        "required": ["path", "text"],
+        "required": ["idea_name", "text"],
     },
 )
 
 HYPOTHESIS_TEMPLATE_TOOL = ckit_cloudtool.CloudTool(
     name="template_hypothesis",
-    description="Create hypothesis document. Path: /customer-research/<idea-name>/<hypothesis-name>/hypothesis",
+    description="Create hypothesis document. Provide idea_unique_id and hypothesis_name, server generates unique ID.",
     parameters={
         "type": "object",
         "properties": {
-            "path": {
+            "idea_unique_id": {
                 "type": "string",
-                "description": "Path: /customer-research/<idea-name>/<hypothesis-name>/hypothesis (kebab-case)"
+                "description": "Idea ID (e.g. 'idea001') from parent idea path"
+            },
+            "hypothesis_name": {
+                "type": "string",
+                "description": "Human-readable hypothesis name in kebab-case (e.g. 'social-influencers')"
             },
             "text": {
                 "type": "string",
                 "description": "JSON matching example_hypothesis structure. Only 'q' and 'title' can be translated."
             },
         },
-        "required": ["path", "text"],
+        "required": ["idea_unique_id", "hypothesis_name", "text"],
     },
 )
 
@@ -69,16 +73,20 @@ VERIFY_IDEA_TOOL = ckit_cloudtool.CloudTool(
     parameters={
         "type": "object",
         "properties": {
-            "path": {
+            "idea_unique_id": {
                 "type": "string",
-                "description": "Path: /customer-research/<idea-name>/idea"
+                "description": "Idea ID (e.g. 'idea001')"
+            },
+            "idea_name": {
+                "type": "string",
+                "description": "Idea name in kebab-case (e.g. 'dental-samples')"
             },
             "language": {
                 "type": "string",
                 "description": "Language for comments (same as conversation language)"
             },
         },
-        "required": ["path", "language"],
+        "required": ["idea_unique_id", "idea_name", "language"],
     },
 )
 
@@ -102,6 +110,36 @@ TOOLS_ALL = [
     *TOOLS_DEFAULT,
     survey_research.SURVEY_RESEARCH_TOOL
 ]
+
+
+async def generate_next_idea_id(pdoc_integration: fi_pdoc.IntegrationPdoc) -> str:
+    existing_ideas = await pdoc_integration.pdoc_list("/product-ideas")
+    max_id = 0
+    for idea_path in existing_ideas:
+        parts = idea_path.strip("/").split("/")
+        if len(parts) >= 2:
+            folder_name = parts[1]
+            if "-" in folder_name:
+                id_part = folder_name.split("-")[0]
+                if id_part.startswith("idea") and id_part[4:].isdigit():
+                    max_id = max(max_id, int(id_part[4:]))
+    return f"idea{max_id + 1:03d}"
+
+
+async def generate_next_hypothesis_id(pdoc_integration: fi_pdoc.IntegrationPdoc, idea_unique_id: str) -> str:
+    existing_hypotheses = await pdoc_integration.pdoc_list("/product-hypotheses")
+    max_id = 0
+    for hyp_path in existing_hypotheses:
+        parts = hyp_path.strip("/").split("/")
+        if len(parts) >= 2:
+            folder_name = parts[1]
+            if folder_name.startswith(f"{idea_unique_id}-"):
+                segments = folder_name.split("-")
+                if len(segments) >= 2:
+                    hyp_id_part = segments[1]
+                    if hyp_id_part.startswith("hyp") and hyp_id_part[3:].isdigit():
+                        max_id = max(max_id, int(hyp_id_part[3:]))
+    return f"hyp{max_id + 1:03d}"
 
 
 async def productman_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.RobotContext) -> None:
@@ -154,20 +192,16 @@ async def productman_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_
 
     @rcx.on_tool_call(IDEA_TEMPLATE_TOOL.name)
     async def toolcall_idea_template(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
-        path = model_produced_args.get("path", "")
+        idea_name = model_produced_args.get("idea_name", "")
         text = model_produced_args.get("text", "")
-        if not path:
-            return "Error: path required"
+        if not idea_name:
+            return "Error: idea_name required"
         if not text:
             return "Error: text required"
         if rcx.running_test_scenario:
             return await ckit_scenario.scenario_generate_tool_result_via_model(fclient, toolcall, Path(__file__).read_text())
-        if not path.endswith("/idea"):
-            return "Error: idea path must end with /idea (e.g. /customer-research/unicorn-horn-car/idea)"
-        if not path.startswith("/customer-research/"):
-            return "Error: path must start with /customer-research/"
-        if err := validate_path_kebab(path):
-            return f"Error: {err}"
+        if err := validate_path_kebab(idea_name):
+            return f"Error: idea_name must be kebab-case: {err}"
 
         try:
             idea_doc = json.loads(text)
@@ -178,26 +212,30 @@ async def productman_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_
         if validation_error:
             return f"Error: {validation_error}"
 
+        idea_unique_id = await generate_next_idea_id(pdoc_integration)
+        path = f"/product-ideas/{idea_unique_id}-{idea_name}/idea"
+
         await pdoc_integration.pdoc_create(path, json.dumps(idea_doc, indent=2), toolcall.fcall_ft_id)
         logger.info(f"Created idea at {path}")
-        return f"✍️ {path}\n\n✓ Created idea document"
+        return f"✍️ {path}\n\n✓ Created idea document with ID {idea_unique_id}"
 
     @rcx.on_tool_call(HYPOTHESIS_TEMPLATE_TOOL.name)
     async def toolcall_hypothesis_template(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
-        path = model_produced_args.get("path", "")
+        idea_unique_id = model_produced_args.get("idea_unique_id", "")
+        hypothesis_name = model_produced_args.get("hypothesis_name", "")
         text = model_produced_args.get("text", "")
-        if not path:
-            return "Error: path required"
+        if not idea_unique_id:
+            return "Error: idea_unique_id required"
+        if not hypothesis_name:
+            return "Error: hypothesis_name required"
         if not text:
             return "Error: text required"
         if rcx.running_test_scenario:
             return await ckit_scenario.scenario_generate_tool_result_via_model(fclient, toolcall, Path(__file__).read_text())
-        if not path.endswith("/hypothesis"):
-            return "Error: hypothesis path must end with /hypothesis (e.g. /customer-research/unicorn-horn-car/social-media-influencers/hypothesis)"
-        if not path.startswith("/customer-research/"):
-            return "Error: path must start with /customer-research/"
-        if err := validate_path_kebab(path):
-            return f"Error: {err}"
+        if not idea_unique_id.startswith("idea") or not idea_unique_id[4:].isdigit():
+            return f"Error: idea_unique_id must be format 'ideaXXX' (e.g. 'idea001'), got '{idea_unique_id}'"
+        if err := validate_path_kebab(hypothesis_name):
+            return f"Error: hypothesis_name must be kebab-case: {err}"
 
         try:
             hypothesis_doc = json.loads(text)
@@ -208,25 +246,31 @@ async def productman_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_
         if validation_error:
             return f"Error: {validation_error}"
 
+        hyp_unique_id = await generate_next_hypothesis_id(pdoc_integration, idea_unique_id)
+        path = f"/product-hypotheses/{idea_unique_id}-{hyp_unique_id}-{hypothesis_name}/hypothesis"
+
         await pdoc_integration.pdoc_create(path, json.dumps(hypothesis_doc, indent=2), toolcall.fcall_ft_id)
         logger.info(f"Created hypothesis at {path}")
-        return f"✍️ {path}\n\n✓ Created hypothesis document"
+        return f"✍️ {path}\n\n✓ Created hypothesis document with ID {hyp_unique_id}"
 
     @rcx.on_tool_call(VERIFY_IDEA_TOOL.name)
     async def toolcall_verify_idea(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
-        path = model_produced_args.get("path", "")
+        idea_unique_id = model_produced_args.get("idea_unique_id", "")
+        idea_name = model_produced_args.get("idea_name", "")
         language = model_produced_args.get("language", "")
-        if not path:
-            return "Error: path required"
+        if not idea_unique_id:
+            return "Error: idea_unique_id required"
+        if not idea_name:
+            return "Error: idea_name required"
         if not language:
             return "Error: language required"
-        if not path.endswith("/idea"):
-            return "Error: path must end with /idea"
-        if not path.startswith("/customer-research/"):
-            return "Error: path must start with /customer-research/"
+        if not idea_unique_id.startswith("idea") or not idea_unique_id[4:].isdigit():
+            return f"Error: idea_unique_id must be format 'ideaXXX' (e.g. 'idea001'), got '{idea_unique_id}'"
 
         if rcx.running_test_scenario:
             return await ckit_scenario.scenario_generate_tool_result_via_model(fclient, toolcall, Path(__file__).read_text())
+
+        path = f"/product-ideas/{idea_unique_id}-{idea_name}/idea"
 
         subchats = await ckit_ask_model.bot_subchat_create_multiple(
             client=fclient,
@@ -234,7 +278,7 @@ async def productman_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_
             persona_id=rcx.persona.persona_id,
             first_question=[f"Rate this idea document in {language}:\n{path}"],
             first_calls=["null"],
-            title=[f"Verifying Idea {path.split('/')[-1]}"],
+            title=[f"Verifying Idea {idea_name}"],
             fcall_id=toolcall.fcall_id,
             skill="criticize_idea",
         )
