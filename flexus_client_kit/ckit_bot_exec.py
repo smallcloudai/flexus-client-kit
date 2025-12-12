@@ -21,6 +21,10 @@ from flexus_client_kit import erp_schema
 logger = logging.getLogger("btexe")
 
 
+class RestartBot(Exception):
+    pass
+
+
 def official_setup_mixing_procedure(marketable_setup_default, persona_setup) -> Dict[str, Union[str, int, float, bool, list]]:
     """
     Returns setup dict for a bot to run with. If a value is not set in persona_setup by the user, returns the default.
@@ -68,15 +72,19 @@ class RobotContext:
         self._handler_updated_task: Optional[Callable[[ckit_kanban.FPersonaKanbanTaskOutput], Awaitable[None]]] = None
         self._handler_per_tool: Dict[str, Callable[[Dict[str, Any]], Awaitable[str]]] = {}
         self._handler_per_erp_table_change: Dict[str, Callable[[str, Optional[Any], Optional[Any]], Awaitable[None]]] = {}
-        self._reached_main_loop = False
+        self._reached_main_loop = asyncio.Event()
+        self._restart_requested = False
         self._completed_initial_unpark = False
         self._parked_messages: Dict[str, ckit_ask_model.FThreadMessageOutput] = {}
         self._parked_threads: Dict[str, ckit_ask_model.FThreadOutput] = {}
         self._parked_tasks: Dict[str, ckit_kanban.FPersonaKanbanTaskOutput] = {}
-        self._parked_toolcalls: List[ckit_cloudtool.FCloudtoolCall] = []
-        self._parked_erp_changes: List[tuple[str, str, Optional[Dict[str, Any]], Optional[Dict[str, Any]]]] = []
+        self._parked_toolcalls: Dict[str, ckit_cloudtool.FCloudtoolCall] = {}
+        self._processing_toolcalls: set[str] = set()
+        self._parked_erp_changes: Dict[tuple[str, str], tuple[str, Optional[Dict[str, Any]], Optional[Dict[str, Any]]]] = {}
         self._parked_anything_new = asyncio.Event()
         # These fields are designed for direct access:
+        self.wanted_erp_tables: List[str] = []
+        self.erp_tables_dirty = False
         self.fclient = fclient
         self.persona = p
         self.latest_threads: Dict[str, ckit_bot_query.FThreadWithMessages] = dict()
@@ -115,7 +123,9 @@ class RobotContext:
 
     async def unpark_collected_events(self, sleep_if_no_work: float, turn_tool_calls_into_tasks: bool = False) -> List[asyncio.Task]:
         # logger.info("%s unpark_collected_events() started %d %d %d" % (self.persona.persona_id, len(self._parked_messages), len(self._parked_threads), len(self._parked_toolcalls)))
-        self._reached_main_loop = True
+        self._reached_main_loop.set()
+        if ckit_shutdown.shutdown_event.is_set():
+            return []
         did_anything = False
         self._parked_anything_new.clear()
 
@@ -149,9 +159,9 @@ class RobotContext:
                 except Exception as e:
                     logger.error("%s error in on_updated_task handler: %s\n%s", self.persona.persona_id, type(e).__name__, e, exc_info=e)
 
-        erp_changes = list(self._parked_erp_changes)
+        erp_changes = list(self._parked_erp_changes.items())
         self._parked_erp_changes.clear()
-        for table_name, action, new_record_dict, old_record_dict in erp_changes:
+        for (table_name, _record_id), (action, new_record_dict, old_record_dict) in erp_changes:
             did_anything = True
             handler = self._handler_per_erp_table_change.get(table_name)
             if handler:
@@ -163,21 +173,39 @@ class RobotContext:
                 except Exception as e:
                     logger.error("%s error in on_erp_change(%r) handler: %s\n%s", self.persona.persona_id, table_name, type(e).__name__, e, exc_info=e)
 
-        mycalls = list(self._parked_toolcalls)
+        mycalls = list(self._parked_toolcalls.values())
         self._parked_toolcalls.clear()
+        self._processing_toolcalls.update(c.fcall_id for c in mycalls)
+        if mycalls:
+            logger.info("%s unparking %d tool calls: %s", self.persona.persona_id, len(mycalls), [c.fcall_id for c in mycalls])
         bg_calls = []
         for c in mycalls:
             did_anything = True
-            if not turn_tool_calls_into_tasks:  # run immediately and wait
+            if c.fcall_name not in self._handler_per_tool:
+                try:
+                    await asyncio.wait_for(self._reached_main_loop.wait(), timeout=10.0)
+                except asyncio.TimeoutError:
+                    logger.warning("%s tool call %s for %s waiting for main loop timed out after 10s", self.persona.persona_id, c.fcall_id, c.fcall_name)
+                if c.fcall_name not in self._handler_per_tool:
+                    logger.error("%s tool call %s for %s has no handler. Available handlers: %r", self.persona.persona_id, c.fcall_id, c.fcall_name, list(self._handler_per_tool.keys()))
+                    self._processing_toolcalls.discard(c.fcall_id)
+                    continue
+            if not turn_tool_calls_into_tasks:
                 try:
                     await self._local_tool_call(self.fclient, c)
                 except Exception as e:
                     logger.error("%s error in on_tool_call() handler: %s\n%s", self.persona.persona_id, type(e).__name__, e, exc_info=e)
+                finally:
+                    self._processing_toolcalls.discard(c.fcall_id)
             else:
-                bg_calls.append(asyncio.create_task(self._local_tool_call(self.fclient, c)))
+                task = asyncio.create_task(self._local_tool_call(self.fclient, c))
+                task.add_done_callback(lambda _t, call_id=c.fcall_id: self._processing_toolcalls.discard(call_id))
+                bg_calls.append(task)
 
         if not did_anything:
             self._completed_initial_unpark = True
+            if self._restart_requested:
+                raise RestartBot()
             try:
                 await asyncio.wait_for(self._parked_anything_new.wait(), timeout=sleep_if_no_work)
             except asyncio.TimeoutError:
@@ -247,6 +275,9 @@ async def crash_boom_bang(fclient: ckit_client.FlexusClient, rcx: RobotContext, 
     while not ckit_shutdown.shutdown_event.is_set():
         try:
             await bot_main_loop(fclient, rcx)
+        except RestartBot:
+            logger.info("%s restart requested after completing all pending work", rcx.persona.persona_id)
+            break
         except asyncio.CancelledError:
             break
         except Exception as e:
@@ -315,11 +346,13 @@ class BotsCollection:
         self.marketable_version = marketable_version
         self.inprocess_tools = inprocess_tools
         self.bot_main_loop = bot_main_loop
-        self.subscribe_to_erp_tables = subscribe_to_erp_tables
         self.bots_running: Dict[str, BotInstance] = {}
+        self.shutting_down_tasks: set[asyncio.Task] = set()
         self.thread_tracker: Dict[str, ckit_bot_query.FThreadWithMessages] = {}
         self.running_test_scenario = running_test_scenario
         self.running_happy_yaml = running_happy_yaml
+        self.subscribe_to_erp_tables = set(subscribe_to_erp_tables)
+        self.restart_requested = False
 
 
 async def subscribe_and_produce_callbacks(
@@ -327,11 +360,14 @@ async def subscribe_and_produce_callbacks(
     ws_client: gql.Client,
     bc: BotsCollection,
 ):
-    MAX_THREADS = 100
+    MAX_THREADS = 1000
     # XXX check if it will really crash downstream without this check
     assert fclient.service_name.startswith(bc.marketable_name)
 
     bc.thread_tracker.clear()  # Control reaches this after exception and reconnect, a new subscription will send all the threads anew, need to clear
+
+    if bc.subscribe_to_erp_tables:
+        logger.info(f"Subscribing to ERP tables: {sorted(bc.subscribe_to_erp_tables)}")
 
     async with ws_client as ws:
         assert fclient.ws_id is not None or fclient.group_id is not None
@@ -348,7 +384,7 @@ async def subscribe_and_produce_callbacks(
                 "marketable_name": bc.marketable_name,
                 "marketable_version": bc.marketable_version,
                 "inprocess_tool_names": [t.name for t in bc.inprocess_tools],
-                "want_erp_tables": bc.subscribe_to_erp_tables,
+                "want_erp_tables": sorted(bc.subscribe_to_erp_tables),
                 "ws_id_prefix": use_ws_id_prefix,
                 "group_id": use_group_id,
             },
@@ -364,15 +400,15 @@ async def subscribe_and_produce_callbacks(
                     assert upd.news_payload_persona.ws_timezone
                     handled = True
                     persona_id = upd.news_payload_id
+
                     if bot := bc.bots_running.get(persona_id, None):
                         if bot.instance_rcx.persona.persona_setup != upd.news_payload_persona.persona_setup:
-                            logger.info("Persona %s setup changed, restarting bot." % persona_id)
-                            bc.bots_running[persona_id].atask.cancel()
-                            try:
-                                await bc.bots_running[persona_id].atask
-                            except asyncio.CancelledError:
-                                pass
+                            logger.info("Persona %s setup changed, requesting graceful shutdown" % persona_id)
                             del bc.bots_running[persona_id]
+                            bc.shutting_down_tasks.add(bot.atask)
+                            bot.atask.add_done_callback(bc.shutting_down_tasks.discard)
+                            bot.instance_rcx._restart_requested = True
+                            bot.instance_rcx._parked_anything_new.set()
                     if persona_id not in bc.bots_running:
                         rcx = RobotContext(fclient, upd.news_payload_persona)
                         rcx.running_test_scenario = bc.running_test_scenario
@@ -447,26 +483,10 @@ async def subscribe_and_produce_callbacks(
                     persona_id = toolcall.connected_persona_id
                     if persona_id in bc.bots_running:
                         bot = bc.bots_running[persona_id]
-                        if toolcall.fcall_name not in bot.instance_rcx._handler_per_tool:
-                            # give bot main loop a couple of seconds to start up and install the handler, it's async everything here ... :/
-                            for _ in range(10):
-                                if bot.instance_rcx._reached_main_loop:
-                                    break
-                                if await ckit_shutdown.wait(1):
-                                    break
-                        set1 = set(t.name for t in bc.inprocess_tools)
-                        set2 = set(bot.instance_rcx._handler_per_tool.keys())
-                        if set1 != set2:
-                            logger.error(
-                                "Whoops make sure you call on_tool_call() for each of inprocess_tools.\nYou advertise: %r\nYou have hanlders: %r"
-                                % (set1, set2)
-                            )
-                            ckit_shutdown.shutdown_event.set()
-                            break
-                        assert toolcall.fcall_name in set1
-                        assert toolcall.fcall_name in set2
-                        bot.instance_rcx._parked_toolcalls.append(toolcall)
-                        bot.instance_rcx._parked_anything_new.set()
+                        if toolcall.fcall_id not in bot.instance_rcx._parked_toolcalls and toolcall.fcall_id not in bot.instance_rcx._processing_toolcalls:
+                            logger.info("%s parked tool call %s %s", persona_id, toolcall.fcall_id, toolcall.fcall_name)
+                            bot.instance_rcx._parked_toolcalls[toolcall.fcall_id] = toolcall
+                            bot.instance_rcx._parked_anything_new.set()
                     else:
                         logger.info("%s is about persona=%s which is not running here." % (toolcall.fcall_id, persona_id))
 
@@ -494,7 +514,7 @@ async def subscribe_and_produce_callbacks(
                     new_record = upd.news_payload_erp_record_new
                     old_record = upd.news_payload_erp_record_old
                     for bot in bc.bots_running.values():
-                        bot.instance_rcx._parked_erp_changes.append((table_name, upd.news_action, new_record, old_record))
+                        bot.instance_rcx._parked_erp_changes[(table_name, upd.news_payload_id)] = (upd.news_action, new_record, old_record)
                         bot.instance_rcx._parked_anything_new.set()
 
             elif upd.news_action == "INITIAL_UPDATES_OVER":
@@ -534,7 +554,18 @@ async def subscribe_and_produce_callbacks(
                         ckit_utils.log_with_throttle(logger.info,
                             "Thread %s belongs to persona %s, but no bot is running for it, maybe a little async not a big deal.", tid, persona_id)
 
-            if ckit_shutdown.shutdown_event.is_set():
+            if any(bot.instance_rcx.erp_tables_dirty for bot in bc.bots_running.values()):
+                new_tables = set()
+                for bot in bc.bots_running.values():
+                    new_tables.update(bot.instance_rcx.wanted_erp_tables)
+                    bot.instance_rcx.erp_tables_dirty = False
+                if new_tables != bc.subscribe_to_erp_tables:
+                    logger.info("ERP tables changed from %s to %s, restarting subscription", sorted(bc.subscribe_to_erp_tables), sorted(new_tables))
+                    bc.subscribe_to_erp_tables = new_tables
+                    bc.restart_requested = True
+                    break
+
+            if ckit_shutdown.shutdown_event.is_set() or bc.restart_requested:
                 break
 
 

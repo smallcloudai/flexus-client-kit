@@ -1,4 +1,5 @@
 from flexus_simple_bots import prompts_common
+from flexus_client_kit.integrations import fi_crm_automations
 
 crm_prompt = f"""
 Use erp_table_*() tools to interact with the CRM.
@@ -30,8 +31,10 @@ Relevant strategies and templates are in policy docs under `/sales-pipeline/`, s
 If enabled in setup, and a template is configured in `/sales-pipeline/welcome-email`, new CRM contacts
 without a previous welcome email will receive one automatically, personalized based on contact and sales data.
 
+{fi_crm_automations.AUTOMATIONS_PROMPT}
+
 {prompts_common.PROMPT_KANBAN}
-{prompts_common.PROMPT_PRINT_RESTART_WIDGET}
+{prompts_common.PROMPT_PRINT_WIDGET}
 {prompts_common.PROMPT_POLICY_DOCUMENTS}
 {prompts_common.PROMPT_A2A_COMMUNICATION}
 {prompts_common.PROMPT_HERE_GOES_SETUP}
