@@ -1,16 +1,15 @@
 """
 Skill: Metrics & Decision Framework
 
-Определяет KPI, рассчитывает MDE, устанавливает stop/accelerate rules.
-Второй шаг после diagnostic.
+Defines KPIs, calculates MDE, sets stop/accelerate rules.
+Second step after diagnostic.
 
-Входные данные: /marketing-experiments/{experiment_id}/input, /marketing-experiments/{experiment_id}/diagnostic
-Выходные данные: /marketing-experiments/{experiment_id}/metrics
+Input data: /marketing-experiments/{experiment_id}/input, /marketing-experiments/{experiment_id}/diagnostic
+Output data: /marketing-experiments/{experiment_id}/metrics
 """
 
 SKILL_NAME = "metrics"
 SKILL_DESCRIPTION = "Metrics Framework — defining KPIs, stop-rules, MDE calculation"
-SKILL_DESCRIPTION_RU = "Определю KPI, правила остановки и ускорения, минимальные выборки."
 
 REQUIRES_STEP = "diagnostic"
 

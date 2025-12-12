@@ -38,7 +38,7 @@ AGENT_DESCRIPTIONS = {
 }
 
 STEP_DESCRIPTIONS = {
-    "input": "Сбор входных данных — продукт, гипотеза, бюджет, сроки",
+    "input": "Input data collection — product, hypothesis, budget, timeline",
     **AGENT_DESCRIPTIONS,
 }
 
@@ -163,7 +163,7 @@ async def owl_strategist_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_
             return None
         prev_step = PIPELINE[agent_idx - 1]
         if not await step_exists(experiment_id, prev_step):
-            return f"Нельзя запустить {agent} — сначала нужно завершить {prev_step}. Порядок: {' → '.join(PIPELINE)}"
+            return f"Cannot run {agent} — must complete {prev_step} first. Order: {' → '.join(PIPELINE)}"
         return None
 
     async def load_agent_context(experiment_id: str, agent: str, include_current: bool = False) -> str:
@@ -223,13 +223,13 @@ async def owl_strategist_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_
         status = await get_pipeline_status(experiment_id)
         return f"""✍️ {path}
 
-✓ Input сохранён для эксперимента "{experiment_id}"
+✓ Input saved for experiment "{experiment_id}"
 
 Pipeline status:
-- Завершено: {', '.join(status['completed']) or 'ничего'}
-- Следующий шаг: {status['next_step'] or 'все готово'}
+- Completed: {', '.join(status['completed']) or 'none'}
+- Next step: {status['next_step'] or 'all done'}
 
-Теперь можно запустить diagnostic агента."""
+Can now run diagnostic agent."""
 
     @rcx.on_tool_call(RUN_AGENT_TOOL.name)
     async def toolcall_run_agent(toolcall: ckit_cloudtool.FCloudtoolCall, args: Dict[str, Any]) -> str:
@@ -279,7 +279,7 @@ Pipeline status:
             return "Error: feedback is required for rerun"
 
         if not await step_exists(experiment_id, agent):
-            return f"Error: {agent} ещё не был запущен, нечего перезапускать. Используй run_agent."
+            return f"Error: {agent} has not been run yet, nothing to rerun. Use run_agent."
 
         # Load all docs including current one for rerun
         context = await load_agent_context(experiment_id, agent, include_current=True)
@@ -323,9 +323,9 @@ RERUN with corrections. Apply this feedback to the current document:
                 lines.append(f"  ○ {step} — {STEP_DESCRIPTIONS.get(step, step)}")
 
         if status["all_done"]:
-            lines.append("\n✓ Все шаги завершены! Эксперимент готов к запуску Ad Monster.")
+            lines.append("\n✓ All steps completed! Experiment ready for Ad Monster launch.")
         else:
-            lines.append(f"\nСледующий шаг: {status['next_step']}")
+            lines.append(f"\nNext step: {status['next_step']}")
 
         return "\n".join(lines)
 

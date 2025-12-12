@@ -1,16 +1,15 @@
 """
 Skill: Tactics & Spec Generator
 
-Создаёт детальные спеки кампаний, креативные брифы, структуру лендинга, требования к трекингу.
-Шестой шаг после channels.
+Creates detailed campaign specs, creative briefs, landing structure, tracking requirements.
+Sixth step after channels.
 
-Входные данные: input, diagnostic, metrics, segment, messaging, channels
-Выходные данные: /marketing-experiments/{experiment_id}/tactics
+Input data: input, diagnostic, metrics, segment, messaging, channels
+Output data: /marketing-experiments/{experiment_id}/tactics
 """
 
 SKILL_NAME = "tactics"
 SKILL_DESCRIPTION = "Tactical Spec — campaigns, creatives, landing, tracking"
-SKILL_DESCRIPTION_RU = "Создам детальные спеки кампаний, креативов, лендинга и трекинга."
 
 REQUIRES_STEP = "channels"
 

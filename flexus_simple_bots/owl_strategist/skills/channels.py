@@ -1,16 +1,15 @@
 """
 Skill: Channel & Experiment Design
 
-Выбирает каналы, проектирует test cells, распределяет бюджет.
-Пятый шаг после messaging.
+Selects channels, designs test cells, allocates budget.
+Fifth step after messaging.
 
-Входные данные: input, diagnostic, metrics, segment, messaging
-Выходные данные: /marketing-experiments/{experiment_id}/channels
+Input data: input, diagnostic, metrics, segment, messaging
+Output data: /marketing-experiments/{experiment_id}/channels
 """
 
 SKILL_NAME = "channels"
 SKILL_DESCRIPTION = "Channel Strategy — channel selection, test cells, budget"
-SKILL_DESCRIPTION_RU = "Выберу каналы, спроектирую тестовые ячейки, распределю бюджет."
 
 REQUIRES_STEP = "messaging"
 

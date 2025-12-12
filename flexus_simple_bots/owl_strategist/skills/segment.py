@@ -1,16 +1,15 @@
 """
 Skill: Segment & JTBD Analysis
 
-Уточняет целевой сегмент, ICP, jobs-to-be-done, customer journey.
-Третий шаг после diagnostic.
+Refines target segment, ICP, jobs-to-be-done, customer journey.
+Third step after diagnostic.
 
-Входные данные: /marketing-experiments/{experiment_id}/input, /marketing-experiments/{experiment_id}/diagnostic
-Выходные данные: /marketing-experiments/{experiment_id}/segment
+Input data: /marketing-experiments/{experiment_id}/input, /marketing-experiments/{experiment_id}/diagnostic
+Output data: /marketing-experiments/{experiment_id}/segment
 """
 
 SKILL_NAME = "segment"
 SKILL_DESCRIPTION = "Segment Analysis — ICP, JTBD, customer journey"
-SKILL_DESCRIPTION_RU = "Уточню целевой сегмент, составлю ICP, разберу JTBD и путь клиента."
 
 REQUIRES_STEP = "diagnostic"
 

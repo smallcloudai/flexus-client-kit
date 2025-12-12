@@ -1,16 +1,15 @@
 """
 Skill: Risk & Compliance Check
 
-Оценивает бизнес-риски, проверяет соответствие политикам рекламных платформ и privacy regulations.
-Последний шаг перед запуском.
+Assesses business risks, checks compliance with ad platform policies and privacy regulations.
+Last step before launch.
 
-Входные данные: input, tactics
-Выходные данные: /marketing-experiments/{experiment_id}/compliance
+Input data: input, tactics
+Output data: /marketing-experiments/{experiment_id}/compliance
 """
 
 SKILL_NAME = "compliance"
 SKILL_DESCRIPTION = "Risk & Compliance — policies, privacy, risks"
-SKILL_DESCRIPTION_RU = "Проверю соответствие политикам платформ, оценю риски, подготовлю чеклист."
 
 REQUIRES_STEP = "tactics"
 

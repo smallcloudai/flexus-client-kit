@@ -1,22 +1,18 @@
 """
 Skill: Diagnostic Analysis
 
-Классифицирует гипотезу, выявляет unknowns, оценивает feasibility.
-Первый шаг после сбора input.
+Classifies hypothesis, identifies unknowns, assesses feasibility.
+First step after input collection.
 
-Входные данные: /marketing-experiments/{experiment_id}/input
-Выходные данные: /marketing-experiments/{experiment_id}/diagnostic
+Input data: /marketing-experiments/{experiment_id}/input
+Output data: /marketing-experiments/{experiment_id}/diagnostic
 """
 
 SKILL_NAME = "diagnostic"
 SKILL_DESCRIPTION = "Diagnostic Analysis — classifying hypothesis, identifying unknowns"
-SKILL_DESCRIPTION_RU = "Разберёмся что именно тестируем и какие риски. Классифицирую тип гипотезы, определю ключевые unknowns."
 
-# Предыдущий шаг в pipeline (None если первый после input)
 REQUIRES_STEP = "input"
 
-# Lark kernel — выполняется после каждой генерации assistant message
-# Блокирует параллельные tool calls, запрещает rm, ждёт AGENT_COMPLETE
 LARK_KERNEL = '''
 msg = messages[-1]
 if msg["role"] == "assistant":

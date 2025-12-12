@@ -1,16 +1,15 @@
 """
 Skill: Value & Messaging Strategy
 
-Создаёт value proposition, ключевые сообщения, углы подачи, работу с возражениями.
-Четвёртый шаг после segment.
+Creates value proposition, key messages, angles, objection handling.
+Fourth step after segment.
 
-Входные данные: /marketing-experiments/{experiment_id}/input, diagnostic, segment
-Выходные данные: /marketing-experiments/{experiment_id}/messaging
+Input data: /marketing-experiments/{experiment_id}/input, diagnostic, segment
+Output data: /marketing-experiments/{experiment_id}/messaging
 """
 
 SKILL_NAME = "messaging"
 SKILL_DESCRIPTION = "Messaging Strategy — value proposition, angles, objections"
-SKILL_DESCRIPTION_RU = "Создам value proposition, ключевые сообщения и углы подачи для тестирования."
 
 REQUIRES_STEP = "segment"
 
