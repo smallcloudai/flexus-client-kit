@@ -16,8 +16,8 @@ async def main():
         fgroup_id = "solar_root"
         persona_id = "productman_test"
 
-        idea_path = "customer_research.dentist_samples.idea"
-        hypothesis_path = "customer_research.dentist_samples.private_practice_dentists.hypothesis"
+        idea_path = "product_ideas.idea001_dentist_samples.idea"
+        hypothesis_path = "product_hypotheses.idea001_hyp001_private_practice_dentists.hypothesis"
 
         print("Cleaning up previous test data...")
 
@@ -124,8 +124,8 @@ async def main():
         idea_content = json.loads((TEST_DOCS_DIR / "example_idea.json").read_text())
         hypothesis_content = json.loads((TEST_DOCS_DIR / "example_hypothesis.json").read_text())
 
-        idea_path_display = "/customer-research/dentist-samples/idea"
-        hypothesis_path_display = "/customer-research/dentist-samples/private-practice-dentists/hypothesis"
+        idea_path_display = "/product-ideas/idea001-dentist-samples/idea"
+        hypothesis_path_display = "/product-hypotheses/idea001-hyp001-private-practice-dentists/hypothesis"
         
         existing_idea = await my_prisma.query_raw(
             """SELECT * FROM flexus_policydoc WHERE pdoc_path = $1::ltree""",
