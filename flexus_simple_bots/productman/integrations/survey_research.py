@@ -7,6 +7,7 @@ import os
 from typing import Dict, Any
 
 from flexus_client_kit import ckit_cloudtool
+from flexus_client_kit import ckit_external_auth
 
 logger = logging.getLogger("survey_research")
 
@@ -222,10 +223,11 @@ class IntegrationSurveyResearch:
         question_count = sum(len(s.get("questions", [])) for k, s in formatted_content["survey"].items() if k.startswith("section"))
         pdoc_path = f"/survey-experiments/{hyp_unique_id}-{survey_name}/survey-draft"
 
+        fuser_id = ckit_external_auth.get_fuser_id_from_rcx(self.pdoc_integration.rcx, toolcall.fcall_ft_id)
         await self.pdoc_integration.pdoc_overwrite(
             pdoc_path,
             json.dumps(formatted_content, indent=2),
-            toolcall.fcall_ft_id
+            fuser_id
         )
 
         result = f"✅ Survey draft created successfully!\n\n"
@@ -365,10 +367,11 @@ class IntegrationSurveyResearch:
 
         draft_path = f"/survey-experiments/{hyp_unique_id}-{survey_name}/auditory-draft"
 
+        fuser_id = ckit_external_auth.get_fuser_id_from_rcx(self.pdoc_integration.rcx, toolcall.fcall_ft_id)
         await self.pdoc_integration.pdoc_overwrite(
             draft_path,
             json.dumps(draft_content, indent=2),
-            toolcall.fcall_ft_id
+            fuser_id
         )
 
         result = f"✅ Audience targeting draft created!\n\n"
@@ -392,13 +395,14 @@ class IntegrationSurveyResearch:
             return "Error: pdoc integration not configured"
 
         try:
+            fuser_id = ckit_external_auth.get_fuser_id_from_rcx(self.pdoc_integration.rcx, toolcall.fcall_ft_id)
             base_path = f"/survey-experiments"
-            items = await self.pdoc_integration.pdoc_list(base_path)
+            items = await self.pdoc_integration.pdoc_list(base_path, fuser_id)
 
             survey_files = []
             for item in items:
                 if item.is_folder and item.path.startswith(f"/survey-experiments/{hyp_unique_id}-"):
-                    survey_items = await self.pdoc_integration.pdoc_list(item.path)
+                    survey_items = await self.pdoc_integration.pdoc_list(item.path, fuser_id)
                     for si in survey_items:
                         if not si.is_folder:
                             survey_files.append(si.path)
@@ -498,8 +502,9 @@ class IntegrationSurveyResearch:
         if not hyp_unique_id or not survey_name:
             return "Error: hyp_unique_id and survey_name are required"
 
+        fuser_id = ckit_external_auth.get_fuser_id_from_rcx(self.pdoc_integration.rcx, toolcall.fcall_ft_id)
         auditory_draft_path = f"/survey-experiments/{hyp_unique_id}-{survey_name}/auditory-draft"
-        auditory_doc = await self.pdoc_integration.pdoc_cat(auditory_draft_path)
+        auditory_doc = await self.pdoc_integration.pdoc_cat(auditory_draft_path, fuser_id)
         auditory_content = auditory_doc.pdoc_content
 
         if not auditory_content or "prolific_auditory_draft" not in auditory_content:
@@ -530,8 +535,9 @@ class IntegrationSurveyResearch:
         auditory_draft_path = f"/survey-experiments/{hyp_unique_id}-{survey_name}/auditory-draft"
 
         try:
-            survey_doc = await self.pdoc_integration.pdoc_cat(survey_draft_path)
-            auditory_doc = await self.pdoc_integration.pdoc_cat(auditory_draft_path)
+            fuser_id = ckit_external_auth.get_fuser_id_from_rcx(self.pdoc_integration.rcx, toolcall.fcall_ft_id)
+            survey_doc = await self.pdoc_integration.pdoc_cat(survey_draft_path, fuser_id)
+            auditory_doc = await self.pdoc_integration.pdoc_cat(auditory_draft_path, fuser_id)
 
             survey_content = survey_doc.pdoc_content
             auditory_content = auditory_doc.pdoc_content
@@ -713,10 +719,11 @@ class IntegrationSurveyResearch:
             }
 
             try:
+                fuser_id = ckit_external_auth.get_fuser_id_from_rcx(self.pdoc_integration.rcx, toolcall.fcall_ft_id)
                 await self.pdoc_integration.pdoc_overwrite(
                     results_path,
                     json.dumps(results_content, indent=2),
-                    toolcall.fcall_ft_id
+                    fuser_id
                 )
                 result += f"\n📁 Results saved to: {results_path}\n"
                 result += f"✍️ {results_path}\n\n"
