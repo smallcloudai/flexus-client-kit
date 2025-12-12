@@ -101,6 +101,10 @@ prompt = f"""{PRODUCTMAN_BASE}
 
 {prompts_common.PROMPT_KANBAN}
 
+## CRITICAL RULE: Error Handling
+
+If ANY tool returns an error, STOP execution immediately. Show the error to the user and ask how to proceed. Do NOT continue with the plan or try alternative approaches without user confirmation.
+
 ## Survey Skill Workflow
 
 1. When you receive a kanban task with policy_documents:
