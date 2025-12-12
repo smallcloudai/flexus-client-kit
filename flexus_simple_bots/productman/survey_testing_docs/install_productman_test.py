@@ -177,7 +177,8 @@ async def main():
             "hypothesis_name": "private-practice-dentists",
             "hypothesis_path": hypothesis_path_display,
             "hypothesis": hypothesis_path_display,
-            "policy_documents": [hypothesis_path_display],
+            "idea_path": idea_path_display,
+            "policy_documents": [idea_path_display, hypothesis_path_display],
         }
         
         experts = marketplace_rec.marketable_experts

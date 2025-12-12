@@ -103,13 +103,14 @@ prompt = f"""{PRODUCTMAN_BASE}
 
 ## Survey Skill Workflow
 
-1. When you receive a hypothesis path from kanban task:
+1. When you receive a kanban task with policy_documents:
+   - Task should contain BOTH idea and hypothesis paths in policy_documents list
    - Read the hypothesis: `/product-hypotheses/<idea_unique_id>-<hyp_unique_id>-<hypothesis-name>/hypothesis`
-   - Extract IDs from folder name (e.g. "idea001-hyp001-social-influencers"):
+   - Read the idea: `/product-ideas/<idea_unique_id>-<idea-name>/idea`
+   - Extract IDs from hypothesis folder name (e.g. "idea001-hyp001-social-influencers"):
      * idea_unique_id = first segment (e.g. "idea001")
      * hyp_unique_id = second segment (e.g. "hyp001")
-   - Read the idea: `/product-ideas/<idea_unique_id>-<idea-name>/idea`
-   - Analyze content to understand target audience and what to validate
+   - Analyze both documents to understand target audience and what to validate
 
 2. Draft survey and audience targeting:
    - Choose survey_name (2-4 words describing survey approach, kebab-case)
