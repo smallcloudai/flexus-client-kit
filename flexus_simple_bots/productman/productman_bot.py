@@ -12,6 +12,7 @@ from flexus_client_kit import ckit_bot_exec
 from flexus_client_kit import ckit_shutdown
 from flexus_client_kit import ckit_ask_model
 from flexus_client_kit import ckit_scenario
+from flexus_client_kit import ckit_external_auth
 from flexus_client_kit.integrations import fi_pdoc
 from flexus_simple_bots.productman import productman_install
 from flexus_simple_bots.productman import productman_prompts
@@ -112,11 +113,11 @@ TOOLS_ALL = [
 ]
 
 
-async def generate_next_idea_id(pdoc_integration: fi_pdoc.IntegrationPdoc) -> str:
-    existing_ideas = await pdoc_integration.pdoc_list("/product-ideas")
+async def generate_next_idea_id(pdoc_integration: fi_pdoc.IntegrationPdoc, fuser_id: str) -> str:
+    existing_ideas = await pdoc_integration.pdoc_list("/product-ideas", fuser_id)
     max_id = 0
-    for idea_path in existing_ideas:
-        parts = idea_path.strip("/").split("/")
+    for item in existing_ideas:
+        parts = item.path.strip("/").split("/")
         if len(parts) >= 2:
             folder_name = parts[1]
             if "-" in folder_name:
@@ -126,11 +127,11 @@ async def generate_next_idea_id(pdoc_integration: fi_pdoc.IntegrationPdoc) -> st
     return f"idea{max_id + 1:03d}"
 
 
-async def generate_next_hypothesis_id(pdoc_integration: fi_pdoc.IntegrationPdoc, idea_unique_id: str) -> str:
-    existing_hypotheses = await pdoc_integration.pdoc_list("/product-hypotheses")
+async def generate_next_hypothesis_id(pdoc_integration: fi_pdoc.IntegrationPdoc, idea_unique_id: str, fuser_id: str) -> str:
+    existing_hypotheses = await pdoc_integration.pdoc_list("/product-hypotheses", fuser_id)
     max_id = 0
-    for hyp_path in existing_hypotheses:
-        parts = hyp_path.strip("/").split("/")
+    for item in existing_hypotheses:
+        parts = item.path.strip("/").split("/")
         if len(parts) >= 2:
             folder_name = parts[1]
             if folder_name.startswith(f"{idea_unique_id}-"):
@@ -212,10 +213,11 @@ async def productman_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_
         if validation_error:
             return f"Error: {validation_error}"
 
-        idea_unique_id = await generate_next_idea_id(pdoc_integration)
+        fuser_id = ckit_external_auth.get_fuser_id_from_rcx(rcx, toolcall.fcall_ft_id)
+        idea_unique_id = await generate_next_idea_id(pdoc_integration, fuser_id)
         path = f"/product-ideas/{idea_unique_id}-{idea_name}/idea"
 
-        await pdoc_integration.pdoc_create(path, json.dumps(idea_doc, indent=2), toolcall.fcall_ft_id)
+        await pdoc_integration.pdoc_create(path, json.dumps(idea_doc, indent=2), fuser_id)
         logger.info(f"Created idea at {path}")
         return f"✍️ {path}\n\n✓ Created idea document with ID {idea_unique_id}"
 
@@ -246,10 +248,11 @@ async def productman_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_
         if validation_error:
             return f"Error: {validation_error}"
 
-        hyp_unique_id = await generate_next_hypothesis_id(pdoc_integration, idea_unique_id)
+        fuser_id = ckit_external_auth.get_fuser_id_from_rcx(rcx, toolcall.fcall_ft_id)
+        hyp_unique_id = await generate_next_hypothesis_id(pdoc_integration, idea_unique_id, fuser_id)
         path = f"/product-hypotheses/{idea_unique_id}-{hyp_unique_id}-{hypothesis_name}/hypothesis"
 
-        await pdoc_integration.pdoc_create(path, json.dumps(hypothesis_doc, indent=2), toolcall.fcall_ft_id)
+        await pdoc_integration.pdoc_create(path, json.dumps(hypothesis_doc, indent=2), fuser_id)
         logger.info(f"Created hypothesis at {path}")
         return f"✍️ {path}\n\n✓ Created hypothesis document with ID {hyp_unique_id}"
 
