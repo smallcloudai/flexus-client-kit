@@ -228,7 +228,7 @@ async def productman_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_
         if rcx.running_test_scenario:
             return await ckit_scenario.scenario_generate_tool_result_via_model(fclient, toolcall, Path(__file__).read_text())
 
-        await ckit_ask_model.bot_subchat_create_multiple(
+        subchats = await ckit_ask_model.bot_subchat_create_multiple(
             client=fclient,
             who_is_asking="productman_verify_idea",
             persona_id=rcx.persona.persona_id,
@@ -240,7 +240,7 @@ async def productman_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_
         )
         # Subchat adds "c" (for "criticism") for every question to the document.
         # Returns "Read the file using flexus_policy_document(op=activate, ...) to see the ratings."
-        raise ckit_cloudtool.WaitForSubchats()
+        raise ckit_cloudtool.WaitForSubchats(subchats)
 
     @rcx.on_tool_call(fi_pdoc.POLICY_DOCUMENT_TOOL.name)
     async def toolcall_pdoc(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:

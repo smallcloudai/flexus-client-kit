@@ -33,6 +33,7 @@ setup(
         "langchain-community",
         "atlassian-python-api",
         "html2text",
+        "pandas"
     ],
     extras_require={
         "dev": [

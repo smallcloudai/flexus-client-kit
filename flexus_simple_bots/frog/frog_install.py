@@ -115,21 +115,14 @@ async def install(
         marketable_default_inbox_default=10_000,
         marketable_experts=[
             ("default", ckit_bot_install.FMarketplaceExpertInput(
-                fexp_system_prompt=frog_prompts.short_prompt,
+                fexp_system_prompt=frog_prompts.frog_prompt,
                 fexp_python_kernel=FROG_DEFAULT_LARK,
                 fexp_block_tools="*setup*",
                 fexp_allow_tools="",
                 fexp_app_capture_tools=bot_internal_tools,
             )),
-            ("setup", ckit_bot_install.FMarketplaceExpertInput(
-                fexp_system_prompt=frog_prompts.frog_setup,
-                fexp_python_kernel=FROG_DEFAULT_LARK,
-                fexp_block_tools="",
-                fexp_allow_tools="",
-                fexp_app_capture_tools=bot_internal_tools,
-            )),
             ("huntmode", ckit_bot_install.FMarketplaceExpertInput(
-                fexp_system_prompt=frog_prompts.frog_setup,
+                fexp_system_prompt=frog_prompts.frog_prompt,
                 fexp_python_kernel=FROG_SUBCHAT_LARK,
                 fexp_block_tools="*setup*,frog_catch_insects",
                 fexp_allow_tools="",

@@ -129,7 +129,7 @@ Provide a comprehensive analysis including:
 
 Format the response professionally with appropriate citations in {setup.get('citation_style', 'bluebook')} style."""
 
-        await ckit_ask_model.bot_subchat_create_multiple(
+        subchats = await ckit_ask_model.bot_subchat_create_multiple(
             client=fclient,
             who_is_asking="lawyerrat_research",
             persona_id=rcx.persona.persona_id,
@@ -139,7 +139,7 @@ Format the response professionally with appropriate citations in {setup.get('cit
             fcall_id=toolcall.fcall_id,
             skill="default",
         )
-        raise ckit_cloudtool.WaitForSubchats()
+        raise ckit_cloudtool.WaitForSubchats(subchats)
 
     @rcx.on_tool_call(DRAFT_DOCUMENT_TOOL.name)
     async def toolcall_draft_document(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
@@ -181,7 +181,7 @@ Create a thorough, professionally formatted document that includes:
 
 Include a brief summary of key points at the end."""
 
-        await ckit_ask_model.bot_subchat_create_multiple(
+        subchats = await ckit_ask_model.bot_subchat_create_multiple(
             client=fclient,
             who_is_asking="lawyerrat_draft",
             persona_id=rcx.persona.persona_id,
@@ -191,7 +191,7 @@ Include a brief summary of key points at the end."""
             fcall_id=toolcall.fcall_id,
             skill="default",
         )
-        raise ckit_cloudtool.WaitForSubchats()
+        raise ckit_cloudtool.WaitForSubchats(subchats)
 
     @rcx.on_tool_call(ANALYZE_CONTRACT_TOOL.name)
     async def toolcall_analyze_contract(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
@@ -229,7 +229,7 @@ Provide a thorough analysis including:
 
 Be systematic and thorough like a diligent rat examining every detail!"""
 
-        await ckit_ask_model.bot_subchat_create_multiple(
+        subchats = await ckit_ask_model.bot_subchat_create_multiple(
             client=fclient,
             who_is_asking="lawyerrat_analyze",
             persona_id=rcx.persona.persona_id,
@@ -239,7 +239,7 @@ Be systematic and thorough like a diligent rat examining every detail!"""
             fcall_id=toolcall.fcall_id,
             skill="default",
         )
-        raise ckit_cloudtool.WaitForSubchats()
+        raise ckit_cloudtool.WaitForSubchats(subchats)
 
     @rcx.on_tool_call(fi_widget.PRINT_WIDGET_TOOL.name)
     async def toolcall_print_widget(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:

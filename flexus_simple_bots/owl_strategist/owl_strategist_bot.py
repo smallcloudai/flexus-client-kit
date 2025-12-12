@@ -253,7 +253,7 @@ Can now run diagnostic agent."""
 
         logger.info(f"Starting agent '{agent}' for experiment '{experiment_id}'")
 
-        await ckit_ask_model.bot_subchat_create_multiple(
+        subchats = await ckit_ask_model.bot_subchat_create_multiple(
             client=fclient,
             who_is_asking=f"owl_{agent}",
             persona_id=rcx.persona.persona_id,
@@ -263,7 +263,7 @@ Can now run diagnostic agent."""
             fcall_id=toolcall.fcall_id,
             skill=agent,
         )
-        raise ckit_cloudtool.WaitForSubchats()
+        raise ckit_cloudtool.WaitForSubchats(subchats)
 
     @rcx.on_tool_call(RERUN_AGENT_TOOL.name)
     async def toolcall_rerun_agent(toolcall: ckit_cloudtool.FCloudtoolCall, args: Dict[str, Any]) -> str:
@@ -293,7 +293,7 @@ RERUN with corrections. Apply this feedback to the current document:
 
         logger.info(f"Rerunning agent '{agent}' for experiment '{experiment_id}' with feedback")
 
-        await ckit_ask_model.bot_subchat_create_multiple(
+        subchats = await ckit_ask_model.bot_subchat_create_multiple(
             client=fclient,
             who_is_asking=f"owl_{agent}_rerun",
             persona_id=rcx.persona.persona_id,
@@ -303,7 +303,7 @@ RERUN with corrections. Apply this feedback to the current document:
             fcall_id=toolcall.fcall_id,
             skill=agent,
         )
-        raise ckit_cloudtool.WaitForSubchats()
+        raise ckit_cloudtool.WaitForSubchats(subchats)
 
     @rcx.on_tool_call(GET_PIPELINE_STATUS_TOOL.name)
     async def toolcall_get_pipeline_status(toolcall: ckit_cloudtool.FCloudtoolCall, args: Dict[str, Any]) -> str:

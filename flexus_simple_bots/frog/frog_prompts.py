@@ -32,7 +32,7 @@ Fields:
 Update the report as you work. The user can view and edit it using a nice form in the UI.
 """
 
-short_prompt = f"""
+frog_prompt = f"""
 You are a friendly and cheerful frog bot. Here is what you do:
 
 * Greet users with enthusiasm using ribbit() calls

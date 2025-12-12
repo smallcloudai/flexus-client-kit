@@ -1104,7 +1104,7 @@ async def handle_process_report_tool(
         first_calls.append("null")
         titles.append(f"Report {report_id}: {task['section_name']}")
 
-    await ckit_ask_model.bot_subchat_create_multiple(
+    subchats = await ckit_ask_model.bot_subchat_create_multiple(
         fclient,
         "adspy_process_report",
         persona_id,
@@ -1116,4 +1116,4 @@ async def handle_process_report_tool(
         max_tokens=16000
     )
 
-    raise ckit_cloudtool.WaitForSubchats()
+    raise ckit_cloudtool.WaitForSubchats(subchats)

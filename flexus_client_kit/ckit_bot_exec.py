@@ -189,6 +189,7 @@ class RobotContext:
     async def _local_tool_call(self, fclient: ckit_client.FlexusClient, toolcall: ckit_cloudtool.FCloudtoolCall) -> None:
         logger.info("%s local_tool_call %s %s(%s) from thread %s" % (self.persona.persona_id, toolcall.fcall_id, toolcall.fcall_name, toolcall.fcall_arguments, toolcall.fcall_ft_id))
         already_serialized = False
+        subchats_list = None
         try:
             args = json.loads(toolcall.fcall_arguments)
             if not isinstance(args, dict):
@@ -212,8 +213,9 @@ class RobotContext:
         except json.JSONDecodeError:
             # nothing in logs -- normal for a model to produce garbage on occasion
             tool_result = "Arguments expected to be a valid json, instead got: %r" % args
-        except ckit_cloudtool.WaitForSubchats:
+        except ckit_cloudtool.WaitForSubchats as e:
             tool_result = "WAIT_SUBCHATS"
+            subchats_list = e.subchats
         except ckit_cloudtool.NeedsConfirmation as e:
             logger.info("%s needs human confirmation: %s" % (toolcall.fcall_id, e.confirm_explanation))
             await ckit_cloudtool.cloudtool_confirmation_request(fclient, toolcall.fcall_id, e.confirm_setup_key, e.confirm_command, e.confirm_explanation)
@@ -224,11 +226,14 @@ class RobotContext:
         except Exception as e:
             logger.error("%s Tool call failed: %s" % (toolcall.fcall_id, e), exc_info=e)  # full error and stack for the author of the bot
             tool_result = "Tool error, see logs for details"  # Not too much visible for end user
-        prov = json.dumps({"system": fclient.service_name})
-        if tool_result != "WAIT_SUBCHATS" and tool_result != "POSTED_NEED_CONFIRMATION" and tool_result != "ALREADY_POSTED_RESULT":
+        prov_dict = {"system": fclient.service_name}
+        if subchats_list is not None:
+            prov_dict["subchats_started"] = subchats_list
+        prov = json.dumps(prov_dict)
+        if tool_result != "POSTED_NEED_CONFIRMATION" and tool_result != "ALREADY_POSTED_RESULT":
             if not already_serialized:
                 tool_result = json.dumps(tool_result)
-            await ckit_cloudtool.cloudtool_post_result(fclient, toolcall.fcall_id, toolcall.fcall_untrusted_key, tool_result, prov)
+            await ckit_cloudtool.cloudtool_post_result(fclient, toolcall.fcall_id, toolcall.fcall_untrusted_key, tool_result, prov, as_placeholder=bool(subchats_list))
 
 
 class BotInstance(NamedTuple):
@@ -260,17 +265,21 @@ async def i_am_still_alive(
         try:
             http_client = await fclient.use_http()
             async with http_client as http:
+                # group_id takes priority over ws_id, send only one (not both)
+                use_group_id = fclient.group_id if fclient.group_id else None
+                use_ws_id_prefix = None if use_group_id else fclient.ws_id
                 await http.execute(
-                    gql.gql("""mutation BotConfirmExists($marketable_name: String!, $marketable_version: Int!, $ws_id_prefix: String!) {
-                        bot_confirm_exists(marketable_name: $marketable_name, marketable_version: $marketable_version, ws_id_prefix: $ws_id_prefix)
+                    gql.gql("""mutation BotConfirmExists($marketable_name: String!, $marketable_version: Int!, $ws_id_prefix: String, $group_id: String) {
+                        bot_confirm_exists(marketable_name: $marketable_name, marketable_version: $marketable_version, ws_id_prefix: $ws_id_prefix, group_id: $group_id)
                     }"""),
                     variable_values={
                         "marketable_name": marketable_name,
                         "marketable_version": marketable_version,
-                        "ws_id_prefix": fclient.ws_id,
+                        "ws_id_prefix": use_ws_id_prefix,
+                        "group_id": use_group_id,
                     },
                 )
-                logger.info("i_am_still_alive %s:%d ws_id=%s", marketable_name, marketable_version, fclient.ws_id)
+                logger.info("i_am_still_alive %s:%d %s=%s", marketable_name, marketable_version, "ws_id" if fclient.ws_id else "group_id", fclient.ws_id or fclient.group_id)
             if await ckit_shutdown.wait(120):
                 break
 
@@ -822,20 +831,27 @@ async def run_bots_in_this_group(
     subscribe_to_erp_tables: List[str] = [],
 ) -> None:
     marketable_version = ckit_client.marketplace_version_as_int(marketable_version_str)
+
+    if fclient.ws_id and fclient.group_id:
+        raise ValueError("Both ws_id and group_id are set, only one is allowed")
+
     if fclient.use_ws_ticket:
-        ws_id_prefix = fclient.ws_id
+        if not fclient.ws_id and not fclient.group_id:
+            raise ValueError("Neither ws_id nor group_id is set, one is required")
+        ws_id_prefix = fclient.ws_id  # None if using group_id
 
     elif fclient.api_key:
         # This is a dev bot, meaning it runs at bot author's console, using their api key
-        if not fclient.ws_id:
+        if not fclient.ws_id and not fclient.group_id:
             r = await ckit_client.query_basic_stuff(fclient)
             for ws in r.workspaces:
                 logger.info("  Workspace %r, owned by %s, name %r" % (ws.ws_id, ws.ws_owner_fuser_id, ws.root_group_name))
-            logger.info("Please set FLEXUS_WORKSPACE to one of the above")
+            logger.info("Please set FLEXUS_WORKSPACE or FLEXUS_GROUP to one of the above")
             return
-        logger.info("Installing %s:%s into workspace %s", marketable_name, marketable_version_str, fclient.ws_id)
-        await install_func(fclient, fclient.ws_id, marketable_name, marketable_version_str, inprocess_tools)
-        ws_id_prefix = fclient.ws_id
+        if fclient.ws_id:
+            logger.info("Installing %s:%s into workspace %s", marketable_name, marketable_version_str, fclient.ws_id)
+            await install_func(fclient, fclient.ws_id, marketable_name, marketable_version_str, inprocess_tools)
+        ws_id_prefix = fclient.ws_id  # None if using group_id
 
     elif fclient.inside_radix_process:
         # Dev computer, detected by absence of FLEXUS_WS_TICKET, for testing a radix process
