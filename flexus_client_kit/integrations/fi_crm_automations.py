@@ -23,8 +23,7 @@ CRM_AUTOMATIONS_SETUP_SCHEMA = [
 ]
 
 
-AUTOMATIONS_PROMPT = """
-## CRM Automations
+AUTOMATIONS_PROMPT = """## CRM Automations
 
 You can configure CRM automations to react to ERP table changes and perform actions automatically.
 
@@ -38,7 +37,7 @@ Common use cases:
 - Automatic task creation based on deal stage changes
 
 Working with Automations:
-- Call crm_automation(op="help") and check ERP schema first with erp_table_meta
+- Call crm_automation(op="help") and check available ERP tables and schema first with erp_table_meta
 - List existing automations
 - Do not react to just insert of erp tables, react also to update
 
@@ -56,8 +55,7 @@ Important Notes:
 - Actions execute in sequence
 - Failed actions are logged but don't stop subsequent actions
 - Automations can be enabled/disabled
-- NEVER use my_setup() to set up crm_automations - it will kill the configured automations, only use this tool to manage them
-""".strip()
+- NEVER use my_setup() to set up crm_automations - it will kill the configured automations, only use this tool to manage them"""
 
 
 CRM_AUTOMATION_TOOL = ckit_cloudtool.CloudTool(
@@ -188,10 +186,12 @@ class IntegrationCrmAutomations:
         client: ckit_client.FlexusClient,
         rcx: ckit_bot_exec.RobotContext,
         get_setup_func: callable,
+        available_erp_tables: List[str],
     ):
         self.client = client
         self.rcx = rcx
         self.get_setup = get_setup_func
+        self.available_erp_tables = available_erp_tables or []
         self._pending_save = None
         self._setup_automation_handlers()
 
@@ -228,7 +228,11 @@ class IntegrationCrmAutomations:
         args = model_args.get("args", {})
 
         if op == "help":
-            return HELP_TEXT
+            help_text = HELP_TEXT
+            if self.available_erp_tables:
+                tables_list = ", ".join(self.available_erp_tables)
+                help_text += f"\n\n## Available ERP Tables for Triggers you can ONLY create automations for: {tables_list}"
+            return help_text
 
         elif op == "list":
             return await self._op_list(args)
@@ -377,10 +381,6 @@ class IntegrationCrmAutomations:
 
         for t in tables:
             self.rcx._handler_per_erp_table_change[t] = make_handler(t)
-
-        if set(self.rcx._handler_per_erp_table_change.keys()) != set(self.rcx.wanted_erp_tables):
-            self.rcx.wanted_erp_tables = sorted(self.rcx._handler_per_erp_table_change.keys())
-            self.rcx.erp_tables_dirty = True
 
 
 def get_erp_tables_from_automations(automations_dict: Dict[str, Any]) -> List[str]:
