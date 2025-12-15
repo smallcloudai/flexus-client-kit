@@ -9,6 +9,7 @@ from flexus_client_kit import ckit_bot_exec
 from flexus_client_kit import ckit_shutdown
 from flexus_client_kit import ckit_ask_model
 from flexus_client_kit import ckit_kanban
+from flexus_client_kit import ckit_external_auth
 from flexus_client_kit.integrations import fi_pdoc
 from flexus_simple_bots.version_common import SIMPLE_BOTS_COMMON_VERSION
 from flexus_simple_bots.owl_strategist import owl_strategist_install
@@ -202,6 +203,9 @@ async def owl_strategist_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_
         if not experiment_id:
             return "Error: experiment_id is required (format: {hyp_id}-{slug}, e.g. hyp001-meta-ads-test)"
 
+        # Get user ID from toolcall context, not bot persona
+        caller_fuser_id = ckit_external_auth.get_fuser_id_from_rcx(rcx, toolcall.fcall_ft_id)
+
         input_doc = {
             "product_description": args.get("product_description", ""),
             "hypothesis": args.get("hypothesis", ""),
@@ -213,10 +217,10 @@ async def owl_strategist_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_
 
         path = f"/marketing-experiments/{experiment_id}/input"
         try:
-            await pdoc_integration.pdoc_create(path, json.dumps(input_doc, ensure_ascii=False), fuser_id)
+            await pdoc_integration.pdoc_create(path, json.dumps(input_doc, ensure_ascii=False), caller_fuser_id)
         except Exception as e:
             if "already exists" in str(e).lower():
-                await pdoc_integration.pdoc_overwrite(path, json.dumps(input_doc, ensure_ascii=False), fuser_id)
+                await pdoc_integration.pdoc_overwrite(path, json.dumps(input_doc, ensure_ascii=False), caller_fuser_id)
             else:
                 return f"Error saving input: {e}"
 

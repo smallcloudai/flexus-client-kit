@@ -74,7 +74,6 @@ async def marketplace_upsert_dev_bot(
     marketable_picture_small_b64: str,
     marketable_experts: List[Tuple[str, FMarketplaceExpertInput]],
     marketable_tags: List[str] = [],
-    marketable_stage: str = "MARKETPLACE_DEV",
     marketable_forms: Optional[Dict[str, str]] = None,
 ) -> FBotInstallOutput:
     assert not ws_id.startswith("fx-"), "You can find workspace id in the browser address bar, when visiting for example the statistics page"
@@ -86,7 +85,7 @@ async def marketplace_upsert_dev_bot(
             expert_dict["fexp_name"] = f"{marketable_name}_{expert_type}"
             experts_input.append(expert_dict)
         r = await h.execute(
-            gql.gql(f"""mutation InstallBot($ws: String!, $name: String!, $ver: String!, $title1: String!, $title2: String!, $author: String!, $accent_color: String!, $occupation: String!, $desc: String!, $typical_group: String!, $repo: String!, $run: String!, $setup: String!, $featured: [FFeaturedActionInput!]!, $intro: String!, $model: String!, $daily: Int!, $inbox: Int!, $experts: [FMarketplaceExpertInput!]!, $schedule: String!, $big: String!, $small: String!, $tags: [String!]!, $stage: String!, $forms: String) {{
+            gql.gql(f"""mutation InstallBot($ws: String!, $name: String!, $ver: String!, $title1: String!, $title2: String!, $author: String!, $accent_color: String!, $occupation: String!, $desc: String!, $typical_group: String!, $repo: String!, $run: String!, $setup: String!, $featured: [FFeaturedActionInput!]!, $intro: String!, $model: String!, $daily: Int!, $inbox: Int!, $experts: [FMarketplaceExpertInput!]!, $schedule: String!, $big: String!, $small: String!, $tags: [String!]!, $forms: String) {{
                 marketplace_upsert_dev_bot(
                     ws_id: $ws,
                     marketable_name: $name,
@@ -110,7 +109,6 @@ async def marketplace_upsert_dev_bot(
                     marketable_schedule: $schedule,
                     marketable_picture_big_b64: $big,
                     marketable_picture_small_b64: $small,
-                    marketable_stage: $stage,
                     marketable_tags: $tags,
                     marketable_forms: $forms
                 ) {{
@@ -139,7 +137,6 @@ async def marketplace_upsert_dev_bot(
                 "experts": experts_input,
                 "schedule": json.dumps(marketable_schedule),
                 "tags": marketable_tags,
-                "stage": marketable_stage,
                 "big": marketable_picture_big_b64,
                 "small": marketable_picture_small_b64,
                 "forms": json.dumps(marketable_forms or {}),
