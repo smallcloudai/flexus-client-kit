@@ -72,7 +72,6 @@ class RobotContext:
         self._handler_updated_task: Optional[Callable[[ckit_kanban.FPersonaKanbanTaskOutput], Awaitable[None]]] = None
         self._handler_per_tool: Dict[str, Callable[[Dict[str, Any]], Awaitable[str]]] = {}
         self._handler_per_erp_table_change: Dict[str, Callable[[str, Optional[Any], Optional[Any]], Awaitable[None]]] = {}
-        self._reached_main_loop = asyncio.Event()
         self._restart_requested = False
         self._completed_initial_unpark = False
         self._parked_messages: Dict[str, ckit_ask_model.FThreadMessageOutput] = {}
@@ -123,7 +122,6 @@ class RobotContext:
 
     async def unpark_collected_events(self, sleep_if_no_work: float, turn_tool_calls_into_tasks: bool = False) -> List[asyncio.Task]:
         # logger.info("%s unpark_collected_events() started %d %d %d" % (self.persona.persona_id, len(self._parked_messages), len(self._parked_threads), len(self._parked_toolcalls)))
-        self._reached_main_loop.set()
         if ckit_shutdown.shutdown_event.is_set():
             return []
         did_anything = False
@@ -182,14 +180,9 @@ class RobotContext:
         for c in mycalls:
             did_anything = True
             if c.fcall_name not in self._handler_per_tool:
-                try:
-                    await asyncio.wait_for(self._reached_main_loop.wait(), timeout=10.0)
-                except asyncio.TimeoutError:
-                    logger.warning("%s tool call %s for %s waiting for main loop timed out after 10s", self.persona.persona_id, c.fcall_id, c.fcall_name)
-                if c.fcall_name not in self._handler_per_tool:
-                    logger.error("%s tool call %s for %s has no handler. Available handlers: %r", self.persona.persona_id, c.fcall_id, c.fcall_name, list(self._handler_per_tool.keys()))
-                    self._processing_toolcalls.discard(c.fcall_id)
-                    continue
+                logger.error("%s tool call %s for %s has no handler. Available handlers: %r", self.persona.persona_id, c.fcall_id, c.fcall_name, list(self._handler_per_tool.keys()))
+                self._processing_toolcalls.discard(c.fcall_id)
+                continue
             if not turn_tool_calls_into_tasks:
                 try:
                     await self._local_tool_call(self.fclient, c)
@@ -867,7 +860,7 @@ async def run_bots_in_this_group(
         raise ValueError("Both ws_id and group_id are set, only one is allowed")
 
     if fclient.use_ws_ticket:
-        if not fclient.ws_id and not fclient.group_id:
+        if fclient.ws_id is None and not fclient.group_id:
             raise ValueError("Neither ws_id nor group_id is set, one is required")
         ws_id_prefix = fclient.ws_id  # None if using group_id
 
