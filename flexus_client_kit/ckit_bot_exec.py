@@ -78,7 +78,7 @@ class RobotContext:
         self._parked_threads: Dict[str, ckit_ask_model.FThreadOutput] = {}
         self._parked_tasks: Dict[str, ckit_kanban.FPersonaKanbanTaskOutput] = {}
         self._parked_toolcalls: List[ckit_cloudtool.FCloudtoolCall] = []
-        self._parked_erp_changes: Dict[tuple[str, str], tuple[str, Optional[Dict[str, Any]], Optional[Dict[str, Any]]]] = {}
+        self._parked_erp_changes: List[tuple[str, str, Optional[Dict[str, Any]], Optional[Dict[str, Any]]]] = []
         self._parked_anything_new = asyncio.Event()
         # These fields are designed for direct access:
         self.fclient = fclient
@@ -119,8 +119,6 @@ class RobotContext:
 
     async def unpark_collected_events(self, sleep_if_no_work: float, turn_tool_calls_into_tasks: bool = False) -> List[asyncio.Task]:
         # logger.info("%s unpark_collected_events() started %d %d %d" % (self.persona.persona_id, len(self._parked_messages), len(self._parked_threads), len(self._parked_toolcalls)))
-        if ckit_shutdown.shutdown_event.is_set():
-            return []
         did_anything = False
         self._parked_anything_new.clear()
 
@@ -154,9 +152,9 @@ class RobotContext:
                 except Exception as e:
                     logger.error("%s error in on_updated_task handler: %s\n%s", self.persona.persona_id, type(e).__name__, e, exc_info=e)
 
-        erp_changes = list(self._parked_erp_changes.items())
+        erp_changes = list(self._parked_erp_changes)
         self._parked_erp_changes.clear()
-        for (table_name, _record_id), (action, new_record_dict, old_record_dict) in erp_changes:
+        for table_name, action, new_record_dict, old_record_dict in erp_changes:
             did_anything = True
             handler = self._handler_per_erp_table_change.get(table_name)
             if handler:
@@ -170,8 +168,6 @@ class RobotContext:
 
         mycalls = list(self._parked_toolcalls)
         self._parked_toolcalls.clear()
-        if mycalls:
-            logger.info("%s unparking %d tool calls: %s", self.persona.persona_id, len(mycalls), [c.fcall_id for c in mycalls])
         bg_calls = []
         for c in mycalls:
             did_anything = True
@@ -184,8 +180,7 @@ class RobotContext:
                 except Exception as e:
                     logger.error("%s error in on_tool_call() handler: %s\n%s", self.persona.persona_id, type(e).__name__, e, exc_info=e)
             else:
-                task = asyncio.create_task(self._local_tool_call(self.fclient, c))
-                bg_calls.append(task)
+                bg_calls.append(asyncio.create_task(self._local_tool_call(self.fclient, c)))
 
         if not did_anything:
             self._completed_initial_unpark = True
@@ -336,7 +331,7 @@ class BotsCollection:
         self.thread_tracker: Dict[str, ckit_bot_query.FThreadWithMessages] = {}
         self.running_test_scenario = running_test_scenario
         self.running_happy_yaml = running_happy_yaml
-        self.subscribe_to_erp_tables = set(subscribe_to_erp_tables)
+        self.subscribe_to_erp_tables = subscribe_to_erp_tables
 
 
 async def subscribe_and_produce_callbacks(
@@ -351,7 +346,7 @@ async def subscribe_and_produce_callbacks(
     bc.thread_tracker.clear()  # Control reaches this after exception and reconnect, a new subscription will send all the threads anew, need to clear
 
     if bc.subscribe_to_erp_tables:
-        logger.info(f"Subscribing to ERP tables: {sorted(bc.subscribe_to_erp_tables)}")
+        logger.info(f"Subscribing to ERP tables: {bc.subscribe_to_erp_tables}")
 
     async with ws_client as ws:
         assert fclient.ws_id is not None or fclient.group_id is not None
@@ -368,7 +363,7 @@ async def subscribe_and_produce_callbacks(
                 "marketable_name": bc.marketable_name,
                 "marketable_version": bc.marketable_version,
                 "inprocess_tool_names": [t.name for t in bc.inprocess_tools],
-                "want_erp_tables": sorted(bc.subscribe_to_erp_tables),
+                "want_erp_tables": bc.subscribe_to_erp_tables,
                 "ws_id_prefix": use_ws_id_prefix,
                 "group_id": use_group_id,
             },
@@ -496,7 +491,7 @@ async def subscribe_and_produce_callbacks(
                     new_record = upd.news_payload_erp_record_new
                     old_record = upd.news_payload_erp_record_old
                     for bot in bc.bots_running.values():
-                        bot.instance_rcx._parked_erp_changes[(table_name, upd.news_payload_id)] = (upd.news_action, new_record, old_record)
+                        bot.instance_rcx._parked_erp_changes.append((table_name, upd.news_action, new_record, old_record))
                         bot.instance_rcx._parked_anything_new.set()
 
             elif upd.news_action == "INITIAL_UPDATES_OVER":
