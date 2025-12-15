@@ -1,13 +1,14 @@
 import json
 import logging
-from typing import Dict, Any, Optional, List
 import re
+import time
+from typing import Dict, Any, Optional, List
 
 import gql
 
 from flexus_client_kit import ckit_cloudtool, ckit_client, ckit_erp, ckit_kanban, ckit_bot_exec
 
-logger = logging.getLogger("fi_crm_automations")
+logger = logging.getLogger("crmau")
 
 
 CRM_AUTOMATIONS_SETUP_SCHEMA = [
@@ -192,7 +193,6 @@ class IntegrationCrmAutomations:
         self.rcx = rcx
         self.get_setup = get_setup_func
         self.available_erp_tables = available_erp_tables or []
-        self._pending_save = None
         self._setup_automation_handlers()
 
     def _load_automations(self) -> Dict[str, Any]:
@@ -224,146 +224,101 @@ class IntegrationCrmAutomations:
         logger.info(f"{'Deleted' if automation_config is None else 'Updated'} automation '{automation_name}' in backend")
 
     async def handle_crm_automation(self, toolcall: ckit_cloudtool.FCloudtoolCall, model_args: Dict[str, Any]) -> str:
-        op = model_args.get("op", "").lower()
-        args = model_args.get("args", {})
+        args, err = ckit_cloudtool.sanitize_args(model_args)
+        if err:
+            return f"❌ {err}"
+
+        op = ckit_cloudtool.try_best_to_find_argument(args, model_args, "op", "").lower()
 
         if op == "help":
             help_text = HELP_TEXT
             if self.available_erp_tables:
-                tables_list = ", ".join(self.available_erp_tables)
-                help_text += f"\n\n## Available ERP Tables for Triggers you can ONLY create automations for: {tables_list}"
+                help_text += f"\n\n## Available ERP Tables for Triggers you can ONLY create automations for: {', '.join(self.available_erp_tables)}"
             return help_text
 
-        elif op == "list":
-            return await self._op_list(args)
+        ops = {
+            "list": self._op_list, "get": self._op_get,
+            "create": self._op_create, "update": self._op_update, "delete": self._op_delete,
+        }
+        if handler := ops.get(op):
+            return await handler(args, model_args)
+        return f"❌ Unknown operation '{op}'. Use: {', '.join(ops.keys())}"
 
-        elif op == "get":
-            return await self._op_get(args)
-
-        elif op == "create":
-            return await self._op_create(args)
-
-        elif op == "update":
-            return await self._op_update(args)
-
-        elif op == "delete":
-            return await self._op_delete(args)
-
-        else:
-            return f"❌ Unknown operation '{op}'. Use: help, list, get, create, update, delete"
-
-    async def _op_list(self, args: Dict[str, Any]) -> str:
+    async def _op_list(self, args: Dict[str, Any], model_args: Dict[str, Any]) -> str:
         automations = self._load_automations()
-
         if not automations:
             return "No CRM automations configured."
 
-        result = f"CRM Automations ({len(automations)} total):\n\n"
-        for name, config in automations.items():
-            enabled = config.get("enabled", False)
-            status = "✅ enabled" if enabled else "❌ disabled"
-            triggers = config.get("triggers", [])
-            actions = config.get("actions", [])
-            result += f"• {name}: {status}\n"
-            result += f"  Triggers: {len(triggers)}, Actions: {len(actions)}\n"
+        lines = [f"CRM Automations ({len(automations)} total):\n"]
+        for name, cfg in automations.items():
+            status = "✅ enabled" if cfg.get("enabled", False) else "❌ disabled"
+            lines.append(f"• {name}: {status}\n  Triggers: {len(cfg.get('triggers', []))}, Actions: {len(cfg.get('actions', []))}\n")
+        return "\n".join(lines)
 
-        return result
-
-    async def _op_get(self, args: Dict[str, Any]) -> str:
-        automation_name = args.get("automation_name", "").strip()
-
-        if not automation_name:
+    async def _op_get(self, args: Dict[str, Any], model_args: Dict[str, Any]) -> str:
+        if not (name := str(ckit_cloudtool.try_best_to_find_argument(args, model_args, "automation_name", "")).strip()):
             return "❌ Error: automation_name is required"
-
         automations = self._load_automations()
+        if name not in automations:
+            return f"❌ Error: Automation '{name}' not found"
+        return f"Automation: {name}\n\n{json.dumps(automations[name], indent=2)}"
 
-        if automation_name not in automations:
-            return f"❌ Error: Automation '{automation_name}' not found"
-
-        config = automations[automation_name]
-        return f"Automation: {automation_name}\n\n{json.dumps(config, indent=2)}"
-
-    async def _op_create(self, args: Dict[str, Any]) -> str:
-        automation_name = args.get("automation_name", "").strip()
-        automation_config = args.get("automation_config", {})
-
-        if not automation_name:
+    async def _op_create(self, args: Dict[str, Any], model_args: Dict[str, Any]) -> str:
+        if not (name := str(ckit_cloudtool.try_best_to_find_argument(args, model_args, "automation_name", "")).strip()):
             return "❌ Error: automation_name is required"
-
-        if not automation_config:
+        if not (config := ckit_cloudtool.try_best_to_find_argument(args, model_args, "automation_config", {})):
             return "❌ Error: automation_config is required"
-
-        if not isinstance(automation_config, dict):
+        if not isinstance(config, dict):
             return "❌ Error: automation_config must be a dict"
 
         automations = self._load_automations()
-
-        if automation_name in automations:
-            return f"❌ Error: Automation '{automation_name}' already exists. Use op='update' to modify it."
-
+        if name in automations:
+            return f"❌ Error: Automation '{name}' already exists. Use op='update' to modify it."
         if len(automations) >= 30:
             return "❌ Error: Maximum 30 automations per bot. Delete unused automations first."
 
-        # Set defaults
-        if "enabled" not in automation_config:
-            automation_config["enabled"] = True
-        if "actions" not in automation_config:
-            automation_config["actions"] = []
+        if "enabled" not in config:
+            config["enabled"] = True
 
-        # Validate using the same structure that execution expects
-        validation_error = validate_automation_config(automation_config)
-        if validation_error:
-            return validation_error
+        if err := validate_automation_config(config):
+            return err
 
-        await self._save_automation(automation_name, automation_config)
+        await self._save_automation(name, config)
+        return f"✅ Created automation '{name}'"
 
-        return f"✅ Created automation '{automation_name}'"
-
-    async def _op_update(self, args: Dict[str, Any]) -> str:
-        automation_name = args.get("automation_name", "").strip()
-        automation_config = args.get("automation_config", {})
-
-        if not automation_name:
+    async def _op_update(self, args: Dict[str, Any], model_args: Dict[str, Any]) -> str:
+        if not (name := str(ckit_cloudtool.try_best_to_find_argument(args, model_args, "automation_name", "")).strip()):
             return "❌ Error: automation_name is required"
-
-        if not automation_config:
+        if not (config := ckit_cloudtool.try_best_to_find_argument(args, model_args, "automation_config", {})):
             return "❌ Error: automation_config is required"
-
-        if not isinstance(automation_config, dict):
+        if not isinstance(config, dict):
             return "❌ Error: automation_config must be a dict"
 
         automations = self._load_automations()
+        if name not in automations:
+            return f"❌ Error: Automation '{name}' not found. Use op='create' to create it."
 
-        if automation_name not in automations:
-            return f"❌ Error: Automation '{automation_name}' not found. Use op='create' to create it."
+        if err := validate_automation_config(config):
+            return err
 
-        # Validate using the same structure that execution expects
-        validation_error = validate_automation_config(automation_config)
-        if validation_error:
-            return validation_error
+        await self._save_automation(name, config)
+        return f"✅ Updated automation '{name}'"
 
-        await self._save_automation(automation_name, automation_config)
-
-        return f"✅ Updated automation '{automation_name}'"
-
-    async def _op_delete(self, args: Dict[str, Any]) -> str:
-        automation_name = args.get("automation_name", "").strip()
-
-        if not automation_name:
+    async def _op_delete(self, args: Dict[str, Any], model_args: Dict[str, Any]) -> str:
+        if not (name := str(ckit_cloudtool.try_best_to_find_argument(args, model_args, "automation_name", "")).strip()):
             return "❌ Error: automation_name is required"
 
         automations = self._load_automations()
+        if name not in automations:
+            return f"❌ Error: Automation '{name}' not found"
 
-        if automation_name not in automations:
-            return f"❌ Error: Automation '{automation_name}' not found"
-
-        await self._save_automation(automation_name, None)
-
-        return f"✅ Deleted automation '{automation_name}'"
+        await self._save_automation(name, None)
+        return f"✅ Deleted automation '{name}'"
 
     def _setup_automation_handlers(self):
         automations = self._load_automations()
-        tables = get_erp_tables_from_automations(automations)
+        tables = sorted({t["table"] for cfg in automations.values() if cfg.get("enabled", True)
+                        for t in cfg.get("triggers", []) if t.get("type") == "erp_table" and t.get("table")})
 
         def make_handler(table_name):
             async def handler(operation: str, new_record: Any, old_record: Any):
@@ -383,19 +338,6 @@ class IntegrationCrmAutomations:
             self.rcx._handler_per_erp_table_change[t] = make_handler(t)
 
 
-def get_erp_tables_from_automations(automations_dict: Dict[str, Any]) -> List[str]:
-    tables = set()
-    for auto_config in automations_dict.values():
-        if not auto_config.get("enabled", True):
-            continue
-        for trigger in auto_config.get("triggers", []):
-            if trigger.get("type") == "erp_table":
-                t = trigger.get("table")
-                if t:
-                    tables.add(t)
-    return sorted(tables)
-
-
 async def execute_automations_for_erp_event(
     rcx: ckit_bot_exec.RobotContext,
     table_name: str,
@@ -407,221 +349,113 @@ async def execute_automations_for_erp_event(
     for auto_name, auto_config in automations_dict.items():
         if not auto_config.get("enabled", True):
             continue
-
-        triggers = auto_config.get("triggers", [])
-
-        for trigger in triggers:
-            if trigger.get("type") != "erp_table":
+        for trigger in auto_config.get("triggers", []):
+            if trigger.get("type") != "erp_table" or trigger.get("table") != table_name:
                 continue
-
-            if trigger.get("table") != table_name:
+            if operation.upper() not in [op.upper() for op in trigger.get("operations", [])]:
                 continue
-
-            trigger_ops = [op.upper() for op in trigger.get("operations", [])]
-            if operation.upper() not in trigger_ops:
-                continue
-
-            trigger_context = {
-                "trigger": {
-                    "type": "erp_table",
-                    "table": table_name,
-                    "operation": operation,
-                    "new_record": ckit_erp.dataclass_or_dict_to_dict(new_record) if new_record else None,
-                    "old_record": ckit_erp.dataclass_or_dict_to_dict(old_record) if old_record else None,
-                }
-            }
-
-            # Check trigger filters if present
-            trigger_filters = trigger.get("filters", [])
-            if trigger_filters:
-                record_to_check = old_record if operation.upper() == "DELETE" else new_record
-                if not record_to_check:
-                    logger.info(f"Automation '{auto_name}' skipped: no record to check filters against")
+            if trigger_filters := trigger.get("filters", []):
+                rec = ckit_erp.dataclass_or_dict_to_dict(old_record if operation.upper() == "DELETE" else new_record)
+                if not ckit_erp.check_record_matches_filters(rec, trigger_filters):
+                    logger.debug(f"Automation '{auto_name}' filtered out for {table_name}.{operation}")
                     continue
 
-                record_dict = ckit_erp.dataclass_or_dict_to_dict(record_to_check)
-                logger.debug(f"Checking filters for '{auto_name}': filters={trigger_filters}, record_dict keys={list(record_dict.keys())}")
-                if not ckit_erp.check_record_matches_filters(record_dict, trigger_filters):
-                    logger.info(f"Automation '{auto_name}' filtered out for {table_name}.{operation}")
-                    continue
-
-            actions = auto_config.get("actions", [])
-            await _execute_actions(rcx, actions, trigger_context)
+            ctx = {"trigger": {
+                "type": "erp_table", "table": table_name, "operation": operation,
+                "new_record": ckit_erp.dataclass_or_dict_to_dict(new_record) if new_record else None,
+                "old_record": ckit_erp.dataclass_or_dict_to_dict(old_record) if old_record else None,
+            }}
+            await _execute_actions(rcx, auto_config.get("actions", []), ctx)
             logger.info(f"Automation '{auto_name}' executed for {table_name}.{operation}")
 
 
-async def _execute_actions(
-    rcx: ckit_bot_exec.RobotContext,
-    actions: List[Dict[str, Any]],
-    context: Dict[str, Any],
-) -> None:
+async def _execute_actions(rcx: ckit_bot_exec.RobotContext, actions: List[Dict[str, Any]], ctx: Dict[str, Any]) -> None:
     for action in actions:
-        action_type = action.get("type")
-
         try:
+            action_type = action.get("type")
             if action_type == "post_task_into_bot_inbox":
-                title = _resolve_template(action.get("title", ""), context)
-                details = action.get("details", {})
-                provenance = _resolve_template(action.get("provenance", "CRM automation"), context)
-
-                resolved_details = {}
-                for k, v in details.items():
-                    if isinstance(v, str):
-                        resolved_details[k] = _resolve_template(v, context)
-                    else:
-                        resolved_details[k] = v
-
                 await ckit_kanban.bot_kanban_post_into_inbox(
-                    rcx.fclient,
-                    rcx.persona.persona_id,
-                    title,
-                    json.dumps(resolved_details),
-                    provenance,
+                    rcx.fclient, rcx.persona.persona_id,
+                    _resolve_template(action.get("title", ""), ctx),
+                    json.dumps({k: _resolve_template(v, ctx) if isinstance(v, str) else v for k, v in action.get("details", {}).items()}),
+                    _resolve_template(action.get("provenance", "CRM automation"), ctx),
                 )
-                logger.info(f"Posted task into inbox: {title}")
+                logger.info(f"Posted task into inbox: {action.get('title', '')}")
 
             elif action_type == "create_erp_record":
                 table = action.get("table")
-                fields = action.get("fields", {})
-
-                resolved_fields = {}
-                for k, v in fields.items():
-                    resolved_fields[k] = _resolve_field_value(v, context, k)
-
-                resolved_fields["ws_id"] = rcx.persona.ws_id
-
-                new_id = await ckit_erp.create_erp_record(
-                    rcx.fclient,
-                    table,
-                    rcx.persona.ws_id,
-                    resolved_fields,
-                )
+                fields = {k: _resolve_field_value(v, ctx, k) for k, v in action.get("fields", {}).items()}
+                fields["ws_id"] = rcx.persona.ws_id
+                new_id = await ckit_erp.create_erp_record(rcx.fclient, table, rcx.persona.ws_id, fields)
                 logger.info(f"Created ERP record in {table}: {new_id}")
 
             elif action_type == "update_erp_record":
                 table = action.get("table")
-                record_id = _resolve_template(action.get("record_id", ""), context)
-                fields = action.get("fields", {})
-
-                resolved_fields = {}
-                for k, v in fields.items():
-                    resolved_fields[k] = _resolve_field_value(v, context, k)
-
-                logger.info(f"update_erp_record: table={table} record_id={record_id} resolved_fields={resolved_fields}")
-                await ckit_erp.patch_erp_record(
-                    rcx.fclient,
-                    table,
-                    rcx.persona.ws_id,
-                    record_id,
-                    resolved_fields,
-                )
+                record_id = _resolve_template(action.get("record_id", ""), ctx)
+                fields = {k: _resolve_field_value(v, ctx, k) for k, v in action.get("fields", {}).items()}
+                logger.info(f"update_erp_record: table={table} record_id={record_id} resolved_fields={fields}")
+                await ckit_erp.patch_erp_record(rcx.fclient, table, rcx.persona.ws_id, record_id, fields)
                 logger.info(f"Updated ERP record in {table}: {record_id}")
 
             elif action_type == "delete_erp_record":
                 table = action.get("table")
-                record_id = _resolve_template(action.get("record_id", ""), context)
-
-                await ckit_erp.delete_erp_record(
-                    rcx.fclient,
-                    table,
-                    rcx.persona.ws_id,
-                    record_id,
-                )
+                record_id = _resolve_template(action.get("record_id", ""), ctx)
+                await ckit_erp.delete_erp_record(rcx.fclient, table, rcx.persona.ws_id, record_id)
                 logger.info(f"Deleted ERP record from {table}: {record_id}")
 
             else:
                 logger.warning(f"Unknown action type: {action_type}")
-
         except Exception as e:
-            logger.error(f"Action '{action_type}' failed: {e}", exc_info=True)
+            logger.error(f"Action '{action.get('type')}' failed: {e}", exc_info=True)
+
+
+def _resolve_path(path: str, context: Dict[str, Any]) -> Any:
+    value = context
+    for part in path.strip().split("."):
+        if not isinstance(value, dict):
+            return None
+        value = value.get(part)
+    return value
 
 
 def _resolve_template(template: str, context: Dict[str, Any]) -> str:
-    if not isinstance(template, str):
-        return template
-
     result = template
-    matches = re.findall(r'\{\{(.+?)\}\}', template)
-
-    for match in matches:
-        parts = match.strip().split(".")
-        value = context
-
-        for part in parts:
-            if isinstance(value, dict):
-                value = value.get(part)
-            else:
-                value = None
-                break
-
-        if value is not None:
+    for match in re.findall(r'\{\{(.+?)\}\}', template):
+        if (value := _resolve_path(match, context)) is not None:
             result = result.replace(f"{{{{{match}}}}}", str(value))
-
     return result
 
 
 def _resolve_field_value(field_value: Any, context: Dict[str, Any], field_name: str) -> Any:
-    import time
-
     if isinstance(field_value, dict) and "op" in field_value:
         op = field_value["op"]
-
-        if op == "append":
-            values = field_value.get("values", [])
-            return {"$append": [_resolve_template(str(v), context) for v in values]}
-
-        elif op == "remove":
-            values = field_value.get("values", [])
-            return {"$remove": [_resolve_template(str(v), context) for v in values]}
-
-        elif op == "increment":
-            value = field_value.get("value", 0)
-            return {"$increment": float(_resolve_template(str(value), context))}
-
-        elif op == "decrement":
-            value = field_value.get("value", 0)
-            return {"$decrement": float(_resolve_template(str(value), context))}
-
-        elif op == "set":
-            value = field_value.get("value")
-            return _resolve_template(str(value), context)
+        if op in ("append", "remove"):
+            return {f"${op}": [_resolve_template(str(v), context) for v in field_value.get("values", [])]}
+        if op in ("increment", "decrement"):
+            return {f"${op}": float(_resolve_template(str(field_value.get("value", 0)), context))}
+        if op == "set":
+            return _resolve_template(str(field_value.get("value")), context)
 
     if not isinstance(field_value, str):
         return field_value
 
     value = field_value.strip()
-
-    matches = re.findall(r'\{\{(.+?)\}\}', value)
-    for match in matches:
+    for match in re.findall(r'\{\{(.+?)\}\}', value):
         match_content = match.strip()
-
         if any(c in match_content for c in '+-*/()'):
             try:
-                result = eval(match_content, {"__builtins__": {}, "now": lambda: time.time()}, {})
-                value = value.replace(f"{{{{{match}}}}}", str(result))
+                value = value.replace(f"{{{{{match}}}}}", str(eval(match_content, {"__builtins__": {}, "now": lambda: time.time()}, {})))
                 continue
-            except:
+            except Exception:
                 pass
-
-        parts = match_content.split(".")
-        resolved_value = context
-        for part in parts:
-            if isinstance(resolved_value, dict):
-                resolved_value = resolved_value.get(part)
-            else:
-                resolved_value = None
-                break
-
-        if resolved_value is not None:
-            value = value.replace(f"{{{{{match}}}}}", str(resolved_value))
+        if (resolved := _resolve_path(match_content, context)) is not None:
+            value = value.replace(f"{{{{{match}}}}}", str(resolved))
 
     if field_name.endswith('_ts'):
         try:
             return float(value)
         except (ValueError, TypeError):
             logger.warning(f"Could not convert timestamp field '{field_name}' value '{value}' to float")
-            return value
-
     return value
 
 
