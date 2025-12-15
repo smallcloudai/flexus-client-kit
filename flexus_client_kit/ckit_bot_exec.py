@@ -77,13 +77,10 @@ class RobotContext:
         self._parked_messages: Dict[str, ckit_ask_model.FThreadMessageOutput] = {}
         self._parked_threads: Dict[str, ckit_ask_model.FThreadOutput] = {}
         self._parked_tasks: Dict[str, ckit_kanban.FPersonaKanbanTaskOutput] = {}
-        self._parked_toolcalls: Dict[str, ckit_cloudtool.FCloudtoolCall] = {}
-        self._processing_toolcalls: set[str] = set()
+        self._parked_toolcalls: List[ckit_cloudtool.FCloudtoolCall] = []
         self._parked_erp_changes: Dict[tuple[str, str], tuple[str, Optional[Dict[str, Any]], Optional[Dict[str, Any]]]] = {}
         self._parked_anything_new = asyncio.Event()
         # These fields are designed for direct access:
-        self.wanted_erp_tables: List[str] = []
-        self.erp_tables_dirty = False
         self.fclient = fclient
         self.persona = p
         self.latest_threads: Dict[str, ckit_bot_query.FThreadWithMessages] = dict()
@@ -171,9 +168,8 @@ class RobotContext:
                 except Exception as e:
                     logger.error("%s error in on_erp_change(%r) handler: %s\n%s", self.persona.persona_id, table_name, type(e).__name__, e, exc_info=e)
 
-        mycalls = list(self._parked_toolcalls.values())
+        mycalls = list(self._parked_toolcalls)
         self._parked_toolcalls.clear()
-        self._processing_toolcalls.update(c.fcall_id for c in mycalls)
         if mycalls:
             logger.info("%s unparking %d tool calls: %s", self.persona.persona_id, len(mycalls), [c.fcall_id for c in mycalls])
         bg_calls = []
@@ -181,18 +177,14 @@ class RobotContext:
             did_anything = True
             if c.fcall_name not in self._handler_per_tool:
                 logger.error("%s tool call %s for %s has no handler. Available handlers: %r", self.persona.persona_id, c.fcall_id, c.fcall_name, list(self._handler_per_tool.keys()))
-                self._processing_toolcalls.discard(c.fcall_id)
                 continue
             if not turn_tool_calls_into_tasks:
                 try:
                     await self._local_tool_call(self.fclient, c)
                 except Exception as e:
                     logger.error("%s error in on_tool_call() handler: %s\n%s", self.persona.persona_id, type(e).__name__, e, exc_info=e)
-                finally:
-                    self._processing_toolcalls.discard(c.fcall_id)
             else:
                 task = asyncio.create_task(self._local_tool_call(self.fclient, c))
-                task.add_done_callback(lambda _t, call_id=c.fcall_id: self._processing_toolcalls.discard(call_id))
                 bg_calls.append(task)
 
         if not did_anything:
@@ -345,7 +337,6 @@ class BotsCollection:
         self.running_test_scenario = running_test_scenario
         self.running_happy_yaml = running_happy_yaml
         self.subscribe_to_erp_tables = set(subscribe_to_erp_tables)
-        self.restart_requested = False
 
 
 async def subscribe_and_produce_callbacks(
@@ -475,11 +466,9 @@ async def subscribe_and_produce_callbacks(
                     toolcall = upd.news_payload_toolcall
                     persona_id = toolcall.connected_persona_id
                     if persona_id in bc.bots_running:
-                        bot = bc.bots_running[persona_id]
-                        if toolcall.fcall_id not in bot.instance_rcx._parked_toolcalls and toolcall.fcall_id not in bot.instance_rcx._processing_toolcalls:
-                            logger.info("%s parked tool call %s %s", persona_id, toolcall.fcall_id, toolcall.fcall_name)
-                            bot.instance_rcx._parked_toolcalls[toolcall.fcall_id] = toolcall
-                            bot.instance_rcx._parked_anything_new.set()
+                        logger.info("%s parked tool call %s %s", persona_id, toolcall.fcall_id, toolcall.fcall_name)
+                        bc.bots_running[persona_id].instance_rcx._parked_toolcalls.append(toolcall)
+                        bc.bots_running[persona_id].instance_rcx._parked_anything_new.set()
                     else:
                         logger.info("%s is about persona=%s which is not running here." % (toolcall.fcall_id, persona_id))
 
@@ -547,18 +536,7 @@ async def subscribe_and_produce_callbacks(
                         ckit_utils.log_with_throttle(logger.info,
                             "Thread %s belongs to persona %s, but no bot is running for it, maybe a little async not a big deal.", tid, persona_id)
 
-            if any(bot.instance_rcx.erp_tables_dirty for bot in bc.bots_running.values()):
-                new_tables = set()
-                for bot in bc.bots_running.values():
-                    new_tables.update(bot.instance_rcx.wanted_erp_tables)
-                    bot.instance_rcx.erp_tables_dirty = False
-                if new_tables != bc.subscribe_to_erp_tables:
-                    logger.info("ERP tables changed from %s to %s, restarting subscription", sorted(bc.subscribe_to_erp_tables), sorted(new_tables))
-                    bc.subscribe_to_erp_tables = new_tables
-                    bc.restart_requested = True
-                    break
-
-            if ckit_shutdown.shutdown_event.is_set() or bc.restart_requested:
+            if ckit_shutdown.shutdown_event.is_set():
                 break
 
 

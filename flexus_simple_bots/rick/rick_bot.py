@@ -27,6 +27,9 @@ BOT_VERSION = SIMPLE_BOTS_COMMON_VERSION
 BOT_VERSION_INT = ckit_client.marketplace_version_as_int(BOT_VERSION)
 
 
+ERP_TABLES = ["crm_task", "crm_contact"]
+
+
 TOOLS = [
     fi_gmail.GMAIL_TOOL,
     fi_pdoc.POLICY_DOCUMENT_TOOL,
@@ -52,10 +55,8 @@ async def rick_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.R
     def get_setup():
         return ckit_bot_exec.official_setup_mixing_procedure(rick_install.rick_setup_schema, rcx.persona.persona_setup)
 
-    automation_integration = fi_crm_automations.IntegrationCrmAutomations(
-        fclient,
-        rcx,
-        get_setup,
+    automations_integration = fi_crm_automations.IntegrationCrmAutomations(
+        fclient, rcx, get_setup, available_erp_tables=ERP_TABLES,
     )
 
     @rcx.on_updated_message
@@ -96,7 +97,7 @@ async def rick_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.R
 
     @rcx.on_tool_call(fi_crm_automations.CRM_AUTOMATION_TOOL.name)
     async def toolcall_crm_automation(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
-        return await automation_integration.handle_crm_automation(toolcall, model_produced_args)
+        return await automations_integration.handle_crm_automation(toolcall, model_produced_args)
 
     try:
         while not ckit_shutdown.shutdown_event.is_set():
@@ -118,6 +119,7 @@ def main():
         inprocess_tools=TOOLS,
         scenario_fn=scenario_fn,
         install_func=rick_install.install,
+        subscribe_to_erp_tables=ERP_TABLES,
     ))
 
 
