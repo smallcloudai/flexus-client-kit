@@ -34,11 +34,13 @@ IDEA_TEMPLATE_TOOL = ckit_cloudtool.CloudTool(
         "properties": {
             "idea_name": {
                 "type": "string",
-                "description": "Human-readable idea name in kebab-case (e.g. 'dental-samples', 'unicorn-horn-car')"
+                "description": "Human-readable idea name in kebab-case (e.g. 'dental-samples', 'unicorn-horn-car')",
+                "order": 1
             },
             "text": {
                 "type": "string",
-                "description": "JSON matching example_idea structure. Only 'q' values can be translated."
+                "description": "JSON matching example_idea structure. Only 'q' values can be translated.",
+                "order": 2
             },
         },
         "required": ["idea_name", "text"],
@@ -53,15 +55,18 @@ HYPOTHESIS_TEMPLATE_TOOL = ckit_cloudtool.CloudTool(
         "properties": {
             "idea_unique_id": {
                 "type": "string",
-                "description": "Idea ID (e.g. 'idea001') from parent idea path"
+                "description": "Idea ID (e.g. 'idea001') from parent idea path",
+                "order": 1
             },
             "hypothesis_name": {
                 "type": "string",
-                "description": "Human-readable hypothesis name in kebab-case (e.g. 'social-influencers')"
+                "description": "Human-readable hypothesis name in kebab-case (e.g. 'social-influencers')",
+                "order": 2
             },
             "text": {
                 "type": "string",
-                "description": "JSON matching example_hypothesis structure. Only 'q' and 'title' can be translated."
+                "description": "JSON matching example_hypothesis structure. Only 'q' and 'title' can be translated.",
+                "order": 3
             },
         },
         "required": ["idea_unique_id", "hypothesis_name", "text"],
@@ -76,15 +81,18 @@ VERIFY_IDEA_TOOL = ckit_cloudtool.CloudTool(
         "properties": {
             "idea_unique_id": {
                 "type": "string",
-                "description": "Idea ID (e.g. 'idea001')"
+                "description": "Idea ID (e.g. 'idea001')",
+                "order": 1
             },
             "idea_name": {
                 "type": "string",
-                "description": "Idea name in kebab-case (e.g. 'dental-samples')"
+                "description": "Idea name in kebab-case (e.g. 'dental-samples')",
+                "order": 2
             },
             "language": {
                 "type": "string",
-                "description": "Language for comments (same as conversation language)"
+                "description": "Language for comments (same as conversation language)",
+                "order": 3
             },
         },
         "required": ["idea_unique_id", "idea_name", "language"],
