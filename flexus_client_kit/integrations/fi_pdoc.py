@@ -215,7 +215,7 @@ class IntegrationPdoc:
                     return await ckit_scenario.scenario_generate_tool_result_via_model(self.fclient, toolcall, open(__file__).read())
 
                 await self.pdoc_rm(p, fuser_id)
-                r += f"✓ Archived policy document: {p}"
+                r += f"🗑 {p}\n\n"
 
             else:
                 r += f"Unknown op {op!r}\n\n{HELP}"
