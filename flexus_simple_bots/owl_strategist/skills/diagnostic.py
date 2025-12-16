@@ -106,9 +106,17 @@ The input document is provided below in your first message — no need to read i
 
 Save this JSON to /marketing-experiments/{experiment_id}/diagnostic:
 
+**CRITICAL**: Document MUST be wrapped in `diagnostic` key with `meta` object for UI to show custom form.
+
 ```json
 {
-  "normalized_hypothesis": "Clear restatement of what we're testing",
+  "diagnostic": {
+    "meta": {
+      "experiment_id": "hyp004-example",
+      "created_at": "2025-12-16",
+      "step": "diagnostic"
+    },
+    "normalized_hypothesis": "Clear restatement of what we're testing",
   "primary_type": "value|segment|messaging|channel|pricing|conversion|retention",
   "primary_type_reasoning": "WHY this type — explain in 2-3 sentences what makes this a messaging/value/etc hypothesis",
   "secondary_types": ["..."],
@@ -140,10 +148,11 @@ Save this JSON to /marketing-experiments/{experiment_id}/diagnostic:
     "Concrete action 2"
   ],
   
-  "questions_to_resolve": [
-    "Open question 1 to discuss with user before proceeding",
-    "Open question 2"
-  ]
+    "questions_to_resolve": [
+      "Open question 1 to discuss with user before proceeding",
+      "Open question 2"
+    ]
+  }
 }
 ```
 

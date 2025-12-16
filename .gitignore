@@ -219,3 +219,5 @@ certs
 # All tests folders
 **/tests/
 **/test_docs/
+
+scripts/

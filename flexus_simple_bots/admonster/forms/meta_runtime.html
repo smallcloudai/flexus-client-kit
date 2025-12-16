@@ -1,0 +1,1105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AdMonster Experiment Dashboard</title>
+  <link rel="stylesheet" href="https://unpkg.com/primeicons@7.0.0/primeicons.css">
+  <style>
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+    * { box-sizing: border-box; }
+    body { 
+      background: var(--p-content-hover-background); 
+      margin: 0; 
+      padding: 16px; 
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      color: var(--p-text-color);
+    }
+    .dashboard {
+      max-width: 900px;
+      margin: 0 auto;
+    }
+    
+    /* Header */
+    .header {
+      background: var(--p-primary-contrast-color);
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 16px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      animation: fadeIn 0.3s ease-out;
+    }
+    .header-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 16px;
+    }
+    .experiment-title {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--p-primary-color);
+      margin: 0;
+    }
+    .experiment-meta {
+      font-size: 0.85rem;
+      color: var(--p-text-muted-color);
+      margin-top: 4px;
+    }
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      border-radius: 20px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+    .status-active { background: #22c55e20; color: #16a34a; }
+    .status-paused { background: #f59e0b20; color: #d97706; }
+    .status-completed { background: #6b728020; color: #4b5563; }
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: currentColor;
+    }
+    .status-active .status-dot { animation: pulse 2s infinite; }
+    
+    .header-stats {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+    }
+    .stat-card {
+      text-align: center;
+      padding: 12px;
+      background: var(--p-content-hover-background);
+      border-radius: 8px;
+    }
+    .stat-value {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--p-primary-color);
+    }
+    .stat-label {
+      font-size: 0.75rem;
+      color: var(--p-text-muted-color);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    
+    /* Sections */
+    .section {
+      background: var(--p-primary-contrast-color);
+      border-radius: 12px;
+      margin-bottom: 16px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      animation: fadeIn 0.4s ease-out;
+      overflow: hidden;
+    }
+    .section-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 16px 20px;
+      background: var(--p-content-hover-background);
+      cursor: pointer;
+      user-select: none;
+    }
+    .section-header:hover {
+      background: var(--p-highlight-background);
+    }
+    .section-title {
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--p-primary-color);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .section-toggle {
+      color: var(--p-text-muted-color);
+      transition: transform 0.2s;
+    }
+    .section.collapsed .section-toggle {
+      transform: rotate(-90deg);
+    }
+    .section.collapsed .section-content {
+      display: none;
+    }
+    .section-content {
+      padding: 20px;
+    }
+    .section-badge {
+      background: var(--p-primary-color);
+      color: var(--p-primary-contrast-color);
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+    
+    /* Campaigns Table */
+    .campaigns-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    .campaigns-table th {
+      text-align: left;
+      padding: 10px 12px;
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--p-text-muted-color);
+      border-bottom: 2px solid var(--p-surface-border);
+    }
+    .campaigns-table td {
+      padding: 12px;
+      border-bottom: 1px solid var(--p-surface-border);
+      vertical-align: middle;
+    }
+    .campaigns-table tr:last-child td {
+      border-bottom: none;
+    }
+    .campaign-name {
+      font-weight: 600;
+      color: var(--p-primary-color);
+    }
+    .campaign-id {
+      font-size: 0.75rem;
+      color: var(--p-text-muted-color);
+      font-family: monospace;
+    }
+    .metric-value {
+      font-weight: 600;
+    }
+    .metric-label {
+      font-size: 0.7rem;
+      color: var(--p-text-muted-color);
+    }
+    
+    /* Controls */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 16px;
+      border: none;
+      border-radius: 6px;
+      font-size: 0.875rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .btn-primary {
+      background: var(--p-primary-color);
+      color: var(--p-primary-contrast-color);
+    }
+    .btn-primary:hover {
+      filter: brightness(1.1);
+    }
+    .btn-secondary {
+      background: var(--p-surface-border);
+      color: var(--p-text-color);
+    }
+    .btn-secondary:hover {
+      background: var(--p-highlight-background);
+    }
+    .btn-danger {
+      background: var(--p-red-500);
+      color: white;
+    }
+    .btn-success {
+      background: #22c55e;
+      color: white;
+    }
+    .btn-sm {
+      padding: 4px 10px;
+      font-size: 0.75rem;
+    }
+    .btn-icon {
+      width: 32px;
+      height: 32px;
+      padding: 0;
+      justify-content: center;
+      border-radius: 6px;
+      background: transparent;
+      border: 1px solid var(--p-surface-border);
+      color: var(--p-text-muted-color);
+    }
+    .btn-icon:hover {
+      border-color: var(--p-primary-color);
+      color: var(--p-primary-color);
+    }
+    
+    /* Inputs */
+    input, select, textarea {
+      border: 1px solid var(--p-surface-border);
+      border-radius: 6px;
+      padding: 8px 12px;
+      font-size: 0.875rem;
+      font-family: inherit;
+      background: var(--p-content-hover-background);
+      color: var(--p-text-color);
+      transition: border-color 0.15s;
+    }
+    input:focus, select:focus, textarea:focus {
+      outline: none;
+      border-color: var(--p-primary-color);
+    }
+    input[type="number"] {
+      width: 100px;
+    }
+    .input-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .input-prefix {
+      color: var(--p-text-muted-color);
+      font-size: 0.875rem;
+    }
+    
+    /* Rules */
+    .rules-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .rule-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px;
+      background: var(--p-content-hover-background);
+      border-radius: 8px;
+      border: 1px solid var(--p-surface-border);
+    }
+    .rule-item.stop-rule {
+      border-left: 3px solid var(--p-red-500);
+    }
+    .rule-item.accelerate-rule {
+      border-left: 3px solid #22c55e;
+    }
+    .rule-condition {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .rule-action {
+      font-weight: 600;
+      padding: 4px 10px;
+      border-radius: 4px;
+      font-size: 0.8rem;
+    }
+    .rule-action.pause { background: #fef3c720; color: #d97706; }
+    .rule-action.double { background: #22c55e20; color: #16a34a; }
+    
+    /* Iteration Guide */
+    .iteration-guide {
+      display: grid;
+      gap: 12px;
+    }
+    .guide-item {
+      padding: 16px;
+      background: var(--p-content-hover-background);
+      border-radius: 8px;
+      border-left: 3px solid var(--p-primary-color);
+    }
+    .guide-day {
+      font-weight: 700;
+      color: var(--p-primary-color);
+      margin-bottom: 8px;
+    }
+    .guide-text {
+      font-size: 0.9rem;
+      line-height: 1.5;
+    }
+    .guide-text textarea {
+      width: 100%;
+      min-height: 60px;
+      resize: vertical;
+    }
+    .guide-current {
+      border-left-color: #22c55e;
+      background: #22c55e10;
+    }
+    
+    /* Actions Log */
+    .log-list {
+      max-height: 300px;
+      overflow-y: auto;
+    }
+    .log-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 12px 0;
+      border-bottom: 1px solid var(--p-surface-border);
+    }
+    .log-item:last-child {
+      border-bottom: none;
+    }
+    .log-icon {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .log-icon.launch { background: #3b82f620; color: #3b82f6; }
+    .log-icon.stop { background: #ef444420; color: #ef4444; }
+    .log-icon.accelerate { background: #22c55e20; color: #22c55e; }
+    .log-icon.iteration { background: #8b5cf620; color: #8b5cf6; }
+    .log-content {
+      flex: 1;
+    }
+    .log-action {
+      font-weight: 600;
+      color: var(--p-primary-color);
+    }
+    .log-details {
+      font-size: 0.85rem;
+      color: var(--p-text-muted-color);
+      margin-top: 4px;
+    }
+    .log-time {
+      font-size: 0.75rem;
+      color: var(--p-text-muted-color);
+    }
+    
+    /* Targets */
+    .targets-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 16px;
+    }
+    .target-item {
+      padding: 16px;
+      background: var(--p-content-hover-background);
+      border-radius: 8px;
+      text-align: center;
+    }
+    .target-label {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--p-text-muted-color);
+      margin-bottom: 8px;
+    }
+    .target-value {
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: var(--p-primary-color);
+    }
+    .target-input {
+      width: 100%;
+      text-align: center;
+      font-size: 1.25rem;
+      font-weight: 700;
+    }
+    
+    /* Tabs */
+    .tabs {
+      display: flex;
+      gap: 4px;
+      padding: 4px;
+      background: var(--p-content-hover-background);
+      border-radius: 8px;
+      margin-bottom: 16px;
+    }
+    .tab {
+      flex: 1;
+      padding: 10px 16px;
+      border: none;
+      background: transparent;
+      border-radius: 6px;
+      font-size: 0.875rem;
+      font-weight: 500;
+      color: var(--p-text-muted-color);
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .tab:hover {
+      color: var(--p-text-color);
+    }
+    .tab.active {
+      background: var(--p-primary-contrast-color);
+      color: var(--p-primary-color);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    
+    /* Empty State */
+    .empty-state {
+      text-align: center;
+      padding: 40px 20px;
+      color: var(--p-text-muted-color);
+    }
+    .empty-state .pi {
+      font-size: 3rem;
+      margin-bottom: 16px;
+      opacity: 0.5;
+    }
+    
+    /* Loading */
+    .loading {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      padding: 40px;
+      color: var(--p-text-muted-color);
+    }
+    .spinner {
+      width: 24px;
+      height: 24px;
+      border: 3px solid var(--p-surface-border);
+      border-top-color: var(--p-primary-color);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    
+    /* Responsive */
+    @media (max-width: 600px) {
+      .header-stats {
+        grid-template-columns: repeat(2, 1fr);
+      }
+      .campaigns-table {
+        font-size: 0.8rem;
+      }
+    }
+  </style>
+  <style id="theme-css"></style>
+</head>
+<body>
+  <div class="dashboard" id="app">
+    <div class="loading" id="loading">
+      <div class="spinner"></div>
+      <span>Loading experiment data...</span>
+    </div>
+  </div>
+
+  <script>
+    // FormBridge for parent communication
+    const FormBridge = {
+      handlers: {},
+      init(name) {
+        window.addEventListener('message', e => {
+          if (e.data?.type && this.handlers[e.data.type]) {
+            this.handlers[e.data.type].forEach(h => h(e.data));
+          }
+        });
+        setTimeout(() => this.send('FORM_READY', { formName: name }), 0);
+      },
+      send(type, data) { window.parent.postMessage({ type, ...data }, '*'); },
+      on(type, handler) {
+        if (!this.handlers[type]) this.handlers[type] = [];
+        this.handlers[type].push(handler);
+      }
+    };
+
+    // State
+    let runtime = {};
+    let tactics = null;
+    let metrics = null;
+    let fgroupId = '';
+    let docPath = '';
+    let experimentId = '';
+    let marketplaceInfo = null;
+
+    // Init
+    FormBridge.on('INIT', async data => {
+      runtime = data.content?.meta_runtime || data.content || {};
+      fgroupId = data.fgroupId || '';
+      docPath = data.docPath || '';
+      marketplaceInfo = data.marketplace || null;
+      
+      // Extract experiment_id from docPath: /marketing-experiments/{id}/meta-runtime (URL path uses kebab-case)
+      const match = docPath.match(/\/marketing-experiments\/([^/]+)\//);
+      experimentId = match ? match[1] : '';
+      
+      if (data.themeCss) {
+        document.getElementById('theme-css').textContent = data.themeCss;
+      }
+      
+      // Load related documents
+      await loadRelatedDocs();
+      render();
+    });
+
+    FormBridge.on('CONTENT_UPDATE', data => {
+      runtime = data.content?.meta_runtime || data.content || {};
+      render();
+    });
+
+    FormBridge.init('admonster-experiment-dashboard');
+
+    // Load tactics and metrics documents
+    async function loadRelatedDocs() {
+      if (!experimentId) return;
+      
+      // Load via GraphQL queries to the backend
+      // Using fetch to hit the GraphQL endpoint
+      try {
+        const tacticsPath = `/marketing-experiments/${experimentId}/tactics`;
+        const metricsPath = `/marketing-experiments/${experimentId}/metrics`;
+        
+        // Read tactics
+        tactics = await readPdoc(tacticsPath);
+        // Read metrics  
+        metrics = await readPdoc(metricsPath);
+      } catch (e) {
+        console.error('Failed to load related docs:', e);
+      }
+    }
+
+    async function readPdoc(path) {
+      try {
+        const resp = await fetch('/v1/graphql', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({
+            query: `query DashboardReadPdoc($fgroup_id: String!, $p: String!) {
+              policydoc_cat(fgroup_id: $fgroup_id, p: $p) {
+                pdoc_content
+              }
+            }`,
+            variables: { fgroup_id: fgroupId, p: path }
+          })
+        });
+        const json = await resp.json();
+        return json?.data?.policydoc_cat?.pdoc_content || null;
+      } catch (e) {
+        console.error('readPdoc error:', path, e);
+        return null;
+      }
+    }
+
+    async function writePdoc(path, content) {
+      try {
+        const resp = await fetch('/v1/graphql', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({
+            query: `mutation DashboardWritePdoc($fgroup_id: String!, $p: String!, $text: String!) {
+              policydoc_overwrite(fgroup_id: $fgroup_id, p: $p, text: $text)
+            }`,
+            variables: { fgroup_id: fgroupId, p: path, text: JSON.stringify(content) }
+          })
+        });
+        const json = await resp.json();
+        return !json.errors;
+      } catch (e) {
+        console.error('writePdoc error:', path, e);
+        return false;
+      }
+    }
+
+    function notifyChange() {
+      FormBridge.send('FORM_CONTENT_CHANGED', { content: { meta_runtime: runtime } });
+    }
+
+    // Render functions
+    function render() {
+      const app = document.getElementById('app');
+      const status = runtime.experiment_status || 'unknown';
+      const currentDay = runtime.current_day || 0;
+      const startTs = runtime.start_ts || 0;
+      const campaigns = runtime.campaigns || {};
+      const adsets = runtime.adsets || {};
+      const actionsLog = runtime.actions_log || [];
+      const metricsHistory = runtime.metrics_history || [];
+      
+      // Calculate stats
+      const totalSpend = Object.values(campaigns).reduce((sum, c) => sum + (c.latest_metrics?.spend || 0), 0);
+      const totalImpressions = Object.values(campaigns).reduce((sum, c) => sum + (c.latest_metrics?.impressions || 0), 0);
+      const totalClicks = Object.values(campaigns).reduce((sum, c) => sum + (c.latest_metrics?.clicks || 0), 0);
+      const avgCtr = totalImpressions > 0 ? (totalClicks / totalImpressions * 100) : 0;
+      
+      app.innerHTML = `
+        <!-- Header -->
+        <div class="header">
+          <div class="header-top">
+            <div>
+              <h1 class="experiment-title">${experimentId || 'Marketing Experiment'}</h1>
+              <div class="experiment-meta">
+                Started ${startTs ? formatDate(startTs) : 'Not started'} · Day ${currentDay}
+              </div>
+            </div>
+            <div style="display: flex; gap: 8px; align-items: center;">
+              <span class="status-badge status-${status}">
+                <span class="status-dot"></span>
+                ${status}
+              </span>
+              ${renderStatusButtons(status)}
+            </div>
+          </div>
+          <div class="header-stats">
+            <div class="stat-card">
+              <div class="stat-value">$${totalSpend.toFixed(2)}</div>
+              <div class="stat-label">Total Spend</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-value">${formatNumber(totalImpressions)}</div>
+              <div class="stat-label">Impressions</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-value">${formatNumber(totalClicks)}</div>
+              <div class="stat-label">Clicks</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-value">${avgCtr.toFixed(2)}%</div>
+              <div class="stat-label">CTR</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tabs -->
+        <div class="tabs">
+          <button class="tab active" onclick="showTab('campaigns')">Campaigns</button>
+          <button class="tab" onclick="showTab('rules')">Rules</button>
+          <button class="tab" onclick="showTab('guide')">Iteration Guide</button>
+          <button class="tab" onclick="showTab('log')">Activity Log</button>
+        </div>
+
+        <!-- Campaigns Section -->
+        <div class="section" id="tab-campaigns">
+          <div class="section-content">
+            ${renderCampaignsTable(campaigns, adsets)}
+          </div>
+        </div>
+
+        <!-- Rules Section -->
+        <div class="section" id="tab-rules" style="display: none;">
+          <div class="section-content">
+            ${renderRulesSection()}
+          </div>
+        </div>
+
+        <!-- Iteration Guide Section -->
+        <div class="section" id="tab-guide" style="display: none;">
+          <div class="section-content">
+            ${renderIterationGuide(currentDay)}
+          </div>
+        </div>
+
+        <!-- Activity Log Section -->
+        <div class="section" id="tab-log" style="display: none;">
+          <div class="section-content">
+            ${renderActionsLog(actionsLog)}
+          </div>
+        </div>
+
+        <!-- Targets Section -->
+        <div class="section">
+          <div class="section-header" onclick="toggleSection(this.parentElement)">
+            <span class="section-title">
+              <span class="pi pi-chart-bar"></span>
+              Target Values
+            </span>
+            <span class="pi pi-chevron-down section-toggle"></span>
+          </div>
+          <div class="section-content">
+            ${renderTargets()}
+          </div>
+        </div>
+      `;
+    }
+
+    function showTab(tabName) {
+      document.querySelectorAll('.tab').forEach((t, i) => {
+        t.classList.toggle('active', t.textContent.toLowerCase().includes(tabName));
+      });
+      document.querySelectorAll('[id^="tab-"]').forEach(s => {
+        s.style.display = s.id === `tab-${tabName}` ? 'block' : 'none';
+      });
+    }
+
+    function toggleSection(section) {
+      section.classList.toggle('collapsed');
+    }
+
+    function renderStatusButtons(status) {
+      if (status === 'active') {
+        return `<button class="btn btn-secondary btn-sm" onclick="setExperimentStatus('paused')">
+          <span class="pi pi-pause"></span> Pause All
+        </button>`;
+      } else if (status === 'paused') {
+        return `<button class="btn btn-success btn-sm" onclick="setExperimentStatus('active')">
+          <span class="pi pi-play"></span> Activate All
+        </button>`;
+      }
+      return '';
+    }
+
+    function renderCampaignsTable(campaigns, adsets) {
+      const campList = Object.entries(campaigns);
+      if (campList.length === 0) {
+        return `<div class="empty-state">
+          <span class="pi pi-megaphone"></span>
+          <p>No campaigns launched yet</p>
+        </div>`;
+      }
+      
+      return `
+        <table class="campaigns-table">
+          <thead>
+            <tr>
+              <th>Campaign</th>
+              <th>Status</th>
+              <th>Budget</th>
+              <th>Metrics</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${campList.map(([id, c]) => `
+              <tr>
+                <td>
+                  <div class="campaign-name">${c.name || id}</div>
+                  <div class="campaign-id">${c.facebook_id || 'No FB ID'}</div>
+                </td>
+                <td>
+                  <span class="status-badge status-${(c.status || 'unknown').toLowerCase()}" style="font-size: 0.7rem; padding: 3px 8px;">
+                    ${c.status || 'Unknown'}
+                  </span>
+                </td>
+                <td>
+                  <div class="input-group">
+                    <span class="input-prefix">$</span>
+                    <input type="number" value="${((c.daily_budget || 0) / 100).toFixed(2)}" 
+                           onchange="updateCampaignBudget('${id}', this.value)"
+                           style="width: 80px;">
+                    <span class="input-prefix">/day</span>
+                  </div>
+                </td>
+                <td>
+                  ${renderCampaignMetrics(c.latest_metrics)}
+                </td>
+                <td>
+                  ${c.status === 'PAUSED' 
+                    ? `<button class="btn btn-success btn-sm" onclick="setCampaignStatus('${id}', 'ACTIVE')">
+                        <span class="pi pi-play"></span>
+                       </button>`
+                    : `<button class="btn btn-secondary btn-sm" onclick="setCampaignStatus('${id}', 'PAUSED')">
+                        <span class="pi pi-pause"></span>
+                       </button>`
+                  }
+                </td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      `;
+    }
+
+    function renderCampaignMetrics(m) {
+      if (!m) return '<span style="color: var(--p-text-muted-color)">No data</span>';
+      return `
+        <div style="display: flex; gap: 16px; font-size: 0.85rem;">
+          <div>
+            <div class="metric-value">${formatNumber(m.impressions || 0)}</div>
+            <div class="metric-label">Impr</div>
+          </div>
+          <div>
+            <div class="metric-value">${formatNumber(m.clicks || 0)}</div>
+            <div class="metric-label">Clicks</div>
+          </div>
+          <div>
+            <div class="metric-value">${(m.ctr || 0).toFixed(2)}%</div>
+            <div class="metric-label">CTR</div>
+          </div>
+          <div>
+            <div class="metric-value">$${(m.spend || 0).toFixed(2)}</div>
+            <div class="metric-label">Spend</div>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderRulesSection() {
+      const stopRules = metrics?.stop_rules || [];
+      const accelerateRules = metrics?.accelerate_rules || [];
+      const targetValues = metrics?.target_values || {};
+      
+      return `
+        <h3 style="margin: 0 0 16px; color: var(--p-text-muted-color); font-size: 0.9rem;">STOP RULES</h3>
+        <div class="rules-list">
+          ${stopRules.length ? stopRules.map((r, i) => renderRule(r, 'stop', i)).join('') : '<div class="empty-state" style="padding: 20px;"><span class="pi pi-info-circle"></span><p>No stop rules defined</p></div>'}
+          <button class="btn btn-secondary" onclick="addRule('stop')">
+            <span class="pi pi-plus"></span> Add Stop Rule
+          </button>
+        </div>
+        
+        <h3 style="margin: 24px 0 16px; color: var(--p-text-muted-color); font-size: 0.9rem;">ACCELERATE RULES</h3>
+        <div class="rules-list">
+          ${accelerateRules.length ? accelerateRules.map((r, i) => renderRule(r, 'accelerate', i)).join('') : '<div class="empty-state" style="padding: 20px;"><span class="pi pi-info-circle"></span><p>No accelerate rules defined</p></div>'}
+          <button class="btn btn-secondary" onclick="addRule('accelerate')">
+            <span class="pi pi-plus"></span> Add Accelerate Rule
+          </button>
+        </div>
+      `;
+    }
+
+    function renderRule(rule, type, index) {
+      const metrics = ['ctr', 'cpc', 'cpl', 'cvr', 'spend', 'impressions', 'clicks'];
+      const operators = ['<', '<=', '>', '>='];
+      
+      return `
+        <div class="rule-item ${type}-rule">
+          <div class="rule-condition">
+            <select onchange="updateRule('${type}', ${index}, 'metric', this.value)">
+              ${metrics.map(m => `<option value="${m}" ${rule.metric === m ? 'selected' : ''}>${m.toUpperCase()}</option>`).join('')}
+            </select>
+            <select onchange="updateRule('${type}', ${index}, 'operator', this.value)">
+              ${operators.map(o => `<option value="${o}" ${rule.operator === o ? 'selected' : ''}>${o}</option>`).join('')}
+            </select>
+            <input type="number" step="0.01" value="${rule.threshold}" 
+                   onchange="updateRule('${type}', ${index}, 'threshold', parseFloat(this.value))"
+                   style="width: 100px;">
+            <span style="color: var(--p-text-muted-color);">after</span>
+            <input type="number" value="${rule.min_events || rule.min_conversions || 0}" 
+                   onchange="updateRule('${type}', ${index}, '${type === 'stop' ? 'min_events' : 'min_conversions'}', parseInt(this.value))"
+                   style="width: 80px;">
+            <span style="color: var(--p-text-muted-color);">${type === 'stop' ? 'events' : 'conversions'}</span>
+          </div>
+          <span class="rule-action ${type === 'stop' ? 'pause' : 'double'}">${rule.action}</span>
+          <button class="btn-icon" onclick="removeRule('${type}', ${index})" title="Remove rule">
+            <span class="pi pi-trash" style="color: var(--p-red-500);"></span>
+          </button>
+        </div>
+      `;
+    }
+
+    function renderIterationGuide(currentDay) {
+      const guide = tactics?.iteration_guide || {};
+      const dayKeys = ['day_1_3', 'day_4_7', 'day_8_14', 'day_15_30'];
+      const dayLabels = {
+        'day_1_3': 'Days 1-3: Learning Phase',
+        'day_4_7': 'Days 4-7: Early Optimization',
+        'day_8_14': 'Days 8-14: Scale Winners',
+        'day_15_30': 'Days 15-30: Final Push'
+      };
+      
+      function getCurrentPhase(day) {
+        if (day <= 3) return 'day_1_3';
+        if (day <= 7) return 'day_4_7';
+        if (day <= 14) return 'day_8_14';
+        return 'day_15_30';
+      }
+      
+      const currentPhase = getCurrentPhase(currentDay);
+      
+      return `
+        <div class="iteration-guide">
+          ${dayKeys.map(key => `
+            <div class="guide-item ${key === currentPhase ? 'guide-current' : ''}">
+              <div class="guide-day">
+                ${key === currentPhase ? '▶ ' : ''}${dayLabels[key]}
+              </div>
+              <div class="guide-text">
+                <textarea 
+                  placeholder="Enter guidance for this phase..."
+                  onchange="updateIterationGuide('${key}', this.value)"
+                >${guide[key] || ''}</textarea>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      `;
+    }
+
+    function renderActionsLog(log) {
+      if (!log.length) {
+        return `<div class="empty-state">
+          <span class="pi pi-history"></span>
+          <p>No actions recorded yet</p>
+        </div>`;
+      }
+      
+      const sorted = [...log].sort((a, b) => (b.ts || 0) - (a.ts || 0));
+      
+      return `
+        <div class="log-list">
+          ${sorted.slice(0, 50).map(action => {
+            const iconClass = action.type === 'launch' ? 'launch' :
+                              action.type === 'stop_rule' ? 'stop' :
+                              action.type === 'accelerate_rule' ? 'accelerate' : 'iteration';
+            const iconName = action.type === 'launch' ? 'pi-send' :
+                             action.type === 'stop_rule' ? 'pi-pause' :
+                             action.type === 'accelerate_rule' ? 'pi-bolt' : 'pi-clock';
+            return `
+              <div class="log-item">
+                <div class="log-icon ${iconClass}">
+                  <span class="pi ${iconName}"></span>
+                </div>
+                <div class="log-content">
+                  <div class="log-action">${action.action || action.type}</div>
+                  <div class="log-details">${action.details || action.reason || action.campaign || ''}</div>
+                </div>
+                <div class="log-time">${action.ts ? formatDateTime(action.ts) : ''}</div>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      `;
+    }
+
+    function renderTargets() {
+      const targets = metrics?.target_values || {};
+      const targetKeys = Object.keys(targets).length ? Object.keys(targets) : ['ctr', 'cpc', 'cpl'];
+      
+      return `
+        <div class="targets-grid">
+          ${targetKeys.map(key => `
+            <div class="target-item">
+              <div class="target-label">${key.toUpperCase()}</div>
+              <input type="number" step="0.01" class="target-input" 
+                     value="${targets[key] || 0}"
+                     onchange="updateTarget('${key}', parseFloat(this.value))">
+            </div>
+          `).join('')}
+          <div class="target-item" style="display: flex; align-items: center; justify-content: center;">
+            <button class="btn btn-secondary btn-sm" onclick="addTarget()">
+              <span class="pi pi-plus"></span> Add
+            </button>
+          </div>
+        </div>
+      `;
+    }
+
+    // Action handlers
+    function setExperimentStatus(status) {
+      runtime.experiment_status = status;
+      // Update all campaigns
+      Object.keys(runtime.campaigns || {}).forEach(id => {
+        runtime.campaigns[id].status = status === 'active' ? 'ACTIVE' : 'PAUSED';
+      });
+      notifyChange();
+      render();
+    }
+
+    function setCampaignStatus(campaignId, status) {
+      if (runtime.campaigns && runtime.campaigns[campaignId]) {
+        runtime.campaigns[campaignId].status = status;
+        notifyChange();
+        render();
+      }
+    }
+
+    function updateCampaignBudget(campaignId, value) {
+      if (runtime.campaigns && runtime.campaigns[campaignId]) {
+        runtime.campaigns[campaignId].daily_budget = Math.round(parseFloat(value) * 100);
+        notifyChange();
+      }
+    }
+
+    async function updateRule(type, index, field, value) {
+      if (!metrics) metrics = {};
+      const rulesKey = type === 'stop' ? 'stop_rules' : 'accelerate_rules';
+      if (!metrics[rulesKey]) metrics[rulesKey] = [];
+      if (metrics[rulesKey][index]) {
+        metrics[rulesKey][index][field] = value;
+        await saveMetrics();
+      }
+    }
+
+    async function addRule(type) {
+      if (!metrics) metrics = {};
+      const rulesKey = type === 'stop' ? 'stop_rules' : 'accelerate_rules';
+      if (!metrics[rulesKey]) metrics[rulesKey] = [];
+      
+      const newRule = type === 'stop' 
+        ? { metric: 'cpc', operator: '>', threshold: 3.0, min_events: 100, action: 'pause_campaign' }
+        : { metric: 'cvr', operator: '>=', threshold: 0.08, min_conversions: 20, action: 'double_budget' };
+      
+      metrics[rulesKey].push(newRule);
+      await saveMetrics();
+      render();
+    }
+
+    async function removeRule(type, index) {
+      if (!metrics) return;
+      const rulesKey = type === 'stop' ? 'stop_rules' : 'accelerate_rules';
+      if (metrics[rulesKey]) {
+        metrics[rulesKey].splice(index, 1);
+        await saveMetrics();
+        render();
+      }
+    }
+
+    async function updateIterationGuide(key, value) {
+      if (!tactics) tactics = {};
+      if (!tactics.iteration_guide) tactics.iteration_guide = {};
+      tactics.iteration_guide[key] = value;
+      await saveTactics();
+    }
+
+    async function updateTarget(key, value) {
+      if (!metrics) metrics = {};
+      if (!metrics.target_values) metrics.target_values = {};
+      metrics.target_values[key] = value;
+      await saveMetrics();
+    }
+
+    async function addTarget() {
+      const key = prompt('Enter metric name (e.g., ctr, cpc, cpl):');
+      if (key) {
+        await updateTarget(key.toLowerCase(), 0);
+        render();
+      }
+    }
+
+    async function saveMetrics() {
+      if (!experimentId || !metrics) return;
+      const path = `/marketing-experiments/${experimentId}/metrics`;
+      await writePdoc(path, metrics);
+    }
+
+    async function saveTactics() {
+      if (!experimentId || !tactics) return;
+      const path = `/marketing-experiments/${experimentId}/tactics`;
+      await writePdoc(path, tactics);
+    }
+
+    // Utilities
+    function formatNumber(n) {
+      if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M';
+      if (n >= 1000) return (n / 1000).toFixed(1) + 'K';
+      return n.toString();
+    }
+
+    function formatDate(ts) {
+      return new Date(ts * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    }
+
+    function formatDateTime(ts) {
+      return new Date(ts * 1000).toLocaleString('en-US', { 
+        month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' 
+      });
+    }
+  </script>
+</body>
+</html>
+
+
+
+

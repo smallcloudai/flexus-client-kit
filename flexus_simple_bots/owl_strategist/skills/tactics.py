@@ -121,9 +121,17 @@ For each creative:
 
 Save this JSON to /marketing-experiments/{experiment_id}/tactics:
 
+**CRITICAL**: Document MUST be wrapped in `tactics` key with `meta` object for UI to show custom form.
+
 ```json
 {
-  "campaigns": [
+  "tactics": {
+    "meta": {
+      "experiment_id": "hyp004-example",
+      "created_at": "2025-12-16",
+      "step": "tactics"
+    },
+    "campaigns": [
     {
       "campaign_id": "meta_camp_1",
       "channel": "meta",
@@ -213,11 +221,12 @@ Save this JSON to /marketing-experiments/{experiment_id}/tactics:
     "day_8_14": "Final push and data collection focus"
   },
   
-  "next_steps": [
-    "Brief designer on creative specs",
-    "Set up landing page",
-    "Configure tracking"
-  ]
+    "next_steps": [
+      "Brief designer on creative specs",
+      "Set up landing page",
+      "Configure tracking"
+    ]
+  }
 }
 ```
 

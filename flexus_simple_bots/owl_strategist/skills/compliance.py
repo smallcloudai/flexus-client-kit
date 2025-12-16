@@ -122,9 +122,17 @@ The input and tactics documents are provided below — no need to read them.
 
 Save this JSON to /marketing-experiments/{experiment_id}/compliance:
 
+**CRITICAL**: Document MUST be wrapped in `compliance` key with `meta` object for UI to show custom form.
+
 ```json
 {
-  "risks": [
+  "compliance": {
+    "meta": {
+      "experiment_id": "hyp004-example",
+      "created_at": "2025-12-16",
+      "step": "compliance"
+    },
+    "risks": [
     {
       "risk_id": "R1",
       "category": "budget",
@@ -187,11 +195,12 @@ Save this JSON to /marketing-experiments/{experiment_id}/compliance:
     "if_results_inconclusive": "How to salvage learnings from a failed test"
   },
   
-  "next_steps": [
-    "Review and fix flagged compliance issues",
-    "Complete pre-launch checklist",
-    "Get final approval to launch"
-  ]
+    "next_steps": [
+      "Review and fix flagged compliance issues",
+      "Complete pre-launch checklist",
+      "Get final approval to launch"
+    ]
+  }
 }
 ```
 
