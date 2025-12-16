@@ -25,15 +25,6 @@ class FExternalDataSourceSubs:
     news_payload: Optional[FExternalDataSourceOutput]
 
 @dataclass
-class FEphemeralDocumentOutput:
-    edoc_id: str
-    edoc_mtime: int
-    edoc_size_bytes: int
-    edoc_status_download: str
-    edoc_status_graphdb: str
-    edoc_status_vectordb: str
-
-@dataclass
 class FEdocOutput:
     ws_id: str
     eds_id: str
