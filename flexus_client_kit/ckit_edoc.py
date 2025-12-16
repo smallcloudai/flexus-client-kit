@@ -15,7 +15,7 @@ class FExternalDataSourceOutput:
     eds_name: str
     eds_type: str
     eds_json: Dict[str, Any]
-    eds_last_successful_scan_ts: float
+    eds_last_scan_ts: float
 
 @dataclass
 class FExternalDataSourceSubs:
