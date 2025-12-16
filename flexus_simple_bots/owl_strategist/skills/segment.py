@@ -95,9 +95,17 @@ The input and diagnostic documents are provided below in your first message — 
 
 Save this JSON to /marketing-experiments/{experiment_id}/segment:
 
+**CRITICAL**: Document MUST be wrapped in `segment` key with `meta` object for UI to show custom form.
+
 ```json
 {
-  "segment_id": "seg_01",
+  "segment": {
+    "meta": {
+      "experiment_id": "hyp004-example",
+      "created_at": "2025-12-16",
+      "step": "segment"
+    },
+    "segment_id": "seg_01",
   "label": "EN side-hustle founders in US/UK",
   "segment_reasoning": "WHY this segment — what makes them the right audience to test with",
   "icp": {
@@ -146,10 +154,11 @@ Save this JSON to /marketing-experiments/{experiment_id}/segment:
     "best_hooks": ["what messaging will grab attention"]
   },
   
-  "next_steps": [
-    "Validate segment assumptions via...",
-    "Test targeting options on..."
-  ]
+    "next_steps": [
+      "Validate segment assumptions via...",
+      "Test targeting options on..."
+    ]
+  }
 }
 ```
 

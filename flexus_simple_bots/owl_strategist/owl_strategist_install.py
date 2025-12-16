@@ -153,6 +153,7 @@ async def install(
         marketable_picture_big_b64=pic_big,
         marketable_picture_small_b64=pic_small,
         marketable_schedule=[],
+        marketable_forms=ckit_bot_install.load_form_bundles(__file__),
     )
 
 

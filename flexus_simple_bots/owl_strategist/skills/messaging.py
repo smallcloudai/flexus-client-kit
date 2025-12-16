@@ -100,9 +100,17 @@ The input, diagnostic, and segment documents are provided below in your first me
 
 Save this JSON to /marketing-experiments/{experiment_id}/messaging:
 
+**CRITICAL**: Document MUST be wrapped in `messaging` key with `meta` object for UI to show custom form.
+
 ```json
 {
-  "core_value_prop": "Turn your side-hustle chaos into a clear weekly plan powered by AI",
+  "messaging": {
+    "meta": {
+      "experiment_id": "hyp004-example",
+      "created_at": "2025-12-16",
+      "step": "messaging"
+    },
+    "core_value_prop": "Turn your side-hustle chaos into a clear weekly plan powered by AI",
   "core_value_prop_reasoning": "WHY this framing — what insight about the audience drives this",
   "supporting_value_props": [
     "Save up to 10 hours/week on GTM tasks",
@@ -162,10 +170,11 @@ Save this JSON to /marketing-experiments/{experiment_id}/messaging:
     {"angle": "clarity", "priority": 2, "why": "Secondary pain point"}
   ],
   
-  "next_steps": [
-    "Create ad copy variants for each angle",
-    "Test hooks in organic content first"
-  ]
+    "next_steps": [
+      "Create ad copy variants for each angle",
+      "Test hooks in organic content first"
+    ]
+  }
 }
 ```
 
