@@ -151,6 +151,7 @@ def check_record_matches_filters(record: dict, filters: List[Union[str, dict]], 
       "name:ILIKE:%john%"
       "status:IN:active,pending"
       "deleted_ts:IS_NULL"
+      "tags:IS_NOT_EMPTY"
       "task_details->email_subtype:=:welcome"
       {"OR": ["status:=:active", "status:=:pending"]}
 
@@ -178,7 +179,7 @@ def check_record_matches_filter(record: dict, f: str, col_names: set = None) -> 
     Check if a single record matches a single filter string.
     Filter format: "col:op:val" or "col:op"
 
-    Standard operators: =, !=, >, >=, <, <=, IN, NOT_IN, LIKE, ILIKE, IS_NULL, IS_NOT_NULL
+    Standard operators: =, !=, >, >=, <, <=, IN, NOT_IN, LIKE, ILIKE, IS_NULL, IS_NOT_NULL, IS_EMPTY, IS_NOT_EMPTY
     Array operators: contains, not_contains
     JSON path: "task_details->email_subtype:=:welcome"
     """
@@ -211,38 +212,57 @@ def check_record_matches_filter(record: dict, f: str, col_names: set = None) -> 
         else:
             val = record[col]
 
-    # Null checks
     if op in ("IS_NULL", "IS NULL"):
         return val is None
     if op in ("IS_NOT_NULL", "IS NOT NULL"):
         return val is not None
+
+    if op in ("IS_EMPTY", "IS EMPTY"):
+        if val is None:
+            return True
+        if isinstance(val, str):
+            return val == ""
+        if isinstance(val, (list, dict)):
+            return len(val) == 0
+        return False
+    if op in ("IS_NOT_EMPTY", "IS NOT EMPTY"):
+        if val is None:
+            return False
+        if isinstance(val, str):
+            return val != ""
+        if isinstance(val, (list, dict)):
+            return len(val) > 0
+        return True
 
     if len(parts) != 3:
         return True
 
     filter_val = parts[2].strip()
 
-    # Array operators
     if op == "CONTAINS":
-        if val is None or not isinstance(val, list):
+        if val is None:
             return False
-        return filter_val in val
+        if isinstance(val, list):
+            filter_lower = filter_val.lower()
+            return any(str(v).lower() == filter_lower for v in val)
+        else:
+            return filter_val.lower() in str(val).lower()
 
     if op == "NOT_CONTAINS":
         if val is None:
             return True
-        if not isinstance(val, list):
-            return False
-        return filter_val not in val
+        if isinstance(val, list):
+            filter_lower = filter_val.lower()
+            return not any(str(v).lower() == filter_lower for v in val)
+        else:
+            return filter_val.lower() not in str(val).lower()
 
-    # Type coerce for numeric comparisons
     if isinstance(val, (int, float)):
         try:
             filter_val = type(val)(filter_val)
         except (ValueError, TypeError):
             return False
 
-    # Standard operators
     if op == "=":
         return val == filter_val
     if op == "!=":
