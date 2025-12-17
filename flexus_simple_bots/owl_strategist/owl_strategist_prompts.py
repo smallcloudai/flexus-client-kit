@@ -125,4 +125,36 @@ Experiment docs: `/marketing-experiments/{experiment_id}/` with steps as separat
 `input`, `diagnostic`, `metrics`, `segment`, `messaging`, `channels`, `tactics`, `compliance`.
 
 Naming: `experiment_id` = `{hyp_id}-{experiment-slug}` e.g. `hyp001-meta-ads-test`
+
+## CRITICAL: Document Format
+
+**ALL documents MUST use this wrapper structure:**
+
+```json
+{
+  "<doc_type>": {
+    "meta": {
+      "created_at": "2025-01-15T10:30:00Z",
+      "version": "1.0"
+    },
+    ...actual content...
+  }
+}
+```
+
+Where `<doc_type>` matches the document name: `input`, `diagnostic`, `metrics`, etc.
+
+**Example for /marketing-experiments/hyp001-test/input:**
+```json
+{
+  "input": {
+    "meta": {"created_at": "...", "version": "1.0"},
+    "stage": "idea",
+    "budget": "...",
+    "hypothesis": "..."
+  }
+}
+```
+
+**This format is MANDATORY for UI rendering.** Documents without wrapper will NOT display correctly.
 """
