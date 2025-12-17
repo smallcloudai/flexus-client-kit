@@ -98,11 +98,11 @@ async def edoc_delete_batch(
                     "edoc_ids": batch,
                 },
             )
-        deleted_cnt = r["edoc_delete_multi"]
-        assert deleted_cnt == len(batch), (
-            f"After deleting edoc_ids={edoc_ids!r}, \n"
-            f"server deleted {deleted_cnt} while we requested {len(edoc_ids)}"
-        )
+            deleted_cnt = r["edoc_delete_multi"]
+            assert deleted_cnt == len(batch), (
+                f"After deleting edoc_ids={edoc_ids!r}, \n"
+                f"server deleted {deleted_cnt} while we requested {len(edoc_ids)}"
+            )
     sum_deleted_cnt += deleted_cnt
     logger.info("Deleted %d edocs from ws %s", sum_deleted_cnt, ws_id)
 
