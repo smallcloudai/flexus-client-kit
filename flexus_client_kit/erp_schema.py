@@ -30,8 +30,8 @@ class CrmContact:
     contact_utm_last_term: str = ""
     contact_utm_last_content: str = ""
     contact_created_ts: float = 0.0
-    contact_updated_ts: float = 0.0
-    contact_deleted_ts: float = 0.0
+    contact_modified_ts: float = 0.0
+    contact_archived_ts: float = 0.0
 
 
 @dataclass
@@ -46,7 +46,7 @@ class CrmTask:
     task_due_ts: float = 0.0
     task_completed_ts: float = 0.0
     task_created_ts: float = field(default_factory=time.time)
-    task_updated_ts: float = field(default_factory=time.time)
+    task_modified_ts: float = field(default_factory=time.time)
     contact: Optional['CrmContact'] = None
 
 
@@ -126,5 +126,57 @@ ERP_TABLE_TO_SCHEMA: Dict[str, Type] = {
     "product_tag": ProductTag,
     "product_uom": ProductUom,
     "product_m2m_template_tag": ProductM2mTemplateTag,
+}
+
+
+ERP_DEFAULT_VISIBLE_FIELDS: Dict[str, List[str]] = {
+    "crm_contact": [
+        "contact_first_name",
+        "contact_last_name",
+        "contact_email",
+        "contact_notes",
+        "contact_tags",
+        "contact_utm_first_source",
+        "contact_address_country",
+        "contact_created_ts",
+    ],
+    "crm_task": [
+        "task_title",
+        "task_type",
+        "task_notes",
+        "task_due_ts",
+        "task_completed_ts",
+        "contact_id",
+    ],
+    "product_template": [
+        "prodt_name",
+        "prodt_type",
+        "prodt_list_price",
+        "prodt_standard_price",
+        "prodt_active",
+        "prodt_chips",
+    ],
+    "product_product": [
+        "prodt_id",
+        "prod_default_code",
+        "prod_barcode",
+        "prod_active",
+    ],
+    "product_category": [
+        "pcat_name",
+        "pcat_parent_id",
+        "pcat_active",
+    ],
+    "product_tag": [
+        "tag_name",
+        "tag_sequence",
+        "tag_color",
+        "tag_visible_to_customers",
+    ],
+    "product_uom": [
+        "uom_name",
+        "uom_category_id",
+        "uom_active",
+    ],
 }
 
