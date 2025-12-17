@@ -1,4 +1,5 @@
 import asyncio
+import datetime
 import json
 import logging
 from typing import Dict, Any, Optional
@@ -138,8 +139,9 @@ async def owl_strategist_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_
     fuser_id = rcx.persona.persona_id
 
     async def step_exists(experiment_id: str, step: str) -> bool:
+        # Check without fuser_id — document may be created by user, not bot
         try:
-            await pdoc_integration.pdoc_cat(f"/marketing-experiments/{experiment_id}/{step}", fuser_id)
+            await pdoc_integration.pdoc_cat(f"/marketing-experiments/{experiment_id}/{step}", None)
             return True
         except Exception:
             return False
@@ -206,13 +208,20 @@ async def owl_strategist_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_
         # Get user ID from toolcall context, not bot persona
         caller_fuser_id = ckit_external_auth.get_fuser_id_from_rcx(rcx, toolcall.fcall_ft_id)
 
+        # Wrap in standard format for UI microfrontend
         input_doc = {
-            "product_description": args.get("product_description", ""),
-            "hypothesis": args.get("hypothesis", ""),
-            "stage": args.get("stage", ""),
-            "budget": args.get("budget", ""),
-            "timeline": args.get("timeline", ""),
-            "additional_context": args.get("additional_context", ""),
+            "input": {
+                "meta": {
+                    "created_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+                    "version": "1.0"
+                },
+                "product_description": args.get("product_description", ""),
+                "hypothesis": args.get("hypothesis", ""),
+                "stage": args.get("stage", ""),
+                "budget": args.get("budget", ""),
+                "timeline": args.get("timeline", ""),
+                "additional_context": args.get("additional_context", ""),
+            }
         }
 
         path = f"/marketing-experiments/{experiment_id}/input"
