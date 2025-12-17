@@ -103,7 +103,7 @@ async def edoc_delete_batch(
                 f"After deleting edoc_ids={edoc_ids!r}, \n"
                 f"server deleted {deleted_cnt} while we requested {len(edoc_ids)}"
             )
-    sum_deleted_cnt += deleted_cnt
+            sum_deleted_cnt += deleted_cnt
     logger.info("Deleted %d edocs from ws %s", sum_deleted_cnt, ws_id)
 
 
