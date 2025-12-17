@@ -1,6 +1,7 @@
 import logging
 import asyncio
 import time
+import sys
 from typing import Callable
 
 import gql.transport.exceptions
@@ -44,8 +45,13 @@ async def run_typical_single_subscription_with_restart_on_network_errors(fclient
                 logger.exception("3 exceptions in 5 min, exiting")
                 raise
 
-            if "403:" in str(e):
-                logger.error("That looks bad, my key doesn't work: %s", e)
+            err_str = str(e)
+            if "460:" in err_str:
+                # 460 is custom Flexus error with informative message, no point retrying
+                logger.error("%s", e)
+                sys.exit(1)
+            elif "403:" in err_str:
+                logger.error("Authentication failed - key doesn't work: %s", e)
             else:
                 nothing = isinstance(e, gql.transport.exceptions.TransportConnectionFailed)
                 logger.info("got %s (attempt %d/3), sleep 60...", type(e).__name__, len(exception_times), exc_info=(not nothing))
