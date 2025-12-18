@@ -257,13 +257,13 @@ async def handle_bot_bug_report(fclient: ckit_client.FlexusClient, ws_id: str, m
             if op == "list_reported_bugs":
                 r = await h.execute(
                     gql.gql("""query MarketplaceFeedbackListByBot($persona_marketable_name: String!, $persona_marketable_version: Int!) {
-                        marketplace_feedback_list_by_bot(persona_marketable_name: $persona_marketable_name, persona_marketable_version: $persona_marketable_version) {
+                        priviledged_feedback_list(persona_marketable_name: $persona_marketable_name, persona_marketable_version: $persona_marketable_version) {
                             total_count feedbacks { feedback_text }
                         }
                     }"""),
                     variable_values={"persona_marketable_name": persona_marketable_name, "persona_marketable_version": persona_marketable_version},
                 )
-                feedback_data = r.get("marketplace_feedback_list_by_bot", {})
+                feedback_data = r.get("priviledged_feedback_list", {})
                 feedbacks = feedback_data.get("feedbacks", [])
                 total_count = feedback_data.get("total_count", 0)
                 if not feedbacks:
@@ -287,7 +287,7 @@ async def handle_bot_bug_report(fclient: ckit_client.FlexusClient, ws_id: str, m
                     $feedback_ft_id: String!,
                     $feedback_text: String!
                 ) {
-                    marketplace_feedback_submit_by_bot(
+                    priviledged_feedback_submit(
                         persona_marketable_name: $persona_marketable_name,
                         persona_marketable_version: $persona_marketable_version,
                         feedback_ft_id: $feedback_ft_id,
@@ -301,7 +301,7 @@ async def handle_bot_bug_report(fclient: ckit_client.FlexusClient, ws_id: str, m
                     "feedback_text": bug_summary,
                 },
             )
-            if not (feedback_id := r.get("marketplace_feedback_submit_by_bot", {}).get("feedback_id")):
+            if not (feedback_id := r.get("priviledged_feedback_submit", {}).get("feedback_id")):
                 return f"Error: Failed to submit bug report for {bot_name}"
             return f"Bug report submitted successfully for {bot_name} (feedback_id: {feedback_id})"
         except gql.transport.exceptions.TransportQueryError as e:
