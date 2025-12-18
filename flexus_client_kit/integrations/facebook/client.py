@@ -188,7 +188,7 @@ class FacebookAdsClient:
                 fuser_id=self.rcx.persona.owner_fuser_id,
                 scopes=["ads_management", "ads_read", "business_management", "pages_manage_ads"],
             )
-            return f"""Facebook authorization required.
+        return f"""Facebook authorization required.
 
 Click this link to connect your Facebook account:
 {auth_url}

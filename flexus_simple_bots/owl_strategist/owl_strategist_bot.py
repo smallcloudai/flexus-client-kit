@@ -136,12 +136,14 @@ AGENT_REQUIRED_DOCS = {
 
 async def owl_strategist_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.RobotContext) -> None:
     pdoc_integration = fi_pdoc.IntegrationPdoc(rcx, rcx.persona.ws_root_group_id)
-    fuser_id = rcx.persona.persona_id
+    # owner_fuser_id — ID of the human who hired this bot, used for pdoc access checks
+    owner_fuser_id = rcx.persona.owner_fuser_id
 
     async def step_exists(experiment_id: str, step: str) -> bool:
-        # Check without fuser_id — document may be created by user, not bot
+        # Use owner_fuser_id for access check — backend only validates workspace access,
+        # document lookup is by path+fgroup_id regardless of who created it
         try:
-            await pdoc_integration.pdoc_cat(f"/marketing-experiments/{experiment_id}/{step}", None)
+            await pdoc_integration.pdoc_cat(f"/marketing-experiments/{experiment_id}/{step}", owner_fuser_id)
             return True
         except Exception:
             return False
@@ -178,7 +180,7 @@ async def owl_strategist_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_
         docs = []
         for doc_name in required:
             try:
-                content = await pdoc_integration.pdoc_cat(f"/marketing-experiments/{experiment_id}/{doc_name}", fuser_id)
+                content = await pdoc_integration.pdoc_cat(f"/marketing-experiments/{experiment_id}/{doc_name}", owner_fuser_id)
                 docs.append(f"### {doc_name}\n```json\n{content}\n```")
             except Exception as e:
                 logger.warning(f"Could not load {doc_name}: {e}")
