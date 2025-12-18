@@ -15,9 +15,9 @@ REPO_REFRESH_TIMEOUT = 600
 _repo_last_access: Dict[str, float] = {}
 
 
-REPO_FILE_TOOL = ckit_cloudtool.CloudTool(
-    name="repo_file",
-    description="Read files from github repositories, call with op=\"help\" for usage",
+REPO_READER_TOOL = ckit_cloudtool.CloudTool(
+    name="repo_reader",
+    description="Read-only files from github repositories, call with op=\"help\" for usage.",
     parameters={
         "type": "object",
         "properties": {
@@ -33,10 +33,10 @@ Required in args: repo (github URL)
 Optional in args: branch (defaults to repository's default branch)
 
 Examples:
-  repo_file(op="cat", args={"repo": "https://github.com/owner/name", "path": "src/main.py", "lines_range": "1:20"})
-  repo_file(op="find", args={"repo": "https://github.com/owner/name", "branch": "dev", "pattern": "*.py"})
-  repo_file(op="grep", args={"repo": "https://github.com/owner/name", "pattern": "TODO", "context": 2, "include": "*.py"})
-  repo_file(op="ls", args={"repo": "https://github.com/owner/name", "path": "src"})
+  repo_reader(op="cat", args={"repo": "https://github.com/owner/name", "path": "src/main.py", "lines_range": "1:20"})
+  repo_reader(op="find", args={"repo": "https://github.com/owner/name", "branch": "dev", "pattern": "*.py"})
+  repo_reader(op="grep", args={"repo": "https://github.com/owner/name", "pattern": "TODO", "context": 2, "include": "*.py"})
+  repo_reader(op="ls", args={"repo": "https://github.com/owner/name", "path": "src"})
 """
 
 HELP = fi_localfile.HELP_TEXT + "\n" + HELP_EXAMPLES
@@ -72,7 +72,7 @@ async def _ensure_repo_cached(repo_url: str, branch: Optional[str], github_token
     return cache_path
 
 
-async def handle_repo_file(
+async def handle_repo_reader(
     fclient: ckit_client.FlexusClient,
     fgroup_id: str,
     model_produced_args: Dict[str, Any],
