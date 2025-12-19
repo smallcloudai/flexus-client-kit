@@ -136,7 +136,6 @@ async def install(
             prompts_common.SCHED_TASK_SORT_10M | {"sched_when": "EVERY:5m", "sched_first_question": "Look if there are any tasks in inbox, if there are then sort them and say 'Ribbit! Tasks sorted!'."},
             prompts_common.SCHED_TODO_5M | {"sched_when": "EVERY:2m", "sched_first_question": "Work on the assigned task with enthusiasm!"},
         ],
-        marketable_forms=ckit_bot_install.load_form_bundles(__file__),
     )
 
 
