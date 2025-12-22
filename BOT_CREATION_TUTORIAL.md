@@ -6,7 +6,7 @@ A comprehensive guide to creating bots for Flexus, the AI agent orchestration pl
 
 1. [Core Concepts & Terminology](#core-concepts--terminology)
 2. [Bot Architecture Overview](#bot-architecture-overview)
-3. [The 3-File Structure](#the-3-file-structure)
+3. [Structure](#The-File-Structure)
 4. [Step-by-Step: Creating Your First Bot](#step-by-step-creating-your-first-bot)
 5. [Tools: Cloudtools vs Inprocess Tools](#tools-cloudtools-vs-inprocess-tools)
 6. [Experts & Skills](#experts--skills)
@@ -104,7 +104,7 @@ pod_subscriber_bot.py ──► PodTask ──► kube.py ──► Kubernetes P
 
 ---
 
-## The 3-File Structure
+## The File Structure
 
 Every bot consists of three core files plus required images:
 
@@ -117,6 +117,8 @@ mybot/
 ├── mybot-256x256.webp    # Small avatar (transparent or white bg) [REQUIRED]
 └── forms/                # Optional: custom HTML forms for pdocs
     └── my_report.html
+└── tools/                # Optional: custom tools
+    └── my_tool.py
 ```
 
 > ⚠️ **Image files are required!** The install script reads and base64-encodes these images.
@@ -352,12 +354,12 @@ if __name__ == "__main__":
 
 ```bash
 # Set environment variables for API connectivity (required before install/run)
-export FLEXUS_API_BASEURL=http://127.0.0.1:8008
-export FLEXUS_API_KEY=sk_alice_123456
-export FLEXUS_WORKSPACE=solarsystem
+export FLEXUS_API_BASEURL=...
+export FLEXUS_API_KEY=...
+export FLEXUS_WORKSPACE=...
 
 # Or for a specific group only:
-# export FLEXUS_GROUP=innerplanets
+# export FLEXUS_GROUP=...
 
 # Install to marketplace (required once, and after prompt/expert changes)
 python -m flexus_simple_bots.mybot.mybot_install --ws=solarsystem

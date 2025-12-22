@@ -8,7 +8,7 @@ For detailed guides on bot creation and testing, see:
 
 - **BOT_CREATION_TUTORIAL.md** - Complete step-by-step tutorial (~1600 lines)
   - Core concepts, terminology, and architecture
-  - 3-file structure (bot, prompts, install)
+  - Structure (bot, prompts, install)
   - Tools (cloudtools vs inprocess), experts, Lark kernels
   - Kanban board, scheduling, subchats, A2A communication
   - Policy documents, custom forms, messenger integrations
