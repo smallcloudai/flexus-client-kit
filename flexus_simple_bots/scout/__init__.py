@@ -1,0 +1,2 @@
+# Scout — The Discovery Partner
+

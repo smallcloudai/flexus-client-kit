@@ -7,12 +7,26 @@ PRINT_WIDGET_TOOL = ckit_cloudtool.CloudTool(
     parameters={
         "type": "object",
         "properties": {
-            "t": {"type": "string", "description": "Widget type: 'upload-files', 'open-bot-setup-dialog', 'restart-chat'", "order": 1},
-            "q": {"type": "string", "description": "Only required for restart-chat, give the assistant an idea of what to do after the restart, in a sentence or two.", "order": 2},
+            "t": {
+                "type": "string",
+                "description": "Widget type: 'upload-files', 'open-bot-setup-dialog', 'restart-chat', 'open-form-popup'",
+                "order": 1,
+            },
+            "q": {
+                "type": "string",
+                "description": "For restart-chat: question for new chat. For open-form-popup: form name (e.g. 'email-template')",
+                "order": 2,
+            },
+            "data": {
+                "type": "string",
+                "description": "For open-form-popup: JSON data to pass to the form",
+                "order": 3,
+            },
         },
         "required": ["t"],
     },
 )
+
 
 async def handle_print_widget(
     toolcall: ckit_cloudtool.FCloudtoolCall,
@@ -30,5 +44,9 @@ async def handle_print_widget(
     if widget_type == "restart-chat":
         if not question:
             return "Error: for restart-chat, non empty question q=\"...\" is also required"
+
+    if widget_type == "open-form-popup":
+        if not question:
+            return "Error: for open-form-popup, form name q=\"...\" is required"
 
     return f"Printing UI widget: {widget_type}"

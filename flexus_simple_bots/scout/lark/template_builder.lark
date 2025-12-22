@@ -1,0 +1,28 @@
+# Template Builder Lark Kernel
+# Returns template JSON when TEMPLATE-READY is found
+
+print("Template builder kernel running, %d messages" % len(messages))
+
+last_msg = None
+for m in messages[::-1]:
+    if m.get("role") == "assistant":
+        last_msg = m
+        break
+
+if last_msg:
+    content = str(last_msg.get("content", ""))
+    
+    if "TEMPLATE-READY" in content:
+        print("Template completed successfully")
+        # Extract JSON from the message
+        subchat_result = content
+    
+    elif "TEMPLATE-ERROR" in content:
+        print("Template creation failed")
+        subchat_result = content
+    
+    elif len(last_msg.get("tool_calls", [])) == 0:
+        # No tool calls and no completion signal
+        if "```json" not in content.lower() and "```" not in content:
+            post_cd_instruction = "You need to output a JSON template in a code block, then say TEMPLATE-READY"
+
