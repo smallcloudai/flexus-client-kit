@@ -85,6 +85,7 @@ class RobotContext:
         self.persona = p
         self.latest_threads: Dict[str, ckit_bot_query.FThreadWithMessages] = dict()
         self.latest_tasks: Dict[str, ckit_kanban.FPersonaKanbanTaskOutput] = dict()
+        self.bg_call_tasks: set[asyncio.Task] = set()
         self.created_ts = time.time()
         self.workdir = "/tmp/bot_workspace/%s/" % p.persona_id
         self.running_test_scenario = False
@@ -117,7 +118,7 @@ class RobotContext:
             return handler
         return decorator
 
-    async def unpark_collected_events(self, sleep_if_no_work: float, turn_tool_calls_into_tasks: bool = False) -> List[asyncio.Task]:
+    async def unpark_collected_events(self, sleep_if_no_work: float, turn_tool_calls_into_tasks: bool = False) -> None:
         # logger.info("%s unpark_collected_events() started %d %d %d" % (self.persona.persona_id, len(self._parked_messages), len(self._parked_threads), len(self._parked_toolcalls)))
         did_anything = False
         self._parked_anything_new.clear()
@@ -168,7 +169,6 @@ class RobotContext:
 
         mycalls = list(self._parked_toolcalls)
         self._parked_toolcalls.clear()
-        bg_calls = []
         for c in mycalls:
             did_anything = True
             if c.fcall_name not in self._handler_per_tool:
@@ -180,19 +180,29 @@ class RobotContext:
                 except Exception as e:
                     logger.error("%s error in on_tool_call() handler: %s\n%s", self.persona.persona_id, type(e).__name__, e, exc_info=e)
             else:
-                bg_calls.append(asyncio.create_task(self._local_tool_call(self.fclient, c)))
+                task = asyncio.create_task(self._local_tool_call(self.fclient, c))
+                task.add_done_callback(lambda t: self.bg_call_tasks.discard(t))
+                self.bg_call_tasks.add(task)
 
         if not did_anything:
             self._completed_initial_unpark = True
-            if self._restart_requested:
+            if self._restart_requested and not self.bg_call_tasks:
                 raise RestartBot()
             try:
                 await asyncio.wait_for(self._parked_anything_new.wait(), timeout=sleep_if_no_work)
             except asyncio.TimeoutError:
                 pass
 
-        return bg_calls   # empty if not turn_tool_calls_into_tasks (most regular bots)
-
+    async def wait_for_bg_tasks(self, timeout: float = 10.0) -> None:
+        if not self.bg_call_tasks:
+            return
+        logger.info("%s waiting for %d background tasks to complete" % (self.persona.persona_id, len(self.bg_call_tasks)))
+        done, pending = await asyncio.wait(self.bg_call_tasks, timeout=timeout, return_when=asyncio.ALL_COMPLETED)
+        if pending:
+            logger.warning("%s still have %d pending tasks after timeout" % (self.persona.persona_id, len(pending)))
+            for task in pending:
+                task.cancel()
+            await asyncio.gather(*pending, return_exceptions=True)
 
     async def _local_tool_call(self, fclient: ckit_client.FlexusClient, toolcall: ckit_cloudtool.FCloudtoolCall) -> None:
         logger.info("%s local_tool_call %s %s(%s) from thread %s" % (self.persona.persona_id, toolcall.fcall_id, toolcall.fcall_name, toolcall.fcall_arguments, toolcall.fcall_ft_id))
