@@ -118,7 +118,7 @@ class RobotContext:
             return handler
         return decorator
 
-    async def unpark_collected_events(self, sleep_if_no_work: float, turn_tool_calls_into_tasks: bool = False) -> None:
+    async def unpark_collected_events(self, sleep_if_no_work: float, turn_tool_calls_into_bg_tasks: set[str] = set()) -> None:
         # logger.info("%s unpark_collected_events() started %d %d %d" % (self.persona.persona_id, len(self._parked_messages), len(self._parked_threads), len(self._parked_toolcalls)))
         did_anything = False
         self._parked_anything_new.clear()
@@ -174,7 +174,7 @@ class RobotContext:
             if c.fcall_name not in self._handler_per_tool:
                 logger.error("%s tool call %s for %s has no handler. Available handlers: %r", self.persona.persona_id, c.fcall_id, c.fcall_name, list(self._handler_per_tool.keys()))
                 continue
-            if not turn_tool_calls_into_tasks:
+            if c.fcall_name not in turn_tool_calls_into_bg_tasks:
                 try:
                     await self._local_tool_call(self.fclient, c)
                 except Exception as e:
