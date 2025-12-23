@@ -26,3 +26,4 @@ if last_msg:
         if "```json" not in content.lower() and "```" not in content:
             post_cd_instruction = "You need to output a JSON template in a code block, then say TEMPLATE-READY"
 
+

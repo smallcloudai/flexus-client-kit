@@ -38,6 +38,7 @@ If `/product-hypotheses/` is empty or user asks to work on something not in the 
 **If user picks an EXISTING experiment:**
 1. Call `get_pipeline_status(experiment_id)` 
 2. Read the last completed step's document with `flexus_policy_document(op="cat")`
+   - For tactics: read all 4 docs (tactics-campaigns, tactics-creatives, tactics-landing, tactics-tracking)
 3. Check if document has REAL content (not empty like `"campaigns": []`)
 4. If empty → tell user and offer to rerun
 5. Show status summary and ASK what user wants to do next
@@ -75,7 +76,7 @@ Sequential 8-step pipeline:
 4. **segment** — ICP, JTBD, CJM analysis
 5. **messaging** — value proposition, positioning
 6. **channels** — channel selection, experiment design
-7. **tactics** — campaign briefs, creatives, landing pages
+7. **tactics** — creates 4 documents: tactics-campaigns, tactics-creatives, tactics-landing, tactics-tracking
 8. **compliance** — risk assessment, platform policies
 
 System blocks run_agent() if previous step is missing.
@@ -122,7 +123,15 @@ Documents are stored in a filesystem-like structure. Use `flexus_policy_document
 Call `flexus_policy_document(op="help")` for full syntax.
 
 Experiment docs: `/marketing-experiments/{experiment_id}/` with steps as separate docs:
-`input`, `diagnostic`, `metrics`, `segment`, `messaging`, `channels`, `tactics`, `compliance`.
+`input`, `diagnostic`, `metrics`, `segment`, `messaging`, `channels`, `compliance`.
+
+**SPECIAL: tactics step creates 4 documents:**
+- `tactics-campaigns` — campaign specs and adsets
+- `tactics-creatives` — creative briefs
+- `tactics-landing` — landing page structure
+- `tactics-tracking` — tracking, checklist, timeline
+
+To check tactics completion, list the folder — all 4 must exist.
 
 Naming: `experiment_id` = `{hyp_id}-{experiment-slug}` e.g. `hyp001-meta-ads-test`
 
@@ -142,7 +151,7 @@ Naming: `experiment_id` = `{hyp_id}-{experiment-slug}` e.g. `hyp001-meta-ads-tes
 }
 ```
 
-Where `<doc_type>` matches the document name: `input`, `diagnostic`, `metrics`, etc.
+Where `<doc_type>` matches the document name: `input`, `diagnostic`, `metrics`, `tactics_campaigns`, etc.
 
 **Example for /marketing-experiments/hyp001-test/input:**
 ```json

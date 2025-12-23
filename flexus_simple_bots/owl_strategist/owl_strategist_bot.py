@@ -12,15 +12,18 @@ from flexus_client_kit import ckit_ask_model
 from flexus_client_kit import ckit_kanban
 from flexus_client_kit import ckit_external_auth
 from flexus_client_kit.integrations import fi_pdoc
-from flexus_simple_bots.version_common import SIMPLE_BOTS_COMMON_VERSION
 from flexus_simple_bots.owl_strategist import owl_strategist_install
 from flexus_simple_bots.owl_strategist.skills import diagnostic as skill_diagnostic
+from flexus_simple_bots.owl_strategist.skills import tactics as skill_tactics
 
 logger = logging.getLogger("bot_owl_strategist")
 
+# Tactics produces 4 separate documents instead of 1
+TACTICS_DOCS = skill_tactics.TACTICS_DOCS
+
 
 BOT_NAME = "owl_strategist"
-BOT_VERSION = SIMPLE_BOTS_COMMON_VERSION
+BOT_VERSION = "1.0.1"
 BOT_VERSION_INT = ckit_client.marketplace_version_as_int(BOT_VERSION)
 
 # Pipeline: strict sequential order
@@ -130,7 +133,8 @@ AGENT_REQUIRED_DOCS = {
     "messaging": ["input", "diagnostic", "segment"],
     "channels": ["input", "diagnostic", "metrics", "segment", "messaging"],
     "tactics": ["input", "diagnostic", "metrics", "segment", "messaging", "channels"],
-    "compliance": ["input", "diagnostic", "metrics", "segment", "messaging", "channels", "tactics"],
+    # compliance needs all 4 tactics documents
+    "compliance": ["input", "diagnostic", "metrics", "segment", "messaging", "channels"] + TACTICS_DOCS,
 }
 
 
@@ -142,6 +146,14 @@ async def owl_strategist_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_
     async def step_exists(experiment_id: str, step: str) -> bool:
         # Use owner_fuser_id for access check — backend only validates workspace access,
         # document lookup is by path+fgroup_id regardless of who created it
+        if step == "tactics":
+            # Tactics has 4 separate documents — all must exist
+            for doc in TACTICS_DOCS:
+                try:
+                    await pdoc_integration.pdoc_cat(f"/marketing-experiments/{experiment_id}/{doc}", owner_fuser_id)
+                except Exception:
+                    return False
+            return True
         try:
             await pdoc_integration.pdoc_cat(f"/marketing-experiments/{experiment_id}/{step}", owner_fuser_id)
             return True
@@ -174,8 +186,14 @@ async def owl_strategist_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_
     async def load_agent_context(experiment_id: str, agent: str, include_current: bool = False) -> str:
         """Load all required documents for an agent and format them for the first message."""
         required = list(AGENT_REQUIRED_DOCS.get(agent, []))
-        if include_current and agent not in required:
-            required.append(agent)
+        if include_current:
+            # For tactics, include all 4 docs; for others, include the single doc
+            if agent == "tactics":
+                for doc in TACTICS_DOCS:
+                    if doc not in required:
+                        required.append(doc)
+            elif agent not in required:
+                required.append(agent)
 
         docs = []
         for doc_name in required:
@@ -262,7 +280,12 @@ Can now run diagnostic agent."""
             return error
 
         context = await load_agent_context(experiment_id, agent)
-        q = f"Experiment: {experiment_id}\nOutput path: /marketing-experiments/{experiment_id}/{agent}\n\n{context}"
+        # For tactics, output is 4 documents; for others, single doc
+        if agent == "tactics":
+            output_info = f"Output documents: {', '.join(TACTICS_DOCS)}"
+        else:
+            output_info = f"Output path: /marketing-experiments/{experiment_id}/{agent}"
+        q = f"Experiment: {experiment_id}\n{output_info}\n\n{context}"
         if user_additions:
             q += f"\n\n## User Context\n{user_additions}"
 
@@ -298,10 +321,15 @@ Can now run diagnostic agent."""
 
         # Load all docs including current one for rerun
         context = await load_agent_context(experiment_id, agent, include_current=True)
+        # For tactics, output is 4 documents; for others, single doc
+        if agent == "tactics":
+            output_info = f"Output documents: {', '.join(TACTICS_DOCS)}"
+        else:
+            output_info = f"Output path: /marketing-experiments/{experiment_id}/{agent}"
         q = f"""Experiment: {experiment_id}
-Output path: /marketing-experiments/{experiment_id}/{agent}
+{output_info}
 
-RERUN with corrections. Apply this feedback to the current document:
+RERUN with corrections. Apply this feedback:
 {feedback}
 
 {context}"""

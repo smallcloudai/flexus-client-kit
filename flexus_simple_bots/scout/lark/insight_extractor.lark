@@ -29,3 +29,4 @@ if last_msg:
         if "```json" not in content.lower():
             post_cd_instruction = "Output insights as JSON in a code block, then say INSIGHTS-READY"
 
+

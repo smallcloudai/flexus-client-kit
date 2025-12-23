@@ -28,3 +28,4 @@ if last_msg:
         if not (has_subject and has_message):
             post_cd_instruction = "Output the message with subject: and main_message: fields, then say MESSAGE-READY"
 
+

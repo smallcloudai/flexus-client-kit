@@ -18,7 +18,6 @@ from flexus_client_kit.integrations import fi_pdoc
 from flexus_client_kit.integrations.facebook.fi_facebook import IntegrationFacebook, FACEBOOK_TOOL
 from flexus_simple_bots.admonster import admonster_install
 from flexus_simple_bots.admonster import experiment_execution
-from flexus_simple_bots.version_common import SIMPLE_BOTS_COMMON_VERSION
 
 logger = logging.getLogger("bot_admonster")
 
@@ -26,7 +25,7 @@ LINKEDIN_CLIENT_ID = os.getenv("LINKEDIN_CLIENT_ID", "")
 LINKEDIN_CLIENT_SECRET = os.getenv("LINKEDIN_CLIENT_SECRET", "")
 
 BOT_NAME = "admonster"
-BOT_VERSION = SIMPLE_BOTS_COMMON_VERSION
+BOT_VERSION = "1.0.0"
 BOT_VERSION_INT = ckit_client.marketplace_version_as_int(BOT_VERSION)
 ACCENT_COLOR = "#0077B5"
 

@@ -41,8 +41,8 @@ LAUNCH_EXPERIMENT_TOOL = ckit_cloudtool.CloudTool(
 
 LAUNCH_EXPERIMENT_HELP = """
 launch_experiment(experiment_id="hyp001-meta-ads-test")
-    Read tactics from /marketing-experiments/{experiment_id}/tactics
-    Create Facebook campaigns, adsets based on tactics.campaigns
+    Read tactics-campaigns from /marketing-experiments/{experiment_id}/tactics-campaigns
+    Create Facebook campaigns, adsets based on tactics_campaigns.campaigns
     Save runtime state to /marketing-experiments/{experiment_id}/meta-runtime
     Returns summary of created campaigns
 
@@ -137,11 +137,13 @@ class IntegrationExperimentExecution:
             return "ERROR: facebook_ad_account_id not set in /company/ad-ops-config"
         self.facebook_integration.client.ad_account_id = ad_account_id
 
-        # 1. Read tactics document
-        tactics_path = f"/marketing-experiments/{experiment_id}/tactics"
+        # 1. Read tactics-campaigns document (new format: 4 separate docs)
+        tactics_path = f"/marketing-experiments/{experiment_id}/tactics-campaigns"
         try:
             tactics_doc = await self.pdoc_integration.pdoc_cat(tactics_path, fuser_id)
-            tactics = tactics_doc.pdoc_content
+            tactics_raw = tactics_doc.pdoc_content
+            # Extract from wrapper: {"tactics_campaigns": {"meta": {...}, "campaigns": [...]}}
+            tactics = tactics_raw.get("tactics_campaigns", tactics_raw) if isinstance(tactics_raw, dict) else {}
         except Exception as e:
             return f"ERROR: Could not read tactics at {tactics_path}: {e}"
         if not tactics:
@@ -339,12 +341,14 @@ class IntegrationExperimentExecution:
         except Exception:
             pass
 
-        # 3. Load tactics doc (for iteration_guide)
-        tactics_path = f"/marketing-experiments/{experiment_id}/tactics"
-        tactics = None
+        # 3. Load tactics-tracking doc (for iteration_guide)
+        tactics_tracking_path = f"/marketing-experiments/{experiment_id}/tactics-tracking"
+        tactics_tracking = None
         try:
-            tactics_doc = await self.pdoc_integration.pdoc_cat(tactics_path, fuser_id)
-            tactics = tactics_doc.pdoc_content
+            tactics_doc = await self.pdoc_integration.pdoc_cat(tactics_tracking_path, fuser_id)
+            tactics_raw = tactics_doc.pdoc_content
+            # Extract from wrapper: {"tactics_tracking": {"meta": {...}, "iteration_guide": {...}}}
+            tactics_tracking = tactics_raw.get("tactics_tracking", tactics_raw) if isinstance(tactics_raw, dict) else {}
         except Exception:
             pass
 
@@ -386,9 +390,9 @@ class IntegrationExperimentExecution:
                 )
                 actions_taken.extend(rule_actions)
 
-        # 7. Apply iteration_guide rules
-        if tactics:
-            iteration_guide = tactics.get("iteration_guide", {})
+        # 7. Apply iteration_guide rules (from tactics-tracking doc)
+        if tactics_tracking:
+            iteration_guide = tactics_tracking.get("iteration_guide", {})
             day_key = self._get_day_key(current_day)
             guide_text = iteration_guide.get(day_key, "")
             if guide_text:
