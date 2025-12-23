@@ -316,8 +316,7 @@ Can now run diagnostic agent."""
         if not feedback:
             return "Error: feedback is required for rerun"
 
-        if not await step_exists(experiment_id, agent):
-            return f"Error: {agent} has not been run yet, nothing to rerun. Use run_agent."
+        # No step_exists check — if user wants rerun, just do it (files may be lost/corrupted)
 
         # Load all docs including current one for rerun
         context = await load_agent_context(experiment_id, agent, include_current=True)
