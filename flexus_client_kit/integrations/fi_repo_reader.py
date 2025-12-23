@@ -2,14 +2,15 @@ import os
 import logging
 import time
 import subprocess
+import tempfile
 from typing import Dict, Any, Optional
 
-from flexus_client_kit import ckit_cloudtool, ckit_client, ckit_github, ckit_devenv
+from flexus_client_kit import ckit_cloudtool, ckit_github, ckit_devenv, ckit_bot_exec
 from flexus_client_kit.integrations import fi_localfile
 
 logger = logging.getLogger("repo_file")
 
-REPO_CACHE_DIR = "/tmp/flexus_repos"
+REPO_CACHE_DIR = os.path.join(tempfile.gettempdir(), "flexus_repos")
 REPO_REFRESH_TIMEOUT = 600
 
 _repo_last_access: Dict[str, float] = {}
@@ -42,11 +43,11 @@ Examples:
 HELP = fi_localfile.HELP_TEXT + "\n" + HELP_EXAMPLES
 
 
-async def _ensure_repo_cached(repo_url: str, branch: Optional[str], github_token: Optional[ckit_github.GhRepoToken]) -> str:
+async def _ensure_repo_cached(repo_url: str, branch: Optional[str], github_token: Optional[ckit_github.GhRepoToken], persona_id: str) -> str:
     if not (repo_path := ckit_github.extract_repo_path_from_url(repo_url)):
         raise ValueError(f"Invalid repo URL: {repo_url}")
 
-    cache_key = f"{repo_path}/{branch}" if branch else repo_path
+    cache_key = f"{persona_id}/{repo_path}/{branch}" if branch else f"{persona_id}/{repo_path}"
     cache_path = os.path.join(REPO_CACHE_DIR, cache_key)
     os.makedirs(os.path.dirname(cache_path), exist_ok=True)
 
@@ -73,27 +74,26 @@ async def _ensure_repo_cached(repo_url: str, branch: Optional[str], github_token
 
 
 async def handle_repo_reader(
-    fclient: ckit_client.FlexusClient,
-    fgroup_id: str,
+    rcx: ckit_bot_exec.RobotContext,
     model_produced_args: Dict[str, Any],
 ) -> str:
     op = model_produced_args.get("op", "")
     if not op or "help" in op:
-        return HELP + "\n\n" + await ckit_devenv.format_devenv_list(fclient, fgroup_id)
+        return HELP + "\n\n" + await ckit_devenv.format_devenv_list(rcx.fclient, rcx.persona.located_fgroup_id)
 
     args = model_produced_args.get("args", {})
     if not (repo_input := ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "repo", "")):
-        return "Error: repo parameter is required\n\n" + HELP + "\n\n" + await ckit_devenv.format_devenv_list(fclient, fgroup_id)
+        return "Error: repo parameter is required\n\n" + HELP + "\n\n" + await ckit_devenv.format_devenv_list(rcx.fclient, rcx.persona.located_fgroup_id)
 
     repo_url = repo_input if repo_input.startswith(("https://", "git@")) else f"https://github.com/{repo_input}"
-    gh_token = await ckit_github.get_github_token_with_cache(fclient, fgroup_id, repo_url)
+    gh_token = await ckit_github.get_github_token_with_cache(rcx.fclient, rcx.persona.located_fgroup_id, repo_url)
     branch = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "branch", None)
     try:
-        cache_path = await _ensure_repo_cached(repo_url, branch, gh_token)
+        cache_path = await _ensure_repo_cached(repo_url, branch, gh_token, rcx.persona.persona_id)
     except ValueError as e:
-        return f"{e}\n\n" + await ckit_devenv.format_devenv_list(fclient, fgroup_id)
+        return f"{e}\n\n" + await ckit_devenv.format_devenv_list(rcx.fclient, rcx.persona.located_fgroup_id)
     except (RuntimeError, OSError, subprocess.SubprocessError) as e:
         logger.info(f"Could not access repo {repo_url}: {e}", exc_info=True)
-        return f"Error accessing repository: {e}\n\n" + await ckit_devenv.format_devenv_list(fclient, fgroup_id)
+        return f"Error accessing repository: {e}\n\n" + await ckit_devenv.format_devenv_list(rcx.fclient, rcx.persona.located_fgroup_id)
 
     return await fi_localfile.handle_localfile(cache_path, model_produced_args)

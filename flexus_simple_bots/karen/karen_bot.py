@@ -62,7 +62,7 @@ async def karen_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.
 
     @rcx.on_tool_call(fi_repo_reader.REPO_READER_TOOL.name)
     async def toolcall_repo_reader(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
-        return await fi_repo_reader.handle_repo_reader(fclient, rcx.persona.located_fgroup_id, model_produced_args)
+        return await fi_repo_reader.handle_repo_reader(rcx, model_produced_args)
 
     async def slack_activity_callback(a: fi_slack.ActivitySlack, already_posted_to_captured_thread: bool):
         logger.info(f"{rcx.persona.persona_id} 🔔 what_happened={a.what_happened} {a.channel_name} by @{a.message_author_name}: {a.message_text}")
