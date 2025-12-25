@@ -13,6 +13,7 @@ from gql.transport.exceptions import TransportQueryError
 from flexus_client_kit import ckit_client
 from flexus_client_kit import ckit_shutdown
 from flexus_client_kit import ckit_utils
+from flexus_client_kit import ckit_passwords
 from flexus_client_kit import gql_utils
 
 logger = logging.getLogger("ctool")
@@ -441,9 +442,10 @@ async def run_cloudtool_service(
         except (websockets.exceptions.ConnectionClosedError, gql.transport.exceptions.TransportError, OSError):
             if ckit_shutdown.shutdown_event.is_set():
                 break
-            logger.info("got disconnected, will connect again in 60s")
-            await ckit_shutdown.wait(60)
+            retry_sec = 5 if ckit_passwords.it_might_be_a_devbox else 60
+            logger.info("got disconnected, will connect again in %ds", retry_sec)
+            await ckit_shutdown.wait(retry_sec)
 
         except Exception as e:
             logger.error("caught exception %s: %s" % (type(e).__name__, e), exc_info=e)
-            await ckit_shutdown.wait(60)
+            await ckit_shutdown.wait(5 if ckit_passwords.it_might_be_a_devbox else 60)
