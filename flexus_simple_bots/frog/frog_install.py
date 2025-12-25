@@ -11,22 +11,16 @@ from flexus_simple_bots.frog import frog_prompts
 
 
 BOT_DESCRIPTION = """
-## Frog - Cheerful AI Assistant
+## Frog - Simple Cheerful Bot
 
-A simple and friendly bot that adds some fun to your workspace. Frog responds with cheerful ribbits and provides positive encouragement to keep your team motivated.
+A lightweight bot that greets users with cheerful ribbits and manages basic tasks through a Kanban board.
 
 **Key Features:**
-- **Cheerful responses**: Uses ribbit() calls to express emotions
-- **Task management**: Manages simple tasks through Kanban boards
-- **Positive vibes**: Provides encouragement and celebrates accomplishments
-- **Minimal setup**: Easy to configure and deploy
+- **Ribbit tool**: Express joy with cheerful frog sounds
+- **Kanban board**: Simple task management with inbox, todo, in progress, and done columns
+- **Easy setup**: Minimal configuration needed
 
-**Perfect for:**
-- Testing bot functionality
-- Adding fun to team interactions
-- Morale boosting
-
-Frog is designed to be lightweight and easy to understand - ideal for learning how Flexus bots work or just bringing some joy to your workspace!
+Frog is designed to be lightweight and easy to understand - ideal for learning how Flexus bots work.
 """
 
 
@@ -49,33 +43,11 @@ frog_setup_schema = [
         "bs_importance": 0,
         "bs_description": "How often should the frog ribbit? (rare, normal, frequent)",
     },
-    {
-        "bs_name": "tongue_capacity",
-        "bs_type": "int",
-        "bs_default": 5,
-        "bs_group": "Hunting Abilities",
-        "bs_order": 1,
-        "bs_importance": 1,
-        "bs_description": "Maximum number of insects this frog can catch in one hunting session. Like a real frog's stomach capacity!",
-    },
 ]
 
 
-FROG_SUBCHAT_LARK = f"""
-print("Ribbit in logs")     # will be visible in lark logs
-subchat_result = "Insect!"
-"""
-
 FROG_DEFAULT_LARK = f"""
 print("I see %d messages" % len(messages))
-msg = messages[-1]
-if msg["role"] == "assistant":
-    assistant_says1 = str(msg["content"])    # assistant can only produce text, there will not be [{{"m_type": "image/png", "m_content": "..."}}, ...]
-    assistant_says2 = str(msg["tool_calls"]) # that might be a big json but it still converts to string, good enough for a frog
-    print("assistant_says1", assistant_says1)
-    print("assistant_says2", assistant_says2)
-    if "snake" in assistant_says1.lower() or "snake" in assistant_says2.lower():
-        post_cd_instruction = "OMG dive down!!!"
 """
 
 
@@ -121,13 +93,6 @@ async def install(
                 fexp_allow_tools="",
                 fexp_app_capture_tools=bot_internal_tools,
             )),
-            ("huntmode", ckit_bot_install.FMarketplaceExpertInput(
-                fexp_system_prompt=frog_prompts.frog_prompt,
-                fexp_python_kernel=FROG_SUBCHAT_LARK,
-                fexp_block_tools="*setup*,frog_catch_insects",
-                fexp_allow_tools="",
-                fexp_app_capture_tools=bot_internal_tools,
-            )),
         ],
         marketable_tags=["Fun", "Simple", "Motivational"],
         marketable_picture_big_b64=pic_big,
@@ -136,7 +101,6 @@ async def install(
             prompts_common.SCHED_TASK_SORT_10M | {"sched_when": "EVERY:5m", "sched_first_question": "Look if there are any tasks in inbox, if there are then sort them and say 'Ribbit! Tasks sorted!'."},
             prompts_common.SCHED_TODO_5M | {"sched_when": "EVERY:2m", "sched_first_question": "Work on the assigned task with enthusiasm!"},
         ],
-        marketable_forms=ckit_bot_install.load_form_bundles(__file__),
     )
 
 
