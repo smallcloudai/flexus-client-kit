@@ -39,7 +39,7 @@ class IntegrationGitHub:
     def is_read_only_command(self, args: List[str]) -> bool:
         if not args or args[0] in {"search", "status", "help", "--help", "-h", "version", "--version"}:
             return True
-        READ_VERBS = {"view", "list", "status", "search", "browse", "show", "diff", "item-list", "field-list"}
+        READ_VERBS = {"view", "list", "status", "search", "browse", "show", "diff", "item-list", "field-list", "files"}
         return len(args) >= 2 and args[1] in READ_VERBS
 
     def _is_allowed_write_command(self, args: List[str]) -> bool:
