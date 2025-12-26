@@ -1,0 +1,261 @@
+judge_instructions: |
+  Reward the bot for:
+  - Correctly formatting JSON when creating policy documents (no unescaped special chars)
+  - Successfully setting up CRM automations for welcome emails
+  - Testing the automation by adding exactly ONE test contact
+  - Using flexus_bot_kanban() to verify the task was created in inbox/todo/in-progress
+  - Stopping after successful verification instead of endless loops
+  - Handling tool errors gracefully with explanations
+
+  Penalize the bot for:
+  - JSON formatting errors when creating policy documents
+  - Failing to set up automations properly
+  - Not verifying task creation via kanban board
+  - Adding multiple test contacts beyond the first one
+  - Claiming success without actual tool verification
+  - Simulating processing without using tools
+  - Not handling tool errors gracefully
+
+  Ignore minor variations in response wording or email template content details.
+
+messages:
+- role: user
+  content: Check CRM status and help me set up welcome emails
+- role: assistant
+  tool_calls:
+  - id: fakecall_tyWyJl5Wq1IpTTrg
+    type: function
+    function:
+      name: flexus_bot_kanban
+      arguments: '{}'
+  - id: call_85785710
+    type: function
+    function:
+      name: erp_table_meta
+      arguments: '{"table_name":"crm_contact,crm_task"}'
+  - id: call_01517823
+    type: function
+    function:
+      name: crm_automation
+      arguments: '{"op":"help"}'
+  - id: call_06243776
+    type: function
+    function:
+      name: flexus_policy_document
+      arguments: '{"op":"help"}'
+  - id: call_37103145
+    type: function
+    function:
+      name: erp_table_data
+      arguments: '{"table_name":"crm_contact","options":{"limit":5}}'
+- role: tool
+  content: |
+    Inbox:
+    [
+    ]
+
+    Todo:
+    [
+    ]
+
+    In Progress:
+    [
+    ]
+
+    Done:
+    [
+    ]
+
+
+    No current task assigned to this chat
+
+    Help:
+
+    flexus_bot_kanban()
+        Shows the current board.
+
+    flexus_bot_kanban(op="fetch_details", args={"batch": ["task1337", "task1338"]})
+        Returns details, works for any task.
+
+    flexus_bot_kanban(op="inbox_to_todo", args={"join": ["task1337", "task1338"]})
+        Moves a task from inbox into todo column, optionally joining multiple tasks.
+
+    flexus_bot_kanban(op="current_task_done", args={"resolution_code": "SUCCESS/INCONCLUSIVE/FAIL/IRRELEVANT", "resolution_summary": "Did this", "resolution_humanhours": 2.5})
+        Mark the task currently assigned as done with a resolution code.
+  call_id: fakecall_tyWyJl5Wq1IpTTrg
+- role: tool
+  content: |
+    Table: erp.crm_contact
+
+    Columns:
+      • contact_id: <class 'str'>
+      • contact_first_name: <class 'str'>
+      • contact_last_name: <class 'str'>
+      • contact_email: <class 'str'>
+      • contact_notes: <class 'str'>
+      • contact_tags: List[str]
+      • contact_address_state: <class 'str'>
+      • contact_created_ts: <class 'float'>
+
+    Table: erp.crm_task
+
+    Columns:
+      • task_id: <class 'str'>
+      • contact_id: <class 'str'>
+      • contact_email: <class 'str'>
+      • task_type: <class 'str'>
+      • task_title: <class 'str'>
+      • task_notes: <class 'str'>
+      • task_created_ts: <class 'float'>
+  call_id: call_85785710
+- role: tool
+  content: |
+    CRM Automations Help
+    ====================
+
+    Structure:
+    - enabled: bool
+    - triggers: list of trigger configs
+    - actions: list of action configs
+
+    Template Variables:
+    Use {{trigger.new_record.field_name}} to reference trigger data
+
+    Trigger Filter Syntax:
+    Format: "field:op:value"
+    Examples:
+    - "contact_tags:not_contains:welcome_email_sent"
+    - "contact_email:!=:"
+  call_id: call_01517823
+- role: tool
+  content: |
+    flexus_policy_document()
+        Shows this help.
+
+    flexus_policy_document(op="list")
+        List documents and subfolders.
+
+    flexus_policy_document(op="cat", args={"p": "/folder/file"})
+        Read a policy document.
+
+    flexus_policy_document(op="create", args={"p": "/folder/file", "text": '{"key": "value"}'})
+        Write a new policy document with valid JSON.
+  call_id: call_06243776
+- role: tool
+  content: |-
+    Table: crm_contact
+    4 rows
+
+    {"contact_id": "1", "contact_first_name": "Bob", "contact_last_name": "Smith", "contact_email": "bob@example.com", "contact_notes": "Solar prospect", "contact_tags": [], "contact_address_state": "WA", "contact_created_ts": 1766000000}
+    {"contact_id": "2", "contact_first_name": "Carol", "contact_last_name": "Martinez", "contact_email": "carol@example.com", "contact_notes": "Battery storage", "contact_tags": [], "contact_address_state": "OR", "contact_created_ts": 1766000000}
+    {"contact_id": "3", "contact_first_name": "Alice", "contact_last_name": "Johnson", "contact_email": "alice@example.com", "contact_notes": "Residential solar", "contact_tags": [], "contact_address_state": "CA", "contact_created_ts": 1766000000}
+    {"contact_id": "4", "contact_first_name": "David", "contact_last_name": "Lee", "contact_email": "david@example.com", "contact_notes": "Commercial", "contact_tags": [], "contact_address_state": "TX", "contact_created_ts": 1766000000}
+  call_id: call_37103145
+- role: assistant
+  content: |
+    Good news! You have 4 active contacts ready to engage with.
+
+    I can help you set up automated welcome emails. This is a two-step process:
+    1. Create an email template as a policy document
+    2. Set up a CRM automation to send it automatically to new contacts
+
+    Shall I set this up for you? Just confirm and let me know what your website is so I can personalize the emails.
+  ftm_provenance:
+    turn: 0
+- role: user
+  content: Set it up for my website https://mycompany.com
+- role: assistant
+  tool_calls:
+  - id: call_10001
+    type: function
+    function:
+      name: flexus_policy_document
+      arguments: '{"op":"create","args":{"p":"/sales-pipeline/welcome-email","text":"{\"subject\": \"Welcome to MyCompany!\", \"body\": \"Hi {{trigger.new_record.contact_first_name}},\\n\\nWelcome to MyCompany. We are glad you visited us at {{trigger.new_record.contact_utm_first_source || \"our website\"}}.\\n\\nIf you have any questions, please reply to this email.\\n\\nBest regards,\\nThe MyCompany Team\\nhttps://mycompany.com\"}"}}'
+  - id: call_10002
+    type: function
+    function:
+      name: crm_automation
+      arguments: '{"op":"create","args":{"automation_name":"welcome_email_auto","automation_config":{"enabled":true,"triggers":[{"type":"erp_table","table":"crm_contact","operations":["insert","update"],"filters":["contact_tags:not_contains:welcome_email_sent"]}],"actions":[{"type":"post_task_into_bot_inbox","title":"Send welcome email to {{trigger.new_record.contact_first_name}} {{trigger.new_record.contact_last_name}}","details":{"contact_id":"{{trigger.new_record.contact_id}}","email_template":"/sales-pipeline/welcome-email"},"provenance":"CRM automation: welcome_email"},{"type":"update_erp_record","table":"crm_contact","record_id":"{{trigger.new_record.contact_id}}","fields":{"contact_tags":{"op":"append","values":["welcome_email_sent"]}}}]}}}'
+  - id: call_10003
+    type: function
+    function:
+      name: crm_automation
+      arguments: '{"op":"list"}'
+- role: tool
+  content: "Created policy document at /sales-pipeline/welcome-email"
+  call_id: call_10001
+- role: tool
+  content: "Created automation welcome_email_auto"
+  call_id: call_10002
+- role: tool
+  content: |
+    CRM Automations (1 total):
+    • welcome_email_auto: enabled
+      Triggers: 1, Actions: 2
+  call_id: call_10003
+- role: assistant
+  content: |
+    Perfect! I have successfully set up the welcome email automation for MyCompany:
+
+    Email template created at /sales-pipeline/welcome-email
+    Automation "welcome_email_auto" is enabled
+    Triggers on new or updated contacts without the "welcome_email_sent" tag
+    Actions: Creates a task and tags the contact
+
+    Now let me test it by adding a test contact to verify the automation triggers correctly.
+  ftm_provenance:
+    turn: 1
+- role: assistant
+  tool_calls:
+  - id: call_10004
+    type: function
+    function:
+      name: erp_table_crud
+      arguments: '{"op":"create","table_name":"crm_contact","fields":{"contact_first_name":"Test","contact_last_name":"Contact","contact_email":"test@example.com","contact_notes":"Test contact for automation","contact_tags":[],"contact_address_state":"CA"}}'
+- role: tool
+  content: "Created new record in crm_contact with ID: TEST001"
+  call_id: call_10004
+- role: assistant
+  tool_calls:
+  - id: call_10005
+    type: function
+    function:
+      name: flexus_bot_kanban
+      arguments: '{}'
+- role: tool
+  content: |
+    Inbox:
+    [
+      {"id": "task_abc123", "title": "Send welcome email to Test Contact (test@example.com)"}
+    ]
+
+    Todo:
+    [
+    ]
+
+    In Progress:
+    [
+    ]
+
+    Done:
+    [
+    ]
+
+    No current task assigned to this chat
+  call_id: call_10005
+- role: assistant
+  content: |
+    Excellent! The automation test was successful!
+
+    Test contact "Test Contact" was added to the CRM
+    Automation triggered instantly
+    Task created in my inbox: "Send welcome email to Test Contact"
+
+    The welcome email automation is now fully operational and will:
+    1. Automatically send welcome emails to all new contacts from your website
+    2. Tag them as "welcome_email_sent" to avoid duplicates
+    3. Create tasks for me to handle the actual email sending
+
+    Your CRM automation setup for MyCompany is complete and tested!
+  ftm_provenance:
+    turn: 2
