@@ -16,6 +16,7 @@ from flexus_client_kit.integrations import fi_pdoc
 from flexus_client_kit.integrations import fi_erp
 from flexus_client_kit.integrations import fi_mongo_store
 from flexus_client_kit.integrations import fi_crm_automations
+from flexus_client_kit.integrations import fi_telegram
 from flexus_simple_bots.rick import rick_install
 from flexus_simple_bots.version_common import SIMPLE_BOTS_COMMON_VERSION
 
@@ -58,10 +59,14 @@ async def rick_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.R
     automations_integration = fi_crm_automations.IntegrationCrmAutomations(
         fclient, rcx, get_setup, available_erp_tables=ERP_TABLES,
     )
+    telegram_integration = fi_telegram.IntegrationTelegram(
+        fclient,
+        rcx,
+    )
 
     @rcx.on_updated_message
     async def updated_message_in_db(msg: ckit_ask_model.FThreadMessageOutput):
-        pass
+        await telegram_integration.look_assistant_might_have_posted_something(msg)
 
     @rcx.on_updated_thread
     async def updated_thread_in_db(th: ckit_ask_model.FThreadOutput):
