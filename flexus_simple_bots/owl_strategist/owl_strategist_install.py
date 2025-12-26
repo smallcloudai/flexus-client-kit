@@ -91,6 +91,10 @@ async def install(
                 fexp_block_tools="*setup*",
                 fexp_allow_tools="",
                 fexp_app_capture_tools=bot_tools_json,
+                fexp_ui_title="Free talk",
+                fexp_ui_description="Chat about your product, strategy, or any questions",
+                fexp_ui_icon="pi pi-comments",
+                fexp_ui_first_message="Hi! I'm Owl Strategist. Tell me about your product — what do you want to test?",
             )),
             # Agent A: Diagnostic — classify hypothesis, identify unknowns
             ("diagnostic", ckit_bot_install.FMarketplaceExpertInput(
@@ -99,6 +103,10 @@ async def install(
                 fexp_block_tools="*setup*",
                 fexp_allow_tools="",
                 fexp_app_capture_tools=agent_tools_json,
+                fexp_ui_title="Diagnostic",
+                fexp_ui_description="Classify your hypothesis and identify unknowns",
+                fexp_ui_icon="pi pi-search",
+                fexp_ui_first_message="Let's classify your hypothesis and identify what we don't know yet.",
             )),
             # Agent G: Metrics — KPI, MDE, stop/accelerate rules
             ("metrics", ckit_bot_install.FMarketplaceExpertInput(
@@ -107,6 +115,10 @@ async def install(
                 fexp_block_tools="*setup*",
                 fexp_allow_tools="",
                 fexp_app_capture_tools=agent_tools_json,
+                fexp_ui_title="Metrics & KPIs",
+                fexp_ui_description="Define KPIs, MDE, and stop/accelerate rules",
+                fexp_ui_icon="pi pi-chart-bar",
+                fexp_ui_first_message="Let's define success metrics for your experiment.",
             )),
             # Agent B: Segment — ICP, JTBD, customer journey
             ("segment", ckit_bot_install.FMarketplaceExpertInput(
@@ -115,6 +127,10 @@ async def install(
                 fexp_block_tools="*setup*",
                 fexp_allow_tools="",
                 fexp_app_capture_tools=agent_tools_json,
+                fexp_ui_title="Customer Segment",
+                fexp_ui_description="Define ICP, JTBD, and customer journey",
+                fexp_ui_icon="pi pi-users",
+                fexp_ui_first_message="Let's define your ideal customer profile and their journey.",
             )),
             # Agent C: Messaging — value prop, angles, objections
             ("messaging", ckit_bot_install.FMarketplaceExpertInput(
@@ -123,6 +139,10 @@ async def install(
                 fexp_block_tools="*setup*",
                 fexp_allow_tools="",
                 fexp_app_capture_tools=agent_tools_json,
+                fexp_ui_title="Messaging",
+                fexp_ui_description="Craft value proposition, angles, and objection handling",
+                fexp_ui_icon="pi pi-megaphone",
+                fexp_ui_first_message="Let's craft your value proposition and messaging angles.",
             )),
             # Agent D: Channels — channel selection, test cells, budget
             ("channels", ckit_bot_install.FMarketplaceExpertInput(
@@ -131,6 +151,10 @@ async def install(
                 fexp_block_tools="*setup*",
                 fexp_allow_tools="",
                 fexp_app_capture_tools=agent_tools_json,
+                fexp_ui_title="Channel Selection",
+                fexp_ui_description="Select channels, design test cells, allocate budget",
+                fexp_ui_icon="pi pi-sitemap",
+                fexp_ui_first_message="Let's select the best channels for your experiment.",
             )),
             # Agent E: Tactics — campaigns, creatives, landing, tracking
             ("tactics", ckit_bot_install.FMarketplaceExpertInput(
@@ -139,6 +163,10 @@ async def install(
                 fexp_block_tools="*setup*",
                 fexp_allow_tools="",
                 fexp_app_capture_tools=agent_tools_json,
+                fexp_ui_title="Campaign Tactics",
+                fexp_ui_description="Design campaigns, creatives, landing pages, and tracking",
+                fexp_ui_icon="pi pi-bolt",
+                fexp_ui_first_message="Let's design your campaign tactics and creatives.",
             )),
             # Agent F: Compliance — risks, ads policies, privacy
             ("compliance", ckit_bot_install.FMarketplaceExpertInput(
@@ -147,6 +175,10 @@ async def install(
                 fexp_block_tools="*setup*",
                 fexp_allow_tools="",
                 fexp_app_capture_tools=agent_tools_json,
+                fexp_ui_title="Compliance Check",
+                fexp_ui_description="Assess risks, ads policies, and privacy requirements",
+                fexp_ui_icon="pi pi-shield",
+                fexp_ui_first_message="Let's check compliance and potential risks for your campaign.",
             )),
         ],
         marketable_tags=["Marketing", "Strategy", "Hypothesis Validation"],

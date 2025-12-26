@@ -51,6 +51,7 @@ class FMarketplaceExpertInput:
     fexp_ui_description: str = ""
     fexp_ui_icon: str = ""
     fexp_ui_hidden: bool = False
+    fexp_ui_first_message: str = ""
 
 
 async def marketplace_upsert_dev_bot(
