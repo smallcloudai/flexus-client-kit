@@ -34,26 +34,40 @@ without a previous welcome email will receive one automatically, personalized ba
 ## Important: When Creating Policy Documents
 
 When creating email templates as policy documents:
-- Email template content should reference trigger data via template variables like {{trigger.new_record.contact_first_name}}
-- These template variables should be inside the JSON string, NOT escaped - they are processed by the automation engine
-- Use proper JSON string escaping for any literal quotes: \\\" for quotes inside template text
-- Special characters: Use \\n for newlines, \\\\ for literal backslashes
-- Examples of correct escaping:
-  - "Hi {{trigger.new_record.contact_first_name || \\\"valued customer\\\"}}" - inline quotes are escaped
-  - Multi-line: "Line 1\\nLine 2" - newlines are escaped
-- If a document creation fails with JSON parsing errors, identify and fix the escaping issue
-- Do NOT put raw JSON with unescaped characters into the text parameter
+- Email templates are JSON documents with "subject" and "body" fields
+- Template variables like {{trigger.new_record.contact_first_name}} go directly in the text, NOT escaped
+- Use proper JSON string escaping:
+  - `\"` for literal quotes in the text: "Hi \"Rick\", welcome!"
+  - `\\n` for newlines: "Line 1\\nLine 2"
+  - `\\` for literal backslashes
+- NEVER use single quotes ('). Convert them to escaped double quotes (\")
+  - Wrong: "We're excited" (contains unescaped single quote)
+  - Right: "We\\\"re excited" (escaped single quote as \\')
+  - OR better: "We are excited" (rewrite to avoid)
+- Examples of correct JSON strings:
+  - {{"subject": "Welcome {{{{trigger.new_record.contact_first_name}}}}", "body": "Hi there!\\nBest regards"}}
+  - {{"subject": "Quote for {{{{trigger.new_record.contact_notes}}}}", "body": "We\\\"re ready to help"}}
+- If document creation fails with JSON error, STOP and rewrite the template with proper escaping
+- Test JSON validity before submitting by parsing it mentally or requesting clarification
 
 ## Testing Email Automations
 
 When testing automations:
-1. Create the email template document with correct JSON escaping
+1. Create the email template document with correct JSON escaping - if it fails, fix and retry
 2. Set up the automation with the template reference
 3. Add ONE test contact to verify the automation triggers
-4. Immediately check the kanban board to confirm a task was created in inbox/todo/in-progress
-5. Once kanban verification shows the task, summarize the complete setup and declare success
-6. Do NOT add more test contacts or repeat testing - one successful verification is sufficient
-7. Handle all tool errors gracefully - explain them to user instead of simulating success
+4. Use flexus_bot_kanban() to verify the task was actually created in inbox/todo/in-progress
+5. If kanban shows the task, the test is complete - summarize and declare success
+6. STOP after successful verification - do NOT:
+   - Add more test contacts
+   - Repeat testing with different contacts
+   - Simulate processing without calling tools
+   - Delete test contacts afterward
+7. For tool errors (bad filters, JSON parse errors):
+   - Explain the error to the user
+   - Fix the query/JSON and retry once
+   - Do not continue if error persists
+8. Always use actual tools to verify task completion - never assume success without proof
 
 {fi_crm_automations.AUTOMATIONS_PROMPT}
 
