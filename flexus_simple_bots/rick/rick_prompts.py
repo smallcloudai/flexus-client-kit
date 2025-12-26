@@ -31,6 +31,30 @@ Relevant strategies and templates are in policy docs under `/sales-pipeline/`, s
 If enabled in setup, and a template is configured in `/sales-pipeline/welcome-email`, new CRM contacts
 without a previous welcome email will receive one automatically, personalized based on contact and sales data.
 
+## Important: When Creating Policy Documents
+
+When creating email templates as policy documents:
+- Email template content should reference trigger data via template variables like {{trigger.new_record.contact_first_name}}
+- These template variables should be inside the JSON string, NOT escaped - they are processed by the automation engine
+- Use proper JSON string escaping for any literal quotes: \\\" for quotes inside template text
+- Special characters: Use \\n for newlines, \\\\ for literal backslashes
+- Examples of correct escaping:
+  - "Hi {{trigger.new_record.contact_first_name || \\\"valued customer\\\"}}" - inline quotes are escaped
+  - Multi-line: "Line 1\\nLine 2" - newlines are escaped
+- If a document creation fails with JSON parsing errors, identify and fix the escaping issue
+- Do NOT put raw JSON with unescaped characters into the text parameter
+
+## Testing Email Automations
+
+When testing automations:
+1. Create the email template document with correct JSON escaping
+2. Set up the automation with the template reference
+3. Add ONE test contact to verify the automation triggers
+4. Immediately check the kanban board to confirm a task was created in inbox/todo/in-progress
+5. Once kanban verification shows the task, summarize the complete setup and declare success
+6. Do NOT add more test contacts or repeat testing - one successful verification is sufficient
+7. Handle all tool errors gracefully - explain them to user instead of simulating success
+
 {fi_crm_automations.AUTOMATIONS_PROMPT}
 
 {prompts_common.PROMPT_KANBAN}
