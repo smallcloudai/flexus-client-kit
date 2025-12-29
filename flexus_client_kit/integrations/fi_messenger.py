@@ -76,7 +76,7 @@ class IntegrationMessenger:
             chat_id, thread_id = telegram_match.groups()
             return "telegram", chat_id, thread_id or ""
 
-        whatsapp_match = re.match(r'^whatsapp/(\+[\d]+)', searchable)
+        whatsapp_match = re.match(r'^whatsapp/(\+?[\d]+)', searchable)
         if whatsapp_match:
             return "whatsapp", whatsapp_match.group(1), ""
 
