@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Frog Jump Request 🐸</title>
+  <style>
+    body { font-family: -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; max-width: 500px; margin: 40px auto; padding: 20px; background: #f0f8ff; }
+    .frog { font-size: 4em; text-align: center; color: #4CAF50; margin-bottom: 20px; }
+    h1 { color: #2E7D32; text-align: center; }
+    input, select, textarea { width: 100%; padding: 12px; margin: 12px 0; border: 2px solid #4CAF50; border-radius: 8px; font-size: 16px; box-sizing: border-box; }
+    textarea { height: 100px; resize: vertical; }
+    button { background: linear-gradient(45deg, #4CAF50, #45a049); color: white; padding: 14px 28px; border: none; border-radius: 8px; cursor: pointer; font-size: 18px; font-weight: bold; width: 100%; margin-top: 20px; }
+    button:hover { background: linear-gradient(45deg, #45a049, #2E7D32); }
+    .pond { background: #e1f5fe; padding: 20px; border-radius: 12px; margin-top: 20px; text-align: center; font-style: italic; color: #0277bd; }
+  </style>
+</head>
+<body>
+  <div class="frog">🐸</div>
+  <h1>Send Frog on a Jump Mission!</h1>
+  <p>Where should Frog leap to today?</p>
+  
+  <form>
+    <input type="text" name="jump_destination" placeholder="🗺️ Jump to... (lily pad #3, across the pond, your desk!)" required>
+    
+    <select name="jump_urgency">
+      <option value="normal">🐌 Normal hop (casual)</option>
+      <option value="urgent">🚀 Super jump! (priority)</option>
+      <option value="emergency">⚡ Emergency leap! (ASAP)</option>
+    </select>
+    
+    <textarea name="jump_reason" placeholder="Why does Frog need to jump here? (flies, enemies, lunch... optional)"></textarea>
+    
+    <div class="pond">
+      <small>Frog will receive your jump request immediately! 🐸➡️</small>
+    </div>
+    
+    <button type="submit">Launch Frog Mission! 🐸✨</button>
+  </form>
+</body>
+</html>
