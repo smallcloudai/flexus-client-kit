@@ -21,6 +21,7 @@ class ExternalAuthToken:
     auth_url: str | None = None
 
 
+# XXX garbage code
 def get_fuser_id_from_rcx(rcx: "ckit_bot_exec.RobotContext", ft_id: str | None = None) -> str:
     if ft_id and ft_id in rcx.latest_threads:
         return rcx.latest_threads[ft_id].thread_fields.owner_fuser_id

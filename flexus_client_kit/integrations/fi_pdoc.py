@@ -21,9 +21,11 @@ POLICY_DOCUMENT_TOOL = ckit_cloudtool.CloudTool(
     parameters={
         "type": "object",
         "properties": {
-            "op": {"type": "string"},
-            "args": {"type": "object"},
+            "op": {"type": ["string", "null"]},
+            "args": {"type": ["object", "null"], "additionalProperties": False},
         },
+        "required": ["op", "args"],
+        "additionalProperties": False,
     },
 )
 

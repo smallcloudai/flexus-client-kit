@@ -71,13 +71,30 @@ class CloudTool:
     parameters: dict
 
     def openai_style_tool(self):
+        def add_order(obj):
+            if isinstance(obj, dict):
+                props = obj.get("properties")
+                if props:
+                    for idx, key in enumerate(props.keys()):
+                        props[key].setdefault("order", idx)
+                        add_order(props[key])
+                for v in obj.values():
+                    if isinstance(v, (dict, list)):
+                        add_order(v)
+            elif isinstance(obj, list):
+                for item in obj:
+                    add_order(item)
+
+        params = self.parameters.copy()
+        add_order(params)
         return {
             "type": "function",
             "function": {
                 "name": self.name,
                 "description": self.description,
-                "parameters": self.parameters
-            }
+                "parameters": params,
+            },
+            "strict": True,
         }
 
 

@@ -19,9 +19,10 @@ MONGO_STORE_TOOL = ckit_cloudtool.CloudTool(
         "type": "object",
         "properties": {
             "op": {"type": "string", "description": "Start with 'help' for usage"},
-            "args": {"type": "object"},
+            "args": {"type": ["object", "null"], "additionalProperties": False},
         },
-        "required": ["op"]
+        "required": ["op", "args"],
+        "additionalProperties": False,
     },
 )
 

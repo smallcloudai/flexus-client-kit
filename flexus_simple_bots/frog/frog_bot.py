@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import json
+import time
 from typing import Dict, Any, Optional
 
 from pymongo import AsyncMongoClient
@@ -12,6 +13,7 @@ from flexus_client_kit import ckit_shutdown
 from flexus_client_kit import ckit_ask_model
 from flexus_client_kit import ckit_mongo
 from flexus_client_kit import ckit_kanban
+from flexus_client_kit import ckit_external_auth
 from flexus_client_kit import erp_schema
 from flexus_client_kit.integrations import fi_mongo_store
 from flexus_client_kit.integrations import fi_pdoc
@@ -32,9 +34,10 @@ RIBBIT_TOOL = ckit_cloudtool.CloudTool(
         "type": "object",
         "properties": {
             "intensity": {"type": "string", "enum": ["quiet", "normal", "loud"], "description": "How loud the ribbit should be"},
-            "message": {"type": "string", "description": "Optional message to include with the ribbit"},
+            "message": {"type": ["string", "null"], "description": "Optional message to include with the ribbit"},
         },
-        "required": ["intensity"],
+        "required": ["intensity", "message"],
+        "additionalProperties": False,
     },
 )
 
@@ -47,8 +50,15 @@ CATCH_INSECTS_TOOL = ckit_cloudtool.CloudTool(
             "N": {"type": "integer", "description": "Number of parallel catch attempts"},
         },
         "required": ["N"],
+        "additionalProperties": False,
     },
 )
+
+# https://platform.openai.com/docs/guides/function-calling
+# Under the hood, strict mode works by leveraging our structured outputs feature and therefore introduces a couple requirements:
+# additionalProperties must be set to false for each object in the parameters.
+# - All fields in properties must be marked as required.
+# - You can denote optional fields by adding null as a type option (see example below).
 
 MAKE_POND_REPORT_TOOL = ckit_cloudtool.CloudTool(
     name="make_pond_report",
@@ -57,8 +67,20 @@ MAKE_POND_REPORT_TOOL = ckit_cloudtool.CloudTool(
         "type": "object",
         "properties": {
             "path": {"type": "string", "description": "Path where the pond report should be created (e.g., '/frog/monday-report')"},
+            "report": {
+                "type": "object",
+                "description": "The full pond report object",
+                "properties": {
+                    "pond_name": {"type": "string", "description": "Name of the pond"},
+                    "weather": {"type": "string", "enum": ["sunny", "cloudy", "rainy", "stormy"], "description": "Current weather conditions"},
+                    "mood": {"type": "string", "enum": ["happy", "excited", "calm", "hungry"], "description": "Current mood of the frog"}
+                },
+                "required": ["pond_name", "weather", "mood"],
+                "additionalProperties": False,
+            },
         },
-        "required": ["path"],
+        "required": ["path", "report"],
+        "additionalProperties": False,
     },
 )
 
@@ -152,62 +174,21 @@ async def frog_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.R
 
     @rcx.on_tool_call(MAKE_POND_REPORT_TOOL.name)
     async def toolcall_make_pond_report(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
-        path = model_produced_args.get("path", "")
-        if not path:
-            return "Error: path parameter is required"
+        path = model_produced_args["path"]
+        report = model_produced_args["report"]
 
-        pond_report_schema = {
-            "type": "object",
-            "properties": {
-                "pond_report": {
-                    "type": "object",
-                    "properties": {
-                        "meta": {
-                            "type": "object",
-                            "properties": {
-                                "created_at": {"type": "string"}
-                            }
-                        },
-                        "pond_name": {"type": "string", "description": "Name of the pond"},
-                        "weather": {"type": "string", "enum": ["sunny", "cloudy", "rainy", "stormy"], "description": "Current weather conditions"},
-                        "mood": {"type": "string", "enum": ["happy", "excited", "calm", "hungry"], "description": "Current mood of the frog"}
-                    },
-                    "required": ["pond_name", "weather", "mood"]
-                }
+        pond_report_doc = {
+            "pond_report": {
+                "meta": {
+                    "created_at": time.strftime("%Y-%m-%d %H:%M:%S"),
+                },
+                **report,
             }
         }
 
-        # Structured output confirms to the schema, but it gets prepended to the system prompt => invalidates cache
-        FMT_A = {
-            "type": "json_schema",
-            "json_schema": {
-                "name": "pond_report_generation",
-                "strict": True,
-                "schema": pond_report_schema
-            }
-        }
-
-        # JSON output, guaranteed to be a valid json (not strictly the schema) but cache works
-        FMT_B = {
-            "type": "json_object"
-        }
-
-        raise ckit_cloudtool.HocusPocus(
-            message=f"Ready to create pond report at {path}",  # place pond_report_schema here if FMT_B
-            user_preferences={
-                "response_format": FMT_A,
-                "hocus_pocus_turn_into_call": {
-                    "name": "flexus_policy_document",
-                    "arguments": {
-                        "op": "create",
-                        "args": {
-                            "p": path,
-                            "text": "HOCUS_POCUS"
-                        },
-                    },
-                }
-            }
-        )
+        fuser_id = ckit_external_auth.get_fuser_id_from_rcx(rcx, toolcall.fcall_ft_id)
+        await pdoc_integration.pdoc_create(path, json.dumps(pond_report_doc), fuser_id)
+        return f"✍️ {path}\n\n"
 
     # [{"id": "call_82159681", "type": "function", "function": {"name": "flexus_policy_document", "arguments": "{\"op\":\"update_json_text\",\"args\":{\"p\":\"/product-ideas/idea001-ejector-bed/idea\",\"json_path\":\"idea.section01-canvas.question01-facts.c\",\"text\":\"PASS\"}}"}}]
 
