@@ -36,6 +36,13 @@ class WaitForSubchats(Exception):
         super().__init__(f"Waiting for subchats: {subchats}")
 
 
+class HocusPocus(Exception):
+    def __init__(self, message: str, user_preferences: dict):
+        self.message = message
+        self.user_preferences = user_preferences
+        super().__init__(f"Hocus pocus transformation: {message}")
+
+
 @dataclass
 class FCloudtoolCall:
     caller_fuser_id: str  # copy of thread owner fuser_id
@@ -153,21 +160,24 @@ async def call_python_function_and_save_result(
         await cloudtool_post_result(fclient, call.fcall_id, call.fcall_untrusted_key, content, prov)
 
 
-async def cloudtool_post_result(fclient: ckit_client.FlexusClient, fcall_id: str, fcall_untrusted_key: str, content: str, prov: str, dollars: float = 0.0, as_placeholder: bool = False):
+async def cloudtool_post_result(fclient: ckit_client.FlexusClient, fcall_id: str, fcall_untrusted_key: str, content: str, prov: str, dollars: float = 0.0, as_placeholder: bool = False, user_preferences: Optional[dict] = None):
     http_client = await fclient.use_http()
     async with http_client as http:
+        input_data = {
+            "fcall_id": fcall_id,
+            "fcall_untrusted_key": fcall_untrusted_key,
+            "ftm_content": content,
+            "ftm_provenance": prov,
+            "dollars": dollars,
+        }
+        if user_preferences is not None:
+            input_data["user_preferences"] = json.dumps(user_preferences)
         await http.execute(
             gql.gql("""mutation CloudtoolPost($input: CloudtoolResultInput!, $as_placeholder: Boolean!) {
                 cloudtool_post_result(input: $input, as_placeholder: $as_placeholder)
             }"""),
             variable_values={
-                "input": {
-                    "fcall_id": fcall_id,
-                    "fcall_untrusted_key": fcall_untrusted_key,
-                    "ftm_content": content,
-                    "ftm_provenance": prov,
-                    "dollars": dollars,
-                },
+                "input": input_data,
                 "as_placeholder": as_placeholder,
             },
         )

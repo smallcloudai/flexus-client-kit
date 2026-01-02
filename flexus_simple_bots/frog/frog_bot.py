@@ -1,6 +1,6 @@
 import asyncio
 import logging
-import os
+import json
 from typing import Dict, Any, Optional
 
 from pymongo import AsyncMongoClient
@@ -50,9 +50,22 @@ CATCH_INSECTS_TOOL = ckit_cloudtool.CloudTool(
     },
 )
 
+MAKE_POND_REPORT_TOOL = ckit_cloudtool.CloudTool(
+    name="make_pond_report",
+    description="Create a new pond report document at the specified path.",
+    parameters={
+        "type": "object",
+        "properties": {
+            "path": {"type": "string", "description": "Path where the pond report should be created (e.g., '/frog/monday-report')"},
+        },
+        "required": ["path"],
+    },
+)
+
 TOOLS = [
     RIBBIT_TOOL,
     CATCH_INSECTS_TOOL,
+    MAKE_POND_REPORT_TOOL,
     fi_mongo_store.MONGO_STORE_TOOL,
     fi_pdoc.POLICY_DOCUMENT_TOOL,
 ]
@@ -136,6 +149,67 @@ async def frog_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.R
             skill="huntmode",
         )
         raise ckit_cloudtool.WaitForSubchats(subchats)
+
+    @rcx.on_tool_call(MAKE_POND_REPORT_TOOL.name)
+    async def toolcall_make_pond_report(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
+        path = model_produced_args.get("path", "")
+        if not path:
+            return "Error: path parameter is required"
+
+        pond_report_schema = {
+            "type": "object",
+            "properties": {
+                "pond_report": {
+                    "type": "object",
+                    "properties": {
+                        "meta": {
+                            "type": "object",
+                            "properties": {
+                                "created_at": {"type": "string"}
+                            }
+                        },
+                        "pond_name": {"type": "string", "description": "Name of the pond"},
+                        "weather": {"type": "string", "enum": ["sunny", "cloudy", "rainy", "stormy"], "description": "Current weather conditions"},
+                        "mood": {"type": "string", "enum": ["happy", "excited", "calm", "hungry"], "description": "Current mood of the frog"}
+                    },
+                    "required": ["pond_name", "weather", "mood"]
+                }
+            }
+        }
+
+        # Structured output confirms to the schema, but it gets prepended to the system prompt => invalidates cache
+        FMT_A = {
+            "type": "json_schema",
+            "json_schema": {
+                "name": "pond_report_generation",
+                "strict": True,
+                "schema": pond_report_schema
+            }
+        }
+
+        # JSON output, guaranteed to be a valid json (not strictly the schema) but cache works
+        FMT_B = {
+            "type": "json_object"
+        }
+
+        raise ckit_cloudtool.HocusPocus(
+            message=f"Ready to create pond report at {path}",  # place pond_report_schema here if FMT_B
+            user_preferences={
+                "response_format": FMT_A,
+                "hocus_pocus_turn_into_call": {
+                    "name": "flexus_policy_document",
+                    "arguments": {
+                        "op": "create",
+                        "args": {
+                            "p": path,
+                            "text": "HOCUS_POCUS"
+                        },
+                    },
+                }
+            }
+        )
+
+    # [{"id": "call_82159681", "type": "function", "function": {"name": "flexus_policy_document", "arguments": "{\"op\":\"update_json_text\",\"args\":{\"p\":\"/product-ideas/idea001-ejector-bed/idea\",\"json_path\":\"idea.section01-canvas.question01-facts.c\",\"text\":\"PASS\"}}"}}]
 
     @rcx.on_tool_call(fi_mongo_store.MONGO_STORE_TOOL.name)
     async def toolcall_mongo_store(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
