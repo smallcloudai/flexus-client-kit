@@ -208,6 +208,7 @@ class RobotContext:
         logger.info("%s local_tool_call %s %s(%s) from thread %s" % (self.persona.persona_id, toolcall.fcall_id, toolcall.fcall_name, toolcall.fcall_arguments, toolcall.fcall_ft_id))
         already_serialized = False
         subchats_list = None
+        user_preferences = None
         try:
             args = json.loads(toolcall.fcall_arguments)
             if not isinstance(args, dict):
@@ -234,6 +235,9 @@ class RobotContext:
         except ckit_cloudtool.WaitForSubchats as e:
             tool_result = "WAIT_SUBCHATS"
             subchats_list = e.subchats
+        except ckit_cloudtool.HocusPocus as e:
+            tool_result = e.message
+            user_preferences = e.user_preferences
         except ckit_cloudtool.NeedsConfirmation as e:
             logger.info("%s needs human confirmation: %s" % (toolcall.fcall_id, e.confirm_explanation))
             await ckit_cloudtool.cloudtool_confirmation_request(fclient, toolcall.fcall_id, e.confirm_setup_key, e.confirm_command, e.confirm_explanation)
@@ -251,7 +255,7 @@ class RobotContext:
         if tool_result != "POSTED_NEED_CONFIRMATION" and tool_result != "ALREADY_POSTED_RESULT":
             if not already_serialized:
                 tool_result = json.dumps(tool_result)
-            await ckit_cloudtool.cloudtool_post_result(fclient, toolcall.fcall_id, toolcall.fcall_untrusted_key, tool_result, prov, as_placeholder=bool(subchats_list))
+            await ckit_cloudtool.cloudtool_post_result(fclient, toolcall.fcall_id, toolcall.fcall_untrusted_key, tool_result, prov, as_placeholder=bool(subchats_list), user_preferences=user_preferences)
 
 
 class BotInstance(NamedTuple):
