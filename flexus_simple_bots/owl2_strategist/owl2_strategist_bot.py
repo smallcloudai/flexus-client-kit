@@ -36,6 +36,10 @@ STEP_DESCRIPTIONS = {
 }
 
 
+# =============================================================================
+# SAVE INPUT — Step 1: Collect product, hypothesis, budget, timeline
+# =============================================================================
+
 SAVE_INPUT_TOOL = ckit_cloudtool.CloudTool(
     name="save_input",
     description="Save collected input data to start marketing experiment. Call after collecting product/hypothesis/budget/timeline from user.",
@@ -54,6 +58,60 @@ SAVE_INPUT_TOOL = ckit_cloudtool.CloudTool(
         "additionalProperties": False,
     },
 )
+
+SAVE_INPUT_RESPONSE_TEMPLATE = """✍️ {path}
+
+✓ Input saved for experiment "{experiment_id}"
+
+Pipeline status:
+- Completed: {completed}
+- Next step: {next_step}
+
+Can now run diagnostic."""
+
+async def handle_save_input(toolcall: ckit_cloudtool.FCloudtoolCall, args: Dict[str, Any], rcx, pdoc_integration, get_pipeline_status) -> str:
+    experiment_id = args.get("experiment_id", "")
+    if not experiment_id:
+        return "Error: experiment_id is required (format: {hyp_id}-{slug}, e.g. hyp001-meta-ads-test)"
+
+    caller_fuser_id = ckit_external_auth.get_fuser_id_from_rcx(rcx, toolcall.fcall_ft_id)
+
+    input_doc = {
+        "input": {
+            "meta": {
+                "created_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+                "version": "1.0"
+            },
+            "product_description": args.get("product_description", ""),
+            "hypothesis": args.get("hypothesis", ""),
+            "stage": args.get("stage", ""),
+            "budget": args.get("budget", ""),
+            "timeline": args.get("timeline", ""),
+            "additional_context": args.get("additional_context", ""),
+        }
+    }
+
+    path = f"/marketing-experiments/{experiment_id}/input"
+    try:
+        await pdoc_integration.pdoc_create(path, json.dumps(input_doc, ensure_ascii=False), caller_fuser_id)
+    except Exception as e:
+        if "already exists" in str(e).lower():
+            await pdoc_integration.pdoc_overwrite(path, json.dumps(input_doc, ensure_ascii=False), caller_fuser_id)
+        else:
+            return f"Error saving input: {e}"
+
+    status = await get_pipeline_status(experiment_id)
+    return SAVE_INPUT_RESPONSE_TEMPLATE.format(
+        path=path,
+        experiment_id=experiment_id,
+        completed=', '.join(status['completed']) or 'none',
+        next_step=status['next_step'] or 'all done',
+    )
+
+
+# =============================================================================
+# CREATE DIAGNOSTIC — Step 2: Classify hypothesis, identify unknowns
+# =============================================================================
 
 CREATE_DIAGNOSTIC_TOOL = ckit_cloudtool.CloudTool(
     name="create_diagnostic",
@@ -108,6 +166,61 @@ CREATE_DIAGNOSTIC_TOOL = ckit_cloudtool.CloudTool(
         "additionalProperties": False
     }
 )
+
+DIAGNOSTIC_RESPONSE_TEMPLATE = """✍️ {path}
+
+✓ Diagnostic complete for experiment "{experiment_id}"
+
+Key findings:
+- Type: {primary_type}
+- Uncertainty: {uncertainty_level}
+- Feasibility: {feasibility_pct}%
+
+Pipeline status:
+- Completed: {completed}
+- Next step: {next_step}"""
+
+async def handle_diagnostic(toolcall: ckit_cloudtool.FCloudtoolCall, args: Dict[str, Any], rcx, pdoc_integration, get_pipeline_status, check_can_run_agent) -> str:
+    experiment_id = args["experiment_id"]
+    diagnostic_data = args["diagnostic"]
+
+    error = await check_can_run_agent(experiment_id, "diagnostic")
+    if error:
+        return error
+
+    if diagnostic_data["feasibility_score"] > 0.8 and diagnostic_data["uncertainty_level"] == "extreme":
+        return "Error: High feasibility score (>0.8) conflicts with extreme uncertainty. Review your analysis."
+
+    if diagnostic_data["testable_with_traffic"] and not diagnostic_data["recommended_test_mechanisms"]:
+        return "Error: If testable with traffic, must provide recommended_test_mechanisms."
+
+    doc = {"diagnostic": diagnostic_data}
+    caller_fuser_id = ckit_external_auth.get_fuser_id_from_rcx(rcx, toolcall.fcall_ft_id)
+    path = f"/marketing-experiments/{experiment_id}/diagnostic"
+
+    try:
+        await pdoc_integration.pdoc_create(path, json.dumps(doc, ensure_ascii=False), caller_fuser_id)
+    except Exception as e:
+        if "already exists" in str(e).lower():
+            await pdoc_integration.pdoc_overwrite(path, json.dumps(doc, ensure_ascii=False), caller_fuser_id)
+        else:
+            return f"Error saving diagnostic: {e}"
+
+    status = await get_pipeline_status(experiment_id)
+    return DIAGNOSTIC_RESPONSE_TEMPLATE.format(
+        path=path,
+        experiment_id=experiment_id,
+        primary_type=diagnostic_data["primary_type"],
+        uncertainty_level=diagnostic_data["uncertainty_level"],
+        feasibility_pct=int(diagnostic_data["feasibility_score"]*100),
+        completed=', '.join(status['completed']),
+        next_step=status['next_step'] or 'all done',
+    )
+
+
+# =============================================================================
+# CREATE METRICS — Step 3: Define KPIs, stop-rules, MDE
+# =============================================================================
 
 CREATE_METRICS_TOOL = ckit_cloudtool.CloudTool(
     name="create_metrics",
@@ -214,6 +327,64 @@ CREATE_METRICS_TOOL = ckit_cloudtool.CloudTool(
     }
 )
 
+METRICS_RESPONSE_TEMPLATE = """✍️ {path}
+
+✓ Metrics framework complete for experiment "{experiment_id}"
+
+Key metrics:
+- Primary KPI: {primary_kpi}
+- MDE: {mde_pct}% @ {confidence_pct}% confidence
+- Stop rules: {stop_rules_count}
+- Accelerate rules: {accelerate_rules_count}
+
+Pipeline status:
+- Completed: {completed}
+- Next step: {next_step}"""
+
+async def handle_metrics(toolcall: ckit_cloudtool.FCloudtoolCall, args: Dict[str, Any], rcx, pdoc_integration, get_pipeline_status, check_can_run_agent) -> str:
+    experiment_id = args["experiment_id"]
+    metrics_data = args["metrics"]
+
+    error = await check_can_run_agent(experiment_id, "metrics")
+    if error:
+        return error
+
+    if metrics_data["mde"]["confidence"] not in [0.8, 0.9, 0.95, 0.99]:
+        return "Error: MDE confidence should be 80%, 90%, 95%, or 99% (0.8, 0.9, 0.95, 0.99)"
+
+    if metrics_data["min_samples"]["conversions_per_cell"] < 1:
+        return "Error: min_samples conversions_per_cell must be at least 1"
+
+    doc = {"metrics": metrics_data}
+    caller_fuser_id = ckit_external_auth.get_fuser_id_from_rcx(rcx, toolcall.fcall_ft_id)
+    path = f"/marketing-experiments/{experiment_id}/metrics"
+
+    try:
+        await pdoc_integration.pdoc_create(path, json.dumps(doc, ensure_ascii=False), caller_fuser_id)
+    except Exception as e:
+        if "already exists" in str(e).lower():
+            await pdoc_integration.pdoc_overwrite(path, json.dumps(doc, ensure_ascii=False), caller_fuser_id)
+        else:
+            return f"Error saving metrics: {e}"
+
+    status = await get_pipeline_status(experiment_id)
+    return METRICS_RESPONSE_TEMPLATE.format(
+        path=path,
+        experiment_id=experiment_id,
+        primary_kpi=metrics_data["primary_kpi"],
+        mde_pct=int(metrics_data["mde"]["relative_change"]*100),
+        confidence_pct=int(metrics_data["mde"]["confidence"]*100),
+        stop_rules_count=len(metrics_data["stop_rules"]),
+        accelerate_rules_count=len(metrics_data["accelerate_rules"]),
+        completed=', '.join(status['completed']),
+        next_step=status['next_step'] or 'all done',
+    )
+
+
+# =============================================================================
+# CREATE SEGMENT — Step 4: ICP, JTBD, customer journey
+# =============================================================================
+
 CREATE_SEGMENT_TOOL = ckit_cloudtool.CloudTool(
     name="create_segment",
     description="Define ICP, JTBD, customer journey. Call after diagnostic. Reads /input and /diagnostic automatically.",
@@ -305,6 +476,64 @@ CREATE_SEGMENT_TOOL = ckit_cloudtool.CloudTool(
         "additionalProperties": False
     }
 )
+
+SEGMENT_RESPONSE_TEMPLATE = """✍️ {path}
+
+✓ Segment analysis complete for experiment "{experiment_id}"
+
+Segment: {label}
+- Roles: {roles}
+- Geo: {geo}
+- Jobs: {functional_jobs_count} functional, {emotional_jobs_count} emotional
+
+Pipeline status:
+- Completed: {completed}
+- Next step: {next_step}"""
+
+async def handle_segment(toolcall: ckit_cloudtool.FCloudtoolCall, args: Dict[str, Any], rcx, pdoc_integration, get_pipeline_status, check_can_run_agent) -> str:
+    experiment_id = args["experiment_id"]
+    segment_data = args["segment"]
+
+    error = await check_can_run_agent(experiment_id, "segment")
+    if error:
+        return error
+
+    jtbds = segment_data["jtbds"]
+    if not jtbds["functional_jobs"] and not jtbds["emotional_jobs"]:
+        return "Error: Must define at least one functional or emotional job"
+
+    if not segment_data["icp"]["roles"] or not segment_data["icp"]["geo"]:
+        return "Error: ICP must have at least one role and one geo specified"
+
+    doc = {"segment": segment_data}
+    caller_fuser_id = ckit_external_auth.get_fuser_id_from_rcx(rcx, toolcall.fcall_ft_id)
+    path = f"/marketing-experiments/{experiment_id}/segment"
+
+    try:
+        await pdoc_integration.pdoc_create(path, json.dumps(doc, ensure_ascii=False), caller_fuser_id)
+    except Exception as e:
+        if "already exists" in str(e).lower():
+            await pdoc_integration.pdoc_overwrite(path, json.dumps(doc, ensure_ascii=False), caller_fuser_id)
+        else:
+            return f"Error saving segment: {e}"
+
+    status = await get_pipeline_status(experiment_id)
+    return SEGMENT_RESPONSE_TEMPLATE.format(
+        path=path,
+        experiment_id=experiment_id,
+        label=segment_data["label"],
+        roles=', '.join(segment_data["icp"]["roles"][:3]),
+        geo=', '.join(segment_data["icp"]["geo"][:3]),
+        functional_jobs_count=len(jtbds["functional_jobs"]),
+        emotional_jobs_count=len(jtbds["emotional_jobs"]),
+        completed=', '.join(status['completed']),
+        next_step=status['next_step'] or 'all done',
+    )
+
+
+# =============================================================================
+# CREATE MESSAGING — Step 5: Value proposition, angles, objections
+# =============================================================================
 
 CREATE_MESSAGING_TOOL = ckit_cloudtool.CloudTool(
     name="create_messaging",
@@ -399,6 +628,60 @@ CREATE_MESSAGING_TOOL = ckit_cloudtool.CloudTool(
         "additionalProperties": False
     }
 )
+
+MESSAGING_RESPONSE_TEMPLATE = """✍️ {path}
+
+✓ Messaging strategy complete for experiment "{experiment_id}"
+
+- Core value prop: {core_value_prop_preview}...
+- Angles: {angles_count}
+- Objections handled: {objections_count}
+
+Pipeline status:
+- Completed: {completed}
+- Next step: {next_step}"""
+
+async def handle_messaging(toolcall: ckit_cloudtool.FCloudtoolCall, args: Dict[str, Any], rcx, pdoc_integration, get_pipeline_status, check_can_run_agent) -> str:
+    experiment_id = args["experiment_id"]
+    messaging_data = args["messaging"]
+
+    error = await check_can_run_agent(experiment_id, "messaging")
+    if error:
+        return error
+
+    if not messaging_data["angles"]:
+        return "Error: Must define at least one messaging angle"
+
+    if not messaging_data["core_value_prop"]:
+        return "Error: core_value_prop cannot be empty"
+
+    doc = {"messaging": messaging_data}
+    caller_fuser_id = ckit_external_auth.get_fuser_id_from_rcx(rcx, toolcall.fcall_ft_id)
+    path = f"/marketing-experiments/{experiment_id}/messaging"
+
+    try:
+        await pdoc_integration.pdoc_create(path, json.dumps(doc, ensure_ascii=False), caller_fuser_id)
+    except Exception as e:
+        if "already exists" in str(e).lower():
+            await pdoc_integration.pdoc_overwrite(path, json.dumps(doc, ensure_ascii=False), caller_fuser_id)
+        else:
+            return f"Error saving messaging: {e}"
+
+    status = await get_pipeline_status(experiment_id)
+    return MESSAGING_RESPONSE_TEMPLATE.format(
+        path=path,
+        experiment_id=experiment_id,
+        core_value_prop_preview=messaging_data["core_value_prop"][:80],
+        angles_count=len(messaging_data["angles"]),
+        objections_count=len(messaging_data["objection_handling"]),
+        completed=', '.join(status['completed']),
+        next_step=status['next_step'] or 'all done',
+    )
+
+
+# =============================================================================
+# CREATE CHANNELS — Step 6: Channel selection, test cells, budget allocation
+# =============================================================================
 
 CREATE_CHANNELS_TOOL = ckit_cloudtool.CloudTool(
     name="create_channels",
@@ -499,6 +782,63 @@ CREATE_CHANNELS_TOOL = ckit_cloudtool.CloudTool(
         "additionalProperties": False
     }
 )
+
+CHANNELS_RESPONSE_TEMPLATE = """✍️ {path}
+
+✓ Channel strategy complete for experiment "{experiment_id}"
+
+- Channels: {channels_count}
+- Test cells: {test_cells_count}
+- Total budget: ${total_budget}
+- Duration: {duration_days} days
+
+Pipeline status:
+- Completed: {completed}
+- Next step: {next_step}"""
+
+async def handle_channels(toolcall: ckit_cloudtool.FCloudtoolCall, args: Dict[str, Any], rcx, pdoc_integration, get_pipeline_status, check_can_run_agent) -> str:
+    experiment_id = args["experiment_id"]
+    channels_data = args["channels"]
+
+    error = await check_can_run_agent(experiment_id, "channels")
+    if error:
+        return error
+
+    total_budget_share = sum(ch["budget_share"] for ch in channels_data["selected_channels"])
+    if not (0.95 <= total_budget_share <= 1.05):
+        return f"Error: Budget shares sum to {total_budget_share:.2f}, should be ~1.0 (95-105%)"
+
+    if not channels_data["test_cells"]:
+        return "Error: Must define at least one test cell"
+
+    doc = {"channels": channels_data}
+    caller_fuser_id = ckit_external_auth.get_fuser_id_from_rcx(rcx, toolcall.fcall_ft_id)
+    path = f"/marketing-experiments/{experiment_id}/channels"
+
+    try:
+        await pdoc_integration.pdoc_create(path, json.dumps(doc, ensure_ascii=False), caller_fuser_id)
+    except Exception as e:
+        if "already exists" in str(e).lower():
+            await pdoc_integration.pdoc_overwrite(path, json.dumps(doc, ensure_ascii=False), caller_fuser_id)
+        else:
+            return f"Error saving channels: {e}"
+
+    status = await get_pipeline_status(experiment_id)
+    return CHANNELS_RESPONSE_TEMPLATE.format(
+        path=path,
+        experiment_id=experiment_id,
+        channels_count=len(channels_data["selected_channels"]),
+        test_cells_count=len(channels_data["test_cells"]),
+        total_budget=channels_data["total_budget"],
+        duration_days=channels_data["test_duration_days"],
+        completed=', '.join(status['completed']),
+        next_step=status['next_step'] or 'all done',
+    )
+
+
+# =============================================================================
+# CREATE TACTICS — Step 7: Campaign specs, creatives, landing, tracking
+# =============================================================================
 
 CREATE_TACTICS_TOOL = ckit_cloudtool.CloudTool(
     name="create_tactics",
@@ -614,6 +954,65 @@ CREATE_TACTICS_TOOL = ckit_cloudtool.CloudTool(
     }
 )
 
+TACTICS_RESPONSE_TEMPLATE = """✍️ {path}
+
+✓ Tactical spec complete for experiment "{experiment_id}"
+
+- Campaigns: {campaigns_count}
+- Creatives: {creatives_count}
+- Landing variants: {landing_variants_count}
+- Tracking events: {tracking_events_count}
+
+Pipeline status:
+- Completed: {completed}
+- Next step: {next_step}"""
+
+async def handle_tactics(toolcall: ckit_cloudtool.FCloudtoolCall, args: Dict[str, Any], rcx, pdoc_integration, get_pipeline_status, check_can_run_agent) -> str:
+    experiment_id = args["experiment_id"]
+    tactics_data = args["tactics"]
+
+    error = await check_can_run_agent(experiment_id, "tactics")
+    if error:
+        return error
+
+    if not tactics_data["campaigns"]:
+        return "Error: Must define at least one campaign"
+
+    if not tactics_data["creatives"]:
+        return "Error: Must define at least one creative"
+
+    if not tactics_data["tracking"]["utm_schema"]:
+        return "Error: UTM schema is required for tracking"
+
+    doc = {"tactics": tactics_data}
+    caller_fuser_id = ckit_external_auth.get_fuser_id_from_rcx(rcx, toolcall.fcall_ft_id)
+    path = f"/marketing-experiments/{experiment_id}/tactics"
+
+    try:
+        await pdoc_integration.pdoc_create(path, json.dumps(doc, ensure_ascii=False), caller_fuser_id)
+    except Exception as e:
+        if "already exists" in str(e).lower():
+            await pdoc_integration.pdoc_overwrite(path, json.dumps(doc, ensure_ascii=False), caller_fuser_id)
+        else:
+            return f"Error saving tactics: {e}"
+
+    status = await get_pipeline_status(experiment_id)
+    return TACTICS_RESPONSE_TEMPLATE.format(
+        path=path,
+        experiment_id=experiment_id,
+        campaigns_count=len(tactics_data["campaigns"]),
+        creatives_count=len(tactics_data["creatives"]),
+        landing_variants_count=len(tactics_data["landing"].get("variants", [])),
+        tracking_events_count=len(tactics_data["tracking"]["events"]),
+        completed=', '.join(status['completed']),
+        next_step=status['next_step'] or 'all done',
+    )
+
+
+# =============================================================================
+# CREATE COMPLIANCE — Step 8: Risk & compliance check
+# =============================================================================
+
 CREATE_COMPLIANCE_TOOL = ckit_cloudtool.CloudTool(
     name="create_compliance",
     description="Check risks, ad policies, privacy compliance. Call after tactics. Reads /input and /tactics automatically.",
@@ -722,6 +1121,70 @@ CREATE_COMPLIANCE_TOOL = ckit_cloudtool.CloudTool(
     }
 )
 
+COMPLIANCE_RESPONSE_TEMPLATE = """✍️ {path}
+
+✓ Compliance check complete for experiment "{experiment_id}"
+
+Assessment:
+- Ads policies: {ads_policies_icon}
+- Privacy: {privacy_icon}
+- Business risks: {business_risks_icon}
+- Recommendation: {recommendation}
+
+Pipeline status:
+- Completed: {completed}
+- Next step: {next_step}
+
+{completion_message}"""
+
+async def handle_compliance(toolcall: ckit_cloudtool.FCloudtoolCall, args: Dict[str, Any], rcx, pdoc_integration, get_pipeline_status, check_can_run_agent) -> str:
+    experiment_id = args["experiment_id"]
+    compliance_data = args["compliance"]
+
+    error = await check_can_run_agent(experiment_id, "compliance")
+    if error:
+        return error
+
+    if not compliance_data["risks"] and not compliance_data["compliance_issues"]:
+        return "Error: Must identify at least one risk or compliance issue, or explicitly state 'none' in detailed_analysis"
+
+    for risk in compliance_data["risks"]:
+        if risk["probability"] not in ["low", "medium", "high"]:
+            return f"Error: Risk {risk['risk_id']} has invalid probability (must be low/medium/high)"
+        if risk["impact"] not in ["low", "medium", "high", "critical"]:
+            return f"Error: Risk {risk['risk_id']} has invalid impact (must be low/medium/high/critical)"
+
+    doc = {"compliance": compliance_data}
+    caller_fuser_id = ckit_external_auth.get_fuser_id_from_rcx(rcx, toolcall.fcall_ft_id)
+    path = f"/marketing-experiments/{experiment_id}/compliance"
+
+    try:
+        await pdoc_integration.pdoc_create(path, json.dumps(doc, ensure_ascii=False), caller_fuser_id)
+    except Exception as e:
+        if "already exists" in str(e).lower():
+            await pdoc_integration.pdoc_overwrite(path, json.dumps(doc, ensure_ascii=False), caller_fuser_id)
+        else:
+            return f"Error saving compliance: {e}"
+
+    status = await get_pipeline_status(experiment_id)
+    assessment = compliance_data["overall_assessment"]
+    return COMPLIANCE_RESPONSE_TEMPLATE.format(
+        path=path,
+        experiment_id=experiment_id,
+        ads_policies_icon='✓' if assessment["ads_policies_ok"] else '⚠',
+        privacy_icon='✓' if assessment["privacy_ok"] else '⚠',
+        business_risks_icon='✓' if assessment["business_risks_acceptable"] else '⚠',
+        recommendation=assessment["recommendation"],
+        completed=', '.join(status['completed']),
+        next_step=status['next_step'] or 'all done',
+        completion_message='✓ All steps completed! Strategy ready for Ad Monster.' if status['all_done'] else '',
+    )
+
+
+# =============================================================================
+# GET PIPELINE STATUS — Query current pipeline state
+# =============================================================================
+
 GET_PIPELINE_STATUS_TOOL = ckit_cloudtool.CloudTool(
     name="get_pipeline_status",
     description="Get current pipeline status for marketing experiment — which steps are done, which is next.",
@@ -735,6 +1198,34 @@ GET_PIPELINE_STATUS_TOOL = ckit_cloudtool.CloudTool(
     },
 )
 
+async def handle_pipeline_status(toolcall: ckit_cloudtool.FCloudtoolCall, args: Dict[str, Any], get_pipeline_status) -> str:
+    experiment_id = args.get("experiment_id", "")
+    if not experiment_id:
+        return "Error: experiment_id is required (format: {hyp_id}-{slug})"
+
+    status = await get_pipeline_status(experiment_id)
+
+    lines = [f"Pipeline status for \"{experiment_id}\":\n"]
+    for step in PIPELINE:
+        if step in status["completed"]:
+            lines.append(f"  ✓ {step} — {STEP_DESCRIPTIONS.get(step, step)}")
+        elif step == status["next_step"]:
+            lines.append(f"  → {step} — {STEP_DESCRIPTIONS.get(step, step)} (NEXT)")
+        else:
+            lines.append(f"  ○ {step} — {STEP_DESCRIPTIONS.get(step, step)}")
+
+    if status["all_done"]:
+        lines.append("\n✓ All steps completed! Experiment ready for Ad Monster launch.")
+    else:
+        lines.append(f"\nNext step: {status['next_step']}")
+
+    return "\n".join(lines)
+
+
+# =============================================================================
+# MAIN LOOP
+# =============================================================================
+
 TOOLS = [
     SAVE_INPUT_TOOL,
     CREATE_DIAGNOSTIC_TOOL,
@@ -747,7 +1238,6 @@ TOOLS = [
     GET_PIPELINE_STATUS_TOOL,
     fi_pdoc.POLICY_DOCUMENT_TOOL,
 ]
-
 
 async def owl2_strategist_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.RobotContext) -> None:
     pdoc_integration = fi_pdoc.IntegrationPdoc(rcx, rcx.persona.ws_root_group_id)
@@ -797,376 +1287,39 @@ async def owl2_strategist_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit
 
     @rcx.on_tool_call(SAVE_INPUT_TOOL.name)
     async def toolcall_save_input(toolcall: ckit_cloudtool.FCloudtoolCall, args: Dict[str, Any]) -> str:
-        experiment_id = args.get("experiment_id", "")
-        if not experiment_id:
-            return "Error: experiment_id is required (format: {hyp_id}-{slug}, e.g. hyp001-meta-ads-test)"
-
-        caller_fuser_id = ckit_external_auth.get_fuser_id_from_rcx(rcx, toolcall.fcall_ft_id)
-
-        input_doc = {
-            "input": {
-                "meta": {
-                    "created_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
-                    "version": "1.0"
-                },
-                "product_description": args.get("product_description", ""),
-                "hypothesis": args.get("hypothesis", ""),
-                "stage": args.get("stage", ""),
-                "budget": args.get("budget", ""),
-                "timeline": args.get("timeline", ""),
-                "additional_context": args.get("additional_context", ""),
-            }
-        }
-
-        path = f"/marketing-experiments/{experiment_id}/input"
-        try:
-            await pdoc_integration.pdoc_create(path, json.dumps(input_doc, ensure_ascii=False), caller_fuser_id)
-        except Exception as e:
-            if "already exists" in str(e).lower():
-                await pdoc_integration.pdoc_overwrite(path, json.dumps(input_doc, ensure_ascii=False), caller_fuser_id)
-            else:
-                return f"Error saving input: {e}"
-
-        status = await get_pipeline_status(experiment_id)
-        return f"""✍️ {path}
-
-✓ Input saved for experiment "{experiment_id}"
-
-Pipeline status:
-- Completed: {', '.join(status['completed']) or 'none'}
-- Next step: {status['next_step'] or 'all done'}
-
-Can now run diagnostic."""
+        return await handle_save_input(toolcall, args, rcx, pdoc_integration, get_pipeline_status)
 
     @rcx.on_tool_call(CREATE_DIAGNOSTIC_TOOL.name)
-    async def toolcall_create_diagnostic(toolcall: ckit_cloudtool.FCloudtoolCall, args: Dict[str, Any]) -> str:
-        experiment_id = args["experiment_id"]
-        diagnostic_data = args["diagnostic"]
-
-        error = await check_can_run_agent(experiment_id, "diagnostic")
-        if error:
-            return error
-
-        # HIGH-LEVEL validation
-        if diagnostic_data["feasibility_score"] > 0.8 and diagnostic_data["uncertainty_level"] == "extreme":
-            return "Error: High feasibility score (>0.8) conflicts with extreme uncertainty. Review your analysis."
-
-        if diagnostic_data["testable_with_traffic"] and not diagnostic_data["recommended_test_mechanisms"]:
-            return "Error: If testable with traffic, must provide recommended_test_mechanisms."
-
-        doc = {"diagnostic": diagnostic_data}
-        caller_fuser_id = ckit_external_auth.get_fuser_id_from_rcx(rcx, toolcall.fcall_ft_id)
-        path = f"/marketing-experiments/{experiment_id}/diagnostic"
-
-        try:
-            await pdoc_integration.pdoc_create(path, json.dumps(doc, ensure_ascii=False), caller_fuser_id)
-        except Exception as e:
-            if "already exists" in str(e).lower():
-                await pdoc_integration.pdoc_overwrite(path, json.dumps(doc, ensure_ascii=False), caller_fuser_id)
-            else:
-                return f"Error saving diagnostic: {e}"
-
-        status = await get_pipeline_status(experiment_id)
-        return f"""✍️ {path}
-
-✓ Diagnostic complete for experiment "{experiment_id}"
-
-Key findings:
-- Type: {diagnostic_data["primary_type"]}
-- Uncertainty: {diagnostic_data["uncertainty_level"]}
-- Feasibility: {int(diagnostic_data["feasibility_score"]*100)}%
-
-Pipeline status:
-- Completed: {', '.join(status['completed'])}
-- Next step: {status['next_step'] or 'all done'}"""
+    async def toolcall_diagnostic(toolcall: ckit_cloudtool.FCloudtoolCall, args: Dict[str, Any]) -> str:
+        return await handle_diagnostic(toolcall, args, rcx, pdoc_integration, get_pipeline_status, check_can_run_agent)
 
     @rcx.on_tool_call(CREATE_METRICS_TOOL.name)
-    async def toolcall_create_metrics(toolcall: ckit_cloudtool.FCloudtoolCall, args: Dict[str, Any]) -> str:
-        experiment_id = args["experiment_id"]
-        metrics_data = args["metrics"]
-
-        error = await check_can_run_agent(experiment_id, "metrics")
-        if error:
-            return error
-
-        # HIGH-LEVEL validation
-        if metrics_data["mde"]["confidence"] not in [0.8, 0.9, 0.95, 0.99]:
-            return "Error: MDE confidence should be 80%, 90%, 95%, or 99% (0.8, 0.9, 0.95, 0.99)"
-
-        if metrics_data["min_samples"]["conversions_per_cell"] < 1:
-            return "Error: min_samples conversions_per_cell must be at least 1"
-
-        doc = {"metrics": metrics_data}
-        caller_fuser_id = ckit_external_auth.get_fuser_id_from_rcx(rcx, toolcall.fcall_ft_id)
-        path = f"/marketing-experiments/{experiment_id}/metrics"
-
-        try:
-            await pdoc_integration.pdoc_create(path, json.dumps(doc, ensure_ascii=False), caller_fuser_id)
-        except Exception as e:
-            if "already exists" in str(e).lower():
-                await pdoc_integration.pdoc_overwrite(path, json.dumps(doc, ensure_ascii=False), caller_fuser_id)
-            else:
-                return f"Error saving metrics: {e}"
-
-        status = await get_pipeline_status(experiment_id)
-        return f"""✍️ {path}
-
-✓ Metrics framework complete for experiment "{experiment_id}"
-
-Key metrics:
-- Primary KPI: {metrics_data["primary_kpi"]}
-- MDE: {int(metrics_data["mde"]["relative_change"]*100)}% @ {int(metrics_data["mde"]["confidence"]*100)}% confidence
-- Stop rules: {len(metrics_data["stop_rules"])}
-- Accelerate rules: {len(metrics_data["accelerate_rules"])}
-
-Pipeline status:
-- Completed: {', '.join(status['completed'])}
-- Next step: {status['next_step'] or 'all done'}"""
+    async def toolcall_metrics(toolcall: ckit_cloudtool.FCloudtoolCall, args: Dict[str, Any]) -> str:
+        return await handle_metrics(toolcall, args, rcx, pdoc_integration, get_pipeline_status, check_can_run_agent)
 
     @rcx.on_tool_call(CREATE_SEGMENT_TOOL.name)
-    async def toolcall_create_segment(toolcall: ckit_cloudtool.FCloudtoolCall, args: Dict[str, Any]) -> str:
-        experiment_id = args["experiment_id"]
-        segment_data = args["segment"]
-
-        error = await check_can_run_agent(experiment_id, "segment")
-        if error:
-            return error
-
-        # HIGH-LEVEL validation
-        jtbds = segment_data["jtbds"]
-        if not jtbds["functional_jobs"] and not jtbds["emotional_jobs"]:
-            return "Error: Must define at least one functional or emotional job"
-
-        if not segment_data["icp"]["roles"] or not segment_data["icp"]["geo"]:
-            return "Error: ICP must have at least one role and one geo specified"
-
-        doc = {"segment": segment_data}
-        caller_fuser_id = ckit_external_auth.get_fuser_id_from_rcx(rcx, toolcall.fcall_ft_id)
-        path = f"/marketing-experiments/{experiment_id}/segment"
-
-        try:
-            await pdoc_integration.pdoc_create(path, json.dumps(doc, ensure_ascii=False), caller_fuser_id)
-        except Exception as e:
-            if "already exists" in str(e).lower():
-                await pdoc_integration.pdoc_overwrite(path, json.dumps(doc, ensure_ascii=False), caller_fuser_id)
-            else:
-                return f"Error saving segment: {e}"
-
-        status = await get_pipeline_status(experiment_id)
-        return f"""✍️ {path}
-
-✓ Segment analysis complete for experiment "{experiment_id}"
-
-Segment: {segment_data["label"]}
-- Roles: {', '.join(segment_data["icp"]["roles"][:3])}
-- Geo: {', '.join(segment_data["icp"]["geo"][:3])}
-- Jobs: {len(jtbds["functional_jobs"])} functional, {len(jtbds["emotional_jobs"])} emotional
-
-Pipeline status:
-- Completed: {', '.join(status['completed'])}
-- Next step: {status['next_step'] or 'all done'}"""
+    async def toolcall_segment(toolcall: ckit_cloudtool.FCloudtoolCall, args: Dict[str, Any]) -> str:
+        return await handle_segment(toolcall, args, rcx, pdoc_integration, get_pipeline_status, check_can_run_agent)
 
     @rcx.on_tool_call(CREATE_MESSAGING_TOOL.name)
-    async def toolcall_create_messaging(toolcall: ckit_cloudtool.FCloudtoolCall, args: Dict[str, Any]) -> str:
-        experiment_id = args["experiment_id"]
-        messaging_data = args["messaging"]
-
-        error = await check_can_run_agent(experiment_id, "messaging")
-        if error:
-            return error
-
-        # HIGH-LEVEL validation
-        if not messaging_data["angles"]:
-            return "Error: Must define at least one messaging angle"
-
-        if not messaging_data["core_value_prop"]:
-            return "Error: core_value_prop cannot be empty"
-
-        doc = {"messaging": messaging_data}
-        caller_fuser_id = ckit_external_auth.get_fuser_id_from_rcx(rcx, toolcall.fcall_ft_id)
-        path = f"/marketing-experiments/{experiment_id}/messaging"
-
-        try:
-            await pdoc_integration.pdoc_create(path, json.dumps(doc, ensure_ascii=False), caller_fuser_id)
-        except Exception as e:
-            if "already exists" in str(e).lower():
-                await pdoc_integration.pdoc_overwrite(path, json.dumps(doc, ensure_ascii=False), caller_fuser_id)
-            else:
-                return f"Error saving messaging: {e}"
-
-        status = await get_pipeline_status(experiment_id)
-        return f"""✍️ {path}
-
-✓ Messaging strategy complete for experiment "{experiment_id}"
-
-- Core value prop: {messaging_data["core_value_prop"][:80]}...
-- Angles: {len(messaging_data["angles"])}
-- Objections handled: {len(messaging_data["objection_handling"])}
-
-Pipeline status:
-- Completed: {', '.join(status['completed'])}
-- Next step: {status['next_step'] or 'all done'}"""
+    async def toolcall_messaging(toolcall: ckit_cloudtool.FCloudtoolCall, args: Dict[str, Any]) -> str:
+        return await handle_messaging(toolcall, args, rcx, pdoc_integration, get_pipeline_status, check_can_run_agent)
 
     @rcx.on_tool_call(CREATE_CHANNELS_TOOL.name)
-    async def toolcall_create_channels(toolcall: ckit_cloudtool.FCloudtoolCall, args: Dict[str, Any]) -> str:
-        experiment_id = args["experiment_id"]
-        channels_data = args["channels"]
-
-        error = await check_can_run_agent(experiment_id, "channels")
-        if error:
-            return error
-
-        # HIGH-LEVEL validation
-        total_budget_share = sum(ch["budget_share"] for ch in channels_data["selected_channels"])
-        if not (0.95 <= total_budget_share <= 1.05):
-            return f"Error: Budget shares sum to {total_budget_share:.2f}, should be ~1.0 (95-105%)"
-
-        if not channels_data["test_cells"]:
-            return "Error: Must define at least one test cell"
-
-        doc = {"channels": channels_data}
-        caller_fuser_id = ckit_external_auth.get_fuser_id_from_rcx(rcx, toolcall.fcall_ft_id)
-        path = f"/marketing-experiments/{experiment_id}/channels"
-
-        try:
-            await pdoc_integration.pdoc_create(path, json.dumps(doc, ensure_ascii=False), caller_fuser_id)
-        except Exception as e:
-            if "already exists" in str(e).lower():
-                await pdoc_integration.pdoc_overwrite(path, json.dumps(doc, ensure_ascii=False), caller_fuser_id)
-            else:
-                return f"Error saving channels: {e}"
-
-        status = await get_pipeline_status(experiment_id)
-        return f"""✍️ {path}
-
-✓ Channel strategy complete for experiment "{experiment_id}"
-
-- Channels: {len(channels_data["selected_channels"])}
-- Test cells: {len(channels_data["test_cells"])}
-- Total budget: ${channels_data["total_budget"]}
-- Duration: {channels_data["test_duration_days"]} days
-
-Pipeline status:
-- Completed: {', '.join(status['completed'])}
-- Next step: {status['next_step'] or 'all done'}"""
+    async def toolcall_channels(toolcall: ckit_cloudtool.FCloudtoolCall, args: Dict[str, Any]) -> str:
+        return await handle_channels(toolcall, args, rcx, pdoc_integration, get_pipeline_status, check_can_run_agent)
 
     @rcx.on_tool_call(CREATE_TACTICS_TOOL.name)
-    async def toolcall_create_tactics(toolcall: ckit_cloudtool.FCloudtoolCall, args: Dict[str, Any]) -> str:
-        experiment_id = args["experiment_id"]
-        tactics_data = args["tactics"]
-
-        error = await check_can_run_agent(experiment_id, "tactics")
-        if error:
-            return error
-
-        # HIGH-LEVEL validation
-        if not tactics_data["campaigns"]:
-            return "Error: Must define at least one campaign"
-
-        if not tactics_data["creatives"]:
-            return "Error: Must define at least one creative"
-
-        if not tactics_data["tracking"]["utm_schema"]:
-            return "Error: UTM schema is required for tracking"
-
-        doc = {"tactics": tactics_data}
-        caller_fuser_id = ckit_external_auth.get_fuser_id_from_rcx(rcx, toolcall.fcall_ft_id)
-        path = f"/marketing-experiments/{experiment_id}/tactics"
-
-        try:
-            await pdoc_integration.pdoc_create(path, json.dumps(doc, ensure_ascii=False), caller_fuser_id)
-        except Exception as e:
-            if "already exists" in str(e).lower():
-                await pdoc_integration.pdoc_overwrite(path, json.dumps(doc, ensure_ascii=False), caller_fuser_id)
-            else:
-                return f"Error saving tactics: {e}"
-
-        status = await get_pipeline_status(experiment_id)
-        return f"""✍️ {path}
-
-✓ Tactical spec complete for experiment "{experiment_id}"
-
-- Campaigns: {len(tactics_data["campaigns"])}
-- Creatives: {len(tactics_data["creatives"])}
-- Landing variants: {len(tactics_data["landing"].get("variants", []))}
-- Tracking events: {len(tactics_data["tracking"]["events"])}
-
-Pipeline status:
-- Completed: {', '.join(status['completed'])}
-- Next step: {status['next_step'] or 'all done'}"""
+    async def toolcall_tactics(toolcall: ckit_cloudtool.FCloudtoolCall, args: Dict[str, Any]) -> str:
+        return await handle_tactics(toolcall, args, rcx, pdoc_integration, get_pipeline_status, check_can_run_agent)
 
     @rcx.on_tool_call(CREATE_COMPLIANCE_TOOL.name)
-    async def toolcall_create_compliance(toolcall: ckit_cloudtool.FCloudtoolCall, args: Dict[str, Any]) -> str:
-        experiment_id = args["experiment_id"]
-        compliance_data = args["compliance"]
-
-        error = await check_can_run_agent(experiment_id, "compliance")
-        if error:
-            return error
-
-        # HIGH-LEVEL validation
-        if not compliance_data["risks"] and not compliance_data["compliance_issues"]:
-            return "Error: Must identify at least one risk or compliance issue, or explicitly state 'none' in detailed_analysis"
-
-        for risk in compliance_data["risks"]:
-            if risk["probability"] not in ["low", "medium", "high"]:
-                return f"Error: Risk {risk['risk_id']} has invalid probability (must be low/medium/high)"
-            if risk["impact"] not in ["low", "medium", "high", "critical"]:
-                return f"Error: Risk {risk['risk_id']} has invalid impact (must be low/medium/high/critical)"
-
-        doc = {"compliance": compliance_data}
-        caller_fuser_id = ckit_external_auth.get_fuser_id_from_rcx(rcx, toolcall.fcall_ft_id)
-        path = f"/marketing-experiments/{experiment_id}/compliance"
-
-        try:
-            await pdoc_integration.pdoc_create(path, json.dumps(doc, ensure_ascii=False), caller_fuser_id)
-        except Exception as e:
-            if "already exists" in str(e).lower():
-                await pdoc_integration.pdoc_overwrite(path, json.dumps(doc, ensure_ascii=False), caller_fuser_id)
-            else:
-                return f"Error saving compliance: {e}"
-
-        status = await get_pipeline_status(experiment_id)
-        assessment = compliance_data["overall_assessment"]
-        return f"""✍️ {path}
-
-✓ Compliance check complete for experiment "{experiment_id}"
-
-Assessment:
-- Ads policies: {'✓' if assessment["ads_policies_ok"] else '⚠'}
-- Privacy: {'✓' if assessment["privacy_ok"] else '⚠'}
-- Business risks: {'✓' if assessment["business_risks_acceptable"] else '⚠'}
-- Recommendation: {assessment["recommendation"]}
-
-Pipeline status:
-- Completed: {', '.join(status['completed'])}
-- Next step: {status['next_step'] or 'all done'}
-
-{('✓ All steps completed! Strategy ready for Ad Monster.' if status['all_done'] else '')}"""
+    async def toolcall_compliance(toolcall: ckit_cloudtool.FCloudtoolCall, args: Dict[str, Any]) -> str:
+        return await handle_compliance(toolcall, args, rcx, pdoc_integration, get_pipeline_status, check_can_run_agent)
 
     @rcx.on_tool_call(GET_PIPELINE_STATUS_TOOL.name)
-    async def toolcall_get_pipeline_status(toolcall: ckit_cloudtool.FCloudtoolCall, args: Dict[str, Any]) -> str:
-        experiment_id = args.get("experiment_id", "")
-        if not experiment_id:
-            return "Error: experiment_id is required (format: {hyp_id}-{slug})"
-
-        status = await get_pipeline_status(experiment_id)
-
-        lines = [f"Pipeline status for \"{experiment_id}\":\n"]
-        for step in PIPELINE:
-            if step in status["completed"]:
-                lines.append(f"  ✓ {step} — {STEP_DESCRIPTIONS.get(step, step)}")
-            elif step == status["next_step"]:
-                lines.append(f"  → {step} — {STEP_DESCRIPTIONS.get(step, step)} (NEXT)")
-            else:
-                lines.append(f"  ○ {step} — {STEP_DESCRIPTIONS.get(step, step)}")
-
-        if status["all_done"]:
-            lines.append("\n✓ All steps completed! Experiment ready for Ad Monster launch.")
-        else:
-            lines.append(f"\nNext step: {status['next_step']}")
-
-        return "\n".join(lines)
+    async def toolcall_pipeline_status(toolcall: ckit_cloudtool.FCloudtoolCall, args: Dict[str, Any]) -> str:
+        return await handle_pipeline_status(toolcall, args, get_pipeline_status)
 
     @rcx.on_tool_call(fi_pdoc.POLICY_DOCUMENT_TOOL.name)
     async def toolcall_pdoc(toolcall: ckit_cloudtool.FCloudtoolCall, args: Dict[str, Any]) -> str:
