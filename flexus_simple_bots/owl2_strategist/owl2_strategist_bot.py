@@ -92,13 +92,7 @@ async def handle_save_input(toolcall: ckit_cloudtool.FCloudtoolCall, args: Dict[
     }
 
     path = f"/marketing-experiments/{experiment_id}/input"
-    try:
-        await pdoc_integration.pdoc_create(path, json.dumps(input_doc, ensure_ascii=False), caller_fuser_id)
-    except Exception as e:
-        if "already exists" in str(e).lower():
-            await pdoc_integration.pdoc_overwrite(path, json.dumps(input_doc, ensure_ascii=False), caller_fuser_id)
-        else:
-            return f"Error saving input: {e}"
+    await pdoc_integration.pdoc_write(path, json.dumps(input_doc, ensure_ascii=False), caller_fuser_id)
 
     status = await get_pipeline_status(experiment_id)
     return SAVE_INPUT_RESPONSE_TEMPLATE.format(
@@ -197,14 +191,7 @@ async def handle_diagnostic(toolcall: ckit_cloudtool.FCloudtoolCall, args: Dict[
     doc = {"diagnostic": diagnostic_data}
     caller_fuser_id = ckit_external_auth.get_fuser_id_from_rcx(rcx, toolcall.fcall_ft_id)
     path = f"/marketing-experiments/{experiment_id}/diagnostic"
-
-    try:
-        await pdoc_integration.pdoc_create(path, json.dumps(doc, ensure_ascii=False), caller_fuser_id)
-    except Exception as e:
-        if "already exists" in str(e).lower():
-            await pdoc_integration.pdoc_overwrite(path, json.dumps(doc, ensure_ascii=False), caller_fuser_id)
-        else:
-            return f"Error saving diagnostic: {e}"
+    await pdoc_integration.pdoc_write(path, json.dumps(doc, ensure_ascii=False), caller_fuser_id)
 
     status = await get_pipeline_status(experiment_id)
     return DIAGNOSTIC_RESPONSE_TEMPLATE.format(
@@ -358,14 +345,7 @@ async def handle_metrics(toolcall: ckit_cloudtool.FCloudtoolCall, args: Dict[str
     doc = {"metrics": metrics_data}
     caller_fuser_id = ckit_external_auth.get_fuser_id_from_rcx(rcx, toolcall.fcall_ft_id)
     path = f"/marketing-experiments/{experiment_id}/metrics"
-
-    try:
-        await pdoc_integration.pdoc_create(path, json.dumps(doc, ensure_ascii=False), caller_fuser_id)
-    except Exception as e:
-        if "already exists" in str(e).lower():
-            await pdoc_integration.pdoc_overwrite(path, json.dumps(doc, ensure_ascii=False), caller_fuser_id)
-        else:
-            return f"Error saving metrics: {e}"
+    await pdoc_integration.pdoc_write(path, json.dumps(doc, ensure_ascii=False), caller_fuser_id)
 
     status = await get_pipeline_status(experiment_id)
     return METRICS_RESPONSE_TEMPLATE.format(
@@ -508,14 +488,7 @@ async def handle_segment(toolcall: ckit_cloudtool.FCloudtoolCall, args: Dict[str
     doc = {"segment": segment_data}
     caller_fuser_id = ckit_external_auth.get_fuser_id_from_rcx(rcx, toolcall.fcall_ft_id)
     path = f"/marketing-experiments/{experiment_id}/segment"
-
-    try:
-        await pdoc_integration.pdoc_create(path, json.dumps(doc, ensure_ascii=False), caller_fuser_id)
-    except Exception as e:
-        if "already exists" in str(e).lower():
-            await pdoc_integration.pdoc_overwrite(path, json.dumps(doc, ensure_ascii=False), caller_fuser_id)
-        else:
-            return f"Error saving segment: {e}"
+    await pdoc_integration.pdoc_write(path, json.dumps(doc, ensure_ascii=False), caller_fuser_id)
 
     status = await get_pipeline_status(experiment_id)
     return SEGMENT_RESPONSE_TEMPLATE.format(
@@ -658,14 +631,7 @@ async def handle_messaging(toolcall: ckit_cloudtool.FCloudtoolCall, args: Dict[s
     doc = {"messaging": messaging_data}
     caller_fuser_id = ckit_external_auth.get_fuser_id_from_rcx(rcx, toolcall.fcall_ft_id)
     path = f"/marketing-experiments/{experiment_id}/messaging"
-
-    try:
-        await pdoc_integration.pdoc_create(path, json.dumps(doc, ensure_ascii=False), caller_fuser_id)
-    except Exception as e:
-        if "already exists" in str(e).lower():
-            await pdoc_integration.pdoc_overwrite(path, json.dumps(doc, ensure_ascii=False), caller_fuser_id)
-        else:
-            return f"Error saving messaging: {e}"
+    await pdoc_integration.pdoc_write(path, json.dumps(doc, ensure_ascii=False), caller_fuser_id)
 
     status = await get_pipeline_status(experiment_id)
     return MESSAGING_RESPONSE_TEMPLATE.format(
@@ -814,14 +780,7 @@ async def handle_channels(toolcall: ckit_cloudtool.FCloudtoolCall, args: Dict[st
     doc = {"channels": channels_data}
     caller_fuser_id = ckit_external_auth.get_fuser_id_from_rcx(rcx, toolcall.fcall_ft_id)
     path = f"/marketing-experiments/{experiment_id}/channels"
-
-    try:
-        await pdoc_integration.pdoc_create(path, json.dumps(doc, ensure_ascii=False), caller_fuser_id)
-    except Exception as e:
-        if "already exists" in str(e).lower():
-            await pdoc_integration.pdoc_overwrite(path, json.dumps(doc, ensure_ascii=False), caller_fuser_id)
-        else:
-            return f"Error saving channels: {e}"
+    await pdoc_integration.pdoc_write(path, json.dumps(doc, ensure_ascii=False), caller_fuser_id)
 
     status = await get_pipeline_status(experiment_id)
     return CHANNELS_RESPONSE_TEMPLATE.format(
@@ -987,14 +946,7 @@ async def handle_tactics(toolcall: ckit_cloudtool.FCloudtoolCall, args: Dict[str
     doc = {"tactics": tactics_data}
     caller_fuser_id = ckit_external_auth.get_fuser_id_from_rcx(rcx, toolcall.fcall_ft_id)
     path = f"/marketing-experiments/{experiment_id}/tactics"
-
-    try:
-        await pdoc_integration.pdoc_create(path, json.dumps(doc, ensure_ascii=False), caller_fuser_id)
-    except Exception as e:
-        if "already exists" in str(e).lower():
-            await pdoc_integration.pdoc_overwrite(path, json.dumps(doc, ensure_ascii=False), caller_fuser_id)
-        else:
-            return f"Error saving tactics: {e}"
+    await pdoc_integration.pdoc_write(path, json.dumps(doc, ensure_ascii=False), caller_fuser_id)
 
     status = await get_pipeline_status(experiment_id)
     return TACTICS_RESPONSE_TEMPLATE.format(
@@ -1157,14 +1109,7 @@ async def handle_compliance(toolcall: ckit_cloudtool.FCloudtoolCall, args: Dict[
     doc = {"compliance": compliance_data}
     caller_fuser_id = ckit_external_auth.get_fuser_id_from_rcx(rcx, toolcall.fcall_ft_id)
     path = f"/marketing-experiments/{experiment_id}/compliance"
-
-    try:
-        await pdoc_integration.pdoc_create(path, json.dumps(doc, ensure_ascii=False), caller_fuser_id)
-    except Exception as e:
-        if "already exists" in str(e).lower():
-            await pdoc_integration.pdoc_overwrite(path, json.dumps(doc, ensure_ascii=False), caller_fuser_id)
-        else:
-            return f"Error saving compliance: {e}"
+    await pdoc_integration.pdoc_write(path, json.dumps(doc, ensure_ascii=False), caller_fuser_id)
 
     status = await get_pipeline_status(experiment_id)
     assessment = compliance_data["overall_assessment"]
