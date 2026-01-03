@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Compliance Dashboard</title>
+  <style id="theme-css"></style>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    
+    :root {
+      --bg-primary: #0d1117;
+      --bg-secondary: #161b22;
+      --bg-card: #21262d;
+      --bg-hover: #30363d;
+      --text-primary: #e6edf3;
+      --text-secondary: #8b949e;
+      --text-muted: #6e7681;
+      --border-color: #30363d;
+      --accent-blue: #58a6ff;
+      --accent-green: #3fb950;
+      --accent-orange: #d29922;
+      --accent-red: #f85149;
+      --accent-purple: #a371f7;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      line-height: 1.6;
+      padding: 1.5rem;
+      min-height: 100vh;
+    }
+    
+    .header {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin-bottom: 2rem;
+      padding-bottom: 1rem;
+      border-bottom: 1px solid var(--border-color);
+    }
+    
+    .header h1 { font-size: 1.5rem; font-weight: 600; }
+    .header .icon { font-size: 1.75rem; }
+    
+    /* Overall Status */
+    .status-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 1rem;
+      margin-bottom: 2rem;
+    }
+    
+    .status-card {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 1.25rem;
+      text-align: center;
+    }
+    
+    .status-card .label {
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 0.5rem;
+    }
+    
+    .status-card .value {
+      font-size: 1.5rem;
+    }
+    
+    .status-card.ok { border-color: var(--accent-green); }
+    .status-card.warning { border-color: var(--accent-orange); }
+    .status-card.danger { border-color: var(--accent-red); }
+    
+    /* Section */
+    .section {
+      margin-bottom: 2rem;
+    }
+    
+    .section-title {
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    
+    /* Risk Cards */
+    .risks-list {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+    
+    .risk-card {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+    
+    .risk-card.high { border-left: 4px solid var(--accent-red); }
+    .risk-card.medium { border-left: 4px solid var(--accent-orange); }
+    .risk-card.low { border-left: 4px solid var(--accent-green); }
+    
+    .risk-header {
+      padding: 1rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--border-color);
+    }
+    
+    .risk-header .id {
+      font-weight: 600;
+      font-family: monospace;
+      color: var(--text-muted);
+    }
+    
+    .risk-badges {
+      display: flex;
+      gap: 0.5rem;
+    }
+    
+    .badge {
+      padding: 0.25rem 0.5rem;
+      border-radius: 4px;
+      font-size: 0.7rem;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+    
+    .badge.category { background: var(--bg-hover); color: var(--text-secondary); }
+    .badge.probability-high { background: rgba(248, 81, 73, 0.2); color: var(--accent-red); }
+    .badge.probability-medium { background: rgba(210, 153, 34, 0.2); color: var(--accent-orange); }
+    .badge.probability-low { background: rgba(59, 185, 80, 0.2); color: var(--accent-green); }
+    
+    .risk-body {
+      padding: 1rem;
+    }
+    
+    .risk-desc {
+      font-size: 0.95rem;
+      color: var(--text-primary);
+      margin-bottom: 1rem;
+    }
+    
+    .risk-row {
+      display: flex;
+      gap: 1rem;
+      padding: 0.5rem 0;
+      font-size: 0.85rem;
+    }
+    
+    .risk-row .label {
+      flex: 0 0 80px;
+      color: var(--text-muted);
+    }
+    
+    .risk-row .value {
+      flex: 1;
+      color: var(--text-secondary);
+    }
+    
+    .risk-row .value.mitigation {
+      color: var(--accent-green);
+    }
+    
+    /* Compliance Issues */
+    .issue-card {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      overflow: hidden;
+      margin-bottom: 1rem;
+    }
+    
+    .issue-header {
+      padding: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      border-bottom: 1px solid var(--border-color);
+    }
+    
+    .issue-platform {
+      padding: 0.35rem 0.75rem;
+      border-radius: 6px;
+      font-size: 0.8rem;
+      font-weight: 600;
+    }
+    
+    .issue-platform.meta { background: rgba(0, 98, 224, 0.2); color: #58a6ff; }
+    .issue-platform.google { background: rgba(66, 133, 244, 0.2); color: #4285f4; }
+    .issue-platform.tiktok { background: rgba(254, 44, 85, 0.2); color: #fe2c55; }
+    
+    .issue-severity {
+      margin-left: auto;
+      padding: 0.25rem 0.5rem;
+      border-radius: 4px;
+      font-size: 0.7rem;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+    
+    .issue-severity.high { background: rgba(248, 81, 73, 0.2); color: var(--accent-red); }
+    .issue-severity.medium { background: rgba(210, 153, 34, 0.2); color: var(--accent-orange); }
+    .issue-severity.low { background: rgba(88, 166, 255, 0.2); color: var(--accent-blue); }
+    
+    .issue-body {
+      padding: 1rem;
+    }
+    
+    .issue-text {
+      font-size: 0.95rem;
+      color: var(--text-primary);
+      margin-bottom: 0.75rem;
+    }
+    
+    .issue-recommendation {
+      padding: 0.75rem;
+      background: var(--bg-hover);
+      border-radius: 6px;
+      font-size: 0.85rem;
+      color: var(--accent-green);
+    }
+    
+    /* Privacy Check */
+    .privacy-card {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 1.25rem;
+    }
+    
+    .privacy-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+      gap: 1rem;
+    }
+    
+    .privacy-item {
+      text-align: center;
+    }
+    
+    .privacy-item .status {
+      font-size: 1.5rem;
+      margin-bottom: 0.25rem;
+    }
+    
+    .privacy-item .label {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+    
+    /* Checklist */
+    .checklist {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+    
+    .checklist-item {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      padding: 1rem 1.25rem;
+      border-bottom: 1px solid var(--border-color);
+    }
+    
+    .checklist-item:last-child { border-bottom: none; }
+    
+    .checklist-status {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.9rem;
+      flex-shrink: 0;
+    }
+    
+    .checklist-status.done { background: var(--accent-green); }
+    .checklist-status.pending { background: var(--bg-hover); border: 2px solid var(--border-color); }
+    
+    .checklist-text {
+      flex: 1;
+      font-size: 0.9rem;
+      color: var(--text-primary);
+    }
+    
+    /* Recommendation Card */
+    .recommendation-card {
+      background: linear-gradient(135deg, rgba(59, 185, 80, 0.1) 0%, rgba(88, 166, 255, 0.1) 100%);
+      border: 1px solid var(--accent-green);
+      border-radius: 12px;
+      padding: 1.5rem;
+      text-align: center;
+    }
+    
+    .recommendation-card h3 {
+      font-size: 1.1rem;
+      color: var(--accent-green);
+      margin-bottom: 0.5rem;
+    }
+    
+    .recommendation-card p {
+      font-size: 0.95rem;
+      color: var(--text-secondary);
+    }
+    
+    .empty-state {
+      text-align: center;
+      padding: 3rem;
+      color: var(--text-secondary);
+    }
+    .empty-state .icon { font-size: 3rem; margin-bottom: 1rem; }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div class="empty-state">
+      <div class="icon">⚖️</div>
+      <p>Loading compliance...</p>
+    </div>
+  </div>
+
+  <script>
+    const FormBridge = {
+      listeners: {},
+      init(formId) {
+        window.addEventListener('message', (event) => {
+          if (event.data && event.data.type) {
+            const handler = this.listeners[event.data.type];
+            if (handler) handler(event.data);
+          }
+        });
+        this.send('FORM_READY', { formId });
+      },
+      on(type, callback) { this.listeners[type] = callback; },
+      send(type, payload) { window.parent.postMessage({ type, ...payload }, '*'); }
+    };
+
+    let compliance = null;
+
+    function extract(content) {
+      if (!content) return {};
+      if (content.compliance && typeof content.compliance === 'object') return content.compliance;
+      return content;
+    }
+
+    FormBridge.on('INIT', data => {
+      compliance = extract(data.content);
+      if (data.themeCss) document.getElementById('theme-css').textContent = data.themeCss;
+      render();
+    });
+
+    FormBridge.on('CONTENT_UPDATE', data => {
+      compliance = extract(data.content);
+      render();
+    });
+
+    FormBridge.init('owl-compliance-dashboard');
+
+    function render() {
+      const app = document.getElementById('app');
+      
+      if (!compliance || Object.keys(compliance).length === 0) {
+        app.innerHTML = `<div class="empty-state"><div class="icon">⚖️</div><p>No compliance data available</p></div>`;
+        return;
+      }
+
+      const overall = compliance.overall_assessment || {};
+      const risks = compliance.risks || [];
+      const issues = compliance.compliance_issues || [];
+      const privacy = compliance.privacy_check || {};
+      const checklist = compliance.pre_launch_checklist || [];
+      
+      app.innerHTML = `
+        <div class="header">
+          <span class="icon">⚖️</span>
+          <h1>Risk & Compliance</h1>
+        </div>
+
+        <div class="status-grid">
+          <div class="status-card ${overall.ads_policies_ok ? 'ok' : 'danger'}">
+            <div class="label">Ads Policies</div>
+            <div class="value">${overall.ads_policies_ok ? '✅' : '❌'}</div>
+          </div>
+          <div class="status-card ${overall.privacy_ok ? 'ok' : 'danger'}">
+            <div class="label">Privacy</div>
+            <div class="value">${overall.privacy_ok ? '✅' : '❌'}</div>
+          </div>
+          <div class="status-card ${overall.business_risks_acceptable ? 'ok' : 'warning'}">
+            <div class="label">Business Risks</div>
+            <div class="value">${overall.business_risks_acceptable ? '✅' : '⚠️'}</div>
+          </div>
+          <div class="status-card">
+            <div class="label">Risks Found</div>
+            <div class="value" style="color: ${risks.length > 3 ? 'var(--accent-red)' : 'var(--text-primary)'}">${risks.length}</div>
+          </div>
+        </div>
+
+        ${overall.recommendation ? `
+          <div class="recommendation-card">
+            <h3>📋 Recommendation</h3>
+            <p>${overall.recommendation}</p>
+          </div>
+        ` : ''}
+
+        ${risks.length > 0 ? `
+          <div class="section">
+            <div class="section-title">⚠️ Identified Risks</div>
+            <div class="risks-list">
+              ${risks.map(r => `
+                <div class="risk-card ${(r.impact || 'medium').toLowerCase()}">
+                  <div class="risk-header">
+                    <span class="id">${r.risk_id || '?'}</span>
+                    <div class="risk-badges">
+                      <span class="badge category">${r.category || 'general'}</span>
+                      <span class="badge probability-${(r.probability || 'medium').toLowerCase()}">${r.probability || 'medium'} prob</span>
+                    </div>
+                  </div>
+                  <div class="risk-body">
+                    <div class="risk-desc">${r.description || ''}</div>
+                    ${r.mitigation ? `
+                      <div class="risk-row">
+                        <span class="label">Mitigation</span>
+                        <span class="value mitigation">💡 ${r.mitigation}</span>
+                      </div>
+                    ` : ''}
+                    ${r.if_ignored ? `
+                      <div class="risk-row">
+                        <span class="label">If ignored</span>
+                        <span class="value">⚠️ ${r.if_ignored}</span>
+                      </div>
+                    ` : ''}
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        ` : ''}
+
+        ${issues.length > 0 ? `
+          <div class="section">
+            <div class="section-title">📋 Compliance Issues</div>
+            ${issues.map(issue => `
+              <div class="issue-card">
+                <div class="issue-header">
+                  <span class="issue-platform ${issue.platform}">${issue.platform || 'unknown'}</span>
+                  <span style="font-size: 0.85rem; color: var(--text-muted);">${issue.policy || ''}</span>
+                  <span class="issue-severity ${(issue.severity || 'medium').toLowerCase()}">${issue.severity || 'medium'}</span>
+                </div>
+                <div class="issue-body">
+                  <div class="issue-text">${issue.issue || ''}</div>
+                  ${issue.recommendation ? `
+                    <div class="issue-recommendation">💡 ${issue.recommendation}</div>
+                  ` : ''}
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        ` : ''}
+
+        ${Object.keys(privacy).length > 0 ? `
+          <div class="section">
+            <div class="section-title">🔒 Privacy Check</div>
+            <div class="privacy-card">
+              <div class="privacy-grid">
+                <div class="privacy-item">
+                  <div class="status">${privacy.gdpr_compliant ? '✅' : '❌'}</div>
+                  <div class="label">GDPR</div>
+                </div>
+                <div class="privacy-item">
+                  <div class="status">${privacy.ccpa_compliant ? '✅' : '❌'}</div>
+                  <div class="label">CCPA</div>
+                </div>
+                <div class="privacy-item">
+                  <div class="status">${privacy.cookie_consent_required ? '🍪' : '—'}</div>
+                  <div class="label">Cookie Consent</div>
+                </div>
+              </div>
+              ${privacy.notes ? `
+                <div style="margin-top: 1rem; font-size: 0.85rem; color: var(--text-secondary);">
+                  📝 ${privacy.notes}
+                </div>
+              ` : ''}
+            </div>
+          </div>
+        ` : ''}
+
+        ${checklist.length > 0 ? `
+          <div class="section">
+            <div class="section-title">✅ Pre-Launch Checklist</div>
+            <div class="checklist">
+              ${checklist.map(item => `
+                <div class="checklist-item">
+                  <div class="checklist-status ${item.status === 'done' ? 'done' : 'pending'}">
+                    ${item.status === 'done' ? '✓' : ''}
+                  </div>
+                  <span class="checklist-text">${item.check || ''}</span>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        ` : ''}
+      `;
+    }
+  </script>
+</body>
+</html>
+
