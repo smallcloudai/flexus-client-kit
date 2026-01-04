@@ -512,7 +512,7 @@ async def subscribe_and_produce_callbacks(
 
             elif upd.news_action == "INITIAL_UPDATES_OVER":
                 if len(bc.bots_running) == 0:
-                    logger.warning("backend knows of zero bots with marketable_name=%r and marketable_version=%r, if you are trying to run a dev bot, the previous dev bot might got upgraded to a build (not dev) version" % (
+                    logger.warning("backend knows of zero bots with marketable_name=%r and marketable_version=%r, a fix to this is to go to marketplace and hire one, careful to hire a dev version if that's what you are trying to run." % (
                         bc.marketable_name, bc.marketable_version
                     ))
                 handled = True

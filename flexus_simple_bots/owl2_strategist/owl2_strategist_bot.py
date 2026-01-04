@@ -54,7 +54,7 @@ SAVE_INPUT_TOOL = ckit_cloudtool.CloudTool(
             "timeline": {"type": "string", "description": "Timeline expectations"},
             "additional_context": {"type": "string", "description": "Any other relevant context"},
         },
-        "required": ["experiment_id", "product_description", "hypothesis", "stage"],
+        "required": ["experiment_id", "product_description", "hypothesis", "stage", "budget", "timeline", "additional_context"],
         "additionalProperties": False,
     },
 )
@@ -401,7 +401,7 @@ CREATE_SEGMENT_TOOL = ckit_cloudtool.CloudTool(
                             "tech_savviness": {"type": "string"},
                             "decision_maker": {"type": "string"}
                         },
-                        "required": ["b2x", "roles", "geo"],
+                        "required": ["b2x", "company_size", "roles", "industries", "geo", "income_level", "tech_savviness", "decision_maker"],
                         "additionalProperties": False
                     },
                     "icp_reasoning": {"type": "string"},
@@ -710,7 +710,7 @@ CREATE_CHANNELS_TOOL = ckit_cloudtool.CloudTool(
                                 "budget": {"type": "number"},
                                 "hypothesis": {"type": "string"}
                             },
-                            "required": ["cell_id", "channel", "segment", "angle", "budget", "hypothesis"],
+                            "required": ["cell_id", "channel", "segment", "angle", "landing_variant", "budget", "hypothesis"],
                             "additionalProperties": False
                         }
                     },
@@ -840,7 +840,7 @@ CREATE_TACTICS_TOOL = ckit_cloudtool.CloudTool(
                                     }
                                 }
                             },
-                            "required": ["campaign_id", "channel", "objective", "daily_budget", "adsets"],
+                            "required": ["campaign_id", "channel", "objective", "daily_budget", "start_date", "duration_days", "campaign_reasoning", "adsets"],
                             "additionalProperties": False
                         }
                     },
@@ -860,7 +860,7 @@ CREATE_TACTICS_TOOL = ckit_cloudtool.CloudTool(
                                 "visual_brief": {"type": "string"},
                                 "creative_reasoning": {"type": "string"}
                             },
-                            "required": ["creative_id", "channel", "format", "angle", "primary_text", "headline", "cta", "visual_brief"],
+                            "required": ["creative_id", "channel", "format", "angle", "primary_text", "headline", "description", "cta", "visual_brief", "creative_reasoning"],
                             "additionalProperties": False
                         }
                     },
@@ -1018,7 +1018,7 @@ CREATE_COMPLIANCE_TOOL = ckit_cloudtool.CloudTool(
                                 "affected_creatives": {"type": "array", "items": {"type": "string"}},
                                 "what_if_rejected": {"type": "string"}
                             },
-                            "required": ["issue_id", "platform", "policy", "issue", "severity", "recommendation"],
+                            "required": ["issue_id", "platform", "policy", "issue", "severity", "recommendation", "affected_creatives", "what_if_rejected"],
                             "additionalProperties": False
                         }
                     },
