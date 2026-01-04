@@ -107,6 +107,9 @@ def sanitize_args(args_dict_from_model: Any) -> tuple[dict, Optional[str]]:
     else:
         return {}, "args_dict_from_model should be a dict"
 
+    if args is None:  # that's allowed, strict mode for tools leads to type=object|none, therefure model might produce None
+        return {}, None
+
     # Model was stupid enough to escape json object and send a string
     if isinstance(args, str):
         try:
