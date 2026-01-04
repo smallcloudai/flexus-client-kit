@@ -69,7 +69,7 @@ Pipeline status:
 
 Can now run diagnostic."""
 
-async def handle_save_input(toolcall: ckit_cloudtool.FCloudtoolCall, args: Dict[str, Any], rcx, pdoc_integration, get_pipeline_status) -> str:
+async def handle_save_input(toolcall: ckit_cloudtool.FCloudtoolCall, args: Dict[str, Any], rcx: ckit_bot_exec.RobotContext, pdoc_integration: fi_pdoc.IntegrationPdoc, get_pipeline_status) -> str:
     experiment_id = args.get("experiment_id", "")
     if not experiment_id:
         return "Error: experiment_id is required (format: {hyp_id}-{slug}, e.g. hyp001-meta-ads-test)"
@@ -92,7 +92,7 @@ async def handle_save_input(toolcall: ckit_cloudtool.FCloudtoolCall, args: Dict[
     }
 
     path = f"/marketing-experiments/{experiment_id}/input"
-    await pdoc_integration.pdoc_write(path, json.dumps(input_doc, ensure_ascii=False), caller_fuser_id)
+    await pdoc_integration.pdoc_create(path, json.dumps(input_doc, ensure_ascii=False), caller_fuser_id)
 
     status = await get_pipeline_status(experiment_id)
     return SAVE_INPUT_RESPONSE_TEMPLATE.format(
@@ -174,7 +174,7 @@ Pipeline status:
 - Completed: {completed}
 - Next step: {next_step}"""
 
-async def handle_diagnostic(toolcall: ckit_cloudtool.FCloudtoolCall, args: Dict[str, Any], rcx, pdoc_integration, get_pipeline_status, check_can_run_agent) -> str:
+async def handle_diagnostic(toolcall: ckit_cloudtool.FCloudtoolCall, args: Dict[str, Any], rcx: ckit_bot_exec.RobotContext, pdoc_integration: fi_pdoc.IntegrationPdoc, get_pipeline_status, check_can_run_agent) -> str:
     experiment_id = args["experiment_id"]
     diagnostic_data = args["diagnostic"]
 
@@ -191,7 +191,7 @@ async def handle_diagnostic(toolcall: ckit_cloudtool.FCloudtoolCall, args: Dict[
     doc = {"diagnostic": diagnostic_data}
     caller_fuser_id = ckit_external_auth.get_fuser_id_from_rcx(rcx, toolcall.fcall_ft_id)
     path = f"/marketing-experiments/{experiment_id}/diagnostic"
-    await pdoc_integration.pdoc_write(path, json.dumps(doc, ensure_ascii=False), caller_fuser_id)
+    await pdoc_integration.pdoc_create(path, json.dumps(doc, ensure_ascii=False), caller_fuser_id)
 
     status = await get_pipeline_status(experiment_id)
     return DIAGNOSTIC_RESPONSE_TEMPLATE.format(
@@ -328,7 +328,7 @@ Pipeline status:
 - Completed: {completed}
 - Next step: {next_step}"""
 
-async def handle_metrics(toolcall: ckit_cloudtool.FCloudtoolCall, args: Dict[str, Any], rcx, pdoc_integration, get_pipeline_status, check_can_run_agent) -> str:
+async def handle_metrics(toolcall: ckit_cloudtool.FCloudtoolCall, args: Dict[str, Any], rcx: ckit_bot_exec.RobotContext, pdoc_integration: fi_pdoc.IntegrationPdoc, get_pipeline_status, check_can_run_agent) -> str:
     experiment_id = args["experiment_id"]
     metrics_data = args["metrics"]
 
@@ -345,7 +345,7 @@ async def handle_metrics(toolcall: ckit_cloudtool.FCloudtoolCall, args: Dict[str
     doc = {"metrics": metrics_data}
     caller_fuser_id = ckit_external_auth.get_fuser_id_from_rcx(rcx, toolcall.fcall_ft_id)
     path = f"/marketing-experiments/{experiment_id}/metrics"
-    await pdoc_integration.pdoc_write(path, json.dumps(doc, ensure_ascii=False), caller_fuser_id)
+    await pdoc_integration.pdoc_create(path, json.dumps(doc, ensure_ascii=False), caller_fuser_id)
 
     status = await get_pipeline_status(experiment_id)
     return METRICS_RESPONSE_TEMPLATE.format(
@@ -470,7 +470,7 @@ Pipeline status:
 - Completed: {completed}
 - Next step: {next_step}"""
 
-async def handle_segment(toolcall: ckit_cloudtool.FCloudtoolCall, args: Dict[str, Any], rcx, pdoc_integration, get_pipeline_status, check_can_run_agent) -> str:
+async def handle_segment(toolcall: ckit_cloudtool.FCloudtoolCall, args: Dict[str, Any], rcx: ckit_bot_exec.RobotContext, pdoc_integration: fi_pdoc.IntegrationPdoc, get_pipeline_status, check_can_run_agent) -> str:
     experiment_id = args["experiment_id"]
     segment_data = args["segment"]
 
@@ -488,7 +488,7 @@ async def handle_segment(toolcall: ckit_cloudtool.FCloudtoolCall, args: Dict[str
     doc = {"segment": segment_data}
     caller_fuser_id = ckit_external_auth.get_fuser_id_from_rcx(rcx, toolcall.fcall_ft_id)
     path = f"/marketing-experiments/{experiment_id}/segment"
-    await pdoc_integration.pdoc_write(path, json.dumps(doc, ensure_ascii=False), caller_fuser_id)
+    await pdoc_integration.pdoc_create(path, json.dumps(doc, ensure_ascii=False), caller_fuser_id)
 
     status = await get_pipeline_status(experiment_id)
     return SEGMENT_RESPONSE_TEMPLATE.format(
@@ -614,7 +614,7 @@ Pipeline status:
 - Completed: {completed}
 - Next step: {next_step}"""
 
-async def handle_messaging(toolcall: ckit_cloudtool.FCloudtoolCall, args: Dict[str, Any], rcx, pdoc_integration, get_pipeline_status, check_can_run_agent) -> str:
+async def handle_messaging(toolcall: ckit_cloudtool.FCloudtoolCall, args: Dict[str, Any], rcx: ckit_bot_exec.RobotContext, pdoc_integration: fi_pdoc.IntegrationPdoc, get_pipeline_status, check_can_run_agent) -> str:
     experiment_id = args["experiment_id"]
     messaging_data = args["messaging"]
 
@@ -631,7 +631,7 @@ async def handle_messaging(toolcall: ckit_cloudtool.FCloudtoolCall, args: Dict[s
     doc = {"messaging": messaging_data}
     caller_fuser_id = ckit_external_auth.get_fuser_id_from_rcx(rcx, toolcall.fcall_ft_id)
     path = f"/marketing-experiments/{experiment_id}/messaging"
-    await pdoc_integration.pdoc_write(path, json.dumps(doc, ensure_ascii=False), caller_fuser_id)
+    await pdoc_integration.pdoc_create(path, json.dumps(doc, ensure_ascii=False), caller_fuser_id)
 
     status = await get_pipeline_status(experiment_id)
     return MESSAGING_RESPONSE_TEMPLATE.format(
@@ -762,7 +762,7 @@ Pipeline status:
 - Completed: {completed}
 - Next step: {next_step}"""
 
-async def handle_channels(toolcall: ckit_cloudtool.FCloudtoolCall, args: Dict[str, Any], rcx, pdoc_integration, get_pipeline_status, check_can_run_agent) -> str:
+async def handle_channels(toolcall: ckit_cloudtool.FCloudtoolCall, args: Dict[str, Any], rcx: ckit_bot_exec.RobotContext, pdoc_integration: fi_pdoc.IntegrationPdoc, get_pipeline_status, check_can_run_agent) -> str:
     experiment_id = args["experiment_id"]
     channels_data = args["channels"]
 
@@ -780,7 +780,7 @@ async def handle_channels(toolcall: ckit_cloudtool.FCloudtoolCall, args: Dict[st
     doc = {"channels": channels_data}
     caller_fuser_id = ckit_external_auth.get_fuser_id_from_rcx(rcx, toolcall.fcall_ft_id)
     path = f"/marketing-experiments/{experiment_id}/channels"
-    await pdoc_integration.pdoc_write(path, json.dumps(doc, ensure_ascii=False), caller_fuser_id)
+    await pdoc_integration.pdoc_create(path, json.dumps(doc, ensure_ascii=False), caller_fuser_id)
 
     status = await get_pipeline_status(experiment_id)
     return CHANNELS_RESPONSE_TEMPLATE.format(
@@ -926,7 +926,7 @@ Pipeline status:
 - Completed: {completed}
 - Next step: {next_step}"""
 
-async def handle_tactics(toolcall: ckit_cloudtool.FCloudtoolCall, args: Dict[str, Any], rcx, pdoc_integration, get_pipeline_status, check_can_run_agent) -> str:
+async def handle_tactics(toolcall: ckit_cloudtool.FCloudtoolCall, args: Dict[str, Any], rcx: ckit_bot_exec.RobotContext, pdoc_integration: fi_pdoc.IntegrationPdoc, get_pipeline_status, check_can_run_agent) -> str:
     experiment_id = args["experiment_id"]
     tactics_data = args["tactics"]
 
@@ -946,7 +946,7 @@ async def handle_tactics(toolcall: ckit_cloudtool.FCloudtoolCall, args: Dict[str
     doc = {"tactics": tactics_data}
     caller_fuser_id = ckit_external_auth.get_fuser_id_from_rcx(rcx, toolcall.fcall_ft_id)
     path = f"/marketing-experiments/{experiment_id}/tactics"
-    await pdoc_integration.pdoc_write(path, json.dumps(doc, ensure_ascii=False), caller_fuser_id)
+    await pdoc_integration.pdoc_create(path, json.dumps(doc, ensure_ascii=False), caller_fuser_id)
 
     status = await get_pipeline_status(experiment_id)
     return TACTICS_RESPONSE_TEMPLATE.format(
@@ -1089,7 +1089,7 @@ Pipeline status:
 
 {completion_message}"""
 
-async def handle_compliance(toolcall: ckit_cloudtool.FCloudtoolCall, args: Dict[str, Any], rcx, pdoc_integration, get_pipeline_status, check_can_run_agent) -> str:
+async def handle_compliance(toolcall: ckit_cloudtool.FCloudtoolCall, args: Dict[str, Any], rcx: ckit_bot_exec.RobotContext, pdoc_integration: fi_pdoc.IntegrationPdoc, get_pipeline_status, check_can_run_agent) -> str:
     experiment_id = args["experiment_id"]
     compliance_data = args["compliance"]
 
@@ -1109,7 +1109,7 @@ async def handle_compliance(toolcall: ckit_cloudtool.FCloudtoolCall, args: Dict[
     doc = {"compliance": compliance_data}
     caller_fuser_id = ckit_external_auth.get_fuser_id_from_rcx(rcx, toolcall.fcall_ft_id)
     path = f"/marketing-experiments/{experiment_id}/compliance"
-    await pdoc_integration.pdoc_write(path, json.dumps(doc, ensure_ascii=False), caller_fuser_id)
+    await pdoc_integration.pdoc_create(path, json.dumps(doc, ensure_ascii=False), caller_fuser_id)
 
     status = await get_pipeline_status(experiment_id)
     assessment = compliance_data["overall_assessment"]
@@ -1188,17 +1188,16 @@ async def owl2_strategist_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit
     pdoc_integration = fi_pdoc.IntegrationPdoc(rcx, rcx.persona.ws_root_group_id)
     owner_fuser_id = rcx.persona.owner_fuser_id
 
-    async def step_exists(experiment_id: str, step: str) -> bool:
-        try:
-            await pdoc_integration.pdoc_cat(f"/marketing-experiments/{experiment_id}/{step}", owner_fuser_id)
-            return True
-        except Exception:
-            return False
-
     async def get_pipeline_status(experiment_id: str) -> Dict[str, Any]:
+        try:
+            items = await pdoc_integration.pdoc_list(f"/marketing-experiments/{experiment_id}", owner_fuser_id)
+            existing_steps = {item.path.split('/')[-1] for item in items if not item.is_folder}
+        except Exception:
+            existing_steps = set()
+
         completed = []
         for step in PIPELINE:
-            if await step_exists(experiment_id, step):
+            if step in existing_steps:
                 completed.append(step)
             else:
                 break
@@ -1214,7 +1213,8 @@ async def owl2_strategist_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit
         if agent_idx == 0:
             return None
         prev_step = PIPELINE[agent_idx - 1]
-        if not await step_exists(experiment_id, prev_step):
+        status = await get_pipeline_status(experiment_id)
+        if prev_step not in status["completed"]:
             return f"Cannot run {agent} — must complete {prev_step} first. Order: {' → '.join(PIPELINE)}"
         return None
 
