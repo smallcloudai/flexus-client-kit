@@ -55,10 +55,10 @@ CATCH_INSECTS_TOOL = ckit_cloudtool.CloudTool(
 )
 
 # https://platform.openai.com/docs/guides/function-calling
-# Under the hood, strict mode works by leveraging our structured outputs feature and therefore introduces a couple requirements:
-# additionalProperties must be set to false for each object in the parameters.
-# - All fields in properties must be marked as required.
-# - You can denote optional fields by adding null as a type option (see example below).
+# > Under the hood, strict mode works by leveraging our structured outputs feature and therefore introduces a couple requirements:
+# > additionalProperties must be set to false for each object in the parameters.
+# > - All fields in properties must be marked as required.
+# > - You can denote optional fields by adding null as a type option (see example below).
 
 MAKE_POND_REPORT_TOOL = ckit_cloudtool.CloudTool(
     name="make_pond_report",
@@ -189,8 +189,6 @@ async def frog_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.R
         fuser_id = ckit_external_auth.get_fuser_id_from_rcx(rcx, toolcall.fcall_ft_id)
         await pdoc_integration.pdoc_create(path, json.dumps(pond_report_doc), fuser_id)
         return f"✍️ {path}\n\n"
-
-    # [{"id": "call_82159681", "type": "function", "function": {"name": "flexus_policy_document", "arguments": "{\"op\":\"update_json_text\",\"args\":{\"p\":\"/product-ideas/idea001-ejector-bed/idea\",\"json_path\":\"idea.section01-canvas.question01-facts.c\",\"text\":\"PASS\"}}"}}]
 
     @rcx.on_tool_call(fi_mongo_store.MONGO_STORE_TOOL.name)
     async def toolcall_mongo_store(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
