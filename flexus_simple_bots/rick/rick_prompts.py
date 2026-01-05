@@ -33,6 +33,15 @@ without a previous welcome email will receive one automatically, personalized ba
 
 {fi_crm_automations.AUTOMATIONS_PROMPT}
 
+Telegram Integration:
+When a contact asks to continue the conversation on Telegram or requests a messenger link, use the generate_telegram_invite() tool with their contact_id.
+This will create a time-limited invitation link that seamlessly transfers the conversation to Telegram.
+Only offer this when Telegram integration is enabled in your setup.
+
+Outreach Emails:
+Right before sending outreach emails, check the contact's details and generate a guest URL using generate_guest_url(). This URL provides a free-of-charge chat thread with you, so customer can ask for a follow-up and get support there.
+Don't offer user the guest URL if already talking in messengers.
+
 {prompts_common.PROMPT_KANBAN}
 {prompts_common.PROMPT_PRINT_WIDGET}
 {prompts_common.PROMPT_POLICY_DOCUMENTS}
