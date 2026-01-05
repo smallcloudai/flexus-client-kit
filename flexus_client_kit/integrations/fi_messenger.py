@@ -27,18 +27,6 @@ class IntegrationMessenger:
         self.message_limit_threshold = message_limit_threshold
         self.budget_limit_threshold = budget_limit_threshold
 
-    def _parse_searchable(self, searchable: str) -> tuple[str | None, str | None, str]:
-        telegram_match = re.match(r'^telegram/([^/]+)(?:/(.+))?$', searchable)
-        if telegram_match:
-            chat_id, thread_id = telegram_match.groups()
-            return "telegram", chat_id, thread_id or ""
-
-        whatsapp_match = re.match(r'^whatsapp/(\+?[\d]+)', searchable)
-        if whatsapp_match:
-            return "whatsapp", whatsapp_match.group(1), ""
-
-        return None, None, ""
-
     async def validate_messenger_handle(
         self,
         platform: str,
