@@ -181,7 +181,6 @@ async def call_python_function_and_save_result(
         args = json.loads(call.fcall_arguments)
         res = await the_python_function(fclient, call, args)
         content, prov, dollars = res if len(res) == 3 else (*res, 0)
-        # NOTE: here we have 3 allowed variants for output
         # 1. (str, str) - immediate answer from handler
         # 2. (None, None) - delayed cloudtool_post_result
         assert ((isinstance(content, str) and isinstance(prov, str)) or (content is None and prov is None)) and dollars >= 0
