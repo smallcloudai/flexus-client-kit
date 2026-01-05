@@ -61,8 +61,8 @@ async def install(
         marketable_run_this="python -m flexus_simple_bots.rick.rick_bot",
         marketable_setup_default=rick_setup_schema,
         marketable_featured_actions=[
-            {"feat_question": "Check CRM status and help me set up welcome emails", "feat_run_as_setup": False, "feat_depends_on_setup": []},
-            {"feat_question": "Show me recent contacts and their email status", "feat_run_as_setup": False, "feat_depends_on_setup": []},
+            {"feat_question": "Help me send contacts from my landing page to Flexus", "feat_run_as_setup": False, "feat_depends_on_setup": []},
+            {"feat_question": "Help me set up welcome emails to new contacts", "feat_run_as_setup": False, "feat_depends_on_setup": []},
         ],
         marketable_intro_message="Hi! I'm Rick, the Deal King. I monitor your CRM and automatically send personalized welcome emails to new contacts. How can I help you today?",
         marketable_preferred_model_default="grok-4-1-fast-non-reasoning",
