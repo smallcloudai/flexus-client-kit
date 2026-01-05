@@ -124,7 +124,7 @@ async def edoc_create(
     edoc_title: str,
     edoc_size_bytes: int,
     edoc_icon: Optional[str] = None,
-) -> bool:
+) -> FEdocOutput:
     if not edoc_icon:
         ext = edoc_title.split(".")[-1].lower() if "." in edoc_title else ""
         edoc_icon = _EXT_ICONS.get(ext, "📎")
@@ -145,16 +145,18 @@ async def edoc_create(
     async with http_client as http:
         result = await http.execute(
             gql.gql(
-                """mutation EdocUpsert($p: FEdocInput!) {
-                    edoc_upsert(p: $p)
-                }""",
+                f"""mutation EdocUpsert($p: FEdocInput!) {{
+                    edoc_upsert(p: $p) {{
+                        {gql_utils.gql_fields(FEdocOutput)}
+                    }}
+                }}""",
             ),
             variable_values={
                 "p": payload,
             },
         )
     logger.info("edoc_create: %s", edoc_title)
-    return result["edoc_upsert"]
+    return gql_utils.dataclass_from_dict(result["edoc_upsert"], FEdocOutput)
 
 async def edoc_patch(
     client: ckit_client.FlexusClient,
@@ -178,21 +180,23 @@ async def edoc_patch(
 async def edoc_upsert(
     client: ckit_client.FlexusClient,
     p: Dict[str, Any]
-) -> bool:
+) -> FEdocOutput:
     http_client = await client.use_http()
     async with http_client as http:
         result = await http.execute(
             gql.gql(
-                """mutation EdocUpsert($p: FEdocInput!) {
-                    edoc_upsert(p: $p)
-                }""",
+                f"""mutation EdocUpsert($p: FEdocInput!) {{
+                    edoc_upsert(p: $p) {{
+                        {gql_utils.gql_fields(FEdocOutput)}
+                    }}
+                }}""",
             ),
             variable_values={
                 "p": p
             }
         )
     logger.debug("edoc_upsert %s with %s", p["edoc_id"], {k: v for k, v in p.items()})
-    return result["edoc_upsert"]
+    return gql_utils.dataclass_from_dict(result["edoc_upsert"], FEdocOutput)
 
 async def subscribe_to_eds_types(
     ws_client,
