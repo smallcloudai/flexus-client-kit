@@ -105,8 +105,8 @@ async def handle_mongo_store(
             return f"Error: {path_error}"
         documents = await ckit_mongo.mongo_ls(mongo_collection, path)
         if not documents:
-            return f"No files found with prefix: {path}"
-        result = f"Found {len(documents)} files with prefix '{path}':\n"
+            return f"No files found with prefix: {path!r}"
+        result = f"Found {len(documents)} files with prefix {path!r}:\n"
         for doc in documents:
             file_path = doc["path"]
             size = doc["mon_size"]
