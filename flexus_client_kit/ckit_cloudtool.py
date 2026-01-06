@@ -210,7 +210,8 @@ async def call_python_function_and_save_result(
         logger.warning("error processing call %s %s:%03d:%03d %+d: %s %s" % (call.fcall_id, call.fcall_ft_id, call.fcall_ftm_alt, call.fcall_called_ftm_num, call.fcall_call_n, type(e).__name__, e), exc_info=e)
         content, prov = json.dumps(f"{type(e).__name__} {e}"), json.dumps({"system": service_name})
     if result is not None:
-        await cloudtool_post_result(fclient, call.fcall_id, call.fcall_untrusted_key, result, prov, dollars)
+        serialized_result = content if isinstance(content, str) else result.to_serialized()
+        await cloudtool_post_result(fclient, call.fcall_id, call.fcall_untrusted_key, serialized_result, prov, dollars)
 
 
 async def cloudtool_post_result(fclient: ckit_client.FlexusClient, fcall_id: str, fcall_untrusted_key: str, content: str, prov: str, dollars: float = 0.0, as_placeholder: bool = False):
