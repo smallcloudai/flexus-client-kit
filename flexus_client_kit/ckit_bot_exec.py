@@ -228,9 +228,9 @@ class RobotContext:
                 raise ValueError("Tool call handler must return a string or list, got instead: %r" % (tool_result,))
             if tool_result == "":
                 logger.warning("Tool call %s returned an empty string. Bad practice, model will not know what's happening!" % toolcall.fcall_name)
-        except json.JSONDecodeError:
+        except json.JSONDecodeError as e:
             # nothing in logs -- normal for a model to produce garbage on occasion
-            tool_result = "Arguments expected to be a valid json, instead got: %r" % args
+            tool_result = "Arguments expected to be a valid json, problem: %s" % e
         except ckit_cloudtool.WaitForSubchats as e:
             tool_result = "WAIT_SUBCHATS"
             subchats_list = e.subchats
