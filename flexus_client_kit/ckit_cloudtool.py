@@ -173,17 +173,19 @@ def try_best_to_find_argument(args: dict, args_dict_from_model: Any, param_name:
 
 async def call_python_function_and_save_result(
     call: FCloudtoolCall,
-    the_python_function: Callable[[ckit_client.FlexusClient, FCloudtoolCall, Any], Awaitable[Tuple[str, str] | Tuple[None, None]]],
+    the_python_function: Callable[[ckit_client.FlexusClient, FCloudtoolCall, Any], Awaitable[Tuple[str | ToolResult, str] | Tuple[None, None]]],
     service_name: str,
     fclient: ckit_client.FlexusClient,
 ) -> None:
     try:
         args = json.loads(call.fcall_arguments)
-        res = await the_python_function(fclient, call, args)
-        content, prov, dollars = res if len(res) == 3 else (*res, 0)
-        # 1. (str, str) - immediate answer from handler
+        result, prov = await the_python_function(fclient, call, args)
+        # NOTE: here we have 2 allowed variants for output
+        # 1. (str | ToolResult, str) - immediate answer from handler
         # 2. (None, None) - delayed cloudtool_post_result
-        assert ((isinstance(content, str) and isinstance(prov, str)) or (content is None and prov is None)) and dollars >= 0
+        assert (isinstance(result, (str, ToolResult)) and isinstance(prov, str)) or (result is None and prov is None)
+        content = result.content if isinstance(result, ToolResult) else result
+        dollars = result.dollars if isinstance(result, ToolResult) else 0.0
         logger.info("/%s %s:%03d:%03d %+d result=%s", call.fcall_id, call.fcall_ft_id, call.fcall_ftm_alt, call.fcall_called_ftm_num, call.fcall_call_n, content[:30] if content is not None else "delayed")
     except AlreadyFakedResult:
         logger.info("/%s fake %s:%03d:%03d %+d", call.fcall_id, call.fcall_ft_id, call.fcall_ftm_alt, call.fcall_called_ftm_num, call.fcall_call_n)
