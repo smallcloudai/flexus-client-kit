@@ -1,6 +1,6 @@
 # Flexus Bot Reference
 
-**Canonical example**: `flexus_simple_bots/frog/` — read `frog_bot.py`, `frog_prompts.py`, `frog_install.py` for working code.
+**Canonical example**: `flexus_client_kit/flexus_simple_bots/frog/` — read `frog_bot.py`, `frog_prompts.py`, `frog_install.py` for working code.
 
 ---
 
@@ -175,58 +175,112 @@ LLM generates tool_call in assistant message
 ## Common Bot Patterns
 
 ### Pattern 1: Basic Bot (frog)
-Simple tools + policy documents + MongoDB storage.
-- Custom `CloudTool` definitions with handlers
-- `fi_pdoc.IntegrationPdoc` for documents
-- `fi_mongo_store` for personal storage
-- Single or dual experts (default + subchat skill)
+Simple tools + policy documents + MongoDB storage + ERP subscription.
+```python
+TOOLS = [CUSTOM_TOOL, fi_mongo_store.MONGO_STORE_TOOL, fi_pdoc.POLICY_DOCUMENT_TOOL]
+# ERP subscription (optional): subscribe_to_erp_tables=["crm_contact"]
+@rcx.on_erp_change("crm_contact")
+async def on_change(action, new_record, old_record): ...
+```
 
 ### Pattern 2: Messenger Bot (karen)
 Reactive listener for Slack/Discord → kanban inbox.
-```
-1. Initialize integrations with tokens from setup
-2. Set activity callbacks that post to kanban inbox
-3. Call join_channels() and start_reactive()
-4. In @on_updated_message, call look_assistant_might_have_posted_something()
-5. Clean shutdown: await integration.close() in finally block
-```
-Key: `fi_slack.IntegrationSlack`, `fi_discord2.IntegrationDiscord`
-
-### Pattern 3: Subchat-Heavy Bot (lawyerrat)
-Tools that delegate complex work to subchats.
 ```python
-@rcx.on_tool_call(MY_COMPLEX_TOOL.name)
+slack = fi_slack.IntegrationSlack(fclient, rcx, SLACK_BOT_TOKEN=..., SLACK_APP_TOKEN=...)
+slack.set_activity_callback(lambda a, posted: ckit_kanban.bot_kanban_post_into_inbox(...))
+await slack.join_channels(); await slack.start_reactive()
+# In @on_updated_message: await slack.look_assistant_might_have_posted_something(msg)
+# In finally: await slack.close()
+```
+
+### Pattern 3: Subchat-Delegating Bot (lawyerrat, productman)
+Tools that delegate to subchats with same or different skill.
+```python
+@rcx.on_tool_call("complex_task")
 async def handle(toolcall, args):
-    prompt = f"Do complex work with {args}"
     subchats = await ckit_ask_model.bot_subchat_create_multiple(
-        client=fclient,
-        who_is_asking="my_bot_subtask",
-        persona_id=rcx.persona.persona_id,
-        first_question=[prompt],
-        first_calls=["null"],
-        title=["Subtask"],
-        fcall_id=toolcall.fcall_id,
-        skill="default",  # or separate subchat expert
-    )
+        client=fclient, who_is_asking="bot_subtask", persona_id=rcx.persona.persona_id,
+        first_question=[prompt], first_calls=["null"], title=["Task"],
+        fcall_id=toolcall.fcall_id, skill="default")  # or skill="criticize_idea"
     raise ckit_cloudtool.WaitForSubchats(subchats)
 ```
 
-### Pattern 4: Background Loop Bot (adspy, diplodocus)
-Continuous monitoring/scraping with kanban alerts.
-```
-1. Start background task for monitoring (e.g., scrape ads, watch logs)
-2. Deduplicate events (Jaccard similarity)
-3. Post deduplicated alerts to kanban inbox
-4. Throttle alerts (e.g., ERROR/6h, WARNING/24h)
-5. Store state in MongoDB with TTL indexes
+### Pattern 4: Pipeline Bot (owl_strategist)
+Sequential steps with dependency-enforced subchats, each step = separate expert.
+```python
+AGENT_REQUIRED_DOCS = {"diagnostic": ["input"], "metrics": ["input", "diagnostic"], ...}
+@rcx.on_tool_call("run_agent")
+async def handle(toolcall, args):
+    agent = args["agent"]  # e.g., "diagnostic"
+    if not step_exists(experiment_id, AGENT_REQUIRED_DOCS[agent]):
+        return "Missing prerequisite"
+    context = load_prior_docs(experiment_id, AGENT_REQUIRED_DOCS[agent])
+    subchats = await ckit_ask_model.bot_subchat_create_multiple(..., skill=agent)
+    raise ckit_cloudtool.WaitForSubchats(subchats)
+# Subchat kernel detects "AGENT_COMPLETE" → sets subchat_result
 ```
 
-### Pattern 5: Dev/Meta Bot (bob)
-Bot that creates/manages other bots.
-- Dev container management (K8s)
-- GitHub integration (clone, commit, PR)
-- Claude delegation for coding tasks
-- Multi-mode widget (default/setup/botmaker)
+### Pattern 5: Background Polling Bot (productman surveys)
+Periodic updates in main loop for external API state.
+```python
+last_update, interval = 0, 60
+while not ckit_shutdown.shutdown_event.is_set():
+    await rcx.unpark_collected_events(sleep_if_no_work=10.0)
+    if time.time() - last_update > interval:
+        await integration.update_active_surveys(); last_update = time.time()
+```
+
+### Pattern 6: Management Bot (boss)
+Cross-bot coordination with A2A resolution and colleague setup.
+```python
+# A2A resolution tool - approve/reject tasks from other bots
+BOSS_A2A_RESOLUTION_TOOL = CloudTool(name="boss_a2a_resolution",
+    parameters={"task_id": str, "resolution": ["approve","reject","rework"], "comment": str})
+# Thread viewer - see context of handed-over tasks
+THREAD_MESSAGES_PRINTED_TOOL = CloudTool(name="thread_messages_printed",
+    parameters={"a2a_task_id": str, "ft_id": str})
+# Confirmation for dangerous actions
+if not toolcall.confirmed_by_human:
+    raise ckit_cloudtool.NeedsConfirmation(confirm_setup_key="allow_...", ...)
+```
+
+### Expert Organization by Bot
+
+| Bot | Experts | Purpose |
+|-----|---------|---------|
+| frog | `default`, `huntmode` | `huntmode` for parallel subchat (returns immediately) |
+| karen | `default`, `setup` | `setup` for configuration help |
+| boss | `default`, `setup` | `setup` for explaining capabilities |
+| productman | `default`, `criticize_idea`, `survey` | Different tools per skill |
+| owl_strategist | `default` + 7 pipeline skills | Each step: unique prompt + kernel |
+
+### Lark Kernel Recipes
+
+**Budget Warning** (karen):
+```python
+if coins > budget * 0.5 and not messages[-1]["tool_calls"]:
+    if "warning_text" not in str(messages):
+        post_cd_instruction = "💿 Token budget running low. Wrap up..."
+```
+
+**Immediate Subchat Return** (frog huntmode):
+```python
+subchat_result = "Insect!"  # Returns immediately, no LLM call needed
+```
+
+**Marker Detection** (productman criticize_idea):
+```python
+if "RATING-COMPLETED" in str(messages[-1]["content"]):
+    subchat_result = "Read the file using flexus_policy_document..."
+elif len(messages[-1].get("tool_calls", [])) == 0:
+    post_cd_instruction = "Follow system prompt, end with RATING-COMPLETED"
+```
+
+**Safety Injection** (lawyerrat):
+```python
+if "malpractice" in str(messages[-1]["content"]).lower():
+    post_cd_instruction = "Include appropriate disclaimers!"
+```
 
 ---
 
@@ -274,17 +328,33 @@ Every tool in `TOOLS` list must have `@rcx.on_tool_call(TOOL.name)` handler. See
 
 Different experts = different system prompt + kernel + tool filters. Must include `"default"` expert.
 
-See `frog_install.py` for multi-expert example with `"huntmode"` subchat skill.
-
-**Key fields**:
+**Key fields** (`FMarketplaceExpertInput`):
 - `fexp_system_prompt` - LLM system prompt
-- `fexp_python_kernel` - Lark script (runs on backend)
-- `fexp_block_tools` / `fexp_allow_tools` - Glob patterns (mutually exclusive)
-- `fexp_app_capture_tools` - JSON of inprocess tools
+- `fexp_python_kernel` - Lark script (runs on backend before/after LLM)
+- `fexp_block_tools` / `fexp_allow_tools` - Glob patterns for cloudtools (mutually exclusive)
+- `fexp_app_capture_tools` - JSON of inprocess tools (different tools per skill!)
+- `fexp_inactivity_timeout` - Seconds before inactivity warning (e.g., 600)
+
+**Different tools per skill** (productman pattern):
+```python
+TOOLS_DEFAULT = [IDEA_TEMPLATE_TOOL, HYPOTHESIS_TEMPLATE_TOOL, VERIFY_IDEA_TOOL, fi_pdoc.POLICY_DOCUMENT_TOOL]
+TOOLS_SURVEY = [survey_research.SURVEY_RESEARCH_TOOL, fi_pdoc.POLICY_DOCUMENT_TOOL]
+TOOLS_VERIFY_SUBCHAT = [fi_pdoc.POLICY_DOCUMENT_TOOL]  # Minimal toolset for focused work
+
+marketable_experts=[
+    ("default", FMarketplaceExpertInput(fexp_app_capture_tools=json.dumps([t.openai_style_tool() for t in TOOLS_DEFAULT]), ...)),
+    ("criticize_idea", FMarketplaceExpertInput(fexp_app_capture_tools=json.dumps([t.openai_style_tool() for t in TOOLS_VERIFY_SUBCHAT]), ...)),
+    ("survey", FMarketplaceExpertInput(fexp_app_capture_tools=json.dumps([t.openai_style_tool() for t in TOOLS_SURVEY]), ...)),
+]
+```
 
 ### Subchats
 Use `ckit_ask_model.bot_subchat_create_multiple()` + `raise ckit_cloudtool.WaitForSubchats(subchats)`.
-Subchat expert kernel **must** set `subchat_result` to complete. See `frog_bot.py:166-176`.
+
+**Critical**: Subchat expert kernel **must** set `subchat_result` to complete. Options:
+1. **Immediate return**: `subchat_result = "Done"` (no LLM call, frog huntmode)
+2. **Marker detection**: Check for "AGENT_COMPLETE" in assistant content (owl_strategist)
+3. **Default behavior**: Let LLM run, kernel returns result when done
 
 ---
 
@@ -412,6 +482,35 @@ await discord.start_reactive()
 
 ---
 
+## Custom Forms
+
+Forms provide custom HTML editors for policy documents instead of JSON editor.
+
+**Setup**:
+```python
+# In install.py:
+marketable_forms=ckit_bot_install.load_form_bundles(__file__)
+
+# Directory structure:
+mybot/
+  forms/
+    pond_report.html  # For docs with {"pond_report": {"meta": {...}, ...}}
+```
+
+Form filename must match the top-level key containing a `meta` object.
+
+**Protocol** (iframe ↔ parent):
+- Parent → Form: `INIT` (content, themeCss), `CONTENT_UPDATE`, `FOCUS`
+- Form → Parent: `FORM_READY`, `FORM_CONTENT_CHANGED` (content)
+
+**Theme CSS variables** (auto-injected, use these not hardcoded colors):
+- `--p-primary-contrast-color` (paper bg), `--p-primary-color` (paper text)
+- `--p-content-hover-background` (desk/input bg), `--p-text-muted-color` (muted)
+
+See `frog/forms/pond_report.html` for complete example.
+
+---
+
 ## Testing
 
 1. **Syntax**: `python -m py_compile mybot_bot.py mybot_prompts.py mybot_install.py`
@@ -438,12 +537,10 @@ await discord.start_reactive()
 ## Environment
 
 ```bash
-export FLEXUS_API_BASEURL=http://127.0.0.1:8008
-export FLEXUS_API_KEY=sk_alice_123456
-export FLEXUS_WORKSPACE=solarsystem
+export FLEXUS_API_BASEURL=https://staging.flexus.team/
+export FLEXUS_API_KEY=...
+export FLEXUS_WORKSPACE=WnOQwTD2yL
 ```
-
-**From minikube dev pods**: Use `FLEXUS_API_BASEURL=http://192.168.49.1:8008` (minikube host gateway). Backend must bind to `0.0.0.0:8008` or use `socat TCP-LISTEN:8008,bind=192.168.49.1,fork TCP:127.0.0.1:8008`.
 
 ---
 
