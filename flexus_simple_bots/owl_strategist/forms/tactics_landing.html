@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Landing Page Dashboard</title>
+  <style id="theme-css"></style>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    
+    :root {
+      --bg-primary: #0d1117;
+      --bg-secondary: #161b22;
+      --bg-card: #21262d;
+      --bg-hover: #30363d;
+      --text-primary: #e6edf3;
+      --text-secondary: #8b949e;
+      --text-muted: #6e7681;
+      --border-color: #30363d;
+      --accent-blue: #58a6ff;
+      --accent-green: #3fb950;
+      --accent-orange: #d29922;
+      --accent-red: #f85149;
+      --accent-purple: #a371f7;
+      --accent-pink: #db61a2;
+      --accent-cyan: #39c5cf;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      line-height: 1.5;
+      padding: 0;
+      min-height: 100vh;
+    }
+    
+    .dashboard { max-width: 100%; padding: 1.5rem; }
+    
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 2rem;
+      padding-bottom: 1rem;
+      border-bottom: 1px solid var(--border-color);
+    }
+    
+    .header h1 {
+      font-size: 1.5rem;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+    
+    .header .icon { font-size: 1.75rem; }
+    
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      padding: 0.25rem 0.75rem;
+      border-radius: 20px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      background: rgba(57, 197, 207, 0.15);
+      color: var(--accent-cyan);
+    }
+    
+    .goal-card {
+      background: linear-gradient(135deg, rgba(57, 197, 207, 0.1) 0%, rgba(88, 166, 255, 0.1) 100%);
+      border: 1px solid var(--accent-cyan);
+      border-radius: 12px;
+      padding: 1.25rem 1.5rem;
+      margin-bottom: 2rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    
+    .goal-card .label {
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    
+    .goal-card .value {
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: var(--accent-cyan);
+      margin-top: 0.25rem;
+    }
+    
+    .goal-icon {
+      font-size: 2.5rem;
+      opacity: 0.8;
+    }
+    
+    .section { margin-bottom: 2rem; }
+    
+    .section-title {
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    
+    .landing-preview {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      overflow: hidden;
+      max-width: 600px;
+    }
+    
+    .landing-browser-bar {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.75rem 1rem;
+      background: var(--bg-card);
+      border-bottom: 1px solid var(--border-color);
+    }
+    
+    .browser-dots {
+      display: flex;
+      gap: 0.35rem;
+    }
+    
+    .browser-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+    }
+    
+    .browser-dot.red { background: #ff5f57; }
+    .browser-dot.yellow { background: #febc2e; }
+    .browser-dot.green { background: #28c840; }
+    
+    .browser-url {
+      flex: 1;
+      margin-left: 0.75rem;
+      padding: 0.35rem 0.75rem;
+      background: var(--bg-hover);
+      border-radius: 6px;
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      font-family: 'SF Mono', Monaco, monospace;
+    }
+    
+    .landing-block {
+      padding: 1.25rem 1.5rem;
+      border-bottom: 1px solid var(--border-color);
+      position: relative;
+    }
+    
+    .landing-block:last-child { border-bottom: none; }
+    
+    .block-label {
+      position: absolute;
+      top: 0.5rem;
+      right: 0.75rem;
+      font-size: 0.65rem;
+      font-weight: 600;
+      color: var(--accent-purple);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      padding: 0.2rem 0.5rem;
+      background: rgba(163, 113, 247, 0.15);
+      border-radius: 4px;
+    }
+    
+    .landing-block.hero {
+      background: linear-gradient(135deg, rgba(88, 166, 255, 0.1) 0%, rgba(163, 113, 247, 0.1) 100%);
+      padding: 2rem 1.5rem;
+      text-align: center;
+    }
+    
+    .landing-block.hero .headline {
+      font-size: 1.5rem;
+      font-weight: 800;
+      margin-bottom: 0.5rem;
+      color: var(--text-primary);
+      line-height: 1.3;
+    }
+    
+    .landing-block.hero .subheadline {
+      color: var(--text-secondary);
+      font-size: 1rem;
+    }
+    
+    .landing-block.problem {
+      background: rgba(248, 81, 73, 0.05);
+      border-left: 3px solid var(--accent-red);
+    }
+    
+    .landing-block.solution {
+      background: rgba(59, 185, 80, 0.05);
+      border-left: 3px solid var(--accent-green);
+    }
+    
+    .landing-block.how_it_works {
+      background: rgba(88, 166, 255, 0.05);
+    }
+    
+    .landing-block .block-title {
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 0.5rem;
+    }
+    
+    .landing-block .block-content {
+      font-size: 0.9rem;
+      color: var(--text-secondary);
+      line-height: 1.6;
+    }
+    
+    .steps-list {
+      margin: 0.75rem 0 0 1.5rem;
+    }
+    
+    .steps-list li {
+      margin-bottom: 0.5rem;
+      color: var(--text-secondary);
+      font-size: 0.9rem;
+    }
+    
+    .steps-list li::marker {
+      color: var(--accent-blue);
+      font-weight: 600;
+    }
+    
+    .landing-block.social_proof {
+      background: rgba(210, 153, 34, 0.05);
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+    
+    .social-icon {
+      font-size: 1.5rem;
+    }
+    
+    .landing-block.cta {
+      background: var(--bg-card);
+      text-align: center;
+      padding: 1.5rem;
+    }
+    
+    .landing-block.cta .cta-text {
+      color: var(--text-secondary);
+      font-size: 0.9rem;
+      margin-bottom: 0.75rem;
+    }
+    
+    .cta-button {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.85rem 1.75rem;
+      background: var(--accent-green);
+      color: white;
+      border-radius: 8px;
+      font-weight: 700;
+      font-size: 1rem;
+      box-shadow: 0 4px 12px rgba(59, 185, 80, 0.3);
+    }
+    
+    .reasoning-card {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 1.25rem;
+      margin-top: 1.5rem;
+    }
+    
+    .reasoning-card h4 {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--accent-purple);
+      margin-bottom: 0.75rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    
+    .reasoning-card .content {
+      color: var(--text-secondary);
+      line-height: 1.7;
+      font-size: 0.9rem;
+    }
+    
+    .variants-section {
+      margin-top: 2rem;
+    }
+    
+    .variants-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 1rem;
+    }
+    
+    .variant-card {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 1.25rem;
+      text-align: center;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    
+    .variant-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+    }
+    
+    .variant-id {
+      font-size: 1.5rem;
+      font-weight: 800;
+      color: var(--accent-blue);
+      margin-bottom: 0.5rem;
+    }
+    
+    .variant-focus {
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+      padding: 0.35rem 0.75rem;
+      background: var(--bg-hover);
+      border-radius: 20px;
+      display: inline-block;
+    }
+    
+    .empty-state {
+      text-align: center;
+      padding: 3rem;
+      color: var(--text-secondary);
+    }
+    
+    .empty-state .icon { font-size: 3rem; margin-bottom: 1rem; }
+  </style>
+</head>
+<body>
+  <div id="app" class="dashboard">
+    <div class="empty-state">
+      <div class="icon">🏠</div>
+      <p>Loading landing page...</p>
+    </div>
+  </div>
+
+  <script>
+    const FormBridge = {
+      listeners: {},
+      init(formId) {
+        window.addEventListener('message', (event) => {
+          if (event.data && event.data.type) {
+            const handler = this.listeners[event.data.type];
+            if (handler) handler(event.data);
+          }
+        });
+        this.send('FORM_READY', { formId });
+      },
+      on(type, callback) { this.listeners[type] = callback; },
+      send(type, payload) { window.parent.postMessage({ type, ...payload }, '*'); }
+    };
+
+    let data = null;
+
+    function extract(content) {
+      if (!content) return {};
+      if (content.tactics_landing && typeof content.tactics_landing === 'object') {
+        return content.tactics_landing;
+      }
+      return content;
+    }
+
+    FormBridge.on('INIT', d => {
+      data = extract(d.content);
+      if (d.themeCss) document.getElementById('theme-css').textContent = d.themeCss;
+      render();
+    });
+
+    FormBridge.on('CONTENT_UPDATE', d => {
+      data = extract(d.content);
+      render();
+    });
+
+    FormBridge.init('tactics-landing-dashboard');
+
+    function getGoalIcon(goal) {
+      const icons = {
+        waitlist_signup: '📋',
+        lead_gen: '📧',
+        purchase: '💳',
+        signup: '👤',
+        demo: '🎥',
+        download: '⬇️'
+      };
+      return icons[goal] || '🎯';
+    }
+
+    function render() {
+      const app = document.getElementById('app');
+      
+      if (!data || Object.keys(data).length === 0) {
+        app.innerHTML = `<div class="empty-state"><div class="icon">🏠</div><p>No landing page data available</p></div>`;
+        return;
+      }
+
+      const landing = data.landing || {};
+      const structure = landing.structure || [];
+      const variants = landing.variants || [];
+      const reasoning = landing.landing_reasoning || '';
+      const goal = landing.primary_goal || 'conversion';
+      
+      app.innerHTML = `
+        <div class="header">
+          <h1><span class="icon">🏠</span>Landing Page</h1>
+          <span class="badge">${structure.length} blocks</span>
+        </div>
+
+        <div class="goal-card">
+          <div>
+            <div class="label">Primary Goal</div>
+            <div class="value">${goal.replace(/_/g, ' ')}</div>
+          </div>
+          <div class="goal-icon">${getGoalIcon(goal)}</div>
+        </div>
+
+        <div class="section">
+          <div class="section-title">📱 Page Structure</div>
+          <div class="landing-preview">
+            <div class="landing-browser-bar">
+              <div class="browser-dots">
+                <div class="browser-dot red"></div>
+                <div class="browser-dot yellow"></div>
+                <div class="browser-dot green"></div>
+              </div>
+              <div class="browser-url">yourproduct.com/landing</div>
+            </div>
+            ${structure.map(block => renderBlock(block)).join('')}
+          </div>
+          
+          ${reasoning ? `
+            <div class="reasoning-card">
+              <h4>🧠 Conversion Strategy</h4>
+              <div class="content">${reasoning}</div>
+            </div>
+          ` : ''}
+        </div>
+
+        ${variants.length > 0 ? `
+          <div class="variants-section">
+            <div class="section-title">🔀 A/B Test Variants</div>
+            <div class="variants-grid">
+              ${variants.map(v => `
+                <div class="variant-card">
+                  <div class="variant-id">${v.variant_id}</div>
+                  <div class="variant-focus">${v.focus}</div>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        ` : ''}
+      `;
+    }
+
+    function renderBlock(block) {
+      const type = block.block || 'content';
+      
+      if (type === 'hero') {
+        return `
+          <div class="landing-block hero">
+            <span class="block-label">Hero</span>
+            <div class="headline">${block.headline || ''}</div>
+            <div class="subheadline">${block.subheadline || ''}</div>
+          </div>
+        `;
+      }
+      
+      if (type === 'cta') {
+        return `
+          <div class="landing-block cta">
+            <span class="block-label">CTA</span>
+            ${block.text ? `<div class="cta-text">${block.text}</div>` : ''}
+            <div class="cta-button">${block.button || 'Get Started'} →</div>
+          </div>
+        `;
+      }
+      
+      if (type === 'how_it_works') {
+        return `
+          <div class="landing-block how_it_works">
+            <span class="block-label">How It Works</span>
+            <div class="block-title">How It Works</div>
+            <ol class="steps-list">
+              ${(block.steps || []).map(s => `<li>${s}</li>`).join('')}
+            </ol>
+          </div>
+        `;
+      }
+      
+      if (type === 'social_proof') {
+        return `
+          <div class="landing-block social_proof">
+            <span class="block-label">Social Proof</span>
+            <span class="social-icon">⭐</span>
+            <div class="block-content">${block.content || ''}</div>
+          </div>
+        `;
+      }
+      
+      if (type === 'problem') {
+        return `
+          <div class="landing-block problem">
+            <span class="block-label">Problem</span>
+            <div class="block-title">😓 The Problem</div>
+            <div class="block-content">${block.content || ''}</div>
+          </div>
+        `;
+      }
+      
+      if (type === 'solution') {
+        return `
+          <div class="landing-block solution">
+            <span class="block-label">Solution</span>
+            <div class="block-title">✨ The Solution</div>
+            <div class="block-content">${block.content || ''}</div>
+          </div>
+        `;
+      }
+      
+      return `
+        <div class="landing-block">
+          <span class="block-label">${type}</span>
+          <div class="block-content">${block.content || block.headline || ''}</div>
+        </div>
+      `;
+    }
+  </script>
+</body>
+</html>
+
+
+

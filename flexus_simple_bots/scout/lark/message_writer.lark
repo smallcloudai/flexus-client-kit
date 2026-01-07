@@ -1,0 +1,33 @@
+# Message Writer Lark Kernel
+# Returns personalized message when MESSAGE-READY is found
+
+print("Message writer kernel running, %d messages" % len(messages))
+
+last_msg = None
+for m in messages[::-1]:
+    if m.get("role") == "assistant":
+        last_msg = m
+        break
+
+if last_msg:
+    content = str(last_msg.get("content", ""))
+    
+    if "MESSAGE-READY" in content:
+        print("Message completed successfully")
+        subchat_result = content
+    
+    elif "MESSAGE-ERROR" in content:
+        print("Message creation failed")
+        subchat_result = content
+    
+    elif len(last_msg.get("tool_calls", [])) == 0:
+        # Check if message has the required fields
+        has_subject = "subject:" in content.lower() or "subject :" in content.lower()
+        has_message = "main_message:" in content.lower() or "main_message :" in content.lower()
+        
+        if not (has_subject and has_message):
+            post_cd_instruction = "Output the message with subject: and main_message: fields, then say MESSAGE-READY"
+
+
+
+

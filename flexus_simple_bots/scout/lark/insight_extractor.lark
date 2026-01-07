@@ -1,0 +1,34 @@
+# Insight Extractor Lark Kernel
+# Returns structured insights when INSIGHTS-READY is found
+
+print("Insight extractor kernel running, %d messages" % len(messages))
+
+last_msg = None
+for m in messages[::-1]:
+    if m.get("role") == "assistant":
+        last_msg = m
+        break
+
+if last_msg:
+    content = str(last_msg.get("content", ""))
+    
+    if "INSIGHTS-READY" in content:
+        print("Insights extracted successfully")
+        subchat_result = content
+    
+    elif "INSIGHTS-INSUFFICIENT" in content:
+        print("Not enough data for insights")
+        subchat_result = content
+    
+    elif "INSIGHTS-ERROR" in content:
+        print("Insight extraction failed")
+        subchat_result = content
+    
+    elif len(last_msg.get("tool_calls", [])) == 0:
+        # Check if insights JSON is present
+        if "```json" not in content.lower():
+            post_cd_instruction = "Output insights as JSON in a code block, then say INSIGHTS-READY"
+
+
+
+
