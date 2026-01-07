@@ -6,7 +6,7 @@ setup(
     packages=find_packages(),
     include_package_data=True,
     package_data={
-        "": ["*.json", "*.lark"],
+        "": ["*.json", "*.lark", "*.webp", "*.png", "*.jpg", "*.html"],
     },
     install_requires=[
         "gql",
