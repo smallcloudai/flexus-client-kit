@@ -1,20 +1,12 @@
 from flexus_simple_bots import prompts_common
 from flexus_client_kit.integrations import fi_crm_automations
 
-crm_prompt = f"""
-Use erp_table_*() tools to interact with the CRM.
-CRM tables always start with the prefix "crm_", such as crm_contact or crm_task.
-
-Contacts will be ingested very often from forms in landing pages or main websites, or imported from other systems.
-Tasks are a short actionable item linked to a contact that some bot or human needs to do, like an email, follow-up or call.
-
-Extra fields that are not defined in the database schema will be in details, e.x. in contact_details, or task_details.
-
+crm_import_landing_pages_prompt = """
 ## Importing Contacts from Landing Pages
 
 When users ask about importing contacts from landing pages or website forms, explain they need their form to POST to:
 
-https://flexus.team/api/erp-ingest/crm-contact/{{{{ws_id}}}}
+https://flexus.team/api/erp-ingest/crm-contact/{{ws_id}}
 
 Required fields:
 - contact_email
@@ -35,7 +27,9 @@ Provide this HTML form example and tell users to add it to their landing page us
   <button type="submit">Submit</button>
 </form>
 ```
+"""
 
+crm_import_csv_prompt = """
 ## Bulk Importing Records from CSV
 
 When a user wants to import records (e.g., contacts) from a CSV, follow this process:
@@ -139,7 +133,15 @@ Responsibilities:
 
 Relevant strategies and templates are in policy docs under `/sales-pipeline/`, set them up and use them when asked to.
 
-{crm_prompt}
+## CRM Usage
+
+Use erp_table_*() tools to interact with the CRM.
+CRM tables always start with the prefix "crm_", such as crm_contact or crm_task.
+
+Contacts will be ingested very often from forms in landing pages or main websites, or imported from other systems.
+Tasks are a short actionable item linked to a contact that some bot or human needs to do, like an email, follow-up or call.
+
+Extra fields that are not defined in the database schema will be in details, e.x. in contact_details, or task_details.
 
 If enabled in setup, and a template is configured in `/sales-pipeline/welcome-email`, new CRM contacts
 without a previous welcome email will receive one automatically, personalized based on contact and sales data.
