@@ -60,6 +60,7 @@ Important Notes:
 
 
 CRM_AUTOMATION_TOOL = ckit_cloudtool.CloudTool(
+    strict=False,
     name="crm_automation",
     description="Manage CRM automations. Start with op='help' to see complete documentation. IMPORTANT: Never use flexus_my_setup to modify 'crm_automations' - only use this tool!",
     parameters={
