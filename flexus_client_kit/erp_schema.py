@@ -4,6 +4,29 @@ from typing import Optional, Dict, Type, List
 
 
 @dataclass
+class ErpColumnMeta:
+    column_name: str
+    column_type: str
+    column_nullable: bool
+    column_default: Optional[str] = None
+
+
+@dataclass
+class ErpRelationMeta:
+    rel_column: str
+    rel_fk_table: str
+    rel_fk_column: str
+
+
+@dataclass
+class ErpTableMeta:
+    table_name: str
+    table_pk: str
+    table_columns: List[ErpColumnMeta]
+    table_outbound_rels: List[ErpRelationMeta]
+
+
+@dataclass
 class CrmContact:
     ws_id: str
     contact_first_name: str
@@ -131,7 +154,6 @@ ERP_TABLE_TO_SCHEMA: Dict[str, Type] = {
     "product_m2m_template_tag": ProductM2mTemplateTag,
 }
 
-
 ERP_DEFAULT_VISIBLE_FIELDS: Dict[str, List[str]] = {
     "crm_contact": [
         "contact_first_name",
@@ -184,4 +206,3 @@ ERP_DEFAULT_VISIBLE_FIELDS: Dict[str, List[str]] = {
         "uom_active",
     ],
 }
-
