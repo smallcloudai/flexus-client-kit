@@ -36,13 +36,14 @@ TOOLS = [
     fi_erp.ERP_TABLE_META_TOOL,
     fi_erp.ERP_TABLE_DATA_TOOL,
     fi_erp.ERP_TABLE_CRUD_TOOL,
+    fi_erp.ERP_CSV_IMPORT_TOOL,
     fi_mongo_store.MONGO_STORE_TOOL,
     fi_crm_automations.CRM_AUTOMATION_TOOL,
 ]
 
 
 async def rick_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.RobotContext) -> None:
-    dbname = f"{rcx.persona.ws_id}__{rcx.persona.persona_id}"
+    dbname = f"{rcx.persona.persona_id}_db"
     mongo_conn_str = await ckit_mongo.mongo_fetch_creds(fclient, rcx.persona.persona_id)
     mongo = AsyncMongoClient(mongo_conn_str)
     mydb = mongo[dbname]
@@ -90,6 +91,10 @@ async def rick_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.R
     @rcx.on_tool_call(fi_erp.ERP_TABLE_CRUD_TOOL.name)
     async def toolcall_erp_crud(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
         return await erp_integration.handle_erp_crud(toolcall, model_produced_args)
+
+    @rcx.on_tool_call(fi_erp.ERP_CSV_IMPORT_TOOL.name)
+    async def toolcall_erp_csv_import(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
+        return await erp_integration.handle_csv_import(toolcall, model_produced_args)
 
     @rcx.on_tool_call(fi_mongo_store.MONGO_STORE_TOOL.name)
     async def toolcall_mongo_store(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
