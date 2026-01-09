@@ -108,6 +108,13 @@ async def install(
                 fexp_allow_tools="",
                 fexp_app_capture_tools=bot_internal_tools,
             )),
+            ("ui", ckit_bot_install.FMarketplaceExpertInput(
+                fexp_system_prompt=boss_prompts.boss_ui,
+                fexp_python_kernel="",
+                fexp_block_tools="*setup",
+                fexp_allow_tools="",
+                fexp_app_capture_tools=bot_internal_tools,
+            )),
         ],
         marketable_tags=["management", "orchestration"],
         marketable_picture_big_b64=big,
