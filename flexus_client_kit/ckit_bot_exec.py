@@ -494,7 +494,7 @@ async def subscribe_and_produce_callbacks(
 
             elif upd.news_about.startswith("erp."):
                 table_name = upd.news_about[4:]
-                if upd.news_action in ["INSERT", "UPDATE", "DELETE"]:
+                if upd.news_action in ["INSERT", "UPDATE", "DELETE", "ARCHIVE"]:
                     handled = True
                     new_record = upd.news_payload_erp_record_new
                     old_record = upd.news_payload_erp_record_old
