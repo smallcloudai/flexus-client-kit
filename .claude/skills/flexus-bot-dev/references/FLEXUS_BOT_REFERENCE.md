@@ -383,6 +383,10 @@ Use `prompts_common.SCHED_TASK_SORT_10M` and `prompts_common.SCHED_TODO_5M` as d
 | `@rcx.on_tool_call("name")` | `async def(toolcall, args) -> str` |
 | `@rcx.on_erp_change("table")` | `async def(action, new_record, old_record)` |
 
+**ERP action types**: `"INSERT"`, `"UPDATE"`, `"DELETE"`, `"ARCHIVE"`
+- `ARCHIVE`: soft delete (archived_ts: 0 → >0)
+- `DELETE`: hard delete (removed from db)
+
 ---
 
 ## Setup Schema
