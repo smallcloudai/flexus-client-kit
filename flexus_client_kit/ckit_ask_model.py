@@ -176,6 +176,7 @@ async def bot_activate(
     skill: str,
     first_question: str,
     first_calls: Any = None,
+    cd_instruction: str = "",
     title: str = "",
     sched_id: str = "",
     fexp_id: str = "",
@@ -188,8 +189,8 @@ async def bot_activate(
     http = await client.use_http()
     async with http as h:
         r = await h.execute(
-            gql.gql(f"""mutation {camel_case_for_logs}BotActivate($who_is_asking: String!, $persona_id: String!, $skill: String!, $first_question: String!, $first_calls: String!, $title: String!, $sched_id: String!, $fexp_id: String!, $ft_btest_name: String!, $model: String!) {{
-                bot_activate(who_is_asking: $who_is_asking, persona_id: $persona_id, skill: $skill, first_question: $first_question, first_calls: $first_calls, title: $title, sched_id: $sched_id, fexp_id: $fexp_id, ft_btest_name: $ft_btest_name, model: $model) {{ ft_id }}
+            gql.gql(f"""mutation {camel_case_for_logs}BotActivate($who_is_asking: String!, $persona_id: String!, $skill: String!, $first_question: String!, $first_calls: String!, $cd_instruction: String!, $title: String!, $sched_id: String!, $fexp_id: String!, $ft_btest_name: String!, $model: String!) {{
+                bot_activate(who_is_asking: $who_is_asking, persona_id: $persona_id, skill: $skill, first_question: $first_question, first_calls: $first_calls, cd_instruction: $cd_instruction, title: $title, sched_id: $sched_id, fexp_id: $fexp_id, ft_btest_name: $ft_btest_name, model: $model) {{ ft_id }}
             }}"""),
             variable_values={
                 "who_is_asking": who_is_asking,
@@ -197,6 +198,7 @@ async def bot_activate(
                 "skill": skill,
                 "first_question": first_question,
                 "first_calls": json.dumps(first_calls),
+                "cd_instruction": cd_instruction,
                 "title": title,
                 "sched_id": sched_id,
                 "fexp_id": fexp_id,
