@@ -23,6 +23,7 @@ from flexus_client_kit import ckit_external_auth
 logger = logging.getLogger("gmail")
 
 GMAIL_TOOL = ckit_cloudtool.CloudTool(
+    strict=False,
     name="gmail",
     description="Interact with Gmail, call with op=\"help\" to print usage",
     parameters={
