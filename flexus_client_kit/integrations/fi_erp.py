@@ -56,7 +56,7 @@ ERP_TABLE_DATA_TOOL = ckit_cloudtool.CloudTool(
                     "skip": {"type": "integer", "description": "Number of rows to skip (default 0)", "order": 1001},
                     "limit": {"type": "integer", "description": "Maximum number of rows to return (default 100, max 1000)", "order": 1002},
                     "sort_by": {"type": "array", "items": {"type": "string"}, "description": "Sort expressions ['column:ASC', 'another:DESC']", "order": 1003},
-                    "filters": {"type": "array", "description": "Filter expressions: strings like 'status:=:active' or dicts like {'OR': [...]}", "order": 1004},
+                    "filters": {"type": "array", "items": {"oneOf": [{"type": "string"}, {"type": "object"}]}, "description": "Filter expressions: strings like 'status:=:active' or dicts like {'OR': [...]}", "order": 1004},
                     "include": {"type": "array", "items": {"type": "string"}, "description": "Relation names to include ['prodt', 'pcat']", "order": 1005},
                     "safety_valve": {"type": "string", "description": "Output character limit '5k' or '10000' (default 5k)", "order": 1006},
                 },
