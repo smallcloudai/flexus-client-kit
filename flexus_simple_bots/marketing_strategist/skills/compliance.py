@@ -23,7 +23,7 @@ SKILL_UI_ICON = "pi pi-shield"
 SKILL_UI_FIRST_MESSAGE = "Let's review risks and compliance for your campaign. What platforms are you advertising on and what are you claiming?"
 SKILL_UI_DESCRIPTION = "Check ad platform policies, assess business risks, verify privacy compliance"
 
-# RAG knowledge filtering
+# RAG knowledge filtering (PLANNED - not yet connected to search)
 SKILL_KNOWLEDGE_TAGS = ["marketing", "compliance", "ads-policy", "privacy", "gdpr", "risk"]
 
 # Tools this skill needs -- names from TOOL_REGISTRY in bot.py

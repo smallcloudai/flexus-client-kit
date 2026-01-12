@@ -23,7 +23,7 @@ SKILL_UI_ICON = "pi pi-sitemap"
 SKILL_UI_FIRST_MESSAGE = "Let's design your channel strategy. What's your budget and where does your audience hang out?"
 SKILL_UI_DESCRIPTION = "Select channels, design test cells, allocate budget across experiments"
 
-# RAG knowledge filtering
+# RAG knowledge filtering (PLANNED - not yet connected to search)
 SKILL_KNOWLEDGE_TAGS = ["marketing", "channels", "ads", "media-buying", "experiment-design"]
 
 # Tools this skill needs -- names from TOOL_REGISTRY in bot.py

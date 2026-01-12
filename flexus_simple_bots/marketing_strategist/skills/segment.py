@@ -23,7 +23,7 @@ SKILL_UI_ICON = "pi pi-users"
 SKILL_UI_FIRST_MESSAGE = "Let's define your target segment. Who is your ideal customer and what job are they trying to accomplish?"
 SKILL_UI_DESCRIPTION = "Define ICP, map jobs-to-be-done, understand customer journey and discovery channels"
 
-# RAG knowledge filtering
+# RAG knowledge filtering (PLANNED - not yet connected to search)
 SKILL_KNOWLEDGE_TAGS = ["marketing", "segment", "icp", "jtbd", "persona", "journey"]
 
 # Tools this skill needs -- names from TOOL_REGISTRY in bot.py

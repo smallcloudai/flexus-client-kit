@@ -23,7 +23,7 @@ SKILL_UI_ICON = "pi pi-chart-bar"
 SKILL_UI_FIRST_MESSAGE = "Let's define success metrics for your experiment. What are you trying to measure and what's your budget?"
 SKILL_UI_DESCRIPTION = "Define KPIs, calculate minimum sample sizes, set stop/accelerate rules"
 
-# RAG knowledge filtering
+# RAG knowledge filtering (PLANNED - not yet connected to search)
 SKILL_KNOWLEDGE_TAGS = ["marketing", "metrics", "kpi", "analytics", "statistics"]
 
 # Tools this skill needs -- names from TOOL_REGISTRY in bot.py

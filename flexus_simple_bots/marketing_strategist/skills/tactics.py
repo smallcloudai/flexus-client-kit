@@ -23,7 +23,7 @@ SKILL_UI_ICON = "pi pi-list"
 SKILL_UI_FIRST_MESSAGE = "Let's create detailed specs for your campaigns. What channels are you using and what messaging angles do you want to test?"
 SKILL_UI_DESCRIPTION = "Create campaign specs, creative briefs, landing page structure, tracking requirements"
 
-# RAG knowledge filtering
+# RAG knowledge filtering (PLANNED - not yet connected to search)
 SKILL_KNOWLEDGE_TAGS = ["marketing", "tactics", "campaigns", "creatives", "landing", "ads"]
 
 # Tools this skill needs -- names from TOOL_REGISTRY in bot.py

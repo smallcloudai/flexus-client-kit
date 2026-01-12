@@ -23,7 +23,7 @@ SKILL_UI_ICON = "pi pi-comment"
 SKILL_UI_FIRST_MESSAGE = "Let's craft your messaging strategy. What's your product and who are you trying to reach?"
 SKILL_UI_DESCRIPTION = "Craft value proposition, define messaging angles, prepare objection handling"
 
-# RAG knowledge filtering
+# RAG knowledge filtering (PLANNED - not yet connected to search)
 SKILL_KNOWLEDGE_TAGS = ["marketing", "messaging", "copywriting", "positioning", "value-prop"]
 
 # Tools this skill needs -- names from TOOL_REGISTRY in bot.py

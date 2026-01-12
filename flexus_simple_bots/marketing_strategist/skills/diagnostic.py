@@ -23,7 +23,7 @@ SKILL_UI_ICON = "pi pi-search"
 SKILL_UI_FIRST_MESSAGE = "Let's classify your hypothesis and identify what we don't know. Tell me about your product and what you want to test."
 SKILL_UI_DESCRIPTION = "Classify hypothesis type, identify unknowns, assess feasibility for traffic testing"
 
-# RAG knowledge filtering -- only retrieve documents with these tags
+# RAG knowledge filtering (PLANNED - not yet connected to search)
 SKILL_KNOWLEDGE_TAGS = ["marketing", "diagnostic", "hypothesis", "validation"]
 
 # Tools this skill needs -- names from TOOL_REGISTRY in bot.py
