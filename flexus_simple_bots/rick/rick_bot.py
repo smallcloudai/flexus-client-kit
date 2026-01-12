@@ -43,7 +43,7 @@ TOOLS = [
 
 
 async def rick_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.RobotContext) -> None:
-    dbname = f"{rcx.persona.ws_id}__{rcx.persona.persona_id}"
+    dbname = f"{rcx.persona.persona_id}_db"
     mongo_conn_str = await ckit_mongo.mongo_fetch_creds(fclient, rcx.persona.persona_id)
     mongo = AsyncMongoClient(mongo_conn_str)
     mydb = mongo[dbname]
