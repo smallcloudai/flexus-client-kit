@@ -154,6 +154,26 @@ ERP_TABLE_TO_SCHEMA: Dict[str, Type] = {
     "product_m2m_template_tag": ProductM2mTemplateTag,
 }
 
+ERP_DISPLAY_NAME_CONFIGS: Dict[str, str] = {
+    "crm_contact": "{contact_first_name} {contact_last_name}",
+    "crm_task": "{task_title}",
+    "product_template": "{prodt_name}",
+    "product_product": "{prod_default_code}|{prod_barcode}",
+    "product_category": "{pcat_name}",
+    "product_tag": "{tag_name}",
+    "product_uom": "{uom_name}",
+}
+
+ERP_EXTRA_SEARCH_FIELDS: Dict[str, List[str]] = {
+    "crm_contact": ["contact_email"],
+    "crm_task": [],
+    "product_template": [],
+    "product_product": ["prod_default_code", "prod_barcode"],
+    "product_category": [],
+    "product_tag": [],
+    "product_uom": [],
+}
+
 ERP_DEFAULT_VISIBLE_FIELDS: Dict[str, List[str]] = {
     "crm_contact": [
         "contact_first_name",
