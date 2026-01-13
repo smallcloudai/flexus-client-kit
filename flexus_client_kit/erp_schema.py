@@ -29,6 +29,7 @@ class CrmContact:
     contact_utm_last_campaign: str = ""
     contact_utm_last_term: str = ""
     contact_utm_last_content: str = ""
+    contact_bant_score: int = -1
     contact_created_ts: float = 0.0
     contact_modified_ts: float = 0.0
     contact_archived_ts: float = 0.0
@@ -54,6 +55,8 @@ class CrmTask:
 class ProductTemplate:
     prodt_id: str
     prodt_name: str
+    prodt_description: str
+    prodt_target_customers: str
     prodt_type: str
     prodt_pcat_id: str
     prodt_list_price: int  # stored in cents
@@ -155,6 +158,8 @@ ERP_DEFAULT_VISIBLE_FIELDS: Dict[str, List[str]] = {
         "prodt_standard_price",
         "prodt_active",
         "prodt_chips",
+        "prodt_description",
+        "prodt_target_customers",
     ],
     "product_product": [
         "prodt_id",
