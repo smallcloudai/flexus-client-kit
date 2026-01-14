@@ -18,10 +18,22 @@ SKILL_NAME = "segment"
 SKILL_DESCRIPTION = "Segment Analysis -- ICP, JTBD, customer journey"
 
 # UI presentation fields for direct skill access
-SKILL_UI_TITLE = "Segment Analysis"
+SKILL_UI_TITLE = "Define Target Audience"
 SKILL_UI_ICON = "pi pi-users"
-SKILL_UI_FIRST_MESSAGE = "Let's define your target segment. Who is your ideal customer and what job are they trying to accomplish?"
-SKILL_UI_DESCRIPTION = "Define ICP, map jobs-to-be-done, understand customer journey and discovery channels"
+SKILL_UI_FIRST_MESSAGE = "Describe your product and who you think your customers are. I'll build ICP, JTBD map, and journey analysis."
+SKILL_UI_DESCRIPTION = """Stop guessing WHO to target with your ads.
+
+RAG Knowledge
+Jobs-to-be-Done framework, B2B/B2C ICP templates, customer journey mapping, platform audience capabilities (Meta, Google, LinkedIn targeting options).
+
+Tools
+ICP Builder, JTBD Mapper, Channel-Audience Matcher, Persona Generator.
+
+When to use
+Starting a new campaign and unclear on targeting. Existing campaigns underperform and you suspect audience mismatch. Launching in a new market or segment.
+
+When NOT to use
+You have validated audience data from previous campaigns. You need messaging angles (use Messaging skill after this). You're optimizing existing well-performing campaigns."""
 
 # RAG knowledge filtering (PLANNED - not yet connected to search)
 SKILL_KNOWLEDGE_TAGS = ["marketing", "segment", "icp", "jtbd", "persona", "journey"]

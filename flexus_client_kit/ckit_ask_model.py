@@ -61,6 +61,7 @@ class FThreadOutput:
     ft_updated_ts: float
     ft_budget: int
     ft_coins: int
+    ft_project_id: Optional[str] = None
 
 
 @dataclass

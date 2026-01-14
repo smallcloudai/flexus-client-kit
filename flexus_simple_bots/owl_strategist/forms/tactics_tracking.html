@@ -1,0 +1,700 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tracking & Execution Dashboard</title>
+  <style id="theme-css"></style>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    
+    :root {
+      --bg-primary: #0d1117;
+      --bg-secondary: #161b22;
+      --bg-card: #21262d;
+      --bg-hover: #30363d;
+      --text-primary: #e6edf3;
+      --text-secondary: #8b949e;
+      --text-muted: #6e7681;
+      --border-color: #30363d;
+      --accent-blue: #58a6ff;
+      --accent-green: #3fb950;
+      --accent-orange: #d29922;
+      --accent-red: #f85149;
+      --accent-purple: #a371f7;
+      --accent-pink: #db61a2;
+      --accent-cyan: #39c5cf;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      line-height: 1.5;
+      padding: 0;
+      min-height: 100vh;
+    }
+    
+    .dashboard { max-width: 100%; padding: 1.5rem; }
+    
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 2rem;
+      padding-bottom: 1rem;
+      border-bottom: 1px solid var(--border-color);
+    }
+    
+    .header h1 {
+      font-size: 1.5rem;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+    
+    .header .icon { font-size: 1.75rem; }
+    
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      padding: 0.25rem 0.75rem;
+      border-radius: 20px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      background: rgba(59, 185, 80, 0.15);
+      color: var(--accent-green);
+    }
+    
+    .tabs {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 1.5rem;
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 0.5rem;
+      overflow-x: auto;
+    }
+    
+    .tab {
+      padding: 0.5rem 1rem;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      font-weight: 500;
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: all 0.2s;
+      white-space: nowrap;
+    }
+    
+    .tab:hover {
+      background: var(--bg-hover);
+      color: var(--text-primary);
+    }
+    
+    .tab.active {
+      background: var(--accent-green);
+      color: white;
+    }
+    
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+    
+    .section { margin-bottom: 2rem; }
+    
+    .section-title {
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    
+    /* Tracking Section */
+    .tracking-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 1.25rem;
+    }
+    
+    .tracking-card {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 1.25rem;
+    }
+    
+    .tracking-card h4 {
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: var(--accent-blue);
+      margin-bottom: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    
+    .event-list { display: flex; flex-direction: column; gap: 0.6rem; }
+    
+    .event-item {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.5rem 0.75rem;
+      background: var(--bg-card);
+      border-radius: 6px;
+      font-size: 0.85rem;
+    }
+    
+    .event-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--accent-blue);
+      flex-shrink: 0;
+    }
+    
+    .event-dot.conversion {
+      background: var(--accent-green);
+      box-shadow: 0 0 8px rgba(59, 185, 80, 0.5);
+    }
+    
+    .event-dot.required {
+      border: 2px solid var(--accent-orange);
+      background: transparent;
+    }
+    
+    .event-name { flex: 1; }
+    
+    .event-badge {
+      font-size: 0.65rem;
+      padding: 0.15rem 0.4rem;
+      border-radius: 4px;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+    
+    .event-badge.conversion {
+      background: rgba(59, 185, 80, 0.15);
+      color: var(--accent-green);
+    }
+    
+    .event-badge.required {
+      background: rgba(210, 153, 34, 0.15);
+      color: var(--accent-orange);
+    }
+    
+    .pixel-mapping {
+      margin-top: 0.75rem;
+      padding: 0.75rem;
+      background: var(--bg-hover);
+      border-radius: 6px;
+    }
+    
+    .pixel-platform {
+      font-weight: 600;
+      color: var(--accent-purple);
+      font-size: 0.85rem;
+      margin-bottom: 0.5rem;
+    }
+    
+    .pixel-event {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+      padding: 0.25rem 0;
+    }
+    
+    .pixel-event .arrow { color: var(--text-muted); }
+    
+    .utm-schema {
+      display: grid;
+      gap: 0.5rem;
+    }
+    
+    .utm-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.5rem 0.75rem;
+      background: var(--bg-card);
+      border-radius: 6px;
+      font-size: 0.85rem;
+    }
+    
+    .utm-key {
+      color: var(--text-muted);
+      font-family: 'SF Mono', Monaco, monospace;
+    }
+    
+    .utm-value {
+      color: var(--accent-orange);
+      font-family: 'SF Mono', Monaco, monospace;
+    }
+    
+    /* Checklist Section */
+    .checklist {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+    
+    .checklist-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 1rem;
+      padding: 1rem 1.25rem;
+      border-bottom: 1px solid var(--border-color);
+      transition: background 0.2s;
+    }
+    
+    .checklist-item:last-child { border-bottom: none; }
+    
+    .checklist-item:hover { background: var(--bg-hover); }
+    
+    .checkbox {
+      width: 22px;
+      height: 22px;
+      border: 2px solid var(--border-color);
+      border-radius: 6px;
+      flex-shrink: 0;
+      margin-top: 2px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+      font-size: 0.75rem;
+    }
+    
+    .checkbox:hover { border-color: var(--accent-green); }
+    
+    .checkbox.checked {
+      background: var(--accent-green);
+      border-color: var(--accent-green);
+      color: white;
+    }
+    
+    .task-info { flex: 1; }
+    
+    .task-text {
+      font-size: 0.95rem;
+      color: var(--text-primary);
+      margin-bottom: 0.35rem;
+    }
+    
+    .task-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+    
+    .task-meta span {
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+    }
+    
+    /* Timeline Section */
+    .timeline {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 1rem;
+    }
+    
+    .timeline-item {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 1.25rem;
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .timeline-item::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 3px;
+      background: var(--accent-blue);
+    }
+    
+    .timeline-item.phase-1::before { background: var(--accent-red); }
+    .timeline-item.phase-2::before { background: var(--accent-orange); }
+    .timeline-item.phase-3::before { background: var(--accent-green); }
+    
+    .timeline-days {
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 0.5rem;
+    }
+    
+    .timeline-item.phase-1 .timeline-days { color: var(--accent-red); }
+    .timeline-item.phase-2 .timeline-days { color: var(--accent-orange); }
+    .timeline-item.phase-3 .timeline-days { color: var(--accent-green); }
+    
+    .timeline-title {
+      font-weight: 600;
+      font-size: 1rem;
+      margin-bottom: 0.5rem;
+    }
+    
+    .timeline-content {
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+      line-height: 1.6;
+    }
+    
+    /* Analysis Section */
+    .analysis-card {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 1.5rem;
+    }
+    
+    .analysis-content {
+      color: var(--text-secondary);
+      line-height: 1.8;
+      font-size: 0.95rem;
+    }
+    
+    .analysis-content h2 {
+      font-size: 1.1rem;
+      color: var(--text-primary);
+      margin: 1.25rem 0 0.75rem 0;
+    }
+    
+    .analysis-content h2:first-child { margin-top: 0; }
+    
+    .analysis-content ul, .analysis-content ol {
+      margin-left: 1.5rem;
+      margin-top: 0.5rem;
+    }
+    
+    .analysis-content li { margin-bottom: 0.35rem; }
+    
+    /* Next Steps */
+    .next-steps {
+      display: grid;
+      gap: 0.75rem;
+    }
+    
+    .next-step-item {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 1rem 1.25rem;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      font-size: 0.95rem;
+    }
+    
+    .step-number {
+      width: 28px;
+      height: 28px;
+      background: var(--accent-blue);
+      color: white;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 0.85rem;
+      flex-shrink: 0;
+    }
+    
+    .empty-state {
+      text-align: center;
+      padding: 3rem;
+      color: var(--text-secondary);
+    }
+    
+    .empty-state .icon { font-size: 3rem; margin-bottom: 1rem; }
+  </style>
+</head>
+<body>
+  <div id="app" class="dashboard">
+    <div class="empty-state">
+      <div class="icon">📊</div>
+      <p>Loading tracking data...</p>
+    </div>
+  </div>
+
+  <script>
+    const FormBridge = {
+      listeners: {},
+      init(formId) {
+        window.addEventListener('message', (event) => {
+          if (event.data && event.data.type) {
+            const handler = this.listeners[event.data.type];
+            if (handler) handler(event.data);
+          }
+        });
+        this.send('FORM_READY', { formId });
+      },
+      on(type, callback) { this.listeners[type] = callback; },
+      send(type, payload) { window.parent.postMessage({ type, ...payload }, '*'); }
+    };
+
+    let data = null;
+    let currentTab = 'tracking';
+
+    function extract(content) {
+      if (!content) return {};
+      if (content.tactics_tracking && typeof content.tactics_tracking === 'object') {
+        return content.tactics_tracking;
+      }
+      return content;
+    }
+
+    FormBridge.on('INIT', d => {
+      data = extract(d.content);
+      if (d.themeCss) document.getElementById('theme-css').textContent = d.themeCss;
+      render();
+    });
+
+    FormBridge.on('CONTENT_UPDATE', d => {
+      data = extract(d.content);
+      render();
+    });
+
+    FormBridge.init('tactics-tracking-dashboard');
+
+    function switchTab(tab) {
+      currentTab = tab;
+      render();
+    }
+
+    function toggleCheck(el) {
+      el.classList.toggle('checked');
+      el.textContent = el.classList.contains('checked') ? '✓' : '';
+    }
+
+    function render() {
+      const app = document.getElementById('app');
+      
+      if (!data || Object.keys(data).length === 0) {
+        app.innerHTML = `<div class="empty-state"><div class="icon">📊</div><p>No tracking data available</p></div>`;
+        return;
+      }
+
+      const tracking = data.tracking || {};
+      const checklist = data.execution_checklist || [];
+      const iterationGuide = data.iteration_guide || {};
+      const analysis = data.detailed_analysis || '';
+      const nextSteps = data.next_steps || [];
+      
+      app.innerHTML = `
+        <div class="header">
+          <h1><span class="icon">📊</span>Tracking & Execution</h1>
+          <span class="badge">Ready to Launch</span>
+        </div>
+
+        <div class="tabs">
+          <div class="tab ${currentTab === 'tracking' ? 'active' : ''}" onclick="switchTab('tracking')">📊 Tracking</div>
+          <div class="tab ${currentTab === 'checklist' ? 'active' : ''}" onclick="switchTab('checklist')">✅ Checklist</div>
+          <div class="tab ${currentTab === 'timeline' ? 'active' : ''}" onclick="switchTab('timeline')">📅 Timeline</div>
+          <div class="tab ${currentTab === 'analysis' ? 'active' : ''}" onclick="switchTab('analysis')">📝 Analysis</div>
+          <div class="tab ${currentTab === 'next' ? 'active' : ''}" onclick="switchTab('next')">➡️ Next Steps</div>
+        </div>
+
+        <div class="tab-content ${currentTab === 'tracking' ? 'active' : ''}">
+          ${renderTracking(tracking)}
+        </div>
+
+        <div class="tab-content ${currentTab === 'checklist' ? 'active' : ''}">
+          ${renderChecklist(checklist)}
+        </div>
+
+        <div class="tab-content ${currentTab === 'timeline' ? 'active' : ''}">
+          ${renderTimeline(iterationGuide)}
+        </div>
+
+        <div class="tab-content ${currentTab === 'analysis' ? 'active' : ''}">
+          ${renderAnalysis(analysis)}
+        </div>
+
+        <div class="tab-content ${currentTab === 'next' ? 'active' : ''}">
+          ${renderNextSteps(nextSteps)}
+        </div>
+      `;
+    }
+
+    function renderTracking(tracking) {
+      if (!tracking.events && !tracking.utm_schema && !tracking.pixels) {
+        return '<div class="empty-state"><p>No tracking configuration</p></div>';
+      }
+      
+      return `
+        <div class="tracking-grid">
+          ${tracking.events ? `
+            <div class="tracking-card">
+              <h4>📊 Events to Track</h4>
+              <div class="event-list">
+                ${tracking.events.map(e => `
+                  <div class="event-item">
+                    <span class="event-dot ${e.is_conversion ? 'conversion' : ''} ${e.required ? 'required' : ''}"></span>
+                    <span class="event-name">${e.name}</span>
+                    ${e.is_conversion ? '<span class="event-badge conversion">Conversion</span>' : ''}
+                    ${e.required ? '<span class="event-badge required">Required</span>' : ''}
+                  </div>
+                `).join('')}
+              </div>
+            </div>
+          ` : ''}
+          
+          ${tracking.pixels && tracking.pixels.length > 0 ? `
+            <div class="tracking-card">
+              <h4>🎯 Pixel Configuration</h4>
+              ${tracking.pixels.map(p => `
+                <div class="pixel-mapping">
+                  <div class="pixel-platform">${p.platform}</div>
+                  ${Object.entries(p.event_mapping || {}).map(([k, v]) => `
+                    <div class="pixel-event">
+                      <span>${k}</span>
+                      <span class="arrow">→</span>
+                      <span>${v}</span>
+                    </div>
+                  `).join('')}
+                </div>
+              `).join('')}
+            </div>
+          ` : ''}
+          
+          ${tracking.utm_schema ? `
+            <div class="tracking-card">
+              <h4>🔗 UTM Schema</h4>
+              <div class="utm-schema">
+                ${Object.entries(tracking.utm_schema).map(([k, v]) => `
+                  <div class="utm-row">
+                    <span class="utm-key">utm_${k}</span>
+                    <span class="utm-value">${v}</span>
+                  </div>
+                `).join('')}
+              </div>
+            </div>
+          ` : ''}
+        </div>
+      `;
+    }
+
+    function renderChecklist(checklist) {
+      if (!checklist.length) {
+        return '<div class="empty-state"><p>No checklist items</p></div>';
+      }
+      
+      return `
+        <div class="section">
+          <div class="section-title">✅ Pre-Launch Checklist</div>
+          <div class="checklist">
+            ${checklist.map((item, i) => `
+              <div class="checklist-item">
+                <div class="checkbox" onclick="toggleCheck(this)"></div>
+                <div class="task-info">
+                  <div class="task-text">${item.task}</div>
+                  <div class="task-meta">
+                    <span>👤 ${item.owner || 'TBD'}</span>
+                    <span>📅 ${item.deadline || 'No deadline'}</span>
+                  </div>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      `;
+    }
+
+    function renderTimeline(guide) {
+      if (!guide || Object.keys(guide).length === 0) {
+        return '<div class="empty-state"><p>No iteration guide defined</p></div>';
+      }
+      
+      const phases = [
+        { key: 'day_1_3', title: 'Monitor & Kill', days: 'Day 1-3', phase: 1 },
+        { key: 'day_4_7', title: 'Optimize', days: 'Day 4-7', phase: 2 },
+        { key: 'day_8_14', title: 'Scale Winners', days: 'Day 8-14', phase: 3 },
+      ];
+      
+      return `
+        <div class="section">
+          <div class="section-title">📅 Iteration Timeline</div>
+          <div class="timeline">
+            ${phases.map(p => guide[p.key] ? `
+              <div class="timeline-item phase-${p.phase}">
+                <div class="timeline-days">${p.days}</div>
+                <div class="timeline-title">${p.title}</div>
+                <div class="timeline-content">${guide[p.key]}</div>
+              </div>
+            ` : '').join('')}
+          </div>
+        </div>
+      `;
+    }
+
+    function renderAnalysis(analysis) {
+      if (!analysis) {
+        return '<div class="empty-state"><p>No analysis available</p></div>';
+      }
+      
+      // Simple markdown-like parsing
+      let html = analysis
+        .replace(/^## (.*$)/gm, '<h2>$1</h2>')
+        .replace(/^- (.*$)/gm, '<li>$1</li>')
+        .replace(/\n\n/g, '</p><p>')
+        .replace(/\n/g, '<br>');
+      
+      // Wrap list items
+      html = html.replace(/(<li>.*<\/li>)+/g, '<ul>$&</ul>');
+      
+      return `
+        <div class="section">
+          <div class="section-title">📝 Detailed Analysis</div>
+          <div class="analysis-card">
+            <div class="analysis-content">${html}</div>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderNextSteps(steps) {
+      if (!steps.length) {
+        return '<div class="empty-state"><p>No next steps defined</p></div>';
+      }
+      
+      return `
+        <div class="section">
+          <div class="section-title">➡️ Next Steps</div>
+          <div class="next-steps">
+            ${steps.map((step, i) => `
+              <div class="next-step-item">
+                <span class="step-number">${i + 1}</span>
+                <span>${step}</span>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      `;
+    }
+  </script>
+</body>
+</html>
+
+
+

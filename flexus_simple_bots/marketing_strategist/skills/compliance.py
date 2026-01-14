@@ -18,10 +18,22 @@ SKILL_NAME = "compliance"
 SKILL_DESCRIPTION = "Risk & Compliance -- policies, privacy, risks assessment"
 
 # UI presentation fields for direct skill access
-SKILL_UI_TITLE = "Risk & Compliance"
+SKILL_UI_TITLE = "Check Risks & Policies"
 SKILL_UI_ICON = "pi pi-shield"
-SKILL_UI_FIRST_MESSAGE = "Let's review risks and compliance for your campaign. What platforms are you advertising on and what are you claiming?"
-SKILL_UI_DESCRIPTION = "Check ad platform policies, assess business risks, verify privacy compliance"
+SKILL_UI_FIRST_MESSAGE = "What platforms and claims are in your campaign? I'll check policies, flag risks, and verify privacy compliance."
+SKILL_UI_DESCRIPTION = """Don't get your ad account BANNED or fined.
+
+RAG Knowledge
+Meta/Google/TikTok/LinkedIn ad policies (updated monthly), GDPR/CCPA requirements, industry-specific regulations (finance, health, alcohol), common rejection reasons.
+
+Tools
+Policy Checker, Risk Matrix Generator, GDPR Compliance Validator, Pre-Launch Checklist Builder.
+
+When to use
+Before submitting any ad for review. Entering regulated industries (health, finance, politics). Running campaigns in EU/California. After any ad rejection to understand why.
+
+When NOT to use
+You need creative strategy (use Messaging). You're analyzing performance data. You need channel selection or budget allocation."""
 
 # RAG knowledge filtering (PLANNED - not yet connected to search)
 SKILL_KNOWLEDGE_TAGS = ["marketing", "compliance", "ads-policy", "privacy", "gdpr", "risk"]

@@ -47,6 +47,12 @@ class FMarketplaceExpertInput:
     fexp_allow_tools: str
     fexp_inactivity_timeout: int = 0
     fexp_app_capture_tools: str = ""
+    # UI fields for skill display in frontend
+    fexp_ui_hidden: bool = False
+    fexp_ui_title: str = ""
+    fexp_ui_description: str = ""
+    fexp_ui_icon: str = ""
+    fexp_ui_first_message: str = ""
 
 
 async def marketplace_upsert_dev_bot(

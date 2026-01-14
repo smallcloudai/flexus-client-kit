@@ -18,10 +18,22 @@ SKILL_NAME = "diagnostic"
 SKILL_DESCRIPTION = "Diagnostic Analysis -- classifying hypothesis, identifying unknowns"
 
 # UI presentation fields for direct skill access
-SKILL_UI_TITLE = "Diagnostic Analysis"
+SKILL_UI_TITLE = "Classify Hypothesis"
 SKILL_UI_ICON = "pi pi-search"
-SKILL_UI_FIRST_MESSAGE = "Let's classify your hypothesis and identify what we don't know. Tell me about your product and what you want to test."
-SKILL_UI_DESCRIPTION = "Classify hypothesis type, identify unknowns, assess feasibility for traffic testing"
+SKILL_UI_FIRST_MESSAGE = "Tell me your hypothesis -- I'll classify it, find blind spots, and assess if it's ready for traffic testing."
+SKILL_UI_DESCRIPTION = """Analyze your idea BEFORE spending money on ads.
+
+RAG Knowledge
+Lean Startup validation frameworks, JTBD theory, hypothesis taxonomy (value/growth/channel), common failure patterns from 500+ failed experiments.
+
+Tools
+Hypothesis Classifier, Blind Spot Detector, Feasibility Scorer, Test Mechanism Recommender.
+
+When to use
+You have a business idea or assumption you want to validate. You're unsure if your hypothesis is testable. You want to avoid wasting budget on poorly designed tests.
+
+When NOT to use
+You already have traffic data and need analysis (use Metrics skill). You need actual ad copy or creatives (use Messaging skill)."""
 
 # RAG knowledge filtering (PLANNED - not yet connected to search)
 SKILL_KNOWLEDGE_TAGS = ["marketing", "diagnostic", "hypothesis", "validation"]

@@ -18,10 +18,22 @@ SKILL_NAME = "channels"
 SKILL_DESCRIPTION = "Channel Strategy -- channel selection, test cells, budget allocation"
 
 # UI presentation fields for direct skill access
-SKILL_UI_TITLE = "Channel Strategy"
+SKILL_UI_TITLE = "Pick Channels & Budget"
 SKILL_UI_ICON = "pi pi-sitemap"
-SKILL_UI_FIRST_MESSAGE = "Let's design your channel strategy. What's your budget and where does your audience hang out?"
-SKILL_UI_DESCRIPTION = "Select channels, design test cells, allocate budget across experiments"
+SKILL_UI_FIRST_MESSAGE = "What's your budget and where does your audience live online? I'll pick channels and design test cells."
+SKILL_UI_DESCRIPTION = """Decide WHERE to run ads and HOW to split budget.
+
+RAG Knowledge
+Platform benchmarks (CPM/CPC/CTR by industry), audience reach estimates, channel-audience fit matrices, budget allocation frameworks (70/20/10 rule).
+
+Tools
+Channel Recommender, Budget Allocator, Test Cell Designer, CPM/CPC Estimator.
+
+When to use
+You have audience and messaging ready, need media plan. Comparing channels for a new campaign. Reallocating budget from underperforming channels.
+
+When NOT to use
+You haven't defined audience or messaging (do those first). You need actual ad copy and creatives (use Tactics). You're analyzing live campaign data (use Metrics for decision rules)."""
 
 # RAG knowledge filtering (PLANNED - not yet connected to search)
 SKILL_KNOWLEDGE_TAGS = ["marketing", "channels", "ads", "media-buying", "experiment-design"]

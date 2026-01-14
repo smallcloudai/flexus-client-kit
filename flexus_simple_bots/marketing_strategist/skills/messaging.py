@@ -18,10 +18,22 @@ SKILL_NAME = "messaging"
 SKILL_DESCRIPTION = "Messaging Strategy -- value proposition, angles, objections"
 
 # UI presentation fields for direct skill access
-SKILL_UI_TITLE = "Messaging Strategy"
+SKILL_UI_TITLE = "Craft Messaging"
 SKILL_UI_ICON = "pi pi-comment"
-SKILL_UI_FIRST_MESSAGE = "Let's craft your messaging strategy. What's your product and who are you trying to reach?"
-SKILL_UI_DESCRIPTION = "Craft value proposition, define messaging angles, prepare objection handling"
+SKILL_UI_FIRST_MESSAGE = "What's your product and target audience? I'll craft value props, messaging angles, and objection rebuttals."
+SKILL_UI_DESCRIPTION = """Write words that make people CLICK and BUY.
+
+RAG Knowledge
+Positioning frameworks (April Dunford), copywriting formulas (PAS, AIDA, 4Ps), objection libraries by industry, winning ad copy examples database.
+
+Tools
+Value Prop Generator, Angle Brainstormer, Objection Handler, Competitive Positioning Matrix.
+
+When to use
+You have defined audience but need compelling copy. Testing multiple messaging angles. Competitors are winning on messaging and you need differentiation.
+
+When NOT to use
+You haven't defined your target audience yet (use Segment first). You need full campaign specs with budgets (use Tactics). You're looking for channel recommendations (use Channels)."""
 
 # RAG knowledge filtering (PLANNED - not yet connected to search)
 SKILL_KNOWLEDGE_TAGS = ["marketing", "messaging", "copywriting", "positioning", "value-prop"]

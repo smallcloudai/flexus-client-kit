@@ -18,10 +18,22 @@ SKILL_NAME = "tactics"
 SKILL_DESCRIPTION = "Tactical Spec -- campaigns, creatives, landing, tracking"
 
 # UI presentation fields for direct skill access
-SKILL_UI_TITLE = "Tactical Specs"
+SKILL_UI_TITLE = "Generate Campaign Specs"
 SKILL_UI_ICON = "pi pi-list"
-SKILL_UI_FIRST_MESSAGE = "Let's create detailed specs for your campaigns. What channels are you using and what messaging angles do you want to test?"
-SKILL_UI_DESCRIPTION = "Create campaign specs, creative briefs, landing page structure, tracking requirements"
+SKILL_UI_FIRST_MESSAGE = "Which channels and angles are you testing? I'll generate campaign specs, creative briefs, and landing structure."
+SKILL_UI_DESCRIPTION = """Get EXECUTABLE specs for your marketing team.
+
+RAG Knowledge
+Platform ad specs (dimensions, character limits), creative best practices by platform, landing page conversion patterns, UTM taxonomy standards.
+
+Tools
+Campaign Spec Generator, Creative Brief Builder, Landing Page Wireframer, UTM Builder, Pixel Setup Guide.
+
+When to use
+Strategy is approved, need execution documents. Briefing designers or media buyers. Setting up tracking before launch.
+
+When NOT to use
+Strategy not yet defined (complete earlier skills first). You need strategic direction, not execution details. Campaign is already live and needs optimization."""
 
 # RAG knowledge filtering (PLANNED - not yet connected to search)
 SKILL_KNOWLEDGE_TAGS = ["marketing", "tactics", "campaigns", "creatives", "landing", "ads"]

@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Email Template Preview</title>
+  <style>
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    body { background: var(--p-content-hover-background); margin: 0; padding: 10px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+    .container { display: flex; gap: 20px; min-height: calc(100vh - 20px); }
+    
+    /* Config panel */
+    .config-panel {
+      width: 300px; padding: 20px; flex-shrink: 0;
+      background: var(--p-primary-contrast-color); color: var(--p-primary-color);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15); border-radius: 8px;
+      animation: fadeIn 0.3s ease-out;
+    }
+    .config-panel h2 { font-size: 1rem; font-weight: 600; margin: 0 0 1rem 0; color: var(--p-text-muted-color); text-transform: uppercase; letter-spacing: 0.05em; }
+    .config-panel h3 { font-size: 0.875rem; font-weight: 600; margin: 1.5rem 0 0.5rem 0; color: var(--p-primary-color); }
+    
+    .field { margin-bottom: 1rem; }
+    .field > label { display: block; font-weight: 500; margin-bottom: 0.25rem; font-size: 0.75rem; color: var(--p-text-muted-color); }
+    input, textarea {
+      width: 100%; border: 1px solid var(--p-surface-border); border-radius: 6px;
+      padding: 0.5rem 0.75rem; font-size: 0.875rem; font-family: inherit; box-sizing: border-box;
+      background: var(--p-content-hover-background); color: var(--p-text-color);
+    }
+    input:focus, textarea:focus { outline: none; border-color: var(--p-primary-color); }
+    textarea { resize: vertical; min-height: 60px; }
+    
+    .btn {
+      display: inline-block; padding: 0.5rem 1rem; border-radius: 6px; font-size: 0.875rem; font-weight: 500;
+      cursor: pointer; border: none; transition: all 0.15s ease;
+    }
+    .btn-primary { background: #4A90D9; color: white; }
+    .btn-primary:hover { background: #3A7BC8; }
+    .btn-secondary { background: var(--p-content-hover-background); color: var(--p-text-color); border: 1px solid var(--p-surface-border); }
+    .btn-secondary:hover { border-color: var(--p-primary-color); }
+    
+    /* Preview panel */
+    .preview-panel {
+      flex: 1; padding: 20px;
+      background: var(--p-primary-contrast-color);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15); border-radius: 8px;
+      animation: fadeIn 0.4s ease-out;
+    }
+    .preview-header {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 1rem; padding-bottom: 1rem; border-bottom: 1px solid var(--p-surface-border);
+    }
+    .preview-header h2 { font-size: 1rem; font-weight: 600; margin: 0; color: var(--p-text-muted-color); text-transform: uppercase; letter-spacing: 0.05em; }
+    .subject-line {
+      background: var(--p-content-hover-background); padding: 0.75rem 1rem; border-radius: 6px;
+      font-size: 0.875rem; margin-bottom: 1rem; color: var(--p-text-color);
+    }
+    .subject-line strong { color: var(--p-text-muted-color); }
+    .preview-frame {
+      background: #f5f5f5; border-radius: 8px; padding: 20px; min-height: 400px;
+      overflow: auto;
+    }
+    .preview-frame iframe {
+      width: 100%; height: 600px; border: none; background: white; border-radius: 4px;
+    }
+    
+    /* JSON editor */
+    .json-editor {
+      margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--p-surface-border);
+    }
+    .json-editor textarea {
+      font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace; font-size: 0.75rem;
+      min-height: 200px; line-height: 1.4;
+    }
+    
+    .error-box {
+      background: #FEE2E2; border: 1px solid #EF4444; border-radius: 6px; padding: 0.75rem;
+      color: #991B1B; font-size: 0.875rem; margin-top: 0.5rem;
+    }
+  </style>
+  <style id="theme-css"></style>
+</head>
+<body>
+  <div class="container">
+    <div class="config-panel">
+      <h2>Test Variables</h2>
+      
+      <h3>Contact</h3>
+      <div class="field">
+        <label>contact_first_name</label>
+        <input type="text" id="var_contact_first_name" value="Alex" oninput="updatePreview()">
+      </div>
+      <div class="field">
+        <label>contact_email</label>
+        <input type="text" id="var_contact_email" value="alex@example.com" oninput="updatePreview()">
+      </div>
+      <div class="field">
+        <label>source</label>
+        <input type="text" id="var_source" value="Twitter" oninput="updatePreview()">
+      </div>
+      
+      <h3>Message</h3>
+      <div class="field">
+        <label>main_message</label>
+        <textarea id="var_main_message" oninput="updatePreview()">I noticed you signed up from Twitter. I'm curious — what problem were you hoping we could solve for you?</textarea>
+      </div>
+      <div class="field">
+        <label>cta_text</label>
+        <input type="text" id="var_cta_text" value="Take 2-min Survey" oninput="updatePreview()">
+      </div>
+      <div class="field">
+        <label>cta_url</label>
+        <input type="text" id="var_cta_url" value="https://surveymonkey.com/example" oninput="updatePreview()">
+      </div>
+      
+      <h3>Incentive</h3>
+      <div class="field">
+        <label>has_incentive (true/false)</label>
+        <input type="text" id="var_has_incentive" value="true" oninput="updatePreview()">
+      </div>
+      <div class="field">
+        <label>incentive</label>
+        <input type="text" id="var_incentive" value="3 months free after launch" oninput="updatePreview()">
+      </div>
+      
+      <h3>Sender</h3>
+      <div class="field">
+        <label>sender_name</label>
+        <input type="text" id="var_sender_name" value="Jordan" oninput="updatePreview()">
+      </div>
+      <div class="field">
+        <label>sender_title</label>
+        <input type="text" id="var_sender_title" value="Founder" oninput="updatePreview()">
+      </div>
+      
+      <div class="json-editor">
+        <h3>Template JSON</h3>
+        <textarea id="template_json" oninput="updatePreview()"></textarea>
+        <div id="json_error" class="error-box" style="display: none;"></div>
+      </div>
+      
+      <div style="margin-top: 1rem; display: flex; gap: 0.5rem;">
+        <button class="btn btn-primary" onclick="saveTemplate()">Save Template</button>
+        <button class="btn btn-secondary" onclick="openInNewWindow()">Open in New Window</button>
+      </div>
+    </div>
+    
+    <div class="preview-panel">
+      <div class="preview-header">
+        <h2>Preview</h2>
+      </div>
+      <div class="subject-line">
+        <strong>Subject:</strong> <span id="preview_subject">—</span>
+      </div>
+      <div class="preview-frame">
+        <iframe id="preview_iframe"></iframe>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const FormBridge = {
+      handlers: {},
+      init(name) {
+        window.addEventListener('message', e => {
+          if (e.data?.type && this.handlers[e.data.type]) {
+            this.handlers[e.data.type].forEach(h => h(e.data));
+          }
+        });
+        setTimeout(() => this.send('FORM_READY', { formName: name }), 0);
+      },
+      send(type, data) { window.parent.postMessage({ type, ...data }, '*'); },
+      on(type, handler) {
+        if (!this.handlers[type]) this.handlers[type] = [];
+        this.handlers[type].push(handler);
+      }
+    };
+
+    let content = {};
+    let templateJson = null;
+
+    const DEFAULT_TEMPLATE = {
+      "subject": "Quick question about your signup",
+      "components": [
+        {"type": "header", "params": {"brand_color": "#4A90D9"}},
+        {"type": "greeting", "params": {"style": "casual"}, "content": "Hey {{contact_first_name}}!"},
+        {"type": "paragraph", "content": "{{main_message}}"},
+        {"type": "cta_button", "params": {"text": "{{cta_text}}", "url": "{{cta_url}}", "color": "#22C55E"}},
+        {"type": "incentive_box", "condition": "{{has_incentive}}", "params": {"title": "As a thank you", "description": "{{incentive}}"}},
+        {"type": "signature", "params": {"name": "{{sender_name}}", "title": "{{sender_title}}"}},
+        {"type": "footer"}
+      ]
+    };
+
+    FormBridge.on('INIT', data => {
+      content = data.content || {};
+      if (data.themeCss) document.getElementById('theme-css').textContent = data.themeCss;
+      
+      // Load template from content or use default
+      const template = content?.email_template?.template || DEFAULT_TEMPLATE;
+      document.getElementById('template_json').value = JSON.stringify(template, null, 2);
+      templateJson = template;
+      
+      updatePreview();
+    });
+
+    FormBridge.on('CONTENT_UPDATE', data => {
+      content = data.content || {};
+      const template = content?.email_template?.template || DEFAULT_TEMPLATE;
+      document.getElementById('template_json').value = JSON.stringify(template, null, 2);
+      templateJson = template;
+      updatePreview();
+    });
+
+    function getVariables() {
+      return {
+        contact_first_name: document.getElementById('var_contact_first_name').value,
+        contact_email: document.getElementById('var_contact_email').value,
+        source: document.getElementById('var_source').value,
+        main_message: document.getElementById('var_main_message').value,
+        cta_text: document.getElementById('var_cta_text').value,
+        cta_url: document.getElementById('var_cta_url').value,
+        has_incentive: document.getElementById('var_has_incentive').value,
+        incentive: document.getElementById('var_incentive').value,
+        sender_name: document.getElementById('var_sender_name').value,
+        sender_title: document.getElementById('var_sender_title').value,
+      };
+    }
+
+    function substituteVars(text, vars) {
+      let result = text;
+      for (const [key, value] of Object.entries(vars)) {
+        result = result.replace(new RegExp(`\\{\\{${key}\\}\\}`, 'g'), value || '');
+      }
+      return result;
+    }
+
+    function renderComponent(comp, vars) {
+      const type = comp.type;
+      const params = comp.params || {};
+      const compContent = comp.content || '';
+      
+      const allVars = {...vars, ...params, content: compContent};
+      
+      // Simple component rendering (matches fi_email_template.py components)
+      switch (type) {
+        case 'header':
+          const brandColor = allVars.brand_color || '#4A90D9';
+          return `<table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: ${brandColor}; padding: 20px 0;"><tr><td align="center"></td></tr></table>`;
+        
+        case 'greeting':
+          return `<table width="100%" cellpadding="0" cellspacing="0" border="0" style="padding: 30px 20px 10px 20px;"><tr><td style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 16px; line-height: 1.5; color: #333333;">${substituteVars(compContent, vars)}</td></tr></table>`;
+        
+        case 'paragraph':
+          return `<table width="100%" cellpadding="0" cellspacing="0" border="0" style="padding: 10px 20px;"><tr><td style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 16px; line-height: 1.6; color: #333333;">${substituteVars(compContent, vars)}</td></tr></table>`;
+        
+        case 'cta_button':
+          const btnColor = allVars.color || '#22C55E';
+          const btnText = substituteVars(allVars.text || 'Click Here', vars);
+          const btnUrl = substituteVars(allVars.url || '#', vars);
+          return `<table width="100%" cellpadding="0" cellspacing="0" border="0" style="padding: 20px;"><tr><td align="center"><a href="${btnUrl}" style="display: inline-block; background-color: ${btnColor}; color: #ffffff; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 16px; font-weight: 600; text-decoration: none; padding: 14px 32px; border-radius: 6px;">${btnText}</a></td></tr></table>`;
+        
+        case 'incentive_box':
+          const incTitle = substituteVars(allVars.title || '', vars);
+          const incDesc = substituteVars(allVars.description || '', vars);
+          return `<table width="100%" cellpadding="0" cellspacing="0" border="0" style="padding: 10px 20px;"><tr><td><table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: #FEF3C7; border-left: 4px solid #F59E0B; border-radius: 4px; padding: 16px;"><tr><td style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;"><div style="font-size: 14px; font-weight: 600; color: #92400E; margin-bottom: 4px;">${incTitle}</div><div style="font-size: 14px; color: #78350F;">${incDesc}</div></td></tr></table></td></tr></table>`;
+        
+        case 'signature':
+          const sigName = substituteVars(allVars.name || '', vars);
+          const sigTitle = substituteVars(allVars.title || '', vars);
+          return `<table width="100%" cellpadding="0" cellspacing="0" border="0" style="padding: 30px 20px 20px 20px;"><tr><td style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 14px; color: #666666;"><div style="font-weight: 600; color: #333333;">${sigName}</div>${sigTitle ? `<div style="color: #666666;">${sigTitle}</div>` : ''}</td></tr></table>`;
+        
+        case 'footer':
+          return `<table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: #F9FAFB; padding: 20px; margin-top: 20px;"><tr><td align="center" style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 12px; color: #9CA3AF;"><div>You received this email because you signed up.</div></td></tr></table>`;
+        
+        default:
+          return `<!-- Unknown component: ${type} -->`;
+      }
+    }
+
+    function renderTemplate(template, vars) {
+      const subject = substituteVars(template.subject || '', vars);
+      const components = template.components || [];
+      
+      let bodyParts = [];
+      for (const comp of components) {
+        // Check condition
+        if (comp.condition) {
+          const condValue = substituteVars(comp.condition, vars);
+          if (!condValue || condValue === 'false' || condValue === comp.condition) {
+            continue;
+          }
+        }
+        bodyParts.push(renderComponent(comp, vars));
+      }
+      
+      const bodyHtml = `<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+<body style="margin: 0; padding: 0; background-color: #f5f5f5;">
+  <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: #f5f5f5;">
+    <tr>
+      <td align="center" style="padding: 20px 0;">
+        <table width="600" cellpadding="0" cellspacing="0" border="0" style="background-color: #ffffff; border-radius: 8px; overflow: hidden;">
+          <tr><td>${bodyParts.join('')}</td></tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+      
+      return { subject, bodyHtml };
+    }
+
+    function updatePreview() {
+      const jsonText = document.getElementById('template_json').value;
+      const errorBox = document.getElementById('json_error');
+      
+      try {
+        templateJson = JSON.parse(jsonText);
+        errorBox.style.display = 'none';
+      } catch (e) {
+        errorBox.textContent = 'Invalid JSON: ' + e.message;
+        errorBox.style.display = 'block';
+        return;
+      }
+      
+      const vars = getVariables();
+      const { subject, bodyHtml } = renderTemplate(templateJson, vars);
+      
+      document.getElementById('preview_subject').textContent = subject;
+      
+      const iframe = document.getElementById('preview_iframe');
+      iframe.srcdoc = bodyHtml;
+    }
+
+    function saveTemplate() {
+      if (!templateJson) return;
+      
+      const newContent = {
+        ...content,
+        email_template: {
+          meta: { updated_at: new Date().toISOString() },
+          template: templateJson
+        }
+      };
+      
+      FormBridge.send('FORM_CONTENT_CHANGED', { content: newContent });
+    }
+
+    function openInNewWindow() {
+      const vars = getVariables();
+      const { bodyHtml } = renderTemplate(templateJson, vars);
+      
+      const win = window.open('', '_blank', 'width=700,height=800');
+      win.document.write(bodyHtml);
+      win.document.close();
+    }
+
+    FormBridge.init('email-template');
+  </script>
+</body>
+</html>
+
+
+
+

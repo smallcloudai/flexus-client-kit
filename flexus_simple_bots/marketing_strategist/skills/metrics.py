@@ -18,10 +18,22 @@ SKILL_NAME = "metrics"
 SKILL_DESCRIPTION = "Metrics Framework -- defining KPIs, stop-rules, MDE calculation"
 
 # UI presentation fields for direct skill access
-SKILL_UI_TITLE = "Metrics & KPIs"
+SKILL_UI_TITLE = "Define KPIs & Rules"
 SKILL_UI_ICON = "pi pi-chart-bar"
-SKILL_UI_FIRST_MESSAGE = "Let's define success metrics for your experiment. What are you trying to measure and what's your budget?"
-SKILL_UI_DESCRIPTION = "Define KPIs, calculate minimum sample sizes, set stop/accelerate rules"
+SKILL_UI_FIRST_MESSAGE = "What's your budget and primary goal? I'll define KPIs, calculate sample sizes, and set decision rules."
+SKILL_UI_DESCRIPTION = """Know when to STOP losing money or SCALE a winner.
+
+RAG Knowledge
+Statistical significance tables, MDE calculators, industry benchmark databases (CAC, LTV, conversion rates by vertical), Bayesian vs Frequentist decision frameworks.
+
+Tools
+Sample Size Calculator, Stop-Loss Rule Generator, Statistical Significance Checker, ROI Projector.
+
+When to use
+Before launching any paid campaign. When you need objective criteria for go/no-go decisions. When stakeholders ask "how do we know if it's working?"
+
+When NOT to use
+You're still forming the hypothesis (use Diagnostic first). You need channel selection (use Channels skill). Campaign is already live and you need tactical pivots."""
 
 # RAG knowledge filtering (PLANNED - not yet connected to search)
 SKILL_KNOWLEDGE_TAGS = ["marketing", "metrics", "kpi", "analytics", "statistics"]

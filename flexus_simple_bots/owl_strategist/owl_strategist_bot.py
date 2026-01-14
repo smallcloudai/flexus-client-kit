@@ -20,7 +20,7 @@ logger = logging.getLogger("bot_owl_strategist")
 
 
 BOT_NAME = "owl_strategist"
-BOT_VERSION = SIMPLE_BOTS_COMMON_VERSION
+BOT_VERSION = "1.0.2"
 BOT_VERSION_INT = ckit_client.marketplace_version_as_int(BOT_VERSION)
 
 # Pipeline: strict sequential order

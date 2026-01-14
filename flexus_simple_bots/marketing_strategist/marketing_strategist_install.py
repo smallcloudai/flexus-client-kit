@@ -140,10 +140,22 @@ async def install(
                 fexp_allow_tools="",
                 fexp_app_capture_tools=default_tools_json,
                 fexp_ui_hidden=False,
-                fexp_ui_title="Free Talk",
+                fexp_ui_title="Ask Anything",
                 fexp_ui_icon="pi pi-comments",
-                fexp_ui_first_message="How can I help with your marketing strategy?",
-                fexp_ui_description="Open conversation about marketing strategy",
+                fexp_ui_first_message="Ask me anything about marketing strategy. Or pick a specific skill for focused expertise.",
+                fexp_ui_description="""Open conversation with full knowledge access.
+
+RAG Knowledge
+Complete marketing strategy library: frameworks, case studies, industry benchmarks, best practices across all domains.
+
+Tools
+All standard tools available. No specialized workflow automation.
+
+When to use
+Quick questions that don't fit a specific workflow. Brainstorming and ideation. Getting advice on your unique situation. When you're unsure which skill to start with.
+
+When NOT to use
+You have a clear task (use specialized skills for structured output). You need executable deliverables (specs, briefs, checklists).""",
             )),
             # Skill 1: Diagnostic Analysis
             ("diagnostic", ckit_bot_install.FMarketplaceExpertInput(
