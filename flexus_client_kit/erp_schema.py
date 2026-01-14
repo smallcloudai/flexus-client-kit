@@ -2,28 +2,14 @@ import time
 from dataclasses import dataclass, field
 from typing import Optional, Dict, Type, List
 
-
-@dataclass
-class ErpColumnMeta:
-    column_name: str
-    column_type: str
-    column_nullable: bool
-    column_default: Optional[str] = None
+pk = {"pk": True}
 
 
-@dataclass
-class ErpRelationMeta:
-    rel_column: str
-    rel_fk_table: str
-    rel_fk_column: str
-
-
-@dataclass
-class ErpTableMeta:
-    table_name: str
-    table_pk: str
-    table_columns: List[ErpColumnMeta]
-    table_outbound_rels: List[ErpRelationMeta]
+def get_pk_field(cls: Type) -> str:
+    for name, f in cls.__dataclass_fields__.items():
+        if f.metadata.get("pk"):
+            return name
+    raise ValueError(f"No pk field in {cls.__name__}")
 
 
 @dataclass
@@ -32,7 +18,7 @@ class CrmContact:
     contact_first_name: str
     contact_last_name: str
     contact_email: str
-    contact_id: str = ""
+    contact_id: str = field(default="", metadata=pk)
     contact_notes: str = ""
     contact_details: dict = field(default_factory=dict)
     contact_tags: List[str] = field(default_factory=list)
@@ -66,7 +52,7 @@ class CrmTask:
     task_title: str
     task_notes: str = ""
     task_details: dict = field(default_factory=dict)
-    task_id: str = ""
+    task_id: str = field(default="", metadata=pk)
     task_due_ts: float = 0.0
     task_completed_ts: float = 0.0
     task_created_ts: float = field(default_factory=time.time)
@@ -76,7 +62,7 @@ class CrmTask:
 
 @dataclass
 class ProductTemplate:
-    prodt_id: str
+    prodt_id: str = field(metadata=pk)
     prodt_name: str
     prodt_description: str
     prodt_target_customers: str
@@ -94,7 +80,7 @@ class ProductTemplate:
 
 @dataclass
 class ProductProduct:
-    prod_id: str
+    prod_id: str = field(metadata=pk)
     prodt_id: str
     prod_default_code: Optional[str]
     prod_barcode: Optional[str]
@@ -105,7 +91,7 @@ class ProductProduct:
 
 @dataclass
 class ProductCategory:
-    pcat_id: str
+    pcat_id: str = field(metadata=pk)
     pcat_name: str
     pcat_parent_id: Optional[str]
     pcat_active: bool
@@ -115,7 +101,7 @@ class ProductCategory:
 
 @dataclass
 class ProductTag:
-    tag_id: str
+    tag_id: str = field(metadata=pk)
     tag_name: str
     tag_sequence: int
     tag_color: str
@@ -125,7 +111,7 @@ class ProductTag:
 
 @dataclass
 class ProductUom:
-    uom_id: str
+    uom_id: str = field(metadata=pk)
     uom_name: str
     uom_category_id: Optional[str]
     uom_active: bool
@@ -135,7 +121,7 @@ class ProductUom:
 
 @dataclass
 class ProductM2mTemplateTag:
-    id: str
+    id: str = field(metadata=pk)
     tag_id: str
     prodt_id: str
     ws_id: str
