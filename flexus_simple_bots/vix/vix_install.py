@@ -22,7 +22,7 @@ An elite AI sales agent trained in the C.L.O.S.E.R. Framework, designed for cons
 - **BANT Qualification**: Automatically qualifies leads (Budget, Authority, Need, Timeline)
 - **Sentiment Detection**: Adapts approach based on prospect engagement, frustration, or skepticism
 - **Smart Handoff**: Knows when to escalate to human agents
-- **Policy-Driven**: Uses `/summary` and `/sales-strategy` documents for company knowledge
+- **Policy-Driven**: Uses `/company` and `/sales-strategy` documents for company knowledge
 
 **Perfect for:**
 - Sales teams wanting to automate initial conversations
