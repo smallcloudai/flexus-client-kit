@@ -1,16 +1,20 @@
 # Flexus Company OS
 
-Almost everything in your company can be automated by AI agents: from verifying your product idea to sales and tech support.
-This project is a Company Operating System that makes it possible.
+Almost everything in your company can be automated by AI agents: from verifying your product idea to sales and
+tech support. This project is a Company Operating System that makes it possible.
 
 
 ## Why This Exists
 
-Only disjoint tools exist like ChatGPT or Claude, that you have to supplement with MCP servers, skills, external systems like CRM database. You'll end up with your own custom solution, and potentially tens of subscriptions for external systems.
+Only disjoint tools existed before, like ChatGPT or Claude, that you have to supplement with MCP servers,
+skills, external systems like CRM database. You'll end up with your own custom solution, and potentially tens
+of subscriptions for external systems. Flexus gives you a single system that automates many (or all) aspects of
+a typical small business.
 
-It's also not Odoo with LLMs bolted on, it's an AI first project!
+Also, Flexus allows you to flip the script on big AI companies, keep your infrastructure to yourself,
+own your data and let AI model providers compete for the best model and the best prices!
 
-Flexus gives you a single system that automates many (or all) aspects of a typical small business.
+<!-- It's also not Odoo with LLMs bolted on, it's an AI first project! -->
 
 
 ## Progress
@@ -47,21 +51,29 @@ Technical progress:
 Every aspect of Flexus improves itself automatically!
 
 - [x] You can create a new bot in 1 chat
-- [ ] Bots improve their system prompt and tools, with human-in-the loop to review the changes (github PR)
-- [ ] Every page in web UI or mobile has feedback, that will translate to code changes (github PR)
+- [ ] Bots improve their prompts and tools, with human-in-the loop to review the changes (github PR)
 - [ ] You can leave feedback for a bot, that will translate to code changes (github PR)
+- [ ] Every page in web UI or mobile has feedback, that will translate to code changes (github PR)
+
+
+## Writing Your Bot
+
+It's easy to write your own bot!
+
+Your bot is a repository on github (probably a forked https://github.com/smallcloudai/flexus-my-bot
+but you don't have to start with that repo) that defines:
+
+* Python script to run that bot, for example `python -m flexus_my_bot.my_fancy_bot`
+* Installation script that provides all the prompts, avatar pictures, microfrontend, etc
+
+But it's even easier, you can [hire Bob](https://flexus.team/bob/marketplace-details) and ask him to
+do all this for you!
+
+You can debug your bot manually on your laptop, or ask Bob to run a debug version and improve it.
 
 
 ## Monetize Your Bot on Marketplace
 
-Lorem ipsum dolor sit amet consectetur adipiscing elit. Consectetur adipiscing elit quisque faucibus ex sapien vitae. Ex sapien vitae pellentesque sem placerat in id. Placerat in id cursus mi pretium tellus duis. Pretium tellus duis convallis tempus leo eu aenean.
+We'll make the first usable setup work with the bots we create ourselves. Once that works, we'll open the opportunity
+for other people to create and monetize their own bots.
 
-
-## Getting Started
-
-Lorem ipsum dolor sit amet consectetur adipiscing elit. Consectetur adipiscing elit quisque faucibus ex sapien vitae. Ex sapien vitae pellentesque sem placerat in id. Placerat in id cursus mi pretium tellus duis. Pretium tellus duis convallis tempus leo eu aenean.
-
-
-## Contributing
-
-Lorem ipsum dolor sit amet consectetur adipiscing elit. Consectetur adipiscing elit quisque faucibus ex sapien vitae. Ex sapien vitae pellentesque sem placerat in id. Placerat in id cursus mi pretium tellus duis. Pretium tellus duis convallis tempus leo eu aenean.
