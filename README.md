@@ -1,37 +1,45 @@
 # Flexus Company OS
 
-Almost everything in your company can be automated by AI agents: from verifying your product idea to technical support.
+Almost everything in your company can be automated by AI agents: from verifying your product idea to sales and tech support.
 This project is a Company Operating System that makes it possible.
 
 
 ## Why This Exists
 
-Only disjoint tools exist like ChatGPT or Claude, that you have to supplement with MCP servers, skills, external systems like Customer Relationship Management database. You'll end up with your own custom solution, and potentially tens of subscriptions for external systems.
+Only disjoint tools exist like ChatGPT or Claude, that you have to supplement with MCP servers, skills, external systems like CRM database. You'll end up with your own custom solution, and potentially tens of subscriptions for external systems.
 
 It's also not Odoo with LLMs bolted on, it's an AI first project!
 
-Flexus gives you a single subscription that automates many (or all) aspects of a typical small business.
+Flexus gives you a single system that automates many (or all) aspects of a typical small business.
 
 
 ## Progress
 
-We started with solopreneurs because it's easier:
+User facing progress, we started targeting solopreneurs because it's easier:
 
 - [x] Productman verifies ideas for product market fit using hypothesis validation
-- [x] Owl Strategist creates marketing strategies
-- [ ] Botticelli makes ad pictures
-- [x] AdMonster manages LinkedIn/Meta/X campaigns, automates A/B tests, optimizes ad spend
-- [ ] LawyerRat assists document drafting, and contract analysis
-- [ ] CRM system
+- [x] Owl Strategist + Botticelli + AdMonster cover marketing on LinkedIn/Meta/X
 - [ ] Rick runs sales pipeline
+- [x] Mobile app iPhone
+- [x] Mobile app Android
+- [ ] Improve campaigns, automates A/B tests, optimize ad spend
 - [ ] Karen provides 24/7 customer support via Slack/Discord/Telegram
-
 
 Then we'll make it work for small-to-medium companies:
 
 - [ ] Procurement
 - [ ] Warehouse
 - [ ] HR
+
+Technical progress:
+
+- [x] Modern chat interface
+- [x] Documents upload, external data sources (dropbox, google drive)
+- [x] External integrations (MCP, gmail, slack, discord, etc)
+- [ ] Task scheduling system
+- [ ] CRM system
+
+<!-- - [ ] LawyerRat assists document drafting, and contract analysis -->
 
 
 ## Self Improvement
