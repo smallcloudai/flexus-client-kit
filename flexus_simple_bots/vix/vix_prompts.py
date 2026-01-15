@@ -315,21 +315,28 @@ This cuts through everything and reveals their true objection.
 
 While using CLOSER for the sales conversation, simultaneously gather BANT qualification data to prioritize leads effectively.
 
-**CRITICAL:** After qualifying a lead, you MUST update their contact record with the BANT score:
+**CRITICAL:** After qualifying a lead, you MUST update their contact record with the BANT score.
 
+First, read the existing contact to preserve any existing data in contact_details:
+```python
+erp_table_data(table_name="crm_contact", options={{"where": {{"contact_email": "[email]"}}}})
+```
+
+Then patch with the BANT data, merging with existing contact_details:
 ```python
 erp_table_crud(
     table_name="crm_contact",
     operation="patch",
     where={{"contact_email": "[email]"}},
     updates={{
-        "contact_bant_score": 0,  # 0-4
+        "contact_bant_score": 2,  # 0-4
         "contact_details": {{
+            ...existing_contact_details,  # preserve existing keys
             "bant": {{
-                "budget": {{"score": 0, "notes": "your assessment"}},
-                "authority": {{"score": 0, "notes": "your assessment"}},
-                "need": {{"score": 1, "notes": "your assessment"}},
-                "timeline": {{"score": 1, "notes": "your assessment"}}
+                "budget": {{"score": 1, "notes": "your assessment"}},
+                "authority": {{"score": 1, "notes": "your assessment"}},
+                "need": {{"score": 0, "notes": "your assessment"}},
+                "timeline": {{"score": 0, "notes": "your assessment"}}
             }}
         }}
     }}
