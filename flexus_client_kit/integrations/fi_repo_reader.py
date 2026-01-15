@@ -17,16 +17,37 @@ _repo_last_access: Dict[str, float] = {}
 
 
 REPO_READER_TOOL = ckit_cloudtool.CloudTool(
-    strict=False,
+    strict=True,
     name="repo_reader",
-    description="Read-only files from github repositories, call with op=\"help\" for usage.",
+    description="Read files from github repositories, call with op=help for usage",
     parameters={
         "type": "object",
         "properties": {
-            "op": fi_localfile.LOCALFILE_TOOL.parameters["properties"]["op"],
-            "args": fi_localfile.LOCALFILE_TOOL.parameters["properties"]["args"],
+            "op": {
+                "type": "string",
+                "enum": ["help", "cat", "find", "grep", "ls"],
+                "description": "Operation: cat (read file), find (glob search), grep (regex search), ls (list dir)",
+            },
+            "args": {
+                "type": "object",
+                "additionalProperties": False,
+                "description": "All arguments required, set to null if not used for this operation",
+                "properties": {
+                    "repo": {"type": "string", "description": "GitHub URL or owner/repo"},
+                    "branch": {"type": ["string", "null"], "description": "Branch name, defaults to repo default"},
+                    "path": {"type": ["string", "null"], "description": "File or directory path"},
+                    "lines_range": {"type": ["string", "null"], "description": "Line range for cat: '1:20', ':20', '21:'"},
+                    "safety_valve": {"type": ["string", "null"], "description": "Max output size for cat, e.g. '10k'"},
+                    "pattern": {"type": ["string", "null"], "description": "Glob pattern for find, regex for grep"},
+                    "recursive": {"type": ["boolean", "null"], "description": "Recursive grep search, default true"},
+                    "include": {"type": ["string", "null"], "description": "File glob filter for grep, e.g. '*.py'"},
+                    "context": {"type": ["integer", "null"], "description": "Context lines around grep matches"},
+                },
+                "required": ["repo", "branch", "path", "lines_range", "safety_valve", "pattern", "recursive", "include", "context"],
+            },
         },
-        "required": ["op"]
+        "required": ["op", "args"],
+        "additionalProperties": False,
     },
 )
 
