@@ -19,8 +19,24 @@ MONGO_STORE_TOOL = ckit_cloudtool.CloudTool(
     parameters={
         "type": "object",
         "properties": {
-            "op": {"type": "string", "description": "Start with 'help' for usage"},
-            "args": {"type": ["object", "null"], "additionalProperties": False},
+            "op": {
+                "type": "string",
+                "enum": ["help", "list", "ls", "cat", "grep", "delete", "upload"],
+                "description": "Operation: list/ls (list files), cat (read file), grep (search), delete, upload",
+            },
+            "args": {
+                "type": "object",
+                "additionalProperties": False,
+                "description": "All arguments required, set to null if not used for this operation",
+                "properties": {
+                    "path": {"type": ["string", "null"], "description": "File path or prefix for list"},
+                    "lines_range": {"type": ["string", "null"], "description": "Line range for cat: '1:20', ':20', '21:'"},
+                    "safety_valve": {"type": ["string", "null"], "description": "Max output size for cat, e.g. '10k'"},
+                    "pattern": {"type": ["string", "null"], "description": "Python regex pattern for grep"},
+                    "context": {"type": ["integer", "null"], "description": "Context lines around grep matches"},
+                },
+                "required": ["path", "lines_range", "safety_valve", "pattern", "context"],
+            },
         },
         "required": ["op", "args"],
         "additionalProperties": False,
