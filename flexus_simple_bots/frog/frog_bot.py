@@ -171,7 +171,7 @@ async def frog_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.R
             first_calls=["null" for _ in range(N)],
             title=[f"Catching insect #{i+1}" for i in range(N)],
             fcall_id=toolcall.fcall_id,
-            skill="huntmode",
+            fexp_name="huntmode",
         )
         raise ckit_cloudtool.WaitForSubchats(subchats)
 

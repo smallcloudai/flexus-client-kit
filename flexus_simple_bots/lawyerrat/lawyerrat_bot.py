@@ -140,7 +140,7 @@ Format the response professionally with appropriate citations in {setup.get('cit
             first_calls=["null"],
             title=[f"Legal Research: {topic[:50]}"],
             fcall_id=toolcall.fcall_id,
-            skill="default",
+            fexp_name="default",
         )
         raise ckit_cloudtool.WaitForSubchats(subchats)
 
@@ -192,7 +192,7 @@ Include a brief summary of key points at the end."""
             first_calls=["null"],
             title=[f"Draft: {document_type}"],
             fcall_id=toolcall.fcall_id,
-            skill="default",
+            fexp_name="default",
         )
         raise ckit_cloudtool.WaitForSubchats(subchats)
 
@@ -240,7 +240,7 @@ Be systematic and thorough like a diligent rat examining every detail!"""
             first_calls=["null"],
             title=["Contract Analysis"],
             fcall_id=toolcall.fcall_id,
-            skill="default",
+            fexp_name="default",
         )
         raise ckit_cloudtool.WaitForSubchats(subchats)
 

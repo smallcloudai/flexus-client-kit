@@ -617,10 +617,10 @@ async def run_happy_trajectory(
     last_human_message = ""
     try:
         assert "__" in skill__scenario
-        skill = skill__scenario.split("__")[0]
-        assert skill != "default", "the first part before \"__\" in scenario name should be the bot name, not \"default\""
-        if skill == scenario.persona.persona_marketable_name:
-            skill = "default"
+        fexp_name = skill__scenario.split("__")[0]
+        assert fexp_name != "default", "the first part before \"__\" in scenario name should be the bot name, not \"default\""
+        if fexp_name == scenario.persona.persona_marketable_name:
+            fexp_name = "default"
         for step in range(max_steps):
             ht1 = time.time()
             result = await ckit_scenario.scenario_generate_human_message(
@@ -642,7 +642,7 @@ async def run_happy_trajectory(
                     client=scenario.fclient,
                     who_is_asking="trajectory_scenario",
                     persona_id=scenario.persona.persona_id,
-                    skill=skill,
+                    fexp_name=fexp_name,
                     first_question=result.next_human_message,
                     first_calls=first_calls,
                     title="Trajectory Test",

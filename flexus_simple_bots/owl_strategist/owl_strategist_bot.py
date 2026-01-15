@@ -280,7 +280,7 @@ Can now run diagnostic agent."""
             first_calls=["null"],
             title=[AGENT_DESCRIPTIONS.get(agent, agent)],
             fcall_id=toolcall.fcall_id,
-            skill=agent,
+            fexp_name=agent,
         )
         raise ckit_cloudtool.WaitForSubchats(subchats)
 
@@ -320,7 +320,7 @@ RERUN with corrections. Apply this feedback to the current document:
             first_calls=["null"],
             title=[f"Rerun: {AGENT_DESCRIPTIONS.get(agent, agent)}"],
             fcall_id=toolcall.fcall_id,
-            skill=agent,
+            fexp_name=agent,
         )
         raise ckit_cloudtool.WaitForSubchats(subchats)
 

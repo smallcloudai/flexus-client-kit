@@ -294,7 +294,7 @@ async def productman_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_
             first_calls=["null"],
             title=[f"Verifying Idea {idea_name}"],
             fcall_id=toolcall.fcall_id,
-            skill="criticize_idea",
+            fexp_name="criticize_idea",
         )
         # Subchat adds "c" (for "criticism") for every question to the document.
         # Returns "Read the file using flexus_policy_document(op=activate, ...) to see the ratings."

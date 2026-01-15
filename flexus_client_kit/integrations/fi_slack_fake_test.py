@@ -62,14 +62,14 @@ async def fake_capture_test(setup: ckit_scenario.ScenarioSetup, slack_bot, queue
     http = await slack_bot.fclient.use_http()
     async with http as h:
         r = await h.execute(
-            gql.gql("""mutation BotActivateTest($who_is_asking:String!, $persona_id:String!, $first_question:String!, $first_calls:String!, $title:String!, $skill:String!){ bot_activate(who_is_asking:$who_is_asking, persona_id:$persona_id, first_question:$first_question, first_calls:$first_calls, title:$title, skill:$skill){ ft_id }}"""),
+            gql.gql("""mutation BotActivateTest($who_is_asking:String!, $persona_id:String!, $first_question:String!, $first_calls:String!, $title:String!, $fexp_name:String!){ bot_activate(who_is_asking:$who_is_asking, persona_id:$persona_id, first_question:$first_question, first_calls:$first_calls, title:$title, fexp_name:$fexp_name){ ft_id }}"""),
             variable_values={
                 "who_is_asking": "fi_slack_fake_test",
                 "persona_id": slack_bot.rcx.persona.persona_id,
                 "first_question": first_activity.message_text,
                 "first_calls": "[]",
                 "title": "capture test",
-                "skill": "default",
+                "fexp_name": "default",
             }
         )
     ft_id = r["bot_activate"]["ft_id"]

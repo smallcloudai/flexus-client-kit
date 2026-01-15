@@ -265,7 +265,7 @@ After making changes to a bot, run:
 
 python flexus_simple_bots/my/my_bot.py --scenario flexus_simple_bots/my/default__s1.yaml
 
-The naming convention is $SKILL$__$SCENARIO$.yaml with double underscore, in this example the skill is "default" and
+The naming convention is $EXPERT$__$SCENARIO$.yaml with double underscore, in this example the expert is "default" and
 the scenario name is "s1".
 
 Don't run this for all bots because it's expensive, but it's a good idea to run one scenario of your choosing
@@ -331,7 +331,7 @@ What Lark can do: stop an unwanted tool call, set error, return subchat result, 
 output format and ask for a fix, keep track of spending, post instructions to the model.
 
 A subchat will not work at all unless it runs a Lark kernel that will return a value! See
-frog_install.py on how to make an expert (aka bot skill) with a Lark kernel.
+frog_install.py on how to make an expert with a Lark kernel.
 
 Inputs: "messages", "coins", "budget"
 Outputs: "subchat_result", "post_cd_instruction", "error", "kill_tools"
@@ -356,10 +356,10 @@ and the bot will receive them as regular thread message updates, that's how you 
 Skills, Subchats and A2A Communication
 --------------------------------------
 
-Bot skills AKA experts are necessary when you need a separate system prompt and toolset.
+Bot experts are necessary when you need a separate system prompt and toolset.
 
 When you need a subtask completed, there are two choices: run subchat or use A2A to hand over the task
-to your different skill, or another agent.
+to your different expert, or another agent.
 
 Subchat applicability:
 - Subchats works as tool calls: it runs an additional thread, puts subchat_result produced by Lark kernel back as a
@@ -369,7 +369,7 @@ Subchat applicability:
 - Can only return text.
 
 A2A communication applicability:
-- You can tell me model to call flexus_hand_over_task(to_bot="", description="", skill=""), that will create a kanban task
+- You can tell me model to call flexus_hand_over_task(to_bot="", description="", fexp_name=""), that will create a kanban task
   in the inbox of that bot.
 - Once the task is completed (moved to kanban "done") a message will appear after the flexus_hand_over_task() call informing
   about that.

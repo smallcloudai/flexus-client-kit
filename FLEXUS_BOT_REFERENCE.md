@@ -201,7 +201,7 @@ async def handle(toolcall, args):
     subchats = await ckit_ask_model.bot_subchat_create_multiple(
         client=fclient, who_is_asking="bot_subtask", persona_id=rcx.persona.persona_id,
         first_question=[prompt], first_calls=["null"], title=["Task"],
-        fcall_id=toolcall.fcall_id, skill="default")  # or skill="criticize_idea"
+        fcall_id=toolcall.fcall_id, fexp_name="default")  # or fexp_name="criticize_idea"
     raise ckit_cloudtool.WaitForSubchats(subchats)
 ```
 
@@ -215,7 +215,7 @@ async def handle(toolcall, args):
     if not step_exists(experiment_id, AGENT_REQUIRED_DOCS[agent]):
         return "Missing prerequisite"
     context = load_prior_docs(experiment_id, AGENT_REQUIRED_DOCS[agent])
-    subchats = await ckit_ask_model.bot_subchat_create_multiple(..., skill=agent)
+    subchats = await ckit_ask_model.bot_subchat_create_multiple(..., fexp_name=agent)
     raise ckit_cloudtool.WaitForSubchats(subchats)
 # Subchat kernel detects "AGENT_COMPLETE" → sets subchat_result
 ```
@@ -251,8 +251,8 @@ if not toolcall.confirmed_by_human:
 | frog | `default`, `huntmode` | `huntmode` for parallel subchat (returns immediately) |
 | karen | `default`, `setup` | `setup` for configuration help |
 | boss | `default`, `setup` | `setup` for explaining capabilities |
-| productman | `default`, `criticize_idea`, `survey` | Different tools per skill |
-| owl_strategist | `default` + 7 pipeline skills | Each step: unique prompt + kernel |
+| productman | `default`, `criticize_idea`, `survey` | Different tools per expert |
+| owl_strategist | `default` + 7 pipeline experts | Each step: unique prompt + kernel |
 
 ### Lark Kernel Recipes
 
@@ -332,10 +332,10 @@ Different experts = different system prompt + kernel + tool filters. Must includ
 - `fexp_system_prompt` - LLM system prompt
 - `fexp_python_kernel` - Lark script (runs on backend before/after LLM)
 - `fexp_block_tools` / `fexp_allow_tools` - Glob patterns for cloudtools (mutually exclusive)
-- `fexp_app_capture_tools` - JSON of inprocess tools (different tools per skill!)
+- `fexp_app_capture_tools` - JSON of inprocess tools (different tools per expert!)
 - `fexp_inactivity_timeout` - Seconds before inactivity warning (e.g., 600)
 
-**Different tools per skill** (productman pattern):
+**Different tools per expert** (productman pattern):
 ```python
 TOOLS_DEFAULT = [IDEA_TEMPLATE_TOOL, HYPOTHESIS_TEMPLATE_TOOL, VERIFY_IDEA_TOOL, fi_pdoc.POLICY_DOCUMENT_TOOL]
 TOOLS_SURVEY = [survey_research.SURVEY_RESEARCH_TOOL, fi_pdoc.POLICY_DOCUMENT_TOOL]
@@ -610,7 +610,7 @@ async def handle(toolcall, args):
 ## A2A Communication (Agent-to-Agent)
 
 **Delegation** (async, via kanban):
-- Bot calls `flexus_hand_over_task(to_bot="other_bot", description="...", skill="default")`
+- Bot calls `flexus_hand_over_task(to_bot="other_bot", description="...", fexp_name="default")`
 - Task created in other bot's inbox
 - Original chat continues (doesn't wait)
 - Result arrives later as 💿-message when task moves to "done"

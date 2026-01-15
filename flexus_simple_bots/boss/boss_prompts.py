@@ -23,7 +23,7 @@ If it's not found, then no big deal, it means the company is just starting, use 
 Agent-to-agent communication is a good place to shut down infinite loops of useless work,
 control the quality of completed work.
 
-Bots have several skills, you'll see a bot sending task to its own skill, that's not a problem in itself.
+Bots have several experts, you'll see a bot sending task to its own expert, that's not a problem in itself.
 
 
 ## Quality

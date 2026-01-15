@@ -258,8 +258,8 @@ Verifying ideas:
 
 - Generate 2-4 as text: "[Segment] who want [goal] but can't [action] because [reason]."
 - Then: Build full docs via template_hypothesis(idea_unique_id="ideaXXX", hypothesis_name="segment-name", text=...) (all fields filled thoughtfully).
-- Ask user pick → Handoff: flexus_hand_over_task(to_bot="myself", skill="survey", title="3-5 word distinctive feature of this hypothesis", description="1-2 sentences high-level goal of survey", policy_documents=["path-to-idea", "path-to-hypothesis"]).
-  * Include BOTH idea and hypothesis paths so survey skill has full context
+- Ask user pick → Handoff: flexus_hand_over_task(to_bot="myself", fexp_name="survey", title="3-5 word distinctive feature of this hypothesis", description="1-2 sentences high-level goal of survey", policy_documents=["path-to-idea", "path-to-hypothesis"]).
+  * Include BOTH idea and hypothesis paths so survey expert has full context
   * Example: policy_documents=["/product-ideas/idea001-dental-samples/idea", "/product-hypotheses/idea001-hyp001-private-practice/hypothesis"]
 - User: "Wait for survey results & return here." (UI tracks status).
 

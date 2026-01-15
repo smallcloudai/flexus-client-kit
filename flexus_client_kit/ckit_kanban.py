@@ -20,7 +20,7 @@ class FPersonaKanbanTaskOutput:
     persona_id: str
     ktask_id: str
     ktask_title: str
-    ktask_skill: str
+    ktask_fexp_name: str
     ktask_inbox_ts: float
     ktask_inbox_provenance: Any
     ktask_daily_timekey: str
@@ -171,7 +171,7 @@ async def get_tasks_by_thread(
                     persona_id
                     ktask_id
                     ktask_title
-                    ktask_skill
+                    ktask_fexp_name
                     ktask_inbox_ts
                     ktask_inbox_provenance
                     ktask_daily_timekey
@@ -228,7 +228,7 @@ async def bot_get_all_tasks(
                     persona_id
                     ktask_id
                     ktask_title
-                    ktask_skill
+                    ktask_fexp_name
                     ktask_inbox_ts
                     ktask_inbox_provenance
                     ktask_daily_timekey
