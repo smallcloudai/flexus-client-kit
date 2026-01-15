@@ -104,7 +104,6 @@ class IntegrationPdoc:
         self.rcx = rcx
         self.fclient = rcx.fclient
         self.fgroup_id = ws_root_group_id
-        self.problems = []
         self.is_fake = rcx.running_test_scenario
 
     async def called_by_model(self, toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Optional[Dict[str, Any]]) -> str:
