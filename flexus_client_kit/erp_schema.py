@@ -5,6 +5,7 @@ from typing import Optional, Dict, Type, List
 pk = {"pk": True}
 view_default = {"view_default": True}
 extra_search = {"extra_search": True}
+display_multiline = {"display": "string_multiline"}
 
 
 def get_pk_field(cls: Type) -> str:
@@ -22,6 +23,11 @@ def get_extra_search_fields(cls: Type) -> List[str]:
     return [name for name, f in cls.__dataclass_fields__.items() if f.metadata.get("extra_search")]
 
 
+def get_field_display(cls: Type, field_name: str) -> Optional[str]:
+    f = cls.__dataclass_fields__.get(field_name)
+    return f.metadata.get("display") if f else None
+
+
 @dataclass
 class CrmContact:
     ws_id: str
@@ -29,7 +35,7 @@ class CrmContact:
     contact_last_name: str = field(metadata=view_default)
     contact_email: str = field(metadata=view_default | extra_search)
     contact_id: str = field(default="", metadata=pk)
-    contact_notes: str = field(default="", metadata=view_default)
+    contact_notes: str = field(default="", metadata=view_default | display_multiline)
     contact_details: dict = field(default_factory=dict)
     contact_tags: List[str] = field(default_factory=list, metadata=view_default)
     contact_address_line1: str = ""
@@ -60,7 +66,7 @@ class CrmTask:
     contact_id: str = field(metadata=view_default)
     task_type: str = field(metadata=view_default)
     task_title: str = field(metadata=view_default)
-    task_notes: str = field(default="", metadata=view_default)
+    task_notes: str = field(default="", metadata=view_default | display_multiline)
     task_details: dict = field(default_factory=dict)
     task_id: str = field(default="", metadata=pk)
     task_due_ts: float = field(default=0.0, metadata=view_default)
@@ -74,8 +80,8 @@ class CrmTask:
 class ProductTemplate:
     prodt_id: str = field(metadata=pk)
     prodt_name: str = field(metadata=view_default)
-    prodt_description: str = field(metadata=view_default)
-    prodt_target_customers: str = field(metadata=view_default)
+    prodt_description: str = field(metadata=view_default | display_multiline)
+    prodt_target_customers: str = field(metadata=view_default | display_multiline)
     prodt_type: str = field(metadata=view_default)
     prodt_pcat_id: str
     prodt_list_price: int = field(metadata=view_default)  # stored in cents
