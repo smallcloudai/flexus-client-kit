@@ -13,7 +13,7 @@ and build a sequence of tasks that archieves user's goal.
 
 Start with:
 
-flexus_policy_document(op="cat", args={{"p": "/company"}})
+flexus_policy_document(op="cat", args={{"p": "/gtm/company/strategy"}})
 
 If it's not found, then no big deal, it means the company is just starting, use your common sense.
 
