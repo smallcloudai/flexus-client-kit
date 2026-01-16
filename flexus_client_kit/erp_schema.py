@@ -1,4 +1,3 @@
-import time
 from dataclasses import dataclass, field
 from typing import Optional, Dict, Type, List
 
@@ -6,6 +5,9 @@ pk = {"pk": True}
 view_default = {"view_default": True}
 extra_search = {"extra_search": True}
 display_multiline = {"display": "string_multiline"}
+
+def enum(*values: str) -> dict:
+    return {"enum": list(values)}
 
 
 def get_pk_field(cls: Type) -> str:
@@ -26,6 +28,11 @@ def get_extra_search_fields(cls: Type) -> List[str]:
 def get_field_display(cls: Type, field_name: str) -> Optional[str]:
     f = cls.__dataclass_fields__.get(field_name)
     return f.metadata.get("display") if f else None
+
+
+def get_field_enum(cls: Type, field_name: str) -> Optional[List[str]]:
+    f = cls.__dataclass_fields__.get(field_name)
+    return f.metadata.get("enum") if f else None
 
 
 @dataclass
@@ -61,19 +68,20 @@ class CrmContact:
 
 
 @dataclass
-class CrmTask:
+class CrmActivity:
     ws_id: str
-    contact_id: str = field(metadata=view_default)
-    task_type: str = field(metadata=view_default)
-    task_title: str = field(metadata=view_default)
-    task_notes: str = field(default="", metadata=view_default | display_multiline)
-    task_details: dict = field(default_factory=dict)
-    task_id: str = field(default="", metadata=pk)
-    task_due_ts: float = field(default=0.0, metadata=view_default)
-    task_completed_ts: float = field(default=0.0, metadata=view_default)
-    task_created_ts: float = field(default_factory=time.time)
-    task_modified_ts: float = field(default_factory=time.time)
-    contact: Optional['CrmContact'] = None
+    activity_title: str = field(metadata=view_default)
+    activity_type: str = field(metadata=view_default | enum("WEB_CHAT", "MESSENGER_CHAT", "EMAIL", "CALL", "MEETING"))
+    activity_direction: str = field(metadata=view_default | enum("INBOUND", "OUTBOUND"))
+    activity_contact_id: str = field(metadata=view_default)
+    activity_id: str = field(default="", metadata=pk)
+    activity_channel: str = field(default="", metadata=view_default)
+    activity_thread_id: Optional[str] = field(default=None, metadata=view_default)
+    activity_summary: str = field(default="", metadata=view_default | display_multiline)
+    activity_details: dict = field(default_factory=dict)
+    activity_occurred_ts: float = field(default=0.0, metadata=view_default)
+    activity_created_ts: float = 0.0
+    activity_modified_ts: float = 0.0
 
 
 @dataclass
@@ -147,7 +155,7 @@ class ProductM2mTemplateTag:
 
 ERP_TABLE_TO_SCHEMA: Dict[str, Type] = {
     "crm_contact": CrmContact,
-    "crm_task": CrmTask,
+    "crm_activity": CrmActivity,
     "product_template": ProductTemplate,
     "product_product": ProductProduct,
     "product_category": ProductCategory,
@@ -158,7 +166,7 @@ ERP_TABLE_TO_SCHEMA: Dict[str, Type] = {
 
 ERP_DISPLAY_NAME_CONFIGS: Dict[str, str] = {
     "crm_contact": "{contact_first_name} {contact_last_name}",
-    "crm_task": "{task_title}",
+    "crm_activity": "{activity_title}",
     "product_template": "{prodt_name}",
     "product_product": "{prod_default_code} {prod_barcode}",
     "product_category": "{pcat_name}",
