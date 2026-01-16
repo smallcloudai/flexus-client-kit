@@ -4,7 +4,7 @@ import dataclasses
 import json
 import gql
 
-from flexus_client_kit import ckit_client, gql_utils
+from flexus_client_kit import ckit_client, gql_utils, erp_schema
 
 T = TypeVar('T')
 
@@ -139,6 +139,33 @@ async def delete_erp_record(
             },
         )
         return r["erp_table_delete"]
+
+
+async def batch_upsert_erp_records(
+    client: ckit_client.FlexusClient,
+    table_name: str,
+    ws_id: str,
+    upsert_key: str,
+    records: List[Any],
+) -> dict:
+    http = await client.use_http()
+    async with http as h:
+        r = await h.execute(gql.gql("""
+            mutation ErpTableBatchUpsert($schema_name: String!, $table_name: String!, $ws_id: String!, $upsert_key: String!, $records_json: String!) {
+                erp_table_batch_upsert(schema_name: $schema_name, table_name: $table_name, ws_id: $ws_id, upsert_key: $upsert_key, records_json: $records_json)
+            }"""),
+            variable_values={
+                "schema_name": "erp",
+                "table_name": table_name,
+                "ws_id": ws_id,
+                "upsert_key": upsert_key,
+                "records_json": json.dumps([dataclass_or_dict_to_dict(r) for r in records]),
+            },
+        )
+        result = r["erp_table_batch_upsert"]
+        if isinstance(result, str):
+            return json.loads(result)
+        return result
 
 
 def check_record_matches_filters(record: dict, filters: List[Union[str, dict]], col_names: set = None) -> bool:
@@ -296,17 +323,9 @@ def check_record_matches_filter(record: dict, f: str, col_names: set = None) -> 
 
 
 async def test():
-    from flexus_client_kit.erp_schema import ProductTemplate, ProductProduct
     client = ckit_client.FlexusClient("ckit_erp_test")
     ws_id = "solarsystem"
-    products = await query_erp_table(
-        client,
-        "product_product",
-        ws_id,
-        ProductProduct,
-        limit=10,
-        include=["prodt"],
-    )
+    products = await query_erp_table(client, "product_product", ws_id, erp_schema.ProductProduct, limit=10, include=["prodt"])
     print(f"Found {len(products)} products:")
     for p in products:
         print(p)
