@@ -338,8 +338,9 @@ class IntegrationGmail:
                     "activity_direction": "OUTBOUND",
                     "activity_channel": "GMAIL",
                     "activity_contact_id": contact.contact_id,
-                    "activity_thread_id": ft_id,
-                    "activity_summary": body[:2000] if len(body) > 2000 else body,
+                    "activity_ft_id": ft_id,
+                    "activity_summary": body[:500] if len(body) > 500 else body,
+                    "activity_details": {"body": body},
                     "activity_occurred_ts": time.time(),
                 })
                 logger.info(f"Created CRM activity for email to {email}")
