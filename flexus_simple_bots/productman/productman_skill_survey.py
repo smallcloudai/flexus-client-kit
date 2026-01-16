@@ -109,8 +109,8 @@ If ANY tool returns an error, STOP execution immediately. Show the error to the 
 
 1. When you receive a kanban task with policy_documents:
    - Task should contain BOTH idea and hypothesis paths in policy_documents list
-   - Read the hypothesis: `/gtm/discovery/{idea-slug}/{hypothesis-slug}/hypothesis`
-   - Read the idea: `/gtm/discovery/{idea-slug}/idea`
+   - Read the hypothesis: `/gtm/discovery/{{idea-slug}}/{{hypothesis-slug}}/hypothesis`
+   - Read the idea: `/gtm/discovery/{{idea-slug}}/idea`
    - Extract slugs from paths
    - Analyze both documents to understand target audience and what to validate
 
@@ -128,7 +128,7 @@ If ANY tool returns an error, STOP execution immediately. Show the error to the 
 
 4. Collect results:
    - Call `survey(op="responses", args={{"idea_slug": "dental-samples", "hypothesis_slug": "private-practice", "survey_id": "...", "target_responses": N}})`
-   - Results saved to `/gtm/discovery/{idea-slug}/{hypothesis-slug}/survey-results`
+   - Results saved to `/gtm/discovery/{{idea-slug}}/{{hypothesis-slug}}/survey-results`
 
 5. Task completion:
    - Target responses collected → Move kanban task to DONE
