@@ -97,7 +97,7 @@ async def install(
         marketable_setup_default=vix_setup_schema,
         marketable_featured_actions=[
             {"feat_question": "Help me qualify a lead", "feat_run_as_setup": False, "feat_depends_on_setup": []},
-            {"feat_question": "Set up my sales strategy", "feat_run_as_setup": False, "feat_depends_on_setup": []},
+            {"feat_question": "Set up my sales strategy", "feat_run_as_setup": False, "feat_depends_on_setup": [], "feat_expert": "setup"},
         ],
         marketable_intro_message="Hi there! I'm Vix, an AI sales assistant. I'm here to help you find the right solution. Before we dive in, what's your name?",
         marketable_preferred_model_default="grok-4-1-fast-non-reasoning",
