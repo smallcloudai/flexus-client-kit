@@ -73,7 +73,7 @@ ERP_TABLE_CRUD_TOOL = ckit_cloudtool.CloudTool(
     description=(
         "Create, update (patch), or delete records in ERP tables. "
         "First call erp_table_meta to see available columns. "
-        "Example: erp_table_crud(op='create', table_name='crm_task', fields={'contact_id': '123', 'task_type': 'call', 'task_title': 'Follow up'})"
+        "Example: erp_table_crud(op='create', table_name='crm_contact', fields={'contact_first_name': 'John', 'contact_last_name': 'Doe', 'contact_email': 'john@example.com'})"
     ),
     parameters={
         "type": "object",

@@ -136,12 +136,11 @@ Relevant strategies and templates are in policy docs under `/sales-pipeline/`, s
 ## CRM Usage
 
 Use erp_table_*() tools to interact with the CRM.
-CRM tables always start with the prefix "crm_", such as crm_contact or crm_task.
+CRM tables always start with the prefix "crm_", such as crm_contact.
 
 Contacts will be ingested very often from forms in landing pages or main websites, or imported from other systems.
-Tasks are a short actionable item linked to a contact that some bot or human needs to do, like an email, follow-up or call.
 
-Extra fields that are not defined in the database schema will be in details, e.x. in contact_details, or task_details.
+Extra fields that are not defined in the database schema will be in contact_details.
 
 If enabled in setup, and a template is configured in `/sales-pipeline/welcome-email`, new CRM contacts
 without a previous welcome email will receive one automatically, personalized based on contact and sales data.
