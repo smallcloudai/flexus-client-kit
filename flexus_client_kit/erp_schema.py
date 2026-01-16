@@ -76,7 +76,7 @@ class CrmActivity:
     activity_contact_id: str = field(metadata=view_default)
     activity_id: str = field(default="", metadata=pk)
     activity_channel: str = field(default="", metadata=view_default)
-    activity_thread_id: Optional[str] = field(default=None, metadata=view_default)
+    activity_ft_id: Optional[str] = field(default=None, metadata=view_default)
     activity_summary: str = field(default="", metadata=view_default | display_multiline)
     activity_details: dict = field(default_factory=dict)
     activity_occurred_ts: float = field(default=0.0, metadata=view_default)
