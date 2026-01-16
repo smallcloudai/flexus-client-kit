@@ -27,7 +27,7 @@ BOT_VERSION = SIMPLE_BOTS_COMMON_VERSION
 BOT_VERSION_INT = ckit_client.marketplace_version_as_int(BOT_VERSION)
 
 
-ERP_TABLES = ["crm_task", "crm_contact"]
+ERP_TABLES = ["crm_contact"]
 
 
 TOOLS = [
