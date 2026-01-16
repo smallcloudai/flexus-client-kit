@@ -109,29 +109,26 @@ If ANY tool returns an error, STOP execution immediately. Show the error to the 
 
 1. When you receive a kanban task with policy_documents:
    - Task should contain BOTH idea and hypothesis paths in policy_documents list
-   - Read the hypothesis: `/product-hypotheses/<idea_unique_id>-<hyp_unique_id>-<hypothesis-name>/hypothesis`
-   - Read the idea: `/product-ideas/<idea_unique_id>-<idea-name>/idea`
-   - Extract IDs from hypothesis folder name (e.g. "idea001-hyp001-social-influencers"):
-     * idea_unique_id = first segment (e.g. "idea001")
-     * hyp_unique_id = second segment (e.g. "hyp001")
+   - Read the hypothesis: `/gtm/discovery/{idea-slug}/{hypothesis-slug}/hypothesis`
+   - Read the idea: `/gtm/discovery/{idea-slug}/idea`
+   - Extract slugs from paths
    - Analyze both documents to understand target audience and what to validate
 
 2. Draft survey and audience targeting:
-   - Choose survey_name (2-4 words describing survey approach, kebab-case)
    - Search filters (use `|` for OR): `survey(op="search_filters", args={{"search_pattern": "dentist|dental|age|employment"}})`
-   - Create survey draft: `survey(op="draft_survey", args={{"hyp_unique_id": "hyp001", "survey_name": "ask-dentists-directly", "survey_content": {{...}}}})`
-   - Create audience draft: `survey(op="draft_auditory", args={{"hyp_unique_id": "hyp001", "survey_name": "ask-dentists-directly", "study_name": "...", "estimated_minutes": 5, "reward_cents": 200, "total_participants": 30, "filters": {{...}}}})`
+   - Create survey draft: `survey(op="draft_survey", args={{"idea_slug": "dental-samples", "hypothesis_slug": "private-practice", "survey_content": {{...}}}})`
+   - Create audience draft: `survey(op="draft_auditory", args={{"idea_slug": "dental-samples", "hypothesis_slug": "private-practice", "study_name": "...", "estimated_minutes": 5, "reward_cents": 200, "total_participants": 30, "filters": {{...}}}})`
    - If no specific filter exists, use screening questions in section01
    - Show cost estimates and get user approval
 
 3. Execute campaign:
-   - Call `survey(op="run", args={{"hyp_unique_id": "hyp001", "survey_name": "ask-dentists-directly"}})`
+   - Call `survey(op="run", args={{"idea_slug": "dental-samples", "hypothesis_slug": "private-practice"}})`
    - This creates SurveyMonkey survey, Prolific study, connects them, and publishes
    - Tell user campaign is running with study/survey IDs
 
 4. Collect results:
-   - Call `survey(op="responses", args={{"hyp_unique_id": "hyp001", "survey_name": "ask-dentists-directly", "survey_id": "...", "target_responses": N}})`
-   - Results saved to `/survey-experiments/<hyp_unique_id>-<survey-name>/survey-results`
+   - Call `survey(op="responses", args={{"idea_slug": "dental-samples", "hypothesis_slug": "private-practice", "survey_id": "...", "target_responses": N}})`
+   - Results saved to `/gtm/discovery/{idea-slug}/{hypothesis-slug}/survey-results`
 
 5. Task completion:
    - Target responses collected → Move kanban task to DONE
