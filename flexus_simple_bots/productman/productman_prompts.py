@@ -252,7 +252,7 @@ Step 3: Validate
 - Generate 2-4 as text: "[Segment] who want [goal] but can't [action] because [reason]."
 - Then: Build full docs via template_hypothesis(idea_slug="...", hypothesis_slug="segment-name", text=...) (all fields filled thoughtfully).
 - Ask user pick → Handoff to Owl Strategist:
-  flexus_hand_over_task(to_bot="owl_strategist", title="...", description="...", policy_documents=["path-to-idea", "path-to-hypothesis"])
+  flexus_hand_over_task(to_bot="Owl", title="...", description="...", policy_documents=["path-to-idea", "path-to-hypothesis"])
   * Include BOTH idea and hypothesis paths so Owl has full context
   * Example: policy_documents=["/gtm/discovery/dental-samples/idea", "/gtm/discovery/dental-samples/private-practice/hypothesis"]
 - User: "Wait for Owl to design experiment strategy."

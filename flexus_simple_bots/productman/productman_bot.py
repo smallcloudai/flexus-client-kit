@@ -48,8 +48,30 @@ IDEA_TEMPLATE_TOOL = ckit_cloudtool.CloudTool(
     },
 )
 
+def _qa_schema(q_desc: str) -> dict:
+    return {
+        "type": "object",
+        "properties": {
+            "q": {"type": "string", "description": q_desc},
+            "a": {"type": "string", "description": "Answer"},
+        },
+        "required": ["q", "a"],
+        "additionalProperties": False,
+    }
+
+def _section_schema(title_desc: str, questions: dict) -> dict:
+    return {
+        "type": "object",
+        "properties": {
+            "title": {"type": "string", "description": title_desc},
+            **questions,
+        },
+        "required": ["title"] + list(questions.keys()),
+        "additionalProperties": False,
+    }
+
 HYPOTHESIS_TEMPLATE_TOOL = ckit_cloudtool.CloudTool(
-    strict=False,
+    strict=True,
     name="template_hypothesis",
     description="Create hypothesis document at /gtm/discovery/{idea_slug}/{hypothesis_slug}/hypothesis",
     parameters={
@@ -58,20 +80,61 @@ HYPOTHESIS_TEMPLATE_TOOL = ckit_cloudtool.CloudTool(
             "idea_slug": {
                 "type": "string",
                 "description": "Parent idea slug (e.g. 'unicorn-horn-car')",
-                "order": 1
             },
             "hypothesis_slug": {
                 "type": "string",
                 "description": "Hypothesis name in kebab-case, 2-4 words capturing customer segment (e.g. 'social-influencers')",
-                "order": 2
             },
-            "text": {
-                "type": "string",
-                "description": "JSON matching example_hypothesis structure. Only 'q' and 'title' can be translated.",
-                "order": 3
+            "hypothesis": {
+                "type": "object",
+                "description": "Hypothesis document content",
+                "properties": {
+                    "meta": {
+                        "type": "object",
+                        "properties": {
+                            "author": {"type": "string", "description": "Author name"},
+                            "date": {"type": "string", "description": "Date in YYYYMMDD format"},
+                        },
+                        "required": ["author", "date"],
+                        "additionalProperties": False,
+                    },
+                    "section01-formula": _section_schema("Magic Formula", {
+                        "question01-formula": _qa_schema("The clients are [segment] who want [goal] but cannot [action] because [one reason]."),
+                    }),
+                    "section02-profile": _section_schema("Ideal Customer Profile", {
+                        "question01": _qa_schema("Who are the clients?"),
+                        "question02": _qa_schema("What do they want to accomplish?"),
+                        "question03": _qa_schema("What can't they do today?"),
+                        "question04": _qa_schema("Why can't they do it?"),
+                    }),
+                    "section03-context": _section_schema("Customer Context", {
+                        "question01": _qa_schema("Where do they hang out (channels)?"),
+                        "question02": _qa_schema("What are their pains and frustrations?"),
+                        "question03": _qa_schema("What outcomes do they desire?"),
+                        "question04": _qa_schema("Geography and languages?"),
+                    }),
+                    "section04-solution": _section_schema("Solution Hypothesis", {
+                        "question01": _qa_schema("What is the minimum viable solution for this segment?"),
+                        "question02": _qa_schema("What value metric matters most to them?"),
+                        "question03": _qa_schema("What would make them choose this over alternatives?"),
+                    }),
+                    "section05-validation": _section_schema("Validation Strategy", {
+                        "question01": _qa_schema("How can we test this hypothesis quickly?"),
+                        "question02": _qa_schema("What evidence would prove/disprove this?"),
+                        "question03": _qa_schema("What is the success metric?"),
+                    }),
+                    "section06-ice": _section_schema("ICE Verdict", {
+                        "question01-impact": _qa_schema("Impact (0-5): how important it is"),
+                        "question02-confidence": _qa_schema("Confidence (0-5): how sure we are"),
+                        "question03-ease": _qa_schema("Ease (0-5): how easy to verify/ship"),
+                    }),
+                },
+                "required": ["meta", "section01-formula", "section02-profile", "section03-context", "section04-solution", "section05-validation", "section06-ice"],
+                "additionalProperties": False,
             },
         },
-        "required": ["idea_slug", "hypothesis_slug", "text"],
+        "required": ["idea_slug", "hypothesis_slug", "hypothesis"],
+        "additionalProperties": False,
     },
 )
 
@@ -202,13 +265,13 @@ async def productman_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_
     async def toolcall_hypothesis_template(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
         idea_slug = model_produced_args.get("idea_slug", "")
         hypothesis_slug = model_produced_args.get("hypothesis_slug", "")
-        text = model_produced_args.get("text", "")
+        hypothesis_data = model_produced_args.get("hypothesis")
         if not idea_slug:
             return "Error: idea_slug required"
         if not hypothesis_slug:
             return "Error: hypothesis_slug required"
-        if not text:
-            return "Error: text required"
+        if not hypothesis_data:
+            return "Error: hypothesis required"
         if rcx.running_test_scenario:
             return await ckit_scenario.scenario_generate_tool_result_via_model(fclient, toolcall, Path(__file__).read_text())
         if err := validate_path_kebab(idea_slug):
@@ -216,15 +279,7 @@ async def productman_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_
         if err := validate_path_kebab(hypothesis_slug):
             return f"Error: hypothesis_slug must be kebab-case: {err}"
 
-        try:
-            hypothesis_doc = json.loads(text)
-        except json.JSONDecodeError as e:
-            return f"Error: Invalid JSON: {e}"
-
-        validation_error = validate_idea_structure(hypothesis_doc, productman_prompts.example_hypothesis)
-        if validation_error:
-            return f"Error: {validation_error}"
-
+        hypothesis_doc = {"hypothesis": hypothesis_data}
         fuser_id = ckit_external_auth.get_fuser_id_from_rcx(rcx, toolcall.fcall_ft_id)
         path = f"/gtm/discovery/{idea_slug}/{hypothesis_slug}/hypothesis"
 
