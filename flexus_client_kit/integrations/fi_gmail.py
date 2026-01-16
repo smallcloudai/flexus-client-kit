@@ -221,7 +221,7 @@ class IntegrationGmail:
 
         try:
             if op == "send":
-                return await self._send_message(args)
+                return await self._send_message(args, toolcall.fcall_ft_id)
             elif op == "search":
                 return await self._search_messages(args)
             elif op == "get":
@@ -273,7 +273,7 @@ class IntegrationGmail:
             logger.error(error_msg)
             return f"❌ {error_msg}"
 
-    async def _send_message(self, args: Dict[str, Any]) -> str:
+    async def _send_message(self, args: Dict[str, Any], ft_id: str) -> str:
         to = args.get("to", "")
         subject = args.get("subject", "")
         body = args.get("body", "")
@@ -314,11 +314,11 @@ class IntegrationGmail:
         message_id = result.get("id")
         thread_id = result.get("threadId")
 
-        await self._create_activity_for_email(to, subject, body)
+        await self._create_activity_for_email(to, subject, body, ft_id)
 
         return f"✅ Message sent successfully!\n  Message ID: {message_id}\n  Thread ID: {thread_id}"
 
-    async def _create_activity_for_email(self, to: str, subject: str, body: str) -> None:
+    async def _create_activity_for_email(self, to: str, subject: str, body: str, ft_id: str) -> None:
         for email in to.split(","):
             email = email.strip().lower()
             if not email:
@@ -336,8 +336,9 @@ class IntegrationGmail:
                     "activity_title": subject,
                     "activity_type": "EMAIL",
                     "activity_direction": "OUTBOUND",
-                    "activity_channel": "gmail",
+                    "activity_channel": "GMAIL",
                     "activity_contact_id": contact.contact_id,
+                    "activity_thread_id": ft_id,
                     "activity_summary": body[:2000] if len(body) > 2000 else body,
                     "activity_occurred_ts": time.time(),
                 })
