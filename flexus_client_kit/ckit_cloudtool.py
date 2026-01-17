@@ -318,7 +318,7 @@ async def cloudtool_confirmation_request(
         )
 
 
-async def i_am_still_alive(
+async def cloudtool_i_am_still_alive(
         fclient: ckit_client.FlexusClient,
         tool_list: List[CloudTool],
         fgroup_id: Optional[str],
@@ -343,7 +343,7 @@ async def i_am_still_alive(
                             "shared": shared,
                         },
                     )
-                    logger.info("i_am_still_alive %s", t.name)
+                    # logger.info("cloudtool_i_am_still_alive %s", t.name)
             if await ckit_shutdown.wait(120):
                 break
 
@@ -357,7 +357,7 @@ async def i_am_still_alive(
                 # Unfortunately, no separate exception class for 403
                 logger.error("That looks bad, my key doesn't work: %s", e)
             else:
-                logger.info("i_am_still_alive connection problem")
+                logger.info("cloudtool_i_am_still_alive connection problem")
             if await ckit_shutdown.wait(60):
                 break
 
@@ -398,7 +398,7 @@ async def run_cloudtool_service_real(
                 if badstat:
                     badstat = False
                 else:
-                    logger.info("idle %0.1f%% full %0.1f%% now %d", (idle_sec * 100 / 60), (full_sec * 100 / 60), len(workset))
+                    logger.info("idle %0.1f%% full %0.1f%% now %d %s", (idle_sec * 100 / 60), (full_sec * 100 / 60), len(workset), service_name)
                 idle_sec = 0
                 full_sec = 0
                 minute = now_minute
@@ -408,7 +408,7 @@ async def run_cloudtool_service_real(
         if task.exception():
             logger.error("cloudtool task error", exc_info=task.exception())
 
-    still_alive = asyncio.create_task(i_am_still_alive(fclient, tools, fgroup_id, fuser_id, shared))
+    still_alive = asyncio.create_task(cloudtool_i_am_still_alive(fclient, tools, fgroup_id, fuser_id, shared))
     still_alive.add_done_callback(lambda t: ckit_utils.report_crash(t, logger))
     perfmon = asyncio.create_task(monitor_performance())
     perfmon.add_done_callback(lambda t: ckit_utils.report_crash(t, logger))
