@@ -22,7 +22,6 @@ from flexus_simple_bots.version_common import SIMPLE_BOTS_COMMON_VERSION
 
 logger = logging.getLogger("bot_frog")
 
-
 BOT_NAME = "frog"
 BOT_VERSION = SIMPLE_BOTS_COMMON_VERSION
 
@@ -104,7 +103,6 @@ async def frog_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.R
     dbname = rcx.persona.persona_id + "_db"
     mydb = mongo[dbname]
     personal_mongo = mydb["personal_mongo"]
-
     pdoc_integration = fi_pdoc.IntegrationPdoc(rcx, rcx.persona.ws_root_group_id)
 
     tongue_capacity_used = {}
@@ -119,7 +117,7 @@ async def frog_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.R
 
     @rcx.on_updated_task
     async def updated_task_in_db(t: ckit_kanban.FPersonaKanbanTaskOutput):
-        print("FROG TASK", t)
+        print("UPDATED FROG TASK", t)
         pass
 
     @rcx.on_erp_change("crm_contact")
@@ -152,16 +150,18 @@ async def frog_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.R
     @rcx.on_tool_call(CATCH_INSECTS_TOOL.name)
     async def toolcall_catch_insects(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
         N = model_produced_args.get("N", 1)
-        used = tongue_capacity_used.get(toolcall.fcall_ft_id, 0)
-        remaining = setup["tongue_capacity"] - used
+        capacity = setup["tongue_capacity"]
+        pid = rcx.persona.persona_id
+        used = tongue_capacity_used.get(pid, 0)
+        remaining = capacity - used
 
         if not isinstance(N, int) or N < 1:
-            return f"Error: N must be positive. Capacity: {remaining}/{setup['tongue_capacity']} left."
+            return "Error: N must be positive integer."
         if N > remaining:
-            return f"Error: Only {remaining}/{setup['tongue_capacity']} left. Try fewer or ask colleague frogs."
+            return f"Error: Only {remaining}/{capacity} capacity left. Try fewer or ask colleague frogs."
 
-        tongue_capacity_used[toolcall.fcall_ft_id] = used + N
-        remaining = setup["tongue_capacity"] - tongue_capacity_used[toolcall.fcall_ft_id]
+        tongue_capacity_used[pid] = used + N
+        logger.info("tongue capacity used=%d/%d for %s", used + N, capacity, pid)
 
         subchats = await ckit_ask_model.bot_subchat_create_multiple(
             client=fclient,
@@ -191,7 +191,7 @@ async def frog_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.R
 
         fuser_id = ckit_external_auth.get_fuser_id_from_rcx(rcx, toolcall.fcall_ft_id)
         await pdoc_integration.pdoc_create(path, json.dumps(pond_report_doc), fuser_id)
-        return f"✍️ {path}\n\n"
+        return f"✍️ {path}\n\n✓ Successfully updated\n\n"
 
     @rcx.on_tool_call(fi_mongo_store.MONGO_STORE_TOOL.name)
     async def toolcall_mongo_store(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:

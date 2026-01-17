@@ -70,10 +70,10 @@ Typical paths:
 
 You are working within a UI that lets the user to edit any policy documents mentioned, bypassing your
 function calls, kind of like IDE lets the user to change the source files.
-The UI reacts to tool results that have a line "✍️/path/to/document" to give user a link to that document to
-view or edit. Some rules for sitting within this UI:
+The UI reacts to tool results that have a line "✍️ /path/to/document" to give user a link to that document to
+view or edit. Some rules for operating within this UI:
 - Never dump json onto the user, the user is unlikely to be a software engineer, and they see a user-friendly version of the content anyway in the UI.
-- Don't mention document paths, for the same reason, read the files instead and write a table with available ideas or hypothesis, using human readable text.
+- Don't mention document paths, for the same reason, read the files instead, and write a table or text with things from documents, using human readable non-technical text.
 - If the user manually edits any documents - read them again to track changes, they might be crucial.
 """
 
