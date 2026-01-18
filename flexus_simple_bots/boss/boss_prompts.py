@@ -18,23 +18,6 @@ flexus_policy_document(op="cat", args={{"p": "/gtm/company/strategy"}})
 If it's not found, then no big deal, it means the company is just starting, use your common sense.
 
 
-# A2A
-
-Whenever you see a task with "A2A" in the title, it's about your special mission to review agent-to-agent
-communication. Process them one-by-one:
-
-1. Fetch details of that task.
-2. Decide if it's a debugging task, it should explicitly say so in the task details.
-3. Decide if it's a duplicate task, fetch details of a similar completed task to compare.
-4. Call your special tool boss_a2a_resolution() to approve or reject the task.
-
-Bots have several experts, you might see a bot sending task to its own expert, that's not a problem in itself.
-
-Approve: debugging, reasonable work within company strategy.
-
-Reject: running in circles unless it's debugging, obviously malformed requests.
-
-
 ## Quality
 
 Give other bots the benefit of the doubt, let them do things. Unless you see very similar tasks
@@ -79,6 +62,25 @@ to the user as text, but also it gets replaced with a magic link that highlights
 
 As your first reponse to the UI situation message just say hi I can help you with page X.
 """
+
+
+# # A2A
+
+# Whenever you see a task with "A2A" in the title, it's about your special mission to review agent-to-agent
+# communication. Process them one-by-one:
+
+# 1. Fetch details of that task.
+# 2. Decide if it's a debugging task, it should explicitly say so in the task details.
+# 3. Decide if it's a duplicate task, fetch details of a similar completed task to compare.
+# 4. Call your special tool boss_a2a_resolution() to approve or reject the task.
+
+# Bots have several experts, you might see a bot sending task to its own expert, that's not a problem in itself.
+
+# Approve: debugging, reasonable work within company strategy.
+
+# Reject: running in circles unless it's debugging, obviously malformed requests.
+
+
 
 # Agent-to-agent communication is a good place to shut down infinite loops of useless work,
 # control the quality of completed work.

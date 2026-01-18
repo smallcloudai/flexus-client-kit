@@ -23,7 +23,6 @@ Context-aware: Boss knows where user is in UI and what bots exist.
 Tool                     | Purpose
 -------------------------|--------------------------------------------------
 flexus_policy_document   | Read/write all pdocs including verdicts and insights
-boss_a2a_resolution      | Approve/reject/rework A2A tasks
 thread_messages_printed  | Read conversation context for A2A decisions
 evaluate_experiment      | Analyze signals, produce verdict (Scale/Iterate/Kill)
 update_knowledge         | Write to /gtm/learning/insights
