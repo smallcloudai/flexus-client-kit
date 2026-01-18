@@ -230,20 +230,6 @@ while not ckit_shutdown.shutdown_event.is_set():
         await integration.update_active_surveys(); last_update = time.time()
 ```
 
-### Pattern 6: Management Bot (boss)
-Cross-bot coordination with A2A resolution and colleague setup.
-```python
-# A2A resolution tool - approve/reject tasks from other bots
-BOSS_A2A_RESOLUTION_TOOL = CloudTool(name="boss_a2a_resolution",
-    parameters={"task_id": str, "resolution": ["approve","reject","rework"], "comment": str})
-# Thread viewer - see context of handed-over tasks
-THREAD_MESSAGES_PRINTED_TOOL = CloudTool(name="thread_messages_printed",
-    parameters={"a2a_task_id": str, "ft_id": str})
-# Confirmation for dangerous actions
-if not toolcall.confirmed_by_human:
-    raise ckit_cloudtool.NeedsConfirmation(confirm_setup_key="allow_...", ...)
-```
-
 ### Expert Organization by Bot
 
 | Bot | Experts | Purpose |

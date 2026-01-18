@@ -54,7 +54,7 @@ async def run_typical_single_subscription_with_restart_on_network_errors(fclient
             elif "403:" in err_str:
                 logger.error("Authentication failed - key doesn't work: %s", e)
             else:
-                nothing = isinstance(e, gql.transport.exceptions.TransportConnectionFailed)
+                nothing = isinstance(e, gql.transport.exceptions.TransportError)
                 logger.info("got %s (attempt %d/3), sleep 60...", type(e).__name__, len(exception_times), exc_info=(not nothing))
             await ckit_shutdown.wait(60)
 

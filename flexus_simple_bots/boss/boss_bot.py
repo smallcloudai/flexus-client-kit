@@ -27,21 +27,6 @@ BOT_VERSION = SIMPLE_BOTS_COMMON_VERSION
 ACCENT_COLOR = "#8B4513"
 
 
-BOSS_A2A_RESOLUTION_TOOL = ckit_cloudtool.CloudTool(
-    strict=False,
-    name="boss_a2a_resolution",
-    description="Resolve an agent-to-agent handover task: approve, reject, or request rework",
-    parameters={
-        "type": "object",
-        "properties": {
-            "task_id": {"type": "string", "description": "The ID of the task to resolve", "order": 1},
-            "resolution": {"type": "string", "enum": ["approve", "reject", "rework"], "description": "Resolution type: approve (forward to target bot), reject (mark irrelevant), or rework (send back with feedback)", "order": 2},
-            "comment": {"type": "string", "description": "Optional comment for approve, required for reject/rework", "order": 3}
-        },
-        "required": ["task_id", "resolution"]
-    },
-)
-
 BOSS_SETUP_COLLEAGUES_TOOL = ckit_cloudtool.CloudTool(
     strict=False,
     name="boss_setup_colleagues",
@@ -56,18 +41,18 @@ BOSS_SETUP_COLLEAGUES_TOOL = ckit_cloudtool.CloudTool(
     },
 )
 
-THREAD_MESSAGES_PRINTED_TOOL = ckit_cloudtool.CloudTool(
-    strict=False,
-    name="thread_messages_printed",
-    description="Print thread messages. Provide either a2a_task_id to view the thread that handed over this task, or ft_id to view thread directly",
-    parameters={
-        "type": "object",
-        "properties": {
-            "a2a_task_id": {"type": "string", "description": "A2A task ID to view the thread that handed over this task"},
-            "ft_id": {"type": "string", "description": "Thread ID to view messages directly"}
-        }
-    },
-)
+# THREAD_MESSAGES_PRINTED_TOOL = ckit_cloudtool.CloudTool(
+#     strict=False,
+#     name="thread_messages_printed",
+#     description="Print thread messages. Provide either a2a_task_id to view the thread that handed over this task, or ft_id to view thread directly",
+#     parameters={
+#         "type": "object",
+#         "properties": {
+#             "a2a_task_id": {"type": "string", "description": "A2A task ID to view the thread that handed over this task"},
+#             "ft_id": {"type": "string", "description": "Thread ID to view messages directly"}
+#         }
+#     },
+# )
 
 BOT_BUG_REPORT_TOOL = ckit_cloudtool.CloudTool(
     strict=False,
@@ -108,37 +93,14 @@ bot_bug_report(op='list_reported_bugs', args={'bot_name': 'Frog'})
 """
 
 TOOLS = [
-    BOSS_A2A_RESOLUTION_TOOL,
+    # BOSS_A2A_RESOLUTION_TOOL,
     # BOSS_SETUP_COLLEAGUES_TOOL,
-    THREAD_MESSAGES_PRINTED_TOOL,
+    # THREAD_MESSAGES_PRINTED_TOOL,
     # BOT_BUG_REPORT_TOOL,
     fi_widget.PRINT_WIDGET_TOOL,
     fi_mongo_store.MONGO_STORE_TOOL,
     fi_pdoc.POLICY_DOCUMENT_TOOL
 ]
-
-
-async def handle_a2a_resolution(fclient: ckit_client.FlexusClient, model_produced_args: Dict[str, Any]) -> str:
-    task_id = model_produced_args.get("task_id", "")
-    resolution = model_produced_args.get("resolution", "")
-    comment = model_produced_args.get("comment", "")
-    if not task_id or resolution not in ["approve", "reject", "rework"] or (resolution in ["reject", "rework"] and not comment):
-        return "Error: task_id required, resolution must be approve/reject/rework, comment required for reject/rework"
-    http = await fclient.use_http()
-    async with http as h:
-        try:
-            r = await h.execute(
-                gql.gql("""mutation BossA2A($ktask_id: String!, $boss_intent_resolution: String!, $boss_intent_comment: String!) {
-                    boss_a2a_resolution(ktask_id: $ktask_id, boss_intent_resolution: $boss_intent_resolution, boss_intent_comment: $boss_intent_comment)
-                }"""),
-                variable_values={"ktask_id": task_id, "boss_intent_resolution": resolution, "boss_intent_comment": comment},
-            )
-            if not r or not r.get("boss_a2a_resolution"):
-                return f"Error: Failed to {resolution} task {task_id}"
-        except gql.transport.exceptions.TransportQueryError as e:
-            return f"Error: {e}"
-    msg = {"approve": "approved and forwarded", "reject": "rejected", "rework": "sent back for rework"}[resolution]
-    return f"Task {task_id} {msg}"
 
 
 async def handle_setup_colleagues(fclient: ckit_client.FlexusClient, ws_id: str, toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
@@ -331,17 +293,13 @@ async def boss_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.R
     async def updated_thread_in_db(th: ckit_ask_model.FThreadOutput):
         pass
 
-    @rcx.on_tool_call(BOSS_A2A_RESOLUTION_TOOL.name)
-    async def toolcall_a2a_resolution(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
-        return await handle_a2a_resolution(fclient, model_produced_args)
-
     # @rcx.on_tool_call(BOSS_SETUP_COLLEAGUES_TOOL.name)
     # async def toolcall_colleague_setup(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
     #     return await handle_setup_colleagues(fclient, rcx.persona.ws_id, toolcall, model_produced_args)
 
-    @rcx.on_tool_call(THREAD_MESSAGES_PRINTED_TOOL.name)
-    async def toolcall_thread_messages_printed(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
-        return await handle_thread_messages(fclient, model_produced_args)
+    # @rcx.on_tool_call(THREAD_MESSAGES_PRINTED_TOOL.name)
+    # async def toolcall_thread_messages_printed(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
+    #     return await handle_thread_messages(fclient, model_produced_args)
 
     # @rcx.on_tool_call(BOT_BUG_REPORT_TOOL.name)
     # async def toolcall_bot_bug_report(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:

@@ -353,29 +353,57 @@ All the prints to into the assistant message as ftm_provenance = {..., "kernel1_
 and the bot will receive them as regular thread message updates, that's how you debug Lark kernels.
 
 
-Skills, Subchats and A2A Communication
---------------------------------------
+Definitions: Tools, Skills, Subchats, Experts
+---------------------------------------------
 
-Bot experts are necessary when you need a separate system prompt and toolset.
+### Tool
 
-When you need a subtask completed, there are two choices: run subchat or use A2A to hand over the task
-to your different expert, or another agent.
+Should be used for: API calls, CRUD, instant operations. Returns string visible to the model. Can raise NeedsConfirmation for dangerous ops or WaitForSubchats to spawn subchat.
+Examples: flexus_policy_document, template_idea, facebook/linkedin APIs.
 
-Subchat applicability:
-- Subchats works as tool calls: it runs an additional thread, puts subchat_result produced by Lark kernel back as a
-  tool response message into the original thread.
-- TIMEOUT_TOOL_CALLS is 3600s (one hour), subchats as tool calls cannot last for more then that. That means: no human confirmations
-  inside a subchat (might be no human available for 1 hour), no external lasting process that might last long.
-- Can only return text.
+### Skill
 
-A2A communication applicability:
-- You can tell me model to call flexus_hand_over_task(to_bot="", description="", fexp_name=""), that will create a kanban task
-  in the inbox of that bot.
-- Once the task is completed (moved to kanban "done") a message will appear after the flexus_hand_over_task() call informing
-  about that.
-- It's slower because the task goes into a queue, not gets executed immediately.
-- The original chat does not wait, it continues and the model needs to call nothing (wait for user to respond) for
-  waiting to happen.
+Large instruction set loaded into prompt when needed. No separate context, no extra tools.
+Tradeoff: more source code we need to maintain vs accuracy on complex tasks.
+Implemented as tool that returns instructions as text.
+Examples: idea rating rules, ad platform specifics.
+
+### Subchat
+
+A separate thread with isolated context.
+Has a Lark kernel to control termination via setting subchat_result.
+Subchats start as tool calls in the original thread, tools call bot_subchat_create_multiple().
+Formally a subchat returns a single string that becomes the tool result, but it can have other side effects.
+Must complete in 10 minutes (actually TIMEOUT_TOOL_CALLS), no human interaction is possible inside.
+Use for focused tasks needing a specialized set of tools.
+Example: productman spawns criticize_idea to receive an independent evaluation.
+
+### Expert
+
+Expert is a separate system prompt + toolset, installed during bot installation.
+The 'default' expert is what the user talks to if they just start a conversation.
+Kanban tasks can explicitly specify ktask_fexp_name to control what expert within the bot should pick up the task.
+Unlimited duration, human can interact mid-task.
+
+Use for:
+ - separate pieces of work, especially using a specialized set of tools
+ - or entirely separate behavior
+
+Example: survey campaign execution in productman, has special code to interact with survey external API.
+
+
+A2A Communication
+-----------------
+
+Works like this:
+
+- You can tell the model to call flexus_hand_over_task(to_bot="", description="", fexp_name=""),
+that will create a kanban task in the inbox of that bot.
+- You can send a task to your own expert, works exactly like giving a task to another bot.
+- Once the task is completed (moved to kanban "done") a message will appear with role='cd_instruction' informing about that.
+- It might not be real-time because the task goes into a queue, does not get executed immediately.
+- The original chat does not wait, it might continue talking to user or calling other functions, the model needs respond with assistant message with no calls and therefore switch to 'wait for user' mode for waiting to happen.
+
 
 
 Writing Logs

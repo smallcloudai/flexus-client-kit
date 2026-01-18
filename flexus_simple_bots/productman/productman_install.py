@@ -12,9 +12,9 @@ from flexus_simple_bots.productman import productman_bot, productman_prompts, pr
 
 
 BOT_DESCRIPTION = """
-## Productman - Stage0 Product Validation Coach
+## Productman — Discovery Agent
 
-A systematic product validation coach that guides you through a 3-node process to validate product ideas using the Stage0 methodology.
+Head of Product Discovery. Understand what to sell and to whom, validated by market logic before spending money.
 
 **Hypothesis Formula:**
 "My client [WHO] wants [WHAT], but cannot [OBSTACLE], because [REASON]"
@@ -73,7 +73,7 @@ async def install(
         marketable_version=bot_version,
         marketable_accent_color="#4A90E2",
         marketable_title1="Productman",
-        marketable_title2="Your hypothesis-driven product manager. Formulate, test, and iterate on product ideas systematically.",
+        marketable_title2="Discovery Agent. Understand what to sell and to whom, validated by market logic.",
         marketable_author="Flexus",
         marketable_occupation="Product Manager",
         marketable_description=BOT_DESCRIPTION,
@@ -85,7 +85,7 @@ async def install(
             {"feat_question": "A1: Challenge my product idea", "feat_run_as_setup": False, "feat_depends_on_setup": []},
             {"feat_question": "A2: Research and prioritize hypotheses", "feat_run_as_setup": False, "feat_depends_on_setup": []},
         ],
-        marketable_intro_message="Hi! I'm Productman, your Stage0 Product Validation Coach. I guide you through (1) Problem Challenge, (2) Market Research, (3) Solution Design",
+        marketable_intro_message="Hi! I'm Productman, your Discovery Agent. I help you understand what to sell and to whom, validated by market logic before spending money.",
         marketable_preferred_model_default="grok-4-1-fast-non-reasoning",
         marketable_daily_budget_default=200_000,
         marketable_default_inbox_default=20_000,
