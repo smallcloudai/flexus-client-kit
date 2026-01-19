@@ -411,7 +411,7 @@ class IntegrationErp:
 
         if not (schema_class := erp_schema.ERP_TABLE_TO_SCHEMA.get(table_name)):
             return f"❌ Unknown table '{table_name}'. Run erp_table_meta for available tables."
-        pk_field = erp_schema.get_pk_field(schema_class)
+        pk_field = erp_schema.get_pkey_field(schema_class)
 
         if not (document := await ckit_mongo.mongo_retrieve_file(self.mongo_collection, mongo_path)):
             return f"❌ File {mongo_path!r} not found in MongoDB."
