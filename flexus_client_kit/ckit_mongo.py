@@ -94,13 +94,16 @@ async def mongo_overwrite(
 async def mongo_retrieve_file(
     mongo_collection: Collection,
     file_path: str,
+    best_effort_to_find: bool = False,
 ) -> Optional[Dict[str, Any]]:
     document = await mongo_collection.find_one({"path": file_path})
     if not document:
         return None
 
     if "mon_new_location" in document:
-        return await mongo_retrieve_file(mongo_collection, document["mon_new_location"])
+        if best_effort_to_find:
+            return await mongo_retrieve_file(mongo_collection, document["mon_new_location"], best_effort_to_find)
+        return None
 
     document["_id"] = str(document["_id"])
 
