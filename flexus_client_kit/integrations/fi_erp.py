@@ -467,6 +467,7 @@ class IntegrationErp:
         BATCH_SIZE = 1000
         total_created = total_updated = 0
         total_failed = sum(1 for e in errors if e.startswith('Row '))
+        batch_errors = 0
 
         for i in range(0, len(records), BATCH_SIZE):
             try:
@@ -477,7 +478,11 @@ class IntegrationErp:
                 errors.extend(f"Batch {i//BATCH_SIZE + 1}: {err}" for err in result.get("errors", []))
             except Exception as e:
                 total_failed += len(records[i:i+BATCH_SIZE])
-                errors.append(f"Batch {i//BATCH_SIZE + 1} failed: {e}", exc_info=True)
+                errors.append(f"Batch {i//BATCH_SIZE + 1} failed: {e}")
+                batch_errors += 1
+                if batch_errors > 3:
+                    errors.append("Aborting: too many batch errors")
+                    break
 
         lines = [
             f"Processed {len(records) + sum(1 for e in errors if e.startswith('Row '))} row(s) from {mongo_path}.",
