@@ -99,23 +99,11 @@ async def mongo_retrieve_file(
     document = await mongo_collection.find_one({"path": file_path})
     if not document:
         return None
-
     if "mon_new_location" in document:
         if best_effort_to_find:
             return await mongo_retrieve_file(mongo_collection, document["mon_new_location"], best_effort_to_find)
         return None
-
     document["_id"] = str(document["_id"])
-
-    # XXX remove after 20260101, leftovers after rename
-    if "mon_ctime" not in document and "ctime" in document:
-        document["mon_ctime"] = document["ctime"]
-    if "mon_mtime" not in document and "mtime" in document:
-        document["mon_mtime"] = document["mtime"]
-    if "mon_size" not in document and "size_bytes" in document:
-        document["mon_size"] = document["size_bytes"]
-    # /XXX
-
     return document
 
 
@@ -133,16 +121,6 @@ async def mongo_ls(
     documents = []
     async for doc in cursor:
         doc["_id"] = str(doc["_id"])
-
-        # XXX remove after 20260101, leftovers after rename
-        if "mon_ctime" not in doc and "ctime" in doc:
-            doc["mon_ctime"] = doc["ctime"]
-        if "mon_mtime" not in doc and "mtime" in doc:
-            doc["mon_mtime"] = doc["mtime"]
-        if "mon_size" not in doc and "size_bytes" in doc:
-            doc["mon_size"] = doc["size_bytes"]
-        # /XXX
-
         documents.append(doc)
     return documents
 
@@ -151,6 +129,7 @@ async def mongo_ls_subdir(
     mongo_collection: Collection,
     path: str,
 ) -> List[Dict[str, Any]]:
+    # XXX only used by persona_mongo_docs_list() which is UI to re-work
     path_filter = {"path": {"$exists": True, "$ne": None}, "mon_archived": {"$ne": True}}
     if path:
         path_filter["path"] = {"$regex": f"^{path.rstrip('/')}/"}
@@ -161,13 +140,9 @@ async def mongo_ls_subdir(
         relative = doc["path"][len(path.rstrip('/')) + 1:] if path else doc["path"]
         immediate = relative.split('/')[0]
         current_path = f"{path.rstrip('/')}/{immediate}" if path else immediate
-
-        # XXX remove after 20260101, leftovers after rename
-        doc_ctime = doc.get("mon_ctime") or doc.get("ctime") or 0.0
-        doc_mtime = doc.get("mon_mtime") or doc.get("mtime") or 0.0
-        doc_size = doc.get("mon_size") or doc.get("size_bytes") or 0
-        # /XXX
-
+        doc_ctime = doc["mon_ctime"]
+        doc_mtime = doc["mon_mtime"]
+        doc_size = doc["mon_size"]
         if '/' in relative:
             if current_path not in items:
                 items[current_path] = {"path": current_path, "mime_type": "subdir", "mon_ctime": doc_ctime, "mon_mtime": doc_mtime, "mon_size": doc_size}

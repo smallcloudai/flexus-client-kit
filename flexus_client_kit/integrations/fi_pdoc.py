@@ -94,6 +94,51 @@ class PdocDocument:
     pdoc_modified_ts: float
 
 
+def _format_tree(items: List['PdocListItem'], base_path: str) -> tuple:
+    if not items:
+        return "", 0, 0
+    base = base_path.rstrip("/")
+
+    # Build tree structure: {path_tuple: (name, is_folder, doc_count)}
+    tree: dict = {}
+    for item in items:
+        rel = item.path[len(base):].lstrip("/") if item.path.startswith(base) else item.path.lstrip("/")
+        parts = tuple(rel.split("/"))
+        # Add intermediate folders
+        for i in range(1, len(parts)):
+            folder_parts = parts[:i]
+            if folder_parts not in tree:
+                tree[folder_parts] = (folder_parts[-1] + "/", True, 0)
+        # Add the item itself
+        name = parts[-1] + ("/" if item.is_folder else "")
+        if item.is_folder and item.doc_count:
+            name += f" ({item.doc_count})"
+        tree[parts] = (name, item.is_folder, item.doc_count)
+
+    sorted_paths = sorted(tree.keys())
+    doc_count = sum(1 for _, (_, is_folder, _) in tree.items() if not is_folder)
+    folder_count = sum(1 for _, (_, is_folder, _) in tree.items() if is_folder)
+
+    def get_children(parent):
+        plen = len(parent)
+        return [p for p in sorted_paths if len(p) == plen + 1 and p[:plen] == parent]
+
+    def render(parent, prefix=""):
+        children = get_children(parent)
+        lines = []
+        for i, child in enumerate(children):
+            is_last = i == len(children) - 1
+            name, is_folder, _ = tree[child]
+            connector = "└── " if is_last else "├── "
+            lines.append(prefix + connector + name)
+            if is_folder:
+                ext = "    " if is_last else "│   "
+                lines.extend(render(child, prefix + ext))
+        return lines
+
+    return "\n".join(render(())) + "\n", doc_count, folder_count
+
+
 class IntegrationPdoc:
     def __init__(
         self,
@@ -127,14 +172,9 @@ class IntegrationPdoc:
                 if self.is_fake:
                     return await ckit_scenario.scenario_generate_tool_result_via_model(self.fclient, toolcall, open(__file__).read())
                 result = await self.pdoc_list(p, fuser_id)
+                tree_text, doc_count, folder_count = _format_tree(result, p)
                 r += f"Listing {p}\n\n"
-                for item in result:
-                    if item.is_folder:
-                        r += f"  {item.path}/ ({item.doc_count} documents)\n"
-                    else:
-                        r += f"  {item.path}\n"
-                doc_count = sum(1 for item in result if not item.is_folder)
-                folder_count = sum(1 for item in result if item.is_folder)
+                r += tree_text
                 r += f"\n{doc_count} documents and {folder_count} folders\n"
 
             elif op == "cat" or op == "read" or op == "activate":
