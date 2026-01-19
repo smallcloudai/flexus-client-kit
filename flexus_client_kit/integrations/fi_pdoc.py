@@ -145,6 +145,8 @@ class IntegrationPdoc:
                 if self.is_fake:
                     return await ckit_scenario.scenario_generate_tool_result_via_model(self.fclient, toolcall, open(__file__).read())
                 result = await self.pdoc_cat(p, fuser_id)
+                if not result:
+                    return f"Policy document not found: {p}"
                 if op == "activate":
                     r += f"✍️ {result.path}\n\n"
                 else:
@@ -242,22 +244,22 @@ class IntegrationPdoc:
             items = result.get("policydoc_list", [])
             return [gql_utils.dataclass_from_dict(item, PdocListItem) for item in items]
 
-    async def pdoc_cat(self, p: str, fuser_id: str = None) -> PdocDocument:
+    async def pdoc_cat(self, p: str, fuser_id: str = None, best_effort_to_find: bool = False) -> Optional[PdocDocument]:
         http = await self.fclient.use_http()
         async with http as h:
             result = await h.execute(
                 gql.gql(f"""
-                    query PdocCat($fgroup_id: String!, $p: String!, $fuser_id: String) {{
-                        policydoc_cat(fgroup_id: $fgroup_id, p: $p, fuser_id: $fuser_id) {{
+                    query PdocCat($fgroup_id: String!, $p: String!, $fuser_id: String, $best_effort_to_find: Boolean) {{
+                        policydoc_cat(fgroup_id: $fgroup_id, p: $p, fuser_id: $fuser_id, best_effort_to_find: $best_effort_to_find) {{
                             {gql_utils.gql_fields(PdocDocument)}
                         }}
                     }}
                 """),
-                variable_values={"fgroup_id": self.fgroup_id, "p": p, "fuser_id": fuser_id},
+                variable_values={"fgroup_id": self.fgroup_id, "p": p, "fuser_id": fuser_id, "best_effort_to_find": best_effort_to_find},
             )
             doc = result.get("policydoc_cat")
             if not doc:
-                raise Exception(f"Policy document not found: {p}")
+                return None
             return gql_utils.dataclass_from_dict(doc, PdocDocument)
 
     async def pdoc_create(self, p: str, text: str, fuser_id: str) -> None:
