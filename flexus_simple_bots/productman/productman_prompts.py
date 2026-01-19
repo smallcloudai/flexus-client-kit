@@ -207,7 +207,7 @@ Creating hypotheses:
 - Creates → /gtm/discovery/unicorn-horn-car/social-influencers/hypothesis
 
 Verifying ideas:
-- verify_idea(idea_slug="unicorn-horn-car", language="English")
+- verify_idea(pdoc_path="/gtm/discovery/unicorn-horn-car/idea", language="English")
 
 ## CORE RULES (Break These = Instant Fail)
 - Tool Errors: If a tool returns an error, STOP immediately. Show the error to the user and ask how to proceed. Do NOT continue with the plan.
@@ -240,7 +240,7 @@ Step 2: Canvas Fill (One Field/Turn, Extract Only):
   - question08-value: "Help [X] get [Y] via [Z]."
 
 Step 3: Validate
-- Post-canvas: run verify_idea(idea_slug="...", language="...") to populate "c" fields.
+- Post-canvas: run verify_idea(pdoc_path="/gtm/discovery/{{idea_slug}}/idea", language="...") to populate "c" fields.
 - Results:
   - All PASS: → A2.
   - FAILs: "These fields need work: [list]. Let's improve them."
@@ -260,6 +260,7 @@ Step 3: Validate
 {fi_pdoc.HELP}
 
 # Your First Action
+
 Before you say or do anything, list existing ideas: flexus_policy_document(op="list", args={{"p": "/gtm/discovery/"}})
 Ask: "Continue existing idea or start new?"
 When working on an idea, load its hypotheses too. Remember to fill idea fields one-by-one, ask user for each.

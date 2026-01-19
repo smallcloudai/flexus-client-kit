@@ -25,14 +25,17 @@ PIPELINE = ["calibration", "diagnostic", "metrics", "segment", "messaging", "cha
 STEP_WEIGHT = 14  # ~14 points per step, 7 steps ≈ 100
 
 
-def make_tool_response(step: str, score: int, filled: List[str], unfilled: List[str]) -> str:
+def make_tool_response(path: str, step: str, score: int, filled: List[str], unfilled: List[str]) -> str:
     filled_str = ", ".join(filled) if filled else "none"
     unfilled_str = ", ".join(unfilled) if unfilled else "none"
-    return f"""✓ Updated {step}
+    return f"""✍️ {path}
+
+✓ Updated step: {step}
 
 Score: {score}/100
 Filled: {filled_str}
-Unfilled: {unfilled_str}"""
+Unfilled: {unfilled_str}
+"""
 
 
 # =============================================================================
@@ -468,7 +471,7 @@ async def handle_update_strategy(
     filled = [s for s in PIPELINE if doc["strategy"].get(s) is not None]
     unfilled = [s for s in PIPELINE if doc["strategy"].get(s) is None]
 
-    return make_tool_response(step, new_score, filled, unfilled)
+    return make_tool_response(path, step, new_score, filled, unfilled)
 
 
 # =============================================================================

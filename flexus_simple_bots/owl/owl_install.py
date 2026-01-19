@@ -7,6 +7,7 @@ from flexus_client_kit import ckit_client
 from flexus_client_kit import ckit_bot_install
 
 from flexus_simple_bots.owl import owl_bot, owl_prompts
+from flexus_simple_bots import prompts_common
 
 
 BOT_DESCRIPTION = """
@@ -85,7 +86,9 @@ async def install(
         marketable_tags=["Marketing", "Strategy", "Growth"],
         marketable_picture_big_b64=pic_big,
         marketable_picture_small_b64=pic_small,
-        marketable_schedule=[],
+        marketable_schedule=[
+            prompts_common.SCHED_PICK_ONE_5M | {"sched_when": "EVERY:1m"},
+        ],
         marketable_forms={},
     )
 

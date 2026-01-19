@@ -145,9 +145,9 @@ VERIFY_IDEA_TOOL = ckit_cloudtool.CloudTool(
     parameters={
         "type": "object",
         "properties": {
-            "idea_slug": {
+            "pdoc_path": {
                 "type": "string",
-                "description": "Idea slug (e.g. 'dental-samples')",
+                "description": "Path to the idea document (e.g. '/gtm/discovery/dental-samples/idea')",
                 "order": 1
             },
             "language": {
@@ -156,7 +156,7 @@ VERIFY_IDEA_TOOL = ckit_cloudtool.CloudTool(
                 "order": 2
             },
         },
-        "required": ["idea_slug", "language"],
+        "required": ["pdoc_path", "language"],
     },
 )
 
@@ -289,27 +289,23 @@ async def productman_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_
 
     @rcx.on_tool_call(VERIFY_IDEA_TOOL.name)
     async def toolcall_verify_idea(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
-        idea_slug = model_produced_args.get("idea_slug", "")
+        pdoc_path = model_produced_args.get("pdoc_path", "")
         language = model_produced_args.get("language", "")
-        if not idea_slug:
-            return "Error: idea_slug required"
+        if not pdoc_path:
+            return "Error: pdoc_path required"
         if not language:
             return "Error: language required"
-        if err := validate_path_kebab(idea_slug):
-            return f"Error: idea_slug must be kebab-case: {err}"
 
         if rcx.running_test_scenario:
             return await ckit_scenario.scenario_generate_tool_result_via_model(fclient, toolcall, Path(__file__).read_text())
-
-        path = f"/gtm/discovery/{idea_slug}/idea"
 
         subchats = await ckit_ask_model.bot_subchat_create_multiple(
             client=fclient,
             who_is_asking="productman_verify_idea",
             persona_id=rcx.persona.persona_id,
-            first_question=[f"Rate this idea document in {language}:\n{path}"],
+            first_question=[f"Rate this idea document in {language}:\n{pdoc_path}"],
             first_calls=["null"],
-            title=[f"Verifying Idea {idea_slug}"],
+            title=[f"Verifying Idea {pdoc_path}"],
             fcall_id=toolcall.fcall_id,
             fexp_name="criticize_idea",
         )

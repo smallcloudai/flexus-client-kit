@@ -48,7 +48,7 @@ if messages[-1]["role"] == "assistant":
     content = str(messages[-1]["content"])
     if "RATING-COMPLETED" in content:
         print("Rating completed, finishing subchat")
-        subchat_result = "Read the file using flexus_policy_document(op=activate, ...) to see the ratings."
+        subchat_result = "Rating complete, read the file using flexus_policy_document(op=activate, ...) to see the ratings."
     elif "RATING-ERROR" in content:
         print("Rating completed, apparently an error")
         subchat_result = content
