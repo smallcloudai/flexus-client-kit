@@ -6,40 +6,37 @@ from pathlib import Path
 from flexus_client_kit import ckit_client
 from flexus_client_kit import ckit_bot_install
 from flexus_client_kit import ckit_cloudtool
+from flexus_client_kit.integrations import fi_crm_automations
 
 from flexus_simple_bots import prompts_common
 from flexus_simple_bots.vix import vix_bot, vix_prompts
 
 
 BOT_DESCRIPTION = """
-## Vix - AI Sales Agent
+## Vix - Sales & Marketing Agent
 
-An elite AI sales agent trained in the C.L.O.S.E.R. Framework, designed for consultative selling that prioritizes understanding over pushing.
+Integrated sales and marketing agent with CRM management, lead nurturing, and consultative selling.
 
-**Key Features:**
-- **C.L.O.S.E.R. Framework**: Proven sales methodology (Clarify, Label, Overview, Sell, Explain/Overcome, Reinforce)
-- **Transparent AI**: Always discloses AI nature, building trust through honesty
-- **BANT Qualification**: Automatically qualifies leads (Budget, Authority, Need, Timeline)
-- **Sentiment Detection**: Adapts approach based on prospect engagement, frustration, or skepticism
-- **Smart Handoff**: Knows when to escalate to human agents
-- **Policy-Driven**: Uses `/company` and `/sales-strategy` documents for company knowledge
+**Marketing (Default):**
+- CRM management, contact import from CSV or landing pages
+- Automatic welcome emails to new contacts
+- Gmail integration for outreach
+- CRM automations (triggers and actions)
+- Company and product setup
 
-**Perfect for:**
-- Sales teams wanting to automate initial conversations
-- Businesses that want consultative selling, not pushy tactics
-- Companies that value transparency and customer understanding
-- Teams needing 24/7 lead engagement and qualification
-
-**Philosophy:**
-The one who cares most about the customer wins the sale. Vix doesn't push—she understands and leads. Great sales feel like help, not pressure.
+**Sales:**
+- C.L.O.S.E.R. Framework for consultative selling
+- BANT lead qualification
+- Sentiment detection and adaptive approach
+- Smart handoff to human agents
 
 **Skills:**
-- **Default**: Main sales conversations using C.L.O.S.E.R. Framework
-- **Setup**: Configure your sales strategy and company information
+- **Default**: Marketing, CRM, automations, setup
+- **Sales**: Consultative selling with C.L.O.S.E.R. Framework
 """
 
 
-vix_setup_schema = [
+vix_setup_schema = fi_crm_automations.CRM_AUTOMATIONS_SETUP_SCHEMA + [
     {
         "bs_name": "faq_url",
         "bs_type": "string_long",
@@ -87,33 +84,35 @@ async def install(
         marketable_version=bot_version,
         marketable_accent_color="#dedad0",
         marketable_title1="Vix",
-        marketable_title2="Elite AI Sales Agent trained in consultative selling with the C.L.O.S.E.R. Framework.",
+        marketable_title2="Sales & Marketing Agent - CRM, automations, and consultative selling with C.L.O.S.E.R. Framework.",
         marketable_author="Flexus",
-        marketable_occupation="Sales Agent",
+        marketable_occupation="Sales & Marketing",
         marketable_description=BOT_DESCRIPTION,
         marketable_typical_group="Sales",
         marketable_github_repo="https://github.com/smallcloudai/flexus-client-kit.git",
         marketable_run_this="python -m flexus_simple_bots.vix.vix_bot",
         marketable_setup_default=vix_setup_schema,
         marketable_featured_actions=[
-            {"feat_question": "Help me qualify a lead", "feat_run_as_setup": False, "feat_depends_on_setup": []},
-            {"feat_question": "Set up my sales strategy", "feat_run_as_setup": False, "feat_depends_on_setup": [], "feat_expert": "setup"},
+            {"feat_question": "Help me set up my company and products", "feat_run_as_setup": False, "feat_depends_on_setup": []},
+            {"feat_question": "Help me send contacts from my landing page to Flexus", "feat_run_as_setup": False, "feat_depends_on_setup": []},
+            {"feat_question": "Help me set up welcome emails to new contacts", "feat_run_as_setup": False, "feat_depends_on_setup": []},
+            {"feat_question": "Help me qualify a lead", "feat_run_as_setup": False, "feat_depends_on_setup": [], "feat_expert": "sales"},
         ],
-        marketable_intro_message="Hi there! I'm Vix, an AI sales assistant. I'm here to help you find the right solution. Before we dive in, what's your name?",
+        marketable_intro_message="Hi! I'm Vix, your sales and marketing assistant. I can help with CRM management, email automations, contact imports, and sales conversations. What would you like to work on?",
         marketable_preferred_model_default="grok-4-1-fast-non-reasoning",
         marketable_daily_budget_default=100_000,
         marketable_default_inbox_default=10_000,
         marketable_experts=[
             ("default", ckit_bot_install.FMarketplaceExpertInput(
-                fexp_system_prompt=vix_prompts.vix_prompt_default,
+                fexp_system_prompt=vix_prompts.vix_prompt_marketing,
                 fexp_python_kernel="",
-                fexp_block_tools="*setup*",
+                fexp_block_tools="",
                 fexp_allow_tools="",
                 fexp_app_capture_tools=bot_internal_tools,
                 fexp_description="Conducts sales conversations using C.L.O.S.E.R. Framework, qualifies leads with BANT, and handles objections with consultative approach.",
             )),
-            ("setup", ckit_bot_install.FMarketplaceExpertInput(
-                fexp_system_prompt=vix_prompts.vix_prompt_setup,
+            ("sales", ckit_bot_install.FMarketplaceExpertInput(
+                fexp_system_prompt=vix_prompts.vix_prompt_default,
                 fexp_python_kernel="",
                 fexp_block_tools="*setup*",
                 fexp_allow_tools="",
@@ -121,12 +120,12 @@ async def install(
                 fexp_description="Configures company information, products, sales strategy, and competitive positioning through natural conversation.",
             )),
         ],
-        marketable_tags=["Sales", "CLOSER", "AI Agent", "Lead Qualification"],
+        marketable_tags=["Sales", "Marketing", "CRM", "Email", "Automation"],
         marketable_picture_big_b64=pic_big,
         marketable_picture_small_b64=pic_small,
         marketable_schedule=[
-            prompts_common.SCHED_TASK_SORT_10M | {"sched_when": "EVERY:5m", "sched_first_question": "Sort inbox tasks: new leads to todo, irrelevant to irrelevant."},
-            prompts_common.SCHED_TODO_5M | {"sched_when": "EVERY:2m", "sched_first_question": "Work on the assigned lead/task using C.L.O.S.E.R. Framework."},
+            prompts_common.SCHED_TASK_SORT_10M | {"sched_when": "EVERY:5m", "sched_first_question": "Sort inbox tasks according to priority and move them to todo."},
+            prompts_common.SCHED_TODO_5M | {"sched_when": "EVERY:2m", "sched_first_question": "Work on the assigned task."},
         ],
         marketable_forms={},
     )
