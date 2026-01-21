@@ -94,7 +94,7 @@ class PdocDocument:
     pdoc_modified_ts: float
 
 
-def _format_tree(items: List['PdocListItem'], base_path: str) -> tuple:
+def _format_tree(items: List[PdocListItem], base_path: str) -> tuple:
     if not items:
         return "", 0, 0
     base = base_path.rstrip("/")

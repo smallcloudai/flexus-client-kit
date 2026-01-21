@@ -184,10 +184,19 @@ async def frog_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.R
             "pond_report": {
                 "meta": {
                     "created_at": time.strftime("%Y-%m-%d %H:%M:%S"),
+                    "microfrontend": BOT_NAME,
                 },
                 **report,
             }
         }
+
+        # Microfrontend will load:
+        #   /v1/marketplace/${microfrontend}/${microfrontend_version}/forms/${top_level_tag}.html
+        # where:
+        #   microfrontend taken from document.{top_level_tag}.meta.microfrontend
+        #   microfrontend_version version of this bot currently installed in user's workspace
+        #   top_level_tag is "pond_report" as written here into the doc
+        # The general idea: UI will load the `top_level_tag` editor from `microfrontend` bot of the currently installed version
 
         fuser_id = ckit_external_auth.get_fuser_id_from_rcx(rcx, toolcall.fcall_ft_id)
         await pdoc_integration.pdoc_create(path, json.dumps(pond_report_doc), fuser_id)
