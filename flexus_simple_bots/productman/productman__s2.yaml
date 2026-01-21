@@ -1,8 +1,11 @@
+judge_instructions: |
+  - If documents number is zero, does not make sense to ask if user wants to continue an existing idea
+  - Careful not to write english-russian mix, answer in russian since that's what user's language is
+  - The number of hypotheses does not matter much, it's two in the happy path to keep the example simple, the assistant might generate 2-4
+
 messages:
   - role: user
     content: привет как ты можешь мне помочь
-  - role: hint
-    content: if documents number is zero, does not make sense to ask if user wants to continue an existing idea
   - role: assistant
     tool_calls:
       - id: call_37209403
@@ -25,9 +28,6 @@ messages:
   - role: user
     content: |
       у меня есть много знакомых поставщиков бесплатных семплов для дантистов в сша + есть знакомые лицензированные дантисты. я хочу сделать какой-то сервис, который как услуга будет их соединять друг с другом. помоги мне подумать об этом
-  - role: hint
-    content: careful not to write english-russian mix, answer in russian sinse that's what user's
-      language is
   - role: assistant
     content: |-
       Отличная идея — сервис для связи поставщиков бесплатных семплов с дантистами в США!
