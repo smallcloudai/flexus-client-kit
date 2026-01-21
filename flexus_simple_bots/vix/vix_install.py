@@ -128,6 +128,7 @@ async def install(
             prompts_common.SCHED_TODO_5M | {"sched_when": "EVERY:2m", "sched_first_question": "Work on the assigned task."},
         ],
         marketable_forms={},
+        marketable_required_policydocs=["/company", "/sales-strategy"],
     )
 
 
