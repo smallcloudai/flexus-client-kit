@@ -647,7 +647,7 @@ async def run_happy_trajectory(
                     first_calls=first_calls,
                     title="Trajectory Test",
                     ft_btest_name=skill__scenario,
-                    model=scenario.explicit_model,
+                    model=model_name,
                 )
                 logger.info(f"Scenario thread {ft_id}")
             else:
@@ -871,7 +871,6 @@ async def run_bots_in_this_group(
     scenario_task = None
     running_test_scenario = False
     running_happy_yaml = ""
-    fgroup_id = ""
     if scenario_fn:
         with open(scenario_fn) as f:
             running_happy_yaml = f.read()
@@ -882,8 +881,11 @@ async def run_bots_in_this_group(
             marketable_version=marketable_version,
             persona_setup={},
         )
-        fgroup_id = scenario.fgroup_id
-        assert fgroup_id
+        fclient.group_id = scenario.fgroup_id
+        # UGLY: we can't really move this code above install_func() call, because hire_bot part will not work without prior installation
+        # so this just ignores previous calculation for ws_id_prefix (valid without a scenario) and overwrites it:
+        ws_id_prefix = None
+
     bc = BotsCollection(
         ws_id_prefix=ws_id_prefix,
         marketable_name=marketable_name,
