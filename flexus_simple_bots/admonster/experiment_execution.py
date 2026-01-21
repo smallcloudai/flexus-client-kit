@@ -236,6 +236,7 @@ class IntegrationExperimentExecution:
             "meta": {
                 "experiment_id": experiment_id,
                 "created_at": time.strftime("%Y-%m-%d %H:%M:%S"),
+                "microfrontend": "admonster",
             },
             "experiment_status": "active" if activate_immediately else "paused",
             "start_ts": time.time(),
