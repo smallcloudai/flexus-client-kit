@@ -82,8 +82,8 @@ async def install(
         marketable_run_this="python -m flexus_simple_bots.productman.productman_bot",
         marketable_setup_default=productman_setup_schema,
         marketable_featured_actions=[
-            {"feat_question": "A1: Challenge my product idea", "feat_run_as_setup": False, "feat_depends_on_setup": []},
-            {"feat_question": "A2: Research and prioritize hypotheses", "feat_run_as_setup": False, "feat_depends_on_setup": []},
+            {"feat_question": "A1: Challenge my product idea", "feat_expert": "default", "feat_depends_on_setup": []},
+            {"feat_question": "A2: Research and prioritize hypotheses", "feat_expert": "default", "feat_depends_on_setup": []},
         ],
         marketable_intro_message="Hi! I'm Productman, your Discovery Agent. I help you understand what to sell and to whom, validated by market logic before spending money.",
         marketable_preferred_model_default="grok-4-1-fast-non-reasoning",
