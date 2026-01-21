@@ -112,16 +112,8 @@ async def install(
         marketable_run_this="python -m flexus_simple_bots.marketing_strategist.marketing_strategist_bot",
         marketable_setup_default=[],
         marketable_featured_actions=[
-            {
-                "feat_question": "Help me validate my hypothesis",
-                "feat_run_as_setup": False,
-                "feat_depends_on_setup": [],
-            },
-            {
-                "feat_question": "Create a marketing strategy for my product",
-                "feat_run_as_setup": False,
-                "feat_depends_on_setup": [],
-            },
+            {"feat_question": "Help me validate my hypothesis", "feat_expert": "default", "feat_depends_on_setup": []},
+            {"feat_question": "Create a marketing strategy for my product", "feat_expert": "default", "feat_depends_on_setup": []},
         ],
         marketable_intro_message=(
             "Hi! I'm Marketing Strategist. I help founders validate hypotheses "

@@ -105,8 +105,8 @@ async def install(
         marketable_run_this="python -m flexus_simple_bots.frog.frog_bot",
         marketable_setup_default=frog_setup_schema,
         marketable_featured_actions=[
-            {"feat_question": "Ribbit! Tell me something fun", "feat_run_as_setup": False, "feat_depends_on_setup": []},
-            {"feat_question": "Give me a motivational boost", "feat_run_as_setup": False, "feat_depends_on_setup": []},
+            {"feat_question": "Ribbit! Tell me something fun", "feat_expert": "default", "feat_depends_on_setup": []},
+            {"feat_question": "Give me a motivational boost", "feat_expert": "default", "feat_depends_on_setup": []},
         ],
         marketable_intro_message="Ribbit! Hi there! I'm Frog, your cheerful workspace companion. I'm here to bring joy and keep your spirits high. What can I do for you today?",
         # marketable_preferred_model_default="grok-code-fast-1",

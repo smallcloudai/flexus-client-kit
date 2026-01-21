@@ -142,9 +142,9 @@ async def install(
         marketable_run_this="python -m flexus_simple_bots.lawyerrat.lawyerrat_bot",
         marketable_setup_default=lawyerrat_setup_schema,
         marketable_featured_actions=[
-            {"feat_question": "Research contract law basics", "feat_run_as_setup": False, "feat_depends_on_setup": []},
-            {"feat_question": "Draft a simple NDA", "feat_run_as_setup": False, "feat_depends_on_setup": []},
-            {"feat_question": "Analyze this agreement for potential issues", "feat_run_as_setup": False, "feat_depends_on_setup": []},
+            {"feat_question": "Research contract law basics", "feat_expert": "default", "feat_depends_on_setup": []},
+            {"feat_question": "Draft a simple NDA", "feat_expert": "default", "feat_depends_on_setup": []},
+            {"feat_question": "Analyze this agreement for potential issues", "feat_expert": "default", "feat_depends_on_setup": []},
         ],
         marketable_intro_message="Hello! I'm LawyerRat, your thorough legal research assistant. I can help with legal research, document drafting, and contract analysis. What legal matter can I assist you with today? (Remember: I provide legal information, not legal advice - always consult a licensed attorney for actual legal advice.)",
         marketable_preferred_model_default="grok-4-1-fast-non-reasoning",

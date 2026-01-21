@@ -63,9 +63,9 @@ async def install(
         marketable_run_this="python -m flexus_simple_bots.clerkwing.clerkwing_bot",
         marketable_setup_default=clerkwing_setup_schema,
         marketable_featured_actions=[
-            {"feat_question": "Summarize my unread emails", "feat_run_as_setup": False, "feat_depends_on_setup": []},
-            {"feat_question": "What's on my calendar today?", "feat_run_as_setup": False, "feat_depends_on_setup": []},
-            {"feat_question": "Show my Jira tasks", "feat_run_as_setup": False, "feat_depends_on_setup": ["jira_instance_url"]},
+            {"feat_question": "Summarize my unread emails", "feat_expert": "default", "feat_depends_on_setup": []},
+            {"feat_question": "What's on my calendar today?", "feat_expert": "default", "feat_depends_on_setup": []},
+            {"feat_question": "Show my Jira tasks", "feat_expert": "default", "feat_depends_on_setup": ["jira_instance_url"]},
         ],
         marketable_intro_message="Hello! I'm Clerkwing, your secretary robot. I can help you manage your email, calendar, and Jira tasks. What would you like me to help with today?",
         marketable_preferred_model_default="grok-4-1-fast-non-reasoning",

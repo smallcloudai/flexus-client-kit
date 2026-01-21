@@ -68,7 +68,7 @@ async def install(
         marketable_run_this="python -m flexus_simple_bots.owl.owl_bot",
         marketable_setup_default=[],
         marketable_featured_actions=[
-            {"feat_question": "Create strategy for my hypothesis", "feat_run_as_setup": False, "feat_depends_on_setup": []},
+            {"feat_question": "Create strategy for my hypothesis", "feat_expert": "default", "feat_depends_on_setup": []},
         ],
         marketable_intro_message="I'm Owl. I turn hypotheses into experiment designs. Let me check what's available...",
         marketable_preferred_model_default="grok-4-1-fast-reasoning",
