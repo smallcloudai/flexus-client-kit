@@ -37,6 +37,19 @@ class FPersonaScheduleOutput:
 
 
 @dataclass
+class FExternalMessageOutput:
+    emessage_id: str
+    emessage_persona_id: str
+    emessage_channel: str
+    emessage_from: str
+    emessage_to: str
+    emessage_external_id: str
+    emessage_payload: Any
+    emessage_created_ts: float
+    ws_id: str
+
+
+@dataclass
 class FBotThreadsCallsTasks:
     news_action: str
     news_about: str
@@ -48,6 +61,7 @@ class FBotThreadsCallsTasks:
     news_payload_task: Optional[ckit_kanban.FPersonaKanbanTaskOutput]
     news_payload_erp_record_new: Optional[Dict[str, Any]] = None
     news_payload_erp_record_old: Optional[Dict[str, Any]] = None
+    news_payload_emessage: Optional[FExternalMessageOutput] = None
 
 
 @dataclass
