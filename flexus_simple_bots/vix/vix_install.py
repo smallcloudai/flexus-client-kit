@@ -109,7 +109,7 @@ async def install(
                 fexp_block_tools="",
                 fexp_allow_tools="",
                 fexp_app_capture_tools=bot_internal_tools,
-                fexp_description="Conducts sales conversations using C.L.O.S.E.R. Framework, qualifies leads with BANT, and handles objections with consultative approach.",
+                fexp_description="Marketing assistant for CRM management, contact import, automated outreach, and company/product setup.",
             )),
             ("sales", ckit_bot_install.FMarketplaceExpertInput(
                 fexp_system_prompt=vix_prompts.vix_prompt_default,
@@ -117,7 +117,7 @@ async def install(
                 fexp_block_tools="*setup*",
                 fexp_allow_tools="",
                 fexp_app_capture_tools=bot_internal_tools,
-                fexp_description="Configures company information, products, sales strategy, and competitive positioning through natural conversation.",
+                fexp_description="Conducts sales conversations using C.L.O.S.E.R. Framework, qualifies leads with BANT, and handles objections with consultative approach.",
             )),
         ],
         marketable_tags=["Sales", "Marketing", "CRM", "Email", "Automation"],
