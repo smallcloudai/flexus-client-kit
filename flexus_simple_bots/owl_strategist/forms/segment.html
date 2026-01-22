@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Segment Dashboard</title>
+  <style id="theme-css"></style>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    
+    :root {
+      --bg-primary: #0d1117;
+      --bg-secondary: #161b22;
+      --bg-card: #21262d;
+      --bg-hover: #30363d;
+      --text-primary: #e6edf3;
+      --text-secondary: #8b949e;
+      --text-muted: #6e7681;
+      --border-color: #30363d;
+      --accent-blue: #58a6ff;
+      --accent-green: #3fb950;
+      --accent-orange: #d29922;
+      --accent-red: #f85149;
+      --accent-purple: #a371f7;
+      --accent-pink: #db61a2;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      line-height: 1.5;
+      padding: 1.5rem;
+      min-height: 100vh;
+    }
+    
+    .header {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin-bottom: 2rem;
+      padding-bottom: 1rem;
+      border-bottom: 1px solid var(--border-color);
+    }
+    
+    .header h1 { font-size: 1.5rem; font-weight: 600; }
+    .header .icon { font-size: 1.75rem; }
+    
+    /* Persona Card */
+    .persona-card {
+      background: linear-gradient(135deg, rgba(163, 113, 247, 0.1) 0%, rgba(219, 97, 162, 0.1) 100%);
+      border: 1px solid var(--accent-purple);
+      border-radius: 16px;
+      padding: 2rem;
+      margin-bottom: 2rem;
+    }
+    
+    .persona-header {
+      display: flex;
+      align-items: center;
+      gap: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+    
+    .persona-avatar {
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--accent-purple) 0%, var(--accent-pink) 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2.5rem;
+    }
+    
+    .persona-info h2 {
+      font-size: 1.25rem;
+      margin-bottom: 0.25rem;
+    }
+    
+    .persona-info .label {
+      color: var(--text-secondary);
+      font-size: 0.9rem;
+    }
+    
+    .persona-narrative {
+      font-size: 1rem;
+      color: var(--text-secondary);
+      line-height: 1.7;
+      font-style: italic;
+      padding: 1rem;
+      background: var(--bg-secondary);
+      border-radius: 8px;
+      border-left: 3px solid var(--accent-purple);
+    }
+    
+    /* ICP Grid */
+    .section {
+      margin-bottom: 2rem;
+    }
+    
+    .section-title {
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    
+    .icp-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 1rem;
+    }
+    
+    .icp-item {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      padding: 1rem;
+      text-align: center;
+    }
+    
+    .icp-item .icon { font-size: 1.5rem; margin-bottom: 0.5rem; }
+    .icp-item .label {
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 0.25rem;
+    }
+    .icp-item .value {
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+    
+    /* JTBD Section */
+    .jtbd-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 1rem;
+    }
+    
+    .jtbd-card {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+    
+    .jtbd-card.functional { border-top: 3px solid var(--accent-blue); }
+    .jtbd-card.emotional { border-top: 3px solid var(--accent-pink); }
+    .jtbd-card.social { border-top: 3px solid var(--accent-green); }
+    
+    .jtbd-header {
+      padding: 1rem;
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    
+    .jtbd-header h3 {
+      font-size: 0.9rem;
+      font-weight: 600;
+    }
+    
+    .jtbd-card.functional .jtbd-header { color: var(--accent-blue); }
+    .jtbd-card.emotional .jtbd-header { color: var(--accent-pink); }
+    .jtbd-card.social .jtbd-header { color: var(--accent-green); }
+    
+    .jtbd-body {
+      padding: 1rem;
+    }
+    
+    .jtbd-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.5rem;
+      padding: 0.5rem 0;
+      font-size: 0.9rem;
+      color: var(--text-secondary);
+    }
+    
+    .jtbd-item::before {
+      content: ">";
+      color: var(--text-muted);
+      font-family: monospace;
+    }
+    
+    /* Pains & Gains */
+    .pains-gains {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+    }
+    
+    .pg-card {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 1rem;
+    }
+    
+    .pg-card.pains { border-left: 3px solid var(--accent-red); }
+    .pg-card.gains { border-left: 3px solid var(--accent-green); }
+    
+    .pg-card h4 {
+      font-size: 0.85rem;
+      font-weight: 600;
+      margin-bottom: 0.75rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    
+    .pg-card.pains h4 { color: var(--accent-red); }
+    .pg-card.gains h4 { color: var(--accent-green); }
+    
+    .pg-list {
+      list-style: none;
+    }
+    
+    .pg-list li {
+      padding: 0.35rem 0;
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+      display: flex;
+      align-items: flex-start;
+      gap: 0.5rem;
+    }
+    
+    .pg-list li::before {
+      content: "•";
+      color: var(--text-muted);
+    }
+    
+    /* Journey */
+    .journey-timeline {
+      display: flex;
+      gap: 1rem;
+      overflow-x: auto;
+      padding-bottom: 1rem;
+    }
+    
+    .journey-stage {
+      flex: 0 0 200px;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 1rem;
+      position: relative;
+    }
+    
+    .journey-stage::after {
+      content: "→";
+      position: absolute;
+      right: -1rem;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--text-muted);
+      font-size: 1.25rem;
+    }
+    
+    .journey-stage:last-child::after { display: none; }
+    
+    .journey-stage h4 {
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--accent-blue);
+      text-transform: uppercase;
+      margin-bottom: 0.5rem;
+    }
+    
+    .journey-channels {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.35rem;
+    }
+    
+    .channel-pill {
+      padding: 0.25rem 0.5rem;
+      background: var(--bg-hover);
+      border-radius: 4px;
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+    }
+    
+    /* Targeting */
+    .targeting-card {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 1.25rem;
+    }
+    
+    .targeting-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 1rem;
+      padding: 0.75rem 0;
+      border-bottom: 1px solid var(--border-color);
+    }
+    
+    .targeting-row:last-child { border-bottom: none; }
+    
+    .targeting-row .label {
+      flex: 0 0 120px;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+    
+    .targeting-row .content {
+      flex: 1;
+      font-size: 0.9rem;
+      color: var(--text-secondary);
+    }
+    
+    /* Pills */
+    .pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+    
+    .pill {
+      padding: 0.35rem 0.65rem;
+      border-radius: 20px;
+      font-size: 0.75rem;
+      background: var(--bg-hover);
+      color: var(--text-secondary);
+    }
+    
+    .pill.geo { background: rgba(88, 166, 255, 0.15); color: var(--accent-blue); }
+    .pill.role { background: rgba(163, 113, 247, 0.15); color: var(--accent-purple); }
+    .pill.risk { background: rgba(248, 81, 73, 0.15); color: var(--accent-red); }
+    
+    .empty-state {
+      text-align: center;
+      padding: 3rem;
+      color: var(--text-secondary);
+    }
+    .empty-state .icon { font-size: 3rem; margin-bottom: 1rem; }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div class="empty-state">
+      <div class="icon">👥</div>
+      <p>Loading segment...</p>
+    </div>
+  </div>
+
+  <script>
+    const FormBridge = {
+      listeners: {},
+      init(formId) {
+        window.addEventListener('message', (event) => {
+          if (event.data && event.data.type) {
+            const handler = this.listeners[event.data.type];
+            if (handler) handler(event.data);
+          }
+        });
+        this.send('FORM_READY', { formId });
+      },
+      on(type, callback) { this.listeners[type] = callback; },
+      send(type, payload) { window.parent.postMessage({ type, ...payload }, '*'); }
+    };
+
+    let segment = null;
+
+    function extract(content) {
+      if (!content) return {};
+      if (content.segment && typeof content.segment === 'object') return content.segment;
+      return content;
+    }
+
+    FormBridge.on('INIT', data => {
+      segment = extract(data.content);
+      if (data.themeCss) document.getElementById('theme-css').textContent = data.themeCss;
+      render();
+    });
+
+    FormBridge.on('CONTENT_UPDATE', data => {
+      segment = extract(data.content);
+      render();
+    });
+
+    FormBridge.init('owl-segment-dashboard');
+
+    function render() {
+      const app = document.getElementById('app');
+      
+      if (!segment || Object.keys(segment).length === 0) {
+        app.innerHTML = `<div class="empty-state"><div class="icon">👥</div><p>No segment data available</p></div>`;
+        return;
+      }
+
+      const icp = segment.icp || {};
+      const jtbd = segment.jtbds || {};
+      const journey = segment.journey_highlights || {};
+      const targeting = segment.targeting_implications || {};
+      
+      app.innerHTML = `
+        <div class="header">
+          <span class="icon">👥</span>
+          <h1>Target Segment</h1>
+        </div>
+
+        <div class="persona-card">
+          <div class="persona-header">
+            <div class="persona-avatar">👤</div>
+            <div class="persona-info">
+              <h2>${segment.label || 'Target Segment'}</h2>
+              <div class="label">${icp.b2x || 'B2C'} • ${icp.company_size || 'Solo'} • ${(icp.geo || []).join(', ')}</div>
+            </div>
+          </div>
+          ${segment.persona_narrative ? `
+            <div class="persona-narrative">"${segment.persona_narrative}"</div>
+          ` : ''}
+        </div>
+
+        <div class="section">
+          <div class="section-title">🎯 ICP Profile</div>
+          <div class="icp-grid">
+            <div class="icp-item">
+              <div class="icon">🏢</div>
+              <div class="label">Type</div>
+              <div class="value">${icp.b2x || '—'}</div>
+            </div>
+            <div class="icp-item">
+              <div class="icon">👥</div>
+              <div class="label">Size</div>
+              <div class="value">${icp.company_size || '—'}</div>
+            </div>
+            <div class="icp-item">
+              <div class="icon">💼</div>
+              <div class="label">Roles</div>
+              <div class="value">${(icp.roles || []).join(', ') || '—'}</div>
+            </div>
+            <div class="icp-item">
+              <div class="icon">🌍</div>
+              <div class="label">Geo</div>
+              <div class="value">${(icp.geo || []).join(', ') || '—'}</div>
+            </div>
+            <div class="icp-item">
+              <div class="icon">💻</div>
+              <div class="label">Tech Level</div>
+              <div class="value">${icp.tech_savviness || '—'}</div>
+            </div>
+            <div class="icp-item">
+              <div class="icon">👑</div>
+              <div class="label">Decision</div>
+              <div class="value">${icp.decision_maker || '—'}</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="section-title">🎯 Jobs To Be Done</div>
+          <div class="jtbd-grid">
+            <div class="jtbd-card functional">
+              <div class="jtbd-header"><span>⚙️</span><h3>Functional Jobs</h3></div>
+              <div class="jtbd-body">
+                ${(jtbd.functional_jobs || []).map(j => `<div class="jtbd-item">${j}</div>`).join('') || '<div class="jtbd-item">Not defined</div>'}
+              </div>
+            </div>
+            <div class="jtbd-card emotional">
+              <div class="jtbd-header"><span>💖</span><h3>Emotional Jobs</h3></div>
+              <div class="jtbd-body">
+                ${(jtbd.emotional_jobs || []).map(j => `<div class="jtbd-item">${j}</div>`).join('') || '<div class="jtbd-item">Not defined</div>'}
+              </div>
+            </div>
+            <div class="jtbd-card social">
+              <div class="jtbd-header"><span>🤝</span><h3>Social Jobs</h3></div>
+              <div class="jtbd-body">
+                ${(jtbd.social_jobs || []).map(j => `<div class="jtbd-item">${j}</div>`).join('') || '<div class="jtbd-item">Not defined</div>'}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="section-title">😣 Pains & ✨ Gains</div>
+          <div class="pains-gains">
+            <div class="pg-card pains">
+              <h4>😣 Main Pains</h4>
+              <ul class="pg-list">
+                ${(segment.main_pains || []).map(p => `<li>${p}</li>`).join('') || '<li>Not defined</li>'}
+              </ul>
+            </div>
+            <div class="pg-card gains">
+              <h4>✨ Desired Gains</h4>
+              <ul class="pg-list">
+                ${(segment.desired_gains || []).map(g => `<li>${g}</li>`).join('') || '<li>Not defined</li>'}
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        ${Object.keys(journey).length > 0 ? `
+          <div class="section">
+            <div class="section-title">🗺️ Customer Journey</div>
+            <div class="journey-timeline">
+              ${Object.entries(journey).map(([stage, channels]) => `
+                <div class="journey-stage">
+                  <h4>${stage}</h4>
+                  <div class="journey-channels">
+                    ${(Array.isArray(channels) ? channels : [channels]).map(c => `<span class="channel-pill">${c}</span>`).join('')}
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        ` : ''}
+
+        ${Object.keys(targeting).length > 0 ? `
+          <div class="section">
+            <div class="section-title">🎯 Targeting Implications</div>
+            <div class="targeting-card">
+              ${targeting.easy_to_reach_via ? `
+                <div class="targeting-row">
+                  <div class="label">✅ Easy to reach</div>
+                  <div class="content pills">${(Array.isArray(targeting.easy_to_reach_via) ? targeting.easy_to_reach_via : [targeting.easy_to_reach_via]).map(c => `<span class="pill geo">${c}</span>`).join('')}</div>
+                </div>
+              ` : ''}
+              ${targeting.hard_to_reach_because ? `
+                <div class="targeting-row">
+                  <div class="label">⚠️ Challenges</div>
+                  <div class="content pills">${(Array.isArray(targeting.hard_to_reach_because) ? targeting.hard_to_reach_because : [targeting.hard_to_reach_because]).map(c => `<span class="pill risk">${c}</span>`).join('')}</div>
+                </div>
+              ` : ''}
+              ${targeting.best_hooks ? `
+                <div class="targeting-row">
+                  <div class="label">🎣 Best hooks</div>
+                  <div class="content pills">${(Array.isArray(targeting.best_hooks) ? targeting.best_hooks : [targeting.best_hooks]).map(c => `<span class="pill">${c}</span>`).join('')}</div>
+                </div>
+              ` : ''}
+            </div>
+          </div>
+        ` : ''}
+
+        ${segment.segment_risks ? `
+          <div class="section">
+            <div class="section-title">⚠️ Segment Risks</div>
+            <div class="pills">
+              ${segment.segment_risks.map(r => `<span class="pill risk">${r}</span>`).join('')}
+            </div>
+          </div>
+        ` : ''}
+      `;
+    }
+  </script>
+</body>
+</html>
+
