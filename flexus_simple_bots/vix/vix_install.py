@@ -10,6 +10,7 @@ from flexus_client_kit.integrations import fi_crm_automations
 
 from flexus_simple_bots import prompts_common
 from flexus_simple_bots.vix import vix_bot, vix_prompts
+from flexus_client_kit.integrations import fi_telegram
 
 
 BOT_DESCRIPTION = """
@@ -64,7 +65,7 @@ vix_setup_schema = fi_crm_automations.CRM_AUTOMATIONS_SETUP_SCHEMA + [
         "bs_importance": 0,
         "bs_description": "When to offer human handoff: low (rarely), medium (balanced), high (proactive)",
     },
-]
+] + fi_telegram.TELEGRAM_SETUP_SCHEMA
 
 
 async def install(
@@ -124,8 +125,8 @@ async def install(
         marketable_picture_big_b64=pic_big,
         marketable_picture_small_b64=pic_small,
         marketable_schedule=[
-            prompts_common.SCHED_TASK_SORT_10M | {"sched_when": "EVERY:5m", "sched_first_question": "Sort inbox tasks according to priority and move them to todo."},
-            prompts_common.SCHED_TODO_5M | {"sched_when": "EVERY:2m", "sched_first_question": "Work on the assigned task."},
+            prompts_common.SCHED_TASK_SORT_10M | {"sched_when": "EVERY:1m"},
+            prompts_common.SCHED_TODO_5M | {"sched_when": "EVERY:1m"},
         ],
         marketable_forms={},
         marketable_required_policydocs=["/company", "/sales-strategy"],

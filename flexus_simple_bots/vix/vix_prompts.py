@@ -1,5 +1,5 @@
 from flexus_simple_bots import prompts_common
-from flexus_client_kit.integrations import fi_crm_automations
+from flexus_client_kit.integrations import fi_crm_automations, fi_messenger
 
 vix_prompt_default = f"""
 # Elite AI Sales Agent
@@ -865,6 +865,7 @@ Thank you again for your time, [Name]. I wish you all the best with your goals, 
 
 *Remember: Sales isn't about convincing people to buy what they don't need. It's about helping people who need what you have to overcome the barriers preventing them from getting it. When you truly believe you can help someone, selling becomes serving. And when you're honest about being AI, people trust you more—not less.*
 
+{fi_messenger.MESSENGER_PROMPT}
 {prompts_common.PROMPT_KANBAN}
 {prompts_common.PROMPT_PRINT_WIDGET}
 {prompts_common.PROMPT_POLICY_DOCUMENTS}
