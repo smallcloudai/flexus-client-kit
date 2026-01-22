@@ -22,12 +22,6 @@ class FDevEnvironmentOutput:
     devenv_created_ts: float
     devenv_modified_ts: float
 
-
-@dataclass
-class FDevEnvApiKeyOutput:
-    apikey_id: str
-    full_key: str
-
 async def dev_environments_list_in_subgroups(
     fclient: ckit_client.FlexusClient,
     fgroup_id: str,
@@ -114,6 +108,29 @@ async def dev_environment_delete(fclient: ckit_client.FlexusClient, devenv_id: s
             variable_values={"id": devenv_id, "fuser_id": fuser_id},
         )
 
+@dataclass
+class FDevEnvApiKeyOutput:
+    apikey_id: str
+    full_key: str
+
+async def dev_environment_create_apikey(
+    fclient: ckit_client.FlexusClient,
+    devenv_id: str,
+    fuser_id: str,
+) -> FDevEnvApiKeyOutput:
+    http = await fclient.use_http()
+    async with http as h:
+        r = await h.execute(gql.gql("""
+            mutation BobCreateDevEnvApiKey($devenv_id: String!, $fuser_id: String!) {
+                dev_environment_create_apikey(devenv_id: $devenv_id, fuser_id: $fuser_id) {
+                    apikey_id
+                    full_key
+                }
+            }"""),
+            variable_values={"devenv_id": devenv_id, "fuser_id": fuser_id},
+        )
+    return gql_utils.dataclass_from_dict(r["dev_environment_create_apikey"], FDevEnvApiKeyOutput)
+
 async def dev_environment_get_github_auth_url(fclient: ckit_client.FlexusClient, devenv_id: str) -> str:
     http = await fclient.use_http()
     async with http as h:
@@ -136,34 +153,4 @@ async def format_devenv_list(fclient: ckit_client.FlexusClient, fgroup_id: str) 
     return "No dev environments configured.\nPublic repositories are available.\n"
 
 
-async def dev_environment_create_apikey(
-    fclient: ckit_client.FlexusClient,
-    devenv_id: str,
-) -> FDevEnvApiKeyOutput:
-    http = await fclient.use_http()
-    async with http as h:
-        r = await h.execute(gql.gql("""
-            mutation DevEnvCreateApiKey($devenv_id: String!) {
-                dev_environment_create_apikey(devenv_id: $devenv_id) {
-                    apikey_id
-                    full_key
-                }
-            }"""),
-            variable_values={"devenv_id": devenv_id},
-        )
-    return gql_utils.dataclass_from_dict(r["dev_environment_create_apikey"], FDevEnvApiKeyOutput)
 
-
-async def dev_environment_delete_apikey(
-    fclient: ckit_client.FlexusClient,
-    apikey_id: str,
-) -> bool:
-    http = await fclient.use_http()
-    async with http as h:
-        r = await h.execute(gql.gql("""
-            mutation DevEnvDeleteApiKey($apikey_id: String!) {
-                dev_environment_delete_apikey(apikey_id: $apikey_id)
-            }"""),
-            variable_values={"apikey_id": apikey_id},
-        )
-    return r["dev_environment_delete_apikey"]
