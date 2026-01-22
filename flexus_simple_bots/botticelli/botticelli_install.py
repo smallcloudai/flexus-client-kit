@@ -72,6 +72,7 @@ async def install(
                 fexp_block_tools="*setup*",
                 fexp_allow_tools="",
                 fexp_app_capture_tools=bot_internal_tools,
+                fexp_description="Creates ad campaign pictures using style guides. Manages company style guides and generates images with picturegen().",
             )),
         ],
         marketable_tags=["Minimal", "Testing"],

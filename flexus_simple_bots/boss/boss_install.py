@@ -87,7 +87,7 @@ async def install(
         marketable_run_this="python -m flexus_simple_bots.boss.boss_bot",
         marketable_setup_default=boss_setup_schema,
         marketable_featured_actions=[
-            {"feat_question": "Review recent task approvals", "feat_run_as_setup": False, "feat_depends_on_setup": []},
+            # {"feat_question": "Review recent task approvals", "feat_run_as_setup": False, "feat_depends_on_setup": []},
         ],
         marketable_intro_message="Hi! I'm Boss, a Chief Orchestration Officer, I review and improve other bot's work to ensure quality and alignment with your goals.",
         marketable_preferred_model_default="grok-4-1-fast-reasoning",
@@ -100,6 +100,7 @@ async def install(
                 fexp_block_tools="*setup",
                 fexp_allow_tools="",
                 fexp_app_capture_tools=bot_internal_tools,
+                fexp_description="Helps hire bots and create tasks to accomplish goals, ensuring work aligns with company strategy and vision.",
             )),
             ("uihelp", ckit_bot_install.FMarketplaceExpertInput(
                 fexp_system_prompt=boss_prompts.boss_uihelp,
@@ -107,6 +108,7 @@ async def install(
                 fexp_block_tools="*setup",
                 fexp_allow_tools="",
                 fexp_app_capture_tools=bot_internal_tools,
+                fexp_description="Assists users in navigating Flexus UI, including highlighting elements, document uploads, EDS, and MCP configuration.",
             )),
         ],
         marketable_tags=["management", "orchestration"],

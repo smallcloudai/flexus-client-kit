@@ -75,6 +75,7 @@ async def install(
                 fexp_block_tools="",
                 fexp_allow_tools="",
                 fexp_app_capture_tools=bot_internal_tools,
+                fexp_description="Monitors CRM contacts and tasks, sends personalized emails, manages sales pipeline, and automatically welcomes new contacts.",
             )),
         ],
         marketable_tags=["Sales", "CRM", "Email", "Automation"],

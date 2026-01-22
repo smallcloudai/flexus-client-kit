@@ -112,6 +112,7 @@ async def install(
                 fexp_allow_tools="",
                 fexp_inactivity_timeout=600,
                 fexp_app_capture_tools=bot_internal_tools,
+                fexp_description="Handles customer support tickets by searching knowledge base, providing helpful responses, and escalating unresolved issues.",
             )),
             ("setup", ckit_bot_install.FMarketplaceExpertInput(
                 fexp_system_prompt=karen_prompts.karen_setup,
@@ -119,6 +120,7 @@ async def install(
                 fexp_block_tools="",
                 fexp_allow_tools="",
                 fexp_app_capture_tools=bot_internal_tools,
+                fexp_description="Guides users through bot configuration, helping set up information sources like MCP servers or Flexus hotstorage for support queries.",
             )),
         ],
         marketable_tags=["Customer Support"],

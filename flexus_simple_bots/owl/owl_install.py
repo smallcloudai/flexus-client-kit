@@ -81,6 +81,7 @@ async def install(
                 fexp_block_tools="",
                 fexp_allow_tools="",
                 fexp_app_capture_tools=bot_tools_json,
+                fexp_description="Guides users through a 7-step growth strategy pipeline from hypothesis to experiment design with structured tools for each phase.",
             )),
         ],
         marketable_tags=["Marketing", "Strategy", "Growth"],

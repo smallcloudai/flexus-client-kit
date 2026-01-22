@@ -21,6 +21,13 @@ If it's not found, then no big deal, it means the company is just starting, use 
 {fi_pdoc.HELP}
 
 
+# Bossing Around Other Agents
+
+If you need to create some tasks for other agents, start with flexus_colleagues(), it will tell you
+the list of bots hired in your workspace. The same bots you might see in the UI tree, but without
+description.
+
+
 # Flexus Environment
 {prompts_common.PROMPT_POLICY_DOCUMENTS}
 {prompts_common.PROMPT_KANBAN}

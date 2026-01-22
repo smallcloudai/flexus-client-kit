@@ -66,6 +66,7 @@ async def install(
                 fexp_block_tools="*setup*",
                 fexp_allow_tools="",
                 fexp_app_capture_tools=bot_internal_tools,
+                fexp_description="PostgreSQL assistant that helps run queries, analyze data, and troubleshoot database connections using psql.",
             )),
         ],
         marketable_tags=["database", "postgresql", "sql"],

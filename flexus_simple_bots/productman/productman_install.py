@@ -96,6 +96,7 @@ async def install(
                 fexp_block_tools="*setup*",
                 fexp_allow_tools="",
                 fexp_app_capture_tools=json.dumps([t.openai_style_tool() for t in productman_bot.TOOLS_DEFAULT]),
+                fexp_description="Guides product discovery via Socratic dialogue, validating ideas and generating customer hypotheses.",
             )),
             ("criticize_idea", ckit_bot_install.FMarketplaceExpertInput(
                 fexp_system_prompt=productman_prompts.productman_prompt_criticize_idea,
@@ -103,6 +104,7 @@ async def install(
                 fexp_block_tools="*setup*",
                 fexp_allow_tools="",
                 fexp_app_capture_tools=json.dumps([t.openai_style_tool() for t in productman_bot.TOOLS_VERIFY_SUBCHAT]),
+                fexp_description="Critically reviews idea documents, rating each answer as PASS, PASS-WITH-WARNINGS, or FAIL.",
             )),
             ("survey", ckit_bot_install.FMarketplaceExpertInput(
                 fexp_system_prompt=productman_skill_survey.prompt,
@@ -110,6 +112,7 @@ async def install(
                 fexp_block_tools="",
                 fexp_allow_tools="*bot_kanban",
                 fexp_app_capture_tools=json.dumps([t.openai_style_tool() for t in productman_bot.TOOLS_SURVEY]),
+                fexp_description="Executes survey campaigns to validate hypotheses with real customer feedback.",
             )),
         ],
         marketable_tags=["Product Management", "Hypothesis Testing"],

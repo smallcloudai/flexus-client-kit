@@ -78,6 +78,7 @@ async def install(
                 fexp_block_tools="*setup*",
                 fexp_allow_tools="",
                 fexp_app_capture_tools=bot_internal_tools,
+                fexp_description="Main secretary assistant for managing email, calendar, and Jira tasks with proactive organization and helpful suggestions.",
             )),
             ("setup", ckit_bot_install.FMarketplaceExpertInput(
                 fexp_system_prompt=clerkwing_prompts.clerkwing_setup,
@@ -85,6 +86,7 @@ async def install(
                 fexp_block_tools="",
                 fexp_allow_tools="",
                 fexp_app_capture_tools=bot_internal_tools,
+                fexp_description="Configuration assistant for setting up Gmail, Google Calendar, and Jira OAuth connections.",
             )),
         ],
         marketable_tags=["Productivity", "Email", "Calendar", "Jira"],

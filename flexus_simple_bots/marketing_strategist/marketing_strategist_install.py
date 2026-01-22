@@ -144,6 +144,7 @@ async def install(
                 fexp_ui_icon="pi pi-comments",
                 fexp_ui_first_message="How can I help with your marketing strategy?",
                 fexp_ui_description="Open conversation about marketing strategy",
+                fexp_description="Open conversation about marketing strategy without structured workflow.",
             )),
             # Skill 1: Diagnostic Analysis
             ("diagnostic", ckit_bot_install.FMarketplaceExpertInput(
@@ -157,6 +158,7 @@ async def install(
                 fexp_ui_icon=skill_diagnostic.SKILL_UI_ICON,
                 fexp_ui_first_message=skill_diagnostic.SKILL_UI_FIRST_MESSAGE,
                 fexp_ui_description=skill_diagnostic.SKILL_UI_DESCRIPTION,
+                fexp_description="Classifies hypothesis type, identifies key unknowns, and assesses feasibility for traffic testing.",
             )),
             # Skill 2: Metrics & KPIs
             ("metrics", ckit_bot_install.FMarketplaceExpertInput(
@@ -170,6 +172,7 @@ async def install(
                 fexp_ui_icon=skill_metrics.SKILL_UI_ICON,
                 fexp_ui_first_message=skill_metrics.SKILL_UI_FIRST_MESSAGE,
                 fexp_ui_description=skill_metrics.SKILL_UI_DESCRIPTION,
+                fexp_description="Defines success metrics, calculates minimum sample sizes, and sets stop/accelerate rules for experiments.",
             )),
             # Skill 3: Segment Analysis
             ("segment", ckit_bot_install.FMarketplaceExpertInput(
@@ -183,6 +186,7 @@ async def install(
                 fexp_ui_icon=skill_segment.SKILL_UI_ICON,
                 fexp_ui_first_message=skill_segment.SKILL_UI_FIRST_MESSAGE,
                 fexp_ui_description=skill_segment.SKILL_UI_DESCRIPTION,
+                fexp_description="Defines ideal customer profile, maps jobs-to-be-done, and analyzes customer journey and discovery channels.",
             )),
             # Skill 4: Messaging Strategy
             ("messaging", ckit_bot_install.FMarketplaceExpertInput(
@@ -196,6 +200,7 @@ async def install(
                 fexp_ui_icon=skill_messaging.SKILL_UI_ICON,
                 fexp_ui_first_message=skill_messaging.SKILL_UI_FIRST_MESSAGE,
                 fexp_ui_description=skill_messaging.SKILL_UI_DESCRIPTION,
+                fexp_description="Crafts value propositions, defines testable messaging angles, and prepares objection handling strategies.",
             )),
             # Skill 5: Channel Strategy
             ("channels", ckit_bot_install.FMarketplaceExpertInput(
@@ -209,6 +214,7 @@ async def install(
                 fexp_ui_icon=skill_channels.SKILL_UI_ICON,
                 fexp_ui_first_message=skill_channels.SKILL_UI_FIRST_MESSAGE,
                 fexp_ui_description=skill_channels.SKILL_UI_DESCRIPTION,
+                fexp_description="Selects marketing channels, designs test cell structure, and allocates budget across experiments.",
             )),
             # Skill 6: Tactical Specs
             ("tactics", ckit_bot_install.FMarketplaceExpertInput(
@@ -222,6 +228,7 @@ async def install(
                 fexp_ui_icon=skill_tactics.SKILL_UI_ICON,
                 fexp_ui_first_message=skill_tactics.SKILL_UI_FIRST_MESSAGE,
                 fexp_ui_description=skill_tactics.SKILL_UI_DESCRIPTION,
+                fexp_description="Creates detailed campaign specs, creative briefs, landing page structure, and tracking requirements.",
             )),
             # Skill 7: Risk & Compliance
             ("compliance", ckit_bot_install.FMarketplaceExpertInput(
@@ -235,6 +242,7 @@ async def install(
                 fexp_ui_icon=skill_compliance.SKILL_UI_ICON,
                 fexp_ui_first_message=skill_compliance.SKILL_UI_FIRST_MESSAGE,
                 fexp_ui_description=skill_compliance.SKILL_UI_DESCRIPTION,
+                fexp_description="Checks ad platform policies, assesses business and statistical risks, and verifies privacy compliance.",
             )),
         ],
         marketable_tags=["Marketing", "Strategy", "Hypothesis Validation"],

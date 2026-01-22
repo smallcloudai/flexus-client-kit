@@ -68,6 +68,7 @@ async def install(
                 fexp_allow_tools="",
                 fexp_app_capture_tools=bot_internal_tools,
                 fexp_inactivity_timeout=0,
+                fexp_description="Automated advertising execution engine that launches campaigns from Owl Strategist tactics, monitors performance hourly, and optimizes based on stop/accelerate rules.",
             )),
             ("setup", ckit_bot_install.FMarketplaceExpertInput(
                 fexp_system_prompt=admonster_prompts.admonster_setup,
@@ -76,6 +77,7 @@ async def install(
                 fexp_allow_tools="",
                 fexp_app_capture_tools=bot_internal_tools,
                 fexp_inactivity_timeout=0,
+                fexp_description="Helps users configure Facebook OAuth connections and ad account settings, plus LinkedIn advertising credentials.",
             )),
         ],
         marketable_tags=["advertising", "linkedin", "facebook", "marketing", "campaigns", "experiments", "automation"],

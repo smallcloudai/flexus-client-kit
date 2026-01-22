@@ -120,6 +120,7 @@ async def install(
                 fexp_block_tools="*setup*",
                 fexp_allow_tools="",
                 fexp_app_capture_tools=bot_internal_tools,
+                fexp_description="Main conversational expert that handles user interactions, task management, and provides cheerful encouragement.",
             )),
             ("huntmode", ckit_bot_install.FMarketplaceExpertInput(
                 fexp_system_prompt=frog_prompts.frog_prompt,
@@ -127,6 +128,7 @@ async def install(
                 fexp_block_tools="*setup*,frog_catch_insects",
                 fexp_allow_tools="",
                 fexp_app_capture_tools=bot_internal_tools,
+                fexp_description="Subchat expert for catching insects, respecting tongue_capacity limit.",
             )),
         ],
         marketable_tags=["Fun", "Simple", "Motivational"],
