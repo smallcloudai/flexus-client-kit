@@ -119,20 +119,26 @@ async def vix_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.Ro
 
     async def telegram_activity_callback(a: fi_telegram.ActivityTelegram, already_posted: bool):
         logger.info("%s Telegram %s by @%s: %s", rcx.persona.persona_id, a.chat_type, a.message_author_name, a.message_text[:50])
-        if not already_posted:
+        if already_posted:
+            return
+        details = asdict(a)
+        if a.attachments:
+            details["attachments"] = f"{len(a.attachments)} files attached"
+        if a.message_text.startswith("/start c_"): # Handle /start c_{contact_id} deep links (e.g. from email campaigns)
+            contact_id = a.message_text[9:].strip()
+            details["contact_id"] = contact_id
+            title = "CRM contact opened Telegram chat, contact_id=%s chat_id=%d" % (contact_id, a.chat_id)
+        else:
             title = "Telegram %s user=%r chat_id=%d\n%s" % (a.chat_type, a.message_author_name, a.chat_id, a.message_text)
             if a.attachments:
                 title += f"\n[{len(a.attachments)} file(s) attached]"
-            details = asdict(a)
-            if a.attachments:
-                details["attachments"] = f"{len(a.attachments)} files attached"
-            await ckit_kanban.bot_kanban_post_into_inbox(
-                fclient, rcx.persona.persona_id,
-                title=title,
-                details_json=json.dumps(details),
-                provenance_message="vix_telegram_activity",
-                fexp_name="sales",
-            )
+        await ckit_kanban.bot_kanban_post_into_inbox(
+            fclient, rcx.persona.persona_id,
+            title=title,
+            details_json=json.dumps(details),
+            provenance_message="vix_telegram_activity",
+            fexp_name="sales",
+        )
 
     telegram.set_activity_callback(telegram_activity_callback)
 

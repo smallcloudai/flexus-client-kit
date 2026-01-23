@@ -48,6 +48,10 @@ telegram(op="uncapture")
 
 telegram(op="skip")
     Ignore the most recent message but keep capturing.
+
+telegram(op="generate_chat_link", args={"contact_id": "abc123"})
+    Generate a link that opens a chat with this bot and passes the contact_id.
+    When clicked, bot receives /start c_<contact_id>.
 """
 
 TELEGRAM_SETUP_SCHEMA = [
@@ -246,6 +250,16 @@ class IntegrationTelegram:
             if not (captured := self.rcx.latest_threads.get(toolcall.fcall_ft_id)) or not captured.thread_fields.ft_app_searchable.startswith("telegram/"):
                 return fi_messenger.NOT_CAPTURING_MSG
             return fi_messenger.SKIP_SUCCESS_MSG
+
+        if op == "generate_chat_link":
+            contact_id = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "contact_id", None)
+            if not contact_id:
+                return "Missing contact_id parameter\n"
+            try:
+                bot_info = await self.application.bot.get_me()
+                return f"https://t.me/{bot_info.username}?start=c_{contact_id}\n"
+            except Exception as e:
+                return f"ERROR: {type(e).__name__}: {e}\n"
 
         return fi_messenger.UNKNOWN_OPERATION_MSG % op
 
