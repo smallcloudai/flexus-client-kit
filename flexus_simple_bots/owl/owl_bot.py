@@ -2,9 +2,11 @@ import asyncio
 import datetime
 import json
 import logging
+from pathlib import Path
 from typing import Dict, Any, Optional, List
 
 from flexus_client_kit import ckit_client
+from flexus_client_kit import ckit_scenario
 from flexus_client_kit import ckit_cloudtool
 from flexus_client_kit import ckit_bot_exec
 from flexus_client_kit import ckit_shutdown
@@ -555,6 +557,8 @@ async def handle_update_strategy(
     rcx: ckit_bot_exec.RobotContext,
     pdoc_integration: fi_pdoc.IntegrationPdoc,
 ) -> str:
+    if rcx.running_test_scenario:
+        return await ckit_scenario.scenario_generate_tool_result_via_model(rcx.fclient, toolcall, Path(__file__).read_text())
     idea_slug = args.get("idea_slug")
     hyp_slug = args.get("hyp_slug")
     step_data = args.get(step)

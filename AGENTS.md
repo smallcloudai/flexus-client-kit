@@ -359,6 +359,7 @@ Definitions: Tools, Skills, Subchats, Experts
 ### Tool
 
 Should be used for: API calls, CRUD, instant operations. Returns string visible to the model. Can raise NeedsConfirmation for dangerous ops or WaitForSubchats to spawn subchat.
+Remember that tools with side effects need to be faked when running a scenario, grep scenario_generate_tool_result_via_model() for details.
 Examples: flexus_policy_document, template_idea, facebook/linkedin APIs.
 
 ### Skill
