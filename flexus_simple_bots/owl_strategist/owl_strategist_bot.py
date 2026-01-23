@@ -23,7 +23,7 @@ TACTICS_DOCS = skill_tactics.TACTICS_DOCS
 
 
 BOT_NAME = "owl_strategist"
-BOT_VERSION = "1.0.3"
+BOT_VERSION = "1.0.7"
 BOT_VERSION_INT = ckit_client.marketplace_version_as_int(BOT_VERSION)
 
 # Pipeline: strict sequential order
@@ -148,21 +148,17 @@ async def owl_strategist_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_
     owner_fuser_id = rcx.persona.owner_fuser_id
 
     async def step_exists(experiment_id: str, step: str) -> bool:
-        # Use owner_fuser_id for access check — backend only validates workspace access,
-        # document lookup is by path+fgroup_id regardless of who created it
+        # pdoc_cat returns None if document doesn't exist (no exception thrown!)
+        # Must check return value, not catch exception
         if step == "tactics":
             # Tactics has 4 separate documents — all must exist for step to be "complete"
             for doc in TACTICS_DOCS:
-                try:
-                    await pdoc_integration.pdoc_cat(f"/gtm/discovery/{experiment_id}/{doc}", owner_fuser_id)
-                except Exception:
+                result = await pdoc_integration.pdoc_cat(f"/gtm/discovery/{experiment_id}/{doc}", owner_fuser_id)
+                if result is None:
                     return False
             return True
-        try:
-            await pdoc_integration.pdoc_cat(f"/gtm/discovery/{experiment_id}/{step}", owner_fuser_id)
-            return True
-        except Exception:
-            return False
+        result = await pdoc_integration.pdoc_cat(f"/gtm/discovery/{experiment_id}/{step}", owner_fuser_id)
+        return result is not None
 
     async def get_pipeline_status(experiment_id: str) -> Dict[str, Any]:
         completed = []
@@ -303,7 +299,7 @@ Can now run diagnostic agent."""
             first_calls=["null"],
             title=[AGENT_DESCRIPTIONS.get(agent, agent)],
             fcall_id=toolcall.fcall_id,
-            skill=agent,
+            fexp_name=agent,
         )
         raise ckit_cloudtool.WaitForSubchats(subchats)
 
@@ -348,7 +344,7 @@ RERUN with corrections. Apply this feedback:
             first_calls=["null"],
             title=[f"Rerun: {AGENT_DESCRIPTIONS.get(agent, agent)}"],
             fcall_id=toolcall.fcall_id,
-            skill=agent,
+            fexp_name=agent,
         )
         raise ckit_cloudtool.WaitForSubchats(subchats)
 
