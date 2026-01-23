@@ -333,18 +333,20 @@ class IntegrationTelegram:
         return fi_messenger.find_thread_capturing(self.rcx, "telegram", identifier)
 
     async def post_into_captured_thread_as_user(self, activity: ActivityTelegram) -> bool:
-        if not (thread_cap := self._thread_capturing(str(activity.chat_id))) or thread_cap.thread_fields.ft_error:
+        if not (thread_cap := self._thread_capturing(str(activity.chat_id))):
+            return False
+        http = await self.fclient.use_http()
+        if thread_cap.thread_fields.ft_error:
+            logger.info("telegram post_into_captured: thread has error, uncapturing ft_id=%s", thread_cap.thread_fields.ft_id)
+            await ckit_ask_model.thread_app_capture_patch(http, thread_cap.thread_fields.ft_id, ft_app_searchable="")
             return False
 
-        http = await self.fclient.use_http()
         parts: List[Dict[str, str]] = []
         if activity.message_text.strip():
             parts.append({"m_type": "text", "m_content": fi_messenger.format_user_message(activity.message_author_name, activity.message_text)})
         parts.extend(activity.attachments)
-
         if not parts:
-            return False
-
+            return True  # empty message, keep capture, don't create task
         parts = fi_messenger.compact_message_parts(parts)
 
         try:
