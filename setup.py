@@ -1,6 +1,28 @@
+import os
+import subprocess
 from setuptools import setup, find_packages
+from setuptools.command.build_py import build_py
+
+
+def get_git_commit():
+    try:
+        return subprocess.check_output(['git', 'rev-parse', 'HEAD'], stderr=subprocess.DEVNULL).decode().strip()
+    except Exception:
+        return "unknown"
+
+
+class BuildPyWithCommit(build_py):
+    def run(self):
+        super().run()
+        commit = get_git_commit()
+        target = os.path.join(self.build_lib, 'flexus_client_kit', '_build_info.py')
+        os.makedirs(os.path.dirname(target), exist_ok=True)
+        with open(target, 'w') as f:
+            f.write(f'__ckit_commit__ = "{commit}"\n')
+
 
 setup(
+    cmdclass={'build_py': BuildPyWithCommit},
     name="flexus-client-kit",
     version="0.1.0",
     packages=find_packages(),
