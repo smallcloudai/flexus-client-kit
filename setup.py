@@ -57,6 +57,7 @@ setup(
         "html2text",
         "pandas",
         "openai",
+        "python-telegram-bot",
     ],
     extras_require={
         "dev": [

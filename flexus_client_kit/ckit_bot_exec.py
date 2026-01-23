@@ -527,7 +527,7 @@ async def subscribe_and_produce_callbacks(
                         bot.instance_rcx._parked_anything_new.set()
 
             elif upd.news_about == "flexus_persona_external_message":
-                if upd.news_action == "INSERT" and upd.news_payload_emessage:
+                if upd.news_action == "EMESSAGE" and upd.news_payload_emessage:
                     handled = True
                     emsg = upd.news_payload_emessage
                     if bot := bc.bots_running.get(emsg.emessage_persona_id):

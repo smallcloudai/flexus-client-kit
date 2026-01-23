@@ -380,6 +380,7 @@ async def _execute_actions(rcx: ckit_bot_exec.RobotContext, actions: List[Dict[s
                     _resolve_template(action.get("title", ""), ctx),
                     json.dumps({k: _resolve_template(v, ctx) if isinstance(v, str) else v for k, v in action.get("details", {}).items()}),
                     _resolve_template(action.get("provenance", "CRM automation"), ctx),
+                    action.get("fexp_name", "default"),
                 )
                 logger.info(f"Posted task into inbox: {action.get('title', '')}")
 
