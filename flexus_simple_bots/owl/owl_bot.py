@@ -244,7 +244,7 @@ UPDATE_METRICS_TOOL = ckit_cloudtool.CloudTool(
 UPDATE_SEGMENT_TOOL = ckit_cloudtool.CloudTool(
     strict=True,
     name="update_strategy_section04_segment",
-    description="Set segment: ICP, JTBD, journey. Requires section03-metrics.",
+    description="Define target audience: ICP, JTBD, journey moments, targeting implications. Requires section03-metrics.",
     parameters={
         "type": "object",
         "properties": {
@@ -253,32 +253,72 @@ UPDATE_SEGMENT_TOOL = ckit_cloudtool.CloudTool(
             "section04-segment": {
                 "type": "object",
                 "properties": {
+                    "segment_id": {"type": "string"},
                     "label": {"type": "string"},
+                    "segment_reasoning": {"type": "string"},
                     "icp": {
                         "type": "object",
                         "properties": {
-                            "roles": {"type": "array", "items": {"type": "string"}},
+                            "b2x": {"type": "string", "enum": ["b2c", "b2b", "prosumer"]},
                             "company_size": {"type": "string"},
+                            "roles": {"type": "array", "items": {"type": "string"}},
                             "industries": {"type": "array", "items": {"type": "string"}},
                             "geo": {"type": "array", "items": {"type": "string"}},
+                            "income_level": {"type": "string", "enum": ["low", "medium", "high"]},
+                            "tech_savviness": {"type": "string", "enum": ["low", "medium", "high"]},
+                            "decision_maker": {"type": "string"},
                         },
-                        "required": ["roles", "company_size", "industries", "geo"],
+                        "required": ["b2x", "company_size", "roles", "industries", "geo", "income_level", "tech_savviness", "decision_maker"],
                         "additionalProperties": False,
                     },
-                    "jtbd": {
+                    "icp_reasoning": {"type": "string"},
+                    "jtbds": {
                         "type": "object",
                         "properties": {
-                            "functional": {"type": "array", "items": {"type": "string"}},
-                            "emotional": {"type": "array", "items": {"type": "string"}},
+                            "functional_jobs": {"type": "array", "items": {"type": "string"}},
+                            "emotional_jobs": {"type": "array", "items": {"type": "string"}},
+                            "social_jobs": {"type": "array", "items": {"type": "string"}},
                         },
-                        "required": ["functional", "emotional"],
+                        "required": ["functional_jobs", "emotional_jobs", "social_jobs"],
                         "additionalProperties": False,
                     },
-                    "pains": {"type": "array", "items": {"type": "string"}},
-                    "gains": {"type": "array", "items": {"type": "string"}},
+                    "jtbd_reasoning": {"type": "string"},
+                    "current_solutions": {"type": "array", "items": {"type": "string"}},
+                    "main_pains": {"type": "array", "items": {"type": "string"}},
+                    "desired_gains": {"type": "array", "items": {"type": "string"}},
+                    "discovery_channels": {"type": "array", "items": {"type": "string"}},
+                    "journey_highlights": {
+                        "type": "object",
+                        "properties": {
+                            "awareness": {"type": "array", "items": {"type": "string"}},
+                            "consideration": {"type": "array", "items": {"type": "string"}},
+                            "purchase_triggers": {"type": "array", "items": {"type": "string"}},
+                        },
+                        "required": ["awareness", "consideration", "purchase_triggers"],
+                        "additionalProperties": False,
+                    },
+                    "segment_risks": {"type": "array", "items": {"type": "string"}},
                     "detailed_analysis": {"type": "string"},
+                    "persona_narrative": {"type": "string"},
+                    "targeting_implications": {
+                        "type": "object",
+                        "properties": {
+                            "easy_to_reach_via": {"type": "array", "items": {"type": "string"}},
+                            "hard_to_reach_because": {"type": "array", "items": {"type": "string"}},
+                            "best_hooks": {"type": "array", "items": {"type": "string"}},
+                        },
+                        "required": ["easy_to_reach_via", "hard_to_reach_because", "best_hooks"],
+                        "additionalProperties": False,
+                    },
+                    "next_steps": {"type": "array", "items": {"type": "string"}},
                 },
-                "required": ["label", "icp", "jtbd", "pains", "gains", "detailed_analysis"],
+                "required": [
+                    "segment_id", "label", "segment_reasoning",
+                    "icp", "icp_reasoning", "jtbds", "jtbd_reasoning",
+                    "current_solutions", "main_pains", "desired_gains",
+                    "discovery_channels", "journey_highlights", "segment_risks",
+                    "detailed_analysis", "persona_narrative", "targeting_implications", "next_steps"
+                ],
                 "additionalProperties": False,
             },
             "new_score": {"type": "integer"},
