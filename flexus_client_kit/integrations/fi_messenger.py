@@ -10,14 +10,17 @@ FILE_EMOJI = "📎"
 MAX_DEDUP_MESSAGES = 200
 
 MESSENGER_PROMPT = """
-## Messengers
+## Messaging Platforms (Telegram, Slack, WhatsApp, etc.)
 
-Incoming messages from Telegram/Slack/etc appear as kanban tasks when not captured.
+Incoming messages from these platforms appear as kanban tasks when not captured.
 
 To respond: capture the chat using the messenger tool with op="capture".
 Once captured, their messages appear here and your responses are sent back automatically.
 
 Capture when: PMs, messages directed at you, or anything needing your response.
+IMPORTANT: If you need to respond to a user from a messaging platform, you MUST capture the chat first, otherwise they won't receive your response.
+
+When you're done with the conversation and closing the kanban task, uncapture the chat using op="uncapture".
 """.strip()
 
 CAPTURE_SUCCESS_MSG = "Captured! The next thing you write will be visible. Don't comment on that fact and think about what do you want to say in %r.\n"
