@@ -419,13 +419,12 @@ UPDATE_CHANNELS_TOOL = ckit_cloudtool.CloudTool(
                         "items": {
                             "type": "object",
                             "properties": {
-                                "cell_id": {"type": "string"},
                                 "channel": {"type": "string"},
                                 "angle": {"type": "string"},
                                 "budget": {"type": "number"},
                                 "hypothesis": {"type": "string"},
                             },
-                            "required": ["cell_id", "channel", "angle", "budget", "hypothesis"],
+                            "required": ["channel", "angle", "budget", "hypothesis"],
                             "additionalProperties": False,
                         },
                     },
@@ -465,12 +464,11 @@ UPDATE_TACTICS_TOOL = ckit_cloudtool.CloudTool(
                         "items": {
                             "type": "object",
                             "properties": {
-                                "campaign_id": {"type": "string"},
                                 "channel": {"type": "string"},
                                 "objective": {"type": "string"},
                                 "daily_budget": {"type": "number"},
                             },
-                            "required": ["campaign_id", "channel", "objective", "daily_budget"],
+                            "required": ["channel", "objective", "daily_budget"],
                             "additionalProperties": False,
                         },
                     },
@@ -479,14 +477,13 @@ UPDATE_TACTICS_TOOL = ckit_cloudtool.CloudTool(
                         "items": {
                             "type": "object",
                             "properties": {
-                                "creative_id": {"type": "string"},
                                 "angle": {"type": "string"},
                                 "headline": {"type": "string"},
                                 "primary_text": {"type": "string"},
                                 "cta": {"type": "string"},
                                 "visual_brief": {"type": "string"},
                             },
-                            "required": ["creative_id", "angle", "headline", "primary_text", "cta", "visual_brief"],
+                            "required": ["angle", "headline", "primary_text", "cta", "visual_brief"],
                             "additionalProperties": False,
                         },
                     },
@@ -566,16 +563,13 @@ async def handle_update_strategy(
     caller_fuser_id = ckit_external_auth.get_fuser_id_from_rcx(rcx, toolcall.fcall_ft_id)
     path = f"/gtm/strategy/{idea_slug}--{hyp_slug}/strategy"
 
-    # Read existing doc or create new
-    try:
-        existing = await pdoc_integration.pdoc_cat(path, caller_fuser_id)
-        doc = json.loads(existing)
-    except Exception:
+    existing = await pdoc_integration.pdoc_cat(path, caller_fuser_id)
+    if existing is None:
         doc = {
             "strategy": {
                 "meta": {"created_at": datetime.datetime.now(datetime.timezone.utc).isoformat()},
                 "progress": {"score": 0, "step": "section01-calibration"},
-                "schema": build_schema_from_tools(),
+                "schema": None,
                 "section01-calibration": None,
                 "section02-diagnostic": None,
                 "section03-metrics": None,
@@ -585,9 +579,11 @@ async def handle_update_strategy(
                 "section07-tactics": None,
             }
         }
-    # Ensure schema exists in older docs
-    if "schema" not in doc["strategy"]:
-        doc["strategy"]["schema"] = build_schema_from_tools()
+    else:
+        doc = existing.pdoc_content
+
+    # Even if the doc is old with old data, overwrite schema, better than alternatives
+    doc["strategy"]["schema"] = build_schema_from_tools()
 
     # Validate gating
     step_idx = PIPELINE.index(step)
@@ -602,11 +598,7 @@ async def handle_update_strategy(
     doc["strategy"]["progress"]["score"] = new_score
     doc["strategy"]["progress"]["step"] = PIPELINE[step_idx + 1] if step_idx + 1 < len(PIPELINE) else "complete"
 
-    # Write
-    try:
-        await pdoc_integration.pdoc_create(path, json.dumps(doc, ensure_ascii=False), caller_fuser_id)
-    except Exception:
-        await pdoc_integration.pdoc_overwrite(path, json.dumps(doc, ensure_ascii=False), caller_fuser_id)
+    await pdoc_integration.pdoc_overwrite(path, json.dumps(doc, ensure_ascii=False), caller_fuser_id)
 
     # Build response
     filled = [s for s in PIPELINE if doc["strategy"].get(s) is not None]
