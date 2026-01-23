@@ -4,8 +4,8 @@ Skill: Metrics & Decision Framework
 Defines KPIs, calculates MDE, sets stop/accelerate rules.
 Second step after diagnostic.
 
-Input data: /marketing-experiments/{experiment_id}/input, /marketing-experiments/{experiment_id}/diagnostic
-Output data: /marketing-experiments/{experiment_id}/metrics
+Input data: /gtm/discovery/{experiment_id}/input, /gtm/discovery/{experiment_id}/diagnostic
+Output data: /gtm/discovery/{experiment_id}/metrics
 """
 
 SKILL_NAME = "metrics"
@@ -108,7 +108,7 @@ The input and diagnostic documents are provided below in your first message — 
 
 ## Output Format
 
-Save this JSON to /marketing-experiments/{experiment_id}/metrics:
+Save this JSON to /gtm/discovery/{experiment_id}/metrics:
 
 **CRITICAL**: Document MUST be wrapped in `metrics` key with `meta` object for UI to show custom form.
 

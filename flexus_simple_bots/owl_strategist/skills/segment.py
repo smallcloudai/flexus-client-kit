@@ -4,8 +4,8 @@ Skill: Segment & JTBD Analysis
 Refines target segment, ICP, jobs-to-be-done, customer journey.
 Third step after diagnostic.
 
-Input data: /marketing-experiments/{experiment_id}/input, /marketing-experiments/{experiment_id}/diagnostic
-Output data: /marketing-experiments/{experiment_id}/segment
+Input data: /gtm/discovery/{experiment_id}/input, /gtm/discovery/{experiment_id}/diagnostic
+Output data: /gtm/discovery/{experiment_id}/segment
 """
 
 SKILL_NAME = "segment"
@@ -93,7 +93,7 @@ The input and diagnostic documents are provided below in your first message — 
 
 ## Output Format
 
-Save this JSON to /marketing-experiments/{experiment_id}/segment:
+Save this JSON to /gtm/discovery/{experiment_id}/segment:
 
 **CRITICAL**: Document MUST be wrapped in `segment` key with `meta` object for UI to show custom form.
 

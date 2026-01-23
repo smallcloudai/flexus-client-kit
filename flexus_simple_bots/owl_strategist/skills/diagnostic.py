@@ -4,8 +4,8 @@ Skill: Diagnostic Analysis
 Classifies hypothesis, identifies unknowns, assesses feasibility.
 First step after input collection.
 
-Input data: /marketing-experiments/{experiment_id}/input
-Output data: /marketing-experiments/{experiment_id}/diagnostic
+Input data: /gtm/discovery/{experiment_id}/input
+Output data: /gtm/discovery/{experiment_id}/diagnostic
 
 ## Pattern: Domain Expertise Skills
 
@@ -128,7 +128,7 @@ The input document is provided below in your first message — no need to read i
 
 ## Output Format
 
-Save this JSON to /marketing-experiments/{experiment_id}/diagnostic:
+Save this JSON to /gtm/discovery/{experiment_id}/diagnostic:
 
 **CRITICAL**: Document MUST be wrapped in `diagnostic` key with `meta` object for UI to show custom form.
 

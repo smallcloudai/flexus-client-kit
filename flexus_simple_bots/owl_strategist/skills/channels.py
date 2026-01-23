@@ -5,7 +5,7 @@ Selects channels, designs test cells, allocates budget.
 Fifth step after messaging.
 
 Input data: input, diagnostic, metrics, segment, messaging
-Output data: /marketing-experiments/{experiment_id}/channels
+Output data: /gtm/discovery/{experiment_id}/channels
 """
 
 SKILL_NAME = "channels"
@@ -118,7 +118,7 @@ Budget allocation: prioritize cells with highest uncertainty or potential.
 
 ## Output Format
 
-Save this JSON to /marketing-experiments/{experiment_id}/channels:
+Save this JSON to /gtm/discovery/{experiment_id}/channels:
 
 **CRITICAL**: Document MUST be wrapped in `channels` key with `meta` object for UI to show custom form.
 
