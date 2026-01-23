@@ -530,8 +530,9 @@
       docPath = data.docPath || '';
       marketplaceInfo = data.marketplace || null;
       
-      // Extract experiment_id from docPath: /marketing-experiments/{id}/meta-runtime (URL path uses kebab-case)
-      const match = docPath.match(/\/marketing-experiments\/([^/]+)\//);
+      // Extract experiment_id from docPath: /gtm/discovery/{idea-slug}/{hyp-slug}/experiments/{exp-slug}/meta-runtime
+      // experiment_id includes slashes: idea-slug/hyp-slug/experiments/exp-slug
+      const match = docPath.match(/\/gtm\/discovery\/(.+)\/meta-runtime$/);
       experimentId = match ? match[1] : '';
       
       if (data.themeCss) {
@@ -557,8 +558,8 @@
       // Load via GraphQL queries to the backend
       // Using fetch to hit the GraphQL endpoint
       try {
-        const tacticsPath = `/marketing-experiments/${experimentId}/tactics`;
-        const metricsPath = `/marketing-experiments/${experimentId}/metrics`;
+        const tacticsPath = `/gtm/discovery/${experimentId}/tactics-campaigns`;
+        const metricsPath = `/gtm/discovery/${experimentId}/metrics`;
         
         // Read tactics
         tactics = await readPdoc(tacticsPath);
@@ -1070,13 +1071,13 @@
 
     async function saveMetrics() {
       if (!experimentId || !metrics) return;
-      const path = `/marketing-experiments/${experimentId}/metrics`;
+      const path = `/gtm/discovery/${experimentId}/metrics`;
       await writePdoc(path, metrics);
     }
 
     async function saveTactics() {
       if (!experimentId || !tactics) return;
-      const path = `/marketing-experiments/${experimentId}/tactics`;
+      const path = `/gtm/discovery/${experimentId}/tactics-campaigns`;
       await writePdoc(path, tactics);
     }
 
