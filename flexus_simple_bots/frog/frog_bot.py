@@ -101,11 +101,27 @@ DRINK_TOOL = ckit_cloudtool.CloudTool(
     },
 )
 
+EAT_TOOL = ckit_cloudtool.CloudTool(
+    strict=True,
+    name="eat",
+    description="Eat food to satisfy hunger.",
+    parameters={
+        "type": "object",
+        "properties": {
+            "food_type": {"type": "string", "description": "Type of food to eat (e.g., 'fly', 'bug', 'lettuce')"},
+            "quantity": {"type": "integer", "description": "How many items to eat"},
+        },
+        "required": ["food_type", "quantity"],
+        "additionalProperties": False,
+    },
+)
+
 TOOLS = [
     RIBBIT_TOOL,
     CATCH_INSECTS_TOOL,
     MAKE_POND_REPORT_TOOL,
     DRINK_TOOL,
+    EAT_TOOL,
     fi_mongo_store.MONGO_STORE_TOOL,
     fi_pdoc.POLICY_DOCUMENT_TOOL,
 ]
@@ -250,6 +266,13 @@ async def frog_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.R
 
         logger.info(f"Frog drank {amount}ml of {drink_type}")
         return result
+
+    @rcx.on_tool_call(EAT_TOOL.name)
+    async def toolcall_eat(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
+        food_type = model_produced_args["food_type"]
+        quantity = model_produced_args["quantity"]
+        logger.info(f"Frog ate {quantity} {food_type}(s)")
+        return f"Nom nom! Frog ate {quantity} {food_type}s. Burp!"
 
     @rcx.on_tool_call(fi_mongo_store.MONGO_STORE_TOOL.name)
     async def toolcall_mongo_store(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
