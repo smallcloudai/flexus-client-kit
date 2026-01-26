@@ -86,10 +86,26 @@ MAKE_POND_REPORT_TOOL = ckit_cloudtool.CloudTool(
     },
 )
 
+DRINK_TOOL = ckit_cloudtool.CloudTool(
+    strict=True,
+    name="drink",
+    description="Make the frog drink water or pond water to stay hydrated.",
+    parameters={
+        "type": "object",
+        "properties": {
+            "amount": {"type": "integer", "description": "Amount to drink in milliliters"},
+            "drink_type": {"type": "string", "enum": ["water", "pond_water"], "description": "Type of liquid to drink"},
+        },
+        "required": ["amount", "drink_type"],
+        "additionalProperties": False,
+    },
+)
+
 TOOLS = [
     RIBBIT_TOOL,
     CATCH_INSECTS_TOOL,
     MAKE_POND_REPORT_TOOL,
+    DRINK_TOOL,
     fi_mongo_store.MONGO_STORE_TOOL,
     fi_pdoc.POLICY_DOCUMENT_TOOL,
 ]
@@ -218,6 +234,22 @@ async def frog_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.R
         fuser_id = ckit_external_auth.get_fuser_id_from_rcx(rcx, toolcall.fcall_ft_id)
         await pdoc_integration.pdoc_create(path, json.dumps(pond_report_doc), fuser_id)
         return f"✍️ {path}\n\n✓ Successfully updated\n\n"
+
+    @rcx.on_tool_call(DRINK_TOOL.name)
+    async def toolcall_drink(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
+        amount = model_produced_args["amount"]
+        drink_type = model_produced_args["drink_type"]
+
+        drink_descriptions = {
+            "water": "clean, refreshing water",
+            "pond_water": "tasty pond water",
+        }
+
+        description = drink_descriptions.get(drink_type, drink_type)
+        result = f"Glug glug! Frog drank {amount}ml of {description} and is refreshed!"
+
+        logger.info(f"Frog drank {amount}ml of {drink_type}")
+        return result
 
     @rcx.on_tool_call(fi_mongo_store.MONGO_STORE_TOOL.name)
     async def toolcall_mongo_store(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
