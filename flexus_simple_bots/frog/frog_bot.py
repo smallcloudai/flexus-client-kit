@@ -109,7 +109,24 @@ async def frog_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.R
 
     @rcx.on_updated_message
     async def updated_message_in_db(msg: ckit_ask_model.FThreadMessageOutput):
-        pass
+        if msg.ftm_role != "user":
+            return
+        content = msg.ftm_content
+        if isinstance(content, str):
+            try:
+                content = json.loads(content)
+            except (json.JSONDecodeError, TypeError):
+                pass
+        text_content = ""
+        if isinstance(content, str):
+            text_content = content
+        elif isinstance(content, list):
+            for part in content:
+                if isinstance(part, dict) and part.get("m_type") == "text":
+                    text_content += part.get("m_content", "")
+        if "cool bros" in text_content.lower():
+            http = await rcx.fclient.use_http()
+            await ckit_ask_model.thread_add_user_message(http, msg.ftm_belongs_to_ft_id, "ribbit", "frog_auto_ribbit", 100)
 
     @rcx.on_updated_thread
     async def updated_thread_in_db(th: ckit_ask_model.FThreadOutput):
