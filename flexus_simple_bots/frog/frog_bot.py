@@ -41,6 +41,21 @@ RIBBIT_TOOL = ckit_cloudtool.CloudTool(
     },
 )
 
+SUPER_RIBBIT_TOOL = ckit_cloudtool.CloudTool(
+    strict=True,
+    name="super_ribbit",
+    description="Make an extremely loud and enthusiastic frog sound for epic moments.",
+    parameters={
+        "type": "object",
+        "properties": {
+            "intensity": {"type": "string", "enum": ["epic", "legendary"], "description": "How epic the super ribbit should be"},
+            "message": {"type": ["string", "null"], "description": "Optional message to include with the super ribbit"},
+        },
+        "required": ["intensity", "message"],
+        "additionalProperties": False,
+    },
+)
+
 CATCH_INSECTS_TOOL = ckit_cloudtool.CloudTool(
     strict=True,
     name="catch_insects",
@@ -88,6 +103,7 @@ MAKE_POND_REPORT_TOOL = ckit_cloudtool.CloudTool(
 
 TOOLS = [
     RIBBIT_TOOL,
+    SUPER_RIBBIT_TOOL,
     CATCH_INSECTS_TOOL,
     MAKE_POND_REPORT_TOOL,
     fi_mongo_store.MONGO_STORE_TOOL,
@@ -145,6 +161,23 @@ async def frog_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.R
             result += f" {message}"
 
         logger.info(f"Frog says: {result}")
+        return result
+
+    @rcx.on_tool_call(SUPER_RIBBIT_TOOL.name)
+    async def toolcall_super_ribbit(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
+        intensity = model_produced_args.get("intensity", "epic")
+        message = model_produced_args.get("message", "")
+
+        super_ribbit_sound = {
+            "epic": "🐸 RRRRIIIIBBBBIIIITTTT!!! 🐸",
+            "legendary": "🌟🐸 RRRRRRRRIIIIIIIIBBBBBBBBIIIIIIIITTTTTTTT MAGNIFICUS!!! 🐸🌟"
+        }.get(intensity, "🐸 RRRRIIIIBBBBIIIITTTT!!! 🐸")
+
+        result = super_ribbit_sound
+        if message:
+            result += f" {message}"
+
+        logger.info(f"Frog SUPER says: {result}")
         return result
 
     @rcx.on_tool_call(CATCH_INSECTS_TOOL.name)
