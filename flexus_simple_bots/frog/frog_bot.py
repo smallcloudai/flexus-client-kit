@@ -116,12 +116,28 @@ EAT_TOOL = ckit_cloudtool.CloudTool(
     },
 )
 
+FIGHT_TOOL = ckit_cloudtool.CloudTool(
+    strict=True,
+    name="fight",
+    description="Fight an opponent using different combat styles.",
+    parameters={
+        "type": "object",
+        "properties": {
+            "opponent": {"type": "string", "description": "The name of the opponent to fight"},
+            "style": {"type": "string", "enum": ["kick", "punch", "bite"], "description": "Combat style to use"},
+        },
+        "required": ["opponent", "style"],
+        "additionalProperties": False,
+    },
+)
+
 TOOLS = [
     RIBBIT_TOOL,
     CATCH_INSECTS_TOOL,
     MAKE_POND_REPORT_TOOL,
     DRINK_TOOL,
     EAT_TOOL,
+    FIGHT_TOOL,
     fi_mongo_store.MONGO_STORE_TOOL,
     fi_pdoc.POLICY_DOCUMENT_TOOL,
 ]
@@ -273,6 +289,20 @@ async def frog_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.R
         quantity = model_produced_args["quantity"]
         logger.info(f"Frog ate {quantity} {food_type}(s)")
         return f"Nom nom! Frog ate {quantity} {food_type}s. Burp!"
+
+    @rcx.on_tool_call(FIGHT_TOOL.name)
+    async def toolcall_fight(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
+        opponent = model_produced_args["opponent"]
+        style = model_produced_args["style"]
+        logger.info(f"Frog fought {opponent} using {style}")
+
+        if style == "kick":
+            return f"Ribbit! Frog kicked {opponent} with powerful hind legs and won!"
+        elif style == "punch":
+            return f"Ribbit! Frog punched {opponent} with tiny frog fists - surprisingly effective!"
+        elif style == "bite":
+            return f"Ribbit! Frog bit {opponent} and won! Sticky tongue victory!"
+        return f"Ribbit! Frog {style}ed {opponent} and won!"
 
     @rcx.on_tool_call(fi_mongo_store.MONGO_STORE_TOOL.name)
     async def toolcall_mongo_store(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
