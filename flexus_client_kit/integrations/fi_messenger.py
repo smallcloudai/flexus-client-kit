@@ -1,7 +1,10 @@
+import time
 from collections import deque
 from typing import List, Dict, Any, Optional
 
-from flexus_client_kit import ckit_bot_exec, ckit_bot_query
+import gql
+
+from flexus_client_kit import ckit_bot_exec, ckit_bot_query, ckit_client
 
 AUTHOR_EMOJI = "👤"
 FILE_EMOJI = "📎"
@@ -18,7 +21,14 @@ Once captured, their messages appear here and your responses are sent back autom
 Capture when: PMs, messages directed at you, or anything needing your response.
 IMPORTANT: If you need to respond to a user from a messaging platform, you MUST capture the chat first, otherwise they won't receive your response.
 
-When you're done with the conversation and closing the kanban task, uncapture the chat using op="uncapture".
+### Closing a messenger conversation (MANDATORY)
+
+When ending a conversation from a messenger platform, you MUST follow this sequence:
+1. Say goodbye to the user
+2. Call op="uncapture" with contact_id and conversation_summary if you identified the CRM contact
+3. Then resolve the kanban task
+
+NEVER resolve/close a kanban task without calling uncapture first.
 """.strip()
 
 CAPTURE_SUCCESS_MSG = "Captured! The next thing you write will be visible. Don't comment on that fact and think about what do you want to say in %r.\n"
@@ -84,4 +94,34 @@ def get_last_posted_ts(fthread: ckit_bot_query.FThreadWithMessages) -> float:
     if fthread.thread_fields.ft_app_specific:
         return fthread.thread_fields.ft_app_specific.get("last_posted_assistant_ts", 0)
     return 0
+
+
+async def create_messenger_activity(
+    fclient: ckit_client.FlexusClient,
+    ws_id: str,
+    platform: str,
+    contact_id: str,
+    ft_id: str,
+    summary: str,
+    direction: str = "INBOUND",
+) -> bool:
+    async with (await fclient.use_http()) as http:
+        await http.execute(gql.gql("""mutation CreateMessengerActivity($input: ErpRecordInput!) {
+            erp_record_create(input: $input) { pkey_value }
+        }"""), variable_values={"input": {
+            "table_name": "crm_activity",
+            "ws_id": ws_id,
+            "record": {
+                "ws_id": ws_id,
+                "activity_title": f"{platform} conversation",
+                "activity_type": "MESSENGER_CHAT",
+                "activity_platform": platform,
+                "activity_direction": direction,
+                "activity_contact_id": contact_id,
+                "activity_ft_id": ft_id,
+                "activity_summary": summary,
+                "activity_occurred_ts": time.time(),
+            },
+        }})
+    return True
 
