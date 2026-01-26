@@ -40,7 +40,7 @@ class FPersonaScheduleOutput:
 class FExternalMessageOutput:
     emessage_id: str
     emessage_persona_id: str
-    emessage_channel: str
+    emessage_type: str
     emessage_from: str
     emessage_to: str
     emessage_external_id: str

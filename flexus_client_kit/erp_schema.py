@@ -78,7 +78,7 @@ class CrmActivity:
     activity_direction: str = field(metadata={"importance": 1, "display_name": "Direction", "enum": ["INBOUND", "OUTBOUND"]})
     activity_contact_id: str = field(metadata={"importance": 1, "display_name": "Contact"})
     activity_id: str = field(default="", metadata={"pkey": True, "display_name": "Activity ID"})
-    activity_channel: str = field(default="", metadata={"importance": 1, "display_name": "Channel"})
+    activity_platform: str = field(default="", metadata={"importance": 1, "display_name": "Channel"})
     activity_ft_id: Optional[str] = field(default=None, metadata={"importance": 1, "display_name": "Thread"})
     activity_summary: str = field(default="", metadata={"importance": 1, "display": "string_multiline", "display_name": "Summary"})
     activity_details: dict = field(default_factory=dict, metadata={"display_name": "Details"})

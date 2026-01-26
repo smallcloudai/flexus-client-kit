@@ -336,7 +336,7 @@ class IntegrationGmail:
                     "activity_title": subject,
                     "activity_type": "EMAIL",
                     "activity_direction": "OUTBOUND",
-                    "activity_channel": "GMAIL",
+                    "activity_platform": "GMAIL",
                     "activity_contact_id": contact.contact_id,
                     "activity_ft_id": ft_id,
                     "activity_summary": body[:500] if len(body) > 500 else body,

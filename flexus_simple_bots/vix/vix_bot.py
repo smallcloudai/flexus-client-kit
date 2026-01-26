@@ -164,7 +164,7 @@ def main():
         scenario_fn=scenario_fn,
         install_func=vix_install.install,
         subscribe_to_erp_tables=ERP_TABLES,
-        subscribe_to_emessage_channels=["telegram"],
+        subscribe_to_emessage_types=["telegram"],
     ))
 
 
