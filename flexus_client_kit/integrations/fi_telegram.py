@@ -123,7 +123,7 @@ class IntegrationTelegram:
                 }"""),
                 variable_values={
                     "persona_id": self.rcx.persona.persona_id,
-                    "channel": "telegram",
+                    "channel": "TELEGRAM",
                     "addresses": [f"telegram:{bot_id}"],
                 },
             )

@@ -72,7 +72,7 @@ async def vix_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.Ro
     async def updated_task_in_db(t: ckit_kanban.FPersonaKanbanTaskOutput):
         pass
 
-    @rcx.on_emessage("telegram")
+    @rcx.on_emessage("TELEGRAM")
     async def handle_telegram_emessage(emsg):
         await telegram.handle_emessage(emsg)
 
@@ -164,7 +164,7 @@ def main():
         scenario_fn=scenario_fn,
         install_func=vix_install.install,
         subscribe_to_erp_tables=ERP_TABLES,
-        subscribe_to_emessage_types=["telegram"],
+        subscribe_to_emessage_types=["TELEGRAM"],
     ))
 
 
