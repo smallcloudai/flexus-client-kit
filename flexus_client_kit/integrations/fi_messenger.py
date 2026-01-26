@@ -1,9 +1,7 @@
 from collections import deque
 from typing import List, Dict, Any, Optional
 
-import gql
-
-from flexus_client_kit import ckit_bot_exec, ckit_bot_query, ckit_client
+from flexus_client_kit import ckit_bot_exec, ckit_bot_query
 
 AUTHOR_EMOJI = "👤"
 FILE_EMOJI = "📎"
@@ -87,14 +85,3 @@ def get_last_posted_ts(fthread: ckit_bot_query.FThreadWithMessages) -> float:
         return fthread.thread_fields.ft_app_specific.get("last_posted_assistant_ts", 0)
     return 0
 
-
-async def delete_emessage(fclient: ckit_client.FlexusClient, emessage_id: str) -> bool:
-    http = await fclient.use_http()
-    async with http as h:
-        r = await h.execute(
-            gql.gql("""mutation DeleteEmessage($emessage_id: String!) {
-                emessage_delete(emessage_id: $emessage_id)
-            }"""),
-            variable_values={"emessage_id": emessage_id},
-        )
-        return r.get("emessage_delete", False)

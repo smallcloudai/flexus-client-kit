@@ -177,16 +177,21 @@ class RobotContext:
 
         emessages = list(self._parked_emessages.values())
         self._parked_emessages.clear()
+        handled_emessage_ids = []
         for emsg in emessages:
             did_anything = True
-            handler = self._handler_per_emessage_channel.get(emsg.emessage_channel)
+            handler = self._handler_per_emessage_type.get(emsg.emessage_type)
             if handler:
                 try:
                     await handler(emsg)
-                    from flexus_client_kit.integrations import fi_messenger
-                    await fi_messenger.delete_emessage(self.fclient, emsg.emessage_id)
+                    handled_emessage_ids.append(emsg.emessage_id)
                 except Exception as e:
-                    logger.error("%s error in on_emessage(%r) handler: %s\n%s", self.persona.persona_id, emsg.emessage_channel, type(e).__name__, e, exc_info=e)
+                    logger.error("%s error in on_emessage(%r) handler: %s\n%s", self.persona.persona_id, emsg.emessage_type, type(e).__name__, e, exc_info=e)
+        if handled_emessage_ids:
+            async with (await self.fclient.use_http()) as http:
+                await http.execute(gql.gql("""mutation DeleteEmessages($ids: [String!]!) {
+                    emessages_delete(emessage_ids: $ids)
+                }"""), variable_values={"ids": handled_emessage_ids})
 
         mycalls = list(self._parked_toolcalls)
         self._parked_toolcalls.clear()
