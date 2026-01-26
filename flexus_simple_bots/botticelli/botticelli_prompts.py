@@ -1,5 +1,6 @@
 from flexus_client_kit.integrations import fi_pdoc
 import json
+from pathlib import Path
 
 
 example_styleguide = {
@@ -106,5 +107,12 @@ botticelli_prompt = botticelli_prompt_base + """
 * Load style guide
 * List files in /ad-campaigns/
 * Offer user to create style guide if it is absent
-* Offer to create pictures
+* Offer to create pictures or generate Meta Ads creatives
 """
+
+# Load Meta Ads Creative system prompt for the specialized skill
+try:
+    with open(Path(__file__).parent / "SYSTEM_PROMPT.md", "r") as f:
+        meta_ads_creative_prompt = f.read()
+except FileNotFoundError:
+    meta_ads_creative_prompt = "# Meta Ads Creative Director\n\nGenerate high-converting creative variations for Meta ads."

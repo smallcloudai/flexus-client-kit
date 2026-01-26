@@ -98,10 +98,65 @@ CROP_IMAGE_TOOL = ckit_cloudtool.CloudTool(
     },
 )
 
+CAMPAIGN_BRIEF_TOOL = ckit_cloudtool.CloudTool(
+    name="meta_campaign_brief",
+    description="Start Meta Ads creative generation with campaign brief. Creates structured campaign with 3 creative variations.",
+    parameters={
+        "type": "object",
+        "properties": {
+            "campaign_id": {
+                "type": "string",
+                "description": "Unique campaign ID (kebab-case, e.g. 'camp001-product-launch')"
+            },
+            "brand_name": {
+                "type": "string",
+                "description": "Brand or product name"
+            },
+            "brand_colors": {
+                "type": "array",
+                "items": {"type": "string"},
+                "description": "Brand colors as hex codes (e.g. ['#1A365D', '#0694A2', '#F8FAFC'])"
+            },
+            "brand_fonts": {
+                "type": "string",
+                "description": "Brand fonts (e.g. 'Helvetica Neue, Inter, sans-serif')"
+            },
+            "campaign_objective": {
+                "type": "string",
+                "enum": ["Awareness", "Traffic", "Engagement", "Leads", "Sales"],
+                "description": "Campaign objective"
+            },
+            "target_audience": {
+                "type": "string",
+                "description": "Target audience: demographics, psychographics, pain points"
+            },
+            "key_benefit": {
+                "type": "string",
+                "description": "Main benefit from FAB (Features-Advantages-Benefits) framework"
+            },
+            "industry": {
+                "type": "string",
+                "description": "Industry or category (e.g. 'SaaS', 'E-commerce', 'B2B', 'Local Services')"
+            },
+            "visual_style": {
+                "type": "string",
+                "enum": ["photography", "illustration", "3D", "mixed"],
+                "description": "Preferred visual style"
+            },
+            "product_details": {
+                "type": "string",
+                "description": "Optional: Product/service details, features, unique selling points"
+            }
+        },
+        "required": ["campaign_id", "brand_name", "campaign_objective", "target_audience", "key_benefit", "industry"]
+    },
+)
+
 TOOLS = [
     STYLEGUIDE_TEMPLATE_TOOL,
     GENERATE_PICTURE_TOOL,
     CROP_IMAGE_TOOL,
+    CAMPAIGN_BRIEF_TOOL,
     fi_pdoc.POLICY_DOCUMENT_TOOL,
     fi_mongo_store.MONGO_STORE_TOOL
 ]
@@ -363,6 +418,66 @@ async def botticelli_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_
             for r in results:
                 response.append({"m_type": "image/webp", "m_content": r["url2"]})
             return response
+
+    @rcx.on_tool_call(CAMPAIGN_BRIEF_TOOL.name)
+    async def toolcall_campaign_brief(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
+        try:
+            campaign_id = model_produced_args.get("campaign_id", "")
+            if not campaign_id:
+                return "Error: campaign_id is required"
+            
+            # Validate campaign_id format (kebab-case)
+            if not all(c.islower() or c.isdigit() or c == "-" for c in campaign_id):
+                return "Error: campaign_id must be kebab-case (lowercase letters, numbers, hyphens only)"
+            
+            # Validate required fields
+            required_fields = ["brand_name", "campaign_objective", "target_audience", "key_benefit", "industry"]
+            for field in required_fields:
+                if not model_produced_args.get(field):
+                    return f"Error: {field} is required"
+            
+            # Save campaign brief to policy document
+            brief_path = f"/ad-campaigns/{campaign_id}/brief"
+            brief_content = json.dumps(model_produced_args, indent=2)
+            
+            await pdoc_integration.pdoc_create(brief_path, brief_content, toolcall.fcall_ft_id)
+            logger.info(f"Created campaign brief at {brief_path}")
+            
+            # Prepare context for subchat with campaign brief details
+            brief_summary = f"""Campaign Brief: {campaign_id}
+Brand: {model_produced_args.get('brand_name')}
+Objective: {model_produced_args.get('campaign_objective')}
+Target Audience: {model_produced_args.get('target_audience')}
+Key Benefit: {model_produced_args.get('key_benefit')}
+Industry: {model_produced_args.get('industry')}
+Visual Style: {model_produced_args.get('visual_style', 'Not specified')}
+
+Full brief saved to: {brief_path}
+
+"""
+            
+            context = brief_summary + json.dumps(model_produced_args, indent=2)
+            
+            # Create subchat for creative generation with meta_ads_creative skill
+            subchats = await ckit_ask_model.bot_subchat_create_multiple(
+                client=fclient,
+                who_is_asking="botticelli_campaign_brief",
+                persona_id=rcx.persona.persona_id,
+                first_question=[context],
+                first_calls=["null"],
+                title=[f"Meta Ads Creative: {campaign_id}"],
+                fcall_id=toolcall.fcall_id,
+                skill="meta_ads_creative",
+            )
+            
+            logger.info(f"Created subchat for campaign {campaign_id} with skill=meta_ads_creative")
+            raise ckit_cloudtool.WaitForSubchats(subchats)
+            
+        except ckit_cloudtool.WaitForSubchats:
+            raise
+        except Exception as e:
+            logger.exception(f"Error in campaign_brief handler: {e}")
+            return f"Error: {str(e)}"
 
     @rcx.on_tool_call(fi_mongo_store.MONGO_STORE_TOOL.name)
     async def toolcall_mongo_store(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
