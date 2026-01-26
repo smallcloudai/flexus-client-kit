@@ -91,8 +91,8 @@ async def install(
             ("meta_ads_creative", ckit_bot_install.FMarketplaceExpertInput(
                 fexp_system_prompt=botticelli_prompts.meta_ads_creative_prompt,
                 fexp_python_kernel=META_ADS_LARK_KERNEL,
-                fexp_block_tools="*",
-                fexp_allow_tools="picturegen,flexus_policy_document",
+                fexp_block_tools="*setup*",
+                fexp_allow_tools="",
                 fexp_app_capture_tools=bot_internal_tools,
             )),
         ],
