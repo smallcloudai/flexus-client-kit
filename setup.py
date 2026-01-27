@@ -56,6 +56,7 @@ setup(
         "atlassian-python-api",
         "html2text",
         "pandas",
+        "playwright",
         "openai",
         "python-telegram-bot",
     ],

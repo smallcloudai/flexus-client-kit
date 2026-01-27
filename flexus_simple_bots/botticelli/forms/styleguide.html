@@ -1,0 +1,1160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Brand Style Guide</title>
+  <link rel="stylesheet" href="https://unpkg.com/primeicons@7.0.0/primeicons.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/color-thief/2.4.0/color-thief.umd.min.js"></script>
+  <style>
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    
+    * { box-sizing: border-box; }
+    
+    body { 
+      background: var(--p-content-hover-background); 
+      margin: 0; 
+      padding: 10px; 
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
+    
+    .paper {
+      width: 460px; 
+      padding: 24px; 
+      min-height: calc(100vh - 20px);
+      background: var(--p-primary-contrast-color); 
+      color: var(--p-primary-color);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      border-radius: 8px;
+    }
+    
+    .meta-box {
+      display: flex; 
+      flex-direction: column; 
+      gap: 0.5rem; 
+      margin-bottom: 1.5rem; 
+      padding: 1rem;
+      border: 2px dashed var(--p-text-muted-color); 
+      border-radius: 8px; 
+      position: relative; 
+      font-size: 0.8rem;
+      animation: fadeIn 0.3s ease-out;
+    }
+    
+    .meta-label {
+      position: absolute; 
+      top: -0.65rem; 
+      left: 1rem; 
+      background: var(--p-primary-contrast-color);
+      padding: 0 0.5rem; 
+      font-weight: 700; 
+      font-size: 0.75rem; 
+      letter-spacing: 0.05em; 
+      color: var(--p-text-muted-color);
+    }
+    
+    .meta-row { 
+      display: flex; 
+      gap: 0.5rem; 
+      align-items: center;
+    }
+    
+    .meta-row label { 
+      font-weight: 600; 
+      color: var(--p-text-muted-color); 
+      min-width: 80px;
+    }
+    
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-size: 0.7rem;
+      font-weight: 600;
+    }
+    
+    .status-pending {
+      background: #fef3c7;
+      color: #92400e;
+    }
+    
+    .status-verified {
+      background: #d1fae5;
+      color: #065f46;
+    }
+    
+    h1 { 
+      font-size: 1.5rem; 
+      font-weight: 700; 
+      color: var(--p-primary-color); 
+      margin: 0 0 0.5rem 0; 
+    }
+    
+    .subtitle {
+      color: var(--p-text-muted-color);
+      font-size: 0.875rem;
+      margin-bottom: 1.5rem;
+    }
+    
+    .section {
+      margin-bottom: 2rem;
+      animation: fadeIn 0.4s ease-out;
+    }
+    
+    .section-title {
+      font-size: 0.875rem;
+      font-weight: 700;
+      color: var(--p-text-muted-color);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 1rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--p-surface-border);
+    }
+    
+    /* Color Grid */
+    .color-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    
+    .color-item {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    
+    .color-label {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--p-text-muted-color);
+    }
+    
+    .color-swatch-wrapper {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    
+    .color-swatch {
+      width: 48px;
+      height: 48px;
+      border-radius: 8px;
+      border: 2px solid var(--p-surface-border);
+      cursor: pointer;
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+      position: relative;
+    }
+    
+    .color-swatch:hover {
+      transform: scale(1.05);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    }
+    
+    .color-swatch input[type="color"] {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      opacity: 0;
+      cursor: pointer;
+    }
+    
+    .color-hex {
+      font-family: 'SF Mono', Monaco, 'Courier New', monospace;
+      font-size: 0.875rem;
+      color: var(--p-text-color);
+      padding: 4px 8px;
+      background: var(--p-content-hover-background);
+      border-radius: 4px;
+      border: 1px solid var(--p-surface-border);
+      width: 90px;
+      text-align: center;
+    }
+    
+    .color-hex:focus {
+      outline: none;
+      border-color: var(--p-primary-color);
+    }
+    
+    /* Font Preview */
+    .font-item {
+      margin-bottom: 1rem;
+    }
+    
+    .font-label {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--p-text-muted-color);
+      margin-bottom: 6px;
+    }
+    
+    .font-input-row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+    
+    .font-input {
+      flex: 1;
+      padding: 8px 12px;
+      border: 1px solid var(--p-surface-border);
+      border-radius: 6px;
+      font-size: 0.875rem;
+      background: var(--p-content-hover-background);
+      color: var(--p-text-color);
+    }
+    
+    .font-input:focus {
+      outline: none;
+      border-color: var(--p-primary-color);
+    }
+    
+    .font-preview {
+      padding: 16px;
+      background: var(--p-content-hover-background);
+      border-radius: 8px;
+      border: 1px solid var(--p-surface-border);
+    }
+    
+    .font-preview-heading {
+      font-size: 1.5rem;
+      font-weight: 700;
+      margin-bottom: 8px;
+      color: var(--p-text-color);
+    }
+    
+    .font-preview-body {
+      font-size: 1rem;
+      line-height: 1.5;
+      color: var(--p-text-muted-color);
+    }
+    
+    /* Brand Info */
+    .brand-field {
+      margin-bottom: 1rem;
+    }
+    
+    .brand-label {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--p-text-muted-color);
+      margin-bottom: 6px;
+    }
+    
+    .brand-input {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid var(--p-surface-border);
+      border-radius: 6px;
+      font-size: 0.875rem;
+      background: var(--p-content-hover-background);
+      color: var(--p-text-color);
+    }
+    
+    .brand-input:focus {
+      outline: none;
+      border-color: var(--p-primary-color);
+    }
+    
+    /* Logo Preview */
+    .logo-preview {
+      margin-top: 8px;
+      padding: 16px;
+      background: var(--p-content-hover-background);
+      border-radius: 8px;
+      border: 1px solid var(--p-surface-border);
+      text-align: center;
+    }
+    
+    .logo-preview img {
+      max-width: 120px;
+      max-height: 60px;
+      object-fit: contain;
+    }
+    
+    .logo-placeholder {
+      color: var(--p-text-muted-color);
+      font-size: 0.875rem;
+    }
+    
+    /* Verification */
+    .verify-section {
+      padding: 16px;
+      background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+      border-radius: 8px;
+      margin-top: 1rem;
+    }
+    
+    .verify-section.verified {
+      background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+    }
+    
+    .verify-title {
+      font-weight: 700;
+      font-size: 0.875rem;
+      color: #92400e;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    
+    .verify-section.verified .verify-title {
+      color: #065f46;
+    }
+    
+    .verify-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      width: 100%;
+      padding: 12px;
+      border: none;
+      border-radius: 6px;
+      font-size: 0.875rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    
+    .verify-btn.pending {
+      background: #92400e;
+      color: white;
+    }
+    
+    .verify-btn.pending:hover {
+      background: #78350f;
+    }
+    
+    .verify-btn.verified {
+      background: #065f46;
+      color: white;
+    }
+    
+    .verify-btn.verified:hover {
+      background: #064e3b;
+    }
+    
+    /* Color Preview Bar */
+    .color-preview-bar {
+      display: flex;
+      height: 40px;
+      border-radius: 8px;
+      overflow: hidden;
+      margin-bottom: 1.5rem;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+    
+    .color-preview-bar > div {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.7rem;
+      font-weight: 600;
+      text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+    }
+    
+    /* Screenshot Canvas */
+    .screenshot-section {
+      margin-bottom: 1.5rem;
+    }
+    
+    .screenshot-container {
+      position: relative;
+      margin-bottom: 0.5rem;
+    }
+    
+    .screenshot-canvas {
+      width: 100%;
+      border-radius: 8px;
+      cursor: crosshair;
+      border: 1px solid var(--p-surface-border);
+      display: block;
+    }
+    
+    .screenshot-hint {
+      position: absolute;
+      bottom: 8px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0,0,0,0.7);
+      color: white;
+      padding: 4px 12px;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      pointer-events: none;
+    }
+    
+    .screenshot-placeholder {
+      width: 100%;
+      height: 150px;
+      border-radius: 8px;
+      border: 2px dashed var(--p-surface-border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--p-text-muted-color);
+      font-size: 0.875rem;
+    }
+    
+    /* Auto Palette */
+    .auto-palette {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 1rem;
+      flex-wrap: wrap;
+    }
+    
+    .palette-swatch {
+      width: 40px;
+      height: 40px;
+      border-radius: 8px;
+      cursor: pointer;
+      border: 2px solid transparent;
+      transition: all 0.15s;
+      position: relative;
+    }
+    
+    .palette-swatch:hover {
+      transform: scale(1.1);
+      border-color: var(--p-primary-color);
+    }
+    
+    .palette-swatch.selected {
+      border-color: var(--p-primary-color);
+      box-shadow: 0 0 0 2px var(--p-primary-color);
+    }
+    
+    .palette-label {
+      font-size: 0.75rem;
+      color: var(--p-text-muted-color);
+      margin-bottom: 0.5rem;
+    }
+    
+    /* EyeDropper button */
+    .color-swatch-wrapper {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .eyedropper-btn {
+      width: 32px;
+      height: 32px;
+      border: 1px solid var(--p-surface-border);
+      border-radius: 6px;
+      background: var(--p-content-hover-background);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--p-text-muted-color);
+      transition: all 0.15s;
+    }
+    
+    .eyedropper-btn:hover {
+      border-color: var(--p-primary-color);
+      color: var(--p-primary-color);
+    }
+    
+    .eyedropper-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    
+    /* Logo gallery */
+    .logo-gallery {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+      gap: 12px;
+      margin-top: 1rem;
+    }
+    
+    .logo-option {
+      padding: 12px;
+      border: 2px solid var(--p-surface-border);
+      border-radius: 8px;
+      cursor: pointer;
+      text-align: center;
+      position: relative;
+      transition: all 0.15s;
+      background: var(--p-content-hover-background);
+    }
+    
+    .logo-option:hover {
+      border-color: var(--p-text-muted-color);
+    }
+    
+    .logo-option.selected {
+      border-color: var(--p-primary-color);
+      background: rgba(var(--p-primary-color-rgb), 0.1);
+    }
+    
+    .logo-option input {
+      display: none;
+    }
+    
+    .logo-option img {
+      max-width: 100%;
+      max-height: 50px;
+      object-fit: contain;
+    }
+    
+    .logo-hint {
+      position: absolute;
+      top: 4px;
+      right: 4px;
+      font-size: 0.6rem;
+      background: #10b981;
+      color: white;
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+    
+    .logo-gallery-empty {
+      color: var(--p-text-muted-color);
+      font-size: 0.875rem;
+      text-align: center;
+      padding: 1rem;
+    }
+    
+    /* Active color slot indicator */
+    .color-item.active .color-swatch {
+      box-shadow: 0 0 0 3px var(--p-primary-color);
+    }
+  </style>
+  <style id="theme-css"></style>
+</head>
+<body>
+  <div class="paper">
+    <div class="meta-box">
+      <div class="meta-label">STYLEGUIDE</div>
+      <div class="meta-row">
+        <label>Source:</label>
+        <span id="meta_source" style="word-break: break-all;">—</span>
+      </div>
+      <div class="meta-row">
+        <label>Status:</label>
+        <span id="meta_status" class="status-badge status-pending">
+          <span class="pi pi-clock"></span> Pending Review
+        </span>
+      </div>
+    </div>
+
+    <h1>🎨 Brand Style Guide</h1>
+    <p class="subtitle">Click any color swatch to adjust. Verify when ready.</p>
+    
+    <!-- Screenshot Section for Color Picking -->
+    <div class="section screenshot-section" id="screenshotSection" style="display: none;">
+      <div class="section-title">🖼️ Website Screenshot</div>
+      <div class="screenshot-container">
+        <canvas id="screenshotCanvas" class="screenshot-canvas"></canvas>
+        <div class="screenshot-hint">Click anywhere to pick a color</div>
+      </div>
+      <div class="palette-label">Auto-detected palette (click to use):</div>
+      <div class="auto-palette" id="autoPalette"></div>
+    </div>
+
+    <!-- Color Preview Bar -->
+    <div class="color-preview-bar" id="colorPreviewBar">
+      <div id="preview_primary">Primary</div>
+      <div id="preview_secondary">Secondary</div>
+      <div id="preview_bg">BG</div>
+      <div id="preview_text">Text</div>
+    </div>
+
+    <!-- Colors Section -->
+    <div class="section">
+      <div class="section-title">🎨 Brand Colors</div>
+      <p class="subtitle" style="margin-top: -0.5rem; margin-bottom: 1rem; font-size: 0.75rem;">Click screenshot, palette, or use picker button</p>
+      <div class="color-grid">
+        <div class="color-item" id="item_primary" onclick="setActiveColorSlot('primary')">
+          <div class="color-label">Primary</div>
+          <div class="color-swatch-wrapper">
+            <div class="color-swatch" id="swatch_primary">
+              <input type="color" id="color_primary" onchange="updateColor('primary')">
+            </div>
+            <input type="text" class="color-hex" id="hex_primary" maxlength="7" oninput="updateFromHex('primary')">
+            <button class="eyedropper-btn" onclick="event.stopPropagation(); openEyeDropper('primary')" title="Pick from screen">
+              <span class="pi pi-eye"></span>
+            </button>
+          </div>
+        </div>
+        <div class="color-item" id="item_secondary" onclick="setActiveColorSlot('secondary')">
+          <div class="color-label">Secondary</div>
+          <div class="color-swatch-wrapper">
+            <div class="color-swatch" id="swatch_secondary">
+              <input type="color" id="color_secondary" onchange="updateColor('secondary')">
+            </div>
+            <input type="text" class="color-hex" id="hex_secondary" maxlength="7" oninput="updateFromHex('secondary')">
+            <button class="eyedropper-btn" onclick="event.stopPropagation(); openEyeDropper('secondary')" title="Pick from screen">
+              <span class="pi pi-eye"></span>
+            </button>
+          </div>
+        </div>
+        <div class="color-item" id="item_background" onclick="setActiveColorSlot('background')">
+          <div class="color-label">Background</div>
+          <div class="color-swatch-wrapper">
+            <div class="color-swatch" id="swatch_background">
+              <input type="color" id="color_background" onchange="updateColor('background')">
+            </div>
+            <input type="text" class="color-hex" id="hex_background" maxlength="7" oninput="updateFromHex('background')">
+            <button class="eyedropper-btn" onclick="event.stopPropagation(); openEyeDropper('background')" title="Pick from screen">
+              <span class="pi pi-eye"></span>
+            </button>
+          </div>
+        </div>
+        <div class="color-item" id="item_text" onclick="setActiveColorSlot('text')">
+          <div class="color-label">Text</div>
+          <div class="color-swatch-wrapper">
+            <div class="color-swatch" id="swatch_text">
+              <input type="color" id="color_text" onchange="updateColor('text')">
+            </div>
+            <input type="text" class="color-hex" id="hex_text" maxlength="7" oninput="updateFromHex('text')">
+            <button class="eyedropper-btn" onclick="event.stopPropagation(); openEyeDropper('text')" title="Pick from screen">
+              <span class="pi pi-eye"></span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Typography Section -->
+    <div class="section">
+      <div class="section-title">📝 Typography</div>
+      
+      <div class="font-item">
+        <div class="font-label">Heading Font</div>
+        <div class="font-input-row">
+          <input type="text" class="font-input" id="font_heading" placeholder="e.g., Inter, Roboto" oninput="updateFontPreview(); notifyChange()">
+        </div>
+      </div>
+      
+      <div class="font-item">
+        <div class="font-label">Body Font</div>
+        <div class="font-input-row">
+          <input type="text" class="font-input" id="font_body" placeholder="e.g., Inter, Open Sans" oninput="updateFontPreview(); notifyChange()">
+        </div>
+      </div>
+      
+      <div class="font-preview" id="fontPreview">
+        <div class="font-preview-heading" id="previewHeading">The Quick Brown Fox</div>
+        <div class="font-preview-body" id="previewBody">Jumps over the lazy dog. This is how your brand typography will appear in ads and marketing materials.</div>
+      </div>
+    </div>
+
+    <!-- Brand Info Section -->
+    <div class="section">
+      <div class="section-title">🏢 Brand Info</div>
+      
+      <div class="brand-field">
+        <div class="brand-label">Brand Name</div>
+        <input type="text" class="brand-input" id="brand_name" placeholder="Your brand name" oninput="notifyChange()">
+      </div>
+      
+      <div class="brand-field">
+        <div class="brand-label">Logo URL</div>
+        <input type="text" class="brand-input" id="logo_url" placeholder="https://..." oninput="updateLogoPreview(); notifyChange()">
+        <div class="logo-preview" id="logoPreview">
+          <span class="logo-placeholder">Logo preview will appear here</span>
+        </div>
+      </div>
+      
+      <!-- Logo Gallery -->
+      <div class="brand-field" id="logoGallerySection" style="display: none;">
+        <div class="brand-label">Select from detected logos:</div>
+        <div class="logo-gallery" id="logoGallery">
+          <!-- Populated dynamically -->
+        </div>
+      </div>
+      
+      <div class="brand-field">
+        <div class="brand-label">Visual Style</div>
+        <input type="text" class="brand-input" id="visual_style" placeholder="e.g., minimalist, modern" oninput="notifyChange()">
+      </div>
+    </div>
+
+    <!-- Verification Section -->
+    <div class="verify-section" id="verifySection">
+      <div class="verify-title">
+        <span class="pi pi-exclamation-circle"></span>
+        <span id="verifyTitleText">Review Required</span>
+      </div>
+      <button class="verify-btn pending" id="verifyBtn" onclick="toggleVerification()">
+        <span class="pi pi-check"></span>
+        <span id="verifyBtnText">Mark as Verified</span>
+      </button>
+    </div>
+  </div>
+
+  <script>
+    const FormBridge = {
+      handlers: {},
+      init(name) {
+        window.addEventListener('message', e => {
+          if (e.data?.type && this.handlers[e.data.type]) {
+            this.handlers[e.data.type].forEach(h => h(e.data));
+          }
+        });
+        setTimeout(() => this.send('FORM_READY', { formName: name }), 0);
+      },
+      send(type, data) { window.parent.postMessage({ type, ...data }, '*'); },
+      on(type, handler) {
+        if (!this.handlers[type]) this.handlers[type] = [];
+        this.handlers[type].push(handler);
+      }
+    };
+
+    let content = {};
+    let activeColorSlot = 'primary';  // Track which color slot is active for picking
+    let canvasCtx = null;
+
+    FormBridge.on('INIT', data => {
+      content = data.content || {};
+      if (data.themeCss) document.getElementById('theme-css').textContent = data.themeCss;
+      setupCanvas();
+      render();
+    });
+
+    FormBridge.on('CONTENT_UPDATE', data => {
+      content = data.content || {};
+      render();
+    });
+
+    FormBridge.init('botticelli-style-guide');
+    
+    // Setup canvas for click-to-pick
+    function setupCanvas() {
+      const canvas = document.getElementById('screenshotCanvas');
+      canvasCtx = canvas.getContext('2d');
+      
+      canvas.addEventListener('click', (e) => {
+        if (!canvasCtx) return;
+        const rect = canvas.getBoundingClientRect();
+        const x = Math.floor((e.clientX - rect.left) * (canvas.width / rect.width));
+        const y = Math.floor((e.clientY - rect.top) * (canvas.height / rect.height));
+        
+        try {
+          const pixel = canvasCtx.getImageData(x, y, 1, 1).data;
+          const hex = '#' + [pixel[0], pixel[1], pixel[2]]
+            .map(c => c.toString(16).padStart(2, '0')).join('');
+          setColorForActiveSlot(hex);
+        } catch (e) {
+          console.log('Could not get pixel data:', e);
+        }
+      });
+    }
+    
+    // Set active color slot for picking
+    function setActiveColorSlot(slot) {
+      activeColorSlot = slot;
+      // Update UI to show active slot
+      ['primary', 'secondary', 'background', 'text'].forEach(s => {
+        const item = document.getElementById('item_' + s);
+        if (item) {
+          item.classList.toggle('active', s === slot);
+        }
+      });
+    }
+    
+    // Set color for the currently active slot
+    function setColorForActiveSlot(hex) {
+      if (!hex.match(/^#[0-9A-Fa-f]{6}$/)) return;
+      
+      document.getElementById('color_' + activeColorSlot).value = hex;
+      document.getElementById('hex_' + activeColorSlot).value = hex;
+      document.getElementById('swatch_' + activeColorSlot).style.backgroundColor = hex;
+      updateColorPreviewBar();
+      notifyChange();
+      
+      // Move to next slot automatically
+      const slots = ['primary', 'secondary', 'background', 'text'];
+      const currentIdx = slots.indexOf(activeColorSlot);
+      if (currentIdx < slots.length - 1) {
+        setActiveColorSlot(slots[currentIdx + 1]);
+      }
+    }
+    
+    // EyeDropper API
+    async function openEyeDropper(targetSlot) {
+      if (!('EyeDropper' in window)) {
+        alert('EyeDropper API not supported in this browser. Use click-to-pick on the screenshot instead.');
+        return;
+      }
+      
+      setActiveColorSlot(targetSlot);
+      
+      try {
+        const eyeDropper = new EyeDropper();
+        const result = await eyeDropper.open();
+        setColorForActiveSlot(result.sRGBHex);
+      } catch (e) {
+        // User cancelled or error
+        console.log('EyeDropper cancelled');
+      }
+    }
+    
+    // Extract palette from screenshot using Color Thief
+    function extractPalette() {
+      const screenshotBase64 = content.styleguide?.meta?.screenshot_base64;
+      if (!screenshotBase64) {
+        console.log('No screenshot available');
+        return;
+      }
+      
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => {
+        // Draw to canvas
+        const canvas = document.getElementById('screenshotCanvas');
+        canvas.width = img.width;
+        canvas.height = img.height;
+        canvasCtx = canvas.getContext('2d');
+        canvasCtx.drawImage(img, 0, 0);
+        
+        // Show screenshot section
+        document.getElementById('screenshotSection').style.display = 'block';
+        
+        // Extract palette with Color Thief
+        try {
+          const colorThief = new ColorThief();
+          const palette = colorThief.getPalette(img, 8);
+          displayPalette(palette.map(rgb => 
+            '#' + rgb.map(c => c.toString(16).padStart(2, '0')).join('')
+          ));
+        } catch (e) {
+          console.log('Color Thief error:', e);
+        }
+      };
+      img.onerror = () => {
+        console.log('Failed to load screenshot');
+      };
+      img.src = 'data:image/jpeg;base64,' + screenshotBase64;
+    }
+    
+    // Display Color Thief palette
+    function displayPalette(colors) {
+      const container = document.getElementById('autoPalette');
+      container.innerHTML = colors.map((color, i) => `
+        <div class="palette-swatch" 
+             style="background:${color}" 
+             onclick="selectPaletteColor('${color}')"
+             title="${color}">
+        </div>
+      `).join('');
+    }
+    
+    // Handle palette color selection
+    function selectPaletteColor(color) {
+      setColorForActiveSlot(color);
+    }
+    
+    // Render logo gallery
+    function renderLogoGallery(candidates) {
+      const container = document.getElementById('logoGallery');
+      const section = document.getElementById('logoGallerySection');
+      
+      if (!candidates || candidates.length === 0) {
+        section.style.display = 'none';
+        return;
+      }
+      
+      section.style.display = 'block';
+      const currentLogo = getTextFromContent('section03-brand', 'question02-logo');
+      
+      container.innerHTML = candidates.map((img, i) => `
+        <label class="logo-option ${img.url === currentLogo ? 'selected' : ''}" id="logo-opt-${i}">
+          <input type="radio" name="logo" value="${img.url}" 
+                 ${img.url === currentLogo ? 'checked' : ''}
+                 onchange="selectLogo('${img.url}')">
+          <img src="${img.url}" alt="Logo option ${i+1}" 
+               onerror="var el=document.getElementById('logo-opt-${i}'); if(el) el.style.display='none';">
+          ${img.is_logo_hint ? '<span class="logo-hint">Likely logo</span>' : ''}
+        </label>
+      `).join('');
+    }
+    
+    // Handle logo selection
+    function selectLogo(url) {
+      document.getElementById('logo_url').value = url;
+      updateLogoPreview();
+      notifyChange();
+      
+      // Update gallery selection UI
+      document.querySelectorAll('.logo-option').forEach(opt => {
+        opt.classList.toggle('selected', opt.querySelector('input').value === url);
+      });
+    }
+
+    function getColorFromContent(sectionKey, questionKey) {
+      const section = content.styleguide?.[sectionKey];
+      if (!section) return '';
+      const question = section[questionKey];
+      return question?.a || '';
+    }
+    
+    function getTextFromContent(sectionKey, questionKey) {
+      const section = content.styleguide?.[sectionKey];
+      if (!section) return '';
+      const question = section[questionKey];
+      return question?.a || '';
+    }
+
+    function render() {
+      console.log('[Styleguide Form] Rendering with content:', JSON.stringify(content, null, 2).substring(0, 1000));
+      console.log('[Styleguide Form] content keys:', Object.keys(content || {}));
+      
+      const sg = content.styleguide || {};
+      const meta = sg.meta || {};
+      
+      console.log('[Styleguide Form] styleguide keys:', Object.keys(sg));
+      console.log('[Styleguide Form] meta keys:', Object.keys(meta));
+      console.log('[Styleguide Form] screenshot_base64 present:', !!meta.screenshot_base64);
+      console.log('[Styleguide Form] screenshot_base64 length:', meta.screenshot_base64?.length || 0);
+      
+      // Meta
+      document.getElementById('meta_source').textContent = meta.source_url || '—';
+      
+      // Colors
+      const colors = {
+        primary: getColorFromContent('section01-colors', 'question01-primary') || '#0066cc',
+        secondary: getColorFromContent('section01-colors', 'question02-secondary') || '#004499',
+        background: getColorFromContent('section01-colors', 'question03-background') || '#ffffff',
+        text: getColorFromContent('section01-colors', 'question04-text') || '#333333'
+      };
+      
+      ['primary', 'secondary', 'background', 'text'].forEach(key => {
+        document.getElementById('color_' + key).value = colors[key];
+        document.getElementById('hex_' + key).value = colors[key];
+        document.getElementById('swatch_' + key).style.backgroundColor = colors[key];
+      });
+      
+      updateColorPreviewBar();
+      
+      // Set initial active slot
+      setActiveColorSlot('primary');
+      
+      // Fonts
+      const headingFont = getTextFromContent('section02-typography', 'question01-heading-font') || 'Sans-serif';
+      const bodyFont = getTextFromContent('section02-typography', 'question02-body-font') || 'Sans-serif';
+      document.getElementById('font_heading').value = headingFont;
+      document.getElementById('font_body').value = bodyFont;
+      updateFontPreview();
+      
+      // Brand info
+      document.getElementById('brand_name').value = getTextFromContent('section03-brand', 'question01-site-name') || '';
+      document.getElementById('logo_url').value = getTextFromContent('section03-brand', 'question02-logo') || '';
+      document.getElementById('visual_style').value = getTextFromContent('section03-brand', 'question03-style') || '';
+      updateLogoPreview();
+      
+      // Verification
+      const verified = getTextFromContent('section04-verification', 'question01-verified') === 'yes';
+      updateVerificationUI(verified);
+      
+      // Screenshot and palette extraction
+      if (meta.screenshot_base64) {
+        extractPalette();
+      } else {
+        document.getElementById('screenshotSection').style.display = 'none';
+      }
+      
+      // Logo gallery
+      const rawData = sg['section00-raw'] || {};
+      const logoCandidates = rawData.logo_candidates || [];
+      renderLogoGallery(logoCandidates);
+    }
+
+    function updateColor(key) {
+      const color = document.getElementById('color_' + key).value;
+      document.getElementById('hex_' + key).value = color;
+      document.getElementById('swatch_' + key).style.backgroundColor = color;
+      updateColorPreviewBar();
+      notifyChange();
+    }
+    
+    function updateFromHex(key) {
+      let hex = document.getElementById('hex_' + key).value;
+      if (hex.match(/^#[0-9A-Fa-f]{6}$/)) {
+        document.getElementById('color_' + key).value = hex;
+        document.getElementById('swatch_' + key).style.backgroundColor = hex;
+        updateColorPreviewBar();
+        notifyChange();
+      }
+    }
+    
+    function updateColorPreviewBar() {
+      const primary = document.getElementById('hex_primary').value || '#0066cc';
+      const secondary = document.getElementById('hex_secondary').value || '#004499';
+      const bg = document.getElementById('hex_background').value || '#ffffff';
+      const text = document.getElementById('hex_text').value || '#333333';
+      
+      document.getElementById('preview_primary').style.backgroundColor = primary;
+      document.getElementById('preview_primary').style.color = getContrastColor(primary);
+      document.getElementById('preview_secondary').style.backgroundColor = secondary;
+      document.getElementById('preview_secondary').style.color = getContrastColor(secondary);
+      document.getElementById('preview_bg').style.backgroundColor = bg;
+      document.getElementById('preview_bg').style.color = getContrastColor(bg);
+      document.getElementById('preview_text').style.backgroundColor = text;
+      document.getElementById('preview_text').style.color = getContrastColor(text);
+    }
+    
+    function getContrastColor(hex) {
+      const r = parseInt(hex.slice(1, 3), 16);
+      const g = parseInt(hex.slice(3, 5), 16);
+      const b = parseInt(hex.slice(5, 7), 16);
+      const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+      return luminance > 0.5 ? '#000000' : '#ffffff';
+    }
+    
+    function updateFontPreview() {
+      const headingFont = document.getElementById('font_heading').value || 'sans-serif';
+      const bodyFont = document.getElementById('font_body').value || 'sans-serif';
+      
+      document.getElementById('previewHeading').style.fontFamily = headingFont + ', sans-serif';
+      document.getElementById('previewBody').style.fontFamily = bodyFont + ', sans-serif';
+      
+      // Try to load Google Fonts
+      loadGoogleFont(headingFont);
+      loadGoogleFont(bodyFont);
+    }
+    
+    function loadGoogleFont(fontName) {
+      if (!fontName || fontName.toLowerCase() === 'sans-serif' || fontName.toLowerCase() === 'serif') return;
+      
+      const linkId = 'font-' + fontName.replace(/\s+/g, '-').toLowerCase();
+      if (document.getElementById(linkId)) return;
+      
+      const link = document.createElement('link');
+      link.id = linkId;
+      link.rel = 'stylesheet';
+      link.href = 'https://fonts.googleapis.com/css2?family=' + encodeURIComponent(fontName) + ':wght@400;700&display=swap';
+      document.head.appendChild(link);
+    }
+    
+    function updateLogoPreview() {
+      const url = document.getElementById('logo_url').value;
+      const preview = document.getElementById('logoPreview');
+      
+      if (url && (url.startsWith('http://') || url.startsWith('https://'))) {
+        preview.innerHTML = '<img src="' + url + '" alt="Logo" onerror="this.parentElement.innerHTML=\'<span class=\\\'logo-placeholder\\\'>Could not load logo</span>\'">';
+      } else {
+        preview.innerHTML = '<span class="logo-placeholder">Logo preview will appear here</span>';
+      }
+    }
+    
+    function toggleVerification() {
+      const currentlyVerified = getTextFromContent('section04-verification', 'question01-verified') === 'yes';
+      setVerified(!currentlyVerified);
+      notifyChange();
+    }
+    
+    function setVerified(verified) {
+      // Update content
+      if (!content.styleguide) content.styleguide = {};
+      if (!content.styleguide['section04-verification']) {
+        content.styleguide['section04-verification'] = {
+          title: '✅ Verification',
+          'question01-verified': { q: 'Colors verified by human?', a: 'no', t: 'select', options: ['no', 'yes'] }
+        };
+      }
+      content.styleguide['section04-verification']['question01-verified'].a = verified ? 'yes' : 'no';
+      
+      // Update meta status
+      if (!content.styleguide.meta) content.styleguide.meta = {};
+      content.styleguide.meta.status = verified ? 'verified' : 'pending_verification';
+      
+      updateVerificationUI(verified);
+    }
+    
+    function updateVerificationUI(verified) {
+      const section = document.getElementById('verifySection');
+      const btn = document.getElementById('verifyBtn');
+      const statusBadge = document.getElementById('meta_status');
+      
+      if (verified) {
+        section.classList.add('verified');
+        btn.classList.remove('pending');
+        btn.classList.add('verified');
+        document.getElementById('verifyTitleText').textContent = 'Verified ✓';
+        document.getElementById('verifyBtnText').textContent = 'Unverify';
+        btn.querySelector('.pi').className = 'pi pi-times';
+        statusBadge.className = 'status-badge status-verified';
+        statusBadge.innerHTML = '<span class="pi pi-check-circle"></span> Verified';
+      } else {
+        section.classList.remove('verified');
+        btn.classList.add('pending');
+        btn.classList.remove('verified');
+        document.getElementById('verifyTitleText').textContent = 'Review Required';
+        document.getElementById('verifyBtnText').textContent = 'Mark as Verified';
+        btn.querySelector('.pi').className = 'pi pi-check';
+        statusBadge.className = 'status-badge status-pending';
+        statusBadge.innerHTML = '<span class="pi pi-clock"></span> Pending Review';
+      }
+    }
+
+    function getContent() {
+      const sg = content.styleguide || {};
+      
+      // Preserve raw data (screenshot and logo candidates)
+      const rawData = sg['section00-raw'] || { title: 'Raw Data', logo_candidates: [] };
+      
+      return {
+        styleguide: {
+          meta: {
+            ...sg.meta,
+            status: getTextFromContent('section04-verification', 'question01-verified') === 'yes' ? 'verified' : 'pending_verification'
+          },
+          'section00-raw': rawData,  // Preserve screenshot and logo candidates
+          'section01-colors': {
+            title: '🎨 Brand Colors (please verify)',
+            'question01-primary': { q: 'Primary Brand Color', a: document.getElementById('hex_primary').value, t: 'color' },
+            'question02-secondary': { q: 'Secondary Brand Color', a: document.getElementById('hex_secondary').value, t: 'color' },
+            'question03-background': { q: 'Background Color', a: document.getElementById('hex_background').value, t: 'color' },
+            'question04-text': { q: 'Text Color', a: document.getElementById('hex_text').value, t: 'color' }
+          },
+          'section02-typography': {
+            title: '📝 Typography',
+            'question01-heading-font': { q: 'Heading Font', a: document.getElementById('font_heading').value },
+            'question02-body-font': { q: 'Body Font', a: document.getElementById('font_body').value }
+          },
+          'section03-brand': {
+            title: '🏢 Brand Info',
+            'question01-site-name': { q: 'Brand/Site Name', a: document.getElementById('brand_name').value },
+            'question02-logo': { q: 'Logo URL', a: document.getElementById('logo_url').value },
+            'question03-style': { q: 'Visual Style', a: document.getElementById('visual_style').value }
+          },
+          'section04-verification': {
+            title: '✅ Verification',
+            'question01-verified': { 
+              q: 'Colors verified by human?', 
+              a: content.styleguide?.['section04-verification']?.['question01-verified']?.a || 'no',
+              t: 'select',
+              options: ['no', 'yes']
+            }
+          }
+        }
+      };
+    }
+
+    function notifyChange() {
+      const newContent = getContent();
+      console.log('[Styleguide Form] Sending content update:', JSON.stringify(newContent, null, 2).substring(0, 1000));
+      console.log('[Styleguide Form] meta keys:', Object.keys(newContent.styleguide?.meta || {}));
+      console.log('[Styleguide Form] screenshot_base64 present:', !!newContent.styleguide?.meta?.screenshot_base64);
+      console.log('[Styleguide Form] logo_candidates count:', newContent.styleguide?.['section00-raw']?.logo_candidates?.length || 0);
+      FormBridge.send('FORM_CONTENT_CHANGED', { content: newContent });
+    }
+  </script>
+</body>
+</html>
