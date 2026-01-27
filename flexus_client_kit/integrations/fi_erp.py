@@ -38,11 +38,13 @@ ERP_TABLE_DATA_TOOL = ckit_cloudtool.CloudTool(
     name="erp_table_data",
     description=(
         "Query ERP table data with filtering. "
-        "Filters: 'column:op' or 'column:op:value'. Operators: =, !=, >, >=, <, <=, LIKE, ILIKE, IN, NOT_IN, IS_NULL, IS_NOT_NULL. "
-        "JSON path: 'task_details->email_subtype:=:welcome'. "
-        "Logic: {'OR': ['status:=:active', 'status:=:pending']} or {'AND': [...]} or {'NOT': {...}}. "
-        "Sort: 'column:ASC' or 'column:DESC'. Include: relation field names to include (e.g., 'prodt', 'pcat'). "
-        "Examples: ['contact_email:ILIKE:%john%'], ['status:IN:active,pending'], [{'OR': ['status:=:active', 'status:=:pending']}]."
+        "Operators: =, !=, >, >=, <, <=, LIKE, ILIKE, IN, NOT_IN, IS_NULL, IS_NOT_NULL. "
+        "LIKE/ILIKE use SQL wildcards: % matches any chars. "
+        "JSON path: details->subtype:=:welcome. "
+        "Examples: "
+        'filters="status:=:active" for single filter, '
+        'filters={"AND": ["status:=:active", "type:=:lead"]} for multiple AND, '
+        'filters={"OR": ["contact_email:ILIKE:%@gmail.com", "contact_email:ILIKE:%@yahoo.com"]} for OR.'
     ),
     parameters={
         "type": "object",
@@ -55,10 +57,10 @@ ERP_TABLE_DATA_TOOL = ckit_cloudtool.CloudTool(
                 "properties": {
                     "skip": {"type": "integer", "description": "Number of rows to skip (default 0)", "order": 1001},
                     "limit": {"type": "integer", "description": "Maximum number of rows to return (default 100, max 1000)", "order": 1002},
-                    "sort_by": {"type": "array", "items": {"type": "string"}, "description": "Sort expressions ['column:ASC', 'another:DESC']", "order": 1003},
-                    "filters": {"type": "array", "items": {"oneOf": [{"type": "string"}, {"type": "object"}]}, "description": "Filter expressions: strings like 'status:=:active' or dicts like {'OR': [...]}", "order": 1004},
-                    "include": {"type": "array", "items": {"type": "string"}, "description": "Relation names to include ['prodt', 'pcat']", "order": 1005},
-                    "safety_valve": {"type": "string", "description": "Output character limit '5k' or '10000' (default 5k)", "order": 1006},
+                    "sort_by": {"type": "array", "items": {"type": "string"}, "description": 'Sort expressions ["column:ASC", "another:DESC"]', "order": 1003},
+                    "filters": {"oneOf": [{"type": "string"}, {"type": "object"}], "description": 'String or object with AND/OR key, e.g. {"AND": ["col:op:val"]} or {"OR": [...]}', "order": 1004},
+                    "include": {"type": "array", "items": {"type": "string"}, "description": 'Relation names to include ["prodt", "pcat"]', "order": 1005},
+                    "safety_valve": {"type": "string", "description": 'Output character limit "5k" or "10000" (default 5k)', "order": 1006},
                 },
             },
         },
@@ -257,14 +259,14 @@ class IntegrationErp:
         skip = options.get("skip", 0)
         limit = options.get("limit", 100)
         sort_by = options.get("sort_by", [])
-        filters = options.get("filters", [])
+        filters = options.get("filters", {})
         include = options.get("include", [])
         safety_valve = options.get("safety_valve", "5k")
 
         if not isinstance(sort_by, list):
             sort_by = []
-        if not isinstance(filters, list):
-            filters = []
+        if not isinstance(filters, (str, dict)):
+            filters = {}
         if not isinstance(include, list):
             include = []
 
@@ -325,7 +327,7 @@ class IntegrationErp:
         if not table_name:
             return "❌ Error: table_name parameter required"
 
-        if table_name not in erp_schema.ERP_TABLE_TO_SCHEMA:
+        if not (schema_class := erp_schema.ERP_TABLE_TO_SCHEMA.get(table_name)):
             return f"❌ Error: Table '{table_name}' not found in schema"
 
         if op == "create":
@@ -333,6 +335,9 @@ class IntegrationErp:
 
             if not fields or not isinstance(fields, dict):
                 return "❌ Error: fields parameter required and must be a dict for create operation"
+
+            if missing := [f for f in erp_schema.get_required_fields(schema_class) if f not in fields]:
+                return f"❌ Missing required fields: {', '.join(missing)}"
 
             try:
                 new_id = await ckit_erp.create_erp_record(
