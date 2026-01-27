@@ -6,6 +6,7 @@ from pathlib import Path
 example_styleguide = {
     "styleguide": {
         "meta": {
+            "microfrontend": "botticelli",
             "author": "Botticelli (auto-detected)",
             "date": "",
             "source_url": "",

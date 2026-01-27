@@ -56,26 +56,11 @@ STYLEGUIDE_TEMPLATE_TOOL = ckit_cloudtool.CloudTool(
 GENERATE_PICTURE_TOOL = ckit_cloudtool.CloudTool(
     strict=False,
     name="picturegen",
-    description="""Generate a picture from a text prompt using AI. Saves .webp result to MongoDB.
+    description="""Generate image from text prompt. Saves .webp to MongoDB.
 
-WORKFLOW (MANDATORY):
-1. DRAFT phase: Generate with quality='draft' (fast, cheap) to get user approval on concept
-2. FINAL phase: After user approves, regenerate with quality='final' (Pro model, higher quality)
-NEVER skip the draft phase - always get user approval before generating final!
-
-Quality modes:
-- 'draft' (default): Fast Gemini model for concept iteration. Use for initial concepts.
-- 'final': Pro Gemini model for production assets. Use ONLY after user approves draft.
-
-Resolution (for final quality only):
-- '1K' (default): Standard resolution, good for most uses
-- '2K': High resolution for large format displays
-
-Reference Images:
-- Use 'reference_image_url' to incorporate brand logo or style reference
-- MANDATORY: Always include brand logo as reference when generating ad creatives!
-
-Aspect ratios: '1:1' (square), '4:5' (portrait), '9:16' (stories), '16:9' (landscape), '3:2', '2:3', '4:3', '3:4', '21:9'""",
+WORKFLOW: 1) Generate draft for approval 2) After approval, generate final.
+Quality: 'draft' (fast) or 'final' (Pro model). Resolution: '1K' or '2K' (final only).
+Use reference_image_url for brand logo. Aspect ratios: 1:1, 4:5, 9:16, 16:9, 3:2, 2:3, 4:3, 3:4, 21:9""",
     parameters={
         "type": "object",
         "properties": {
@@ -153,6 +138,7 @@ CROP_IMAGE_TOOL = ckit_cloudtool.CloudTool(
 )
 
 CAMPAIGN_BRIEF_TOOL = ckit_cloudtool.CloudTool(
+    strict=False,
     name="meta_campaign_brief",
     description="Start Meta Ads creative generation with campaign brief. Creates structured campaign with 3 creative variations.",
     parameters={
@@ -207,6 +193,7 @@ CAMPAIGN_BRIEF_TOOL = ckit_cloudtool.CloudTool(
 )
 
 SCAN_BRAND_VISUALS_TOOL = ckit_cloudtool.CloudTool(
+    strict=False,
     name="scan_brand_visuals",
     description="""Scan a website to extract brand visual identity using Playwright browser.
 Extracts REAL computed CSS styles (colors, fonts) from the rendered page.
@@ -871,6 +858,7 @@ Full brief saved to: {brief_path}
             styleguide = {
                 "styleguide": {
                     "meta": {
+                        "microfrontend": "botticelli",
                         "author": "Botticelli (auto-detected)",
                         "date": today,
                         "source_url": url,
