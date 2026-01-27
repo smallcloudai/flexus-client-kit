@@ -120,7 +120,8 @@ Each automation has:
       "details": {
         "contact_id": "{{trigger.new_record.contact_id}}"
       },
-      "provenance": "CRM automation: welcome_email"
+      "provenance": "CRM automation: welcome_email",
+      "fexp_name": "nurturing"
     },
     {
       "type": "update_erp_record",
