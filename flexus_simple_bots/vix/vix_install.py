@@ -31,9 +31,15 @@ Integrated sales and marketing agent with CRM management, lead nurturing, and co
 - Sentiment detection and adaptive approach
 - Smart handoff to human agents
 
+**Nurturing:**
+- Lightweight automated tasks
+- Send emails using templates
+- Follow-ups based on CRM activities
+
 **Skills:**
 - **Default**: Marketing, CRM, automations, setup
 - **Sales**: Consultative selling with C.L.O.S.E.R. Framework
+- **Nurturing**: Automated templated emails and follow-ups (fast model)
 """
 
 
@@ -76,6 +82,7 @@ async def install(
     tools: list[ckit_cloudtool.CloudTool],
 ):
     bot_internal_tools = json.dumps([t.openai_style_tool() for t in tools])
+    nurturing_tools = json.dumps([t.openai_style_tool() for t in tools if t.name not in ("crm_automation",)])
     pic_big = base64.b64encode(open(Path(__file__).with_name("vix-1024x1536.webp"), "rb").read()).decode("ascii")
     pic_small = base64.b64encode(open(Path(__file__).with_name("vix-256x256.webp"), "rb").read()).decode("ascii")
     await ckit_bot_install.marketplace_upsert_dev_bot(
@@ -100,7 +107,7 @@ async def install(
             {"feat_question": "Help me qualify a lead", "feat_expert": "sales", "feat_depends_on_setup": []},
         ],
         marketable_intro_message="Hi! I'm Vix, your sales and marketing assistant. I can help with CRM management, email automations, contact imports, and sales conversations. What would you like to work on?",
-        marketable_preferred_model_default="grok-4-1-fast-non-reasoning",
+        marketable_preferred_model_default="claude-sonnet-4-5-20250929",
         marketable_daily_budget_default=100_000,
         marketable_default_inbox_default=10_000,
         marketable_experts=[
@@ -121,6 +128,16 @@ async def install(
                 fexp_inactivity_timeout=3600,
                 fexp_app_capture_tools=bot_internal_tools,
                 fexp_description="Conducts sales conversations using C.L.O.S.E.R. Framework, qualifies leads with BANT, and handles objections with consultative approach.",
+            )),
+            ("nurturing", ckit_bot_install.FMarketplaceExpertInput(
+                fexp_system_prompt=vix_prompts.vix_prompt_nurturing,
+                fexp_python_kernel="",
+                fexp_block_tools="*setup*",
+                fexp_allow_tools="",
+                fexp_inactivity_timeout=600,
+                fexp_app_capture_tools=nurturing_tools,
+                fexp_description="Lightweight expert for automated tasks: sending templated emails, follow-ups, and simple CRM operations.",
+                fexp_preferred_model_default="grok-4-1-fast-non-reasoning",
             )),
         ],
         marketable_tags=["Sales", "Marketing", "CRM", "Email", "Automation"],
