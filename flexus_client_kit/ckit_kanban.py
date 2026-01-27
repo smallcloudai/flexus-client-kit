@@ -20,7 +20,7 @@ class FPersonaKanbanTaskOutput:
     persona_id: str
     ktask_id: str
     ktask_title: str
-    ktask_skill: str
+    ktask_fexp_name: str
     ktask_inbox_ts: float
     ktask_inbox_provenance: Any
     ktask_daily_timekey: str
@@ -140,13 +140,14 @@ async def bot_kanban_post_into_inbox(
     title: str,
     details_json: str,
     provenance_message: str,
+    fexp_name: str = "default",
 ) -> None:
     http = await client.use_http()
     async with http as h:
         await h.execute(
             gql.gql(
-                """mutation KanbanInbox($pid: String!, $title: String!, $details: String!, $prov: String!) {
-                    bot_kanban_post_into_inbox(persona_id: $pid, title: $title, details_json: $details, provenance_message: $prov)
+                """mutation KanbanInbox($pid: String!, $title: String!, $details: String!, $prov: String!, $fexp: String!) {
+                    bot_kanban_post_into_inbox(persona_id: $pid, title: $title, details_json: $details, provenance_message: $prov, fexp_name: $fexp)
                 }""",
             ),
             variable_values={
@@ -154,6 +155,7 @@ async def bot_kanban_post_into_inbox(
                 "title": title,
                 "details": details_json,
                 "prov": provenance_message,
+                "fexp": fexp_name,
             },
         )
 
@@ -171,7 +173,7 @@ async def get_tasks_by_thread(
                     persona_id
                     ktask_id
                     ktask_title
-                    ktask_skill
+                    ktask_fexp_name
                     ktask_inbox_ts
                     ktask_inbox_provenance
                     ktask_daily_timekey
@@ -228,7 +230,7 @@ async def bot_get_all_tasks(
                     persona_id
                     ktask_id
                     ktask_title
-                    ktask_skill
+                    ktask_fexp_name
                     ktask_inbox_ts
                     ktask_inbox_provenance
                     ktask_daily_timekey

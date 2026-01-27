@@ -19,6 +19,7 @@ from flexus_client_kit.integrations.report.report_validator import (
 logger = logging.getLogger("report")
 
 CREATE_REPORT_TOOL = ckit_cloudtool.CloudTool(
+    strict=False,
     name="create_report",
     description="Initialize a new report with arbitrary parameters. Arrays will be used for iteration, scalars for interpolation.",
     parameters={
@@ -33,6 +34,7 @@ CREATE_REPORT_TOOL = ckit_cloudtool.CloudTool(
 )
 
 PROCESS_REPORT_TOOL = ckit_cloudtool.CloudTool(
+    strict=False,
     name="process_report",
     description="Process all sections in the next incomplete phase using parallel subchats",
     parameters={
@@ -45,6 +47,7 @@ PROCESS_REPORT_TOOL = ckit_cloudtool.CloudTool(
 )
 
 FILL_SECTION_TOOL = ckit_cloudtool.CloudTool(
+    strict=False,
     name="fill_report_section",
     description="Fill a report section with content",
     parameters={
@@ -60,6 +63,7 @@ FILL_SECTION_TOOL = ckit_cloudtool.CloudTool(
 )
 
 REPORT_STATUS_TOOL = ckit_cloudtool.CloudTool(
+    strict=False,
     name="get_report_status",
     description="Get status and progress of report(s)",
     parameters={
@@ -72,6 +76,7 @@ REPORT_STATUS_TOOL = ckit_cloudtool.CloudTool(
 )
 
 LOAD_METADATA_TOOL = ckit_cloudtool.CloudTool(
+    strict=False,
     name="load_report_metadata",
     description="Load metadata and statistics from a previous report for comparison",
     parameters={
@@ -85,6 +90,7 @@ LOAD_METADATA_TOOL = ckit_cloudtool.CloudTool(
 )
 
 REMOVE_REPORT_TOOL = ckit_cloudtool.CloudTool(
+    strict=False,
     name="remove_report",
     description="Remove a report and all its associated files from the database",
     parameters={
@@ -1112,7 +1118,7 @@ async def handle_process_report_tool(
         first_calls,
         titles,
         toolcall.fcall_id,
-        skill="subchat",
+        fexp_name="subchat",
         max_tokens=16000
     )
 

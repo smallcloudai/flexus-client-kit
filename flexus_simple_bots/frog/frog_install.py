@@ -105,8 +105,8 @@ async def install(
         marketable_run_this="python -m flexus_simple_bots.frog.frog_bot",
         marketable_setup_default=frog_setup_schema,
         marketable_featured_actions=[
-            {"feat_question": "Ribbit! Tell me something fun", "feat_run_as_setup": False, "feat_depends_on_setup": []},
-            {"feat_question": "Give me a motivational boost", "feat_run_as_setup": False, "feat_depends_on_setup": []},
+            {"feat_question": "Ribbit! Tell me something fun", "feat_expert": "default", "feat_depends_on_setup": []},
+            {"feat_question": "Give me a motivational boost", "feat_expert": "default", "feat_depends_on_setup": []},
         ],
         marketable_intro_message="Ribbit! Hi there! I'm Frog, your cheerful workspace companion. I'm here to bring joy and keep your spirits high. What can I do for you today?",
         # marketable_preferred_model_default="grok-code-fast-1",
@@ -120,6 +120,7 @@ async def install(
                 fexp_block_tools="*setup*",
                 fexp_allow_tools="",
                 fexp_app_capture_tools=bot_internal_tools,
+                fexp_description="Main conversational expert that handles user interactions, task management, and provides cheerful encouragement.",
             )),
             ("huntmode", ckit_bot_install.FMarketplaceExpertInput(
                 fexp_system_prompt=frog_prompts.frog_prompt,
@@ -127,6 +128,7 @@ async def install(
                 fexp_block_tools="*setup*,frog_catch_insects",
                 fexp_allow_tools="",
                 fexp_app_capture_tools=bot_internal_tools,
+                fexp_description="Subchat expert for catching insects, respecting tongue_capacity limit.",
             )),
         ],
         marketable_tags=["Fun", "Simple", "Motivational"],

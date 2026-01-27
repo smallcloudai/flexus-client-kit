@@ -13,6 +13,7 @@ logger = logging.getLogger("fi_postgres")
 
 
 POSTGRES_TOOL = ckit_cloudtool.CloudTool(
+    strict=False,
     name="postgres",
     description="Execute PostgreSQL queries via psql command line utility",
     parameters={

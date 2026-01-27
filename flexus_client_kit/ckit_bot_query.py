@@ -24,6 +24,7 @@ class FPersonaOutput:
     ws_root_group_id: str
     marketable_run_this: Optional[str] = None
     marketable_stage: Optional[str] = None
+    marketable_radix: Optional[int] = None
 
 
 @dataclass
@@ -33,6 +34,19 @@ class FPersonaScheduleOutput:
     sched_type: str
     sched_when: str
     sched_first_question: str
+
+
+@dataclass
+class FExternalMessageOutput:
+    emessage_id: str
+    emessage_persona_id: str
+    emessage_type: str
+    emessage_from: str
+    emessage_to: str
+    emessage_external_id: str
+    emessage_payload: Any
+    emessage_created_ts: float
+    ws_id: str
 
 
 @dataclass
@@ -47,6 +61,7 @@ class FBotThreadsCallsTasks:
     news_payload_task: Optional[ckit_kanban.FPersonaKanbanTaskOutput]
     news_payload_erp_record_new: Optional[Dict[str, Any]] = None
     news_payload_erp_record_old: Optional[Dict[str, Any]] = None
+    news_payload_emessage: Optional[FExternalMessageOutput] = None
 
 
 @dataclass

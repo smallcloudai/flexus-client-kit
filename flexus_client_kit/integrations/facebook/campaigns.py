@@ -7,7 +7,10 @@ from flexus_client_kit.integrations.facebook.exceptions import FacebookAPIError,
 if TYPE_CHECKING:
     from flexus_client_kit.integrations.facebook.client import FacebookAdsClient
 logger = logging.getLogger("facebook.operations.campaigns")
+
 CAMPAIGN_FIELDS = "id,name,status,objective,daily_budget,lifetime_budget"
+
+
 async def list_campaigns(
     client: "FacebookAdsClient",
     ad_account_id: Optional[str] = None,
@@ -34,6 +37,8 @@ async def list_campaigns(
             budget_str = f", Lifetime: {format_currency(int(c['lifetime_budget']))}"
         result += f"  {c['name']} (ID: {c['id']}) - {c['status']}{budget_str}\n"
     return result
+
+
 async def create_campaign(
     client: "FacebookAdsClient",
     ad_account_id: str,
@@ -86,6 +91,8 @@ async def create_campaign(
     if lifetime_budget:
         output += f"   Lifetime Budget: {format_currency(lifetime_budget)}\n"
     return output
+
+
 async def update_campaign(
     client: "FacebookAdsClient",
     campaign_id: str,
@@ -135,6 +142,8 @@ async def update_campaign(
         return f"Campaign {campaign_id} updated:\n" + "\n".join(f"   - {u}" for u in updates)
     else:
         return f"Failed to update campaign. Response: {result}"
+
+
 async def duplicate_campaign(
     client: "FacebookAdsClient",
     campaign_id: str,
@@ -172,6 +181,8 @@ New Campaign Name: {new_name}
 Status: PAUSED (activate when ready)
 Note: Only the campaign was copied. To copy ad sets and ads, use the Facebook Ads Manager UI.
 """
+
+
 async def archive_campaign(client: "FacebookAdsClient", campaign_id: str) -> str:
     if not campaign_id:
         return "ERROR: campaign_id parameter is required"
@@ -182,6 +193,8 @@ async def archive_campaign(client: "FacebookAdsClient", campaign_id: str) -> str
         return f"Campaign {campaign_id} archived successfully.\n\nThe campaign is now hidden from active views but can be restored if needed."
     else:
         return f"Failed to archive campaign. Response: {result}"
+
+
 async def bulk_update_campaigns(client: "FacebookAdsClient", campaigns: List[Dict[str, Any]]) -> str:
     if not campaigns:
         return "ERROR: campaigns parameter is required (list of {id, ...fields})"
@@ -239,6 +252,8 @@ async def bulk_update_campaigns(client: "FacebookAdsClient", campaigns: List[Dic
     if errors:
         output += "Errors:\n" + "\n".join(f"   {e}" for e in errors)
     return output
+
+
 async def get_insights(client: "FacebookAdsClient", campaign_id: str, days: int = 30) -> str:
     if not campaign_id:
         return "ERROR: campaign_id required"
@@ -262,11 +277,15 @@ async def get_insights(client: "FacebookAdsClient", campaign_id: str, days: int 
   Reach: {insights.reach:,}
   Frequency: {insights.frequency:.2f}
 """
+
+
 def _mock_list_campaigns() -> str:
     return """Found 2 campaigns:
   Test Campaign 1 (ID: 123456789) - ACTIVE, Daily: 50.00 USD
   Test Campaign 2 (ID: 987654321) - PAUSED, Daily: 100.00 USD
 """
+
+
 def _mock_create_campaign(name: str, objective: str, status: str, daily_budget: Optional[int]) -> str:
     budget_str = ""
     if daily_budget:
@@ -274,6 +293,8 @@ def _mock_create_campaign(name: str, objective: str, status: str, daily_budget: 
     return f"""Campaign created: {name} (ID: mock_123456789)
    Status: {status}, Objective: {objective}{budget_str}
 """
+
+
 def _mock_duplicate_campaign(campaign_id: str, new_name: str) -> str:
     return f"""Campaign duplicated successfully!
 Original Campaign ID: {campaign_id}
@@ -282,6 +303,8 @@ New Campaign Name: {new_name}
 Status: PAUSED (activate when ready)
 Note: Only the campaign was copied. To copy ad sets and ads, use the Facebook Ads Manager UI.
 """
+
+
 def _mock_get_insights(campaign_id: str, days: int) -> str:
     return f"""Insights for Campaign {campaign_id} (Last {days} days):
   Impressions: 125,000

@@ -18,6 +18,7 @@ from flexus_client_kit import ckit_external_auth
 logger = logging.getLogger("google_analytics")
 
 GOOGLE_ANALYTICS_TOOL = ckit_cloudtool.CloudTool(
+    strict=False,
     name="google_analytics",
     description="Access Google Analytics data, call with op=\"help\" to print usage",
     parameters={

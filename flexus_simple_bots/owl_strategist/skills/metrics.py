@@ -4,8 +4,8 @@ Skill: Metrics & Decision Framework
 Defines KPIs, calculates MDE, sets stop/accelerate rules.
 Second step after diagnostic.
 
-Input data: /marketing-experiments/{experiment_id}/input, /marketing-experiments/{experiment_id}/diagnostic
-Output data: /marketing-experiments/{experiment_id}/metrics
+Input data: /gtm/discovery/{experiment_id}/input, /gtm/discovery/{experiment_id}/diagnostic
+Output data: /gtm/discovery/{experiment_id}/metrics
 """
 
 SKILL_NAME = "metrics"
@@ -108,11 +108,19 @@ The input and diagnostic documents are provided below in your first message — 
 
 ## Output Format
 
-Save this JSON to /marketing-experiments/{experiment_id}/metrics:
+Save this JSON to /gtm/discovery/{experiment_id}/metrics:
+
+**CRITICAL**: Document MUST be wrapped in `metrics` key with `meta` object for UI to show custom form.
 
 ```json
 {
-  "primary_kpi": "waitlist_signups|leads|purchases|clicks",
+  "metrics": {
+    "meta": {
+      "experiment_id": "hyp004-example",
+      "created_at": "2025-12-16",
+      "step": "metrics"
+    },
+    "primary_kpi": "waitlist_signups|leads|purchases|clicks",
   "primary_kpi_reasoning": "WHY this KPI — what makes it the right success metric for this hypothesis",
   "secondary_kpis": ["ctr", "cpc", "cvr"],
   "target_values": {
@@ -161,10 +169,11 @@ Save this JSON to /marketing-experiments/{experiment_id}/metrics:
     "inconclusive_scenario": "What if results are mixed — how to decide"
   },
   
-  "next_steps": [
-    "Set up tracking for these KPIs",
-    "Configure stop/accelerate alerts"
-  ]
+    "next_steps": [
+      "Set up tracking for these KPIs",
+      "Configure stop/accelerate alerts"
+    ]
+  }
 }
 ```
 

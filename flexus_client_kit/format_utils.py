@@ -114,7 +114,8 @@ def format_text_output(
     path: str,
     content: str,
     lines_range: str = ":",
-    safety_valve: str = DEFAULT_SAFETY_VALVE
+    safety_valve: str = DEFAULT_SAFETY_VALVE,
+    line_offset: int = 0
 ) -> str:
     # Please leave this function alone -- Oleg
     safety_valve_chars = 0
@@ -152,7 +153,7 @@ def format_text_output(
         ctx_left -= len(line)
         result.append(line)
         if ctx_left < 0:
-            header_lines.append(f"⚠️ The original file is {len(content)} chars and {len(lines)} lines, showing lines range {start+1}:{i+1} because `safety_valve` hit")
+            header_lines.append(f"⚠️ The original preview is {len(content)} chars and {len(lines)} lines, showing lines range {line_offset+start+1}:{line_offset+i+1} because `safety_valve` hit")
             break
     result = header_lines + [""] + result
     return "\n".join(result)
@@ -162,7 +163,9 @@ def format_binary_output(
     path: str,
     data: bytes,
     lines_range: str = ":",
-    safety_valve: str = DEFAULT_SAFETY_VALVE
+    safety_valve: str = DEFAULT_SAFETY_VALVE,
+    line_offset: int = 0,
+    extra_header: str = ""
 ) -> str:
     """Format binary data for display, with special handling for images."""
     size_bytes = len(data)
@@ -174,7 +177,8 @@ def format_binary_output(
     header_lines = [
         f"📄 File: {path}",
         f"   Type: Binary {'Image' if is_image else 'File'}",
-        f"   Size: {size_bytes:,} bytes ({size_kb:.1f} KB)"
+        f"   Size: {size_bytes:,} bytes ({size_kb:.1f} KB)",
+        f"   {extra_header}"
     ]
 
     result = "\n".join(header_lines)
@@ -189,7 +193,7 @@ def format_binary_output(
 
     try:
         text_content = data.decode('utf-8')
-        return result + format_text_output(path, text_content, lines_range, safety_valve)
+        return result + format_text_output(path, text_content, lines_range, safety_valve, line_offset)
     except UnicodeDecodeError:
         pass
 

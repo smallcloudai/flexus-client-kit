@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import os
+import time
 from typing import Dict, Any
 
 from pymongo import AsyncMongoClient
@@ -10,11 +11,13 @@ from flexus_client_kit import ckit_cloudtool
 from flexus_client_kit import ckit_bot_exec
 from flexus_client_kit import ckit_shutdown
 from flexus_client_kit import ckit_mongo
+from flexus_client_kit import ckit_kanban
 from flexus_client_kit.integrations import fi_mongo_store
 from flexus_client_kit.integrations import fi_linkedin
 from flexus_client_kit.integrations import fi_pdoc
 from flexus_client_kit.integrations.facebook.fi_facebook import IntegrationFacebook, FACEBOOK_TOOL
 from flexus_simple_bots.admonster import admonster_install
+from flexus_simple_bots.admonster import experiment_execution
 from flexus_simple_bots.version_common import SIMPLE_BOTS_COMMON_VERSION
 
 logger = logging.getLogger("bot_admonster")
@@ -32,6 +35,7 @@ TOOLS = [
     FACEBOOK_TOOL,
     fi_mongo_store.MONGO_STORE_TOOL,
     fi_pdoc.POLICY_DOCUMENT_TOOL,
+    experiment_execution.LAUNCH_EXPERIMENT_TOOL,
 ]
 
 
@@ -45,8 +49,7 @@ async def admonster_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_e
 
     pdoc_integration = fi_pdoc.IntegrationPdoc(rcx, rcx.persona.ws_root_group_id)
 
-    ad_account_id = setup.get("ad_account_id", "")
-    fb_ad_account_id = setup.get("facebook_ad_account_id", "")
+    linkedin_ad_account_id = setup.get("ad_account_id", "")
 
     linkedin_integration = None
     if (LINKEDIN_CLIENT_ID and LINKEDIN_CLIENT_SECRET) or rcx.running_test_scenario:
@@ -56,22 +59,14 @@ async def admonster_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_e
                 rcx=rcx,
                 app_id=LINKEDIN_CLIENT_ID,
                 app_secret=LINKEDIN_CLIENT_SECRET,
-                ad_account_id=ad_account_id,
+                ad_account_id=linkedin_ad_account_id,
             )
             logger.info("LinkedIn integration initialized for %s", rcx.persona.persona_id)
         except Exception as e:
             logger.warning("Failed to initialize LinkedIn integration: %s", e)
 
-    facebook_integration = None
-    try:
-        facebook_integration = IntegrationFacebook(
-            fclient=fclient,
-            rcx=rcx,
-            ad_account_id=fb_ad_account_id,
-        )
-        logger.info("Facebook integration initialized for %s", rcx.persona.persona_id)
-    except Exception as e:
-        logger.warning("Failed to initialize Facebook integration: %s", e, exc_info=e)
+    # Facebook integration — ad_account_id read from /company/ad-ops-config at runtime
+    facebook_integration = IntegrationFacebook(fclient=fclient, rcx=rcx, ad_account_id="", pdoc_integration=pdoc_integration)
 
     @rcx.on_tool_call(fi_linkedin.LINKEDIN_TOOL.name)
     async def toolcall_linkedin(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
@@ -93,9 +88,41 @@ async def admonster_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_e
     async def toolcall_pdoc(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
         return await pdoc_integration.called_by_model(toolcall, model_produced_args)
 
+    # Experiment execution integration for automated campaign management
+    experiment_integration = experiment_execution.IntegrationExperimentExecution(
+        pdoc_integration=pdoc_integration,
+        fclient=fclient,
+        facebook_integration=facebook_integration,
+    )
+
+    @rcx.on_updated_task
+    async def updated_task_in_db(t: ckit_kanban.FPersonaKanbanTaskOutput):
+        experiment_integration.track_experiment_task(t)
+
+    @rcx.on_tool_call(experiment_execution.LAUNCH_EXPERIMENT_TOOL.name)
+    async def toolcall_launch_experiment(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
+        return await experiment_integration.launch_experiment(toolcall, model_produced_args)
+
+    # Load existing tasks to track active experiments on startup
+    initial_tasks = await ckit_kanban.bot_get_all_tasks(fclient, rcx.persona.persona_id)
+    active_tasks = [t for t in initial_tasks if t.ktask_done_ts == 0]
+    for t in active_tasks:
+        experiment_integration.track_experiment_task(t)
+    logger.info(f"Initialized experiment tracking for {len(experiment_integration.tracked_experiments)} active experiments")
+
+    # Hourly polling interval for experiment monitoring (3600 seconds = 1 hour)
+    last_experiment_check = 0
+    experiment_check_interval = 3600
+
     try:
         while not ckit_shutdown.shutdown_event.is_set():
             await rcx.unpark_collected_events(sleep_if_no_work=10.0)
+
+            # Hourly check for active experiments
+            current_time = time.time()
+            if current_time - last_experiment_check > experiment_check_interval:
+                await experiment_integration.update_active_experiments()
+                last_experiment_check = current_time
     finally:
         logger.info("%s exit" % (rcx.persona.persona_id,))
 

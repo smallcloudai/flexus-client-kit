@@ -90,6 +90,7 @@ def validate_path(path: str, allow_empty: bool = False) -> Optional[str]:
 
 
 LOCALFILE_TOOL = ckit_cloudtool.CloudTool(
+    strict=False,
     name="localfile",
     description="Read local files, call with op=\"help\" for usage",
     parameters={

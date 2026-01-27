@@ -16,6 +16,7 @@ logger = logging.getLogger("pdocs")
 
 
 POLICY_DOCUMENT_TOOL = ckit_cloudtool.CloudTool(
+    strict=False,
     name="flexus_policy_document",
     description="List, read, update Policy Documents. Start with op=\"help\".",
     parameters={
@@ -58,21 +59,16 @@ flexus_policy_document(op="rm", args={"p": "/customer-research/interview-monsieu
     Archive (soft delete) a policy document.
 
 Typical paths:
-/company           -- heavily summarized version of all the other documents
-/testing-this-week -- business adjustments, summarized changes for this week
-/testing-today     -- the same, for today
-/jtbd-this-week    -- what is planned for this week
-/jtbd-today        -- for today
-/customer-research/interview-template
-/customer-research/interview-john-doe
-/historic-week-20251020/company
+/company/summary                                     -- A very compressed version of what the company is
+/company/style-guide                                 -- brand colors, fonts
+/gtm/discovery/{idea-slug}/idea                      -- bots save results and interact via documents
 
 You are working within a UI that lets the user to edit any policy documents mentioned, bypassing your
 function calls, kind of like IDE lets the user to change the source files.
-The UI reacts to tool results that have a line "✍️/path/to/document" to give user a link to that document to
-view or edit. Some rules for sitting within this UI:
+The UI reacts to tool results that have a line "✍️ /path/to/document" to give user a link to that document to
+view or edit. Some rules for operating within this UI:
 - Never dump json onto the user, the user is unlikely to be a software engineer, and they see a user-friendly version of the content anyway in the UI.
-- Don't mention document paths, for the same reason, read the files instead and write a table with available ideas or hypothesis, using human readable text.
+- Don't mention document paths, for the same reason, read the files instead, and write a table or text with things from documents, using human readable non-technical text.
 - If the user manually edits any documents - read them again to track changes, they might be crucial.
 """
 
@@ -93,6 +89,51 @@ class PdocDocument:
     pdoc_modified_ts: float
 
 
+def _format_tree(items: List[PdocListItem], base_path: str) -> tuple:
+    if not items:
+        return "", 0, 0
+    base = base_path.rstrip("/")
+
+    # Build tree structure: {path_tuple: (name, is_folder, doc_count)}
+    tree: dict = {}
+    for item in items:
+        rel = item.path[len(base):].lstrip("/") if item.path.startswith(base) else item.path.lstrip("/")
+        parts = tuple(rel.split("/"))
+        # Add intermediate folders
+        for i in range(1, len(parts)):
+            folder_parts = parts[:i]
+            if folder_parts not in tree:
+                tree[folder_parts] = (folder_parts[-1] + "/", True, 0)
+        # Add the item itself
+        name = parts[-1] + ("/" if item.is_folder else "")
+        if item.is_folder and item.doc_count:
+            name += f" ({item.doc_count})"
+        tree[parts] = (name, item.is_folder, item.doc_count)
+
+    sorted_paths = sorted(tree.keys())
+    doc_count = sum(1 for _, (_, is_folder, _) in tree.items() if not is_folder)
+    folder_count = sum(1 for _, (_, is_folder, _) in tree.items() if is_folder)
+
+    def get_children(parent):
+        plen = len(parent)
+        return [p for p in sorted_paths if len(p) == plen + 1 and p[:plen] == parent]
+
+    def render(parent, prefix=""):
+        children = get_children(parent)
+        lines = []
+        for i, child in enumerate(children):
+            is_last = i == len(children) - 1
+            name, is_folder, _ = tree[child]
+            connector = "└── " if is_last else "├── "
+            lines.append(prefix + connector + name)
+            if is_folder:
+                ext = "    " if is_last else "│   "
+                lines.extend(render(child, prefix + ext))
+        return lines
+
+    return "\n".join(render(())) + "\n", doc_count, folder_count
+
+
 class IntegrationPdoc:
     def __init__(
         self,
@@ -103,7 +144,6 @@ class IntegrationPdoc:
         self.rcx = rcx
         self.fclient = rcx.fclient
         self.fgroup_id = ws_root_group_id
-        self.problems = []
         self.is_fake = rcx.running_test_scenario
 
     async def called_by_model(self, toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Optional[Dict[str, Any]]) -> str:
@@ -126,15 +166,10 @@ class IntegrationPdoc:
                 p = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "p", "/")
                 if self.is_fake:
                     return await ckit_scenario.scenario_generate_tool_result_via_model(self.fclient, toolcall, open(__file__).read())
-                result = await self.pdoc_list(p, fuser_id)
+                result = await self.pdoc_list(p, fuser_id, depth=5)
+                tree_text, doc_count, folder_count = _format_tree(result, p)
                 r += f"Listing {p}\n\n"
-                for item in result:
-                    if item.is_folder:
-                        r += f"  {item.path}/ ({item.doc_count} documents)\n"
-                    else:
-                        r += f"  {item.path}\n"
-                doc_count = sum(1 for item in result if not item.is_folder)
-                folder_count = sum(1 for item in result if item.is_folder)
+                r += tree_text
                 r += f"\n{doc_count} documents and {folder_count} folders\n"
 
             elif op == "cat" or op == "read" or op == "activate":
@@ -145,6 +180,8 @@ class IntegrationPdoc:
                 if self.is_fake:
                     return await ckit_scenario.scenario_generate_tool_result_via_model(self.fclient, toolcall, open(__file__).read())
                 result = await self.pdoc_cat(p, fuser_id)
+                if not result:
+                    return f"Policy document not found: {p}"
                 if op == "activate":
                     r += f"✍️ {result.path}\n\n"
                 else:
@@ -215,7 +252,7 @@ class IntegrationPdoc:
                     return await ckit_scenario.scenario_generate_tool_result_via_model(self.fclient, toolcall, open(__file__).read())
 
                 await self.pdoc_rm(p, fuser_id)
-                r += f"✓ Archived policy document: {p}"
+                r += f"🗑 {p}\n\n"
 
             else:
                 r += f"Unknown op {op!r}\n\n{HELP}"
@@ -226,38 +263,38 @@ class IntegrationPdoc:
 
         return r
 
-    async def pdoc_list(self, p: str = "/", fuser_id: str = None) -> List[PdocListItem]:
+    async def pdoc_list(self, p: str = "/", fuser_id: str = None, depth: int = 1) -> List[PdocListItem]:
         http = await self.fclient.use_http()
         async with http as h:
             result = await h.execute(
                 gql.gql(f"""
-                    query PdocList($fgroup_id: String!, $p: String!, $fuser_id: String) {{
-                        policydoc_list(fgroup_id: $fgroup_id, p: $p, fuser_id: $fuser_id) {{
+                    query PdocList($fgroup_id: String!, $p: String!, $fuser_id: String, $depth: Int) {{
+                        policydoc_list(fgroup_id: $fgroup_id, p: $p, fuser_id: $fuser_id, depth: $depth) {{
                             {gql_utils.gql_fields(PdocListItem)}
                         }}
                     }}
                 """),
-                variable_values={"fgroup_id": self.fgroup_id, "p": p, "fuser_id": fuser_id},
+                variable_values={"fgroup_id": self.fgroup_id, "p": p, "fuser_id": fuser_id, "depth": depth},
             )
             items = result.get("policydoc_list", [])
             return [gql_utils.dataclass_from_dict(item, PdocListItem) for item in items]
 
-    async def pdoc_cat(self, p: str, fuser_id: str = None) -> PdocDocument:
+    async def pdoc_cat(self, p: str, fuser_id: str = None, best_effort_to_find: bool = False) -> Optional[PdocDocument]:
         http = await self.fclient.use_http()
         async with http as h:
             result = await h.execute(
                 gql.gql(f"""
-                    query PdocCat($fgroup_id: String!, $p: String!, $fuser_id: String) {{
-                        policydoc_cat(fgroup_id: $fgroup_id, p: $p, fuser_id: $fuser_id) {{
+                    query PdocCat($fgroup_id: String!, $p: String!, $fuser_id: String, $best_effort_to_find: Boolean) {{
+                        policydoc_cat(fgroup_id: $fgroup_id, p: $p, fuser_id: $fuser_id, best_effort_to_find: $best_effort_to_find) {{
                             {gql_utils.gql_fields(PdocDocument)}
                         }}
                     }}
                 """),
-                variable_values={"fgroup_id": self.fgroup_id, "p": p, "fuser_id": fuser_id},
+                variable_values={"fgroup_id": self.fgroup_id, "p": p, "fuser_id": fuser_id, "best_effort_to_find": best_effort_to_find},
             )
             doc = result.get("policydoc_cat")
             if not doc:
-                raise Exception(f"Policy document not found: {p}")
+                return None
             return gql_utils.dataclass_from_dict(doc, PdocDocument)
 
     async def pdoc_create(self, p: str, text: str, fuser_id: str) -> None:

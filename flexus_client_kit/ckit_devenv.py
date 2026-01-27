@@ -108,6 +108,40 @@ async def dev_environment_delete(fclient: ckit_client.FlexusClient, devenv_id: s
             variable_values={"id": devenv_id, "fuser_id": fuser_id},
         )
 
+@dataclass
+class FDevEnvApiKeyOutput:
+    apikey_id: str
+    full_key: str
+
+async def dev_environment_create_apikey(
+    fclient: ckit_client.FlexusClient,
+    devenv_id: str,
+    fuser_id: str,
+) -> FDevEnvApiKeyOutput:
+    http = await fclient.use_http()
+    async with http as h:
+        r = await h.execute(gql.gql("""
+            mutation BobCreateDevEnvApiKey($devenv_id: String!, $fuser_id: String!) {
+                dev_environment_create_apikey(devenv_id: $devenv_id, fuser_id: $fuser_id) {
+                    apikey_id
+                    full_key
+                }
+            }"""),
+            variable_values={"devenv_id": devenv_id, "fuser_id": fuser_id},
+        )
+    return gql_utils.dataclass_from_dict(r["dev_environment_create_apikey"], FDevEnvApiKeyOutput)
+
+async def dev_environment_get_github_auth_url(fclient: ckit_client.FlexusClient, devenv_id: str) -> str:
+    http = await fclient.use_http()
+    async with http as h:
+        r = await h.execute(gql.gql("""
+            query BobGetGitHubAuthUrl($devenv_id: String!) {
+                dev_environment_get_github_auth_url(devenv_id: $devenv_id)
+            }"""),
+            variable_values={"devenv_id": devenv_id},
+        )
+    return r["dev_environment_get_github_auth_url"]
+
 async def format_devenv_list(fclient: ckit_client.FlexusClient, fgroup_id: str) -> str:
     devenv_list = await dev_environments_list_in_subgroups(fclient, fgroup_id)
     if devenv_list:
@@ -117,3 +151,6 @@ async def format_devenv_list(fclient: ckit_client.FlexusClient, fgroup_id: str) 
         result += "And public repositories\n"
         return result
     return "No dev environments configured.\nPublic repositories are available.\n"
+
+
+

@@ -4,14 +4,38 @@ Skill: Diagnostic Analysis
 Classifies hypothesis, identifies unknowns, assesses feasibility.
 First step after input collection.
 
-Input data: /marketing-experiments/{experiment_id}/input
-Output data: /marketing-experiments/{experiment_id}/diagnostic
+Input data: /gtm/discovery/{experiment_id}/input
+Output data: /gtm/discovery/{experiment_id}/diagnostic
+
+## Pattern: Domain Expertise Skills
+
+This skill demonstrates the target pattern for bot skills:
+
+1. **Domain, not Scenario** — "diagnostic analysis" is a domain (marketing hypothesis analysis),
+   not a narrow scenario. The skill prompt instructs WHAT to analyze, but the task description
+   from PM determines the specific instance.
+
+2. **Input from Task** — Input artifacts (documents/threads) come via task.task_input_artifacts.
+   The skill reads them at start. This is flexible — any document matching the domain can be input.
+
+3. **Output via Document Type** — The output format is defined by a document_type blueprint.
+   PM specifies task.task_output_dtype_id when creating the task. Skill produces output matching
+   that schema. Schema is in dtype_schema_prompt field of the document_type.
+
+4. **Instructions via Task Description** — Specific instructions ("focus on segment X", 
+   "compare with experiment Y") come from task.task_description, not hardcoded in skill.
+
+This allows ONE skill definition to handle MANY task variations, as long as they're 
+in the same domain. PM orchestrates by picking right skill + right document_type + 
+right input artifacts + right task description.
 """
 
 SKILL_NAME = "diagnostic"
-SKILL_DESCRIPTION = "Diagnostic Analysis — classifying hypothesis, identifying unknowns"
+SKILL_DESCRIPTION = "Diagnostic Analysis — classifying hypothesis, identifying unknowns, assessing feasibility"
 
 REQUIRES_STEP = "input"
+# Document type that this skill produces (defined in workspace document_types)
+PRODUCES_DOCTYPE = "diagnostic_v1"
 
 LARK_KERNEL = '''
 msg = messages[-1]
@@ -104,11 +128,19 @@ The input document is provided below in your first message — no need to read i
 
 ## Output Format
 
-Save this JSON to /marketing-experiments/{experiment_id}/diagnostic:
+Save this JSON to /gtm/discovery/{experiment_id}/diagnostic:
+
+**CRITICAL**: Document MUST be wrapped in `diagnostic` key with `meta` object for UI to show custom form.
 
 ```json
 {
-  "normalized_hypothesis": "Clear restatement of what we're testing",
+  "diagnostic": {
+    "meta": {
+      "experiment_id": "hyp004-example",
+      "created_at": "2025-12-16",
+      "step": "diagnostic"
+    },
+    "normalized_hypothesis": "Clear restatement of what we're testing",
   "primary_type": "value|segment|messaging|channel|pricing|conversion|retention",
   "primary_type_reasoning": "WHY this type — explain in 2-3 sentences what makes this a messaging/value/etc hypothesis",
   "secondary_types": ["..."],
@@ -140,10 +172,11 @@ Save this JSON to /marketing-experiments/{experiment_id}/diagnostic:
     "Concrete action 2"
   ],
   
-  "questions_to_resolve": [
-    "Open question 1 to discuss with user before proceeding",
-    "Open question 2"
-  ]
+    "questions_to_resolve": [
+      "Open question 1 to discuss with user before proceeding",
+      "Open question 2"
+    ]
+  }
 }
 ```
 

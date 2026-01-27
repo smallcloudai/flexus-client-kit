@@ -76,13 +76,13 @@ async def install(
         marketable_run_this="python -m flexus_simple_bots.owl_strategist.owl_strategist_bot",
         marketable_setup_default=[],
         marketable_featured_actions=[
-            {"feat_question": "Help me create a strategy for my hypothesis", "feat_run_as_setup": False, "feat_depends_on_setup": []},
-            {"feat_question": "Analyze my product idea", "feat_run_as_setup": False, "feat_depends_on_setup": []},
+            {"feat_question": "Help me create a strategy for my hypothesis", "feat_depends_on_setup": [], "feat_expert": "default"},
+            {"feat_question": "Analyze my product idea", "feat_depends_on_setup": [], "feat_expert": "default"},
         ],
         marketable_intro_message="Hi! I'm Owl Strategist 🦉 I help founders validate hypotheses and create marketing strategies. Tell me about your product — what do you want to test?",
         marketable_preferred_model_default="gpt-5.1",
-        marketable_daily_budget_default=500_000,
-        marketable_default_inbox_default=50_000,
+        marketable_daily_budget_default=999_999_999,
+        marketable_default_inbox_default=999_999_999,
         marketable_experts=[
             # Orchestrator — talks to human, manages pipeline
             ("default", ckit_bot_install.FMarketplaceExpertInput(
@@ -153,6 +153,7 @@ async def install(
         marketable_picture_big_b64=pic_big,
         marketable_picture_small_b64=pic_small,
         marketable_schedule=[],
+        marketable_forms=ckit_bot_install.load_form_bundles(__file__),
     )
 
 

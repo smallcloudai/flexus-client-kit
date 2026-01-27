@@ -126,17 +126,20 @@ Use this ONCE per project to establish brand consistency.
 
 ## Generating Images
 
-picturegen() makes pictures inside mongodb temp storage, and gives you the picture to see immediately.
+picturegen() creates pictures inside mongodb temp storage, and gives you the picture to see immediately.
 
-**Image Generation Backends:**
-- `nano_banana` (default): Google Gemini - fast, supports native aspect ratios (1:1, 4:5, 9:16, 16:9, etc.)
-- `openai`: DALL-E 3 - high quality, fixed sizes (1024x1024, 1024x1536, 1536x1024)
+**Image Generation:**
+- quality="draft" (default): Fast Gemini Flash model for concept iteration
+- quality="final": Pro Gemini model for production assets (use ONLY after user approval!)
+- resolution="1K" or "2K" (only for final quality)
 
-**Recommended for Meta Ads:**
-- Feed Square: size="1:1" (nano_banana) or size="1024x1024" (openai)
-- Feed Portrait: size="4:5" (nano_banana)
-- Stories: size="9:16" (nano_banana)
-- Landscape: size="16:9" (nano_banana) or size="1536x1024" (openai)
+**Aspect ratios for Meta Ads:**
+- Feed Square: size="1:1"
+- Feed Portrait: size="4:5"
+- Stories: size="9:16"
+- Landscape: size="16:9"
+
+**Reference images:** Use reference_image_url to include brand logo (MANDATORY for ad creatives!)
 
 For filename choose something like "pictures/neon-elephant-at-night--buy-our-elephants.png", that is
 Use kebab-case, name consists of picture idea, double minus, text messaging within the picture.

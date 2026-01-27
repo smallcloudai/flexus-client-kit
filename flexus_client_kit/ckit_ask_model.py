@@ -173,7 +173,7 @@ async def bot_activate(
     client: ckit_client.FlexusClient,
     who_is_asking: str,
     persona_id: str,
-    skill: str,
+    fexp_name: str,
     first_question: str,
     first_calls: Any = None,
     title: str = "",
@@ -182,19 +182,19 @@ async def bot_activate(
     ft_btest_name: str = "",
     model: str = "",
 ) -> str:
-    title = title or (skill + " " + time.strftime("%Y%m%d %H:%M:%S"))
+    title = title or (fexp_name + " " + time.strftime("%Y%m%d %H:%M:%S"))
     assert re.match(r'^[a-z0-9_]+$', who_is_asking)
     camel_case_for_logs = "".join(word.capitalize() for word in who_is_asking.split("_"))
     http = await client.use_http()
     async with http as h:
         r = await h.execute(
-            gql.gql(f"""mutation {camel_case_for_logs}BotActivate($who_is_asking: String!, $persona_id: String!, $skill: String!, $first_question: String!, $first_calls: String!, $title: String!, $sched_id: String!, $fexp_id: String!, $ft_btest_name: String!, $model: String!) {{
-                bot_activate(who_is_asking: $who_is_asking, persona_id: $persona_id, skill: $skill, first_question: $first_question, first_calls: $first_calls, title: $title, sched_id: $sched_id, fexp_id: $fexp_id, ft_btest_name: $ft_btest_name, model: $model) {{ ft_id }}
+            gql.gql(f"""mutation {camel_case_for_logs}BotActivate($who_is_asking: String!, $persona_id: String!, $fexp_name: String!, $first_question: String!, $first_calls: String!, $title: String!, $sched_id: String!, $fexp_id: String!, $ft_btest_name: String!, $model: String!) {{
+                bot_activate(who_is_asking: $who_is_asking, persona_id: $persona_id, fexp_name: $fexp_name, first_question: $first_question, first_calls: $first_calls, title: $title, sched_id: $sched_id, fexp_id: $fexp_id, ft_btest_name: $ft_btest_name, model: $model) {{ ft_id }}
             }}"""),
             variable_values={
                 "who_is_asking": who_is_asking,
                 "persona_id": persona_id,
-                "skill": skill,
+                "fexp_name": fexp_name,
                 "first_question": first_question,
                 "first_calls": json.dumps(first_calls),
                 "title": title,
@@ -216,7 +216,7 @@ async def bot_subchat_create_multiple(
     first_calls: List[str],
     title: List[str],
     fcall_id: str,
-    skill: str,
+    fexp_name: str,
     max_tokens: Optional[int] = None,
     temperature: Optional[float] = None,
     model: str = "",
@@ -226,8 +226,8 @@ async def bot_subchat_create_multiple(
     http = await client.use_http()
     async with http as h:
         result = await h.execute(
-            gql.gql(f"""mutation {camel_case_for_logs}BotSubchatCreateMultiple($who_is_asking: String!, $persona_id: String!, $first_question: [String!]!, $first_calls: [String!]!, $title: [String!]!, $fcall_id: String!, $skill: String!, $max_tokens: Int, $temperature: Float, $model: String) {{
-                bot_subchat_create_multiple(who_is_asking: $who_is_asking, persona_id: $persona_id, first_question: $first_question, first_calls: $first_calls, title: $title, fcall_id: $fcall_id, skill: $skill, max_tokens: $max_tokens, temperature: $temperature, model: $model)
+            gql.gql(f"""mutation {camel_case_for_logs}BotSubchatCreateMultiple($who_is_asking: String!, $persona_id: String!, $first_question: [String!]!, $first_calls: [String!]!, $title: [String!]!, $fcall_id: String!, $fexp_name: String!, $max_tokens: Int, $temperature: Float, $model: String) {{
+                bot_subchat_create_multiple(who_is_asking: $who_is_asking, persona_id: $persona_id, first_question: $first_question, first_calls: $first_calls, title: $title, fcall_id: $fcall_id, fexp_name: $fexp_name, max_tokens: $max_tokens, temperature: $temperature, model: $model)
             }}"""),
             variable_values={
                 "who_is_asking": who_is_asking,
@@ -236,7 +236,7 @@ async def bot_subchat_create_multiple(
                 "first_calls": first_calls,
                 "title": title,
                 "fcall_id": fcall_id,
-                "skill": skill,
+                "fexp_name": fexp_name,
                 "max_tokens": max_tokens,
                 "temperature": temperature,
                 "model": model,

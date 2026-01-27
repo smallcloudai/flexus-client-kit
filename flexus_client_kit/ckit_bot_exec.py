@@ -21,6 +21,10 @@ from flexus_client_kit import erp_schema
 logger = logging.getLogger("btexe")
 
 
+class RestartBot(Exception):
+    pass
+
+
 def official_setup_mixing_procedure(marketable_setup_default, persona_setup) -> Dict[str, Union[str, int, float, bool, list]]:
     """
     Returns setup dict for a bot to run with. If a value is not set in persona_setup by the user, returns the default.
@@ -68,19 +72,22 @@ class RobotContext:
         self._handler_updated_task: Optional[Callable[[ckit_kanban.FPersonaKanbanTaskOutput], Awaitable[None]]] = None
         self._handler_per_tool: Dict[str, Callable[[Dict[str, Any]], Awaitable[str]]] = {}
         self._handler_per_erp_table_change: Dict[str, Callable[[str, Optional[Any], Optional[Any]], Awaitable[None]]] = {}
-        self._reached_main_loop = False
+        self._handler_per_emessage_type: Dict[str, Callable[[ckit_bot_query.FExternalMessageOutput], Awaitable[None]]] = {}
+        self._restart_requested = False
         self._completed_initial_unpark = False
         self._parked_messages: Dict[str, ckit_ask_model.FThreadMessageOutput] = {}
         self._parked_threads: Dict[str, ckit_ask_model.FThreadOutput] = {}
         self._parked_tasks: Dict[str, ckit_kanban.FPersonaKanbanTaskOutput] = {}
         self._parked_toolcalls: List[ckit_cloudtool.FCloudtoolCall] = []
         self._parked_erp_changes: List[tuple[str, str, Optional[Dict[str, Any]], Optional[Dict[str, Any]]]] = []
+        self._parked_emessages: Dict[str, ckit_bot_query.FExternalMessageOutput] = {}
         self._parked_anything_new = asyncio.Event()
         # These fields are designed for direct access:
         self.fclient = fclient
         self.persona = p
         self.latest_threads: Dict[str, ckit_bot_query.FThreadWithMessages] = dict()
         self.latest_tasks: Dict[str, ckit_kanban.FPersonaKanbanTaskOutput] = dict()
+        self.bg_call_tasks: set[asyncio.Task] = set()
         self.created_ts = time.time()
         self.workdir = "/tmp/bot_workspace/%s/" % p.persona_id
         self.running_test_scenario = False
@@ -113,9 +120,14 @@ class RobotContext:
             return handler
         return decorator
 
-    async def unpark_collected_events(self, sleep_if_no_work: float, turn_tool_calls_into_tasks: bool = False) -> List[asyncio.Task]:
+    def on_emessage(self, channel: str):
+        def decorator(handler: Callable[[ckit_bot_query.FExternalMessageOutput], Awaitable[None]]):
+            self._handler_per_emessage_type[channel] = handler
+            return handler
+        return decorator
+
+    async def unpark_collected_events(self, sleep_if_no_work: float, turn_tool_calls_into_bg_tasks: set[str] = set()) -> None:
         # logger.info("%s unpark_collected_events() started %d %d %d" % (self.persona.persona_id, len(self._parked_messages), len(self._parked_threads), len(self._parked_toolcalls)))
-        self._reached_main_loop = True
         did_anything = False
         self._parked_anything_new.clear()
 
@@ -163,77 +175,105 @@ class RobotContext:
                 except Exception as e:
                     logger.error("%s error in on_erp_change(%r) handler: %s\n%s", self.persona.persona_id, table_name, type(e).__name__, e, exc_info=e)
 
+        emessages = list(self._parked_emessages.values())
+        self._parked_emessages.clear()
+        handled_emessage_ids = []
+        for emsg in emessages:
+            did_anything = True
+            handler = self._handler_per_emessage_type.get(emsg.emessage_type)
+            if handler:
+                try:
+                    await handler(emsg)
+                    handled_emessage_ids.append(emsg.emessage_id)
+                except Exception as e:
+                    logger.error("%s error in on_emessage(%r) handler: %s\n%s", self.persona.persona_id, emsg.emessage_type, type(e).__name__, e, exc_info=e)
+        if handled_emessage_ids:
+            async with (await self.fclient.use_http()) as http:
+                await http.execute(gql.gql("""mutation DeleteEmessages($ids: [String!]!) {
+                    emessages_delete(emessage_ids: $ids)
+                }"""), variable_values={"ids": handled_emessage_ids})
+
         mycalls = list(self._parked_toolcalls)
         self._parked_toolcalls.clear()
-        bg_calls = []
         for c in mycalls:
             did_anything = True
-            if not turn_tool_calls_into_tasks:  # run immediately and wait
+            if c.fcall_name not in self._handler_per_tool:
+                logger.error("%s tool call %s for %s has no handler. Available handlers: %r", self.persona.persona_id, c.fcall_id, c.fcall_name, list(self._handler_per_tool.keys()))
+                continue
+            if c.fcall_name not in turn_tool_calls_into_bg_tasks:
                 try:
                     await self._local_tool_call(self.fclient, c)
                 except Exception as e:
                     logger.error("%s error in on_tool_call() handler: %s\n%s", self.persona.persona_id, type(e).__name__, e, exc_info=e)
             else:
-                bg_calls.append(asyncio.create_task(self._local_tool_call(self.fclient, c)))
+                task = asyncio.create_task(self._local_tool_call(self.fclient, c))
+                task.add_done_callback(lambda t: self.bg_call_tasks.discard(t))
+                self.bg_call_tasks.add(task)
 
         if not did_anything:
             self._completed_initial_unpark = True
+            if self._restart_requested and not self.bg_call_tasks:
+                raise RestartBot()
             try:
                 await asyncio.wait_for(self._parked_anything_new.wait(), timeout=sleep_if_no_work)
             except asyncio.TimeoutError:
                 pass
 
-        return bg_calls   # empty if not turn_tool_calls_into_tasks (most regular bots)
-
+    async def wait_for_bg_tasks(self, timeout: float = 10.0) -> None:
+        if not self.bg_call_tasks:
+            return
+        logger.info("%s waiting for %d background tasks to complete" % (self.persona.persona_id, len(self.bg_call_tasks)))
+        done, pending = await asyncio.wait(self.bg_call_tasks, timeout=timeout, return_when=asyncio.ALL_COMPLETED)
+        if pending:
+            logger.warning("%s still have %d pending tasks after timeout" % (self.persona.persona_id, len(pending)))
+            for task in pending:
+                task.cancel()
+            await asyncio.gather(*pending, return_exceptions=True)
 
     async def _local_tool_call(self, fclient: ckit_client.FlexusClient, toolcall: ckit_cloudtool.FCloudtoolCall) -> None:
         logger.info("%s local_tool_call %s %s(%s) from thread %s" % (self.persona.persona_id, toolcall.fcall_id, toolcall.fcall_name, toolcall.fcall_arguments, toolcall.fcall_ft_id))
-        already_serialized = False
         subchats_list = None
+        dollars = 0.0
         try:
             args = json.loads(toolcall.fcall_arguments)
             if not isinstance(args, dict):
                 raise json.JSONDecodeError("Toplevel is not a dict")
             handler = self._handler_per_tool[toolcall.fcall_name]
             tool_result = await handler(toolcall, args)
-            if isinstance(tool_result, list):  # Multimodal [{m_type: .., m_content: ...}, ...]
-                for item in tool_result:
-                    if not isinstance(item, dict):
-                        raise ValueError("Tool call handler returned list with non-dict item: %r" % (item,))
-                    if "m_type" not in item or "m_content" not in item:
-                        raise ValueError("Tool call handler list items must have m_type and m_content: %r" % (item,))
-                    if not isinstance(item["m_type"], str) or not isinstance(item["m_content"], str):
-                        raise ValueError("m_type and m_content must be strings: %r" % (item,))
-                tool_result = json.dumps(tool_result)
-                already_serialized = True
-            elif not isinstance(tool_result, str):
-                raise ValueError("Tool call handler must return a string or list, got instead: %r" % (tool_result,))
-            if tool_result == "":
-                logger.warning("Tool call %s returned an empty string. Bad practice, model will not know what's happening!" % toolcall.fcall_name)
-        except json.JSONDecodeError:
+            if isinstance(tool_result, ckit_cloudtool.ToolResult):
+                serialized_result = tool_result.to_serialized()
+                dollars = tool_result.dollars
+            elif isinstance(tool_result, str):
+                if tool_result == "":
+                    logger.warning("Tool call %s returned an empty string. Bad practice, model will not know what's happening!" % toolcall.fcall_name)
+                serialized_result = json.dumps(tool_result)
+            else:
+                raise ValueError("Tool call handler must return ToolResult or str, got instead: %r" % (tool_result,))
+        except json.JSONDecodeError as e:
             # nothing in logs -- normal for a model to produce garbage on occasion
-            tool_result = "Arguments expected to be a valid json, instead got: %r" % args
+            serialized_result = json.dumps("Arguments expected to be a valid json, problem: %s" % e)
         except ckit_cloudtool.WaitForSubchats as e:
-            tool_result = "WAIT_SUBCHATS"
+            serialized_result = json.dumps("WAIT_SUBCHATS")
             subchats_list = e.subchats
+        except ckit_cloudtool.AlreadyPostedResult:
+            logger.info("call %s result already posted" % toolcall.fcall_id)
+            return
         except ckit_cloudtool.NeedsConfirmation as e:
             logger.info("%s needs human confirmation: %s" % (toolcall.fcall_id, e.confirm_explanation))
             await ckit_cloudtool.cloudtool_confirmation_request(fclient, toolcall.fcall_id, e.confirm_setup_key, e.confirm_command, e.confirm_explanation)
-            tool_result = "POSTED_NEED_CONFIRMATION"
+            return
         except gql.transport.exceptions.TransportQueryError as e:
             logger.error("%s The construction of system prompt and tools generally should not produce backend errors, but here's one: %s", toolcall.fcall_id, e, exc_info=e)
-            tool_result = f"Error: {e}"  # Pass through GraphQL error messages to the model
+            serialized_result = json.dumps(f"Error: {e}")  # Pass through GraphQL error messages to the model
         except Exception as e:
             logger.error("%s Tool call failed: %s" % (toolcall.fcall_id, e), exc_info=e)  # full error and stack for the author of the bot
-            tool_result = "Tool error, see logs for details"  # Not too much visible for end user
+            serialized_result = json.dumps("Tool error, see logs for details")  # Not too much visible for end user
+
         prov_dict = {"system": fclient.service_name}
         if subchats_list is not None:
             prov_dict["subchats_started"] = subchats_list
         prov = json.dumps(prov_dict)
-        if tool_result != "POSTED_NEED_CONFIRMATION" and tool_result != "ALREADY_POSTED_RESULT":
-            if not already_serialized:
-                tool_result = json.dumps(tool_result)
-            await ckit_cloudtool.cloudtool_post_result(fclient, toolcall.fcall_id, toolcall.fcall_untrusted_key, tool_result, prov, as_placeholder=bool(subchats_list))
+        await ckit_cloudtool.cloudtool_post_result(fclient, toolcall.fcall_id, toolcall.fcall_untrusted_key, serialized_result, prov, dollars=dollars, as_placeholder=bool(subchats_list))
 
 
 class BotInstance(NamedTuple):
@@ -247,6 +287,9 @@ async def crash_boom_bang(fclient: ckit_client.FlexusClient, rcx: RobotContext, 
     while not ckit_shutdown.shutdown_event.is_set():
         try:
             await bot_main_loop(fclient, rcx)
+        except RestartBot:
+            logger.info("%s restart requested after completing all pending work", rcx.persona.persona_id)
+            break
         except asyncio.CancelledError:
             break
         except Exception as e:
@@ -307,6 +350,7 @@ class BotsCollection:
         inprocess_tools: List[ckit_cloudtool.CloudTool],
         bot_main_loop: Callable[[ckit_client.FlexusClient, RobotContext], Awaitable[None]],
         subscribe_to_erp_tables: List[str] = [],
+        subscribe_to_emessage_types: List[str] = [],
         running_test_scenario: bool = False,
         running_happy_yaml: str = "",
     ):
@@ -315,11 +359,13 @@ class BotsCollection:
         self.marketable_version = marketable_version
         self.inprocess_tools = inprocess_tools
         self.bot_main_loop = bot_main_loop
-        self.subscribe_to_erp_tables = subscribe_to_erp_tables
         self.bots_running: Dict[str, BotInstance] = {}
+        self.shutting_down_tasks: set[asyncio.Task] = set()
         self.thread_tracker: Dict[str, ckit_bot_query.FThreadWithMessages] = {}
         self.running_test_scenario = running_test_scenario
         self.running_happy_yaml = running_happy_yaml
+        self.subscribe_to_erp_tables = subscribe_to_erp_tables
+        self.subscribe_to_emessage_types = subscribe_to_emessage_types
 
 
 async def subscribe_and_produce_callbacks(
@@ -327,11 +373,14 @@ async def subscribe_and_produce_callbacks(
     ws_client: gql.Client,
     bc: BotsCollection,
 ):
-    MAX_THREADS = 100
+    MAX_THREADS = 1000
     # XXX check if it will really crash downstream without this check
     assert fclient.service_name.startswith(bc.marketable_name)
 
     bc.thread_tracker.clear()  # Control reaches this after exception and reconnect, a new subscription will send all the threads anew, need to clear
+
+    if bc.subscribe_to_erp_tables:
+        logger.info(f"Subscribing to ERP tables: {bc.subscribe_to_erp_tables}")
 
     async with ws_client as ws:
         assert fclient.ws_id is not None or fclient.group_id is not None
@@ -339,8 +388,8 @@ async def subscribe_and_produce_callbacks(
         use_group_id = fclient.group_id if fclient.group_id else None
         use_ws_id_prefix = None if use_group_id else fclient.ws_id
         async for r in ws.subscribe(
-            gql.gql(f"""subscription KarenThreads($marketable_name: String!, $marketable_version: Int!, $inprocess_tool_names: [String!]!, $want_erp_tables: [String!]!, $ws_id_prefix: String, $group_id: String) {{
-                bot_threads_calls_tasks(marketable_name: $marketable_name, marketable_version: $marketable_version, inprocess_tool_names: $inprocess_tool_names, max_threads: {MAX_THREADS}, want_personas: true, want_threads: true, want_messages: true, want_tasks: true, want_erp_tables: $want_erp_tables, ws_id_prefix: $ws_id_prefix, group_id: $group_id) {{
+            gql.gql(f"""subscription KarenThreads($marketable_name: String!, $marketable_version: Int!, $inprocess_tool_names: [String!]!, $want_erp_tables: [String!]!, $want_emessage_types: [String!]!, $ws_id_prefix: String, $group_id: String) {{
+                bot_threads_calls_tasks(marketable_name: $marketable_name, marketable_version: $marketable_version, inprocess_tool_names: $inprocess_tool_names, max_threads: {MAX_THREADS}, want_personas: true, want_threads: true, want_messages: true, want_tasks: true, want_erp_tables: $want_erp_tables, want_emessage_types: $want_emessage_types, ws_id_prefix: $ws_id_prefix, group_id: $group_id) {{
                     {gql_utils.gql_fields(ckit_bot_query.FBotThreadsCallsTasks)}
                 }}
             }}"""),
@@ -349,6 +398,7 @@ async def subscribe_and_produce_callbacks(
                 "marketable_version": bc.marketable_version,
                 "inprocess_tool_names": [t.name for t in bc.inprocess_tools],
                 "want_erp_tables": bc.subscribe_to_erp_tables,
+                "want_emessage_types": bc.subscribe_to_emessage_types,
                 "ws_id_prefix": use_ws_id_prefix,
                 "group_id": use_group_id,
             },
@@ -364,15 +414,15 @@ async def subscribe_and_produce_callbacks(
                     assert upd.news_payload_persona.ws_timezone
                     handled = True
                     persona_id = upd.news_payload_id
+
                     if bot := bc.bots_running.get(persona_id, None):
                         if bot.instance_rcx.persona.persona_setup != upd.news_payload_persona.persona_setup:
-                            logger.info("Persona %s setup changed, restarting bot." % persona_id)
-                            bc.bots_running[persona_id].atask.cancel()
-                            try:
-                                await bc.bots_running[persona_id].atask
-                            except asyncio.CancelledError:
-                                pass
+                            logger.info("Persona %s setup changed, requesting graceful shutdown" % persona_id)
                             del bc.bots_running[persona_id]
+                            bc.shutting_down_tasks.add(bot.atask)
+                            bot.atask.add_done_callback(bc.shutting_down_tasks.discard)
+                            bot.instance_rcx._restart_requested = True
+                            bot.instance_rcx._parked_anything_new.set()
                     if persona_id not in bc.bots_running:
                         rcx = RobotContext(fclient, upd.news_payload_persona)
                         rcx.running_test_scenario = bc.running_test_scenario
@@ -407,6 +457,8 @@ async def subscribe_and_produce_callbacks(
                     if persona_id in bc.bots_running:
                         bc.bots_running[persona_id].instance_rcx._parked_threads[thread.ft_id] = thread
                         bc.bots_running[persona_id].instance_rcx._parked_anything_new.set()
+                    else:
+                        logger.info("Thread update %s is about persona=%s which is not running here." % (thread.ft_id, persona_id))
                     reassign_threads = True
 
                 elif upd.news_action in ["DELETE", "STOP_TRACKING"]:
@@ -446,27 +498,9 @@ async def subscribe_and_produce_callbacks(
                     toolcall = upd.news_payload_toolcall
                     persona_id = toolcall.connected_persona_id
                     if persona_id in bc.bots_running:
-                        bot = bc.bots_running[persona_id]
-                        if toolcall.fcall_name not in bot.instance_rcx._handler_per_tool:
-                            # give bot main loop a couple of seconds to start up and install the handler, it's async everything here ... :/
-                            for _ in range(10):
-                                if bot.instance_rcx._reached_main_loop:
-                                    break
-                                if await ckit_shutdown.wait(1):
-                                    break
-                        set1 = set(t.name for t in bc.inprocess_tools)
-                        set2 = set(bot.instance_rcx._handler_per_tool.keys())
-                        if set1 != set2:
-                            logger.error(
-                                "Whoops make sure you call on_tool_call() for each of inprocess_tools.\nYou advertise: %r\nYou have hanlders: %r"
-                                % (set1, set2)
-                            )
-                            ckit_shutdown.shutdown_event.set()
-                            break
-                        assert toolcall.fcall_name in set1
-                        assert toolcall.fcall_name in set2
-                        bot.instance_rcx._parked_toolcalls.append(toolcall)
-                        bot.instance_rcx._parked_anything_new.set()
+                        logger.info("%s parked tool call %s %s", persona_id, toolcall.fcall_id, toolcall.fcall_name)
+                        bc.bots_running[persona_id].instance_rcx._parked_toolcalls.append(toolcall)
+                        bc.bots_running[persona_id].instance_rcx._parked_anything_new.set()
                     else:
                         logger.info("%s is about persona=%s which is not running here." % (toolcall.fcall_id, persona_id))
 
@@ -489,7 +523,7 @@ async def subscribe_and_produce_callbacks(
 
             elif upd.news_about.startswith("erp."):
                 table_name = upd.news_about[4:]
-                if upd.news_action in ["INSERT", "UPDATE", "DELETE"]:
+                if upd.news_action in ["INSERT", "UPDATE", "DELETE", "ARCHIVE"]:
                     handled = True
                     new_record = upd.news_payload_erp_record_new
                     old_record = upd.news_payload_erp_record_old
@@ -497,9 +531,17 @@ async def subscribe_and_produce_callbacks(
                         bot.instance_rcx._parked_erp_changes.append((table_name, upd.news_action, new_record, old_record))
                         bot.instance_rcx._parked_anything_new.set()
 
+            elif upd.news_about == "flexus_persona_external_message":
+                if upd.news_action == "EMESSAGE" and upd.news_payload_emessage:
+                    handled = True
+                    emsg = upd.news_payload_emessage
+                    if bot := bc.bots_running.get(emsg.emessage_persona_id):
+                        bot.instance_rcx._parked_emessages[emsg.emessage_id] = emsg
+                        bot.instance_rcx._parked_anything_new.set()
+
             elif upd.news_action == "INITIAL_UPDATES_OVER":
                 if len(bc.bots_running) == 0:
-                    logger.warning("backend knows of zero bots with marketable_name=%r and marketable_version=%r, if you are trying to run a dev bot, the previous dev bot might got upgraded to a build (not dev) version" % (
+                    logger.warning("backend knows of zero bots with marketable_name=%r and marketable_version=%r, a fix to this is to go to marketplace and hire one, careful to hire a dev version if that's what you are trying to run." % (
                         bc.marketable_name, bc.marketable_version
                     ))
                 handled = True
@@ -514,7 +556,7 @@ async def subscribe_and_produce_callbacks(
                 logger.warning("Subscription has sent me something I can't understand:\n%s\n" % upd)
 
             if reassign_threads:
-                assert len(bc.thread_tracker) <= MAX_THREADS, "backend should send STOP_TRACKING wtf"   # actually sometimes triggers after reconnect :/
+                assert len(bc.thread_tracker) <= MAX_THREADS, "backend should send STOP_TRACKING wtf"
                 # There we go, now it's O(1) because it's limited
                 for bot in bc.bots_running.values():
                     to_test = list(bot.instance_rcx.latest_threads.keys())
@@ -612,10 +654,10 @@ async def run_happy_trajectory(
     last_human_message = ""
     try:
         assert "__" in skill__scenario
-        skill = skill__scenario.split("__")[0]
-        assert skill != "default", "the first part before \"__\" in scenario name should be the bot name, not \"default\""
-        if skill == scenario.persona.persona_marketable_name:
-            skill = "default"
+        fexp_name = skill__scenario.split("__")[0]
+        assert fexp_name != "default", "the first part before \"__\" in scenario name should be the bot name, not \"default\""
+        if fexp_name == scenario.persona.persona_marketable_name:
+            fexp_name = "default"
         for step in range(max_steps):
             ht1 = time.time()
             result = await ckit_scenario.scenario_generate_human_message(
@@ -637,12 +679,12 @@ async def run_happy_trajectory(
                     client=scenario.fclient,
                     who_is_asking="trajectory_scenario",
                     persona_id=scenario.persona.persona_id,
-                    skill=skill,
+                    fexp_name=fexp_name,
                     first_question=result.next_human_message,
                     first_calls=first_calls,
                     title="Trajectory Test",
                     ft_btest_name=skill__scenario,
-                    model=scenario.explicit_model,
+                    model=model_name,
                 )
                 logger.info(f"Scenario thread {ft_id}")
             else:
@@ -829,6 +871,7 @@ async def run_bots_in_this_group(
     scenario_fn: str,
     install_func: Callable[[ckit_client.FlexusClient, str], Awaitable[None]],
     subscribe_to_erp_tables: List[str] = [],
+    subscribe_to_emessage_types: List[str] = [],
 ) -> None:
     marketable_version = ckit_client.marketplace_version_as_int(marketable_version_str)
 
@@ -836,7 +879,7 @@ async def run_bots_in_this_group(
         raise ValueError("Both ws_id and group_id are set, only one is allowed")
 
     if fclient.use_ws_ticket:
-        if not fclient.ws_id and not fclient.group_id:
+        if fclient.ws_id is None and not fclient.group_id:
             raise ValueError("Neither ws_id nor group_id is set, one is required")
         ws_id_prefix = fclient.ws_id  # None if using group_id
 
@@ -866,7 +909,6 @@ async def run_bots_in_this_group(
     scenario_task = None
     running_test_scenario = False
     running_happy_yaml = ""
-    fgroup_id = ""
     if scenario_fn:
         with open(scenario_fn) as f:
             running_happy_yaml = f.read()
@@ -877,8 +919,11 @@ async def run_bots_in_this_group(
             marketable_version=marketable_version,
             persona_setup={},
         )
-        fgroup_id = scenario.fgroup_id
-        assert fgroup_id
+        fclient.group_id = scenario.fgroup_id
+        # UGLY: we can't really move this code above install_func() call, because hire_bot part will not work without prior installation
+        # so this just ignores previous calculation for ws_id_prefix (valid without a scenario) and overwrites it:
+        ws_id_prefix = None
+
     bc = BotsCollection(
         ws_id_prefix=ws_id_prefix,
         marketable_name=marketable_name,
@@ -886,6 +931,7 @@ async def run_bots_in_this_group(
         inprocess_tools=inprocess_tools,
         bot_main_loop=bot_main_loop,
         subscribe_to_erp_tables=subscribe_to_erp_tables,
+        subscribe_to_emessage_types=subscribe_to_emessage_types,
         running_test_scenario=running_test_scenario,
         running_happy_yaml=running_happy_yaml,
     )

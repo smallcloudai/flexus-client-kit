@@ -22,6 +22,7 @@ REQUIRED_SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
 
 
 GOOGLE_SHEETS_TOOL = ckit_cloudtool.CloudTool(
+    strict=False,
     name="google_sheets",
     description="Access Google Sheets to read, write, create, update, append, clear, and batch update data. Call with op=\"help\" to see all available ops.",
     parameters={

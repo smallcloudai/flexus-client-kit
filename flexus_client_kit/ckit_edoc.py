@@ -7,6 +7,8 @@ from flexus_client_kit import ckit_client, gql_utils
 
 logger = logging.getLogger("edocs")
 
+MAX_EDOCS_PER_REQ = 30
+
 @dataclass
 class FExternalDataSourceOutput:
     owner_fuser_id: str
@@ -15,7 +17,7 @@ class FExternalDataSourceOutput:
     eds_name: str
     eds_type: str
     eds_json: Dict[str, Any]
-    eds_last_successful_scan_ts: float
+    eds_last_scan_ts: float
 
 @dataclass
 class FExternalDataSourceSubs:
@@ -23,15 +25,6 @@ class FExternalDataSourceSubs:
     news_action: str
     news_payload_id: str
     news_payload: Optional[FExternalDataSourceOutput]
-
-@dataclass
-class FEphemeralDocumentOutput:
-    edoc_id: str
-    edoc_mtime: int
-    edoc_size_bytes: int
-    edoc_status_download: str
-    edoc_status_graphdb: str
-    edoc_status_vectordb: str
 
 @dataclass
 class FEdocOutput:
@@ -79,26 +72,30 @@ async def edoc_delete_batch(
     if not edoc_ids:
         return
     http = await client.use_http()
+    sum_deleted_cnt = 0
     async with http as h:
-        r = await h.execute(
-            gql.gql(
-                """mutation EdocDel($ws_id: String!, $eds_id: String!, $eds_type: String!, $edoc_ids: [String!]!) {
-                    edoc_delete_multi(ws_id: $ws_id, eds_id: $eds_id, eds_type: $eds_type, edoc_ids: $edoc_ids)
-                }""",
-            ),
-            variable_values={
-                "ws_id": ws_id,
-                "eds_id": eds_id,
-                "eds_type": eds_type,
-                "edoc_ids": edoc_ids,
-            },
-        )
-    deleted_cnt = r["edoc_delete_multi"]
-    assert deleted_cnt == len(edoc_ids), (
-        f"After deleting edoc_ids={edoc_ids!r}, \n"
-        f"server deleted {deleted_cnt} while we requested {len(edoc_ids)}"
-    )
-    logger.info("Deleted %d edocs from ws %s", deleted_cnt, ws_id)
+        for i in range(0, len(edoc_ids), MAX_EDOCS_PER_REQ):
+            batch = edoc_ids[i:i + MAX_EDOCS_PER_REQ]
+            r = await h.execute(
+                gql.gql(
+                    """mutation EdocDel($ws_id: String!, $eds_id: String!, $eds_type: String!, $edoc_ids: [String!]!) {
+                        edoc_delete_multi(ws_id: $ws_id, eds_id: $eds_id, eds_type: $eds_type, edoc_ids: $edoc_ids)
+                    }""",
+                ),
+                variable_values={
+                    "ws_id": ws_id,
+                    "eds_id": eds_id,
+                    "eds_type": eds_type,
+                    "edoc_ids": batch,
+                },
+            )
+            deleted_cnt = r["edoc_delete_multi"]
+            assert deleted_cnt == len(batch), (
+                f"After deleting edoc_ids={edoc_ids!r}, \n"
+                f"server deleted {deleted_cnt} while we requested {len(edoc_ids)}"
+            )
+            sum_deleted_cnt += deleted_cnt
+    logger.info("Deleted %d edocs from ws %s", sum_deleted_cnt, ws_id)
 
 
 # A small helper needed by *edoc_create* – kept private.

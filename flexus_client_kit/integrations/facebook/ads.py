@@ -9,6 +9,8 @@ from flexus_client_kit.integrations.facebook.exceptions import FacebookValidatio
 if TYPE_CHECKING:
     from flexus_client_kit.integrations.facebook.client import FacebookAdsClient
 logger = logging.getLogger("facebook.operations.ads")
+
+
 async def upload_image(
     client: "FacebookAdsClient",
     image_path: Optional[str] = None,
@@ -68,6 +70,8 @@ Use this hash in create_creative():
 """
     else:
         return f"Failed to upload image. Response: {result}"
+
+
 async def create_creative(
     client: "FacebookAdsClient",
     name: str,
@@ -147,6 +151,8 @@ Now create an ad using this creative:
     "name": "Your Ad Name"
   }})
 """
+
+
 async def create_ad(
     client: "FacebookAdsClient",
     name: str,
@@ -207,6 +213,8 @@ Status: {status}
 Preview your ad:
   facebook(op="preview_ad", args={{"ad_id": "{ad_id}"}})
 """
+
+
 async def preview_ad(client: "FacebookAdsClient", ad_id: str, ad_format: str = "DESKTOP_FEED_STANDARD") -> str:
     if not ad_id:
         return "ERROR: ad_id is required"

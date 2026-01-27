@@ -4,8 +4,8 @@ Skill: Segment & JTBD Analysis
 Refines target segment, ICP, jobs-to-be-done, customer journey.
 Third step after diagnostic.
 
-Input data: /marketing-experiments/{experiment_id}/input, /marketing-experiments/{experiment_id}/diagnostic
-Output data: /marketing-experiments/{experiment_id}/segment
+Input data: /gtm/discovery/{experiment_id}/input, /gtm/discovery/{experiment_id}/diagnostic
+Output data: /gtm/discovery/{experiment_id}/segment
 """
 
 SKILL_NAME = "segment"
@@ -93,11 +93,19 @@ The input and diagnostic documents are provided below in your first message — 
 
 ## Output Format
 
-Save this JSON to /marketing-experiments/{experiment_id}/segment:
+Save this JSON to /gtm/discovery/{experiment_id}/segment:
+
+**CRITICAL**: Document MUST be wrapped in `segment` key with `meta` object for UI to show custom form.
 
 ```json
 {
-  "segment_id": "seg_01",
+  "segment": {
+    "meta": {
+      "experiment_id": "hyp004-example",
+      "created_at": "2025-12-16",
+      "step": "segment"
+    },
+    "segment_id": "seg_01",
   "label": "EN side-hustle founders in US/UK",
   "segment_reasoning": "WHY this segment — what makes them the right audience to test with",
   "icp": {
@@ -146,10 +154,11 @@ Save this JSON to /marketing-experiments/{experiment_id}/segment:
     "best_hooks": ["what messaging will grab attention"]
   },
   
-  "next_steps": [
-    "Validate segment assumptions via...",
-    "Test targeting options on..."
-  ]
+    "next_steps": [
+      "Validate segment assumptions via...",
+      "Test targeting options on..."
+    ]
+  }
 }
 ```
 

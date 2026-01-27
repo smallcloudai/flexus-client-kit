@@ -13,6 +13,7 @@ from gql.transport.exceptions import TransportQueryError
 from flexus_client_kit import ckit_client
 from flexus_client_kit import ckit_shutdown
 from flexus_client_kit import ckit_utils
+from flexus_client_kit import ckit_passwords
 from flexus_client_kit import gql_utils
 
 logger = logging.getLogger("ctool")
@@ -36,6 +37,43 @@ class WaitForSubchats(Exception):
         super().__init__(f"Waiting for subchats: {subchats}")
 
 
+class AlreadyPostedResult(Exception):
+    def __init__(self):
+        super().__init__("Result already posted")
+
+
+class AlreadyFakedResult(Exception):
+    def __init__(self):
+        super().__init__("Result already faked in scenario")
+
+
+@dataclass
+class ToolResult:
+    """
+    Local tools (in bots or cloudtool services) should either return str or ToolResult
+    """
+    content: str
+    multimodal: Optional[List[dict]] = None
+    dollars: float = 0.0
+
+    def __post_init__(self):
+        if self.multimodal is not None and self.content:
+            raise ValueError("ToolResult: use either content (str) or multimodal (list), not both")
+        if self.multimodal:
+            for item in self.multimodal:
+                if not isinstance(item, dict):
+                    raise ValueError("ToolResult multimodal list items must be dicts: %r" % (item,))
+                if "m_type" not in item or "m_content" not in item:
+                    raise ValueError("ToolResult multimodal items must have m_type and m_content: %r" % (item,))
+                if not isinstance(item["m_type"], str) or not isinstance(item["m_content"], str):
+                    raise ValueError("ToolResult m_type and m_content must be strings: %r" % (item,))
+
+    def to_serialized(self) -> str:
+        if self.multimodal is not None:
+            return json.dumps(self.multimodal)
+        return json.dumps(self.content)
+
+
 @dataclass
 class FCloudtoolCall:
     caller_fuser_id: str  # copy of thread owner fuser_id
@@ -48,6 +86,7 @@ class FCloudtoolCall:
     fcall_call_n: int
     fcall_name: str
     fcall_arguments: str
+    fcall_result_ftm_num: int
     fcall_created_ts: float
     fcall_untrusted_key: str
     connected_persona_id: str
@@ -58,18 +97,36 @@ class FCloudtoolCall:
 
 @dataclass
 class CloudTool:
+    strict: bool
     name: str
     description: str
     parameters: dict
 
     def openai_style_tool(self):
+        def add_order(obj):
+            if isinstance(obj, dict):
+                props = obj.get("properties")
+                if props:
+                    for idx, key in enumerate(props.keys()):
+                        props[key].setdefault("order", idx)
+                        add_order(props[key])
+                for v in obj.values():
+                    if isinstance(v, (dict, list)):
+                        add_order(v)
+            elif isinstance(obj, list):
+                for item in obj:
+                    add_order(item)
+
+        params = self.parameters.copy()
+        add_order(params)
         return {
             "type": "function",
             "function": {
                 "name": self.name,
                 "description": self.description,
-                "parameters": self.parameters
-            }
+                "parameters": params,
+            },
+            "strict": self.strict,
         }
 
 
@@ -81,6 +138,9 @@ def sanitize_args(args_dict_from_model: Any) -> tuple[dict, Optional[str]]:
         args = args_dict_from_model.get("args", {})
     else:
         return {}, "args_dict_from_model should be a dict"
+
+    if args is None:  # that's allowed, strict mode for tools leads to type=object|none, therefure model might produce None
+        return {}, None
 
     # Model was stupid enough to escape json object and send a string
     if isinstance(args, str):
@@ -114,21 +174,23 @@ def try_best_to_find_argument(args: dict, args_dict_from_model: Any, param_name:
 
 async def call_python_function_and_save_result(
     call: FCloudtoolCall,
-    the_python_function: Callable[[ckit_client.FlexusClient, FCloudtoolCall, Any], Awaitable[Tuple[str, str] | Tuple[None, None]]],
+    the_python_function: Callable[[ckit_client.FlexusClient, FCloudtoolCall, Any], Awaitable[Tuple[str | ToolResult, str] | Tuple[None, None]]],
     service_name: str,
     fclient: ckit_client.FlexusClient,
 ) -> None:
     try:
         args = json.loads(call.fcall_arguments)
-        content, prov = await the_python_function(fclient, call, args)
-        # NOTE: here we have 3 allowed variants for output
-        # 1. (str, str) - immediate answer from handler
+        result, prov = await the_python_function(fclient, call, args)
+        # NOTE: here we have 2 allowed variants for output
+        # 1. (str | ToolResult, str) - immediate answer from handler
         # 2. (None, None) - delayed cloudtool_post_result
-        # 3. ("ALREADY_FAKED_RESULT", "") - scenario already posted fake result
-        assert (isinstance(content, str) and isinstance(prov, str)) or (content is None and prov is None)
+        assert (isinstance(result, (str, ToolResult)) and isinstance(prov, str)) or (result is None and prov is None)
+        content = result.content if isinstance(result, ToolResult) else result
+        dollars = result.dollars if isinstance(result, ToolResult) else 0.0
         logger.info("/%s %s:%03d:%03d %+d result=%s", call.fcall_id, call.fcall_ft_id, call.fcall_ftm_alt, call.fcall_called_ftm_num, call.fcall_call_n, content[:30] if content is not None else "delayed")
-        if content == "ALREADY_FAKED_RESULT":
-            return
+    except AlreadyFakedResult:
+        logger.info("/%s fake %s:%03d:%03d %+d", call.fcall_id, call.fcall_ft_id, call.fcall_ftm_alt, call.fcall_called_ftm_num, call.fcall_call_n)
+        return
     except NeedsConfirmation as e:
         logger.info("%s needs human confirmation: %s", call.fcall_id, e.confirm_explanation)
         try:
@@ -148,8 +210,9 @@ async def call_python_function_and_save_result(
     except Exception as e:
         logger.warning("error processing call %s %s:%03d:%03d %+d: %s %s" % (call.fcall_id, call.fcall_ft_id, call.fcall_ftm_alt, call.fcall_called_ftm_num, call.fcall_call_n, type(e).__name__, e), exc_info=e)
         content, prov = json.dumps(f"{type(e).__name__} {e}"), json.dumps({"system": service_name})
-    if content is not None:
-        await cloudtool_post_result(fclient, call.fcall_id, call.fcall_untrusted_key, content, prov)
+    if result is not None:
+        serialized_result = result if isinstance(result, str) else result.to_serialized()
+        await cloudtool_post_result(fclient, call.fcall_id, call.fcall_untrusted_key, serialized_result, prov, dollars)
 
 
 async def cloudtool_post_result(fclient: ckit_client.FlexusClient, fcall_id: str, fcall_untrusted_key: str, content: str, prov: str, dollars: float = 0.0, as_placeholder: bool = False):
@@ -170,6 +233,57 @@ async def cloudtool_post_result(fclient: ckit_client.FlexusClient, fcall_id: str
                 "as_placeholder": as_placeholder,
             },
         )
+
+
+class DeltaStreamer:
+    """
+    Streams tool output deltas via /v1/delta/ws WebSocket.
+    Frontend receives DELTA events and appends content in real-time.
+    """
+
+    def __init__(self, ws_url: str, call: FCloudtoolCall, role: str = "tool"):
+        self._ws_url = ws_url
+        self._call = call
+        self._role = role
+        self._ws: Optional[websockets.WebSocketClientProtocol] = None
+        self._closed = False
+
+    @classmethod
+    async def connect(
+        cls,
+        fclient: ckit_client.FlexusClient,
+        call: FCloudtoolCall,
+        role: str = "tool",
+    ) -> "DeltaStreamer":
+        ws_url = fclient.base_url_ws.rstrip("/") + "/v1/delta/ws"
+        streamer = cls(ws_url, call, role)
+        streamer._ws = await websockets.connect(ws_url, ping_interval=20, ping_timeout=20)
+        logger.debug("DeltaStreamer connected to %s for call %s", ws_url, call.fcall_id)
+        return streamer
+
+    async def send(self, text: str) -> None:
+        if not text or self._closed or not self._ws:
+            return
+        payload = {
+            "ftm_belongs_to_ft_id": self._call.fcall_ft_id,
+            "ftm_alt": self._call.fcall_ftm_alt,
+            "ftm_num": self._call.fcall_result_ftm_num,
+            "ftm_prev_alt": self._call.fcall_ftm_alt,
+            "delta": {"ftm_role": self._role, "ftm_content": text, "ftm_call_id": self._call.fcall_id},
+        }
+        await self._ws.send(json.dumps(payload))
+
+    async def close(self) -> None:
+        if self._closed:
+            return
+        self._closed = True
+        if self._ws:
+            try:
+                await self._ws.close()
+            except Exception:
+                pass
+            self._ws = None
+        logger.debug("DeltaStreamer closed for call %s", self._call.fcall_id)
 
 
 async def cloudtool_confirmation_request(
@@ -204,7 +318,7 @@ async def cloudtool_confirmation_request(
         )
 
 
-async def i_am_still_alive(
+async def cloudtool_i_am_still_alive(
         fclient: ckit_client.FlexusClient,
         tool_list: List[CloudTool],
         fgroup_id: Optional[str],
@@ -229,7 +343,7 @@ async def i_am_still_alive(
                             "shared": shared,
                         },
                     )
-                    logger.info("i_am_still_alive %s", t.name)
+                    # logger.info("cloudtool_i_am_still_alive %s", t.name)
             if await ckit_shutdown.wait(120):
                 break
 
@@ -243,7 +357,7 @@ async def i_am_still_alive(
                 # Unfortunately, no separate exception class for 403
                 logger.error("That looks bad, my key doesn't work: %s", e)
             else:
-                logger.info("i_am_still_alive connection problem")
+                logger.info("cloudtool_i_am_still_alive connection problem")
             if await ckit_shutdown.wait(60):
                 break
 
@@ -284,7 +398,7 @@ async def run_cloudtool_service_real(
                 if badstat:
                     badstat = False
                 else:
-                    logger.info("idle %0.1f%% full %0.1f%% now %d", (idle_sec * 100 / 60), (full_sec * 100 / 60), len(workset))
+                    logger.info("idle %0.1f%% full %0.1f%% now %d %s", (idle_sec * 100 / 60), (full_sec * 100 / 60), len(workset), service_name)
                 idle_sec = 0
                 full_sec = 0
                 minute = now_minute
@@ -294,7 +408,7 @@ async def run_cloudtool_service_real(
         if task.exception():
             logger.error("cloudtool task error", exc_info=task.exception())
 
-    still_alive = asyncio.create_task(i_am_still_alive(fclient, tools, fgroup_id, fuser_id, shared))
+    still_alive = asyncio.create_task(cloudtool_i_am_still_alive(fclient, tools, fgroup_id, fuser_id, shared))
     still_alive.add_done_callback(lambda t: ckit_utils.report_crash(t, logger))
     perfmon = asyncio.create_task(monitor_performance())
     perfmon.add_done_callback(lambda t: ckit_utils.report_crash(t, logger))
@@ -363,9 +477,10 @@ async def run_cloudtool_service(
         except (websockets.exceptions.ConnectionClosedError, gql.transport.exceptions.TransportError, OSError):
             if ckit_shutdown.shutdown_event.is_set():
                 break
-            logger.info("got disconnected, will connect again in 60s")
-            await ckit_shutdown.wait(60)
+            retry_sec = 5 if ckit_passwords.it_might_be_a_devbox else 60
+            logger.info("got disconnected, will connect again in %ds", retry_sec)
+            await ckit_shutdown.wait(retry_sec)
 
         except Exception as e:
             logger.error("caught exception %s: %s" % (type(e).__name__, e), exc_info=e)
-            await ckit_shutdown.wait(60)
+            await ckit_shutdown.wait(5 if ckit_passwords.it_might_be_a_devbox else 60)

@@ -1,4 +1,5 @@
 import asyncio
+import datetime
 import json
 import logging
 from typing import Dict, Any, Optional
@@ -11,15 +12,18 @@ from flexus_client_kit import ckit_ask_model
 from flexus_client_kit import ckit_kanban
 from flexus_client_kit import ckit_external_auth
 from flexus_client_kit.integrations import fi_pdoc
-from flexus_simple_bots.version_common import SIMPLE_BOTS_COMMON_VERSION
 from flexus_simple_bots.owl_strategist import owl_strategist_install
 from flexus_simple_bots.owl_strategist.skills import diagnostic as skill_diagnostic
+from flexus_simple_bots.owl_strategist.skills import tactics as skill_tactics
 
 logger = logging.getLogger("bot_owl_strategist")
 
+# Tactics produces 4 separate documents instead of 1 — model can't reliably generate huge single doc
+TACTICS_DOCS = skill_tactics.TACTICS_DOCS
+
 
 BOT_NAME = "owl_strategist"
-BOT_VERSION = SIMPLE_BOTS_COMMON_VERSION
+BOT_VERSION = "1.0.7"
 BOT_VERSION_INT = ckit_client.marketplace_version_as_int(BOT_VERSION)
 
 # Pipeline: strict sequential order
@@ -45,12 +49,13 @@ STEP_DESCRIPTIONS = {
 
 
 SAVE_INPUT_TOOL = ckit_cloudtool.CloudTool(
+    strict=False,
     name="save_input",
     description="Save collected input data to start marketing experiment. Call after collecting product/hypothesis/budget/timeline from user.",
     parameters={
         "type": "object",
         "properties": {
-            "experiment_id": {"type": "string", "description": "{hyp_id}-{experiment-slug} e.g. hyp001-meta-ads-test"},
+            "experiment_id": {"type": "string", "description": "{idea-slug}/{hypothesis-slug}/experiments/{exp-slug} e.g. dental-samples/private-practice/experiments/meta-ads-test"},
             "product_description": {"type": "string", "description": "What the product/service does"},
             "hypothesis": {"type": "string", "description": "What we want to test"},
             "stage": {"type": "string", "enum": ["idea", "mvp", "scaling"], "description": "Current stage"},
@@ -63,12 +68,13 @@ SAVE_INPUT_TOOL = ckit_cloudtool.CloudTool(
 )
 
 RUN_AGENT_TOOL = ckit_cloudtool.CloudTool(
+    strict=False,
     name="run_agent",
     description="Run specific agent. Pipeline is strictly sequential: input → diagnostic → metrics → segment → messaging → channels → tactics → compliance. Each step requires previous step completed.",
     parameters={
         "type": "object",
         "properties": {
-            "experiment_id": {"type": "string", "description": "{hyp_id}-{experiment-slug} e.g. hyp001-meta-ads-test"},
+            "experiment_id": {"type": "string", "description": "{idea-slug}/{hypothesis-slug}/experiments/{exp-slug} e.g. dental-samples/private-practice/experiments/meta-ads-test"},
             "agent": {
                 "type": "string",
                 "enum": AGENTS,
@@ -81,12 +87,13 @@ RUN_AGENT_TOOL = ckit_cloudtool.CloudTool(
 )
 
 RERUN_AGENT_TOOL = ckit_cloudtool.CloudTool(
+    strict=False,
     name="rerun_agent",
     description="Rerun agent with corrections after user feedback. Does not change pipeline position.",
     parameters={
         "type": "object",
         "properties": {
-            "experiment_id": {"type": "string", "description": "{hyp_id}-{experiment-slug}"},
+            "experiment_id": {"type": "string", "description": "{idea-slug}/{hypothesis-slug}/experiments/{exp-slug}"},
             "agent": {
                 "type": "string",
                 "enum": AGENTS,
@@ -98,12 +105,13 @@ RERUN_AGENT_TOOL = ckit_cloudtool.CloudTool(
 )
 
 GET_PIPELINE_STATUS_TOOL = ckit_cloudtool.CloudTool(
+    strict=False,
     name="get_pipeline_status",
     description="Get current pipeline status for marketing experiment — which steps are done, which is next.",
     parameters={
         "type": "object",
         "properties": {
-            "experiment_id": {"type": "string", "description": "{hyp_id}-{experiment-slug}"},
+            "experiment_id": {"type": "string", "description": "{idea-slug}/{hypothesis-slug}/experiments/{exp-slug}"},
         },
         "required": ["experiment_id"],
     },
@@ -122,6 +130,7 @@ AGENT_TOOLS = [
 ]
 
 # Which previous docs each agent needs (all steps before it in pipeline)
+# Note: compliance needs all 4 tactics documents, not just "tactics"
 AGENT_REQUIRED_DOCS = {
     "diagnostic": ["input"],
     "metrics": ["input", "diagnostic"],
@@ -129,20 +138,27 @@ AGENT_REQUIRED_DOCS = {
     "messaging": ["input", "diagnostic", "segment"],
     "channels": ["input", "diagnostic", "metrics", "segment", "messaging"],
     "tactics": ["input", "diagnostic", "metrics", "segment", "messaging", "channels"],
-    "compliance": ["input", "diagnostic", "metrics", "segment", "messaging", "channels", "tactics"],
+    "compliance": ["input", "diagnostic", "metrics", "segment", "messaging", "channels"] + TACTICS_DOCS,
 }
 
 
 async def owl_strategist_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.RobotContext) -> None:
     pdoc_integration = fi_pdoc.IntegrationPdoc(rcx, rcx.persona.ws_root_group_id)
-    fuser_id = rcx.persona.persona_id
+    # owner_fuser_id — ID of the human who hired this bot, used for pdoc access checks
+    owner_fuser_id = rcx.persona.owner_fuser_id
 
     async def step_exists(experiment_id: str, step: str) -> bool:
-        try:
-            await pdoc_integration.pdoc_cat(f"/marketing-experiments/{experiment_id}/{step}", fuser_id)
+        # pdoc_cat returns None if document doesn't exist (no exception thrown!)
+        # Must check return value, not catch exception
+        if step == "tactics":
+            # Tactics has 4 separate documents — all must exist for step to be "complete"
+            for doc in TACTICS_DOCS:
+                result = await pdoc_integration.pdoc_cat(f"/gtm/discovery/{experiment_id}/{doc}", owner_fuser_id)
+                if result is None:
+                    return False
             return True
-        except Exception:
-            return False
+        result = await pdoc_integration.pdoc_cat(f"/gtm/discovery/{experiment_id}/{step}", owner_fuser_id)
+        return result is not None
 
     async def get_pipeline_status(experiment_id: str) -> Dict[str, Any]:
         completed = []
@@ -170,13 +186,19 @@ async def owl_strategist_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_
     async def load_agent_context(experiment_id: str, agent: str, include_current: bool = False) -> str:
         """Load all required documents for an agent and format them for the first message."""
         required = list(AGENT_REQUIRED_DOCS.get(agent, []))
-        if include_current and agent not in required:
-            required.append(agent)
+        if include_current:
+            # For tactics, include all 4 docs; for others, include the single doc
+            if agent == "tactics":
+                for doc in TACTICS_DOCS:
+                    if doc not in required:
+                        required.append(doc)
+            elif agent not in required:
+                required.append(agent)
 
         docs = []
         for doc_name in required:
             try:
-                content = await pdoc_integration.pdoc_cat(f"/marketing-experiments/{experiment_id}/{doc_name}", fuser_id)
+                content = await pdoc_integration.pdoc_cat(f"/gtm/discovery/{experiment_id}/{doc_name}", owner_fuser_id)
                 docs.append(f"### {doc_name}\n```json\n{content}\n```")
             except Exception as e:
                 logger.warning(f"Could not load {doc_name}: {e}")
@@ -201,21 +223,28 @@ async def owl_strategist_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_
     async def toolcall_save_input(toolcall: ckit_cloudtool.FCloudtoolCall, args: Dict[str, Any]) -> str:
         experiment_id = args.get("experiment_id", "")
         if not experiment_id:
-            return "Error: experiment_id is required (format: {hyp_id}-{slug}, e.g. hyp001-meta-ads-test)"
+            return "Error: experiment_id is required (format: {idea-slug}/{hypothesis-slug}/experiments/{exp-slug})"
 
         # Get user ID from toolcall context, not bot persona
         caller_fuser_id = ckit_external_auth.get_fuser_id_from_rcx(rcx, toolcall.fcall_ft_id)
 
+        # Wrap in standard format for UI microfrontend
         input_doc = {
-            "product_description": args.get("product_description", ""),
-            "hypothesis": args.get("hypothesis", ""),
-            "stage": args.get("stage", ""),
-            "budget": args.get("budget", ""),
-            "timeline": args.get("timeline", ""),
-            "additional_context": args.get("additional_context", ""),
+            "input": {
+                "meta": {
+                    "created_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+                    "version": "1.0"
+                },
+                "product_description": args.get("product_description", ""),
+                "hypothesis": args.get("hypothesis", ""),
+                "stage": args.get("stage", ""),
+                "budget": args.get("budget", ""),
+                "timeline": args.get("timeline", ""),
+                "additional_context": args.get("additional_context", ""),
+            }
         }
 
-        path = f"/marketing-experiments/{experiment_id}/input"
+        path = f"/gtm/discovery/{experiment_id}/input"
         try:
             await pdoc_integration.pdoc_create(path, json.dumps(input_doc, ensure_ascii=False), caller_fuser_id)
         except Exception as e:
@@ -242,7 +271,7 @@ Can now run diagnostic agent."""
         user_additions = args.get("user_additions", "")
 
         if not experiment_id:
-            return "Error: experiment_id is required (format: {hyp_id}-{slug})"
+            return "Error: experiment_id is required (format: {idea-slug}/{hypothesis-slug}/experiments/{exp-slug})"
         if agent not in AGENTS:
             return f"Error: agent must be one of {AGENTS}"
 
@@ -251,7 +280,12 @@ Can now run diagnostic agent."""
             return error
 
         context = await load_agent_context(experiment_id, agent)
-        q = f"Experiment: {experiment_id}\nOutput path: /marketing-experiments/{experiment_id}/{agent}\n\n{context}"
+        # For tactics, output is 4 documents; for others, single doc
+        if agent == "tactics":
+            output_info = f"Output documents: {', '.join(TACTICS_DOCS)}"
+        else:
+            output_info = f"Output path: /gtm/discovery/{experiment_id}/{agent}"
+        q = f"Experiment: {experiment_id}\n{output_info}\n\n{context}"
         if user_additions:
             q += f"\n\n## User Context\n{user_additions}"
 
@@ -265,7 +299,7 @@ Can now run diagnostic agent."""
             first_calls=["null"],
             title=[AGENT_DESCRIPTIONS.get(agent, agent)],
             fcall_id=toolcall.fcall_id,
-            skill=agent,
+            fexp_name=agent,
         )
         raise ckit_cloudtool.WaitForSubchats(subchats)
 
@@ -276,7 +310,7 @@ Can now run diagnostic agent."""
         feedback = args.get("feedback", "")
 
         if not experiment_id:
-            return "Error: experiment_id is required (format: {hyp_id}-{slug})"
+            return "Error: experiment_id is required (format: {idea-slug}/{hypothesis-slug}/experiments/{exp-slug})"
         if agent not in AGENTS:
             return f"Error: agent must be one of {AGENTS}"
         if not feedback:
@@ -287,10 +321,15 @@ Can now run diagnostic agent."""
 
         # Load all docs including current one for rerun
         context = await load_agent_context(experiment_id, agent, include_current=True)
+        # For tactics, output is 4 documents; for others, single doc
+        if agent == "tactics":
+            output_info = f"Output documents: {', '.join(TACTICS_DOCS)}"
+        else:
+            output_info = f"Output path: /gtm/discovery/{experiment_id}/{agent}"
         q = f"""Experiment: {experiment_id}
-Output path: /marketing-experiments/{experiment_id}/{agent}
+{output_info}
 
-RERUN with corrections. Apply this feedback to the current document:
+RERUN with corrections. Apply this feedback:
 {feedback}
 
 {context}"""
@@ -305,7 +344,7 @@ RERUN with corrections. Apply this feedback to the current document:
             first_calls=["null"],
             title=[f"Rerun: {AGENT_DESCRIPTIONS.get(agent, agent)}"],
             fcall_id=toolcall.fcall_id,
-            skill=agent,
+            fexp_name=agent,
         )
         raise ckit_cloudtool.WaitForSubchats(subchats)
 
@@ -313,7 +352,7 @@ RERUN with corrections. Apply this feedback to the current document:
     async def toolcall_get_pipeline_status(toolcall: ckit_cloudtool.FCloudtoolCall, args: Dict[str, Any]) -> str:
         experiment_id = args.get("experiment_id", "")
         if not experiment_id:
-            return "Error: experiment_id is required (format: {hyp_id}-{slug})"
+            return "Error: experiment_id is required (format: {idea-slug}/{hypothesis-slug}/experiments/{exp-slug})"
 
         status = await get_pipeline_status(experiment_id)
 

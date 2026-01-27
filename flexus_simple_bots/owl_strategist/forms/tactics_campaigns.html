@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Campaigns Dashboard</title>
+  <style id="theme-css"></style>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    
+    :root {
+      --bg-primary: #0d1117;
+      --bg-secondary: #161b22;
+      --bg-card: #21262d;
+      --bg-hover: #30363d;
+      --text-primary: #e6edf3;
+      --text-secondary: #8b949e;
+      --text-muted: #6e7681;
+      --border-color: #30363d;
+      --accent-blue: #58a6ff;
+      --accent-green: #3fb950;
+      --accent-orange: #d29922;
+      --accent-red: #f85149;
+      --accent-purple: #a371f7;
+      --accent-pink: #db61a2;
+      --gradient-meta: linear-gradient(135deg, #0062e0 0%, #19afff 100%);
+      --gradient-tiktok: linear-gradient(135deg, #010101 0%, #fe2c55 50%, #25f4ee 100%);
+      --gradient-linkedin: linear-gradient(135deg, #0077b5 0%, #00a0dc 100%);
+      --gradient-google: linear-gradient(135deg, #4285f4 0%, #34a853 33%, #fbbc05 66%, #ea4335 100%);
+      --gradient-youtube: linear-gradient(135deg, #ff0000 0%, #cc0000 100%);
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      line-height: 1.5;
+      padding: 0;
+      min-height: 100vh;
+    }
+    
+    .dashboard { max-width: 100%; padding: 1.5rem; }
+    
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 2rem;
+      padding-bottom: 1rem;
+      border-bottom: 1px solid var(--border-color);
+    }
+    
+    .header h1 {
+      font-size: 1.5rem;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+    
+    .header .icon { font-size: 1.75rem; }
+    
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      padding: 0.25rem 0.75rem;
+      border-radius: 20px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    
+    .badge-campaigns { background: rgba(88, 166, 255, 0.15); color: var(--accent-blue); }
+    
+    .stats-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+      gap: 1rem;
+      margin-bottom: 2rem;
+    }
+    
+    .stat-card {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 1rem;
+      text-align: center;
+    }
+    
+    .stat-card.highlight {
+      background: linear-gradient(135deg, rgba(59, 185, 80, 0.15) 0%, rgba(88, 166, 255, 0.15) 100%);
+      border-color: var(--accent-green);
+    }
+    
+    .stat-card .value {
+      font-size: 1.75rem;
+      font-weight: 700;
+      color: var(--accent-blue);
+    }
+    
+    .stat-card.highlight .value { color: var(--accent-green); }
+    
+    .stat-card .label {
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-top: 0.25rem;
+    }
+    
+    .section { margin-bottom: 2rem; }
+    
+    .section-title {
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    
+    .campaigns-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+      gap: 1.25rem;
+    }
+    
+    .campaign-card {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      overflow: hidden;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    
+    .campaign-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+    }
+    
+    .campaign-header {
+      padding: 1rem 1.25rem;
+      color: white;
+      position: relative;
+    }
+    
+    .campaign-header.meta { background: var(--gradient-meta); }
+    .campaign-header.tiktok { background: var(--gradient-tiktok); }
+    .campaign-header.linkedin { background: var(--gradient-linkedin); }
+    .campaign-header.google { background: var(--gradient-google); }
+    .campaign-header.youtube { background: var(--gradient-youtube); }
+    
+    .campaign-header .channel-icon {
+      position: absolute;
+      right: 1rem;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 1.75rem;
+      opacity: 0.8;
+    }
+    
+    .campaign-header h3 {
+      font-size: 1.1rem;
+      font-weight: 600;
+      margin-bottom: 0.25rem;
+    }
+    
+    .campaign-header .objective {
+      font-size: 0.8rem;
+      opacity: 0.9;
+      text-transform: capitalize;
+    }
+    
+    .campaign-body { padding: 1.25rem; }
+    
+    .campaign-stat {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.6rem 0;
+      border-bottom: 1px solid var(--border-color);
+    }
+    
+    .campaign-stat:last-child { border-bottom: none; }
+    
+    .campaign-stat .label {
+      color: var(--text-secondary);
+      font-size: 0.85rem;
+    }
+    
+    .campaign-stat .value {
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+    
+    .campaign-stat .value.budget { color: var(--accent-green); }
+    .campaign-stat .value.duration { color: var(--accent-orange); }
+    
+    .campaign-reasoning {
+      margin-top: 1rem;
+      padding: 0.85rem;
+      background: var(--bg-hover);
+      border-radius: 8px;
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+      line-height: 1.6;
+      border-left: 3px solid var(--accent-purple);
+    }
+    
+    .adsets-section {
+      margin-top: 1.25rem;
+      padding-top: 1rem;
+      border-top: 1px solid var(--border-color);
+    }
+    
+    .adsets-title {
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 0.75rem;
+    }
+    
+    .adset-card {
+      background: var(--bg-card);
+      border-radius: 8px;
+      padding: 1rem;
+      margin-bottom: 0.75rem;
+    }
+    
+    .adset-card:last-child { margin-bottom: 0; }
+    
+    .adset-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.75rem;
+    }
+    
+    .adset-id {
+      font-weight: 600;
+      font-family: 'SF Mono', Monaco, monospace;
+      font-size: 0.85rem;
+      color: var(--accent-purple);
+    }
+    
+    .adset-cell {
+      padding: 0.2rem 0.5rem;
+      background: rgba(163, 113, 247, 0.2);
+      border-radius: 4px;
+      font-size: 0.7rem;
+      font-weight: 600;
+      color: var(--accent-purple);
+    }
+    
+    .targeting-pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-top: 0.75rem;
+    }
+    
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      padding: 0.35rem 0.65rem;
+      border-radius: 20px;
+      font-size: 0.75rem;
+      background: var(--bg-hover);
+      color: var(--text-secondary);
+    }
+    
+    .pill.geo { background: rgba(88, 166, 255, 0.15); color: var(--accent-blue); }
+    .pill.age { background: rgba(163, 113, 247, 0.15); color: var(--accent-purple); }
+    .pill.interest { background: rgba(210, 153, 34, 0.15); color: var(--accent-orange); }
+    .pill.placement { background: rgba(59, 185, 80, 0.15); color: var(--accent-green); }
+    
+    .creatives-list {
+      margin-top: 0.75rem;
+      padding: 0.5rem 0.75rem;
+      background: var(--bg-hover);
+      border-radius: 6px;
+      font-size: 0.8rem;
+    }
+    
+    .creatives-list .label {
+      color: var(--text-muted);
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      margin-bottom: 0.25rem;
+    }
+    
+    .creatives-list .ids {
+      color: var(--accent-blue);
+      font-family: 'SF Mono', Monaco, monospace;
+    }
+    
+    .summary-card {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 1.25rem;
+    }
+    
+    .summary-card .content {
+      color: var(--text-secondary);
+      line-height: 1.7;
+      font-size: 0.9rem;
+    }
+    
+    .empty-state {
+      text-align: center;
+      padding: 3rem;
+      color: var(--text-secondary);
+    }
+    
+    .empty-state .icon { font-size: 3rem; margin-bottom: 1rem; }
+  </style>
+</head>
+<body>
+  <div id="app" class="dashboard">
+    <div class="empty-state">
+      <div class="icon">🎯</div>
+      <p>Loading campaigns...</p>
+    </div>
+  </div>
+
+  <script>
+    const FormBridge = {
+      listeners: {},
+      init(formId) {
+        window.addEventListener('message', (event) => {
+          if (event.data && event.data.type) {
+            const handler = this.listeners[event.data.type];
+            if (handler) handler(event.data);
+          }
+        });
+        this.send('FORM_READY', { formId });
+      },
+      on(type, callback) { this.listeners[type] = callback; },
+      send(type, payload) { window.parent.postMessage({ type, ...payload }, '*'); }
+    };
+
+    let data = null;
+
+    function extract(content) {
+      if (!content) return {};
+      if (content.tactics_campaigns && typeof content.tactics_campaigns === 'object') {
+        return content.tactics_campaigns;
+      }
+      return content;
+    }
+
+    FormBridge.on('INIT', d => {
+      data = extract(d.content);
+      if (d.themeCss) document.getElementById('theme-css').textContent = d.themeCss;
+      render();
+    });
+
+    FormBridge.on('CONTENT_UPDATE', d => {
+      data = extract(d.content);
+      render();
+    });
+
+    FormBridge.init('tactics-campaigns-dashboard');
+
+    function getChannelIcon(ch) {
+      const icons = { meta: '📘', tiktok: '🎵', linkedin: '💼', google: '🔍', youtube: '📺' };
+      return icons[ch] || '📢';
+    }
+
+    function render() {
+      const app = document.getElementById('app');
+      
+      if (!data || Object.keys(data).length === 0) {
+        app.innerHTML = `<div class="empty-state"><div class="icon">🎯</div><p>No campaigns data available</p></div>`;
+        return;
+      }
+
+      const campaigns = data.campaigns || [];
+      const summary = data.campaigns_summary || '';
+      
+      const totalBudget = campaigns.reduce((sum, c) => sum + (c.daily_budget || 0) * (c.duration_days || 14), 0);
+      const totalAdsets = campaigns.reduce((sum, c) => sum + (c.adsets?.length || 0), 0);
+      const channels = [...new Set(campaigns.map(c => c.channel))];
+      
+      app.innerHTML = `
+        <div class="header">
+          <h1><span class="icon">🎯</span>Campaigns</h1>
+          <span class="badge badge-campaigns">${campaigns.length} campaigns</span>
+        </div>
+
+        <div class="stats-row">
+          <div class="stat-card highlight">
+            <div class="value">$${totalBudget.toFixed(0)}</div>
+            <div class="label">Total Budget</div>
+          </div>
+          <div class="stat-card">
+            <div class="value">${campaigns.length}</div>
+            <div class="label">Campaigns</div>
+          </div>
+          <div class="stat-card">
+            <div class="value">${totalAdsets}</div>
+            <div class="label">Ad Sets</div>
+          </div>
+          <div class="stat-card">
+            <div class="value">${channels.length}</div>
+            <div class="label">Channels</div>
+          </div>
+        </div>
+
+        ${summary ? `
+          <div class="section">
+            <div class="section-title">📋 Summary</div>
+            <div class="summary-card">
+              <div class="content">${summary}</div>
+            </div>
+          </div>
+        ` : ''}
+
+        <div class="section">
+          <div class="section-title">📊 Campaign Details</div>
+          <div class="campaigns-grid">
+            ${campaigns.map(camp => renderCampaign(camp)).join('')}
+          </div>
+        </div>
+      `;
+    }
+
+    function renderCampaign(camp) {
+      const adsets = camp.adsets || [];
+      const totalCampBudget = (camp.daily_budget || 0) * (camp.duration_days || 14);
+      
+      return `
+        <div class="campaign-card">
+          <div class="campaign-header ${camp.channel}">
+            <h3>${camp.campaign_id}</h3>
+            <div class="objective">${camp.objective || 'traffic'}</div>
+            <span class="channel-icon">${getChannelIcon(camp.channel)}</span>
+          </div>
+          <div class="campaign-body">
+            <div class="campaign-stat">
+              <span class="label">Daily Budget</span>
+              <span class="value budget">$${(camp.daily_budget || 0).toFixed(2)}/day</span>
+            </div>
+            <div class="campaign-stat">
+              <span class="label">Duration</span>
+              <span class="value duration">${camp.duration_days || 14} days</span>
+            </div>
+            <div class="campaign-stat">
+              <span class="label">Total Budget</span>
+              <span class="value budget">$${totalCampBudget.toFixed(0)}</span>
+            </div>
+            <div class="campaign-stat">
+              <span class="label">Start Date</span>
+              <span class="value">${camp.start_date || 'TBD'}</span>
+            </div>
+            
+            ${camp.campaign_reasoning ? `
+              <div class="campaign-reasoning">${camp.campaign_reasoning}</div>
+            ` : ''}
+            
+            ${adsets.length > 0 ? `
+              <div class="adsets-section">
+                <div class="adsets-title">Ad Sets (${adsets.length})</div>
+                ${adsets.map(adset => renderAdset(adset)).join('')}
+              </div>
+            ` : ''}
+          </div>
+        </div>
+      `;
+    }
+
+    function renderAdset(adset) {
+      const audience = adset.audience || {};
+      const placements = adset.placements || [];
+      const creatives = adset.creatives || [];
+      
+      return `
+        <div class="adset-card">
+          <div class="adset-header">
+            <span class="adset-id">${adset.adset_id}</span>
+            ${adset.linked_test_cell ? `<span class="adset-cell">Cell ${adset.linked_test_cell}</span>` : ''}
+          </div>
+          
+          <div class="targeting-pills">
+            ${(audience.countries || []).map(c => `<span class="pill geo">🌍 ${c}</span>`).join('')}
+            ${audience.age_range ? `<span class="pill age">👤 ${audience.age_range[0]}-${audience.age_range[1]}</span>` : ''}
+          </div>
+          
+          <div class="targeting-pills">
+            ${(audience.interests || []).slice(0, 4).map(i => `<span class="pill interest">${i}</span>`).join('')}
+            ${(audience.interests || []).length > 4 ? `<span class="pill">+${audience.interests.length - 4}</span>` : ''}
+          </div>
+          
+          ${placements.length > 0 ? `
+            <div class="targeting-pills">
+              ${placements.map(p => `<span class="pill placement">📍 ${p}</span>`).join('')}
+            </div>
+          ` : ''}
+          
+          ${creatives.length > 0 ? `
+            <div class="creatives-list">
+              <div class="label">Creatives</div>
+              <div class="ids">${creatives.join(', ')}</div>
+            </div>
+          ` : ''}
+          
+          ${adset.audience_reasoning ? `
+            <div class="campaign-reasoning" style="margin-top: 0.75rem; font-size: 0.8rem;">
+              ${adset.audience_reasoning}
+            </div>
+          ` : ''}
+        </div>
+      `;
+    }
+  </script>
+</body>
+</html>
+
+
+

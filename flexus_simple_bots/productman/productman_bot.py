@@ -27,67 +27,136 @@ BOT_VERSION = SIMPLE_BOTS_COMMON_VERSION
 
 
 IDEA_TEMPLATE_TOOL = ckit_cloudtool.CloudTool(
+    strict=False,
     name="template_idea",
-    description="Create idea document. Provide idea_name (kebab-case), server generates unique ID.",
+    description="Create idea document at /gtm/discovery/{idea_slug}/idea",
     parameters={
         "type": "object",
         "properties": {
-            "idea_name": {
+            "idea_slug": {
                 "type": "string",
-                "description": "Human-readable idea name in kebab-case (e.g. 'dental-samples', 'unicorn-horn-car')"
+                "description": "Idea name in kebab-case, 2-4 words (e.g. 'dental-samples', 'unicorn-horn-car')",
+                "order": 1
             },
             "text": {
                 "type": "string",
-                "description": "JSON matching example_idea structure. Only 'q' values can be translated."
+                "description": "JSON matching example_idea structure. Only 'q' values can be translated.",
+                "order": 2
             },
         },
-        "required": ["idea_name", "text"],
+        "required": ["idea_slug", "text"],
     },
 )
 
+def _qa_schema(q_desc: str) -> dict:
+    return {
+        "type": "object",
+        "properties": {
+            "q": {"type": "string", "description": q_desc},
+            "a": {"type": "string", "description": "Answer"},
+        },
+        "required": ["q", "a"],
+        "additionalProperties": False,
+    }
+
+def _section_schema(title_desc: str, questions: dict) -> dict:
+    return {
+        "type": "object",
+        "properties": {
+            "title": {"type": "string", "description": title_desc},
+            **questions,
+        },
+        "required": ["title"] + list(questions.keys()),
+        "additionalProperties": False,
+    }
+
 HYPOTHESIS_TEMPLATE_TOOL = ckit_cloudtool.CloudTool(
+    strict=True,
     name="template_hypothesis",
-    description="Create hypothesis document. Provide idea_unique_id and hypothesis_name, server generates unique ID.",
+    description="Create hypothesis document at /gtm/discovery/{idea_slug}/{hypothesis_slug}/hypothesis",
     parameters={
         "type": "object",
         "properties": {
-            "idea_unique_id": {
+            "idea_slug": {
                 "type": "string",
-                "description": "Idea ID (e.g. 'idea001') from parent idea path"
+                "description": "Parent idea slug (e.g. 'unicorn-horn-car')",
             },
-            "hypothesis_name": {
+            "hypothesis_slug": {
                 "type": "string",
-                "description": "Human-readable hypothesis name in kebab-case (e.g. 'social-influencers')"
+                "description": "Hypothesis name in kebab-case, 2-4 words capturing customer segment (e.g. 'social-influencers')",
             },
-            "text": {
-                "type": "string",
-                "description": "JSON matching example_hypothesis structure. Only 'q' and 'title' can be translated."
+            "hypothesis": {
+                "type": "object",
+                "description": "Hypothesis document content",
+                "properties": {
+                    "meta": {
+                        "type": "object",
+                        "properties": {
+                            "author": {"type": "string", "description": "Author name"},
+                            "date": {"type": "string", "description": "Date in YYYYMMDD format"},
+                        },
+                        "required": ["author", "date"],
+                        "additionalProperties": False,
+                    },
+                    "section01-formula": _section_schema("Magic Formula", {
+                        "question01-formula": _qa_schema("The clients are [segment] who want [goal] but cannot [action] because [one reason]."),
+                    }),
+                    "section02-profile": _section_schema("Ideal Customer Profile", {
+                        "question01": _qa_schema("Who are the clients?"),
+                        "question02": _qa_schema("What do they want to accomplish?"),
+                        "question03": _qa_schema("What can't they do today?"),
+                        "question04": _qa_schema("Why can't they do it?"),
+                    }),
+                    "section03-context": _section_schema("Customer Context", {
+                        "question01": _qa_schema("Where do they hang out (channels)?"),
+                        "question02": _qa_schema("What are their pains and frustrations?"),
+                        "question03": _qa_schema("What outcomes do they desire?"),
+                        "question04": _qa_schema("Geography and languages?"),
+                    }),
+                    "section04-solution": _section_schema("Solution Hypothesis", {
+                        "question01": _qa_schema("What is the minimum viable solution for this segment?"),
+                        "question02": _qa_schema("What value metric matters most to them?"),
+                        "question03": _qa_schema("What would make them choose this over alternatives?"),
+                    }),
+                    "section05-validation": _section_schema("Validation Strategy", {
+                        "question01": _qa_schema("How can we test this hypothesis quickly?"),
+                        "question02": _qa_schema("What evidence would prove/disprove this?"),
+                        "question03": _qa_schema("What is the success metric?"),
+                    }),
+                    "section06-ice": _section_schema("ICE Verdict", {
+                        "question01-impact": _qa_schema("Impact (0-5): how important it is"),
+                        "question02-confidence": _qa_schema("Confidence (0-5): how sure we are"),
+                        "question03-ease": _qa_schema("Ease (0-5): how easy to verify/ship"),
+                    }),
+                },
+                "required": ["meta", "section01-formula", "section02-profile", "section03-context", "section04-solution", "section05-validation", "section06-ice"],
+                "additionalProperties": False,
             },
         },
-        "required": ["idea_unique_id", "hypothesis_name", "text"],
+        "required": ["idea_slug", "hypothesis_slug", "hypothesis"],
+        "additionalProperties": False,
     },
 )
 
 VERIFY_IDEA_TOOL = ckit_cloudtool.CloudTool(
+    strict=False,
     name="verify_idea",
     description="Launch subchat to rate idea as PASS/PASS-WITH-WARNINGS/FAIL per question.",
     parameters={
         "type": "object",
         "properties": {
-            "idea_unique_id": {
+            "pdoc_path": {
                 "type": "string",
-                "description": "Idea ID (e.g. 'idea001')"
-            },
-            "idea_name": {
-                "type": "string",
-                "description": "Idea name in kebab-case (e.g. 'dental-samples')"
+                "description": "Path to the idea document (e.g. '/gtm/discovery/dental-samples/idea')",
+                "order": 1
             },
             "language": {
                 "type": "string",
-                "description": "Language for comments (same as conversation language)"
+                "description": "Language for comments (same as conversation language)",
+                "order": 2
             },
         },
-        "required": ["idea_unique_id", "idea_name", "language"],
+        "required": ["pdoc_path", "language"],
     },
 )
 
@@ -113,34 +182,6 @@ TOOLS_ALL = [
 ]
 
 
-async def generate_next_idea_id(pdoc_integration: fi_pdoc.IntegrationPdoc, fuser_id: str) -> str:
-    existing_ideas = await pdoc_integration.pdoc_list("/product-ideas", fuser_id)
-    max_id = 0
-    for item in existing_ideas:
-        parts = item.path.strip("/").split("/")
-        if len(parts) >= 2:
-            folder_name = parts[1]
-            if "-" in folder_name:
-                id_part = folder_name.split("-")[0]
-                if id_part.startswith("idea") and id_part[4:].isdigit():
-                    max_id = max(max_id, int(id_part[4:]))
-    return f"idea{max_id + 1:03d}"
-
-
-async def generate_next_hypothesis_id(pdoc_integration: fi_pdoc.IntegrationPdoc, idea_unique_id: str, fuser_id: str) -> str:
-    existing_hypotheses = await pdoc_integration.pdoc_list("/product-hypotheses", fuser_id)
-    max_id = 0
-    for item in existing_hypotheses:
-        parts = item.path.strip("/").split("/")
-        if len(parts) >= 2:
-            folder_name = parts[1]
-            if folder_name.startswith(f"{idea_unique_id}-"):
-                segments = folder_name.split("-")
-                if len(segments) >= 2:
-                    hyp_id_part = segments[1]
-                    if hyp_id_part.startswith("hyp") and hyp_id_part[3:].isdigit():
-                        max_id = max(max_id, int(hyp_id_part[3:]))
-    return f"hyp{max_id + 1:03d}"
 
 
 async def productman_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.RobotContext) -> None:
@@ -193,16 +234,16 @@ async def productman_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_
 
     @rcx.on_tool_call(IDEA_TEMPLATE_TOOL.name)
     async def toolcall_idea_template(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
-        idea_name = model_produced_args.get("idea_name", "")
+        idea_slug = model_produced_args.get("idea_slug", "")
         text = model_produced_args.get("text", "")
-        if not idea_name:
-            return "Error: idea_name required"
+        if not idea_slug:
+            return "Error: idea_slug required"
         if not text:
             return "Error: text required"
         if rcx.running_test_scenario:
             return await ckit_scenario.scenario_generate_tool_result_via_model(fclient, toolcall, Path(__file__).read_text())
-        if err := validate_path_kebab(idea_name):
-            return f"Error: idea_name must be kebab-case: {err}"
+        if err := validate_path_kebab(idea_slug):
+            return f"Error: idea_slug must be kebab-case: {err}"
 
         try:
             idea_doc = json.loads(text)
@@ -214,79 +255,60 @@ async def productman_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_
             return f"Error: {validation_error}"
 
         fuser_id = ckit_external_auth.get_fuser_id_from_rcx(rcx, toolcall.fcall_ft_id)
-        idea_unique_id = await generate_next_idea_id(pdoc_integration, fuser_id)
-        path = f"/product-ideas/{idea_unique_id}-{idea_name}/idea"
+        path = f"/gtm/discovery/{idea_slug}/idea"
 
         await pdoc_integration.pdoc_create(path, json.dumps(idea_doc, indent=2), fuser_id)
         logger.info(f"Created idea at {path}")
-        return f"✍️ {path}\n\n✓ Created idea document with ID {idea_unique_id}"
+        return f"✍️ {path}\n\n✓ Created idea document"
 
     @rcx.on_tool_call(HYPOTHESIS_TEMPLATE_TOOL.name)
     async def toolcall_hypothesis_template(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
-        idea_unique_id = model_produced_args.get("idea_unique_id", "")
-        hypothesis_name = model_produced_args.get("hypothesis_name", "")
-        text = model_produced_args.get("text", "")
-        if not idea_unique_id:
-            return "Error: idea_unique_id required"
-        if not hypothesis_name:
-            return "Error: hypothesis_name required"
-        if not text:
-            return "Error: text required"
+        idea_slug = model_produced_args.get("idea_slug", "")
+        hypothesis_slug = model_produced_args.get("hypothesis_slug", "")
+        hypothesis_data = model_produced_args.get("hypothesis")
+        if not idea_slug:
+            return "Error: idea_slug required"
+        if not hypothesis_slug:
+            return "Error: hypothesis_slug required"
+        if not hypothesis_data:
+            return "Error: hypothesis required"
         if rcx.running_test_scenario:
             return await ckit_scenario.scenario_generate_tool_result_via_model(fclient, toolcall, Path(__file__).read_text())
-        if not idea_unique_id.startswith("idea") or not idea_unique_id[4:].isdigit():
-            return f"Error: idea_unique_id must be format 'ideaXXX' (e.g. 'idea001'), got '{idea_unique_id}'"
-        if err := validate_path_kebab(hypothesis_name):
-            return f"Error: hypothesis_name must be kebab-case: {err}"
+        if err := validate_path_kebab(idea_slug):
+            return f"Error: idea_slug must be kebab-case: {err}"
+        if err := validate_path_kebab(hypothesis_slug):
+            return f"Error: hypothesis_slug must be kebab-case: {err}"
 
-        try:
-            hypothesis_doc = json.loads(text)
-        except json.JSONDecodeError as e:
-            return f"Error: Invalid JSON: {e}"
-
-        validation_error = validate_idea_structure(hypothesis_doc, productman_prompts.example_hypothesis)
-        if validation_error:
-            return f"Error: {validation_error}"
-
+        hypothesis_doc = {"hypothesis": hypothesis_data}
         fuser_id = ckit_external_auth.get_fuser_id_from_rcx(rcx, toolcall.fcall_ft_id)
-        hyp_unique_id = await generate_next_hypothesis_id(pdoc_integration, idea_unique_id, fuser_id)
-        path = f"/product-hypotheses/{idea_unique_id}-{hyp_unique_id}-{hypothesis_name}/hypothesis"
+        path = f"/gtm/discovery/{idea_slug}/{hypothesis_slug}/hypothesis"
 
         await pdoc_integration.pdoc_create(path, json.dumps(hypothesis_doc, indent=2), fuser_id)
         logger.info(f"Created hypothesis at {path}")
-        return f"✍️ {path}\n\n✓ Created hypothesis document with ID {hyp_unique_id}"
+        return f"✍️ {path}\n\n✓ Created hypothesis document"
 
     @rcx.on_tool_call(VERIFY_IDEA_TOOL.name)
     async def toolcall_verify_idea(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
-        idea_unique_id = model_produced_args.get("idea_unique_id", "")
-        idea_name = model_produced_args.get("idea_name", "")
+        pdoc_path = model_produced_args.get("pdoc_path", "")
         language = model_produced_args.get("language", "")
-        if not idea_unique_id:
-            return "Error: idea_unique_id required"
-        if not idea_name:
-            return "Error: idea_name required"
+        if not pdoc_path:
+            return "Error: pdoc_path required"
         if not language:
             return "Error: language required"
-        if not idea_unique_id.startswith("idea") or not idea_unique_id[4:].isdigit():
-            return f"Error: idea_unique_id must be format 'ideaXXX' (e.g. 'idea001'), got '{idea_unique_id}'"
 
         if rcx.running_test_scenario:
             return await ckit_scenario.scenario_generate_tool_result_via_model(fclient, toolcall, Path(__file__).read_text())
-
-        path = f"/product-ideas/{idea_unique_id}-{idea_name}/idea"
 
         subchats = await ckit_ask_model.bot_subchat_create_multiple(
             client=fclient,
             who_is_asking="productman_verify_idea",
             persona_id=rcx.persona.persona_id,
-            first_question=[f"Rate this idea document in {language}:\n{path}"],
+            first_question=[f"Rate this idea document in {language}:\n{pdoc_path}"],
             first_calls=["null"],
-            title=[f"Verifying Idea {idea_name}"],
+            title=[f"Verifying Idea {pdoc_path}"],
             fcall_id=toolcall.fcall_id,
-            skill="criticize_idea",
+            fexp_name="criticize_idea",
         )
-        # Subchat adds "c" (for "criticism") for every question to the document.
-        # Returns "Read the file using flexus_policy_document(op=activate, ...) to see the ratings."
         raise ckit_cloudtool.WaitForSubchats(subchats)
 
     @rcx.on_tool_call(fi_pdoc.POLICY_DOCUMENT_TOOL.name)

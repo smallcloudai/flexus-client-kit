@@ -141,6 +141,7 @@ class FacebookAdsClient:
             raise last_exception
         raise FacebookAPIError(500, "Unexpected retry loop exit")
 
+
     async def _fetch_token(self) -> str:
         from flexus_client_kit import ckit_client
         http = await self.fclient.use_http()
@@ -177,18 +178,33 @@ class FacebookAdsClient:
         logger.info("Facebook token retrieved for %s", self.rcx.persona.persona_id)
         return access_token
 
+
     async def _prompt_oauth_connection(self) -> str:
-        web_url = os.getenv("FLEXUS_WEB_URL", "http://localhost:3000")
-        thread_id = getattr(self.rcx, 'thread_id', None)
-        if thread_id:
-            connect_url = f"{web_url}/profile?connect=facebook&redirect_path=/chat/{thread_id}"
-        else:
-            connect_url = f"{web_url}/profile?connect=facebook"
-        return f"""Facebook authorization required.
-Please connect your Facebook account via the Profile page:
-{connect_url}
-After connecting, try your request again.
-Note: You'll need:
+        # Generate direct OAuth URL via backend API
+        from flexus_client_kit import ckit_external_auth
+        try:
+            auth_url = await ckit_external_auth.start_external_auth_flow(
+                fclient=self.fclient,
+                provider="facebook",
+                ws_id=self.rcx.persona.ws_id,
+                fuser_id=self.rcx.persona.owner_fuser_id,
+                scopes=["ads_management", "ads_read", "business_management", "pages_manage_ads"],
+            )
+            return f"""Facebook authorization required.
+
+Click this link to connect your Facebook account:
+{auth_url}
+
+After authorizing, return here and try your request again.
+
+Requirements:
 - Facebook Business Manager account
 - Access to an Ad Account (starts with act_...)
-- Proper permissions (ads_management, ads_read, read_insights)"""
+- Proper permissions will be requested automatically"""
+        except Exception as e:
+            logger.warning(f"Failed to generate OAuth URL: {e}")
+            return f"""Facebook authorization required but could not generate OAuth link.
+
+Please ask your workspace admin to configure Facebook OAuth, or check that FACEBOOK_CLIENT_ID and FACEBOOK_CLIENT_SECRET are set in the environment.
+
+Error: {e}"""

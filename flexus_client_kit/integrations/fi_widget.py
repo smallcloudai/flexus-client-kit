@@ -2,6 +2,7 @@ from typing import Dict, Any, Optional
 from flexus_client_kit import ckit_cloudtool
 
 PRINT_WIDGET_TOOL = ckit_cloudtool.CloudTool(
+    strict=False,
     name="print_widget",
     description="Print UI widgets for the user to interact with.",
     parameters={

@@ -7,6 +7,7 @@ Flexus Client Kit (ckit)
 fi_discord.py
 fi_gmail.py
 fi_mongo_store.py
+fi_question.py
 fi_report.py
 fi_slack.py
 
@@ -126,75 +127,17 @@ The full list of all bs_type: string_short, string_long, string_multiline, bool,
 Custom Forms
 ------------
 
-Bots can provide custom HTML forms to edit policy documents instead of the default JSON editor.
-Forms are embedded in an iframe and communicate with the parent via postMessage.
+Custom HTML forms for editing policy documents. Put forms in `mybot/forms/{doctype}.html`.
 
-File structure:
-```
-mybot/
-  forms/
-    my_report.html     -- form for documents with "my_report" top-level key
-    survey.html        -- form for documents with "survey" top-level key
-  mybot_install.py
-  ...
+**CRITICAL**: Document must include `"microfrontend": "bot_name"` in meta for form to load:
+```json
+{"my_report": {"meta": {"microfrontend": "mybot", "created_at": "..."}, "content": "..."}}
 ```
 
-The document type is determined by the top-level key that contains an object with a `meta` subobject:
-```
-{"my_report": {"meta": {"created_at": "..."}, "title": "...", "content": "..."}}
-```
+Form loads from: `/v1/marketplace/{microfrontend}/{version}/forms/{top_level_key}.html`
+Without `microfrontend` field → generic JSON editor shown.
 
-The form filename must match the top-level key. See flexus_simple_bots/frog/forms/pond_report.html for a complete example.
-
-Protocol messages:
-- Parent → Form: INIT (content, themeCss, marketplace), CONTENT_UPDATE (content), FOCUS (focused)
-- Form → Parent: FORM_READY (formName), FORM_CONTENT_CHANGED (content)
-
-
-### Styling - Theme-Aware Paper Pattern
-
-Custom forms should match preexisting forms (like WorksheetEditor.vue) using theme-aware CSS variables
-that automatically adapt to light/dark mode:
-
-- `--p-primary-contrast-color` - paper background (white in light mode, black in dark mode)
-- `--p-primary-color` - paper text color (black in light mode, white in dark mode)
-- `--p-content-hover-background` - desk/input backgrounds (adapts to theme)
-- `--p-text-color` - standard text color (adapts to theme)
-- `--p-text-muted-color` - muted text, dashed border color
-- `--p-surface-border` - borders
-- `--p-red-500` - red for criticism/error text
-
-**Never hardcode colors** like `white`, `#1f1f1f`, etc. - always use CSS variables.
-
-CSS template:
-```css
-body { background: var(--p-content-hover-background); margin: 0; padding: 10px; }
-.paper {
-  width: 440px; padding: 20px; min-height: calc(100vh - 20px);
-  background: var(--p-primary-contrast-color); color: var(--p-primary-color);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-}
-.meta-box {
-  width: 400px; display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 3rem; padding: 1rem;
-  border: 2px dashed var(--p-text-muted-color); border-radius: 8px; position: relative; font-size: 0.8rem;
-}
-.meta-label {
-  position: absolute; top: -0.65rem; left: 1rem; background: var(--p-primary-contrast-color);
-  padding: 0 0.5rem; font-weight: 700; font-size: 0.75rem; letter-spacing: 0.05em; color: var(--p-text-muted-color);
-}
-h1 { font-size: 1.25rem; font-weight: 600; color: var(--p-primary-color); margin: 0 0 1.5rem 0; }
-.field { margin-bottom: 1rem; width: 400px; }
-.field > label { display: block; font-weight: 600; margin-bottom: 0.5rem; font-size: 0.875rem; }
-input, textarea, select {
-  border: 1px solid var(--p-surface-border); border-radius: 6px;
-  padding: 0.5rem 0.75rem; font-size: 1rem; font-family: inherit; box-sizing: border-box;
-  background: var(--p-content-hover-background); color: var(--p-text-color);
-}
-input:focus, textarea:focus, select:focus { outline: none; border-color: var(--p-primary-color); }
-textarea { resize: none; field-sizing: content; min-height: 2.5rem; width: 100%; }
-```
-
-See flexus_simple_bots/frog/forms/pond_report.html for a complete example.
+See: `flexus_simple_bots/frog/frog_bot.py:183-199` (how to write docs), `frog/forms/pond_report.html` (form example)
 
 
 Bot Main Loop
@@ -249,7 +192,7 @@ After making changes to a bot, run:
 
 python flexus_simple_bots/my/my_bot.py --scenario flexus_simple_bots/my/default__s1.yaml
 
-The naming convention is $SKILL$__$SCENARIO$.yaml with double underscore, in this example the skill is "default" and
+The naming convention is $EXPERT$__$SCENARIO$.yaml with double underscore, in this example the expert is "default" and
 the scenario name is "s1".
 
 Don't run this for all bots because it's expensive, but it's a good idea to run one scenario of your choosing
@@ -315,7 +258,7 @@ What Lark can do: stop an unwanted tool call, set error, return subchat result, 
 output format and ask for a fix, keep track of spending, post instructions to the model.
 
 A subchat will not work at all unless it runs a Lark kernel that will return a value! See
-frog_install.py on how to make an expert (aka bot skill) with a Lark kernel.
+frog_install.py on how to make an expert with a Lark kernel.
 
 Inputs: "messages", "coins", "budget"
 Outputs: "subchat_result", "post_cd_instruction", "error", "kill_tools"
@@ -337,29 +280,69 @@ All the prints to into the assistant message as ftm_provenance = {..., "kernel1_
 and the bot will receive them as regular thread message updates, that's how you debug Lark kernels.
 
 
-Skills, Subchats and A2A Communication
---------------------------------------
+Definitions: Tools, Skills, Subchats, Experts
+---------------------------------------------
 
-Bot skills AKA experts are necessary when you need a separate system prompt and toolset.
+### Tool
 
-When you need a subtask completed, there are two choices: run subchat or use A2A to hand over the task
-to your different skill, or another agent.
+Should be used for: API calls, CRUD, instant operations. Returns string visible to the model. Can raise NeedsConfirmation for dangerous ops or WaitForSubchats to spawn subchat.
+Remember that tools with side effects need to be faked when running a scenario, grep scenario_generate_tool_result_via_model() for details.
+Examples: flexus_policy_document, template_idea, facebook/linkedin APIs.
 
-Subchat applicability:
-- Subchats works as tool calls: it runs an additional thread, puts subchat_result produced by Lark kernel back as a
-  tool response message into the original thread.
-- TIMEOUT_TOOL_CALLS is 3600s (one hour), subchats as tool calls cannot last for more then that. That means: no human confirmations
-  inside a subchat (might be no human available for 1 hour), no external lasting process that might last long.
-- Can only return text.
+### Skill
 
-A2A communication applicability:
-- You can tell me model to call flexus_hand_over_task(to_bot="", description="", skill=""), that will create a kanban task
-  in the inbox of that bot.
-- Once the task is completed (moved to kanban "done") a message will appear after the flexus_hand_over_task() call informing
-  about that.
-- It's slower because the task goes into a queue, not gets executed immediately.
-- The original chat does not wait, it continues and the model needs to call nothing (wait for user to respond) for
-  waiting to happen.
+Large instruction set loaded into prompt when needed. No separate context, no extra tools.
+Tradeoff: more source code we need to maintain vs accuracy on complex tasks.
+Implemented as tool that returns instructions as text.
+Examples: idea rating rules, ad platform specifics.
+
+### Subchat
+
+A separate thread with isolated context.
+Has a Lark kernel to control termination via setting subchat_result.
+Subchats start as tool calls in the original thread, tools call bot_subchat_create_multiple().
+Formally a subchat returns a single string that becomes the tool result, but it can have other side effects.
+Must complete in 10 minutes (actually TIMEOUT_TOOL_CALLS), no human interaction is possible inside.
+Use for focused tasks needing a specialized set of tools.
+Example: productman spawns criticize_idea to receive an independent evaluation.
+
+### Expert
+
+Expert is a separate system prompt + toolset, installed during bot installation.
+The 'default' expert is what the user talks to if they just start a conversation.
+Kanban tasks can explicitly specify ktask_fexp_name to control what expert within the bot should pick up the task.
+Unlimited duration, human can interact mid-task.
+
+Use for:
+ - separate pieces of work, especially using a specialized set of tools
+ - or entirely separate behavior
+
+Example: survey campaign execution in productman, has special code to interact with survey external API.
+
+
+A2A Communication
+-----------------
+
+Works like this:
+
+- You can tell the model to call flexus_hand_over_task(to_bot="", description="", fexp_name=""),
+that will create a kanban task in the inbox of that bot.
+- You can send a task to your own expert, works exactly like giving a task to another bot.
+- Once the task is completed (moved to kanban "done") a message will appear with role='cd_instruction' informing about that.
+- It might not be real-time because the task goes into a queue, does not get executed immediately.
+- The original chat does not wait, it might continue talking to user or calling other functions, the model needs respond with assistant message with no calls and therefore switch to 'wait for user' mode for waiting to happen.
+
+
+
+Reports (fi_report)
+-------------------
+
+For generating analysis reports via parallel subchats → exported to HTML.
+Use policy documents (fi_pdoc) for persistent human-editable data; use fi_report for one-time analysis.
+
+Flow: `create_report()` → `process_report()` (spawns subchats) → `fill_report_section()` → auto-export HTML
+
+See: `flexus_client_kit/integrations/report/fi_report.py`, adspy bot for implementation example.
 
 
 Writing Logs

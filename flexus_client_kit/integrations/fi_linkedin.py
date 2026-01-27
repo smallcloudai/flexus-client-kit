@@ -30,6 +30,7 @@ API_VERSION = "202509"
 
 
 LINKEDIN_TOOL = ckit_cloudtool.CloudTool(
+    strict=False,
     name="linkedin",
     description="Interact with LinkedIn Ads API, call with op=\"help\" to print usage, call with op=\"status+help\" to see both status and help in one call",
     parameters={

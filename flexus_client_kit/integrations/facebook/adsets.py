@@ -7,7 +7,10 @@ from flexus_client_kit.integrations.facebook.exceptions import FacebookValidatio
 if TYPE_CHECKING:
     from flexus_client_kit.integrations.facebook.client import FacebookAdsClient
 logger = logging.getLogger("facebook.operations.adsets")
+
 ADSET_FIELDS = "id,name,status,optimization_goal,billing_event,daily_budget,lifetime_budget,targeting"
+
+
 async def list_adsets(client: "FacebookAdsClient", campaign_id: str) -> str:
     if not campaign_id:
         return "ERROR: campaign_id is required"
@@ -39,6 +42,8 @@ async def list_adsets(client: "FacebookAdsClient", campaign_id: str) -> str:
                 result += "\n"
         result += "\n"
     return result
+
+
 async def create_adset(
     client: "FacebookAdsClient",
     ad_account_id: str,
@@ -131,6 +136,8 @@ Billing Event: {billing_event}
     if status == "PAUSED":
         output += "\nAd set is paused. Activate it when ready to start delivery."
     return output
+
+
 async def update_adset(
     client: "FacebookAdsClient",
     adset_id: str,
@@ -175,6 +182,8 @@ async def update_adset(
         return f"Ad Set {adset_id} updated:\n" + "\n".join(f"   - {u}" for u in updates)
     else:
         return f"Failed to update ad set. Response: {result}"
+
+
 async def validate_targeting(
     client: "FacebookAdsClient",
     targeting_spec: Dict[str, Any],
@@ -211,6 +220,8 @@ This is a test validation. In production, Facebook will provide actual estimated
         for line in result["targetingsentencelines"]:
             output += f"  - {line.get('content', '')}\n"
     return output
+
+
 def _mock_list_adsets(campaign_id: str) -> str:
     return f"""Ad Sets for Campaign {campaign_id}:
 **Test Ad Set**
@@ -220,6 +231,8 @@ def _mock_list_adsets(campaign_id: str) -> str:
    Daily Budget: 20.00 USD
    Targeting: US
 """
+
+
 def _mock_create_adset(
     campaign_id: str,
     name: str,

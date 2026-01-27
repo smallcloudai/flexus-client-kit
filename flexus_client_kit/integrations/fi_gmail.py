@@ -19,10 +19,13 @@ import googleapiclient.errors
 from flexus_client_kit import ckit_cloudtool
 from flexus_client_kit import ckit_client
 from flexus_client_kit import ckit_external_auth
+from flexus_client_kit import ckit_erp
+from flexus_client_kit import erp_schema
 
 logger = logging.getLogger("gmail")
 
 GMAIL_TOOL = ckit_cloudtool.CloudTool(
+    strict=False,
     name="gmail",
     description="Interact with Gmail, call with op=\"help\" to print usage",
     parameters={
@@ -218,7 +221,7 @@ class IntegrationGmail:
 
         try:
             if op == "send":
-                return await self._send_message(args)
+                return await self._send_message(args, toolcall.fcall_ft_id)
             elif op == "search":
                 return await self._search_messages(args)
             elif op == "get":
@@ -270,7 +273,7 @@ class IntegrationGmail:
             logger.error(error_msg)
             return f"❌ {error_msg}"
 
-    async def _send_message(self, args: Dict[str, Any]) -> str:
+    async def _send_message(self, args: Dict[str, Any], ft_id: str) -> str:
         to = args.get("to", "")
         subject = args.get("subject", "")
         body = args.get("body", "")
@@ -311,7 +314,38 @@ class IntegrationGmail:
         message_id = result.get("id")
         thread_id = result.get("threadId")
 
+        await self._create_activity_for_email(to, subject, body, ft_id)
+
         return f"✅ Message sent successfully!\n  Message ID: {message_id}\n  Thread ID: {thread_id}"
+
+    async def _create_activity_for_email(self, to: str, subject: str, body: str, ft_id: str) -> None:
+        for email in to.split(","):
+            email = email.strip().lower()
+            if not email:
+                continue
+            try:
+                contacts = await ckit_erp.query_erp_table(
+                    self.fclient, "crm_contact", self.rcx.persona.ws_id, erp_schema.CrmContact,
+                    filters=[f"contact_email:ILIKE:{email}"], limit=1,
+                )
+                if not contacts:
+                    continue
+                contact = contacts[0]
+                await ckit_erp.create_erp_record(self.fclient, "crm_activity", self.rcx.persona.ws_id, {
+                    "ws_id": self.rcx.persona.ws_id,
+                    "activity_title": subject,
+                    "activity_type": "EMAIL",
+                    "activity_direction": "OUTBOUND",
+                    "activity_platform": "GMAIL",
+                    "activity_contact_id": contact.contact_id,
+                    "activity_ft_id": ft_id,
+                    "activity_summary": body[:500] if len(body) > 500 else body,
+                    "activity_details": {"body": body},
+                    "activity_occurred_ts": time.time(),
+                })
+                logger.info(f"Created CRM activity for email to {email}")
+            except Exception as e:
+                logger.warning(f"Failed to create CRM activity for {email}: {e}")
 
     async def _search_messages(self, args: Dict[str, Any]) -> str:
         query = args.get("query", "")

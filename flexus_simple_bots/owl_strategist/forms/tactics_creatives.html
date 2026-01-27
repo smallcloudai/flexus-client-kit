@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Creatives Dashboard</title>
+  <style id="theme-css"></style>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    
+    :root {
+      --bg-primary: #0d1117;
+      --bg-secondary: #161b22;
+      --bg-card: #21262d;
+      --bg-hover: #30363d;
+      --text-primary: #e6edf3;
+      --text-secondary: #8b949e;
+      --text-muted: #6e7681;
+      --border-color: #30363d;
+      --accent-blue: #58a6ff;
+      --accent-green: #3fb950;
+      --accent-orange: #d29922;
+      --accent-red: #f85149;
+      --accent-purple: #a371f7;
+      --accent-pink: #db61a2;
+      --accent-cyan: #39c5cf;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      line-height: 1.5;
+      padding: 0;
+      min-height: 100vh;
+    }
+    
+    .dashboard { max-width: 100%; padding: 1.5rem; }
+    
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 2rem;
+      padding-bottom: 1rem;
+      border-bottom: 1px solid var(--border-color);
+    }
+    
+    .header h1 {
+      font-size: 1.5rem;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+    
+    .header .icon { font-size: 1.75rem; }
+    
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      padding: 0.25rem 0.75rem;
+      border-radius: 20px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      background: rgba(219, 97, 162, 0.15);
+      color: var(--accent-pink);
+    }
+    
+    .stats-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+      gap: 1rem;
+      margin-bottom: 2rem;
+    }
+    
+    .stat-card {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 1rem;
+      text-align: center;
+    }
+    
+    .stat-card .value {
+      font-size: 1.75rem;
+      font-weight: 700;
+      color: var(--accent-pink);
+    }
+    
+    .stat-card .label {
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-top: 0.25rem;
+    }
+    
+    .section { margin-bottom: 2rem; }
+    
+    .section-title {
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    
+    .strategy-card {
+      background: linear-gradient(135deg, rgba(219, 97, 162, 0.1) 0%, rgba(163, 113, 247, 0.1) 100%);
+      border: 1px solid var(--accent-pink);
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin-bottom: 2rem;
+    }
+    
+    .strategy-card h3 {
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--accent-pink);
+      margin-bottom: 0.75rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    
+    .strategy-card .content {
+      color: var(--text-secondary);
+      line-height: 1.7;
+      font-size: 0.95rem;
+    }
+    
+    .creatives-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+      gap: 1.25rem;
+    }
+    
+    .creative-card {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      overflow: hidden;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    
+    .creative-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+    }
+    
+    .creative-header {
+      padding: 0.85rem 1.25rem;
+      background: var(--bg-card);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--border-color);
+    }
+    
+    .creative-id {
+      font-weight: 600;
+      font-size: 0.9rem;
+      font-family: 'SF Mono', Monaco, monospace;
+      color: var(--accent-purple);
+    }
+    
+    .creative-tags {
+      display: flex;
+      gap: 0.5rem;
+    }
+    
+    .format-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      padding: 0.25rem 0.6rem;
+      border-radius: 4px;
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      font-weight: 600;
+    }
+    
+    .format-tag.image { background: rgba(88, 166, 255, 0.15); color: var(--accent-blue); }
+    .format-tag.video { background: rgba(163, 113, 247, 0.15); color: var(--accent-purple); }
+    .format-tag.reel { background: rgba(248, 81, 73, 0.15); color: var(--accent-red); }
+    .format-tag.carousel { background: rgba(210, 153, 34, 0.15); color: var(--accent-orange); }
+    .format-tag.story { background: rgba(219, 97, 162, 0.15); color: var(--accent-pink); }
+    
+    .channel-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      padding: 0.25rem 0.6rem;
+      border-radius: 4px;
+      font-size: 0.7rem;
+      font-weight: 600;
+      background: var(--bg-hover);
+      color: var(--text-secondary);
+    }
+    
+    .creative-preview {
+      padding: 1.5rem;
+      background: linear-gradient(135deg, var(--bg-card) 0%, var(--bg-secondary) 100%);
+      border-bottom: 1px solid var(--border-color);
+      min-height: 140px;
+    }
+    
+    .creative-preview .headline {
+      font-size: 1.2rem;
+      font-weight: 700;
+      margin-bottom: 0.5rem;
+      color: var(--text-primary);
+      line-height: 1.3;
+    }
+    
+    .creative-preview .description {
+      font-size: 0.9rem;
+      color: var(--text-secondary);
+      line-height: 1.5;
+    }
+    
+    .creative-body { padding: 1.25rem; }
+    
+    .primary-text {
+      font-size: 0.9rem;
+      color: var(--text-secondary);
+      line-height: 1.7;
+      margin-bottom: 1rem;
+      padding: 1rem;
+      background: var(--bg-hover);
+      border-radius: 8px;
+      border-left: 3px solid var(--accent-cyan);
+    }
+    
+    .primary-text .label {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 0.5rem;
+      font-weight: 600;
+    }
+    
+    .creative-cta {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.6rem 1.25rem;
+      background: var(--accent-blue);
+      color: white;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      margin-bottom: 1rem;
+    }
+    
+    .visual-brief {
+      padding: 1rem;
+      background: var(--bg-card);
+      border-radius: 8px;
+      margin-top: 1rem;
+    }
+    
+    .visual-brief .label {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      color: var(--accent-orange);
+      margin-bottom: 0.5rem;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+    }
+    
+    .visual-brief .content {
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+      line-height: 1.6;
+      font-style: italic;
+    }
+    
+    .creative-reasoning {
+      margin-top: 1rem;
+      padding: 0.85rem;
+      background: var(--bg-hover);
+      border-radius: 8px;
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+      line-height: 1.6;
+      border-left: 3px solid var(--accent-purple);
+    }
+    
+    .angle-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      padding: 0.35rem 0.75rem;
+      border-radius: 20px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      background: rgba(59, 185, 80, 0.15);
+      color: var(--accent-green);
+      margin-bottom: 1rem;
+    }
+    
+    .empty-state {
+      text-align: center;
+      padding: 3rem;
+      color: var(--text-secondary);
+    }
+    
+    .empty-state .icon { font-size: 3rem; margin-bottom: 1rem; }
+  </style>
+</head>
+<body>
+  <div id="app" class="dashboard">
+    <div class="empty-state">
+      <div class="icon">🎨</div>
+      <p>Loading creatives...</p>
+    </div>
+  </div>
+
+  <script>
+    const FormBridge = {
+      listeners: {},
+      init(formId) {
+        window.addEventListener('message', (event) => {
+          if (event.data && event.data.type) {
+            const handler = this.listeners[event.data.type];
+            if (handler) handler(event.data);
+          }
+        });
+        this.send('FORM_READY', { formId });
+      },
+      on(type, callback) { this.listeners[type] = callback; },
+      send(type, payload) { window.parent.postMessage({ type, ...payload }, '*'); }
+    };
+
+    let data = null;
+
+    function extract(content) {
+      if (!content) return {};
+      if (content.tactics_creatives && typeof content.tactics_creatives === 'object') {
+        return content.tactics_creatives;
+      }
+      return content;
+    }
+
+    FormBridge.on('INIT', d => {
+      data = extract(d.content);
+      if (d.themeCss) document.getElementById('theme-css').textContent = d.themeCss;
+      render();
+    });
+
+    FormBridge.on('CONTENT_UPDATE', d => {
+      data = extract(d.content);
+      render();
+    });
+
+    FormBridge.init('tactics-creatives-dashboard');
+
+    function getChannelIcon(ch) {
+      const icons = { meta: '📘', tiktok: '🎵', linkedin: '💼', google: '🔍', youtube: '📺' };
+      return icons[ch] || '📢';
+    }
+
+    function getFormatIcon(format) {
+      const icons = { image: '🖼️', video: '📹', reel: '🎬', carousel: '🎠', story: '📱' };
+      return icons[format] || '📄';
+    }
+
+    function render() {
+      const app = document.getElementById('app');
+      
+      if (!data || Object.keys(data).length === 0) {
+        app.innerHTML = `<div class="empty-state"><div class="icon">🎨</div><p>No creatives data available</p></div>`;
+        return;
+      }
+
+      const creatives = data.creatives || [];
+      const strategy = data.creatives_strategy || '';
+      
+      const formats = {};
+      const channels = {};
+      const angles = {};
+      
+      creatives.forEach(c => {
+        formats[c.format] = (formats[c.format] || 0) + 1;
+        channels[c.channel] = (channels[c.channel] || 0) + 1;
+        if (c.angle) angles[c.angle] = (angles[c.angle] || 0) + 1;
+      });
+      
+      app.innerHTML = `
+        <div class="header">
+          <h1><span class="icon">🎨</span>Creatives</h1>
+          <span class="badge">${creatives.length} creatives</span>
+        </div>
+
+        <div class="stats-row">
+          <div class="stat-card">
+            <div class="value">${creatives.length}</div>
+            <div class="label">Total</div>
+          </div>
+          ${Object.entries(formats).map(([f, count]) => `
+            <div class="stat-card">
+              <div class="value">${count}</div>
+              <div class="label">${f}</div>
+            </div>
+          `).join('')}
+        </div>
+
+        ${strategy ? `
+          <div class="strategy-card">
+            <h3>💡 Creative Strategy</h3>
+            <div class="content">${strategy}</div>
+          </div>
+        ` : ''}
+
+        <div class="section">
+          <div class="section-title">🎨 Creative Briefs</div>
+          <div class="creatives-grid">
+            ${creatives.map(cr => renderCreative(cr)).join('')}
+          </div>
+        </div>
+      `;
+    }
+
+    function renderCreative(cr) {
+      return `
+        <div class="creative-card">
+          <div class="creative-header">
+            <span class="creative-id">${cr.creative_id}</span>
+            <div class="creative-tags">
+              <span class="format-tag ${cr.format}">${getFormatIcon(cr.format)} ${cr.format}</span>
+              <span class="channel-tag">${getChannelIcon(cr.channel)} ${cr.channel}</span>
+            </div>
+          </div>
+          
+          <div class="creative-preview">
+            ${cr.headline ? `<div class="headline">${cr.headline}</div>` : ''}
+            ${cr.description ? `<div class="description">${cr.description}</div>` : ''}
+          </div>
+          
+          <div class="creative-body">
+            ${cr.angle ? `<div class="angle-badge">🎣 ${cr.angle}</div>` : ''}
+            
+            ${cr.primary_text ? `
+              <div class="primary-text">
+                <div class="label">Primary Text / Caption</div>
+                ${cr.primary_text}
+              </div>
+            ` : ''}
+            
+            <div class="creative-cta">${cr.cta || 'Learn More'} →</div>
+            
+            ${cr.visual_brief ? `
+              <div class="visual-brief">
+                <div class="label">🎨 Visual Brief</div>
+                <div class="content">${cr.visual_brief}</div>
+              </div>
+            ` : ''}
+            
+            ${cr.creative_reasoning ? `
+              <div class="creative-reasoning">${cr.creative_reasoning}</div>
+            ` : ''}
+          </div>
+        </div>
+      `;
+    }
+  </script>
+</body>
+</html>
+
+
+

@@ -31,6 +31,7 @@ REQUIRED_SCOPES = [
 
 
 JIRA_TOOL = ckit_cloudtool.CloudTool(
+    strict=False,
     name="jira",
     description="Access Jira to search issues (JQL), get projects, create issues, and other Jira API operations. Call with op=\"help\" to see all available ops.",
     parameters={

@@ -44,6 +44,7 @@ logger = logging.getLogger("slack")
 
 
 SLACK_TOOL = ckit_cloudtool.CloudTool(
+    strict=False,
     name="slack",
     description="Interact with Slack, call with op=\"help\" to print usage, call with op=\"status+help\" to see both status and help in one call",
     parameters={

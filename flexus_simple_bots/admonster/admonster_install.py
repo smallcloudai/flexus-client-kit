@@ -8,6 +8,7 @@ from flexus_client_kit import ckit_client
 from flexus_client_kit import ckit_bot_install
 from flexus_client_kit import ckit_cloudtool
 from flexus_simple_bots.admonster import admonster_prompts
+from flexus_simple_bots import prompts_common
 
 admonster_setup_schema = [
     {
@@ -17,14 +18,6 @@ admonster_setup_schema = [
         "bs_group": "LinkedIn",
         "bs_importance": 1,
         "bs_description": "LinkedIn Ads Account ID",
-    },
-    {
-        "bs_name": "facebook_ad_account_id",
-        "bs_type": "string_short",
-        "bs_default": "",
-        "bs_group": "Facebook",
-        "bs_importance": 1,
-        "bs_description": "Facebook Ads Account ID (act_...)",
     },
 ]
 
@@ -51,18 +44,19 @@ async def install(
         marketable_title2="Keeps track of your campaings, automates A/B tests, gives you new ideas.",
         marketable_author="Flexus",
         marketable_occupation="Advertising Campaign Manager",
-        marketable_description="Manage LinkedIn advertising campaigns, create campaign groups, monitor analytics, and optimize ad performance.",
+        marketable_description="Execute marketing experiments from Owl Strategist, manage Meta/LinkedIn campaigns, automate A/B tests with hourly monitoring.",
         marketable_typical_group="Marketing",
         marketable_github_repo="https://github.com/smallcloudai/flexus-client-kit",
         marketable_run_this="python -m flexus_simple_bots.admonster.admonster_bot",
         marketable_setup_default=admonster_setup_schema,
         marketable_featured_actions=[
-            {"feat_question": "Show me all my LinkedIn campaigns", "feat_run_as_setup": False, "feat_depends_on_setup": ["ad_account_id"]},
-            {"feat_question": "Create a new brand awareness campaign", "feat_run_as_setup": False, "feat_depends_on_setup": ["ad_account_id"]},
-            {"feat_question": "Analyze my campaign performance", "feat_run_as_setup": False, "feat_depends_on_setup": ["ad_account_id"]},
-            {"feat_question": "Check my Facebook ads status", "feat_run_as_setup": False, "feat_depends_on_setup": ["facebook_ad_account_id"]},
+            {"feat_question": "List available marketing experiments", "feat_expert": "default", "feat_depends_on_setup": []},
+            {"feat_question": "Launch experiment", "feat_expert": "default", "feat_depends_on_setup": []},
+            {"feat_question": "Check experiment status and metrics", "feat_expert": "default", "feat_depends_on_setup": []},
+            {"feat_question": "Show me all my Facebook campaigns", "feat_expert": "default", "feat_depends_on_setup": []},
+            {"feat_question": "Connect Facebook account", "feat_expert": "default", "feat_depends_on_setup": []},
         ],
-        marketable_intro_message="Hi! I'm Ad Monster, your LinkedIn & Facebook advertising assistant. I can help you create campaigns, monitor performance, and optimize your ad spend. Let's start by checking your current campaigns!",
+        marketable_intro_message="Hi! I'm Ad Monster, your automated advertising assistant. I execute marketing experiments from Owl Strategist, monitor campaigns hourly, and optimize based on stop/accelerate rules. I can launch experiments, check status, or manage individual campaigns. What would you like to do?",
         marketable_preferred_model_default="grok-code-fast-1",
         marketable_daily_budget_default=50_000_000,
         marketable_default_inbox_default=5_000_000,
@@ -74,6 +68,7 @@ async def install(
                 fexp_allow_tools="",
                 fexp_app_capture_tools=bot_internal_tools,
                 fexp_inactivity_timeout=0,
+                fexp_description="Automated advertising execution engine that launches campaigns from Owl Strategist tactics, monitors performance hourly, and optimizes based on stop/accelerate rules.",
             )),
             ("setup", ckit_bot_install.FMarketplaceExpertInput(
                 fexp_system_prompt=admonster_prompts.admonster_setup,
@@ -82,12 +77,17 @@ async def install(
                 fexp_allow_tools="",
                 fexp_app_capture_tools=bot_internal_tools,
                 fexp_inactivity_timeout=0,
+                fexp_description="Helps users configure Facebook OAuth connections and ad account settings, plus LinkedIn advertising credentials.",
             )),
         ],
-        marketable_tags=["advertising", "linkedin", "facebook", "marketing", "campaigns"],
+        marketable_tags=["advertising", "linkedin", "facebook", "marketing", "campaigns", "experiments", "automation"],
         marketable_picture_big_b64=big,
         marketable_picture_small_b64=small,
-        marketable_schedule=[]
+        marketable_schedule=[
+            prompts_common.SCHED_TASK_SORT_10M,
+            prompts_common.SCHED_TODO_5M,
+        ],
+        marketable_forms=ckit_bot_install.load_form_bundles(__file__),
     )
 
 

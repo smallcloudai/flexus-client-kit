@@ -98,7 +98,7 @@ async def install(
         marketable_run_this="python -m flexus_simple_bots.karen.karen_bot",
         marketable_setup_default=karen_setup_default,
         marketable_featured_actions=[
-            {"feat_question": "What people ask for today?", "feat_run_as_setup": False, "feat_depends_on_setup": []},
+            {"feat_question": "What people ask for today?", "feat_expert": "default", "feat_depends_on_setup": []},
         ],
         marketable_intro_message="I'm here for your customers 24/7 — answering questions, remembering every detail, and always following up. I also deliver weekly feedback reports that help your team improve the product.",
         marketable_preferred_model_default="grok-4-fast",
@@ -112,6 +112,7 @@ async def install(
                 fexp_allow_tools="",
                 fexp_inactivity_timeout=600,
                 fexp_app_capture_tools=bot_internal_tools,
+                fexp_description="Handles customer support tickets by searching knowledge base, providing helpful responses, and escalating unresolved issues.",
             )),
             ("setup", ckit_bot_install.FMarketplaceExpertInput(
                 fexp_system_prompt=karen_prompts.karen_setup,
@@ -119,6 +120,7 @@ async def install(
                 fexp_block_tools="",
                 fexp_allow_tools="",
                 fexp_app_capture_tools=bot_internal_tools,
+                fexp_description="Guides users through bot configuration, helping set up information sources like MCP servers or Flexus hotstorage for support queries.",
             )),
         ],
         marketable_tags=["Customer Support"],

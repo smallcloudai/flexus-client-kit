@@ -13,15 +13,33 @@ logger = logging.getLogger("mongo_store")
 
 
 MONGO_STORE_TOOL = ckit_cloudtool.CloudTool(
+    strict=True,
     name="mongo_store",
     description="Store and retrieve files in MongoDB, call with op=help for usage",
     parameters={
         "type": "object",
         "properties": {
-            "op": {"type": "string", "description": "Start with 'help' for usage"},
-            "args": {"type": "object"},
+            "op": {
+                "type": "string",
+                "enum": ["help", "list", "ls", "cat", "grep", "delete", "upload"],
+                "description": "Operation: list/ls (list files), cat (read file), grep (search), delete, upload",
+            },
+            "args": {
+                "type": "object",
+                "additionalProperties": False,
+                "description": "All arguments required, set to null if not used for this operation",
+                "properties": {
+                    "path": {"type": ["string", "null"], "description": "File path or prefix for list"},
+                    "lines_range": {"type": ["string", "null"], "description": "Line range for cat: '1:20', ':20', '21:'"},
+                    "safety_valve": {"type": ["string", "null"], "description": "Max output size for cat, e.g. '10k'"},
+                    "pattern": {"type": ["string", "null"], "description": "Python regex pattern for grep"},
+                    "context": {"type": ["integer", "null"], "description": "Context lines around grep matches"},
+                },
+                "required": ["path", "lines_range", "safety_valve", "pattern", "context"],
+            },
         },
-        "required": ["op"]
+        "required": ["op", "args"],
+        "additionalProperties": False,
     },
 )
 
@@ -104,8 +122,8 @@ async def handle_mongo_store(
             return f"Error: {path_error}"
         documents = await ckit_mongo.mongo_ls(mongo_collection, path)
         if not documents:
-            return f"No files found with prefix: {path}"
-        result = f"Found {len(documents)} files with prefix '{path}':\n"
+            return f"No files found with prefix: {path!r}"
+        result = f"Found {len(documents)} files with prefix {path!r}:\n"
         for doc in documents:
             file_path = doc["path"]
             size = doc["mon_size"]

@@ -5,7 +5,7 @@ Selects channels, designs test cells, allocates budget.
 Fifth step after messaging.
 
 Input data: input, diagnostic, metrics, segment, messaging
-Output data: /marketing-experiments/{experiment_id}/channels
+Output data: /gtm/discovery/{experiment_id}/channels
 """
 
 SKILL_NAME = "channels"
@@ -118,11 +118,19 @@ Budget allocation: prioritize cells with highest uncertainty or potential.
 
 ## Output Format
 
-Save this JSON to /marketing-experiments/{experiment_id}/channels:
+Save this JSON to /gtm/discovery/{experiment_id}/channels:
+
+**CRITICAL**: Document MUST be wrapped in `channels` key with `meta` object for UI to show custom form.
 
 ```json
 {
-  "selected_channels": [
+  "channels": {
+    "meta": {
+      "experiment_id": "hyp004-example",
+      "created_at": "2025-12-16",
+      "step": "channels"
+    },
+    "selected_channels": [
     {
       "channel": "meta",
       "role": "primary_demand_test",
@@ -190,11 +198,12 @@ Save this JSON to /marketing-experiments/{experiment_id}/channels:
     "if_no_clear_winner": "What to do if results are inconclusive"
   },
   
-  "next_steps": [
-    "Set up campaigns in ad platforms",
-    "Create tracking links with UTMs",
-    "Prepare landing page variants"
-  ]
+    "next_steps": [
+      "Set up campaigns in ad platforms",
+      "Create tracking links with UTMs",
+      "Prepare landing page variants"
+    ]
+  }
 }
 ```
 

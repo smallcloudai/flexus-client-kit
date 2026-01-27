@@ -183,19 +183,19 @@ async def main():
         
         experts = marketplace_rec.marketable_experts
         if "survey" not in experts:
-            print("Warning: survey skill not found in experts, using default")
-            skill = "default"
+            print("Warning: survey expert not found in experts, using default")
+            fexp_name = "default"
         else:
-            skill = "survey"
-        
-        expert_id = experts.get(skill, experts.get("default"))
+            fexp_name = "survey"
+
+        expert_id = experts.get(fexp_name, experts.get("default"))
         expert = await my_prisma.flexus_expert.find_unique(where={"fexp_id": expert_id})
         
         current_time = time.time()
         task_data = {
             "persona_id": persona_id,
             "ktask_title": "Survey: private-practice-dentists validation",
-            "ktask_skill": skill,
+            "ktask_fexp_name": fexp_name,
             "ktask_inbox_ts": current_time - 60,
             "ktask_inbox_provenance": json.dumps({
                 "message": "Test survey task for dentist samples idea",
@@ -216,7 +216,7 @@ async def main():
         print(f"- Persona: {persona_id}")
         print(f"- Idea: {idea_path_display}")
         print(f"- Hypothesis: {hypothesis_path_display}")
-        print(f"- Task: {task.ktask_id} (skill: {skill})")
+        print(f"- Task: {task.ktask_id} (expert: {fexp_name})")
         
     finally:
         await my_prisma.disconnect()

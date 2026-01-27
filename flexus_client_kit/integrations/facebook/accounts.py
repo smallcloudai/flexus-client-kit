@@ -16,6 +16,8 @@ AD_ACCOUNT_DETAIL_FIELDS = (
     "balance,amount_spent,spend_cap,business,funding_source_details,"
     "min_daily_budget,created_time"
 )
+
+
 async def list_ad_accounts(client: "FacebookAdsClient") -> str:
     if client.is_test_mode:
         return _mock_list_ad_accounts()
@@ -50,6 +52,8 @@ async def list_ad_accounts(client: "FacebookAdsClient") -> str:
         for acc in personal_accounts:
             result += _format_account_summary(acc)
     return result
+
+
 async def get_ad_account_info(client: "FacebookAdsClient", ad_account_id: str) -> str:
     if not ad_account_id:
         return "ERROR: ad_account_id parameter is required"
@@ -90,6 +94,8 @@ async def get_ad_account_info(client: "FacebookAdsClient", ad_account_id: str) -
         business = acc['business']
         result += f"\n**Business:** {business.get('name', 'N/A')} (ID: {business.get('id', 'N/A')})\n"
     return result
+
+
 async def update_spending_limit(client: "FacebookAdsClient", ad_account_id: str, spending_limit: int) -> str:
     if not ad_account_id:
         return "ERROR: ad_account_id parameter is required"
@@ -107,6 +113,8 @@ async def update_spending_limit(client: "FacebookAdsClient", ad_account_id: str,
         return f"Spending limit updated to {format_currency(spending_limit)} for account {ad_account_id}"
     else:
         return f"Failed to update spending limit. Response: {result}"
+
+
 def _format_account_summary(acc: Dict[str, Any]) -> str:
     account_status = acc.get("account_status", 1)
     status_text = format_account_status(account_status)
@@ -124,6 +132,8 @@ def _format_account_summary(acc: Dict[str, Any]) -> str:
         result += f"      Spend Cap: {format_currency(int(acc['spend_cap']), currency)}\n"
     result += "\n"
     return result
+
+
 def _mock_list_ad_accounts() -> str:
     return """Found 1 ad account:
 **Test Ad Account**
@@ -133,6 +143,8 @@ def _mock_list_ad_accounts() -> str:
    Balance: 500.00 USD
    Spend Cap: 10000.00 USD
 """
+
+
 def _mock_get_ad_account_info(ad_account_id: str) -> str:
     return f"""Ad Account Details:
 **Test Ad Account**

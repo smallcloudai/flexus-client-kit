@@ -1,10 +1,10 @@
-from typing import List, Type, TypeVar, Any
+from typing import List, Type, TypeVar, Any, Union
 import asyncio
 import dataclasses
 import json
 import gql
 
-from flexus_client_kit import ckit_client, gql_utils
+from flexus_client_kit import ckit_client, gql_utils, erp_schema
 
 T = TypeVar('T')
 
@@ -141,18 +141,191 @@ async def delete_erp_record(
         return r["erp_table_delete"]
 
 
+async def batch_upsert_erp_records(
+    client: ckit_client.FlexusClient,
+    table_name: str,
+    ws_id: str,
+    upsert_key: str,
+    records: List[Any],
+) -> dict:
+    http = await client.use_http()
+    async with http as h:
+        r = await h.execute(gql.gql("""
+            mutation ErpTableBatchUpsert($schema_name: String!, $table_name: String!, $ws_id: String!, $upsert_key: String!, $records_json: String!) {
+                erp_table_batch_upsert(schema_name: $schema_name, table_name: $table_name, ws_id: $ws_id, upsert_key: $upsert_key, records_json: $records_json)
+            }"""),
+            variable_values={
+                "schema_name": "erp",
+                "table_name": table_name,
+                "ws_id": ws_id,
+                "upsert_key": upsert_key,
+                "records_json": json.dumps([dataclass_or_dict_to_dict(r) for r in records]),
+            },
+        )
+        result = r["erp_table_batch_upsert"]
+        if isinstance(result, str):
+            return json.loads(result)
+        return result
+
+
+def check_record_matches_filters(record: dict, filters: List[Union[str, dict]], col_names: set = None) -> bool:
+    """
+    Check if a record (dict) matches all filters.
+    Supports string filters like "col:op:val" and dict filters like {"OR": [...], "AND": [...], "NOT": {...}}.
+
+    Examples:
+      "contact_id:=:4"
+      "name:ILIKE:%john%"
+      "status:IN:active,pending"
+      "deleted_ts:IS_NULL"
+      "tags:IS_NOT_EMPTY"
+      "task_details->email_subtype:=:welcome"
+      {"OR": ["status:=:active", "status:=:pending"]}
+
+    If col_names is None, any column name is accepted (useful for dynamic schemas).
+    """
+    for f in filters:
+        if isinstance(f, dict):
+            if "OR" in f:
+                if not any(check_record_matches_filter(record, sub, col_names) for sub in f["OR"]):
+                    return False
+            elif "AND" in f:
+                if not all(check_record_matches_filter(record, sub, col_names) for sub in f["AND"]):
+                    return False
+            elif "NOT" in f:
+                if check_record_matches_filter(record, f["NOT"], col_names):
+                    return False
+        else:
+            if not check_record_matches_filter(record, f, col_names):
+                return False
+    return True
+
+
+def check_record_matches_filter(record: dict, f: str, col_names: set = None) -> bool:
+    """
+    Check if a single record matches a single filter string.
+    Filter format: "col:op:val" or "col:op"
+
+    Standard operators: =, !=, >, >=, <, <=, IN, NOT_IN, LIKE, ILIKE, IS_NULL, IS_NOT_NULL, IS_EMPTY, IS_NOT_EMPTY
+    Array operators: contains, not_contains
+    JSON path: "task_details->email_subtype:=:welcome"
+    """
+    parts = f.split(":", 2)
+    if len(parts) < 2:
+        return True
+
+    col_spec = parts[0].strip()
+    op = parts[1].strip().upper()
+
+    # Parse JSON path
+    if "->" in col_spec:
+        col_parts = col_spec.split("->")
+        col = col_parts[0].strip()
+        if col_names and col not in col_names:
+            return False
+        if col not in record:
+            return False
+        val = record[col]
+        for p in col_parts[1:]:
+            if not isinstance(val, dict) or p not in val:
+                return False
+            val = val[p]
+    else:
+        col = col_spec
+        if col_names and col not in col_names:
+            return False
+        if col not in record:
+            val = None
+        else:
+            val = record[col]
+
+    if op in ("IS_NULL", "IS NULL"):
+        return val is None
+    if op in ("IS_NOT_NULL", "IS NOT NULL"):
+        return val is not None
+
+    if op in ("IS_EMPTY", "IS EMPTY"):
+        if val is None:
+            return True
+        if isinstance(val, str):
+            return val == ""
+        if isinstance(val, (list, dict)):
+            return len(val) == 0
+        return False
+    if op in ("IS_NOT_EMPTY", "IS NOT EMPTY"):
+        if val is None:
+            return False
+        if isinstance(val, str):
+            return val != ""
+        if isinstance(val, (list, dict)):
+            return len(val) > 0
+        return True
+
+    if len(parts) != 3:
+        return True
+
+    filter_val = parts[2].strip()
+
+    if op == "CONTAINS":
+        if val is None:
+            return False
+        if isinstance(val, list):
+            filter_lower = filter_val.lower()
+            return any(str(v).lower() == filter_lower for v in val)
+        else:
+            return filter_val.lower() in str(val).lower()
+
+    if op == "NOT_CONTAINS":
+        if val is None:
+            return True
+        if isinstance(val, list):
+            filter_lower = filter_val.lower()
+            return not any(str(v).lower() == filter_lower for v in val)
+        else:
+            return filter_val.lower() not in str(val).lower()
+
+    if isinstance(val, (int, float)):
+        try:
+            filter_val = type(val)(filter_val)
+        except (ValueError, TypeError):
+            return False
+
+    if op == "=":
+        return val == filter_val
+    if op == "!=":
+        return val != filter_val
+    if op == ">":
+        return val > filter_val
+    if op == ">=":
+        return val >= filter_val
+    if op == "<":
+        return val < filter_val
+    if op == "<=":
+        return val <= filter_val
+    if op == "IN":
+        vals = [v.strip() for v in filter_val.split(",")]
+        return str(val) in vals
+    if op in ("NOT_IN", "NOT IN"):
+        vals = [v.strip() for v in filter_val.split(",")]
+        return str(val) not in vals
+    if op in ("LIKE", "ILIKE"):
+        s = str(val).lower() if op == "ILIKE" else str(val)
+        pattern = filter_val.lower() if op == "ILIKE" else filter_val
+        if pattern.startswith("%") and pattern.endswith("%"):
+            return pattern[1:-1] in s
+        if pattern.startswith("%"):
+            return s.endswith(pattern[1:])
+        if pattern.endswith("%"):
+            return s.startswith(pattern[:-1])
+        return s == pattern
+
+    return True
+
+
 async def test():
-    from flexus_client_kit.erp_schema import ProductTemplate, ProductProduct
     client = ckit_client.FlexusClient("ckit_erp_test")
     ws_id = "solarsystem"
-    products = await query_erp_table(
-        client,
-        "product_product",
-        ws_id,
-        ProductProduct,
-        limit=10,
-        include=["prodt"],
-    )
+    products = await query_erp_table(client, "product_product", ws_id, erp_schema.ProductProduct, limit=10, include=["prodt"])
     print(f"Found {len(products)} products:")
     for p in products:
         print(p)

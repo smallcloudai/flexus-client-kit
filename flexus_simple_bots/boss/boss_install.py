@@ -14,13 +14,13 @@ from flexus_simple_bots.boss import boss_prompts
 
 boss_setup_schema = [
     {
-        "bs_name": "approval_policy",
+        "bs_name": "behavior_tune",
         "bs_type": "string_multiline",
-        "bs_default": "Think critically, if the task is aligned with the company's strategy. Especially pay attention to technical bugs, agents running in circles and doing stupid things, don't allow that.",
+        "bs_default": "",
         "bs_group": "Policy",
         "bs_order": 1,
         "bs_importance": 0,
-        "bs_description": "Policy for approving or rejecting tasks from colleague bots",
+        "bs_description": "Write your personal preferences how you want Boss to behave",
     },
     {
         "bs_name": "sample_rate_success",
@@ -87,7 +87,7 @@ async def install(
         marketable_run_this="python -m flexus_simple_bots.boss.boss_bot",
         marketable_setup_default=boss_setup_schema,
         marketable_featured_actions=[
-            {"feat_question": "Review recent task approvals", "feat_run_as_setup": False, "feat_depends_on_setup": []},
+            # {"feat_question": "Review recent task approvals", "feat_expert": "default", "feat_depends_on_setup": []},
         ],
         marketable_intro_message="Hi! I'm Boss, a Chief Orchestration Officer, I review and improve other bot's work to ensure quality and alignment with your goals.",
         marketable_preferred_model_default="grok-4-1-fast-reasoning",
@@ -95,26 +95,27 @@ async def install(
         marketable_default_inbox_default=500_000,
         marketable_experts=[
             ("default", ckit_bot_install.FMarketplaceExpertInput(
-                fexp_system_prompt=boss_prompts.boss_prompt,
+                fexp_system_prompt=boss_prompts.boss_default,
                 fexp_python_kernel="",
                 fexp_block_tools="*setup",
                 fexp_allow_tools="",
                 fexp_app_capture_tools=bot_internal_tools,
+                fexp_description="Helps hire bots and create tasks to accomplish goals, ensuring work aligns with company strategy and vision.",
             )),
-            ("setup", ckit_bot_install.FMarketplaceExpertInput(
-                fexp_system_prompt=boss_prompts.boss_setup,
+            ("uihelp", ckit_bot_install.FMarketplaceExpertInput(
+                fexp_system_prompt=boss_prompts.boss_uihelp,
                 fexp_python_kernel="",
-                fexp_block_tools="",
+                fexp_block_tools="*setup",
                 fexp_allow_tools="",
                 fexp_app_capture_tools=bot_internal_tools,
+                fexp_description="Assists users in navigating Flexus UI, including highlighting elements, document uploads, EDS, and MCP configuration.",
             )),
         ],
         marketable_tags=["management", "orchestration"],
         marketable_picture_big_b64=big,
         marketable_picture_small_b64=small,
         marketable_schedule=[
-            prompts_common.SCHED_TASK_SORT_10M | {"sched_when": "EVERY:2m"},
-            prompts_common.SCHED_TODO_5M | {"sched_when": "EVERY:1m"},
+            prompts_common.SCHED_PICK_ONE_5M | {"sched_when": "EVERY:2m"},
         ]
     )
 
