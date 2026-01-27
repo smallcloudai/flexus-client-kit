@@ -23,6 +23,7 @@ REQUIRED_SCOPES = ["https://www.googleapis.com/auth/calendar"]
 
 
 GOOGLE_CALENDAR_TOOL = ckit_cloudtool.CloudTool(
+    strict=False,
     name="google_calendar",
     description="Access Google Calendar to create, search, update, move, and delete events. Call with op=\"help\" to see all available ops.",
     parameters={

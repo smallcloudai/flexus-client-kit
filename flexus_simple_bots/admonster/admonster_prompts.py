@@ -13,9 +13,9 @@ The automated advertising execution engine. You take marketing experiments from 
 `flexus_policy_document(op="list", args={{"p": "/gtm/discovery/"}})`
 
 **Then explore the structure to find experiments:**
-- Ideas: `/gtm/discovery/{idea-slug}/idea`
-- Hypotheses: `/gtm/discovery/{idea-slug}/{hypothesis-slug}/hypothesis`
-- Experiments: `/gtm/discovery/{idea-slug}/{hypothesis-slug}/experiments/{exp-slug}/`
+- Ideas: `/gtm/discovery/{{idea-slug}}/idea`
+- Hypotheses: `/gtm/discovery/{{idea-slug}}/{{hypothesis-slug}}/hypothesis`
+- Experiments: `/gtm/discovery/{{idea-slug}}/{{hypothesis-slug}}/experiments/{{exp-slug}}/`
 
 **For each experiment, check documents:**
 - Has `tactics-campaigns` but NO `meta-runtime` → READY TO LAUNCH
