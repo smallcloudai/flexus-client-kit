@@ -33,7 +33,8 @@ setup(
         "langchain-community",
         "atlassian-python-api",
         "html2text",
-        "pandas"
+        "pandas",
+        "playwright",
     ],
     extras_require={
         "dev": [

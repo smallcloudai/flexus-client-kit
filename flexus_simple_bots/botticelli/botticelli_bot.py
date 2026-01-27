@@ -5,10 +5,13 @@ import re
 import base64
 import os
 import io
-from typing import Dict, Any, List, Union
+import httpx
+from typing import Dict, Any, List, Union, Set
 from pymongo import AsyncMongoClient
 import openai
 from PIL import Image
+from bs4 import BeautifulSoup
+from urllib.parse import urljoin, urlparse
 
 from flexus_client_kit import ckit_client
 from flexus_client_kit import ckit_cloudtool
@@ -51,27 +54,75 @@ STYLEGUIDE_TEMPLATE_TOOL = ckit_cloudtool.CloudTool(
 
 GENERATE_PICTURE_TOOL = ckit_cloudtool.CloudTool(
     name="picturegen",
-    description="Generate a picture from a text prompt using AI. Saves .png result to MongoDB. Acceptable sizes: '1024x1024' (square), '1024x1536' (portrait), '1536x1024' (landscape)",
+    description="""Generate a picture from a text prompt using AI. Saves .webp result to MongoDB.
+
+WORKFLOW (MANDATORY):
+1. DRAFT phase: Generate with quality='draft' (fast, cheap) to get user approval on concept
+2. FINAL phase: After user approves, regenerate with quality='final' (Pro model, higher quality)
+NEVER skip the draft phase - always get user approval before generating final!
+
+Quality modes:
+- 'draft' (default): Fast Gemini model for concept iteration. Use for initial concepts.
+- 'final': Pro Gemini model for production assets. Use ONLY after user approves draft.
+
+Resolution (for final quality only):
+- '1K' (default): Standard resolution, good for most uses
+- '2K': High resolution for large format displays
+
+Reference Images:
+- Use 'reference_image_url' to incorporate brand logo or style reference
+- MANDATORY: Always include brand logo as reference when generating ad creatives!
+
+Aspect ratios: '1:1' (square), '4:5' (portrait), '9:16' (stories), '16:9' (landscape), '3:2', '2:3', '4:3', '3:4', '21:9'""",
     parameters={
         "type": "object",
         "properties": {
             "prompt": {
                 "type": "string",
-                "description": "Detailed description of the image to generate"
+                "description": "Detailed description of the image to generate. Include logo placement instructions when using reference_image_url."
             },
             "size": {
                 "type": "string",
-                "enum": ["1024x1024", "1024x1536", "1536x1024"],
-                "description": "Image dimensions. Options: '1024x1024' (square), '1024x1536' (portrait), '1536x1024' (landscape)"
+                "description": "Aspect ratio: '1:1', '4:5', '9:16', '16:9', '3:2', '2:3', '4:3', '3:4', '21:9'"
             },
             "filename": {
                 "type": "string",
-                "description": "Filename for storing in MongoDB, e.g. '/my-artwork/neon-elephant-at-night--buy-our-elephants.png'"
+                "description": "Filename for storing in MongoDB, e.g. '/campaign-x/variation-1-draft.png'"
+            },
+            "quality": {
+                "type": "string",
+                "enum": ["draft", "final"],
+                "description": "Image quality. 'draft' (fast, for concept approval) or 'final' (Pro model, after user approval). Default: 'draft'"
+            },
+            "resolution": {
+                "type": "string",
+                "enum": ["1K", "2K"],
+                "description": "Output resolution. Only applies to quality='final'. '1K' (default) or '2K' (high-res). 4K is not available."
+            },
+            "reference_image_url": {
+                "type": "string",
+                "description": "URL of reference image (logo, brand asset). REQUIRED for ad creatives - use logo URL from style guide."
             }
         },
         "required": ["prompt", "size", "filename"],
     },
 )
+
+# Nano Banana (Google Gemini) aspect ratio to resolution mapping
+NANO_BANANA_SIZES = {
+    "1:1": (1024, 1024),
+    "2:3": (832, 1248),
+    "3:2": (1248, 832),
+    "3:4": (864, 1184),
+    "4:3": (1184, 864),
+    "4:5": (896, 1152),
+    "5:4": (1152, 896),
+    "9:16": (768, 1344),
+    "16:9": (1344, 768),
+    "21:9": (1536, 672),
+}
+
+OPENAI_SIZES = ["1024x1024", "1024x1536", "1536x1024"]
 
 CROP_IMAGE_TOOL = ckit_cloudtool.CloudTool(
     name="crop_image",
@@ -152,11 +203,35 @@ CAMPAIGN_BRIEF_TOOL = ckit_cloudtool.CloudTool(
     },
 )
 
+SCAN_BRAND_VISUALS_TOOL = ckit_cloudtool.CloudTool(
+    name="scan_brand_visuals",
+    description="""Scan a website to extract brand visual identity using Playwright browser.
+Extracts REAL computed CSS styles (colors, fonts) from the rendered page.
+Saves to /style-guide with color swatches for human verification.
+
+Use this tool ONCE per project. User will verify/adjust colors in the sidebar form.""",
+    parameters={
+        "type": "object",
+        "properties": {
+            "url": {
+                "type": "string",
+                "description": "Website URL to scan (e.g. 'https://example.com')"
+            },
+            "save_path": {
+                "type": "string",
+                "description": "Policy document path to save results (default: /style-guide)"
+            }
+        },
+        "required": ["url"],
+    },
+)
+
 TOOLS = [
     STYLEGUIDE_TEMPLATE_TOOL,
     GENERATE_PICTURE_TOOL,
     CROP_IMAGE_TOOL,
     CAMPAIGN_BRIEF_TOOL,
+    SCAN_BRAND_VISUALS_TOOL,
     fi_pdoc.POLICY_DOCUMENT_TOOL,
     fi_mongo_store.MONGO_STORE_TOOL
 ]
@@ -171,7 +246,16 @@ async def botticelli_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_
     mydb = mongo[dbname]
     personal_mongo = mydb["personal_mongo"]
 
-    openai_client = openai.AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+    # Lazy initialization of OpenAI client - only create when needed
+    openai_client = None
+    def get_openai_client():
+        nonlocal openai_client
+        if openai_client is None:
+            api_key = os.getenv("OPENAI_API_KEY")
+            if not api_key:
+                raise ValueError("OPENAI_API_KEY environment variable not set")
+            openai_client = openai.AsyncOpenAI(api_key=api_key)
+        return openai_client
 
     def validate_styleguide_structure(provided: Dict, expected: Dict, path: str = "root") -> str:
         if type(provided) != type(expected):
@@ -249,16 +333,35 @@ async def botticelli_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_
     @rcx.on_tool_call(GENERATE_PICTURE_TOOL.name)
     async def toolcall_generate_picture(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> Union[str, List[Dict[str, str]]]:
         prompt = model_produced_args.get("prompt", "")
-        size = model_produced_args.get("size", "1024x1024")
+        size = model_produced_args.get("size", "1:1")
         filename = model_produced_args.get("filename", "")
+        quality = model_produced_args.get("quality", "draft")
+        resolution = model_produced_args.get("resolution", "1K")
+        reference_image_url = model_produced_args.get("reference_image_url", "")
 
+        # Validate required fields
         if not prompt:
             return "Error: prompt required"
         if not filename:
             return "Error: filename required"
-        if size not in ["1024x1024", "1024x1536", "1536x1024"]:
-            return f"Error: size must be one of: 1024x1024 (square), 1024x1536 (portrait), 1536x1024 (landscape)"
+        
+        # Validate quality
+        if quality not in ("draft", "final"):
+            return "Error: quality must be 'draft' or 'final'"
+        
+        # Validate resolution - BLOCK 4K
+        if resolution not in ("1K", "2K"):
+            return "Error: resolution must be '1K' or '2K'. 4K is not available."
+        
+        # Resolution only applies to final quality
+        if quality == "draft" and resolution != "1K":
+            resolution = "1K"  # Draft always uses 1K
+        
+        # Validate aspect ratio
+        if size not in NANO_BANANA_SIZES:
+            return f"Error: size must be one of: {', '.join(NANO_BANANA_SIZES.keys())}"
 
+        # Validate filename
         try:
             filename.encode('ascii')
         except UnicodeEncodeError:
@@ -277,18 +380,104 @@ async def botticelli_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_
             filename = filename + ".png"
         filename_base = filename.replace(".png", "")
 
-        try:
-            logger.info(f"Generating {size} image: {prompt[:50]}...")
-            rsp = await openai_client.images.generate(
-                model="dall-e-3",
-                prompt=prompt,
-                n=1,
-                size=size,
-                response_format="b64_json"
-            )
+        # Select model based on quality
+        if quality == "draft":
+            model_name = "gemini-2.5-flash-image"
+            model_label = "Draft (Gemini Flash)"
+        else:
+            model_name = "gemini-3-pro-image-preview"
+            model_label = f"Final (Gemini Pro, {resolution})"
 
-            image_b64 = rsp.data[0].b64_json
-            png_bytes = base64.b64decode(image_b64)
+        try:
+            logger.info(f"Generating {size} image with {model_label}: {prompt[:50]}...")
+            nano_banana_api_key = os.getenv("NANO_BANANA_API_KEY")
+            if not nano_banana_api_key:
+                return "Error: NANO_BANANA_API_KEY environment variable not set"
+            
+            async with httpx.AsyncClient(timeout=180.0) as http_client:
+                # Build parts array - text prompt + optional reference image
+                parts = [{"text": prompt}]
+                
+                # Fetch and include reference image if provided
+                if reference_image_url:
+                    logger.info(f"Fetching reference image from: {reference_image_url[:100]}...")
+                    try:
+                        ref_response = await http_client.get(reference_image_url, timeout=30.0)
+                        if ref_response.status_code != 200:
+                            return f"Error: Failed to fetch reference image (HTTP {ref_response.status_code})"
+                        
+                        ref_image_bytes = ref_response.content
+                        ref_image_b64 = base64.b64encode(ref_image_bytes).decode("utf-8")
+                        
+                        # Detect MIME type from content-type header or URL
+                        content_type = ref_response.headers.get("content-type", "").lower()
+                        if "png" in content_type or reference_image_url.lower().endswith(".png"):
+                            mime_type = "image/png"
+                        elif "gif" in content_type or reference_image_url.lower().endswith(".gif"):
+                            mime_type = "image/gif"
+                        elif "webp" in content_type or reference_image_url.lower().endswith(".webp"):
+                            mime_type = "image/webp"
+                        else:
+                            mime_type = "image/jpeg"
+                        
+                        parts.append({
+                            "inlineData": {
+                                "mimeType": mime_type,
+                                "data": ref_image_b64
+                            }
+                        })
+                        logger.info(f"Added reference image: {len(ref_image_bytes)} bytes, {mime_type}")
+                    except httpx.TimeoutException:
+                        return "Error: Timeout fetching reference image"
+                    except Exception as e:
+                        return f"Error: Failed to fetch reference image: {str(e)}"
+                
+                # Build image config
+                image_config: Dict[str, Any] = {"aspectRatio": size}
+                if quality == "final":
+                    image_config["imageSize"] = resolution
+                
+                response = await http_client.post(
+                    f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent",
+                    headers={
+                        "x-goog-api-key": nano_banana_api_key,
+                        "Content-Type": "application/json"
+                    },
+                    json={
+                        "contents": [{"parts": parts}],
+                        "generationConfig": {
+                            "responseModalities": ["IMAGE"],
+                            "imageConfig": image_config
+                        }
+                    }
+                )
+                
+                if response.status_code != 200:
+                    error_detail = response.text[:500]
+                    logger.error(f"Gemini API error: {response.status_code} - {error_detail}")
+                    return f"Error: Gemini API returned {response.status_code}: {error_detail}"
+                
+                result_json = response.json()
+                
+                # Extract image from response
+                candidates = result_json.get("candidates", [])
+                if not candidates:
+                    return "Error: No image generated"
+                
+                response_parts = candidates[0].get("content", {}).get("parts", [])
+                image_b64 = None
+                for part in response_parts:
+                    if "inlineData" in part:
+                        image_b64 = part["inlineData"].get("data")
+                        break
+                
+                if not image_b64:
+                    return "Error: No image data in response"
+                
+                png_bytes = base64.b64decode(image_b64)
+                logger.info(f"Generated image: {len(png_bytes)} bytes with {model_label}")
+
+            # Process and save image
             with Image.open(io.BytesIO(png_bytes)) as img:
                 img_w, img_h = img.size
                 img_w2, img_h2 = img_w // 2, img_h // 2
@@ -300,7 +489,7 @@ async def botticelli_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_
                 webp_bytes = webp_buffer.getvalue()
                 webp_resized_bytes = webp_resized_buffer.getvalue()
 
-            logger.info("Image sizes: PNG %0.1fk, WebP %0.1fk, WebP resized %0.1fk" % (len(png_bytes) / 1024.0,  len(webp_bytes) / 1024.0, len(webp_resized_bytes) / 1024.0))
+            logger.info("Image sizes: Original %0.1fk, WebP %0.1fk, WebP resized %0.1fk" % (len(png_bytes) / 1024.0, len(webp_bytes) / 1024.0, len(webp_resized_bytes) / 1024.0))
             webp_p1 = filename.replace(".png", ".webp")
             webp_p2 = f"{filename_base}-{img_w2}x{img_h2}.webp"
             await ckit_mongo.mongo_store_file(personal_mongo, webp_p1, webp_bytes, 90 * 86400)
@@ -309,8 +498,10 @@ async def botticelli_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_
             logger.info(f"Saved to MongoDB: {webp_p2}")
             image_url1 = f"{fclient.base_url_http}/v1/docs/{rcx.persona.persona_id}/{webp_p1}"
             image_url2 = f"{fclient.base_url_http}/v1/docs/{rcx.persona.persona_id}/{webp_p2}"
+            
+            quality_note = "⚡ DRAFT - for concept approval" if quality == "draft" else f"✨ FINAL ({resolution}) - production ready"
             result = [
-                {"m_type": "text", "m_content": f"Generated image saved to mongodb:\n{webp_p1}\nor 0.5x size:\n{webp_p2}\n\nAccessible via:\n{image_url1}\n{image_url2}\n"},
+                {"m_type": "text", "m_content": f"Generated image with {model_label}\n{quality_note}\n\nSaved to mongodb:\n{webp_p1}\nor 0.5x size:\n{webp_p2}\n\nAccessible via:\n{image_url1}\n{image_url2}\n"},
                 {"m_type": "image/webp", "m_content": image_url2}
             ]
             return result
@@ -478,6 +669,324 @@ Full brief saved to: {brief_path}
         except Exception as e:
             logger.exception(f"Error in campaign_brief handler: {e}")
             return f"Error: {str(e)}"
+
+    @rcx.on_tool_call(SCAN_BRAND_VISUALS_TOOL.name)
+    async def toolcall_scan_brand_visuals(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
+        """Scan a website and extract brand visual identity using Playwright browser."""
+        from playwright.async_api import async_playwright
+        
+        url = model_produced_args.get("url", "")
+        save_path = model_produced_args.get("save_path", "/style-guide")
+        
+        if not url:
+            return "Error: url is required"
+        
+        # Validate URL
+        if not url.startswith(("http://", "https://")):
+            url = "https://" + url
+        
+        try:
+            parsed = urlparse(url)
+            if not parsed.netloc:
+                return f"Error: Invalid URL: {url}"
+        except Exception:
+            return f"Error: Invalid URL: {url}"
+        
+        try:
+            logger.info(f"Scanning website for brand visuals using Playwright: {url}")
+            
+            async with async_playwright() as p:
+                # Launch browser
+                browser = await p.chromium.launch(headless=True)
+                context = await browser.new_context(
+                    viewport={"width": 1920, "height": 1080},
+                    user_agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"
+                )
+                page = await context.new_page()
+                
+                try:
+                    # Navigate to page
+                    await page.goto(url, wait_until="networkidle", timeout=30000)
+                    await page.wait_for_timeout(2000)  # Wait for animations
+                    
+                    # Extract computed styles and images using JavaScript
+                    brand_data = await page.evaluate('''() => {
+                        // Helper to convert rgb to hex
+                        function rgbToHex(rgb) {
+                            if (!rgb || rgb === 'transparent' || rgb === 'rgba(0, 0, 0, 0)') return null;
+                            const match = rgb.match(/rgba?\\(([\\d.]+),\\s*([\\d.]+),\\s*([\\d.]+)/);
+                            if (!match) return rgb.startsWith('#') ? rgb : null;
+                            const r = Math.round(parseFloat(match[1]));
+                            const g = Math.round(parseFloat(match[2]));
+                            const b = Math.round(parseFloat(match[3]));
+                            return '#' + [r, g, b].map(x => x.toString(16).padStart(2, '0')).join('');
+                        }
+                        
+                        // Get computed style safely
+                        function getStyle(el, prop) {
+                            if (!el) return null;
+                            return window.getComputedStyle(el).getPropertyValue(prop);
+                        }
+                        
+                        // Find elements
+                        const body = document.body;
+                        const buttons = document.querySelectorAll('button, .btn, [class*="button"], [class*="Button"], a[class*="cta"], a[class*="Cta"]');
+                        const links = document.querySelectorAll('a:not([class*="button"]):not([class*="btn"])');
+                        const headings = document.querySelectorAll('h1, h2, h3');
+                        const paragraphs = document.querySelectorAll('p, .text, [class*="body"]');
+                        
+                        // Extract colors
+                        let primaryColor = null;
+                        let secondaryColor = null;
+                        
+                        // Try to find primary color from buttons
+                        for (const btn of buttons) {
+                            const bg = rgbToHex(getStyle(btn, 'background-color'));
+                            if (bg && bg !== '#ffffff' && bg !== '#000000' && bg !== '#transparent') {
+                                if (!primaryColor) primaryColor = bg;
+                                else if (!secondaryColor && bg !== primaryColor) secondaryColor = bg;
+                                break;
+                            }
+                        }
+                        
+                        // Try links for primary/accent color
+                        if (!primaryColor) {
+                            for (const link of links) {
+                                const color = rgbToHex(getStyle(link, 'color'));
+                                if (color && color !== '#000000' && !color.startsWith('#0000') && !color.startsWith('#333')) {
+                                    primaryColor = color;
+                                    break;
+                                }
+                            }
+                        }
+                        
+                        // Background color from body
+                        const backgroundColor = rgbToHex(getStyle(body, 'background-color')) || '#ffffff';
+                        
+                        // Text color from body or paragraphs
+                        let textColor = rgbToHex(getStyle(body, 'color'));
+                        if (!textColor || textColor === '#000000') {
+                            for (const p of paragraphs) {
+                                const c = rgbToHex(getStyle(p, 'color'));
+                                if (c) { textColor = c; break; }
+                            }
+                        }
+                        textColor = textColor || '#333333';
+                        
+                        // Extract fonts
+                        const bodyFont = getStyle(body, 'font-family')?.split(',')[0]?.trim().replace(/['"]/g, '') || 'Sans-serif';
+                        let headingFont = bodyFont;
+                        if (headings.length > 0) {
+                            headingFont = getStyle(headings[0], 'font-family')?.split(',')[0]?.trim().replace(/['"]/g, '') || bodyFont;
+                        }
+                        
+                        // Get site info
+                        const title = document.title || '';
+                        const ogSiteName = document.querySelector('meta[property="og:site_name"]')?.content;
+                        const ogImage = document.querySelector('meta[property="og:image"]')?.content;
+                        const favicon = document.querySelector('link[rel*="icon"]')?.href;
+                        
+                        // Extract all images for logo candidates
+                        const images = [];
+                        const viewportHeight = window.innerHeight;
+                        
+                        for (const img of document.querySelectorAll('img[src]')) {
+                            const rect = img.getBoundingClientRect();
+                            const src = img.src;
+                            
+                            // Filter: skip tiny images, data URLs, and images below viewport
+                            if (!src || src.startsWith('data:') || rect.width < 30 || rect.height < 30) continue;
+                            if (rect.top > viewportHeight * 0.5) continue;  // Only top half of page
+                            if (rect.width > 500 || rect.height > 300) continue;  // Skip hero images
+                            
+                            const isLogo = (img.alt?.toLowerCase().includes('logo') ||
+                                           img.className?.toLowerCase().includes('logo') ||
+                                           img.id?.toLowerCase().includes('logo') ||
+                                           img.closest('a[href="/"], a[href="./"], header')?.querySelector('img') === img);
+                            
+                            images.push({
+                                url: src,
+                                width: Math.round(rect.width),
+                                height: Math.round(rect.height),
+                                top: Math.round(rect.top),
+                                alt: img.alt || '',
+                                is_logo_hint: isLogo
+                            });
+                        }
+                        
+                        // Sort: prioritize images with logo hints, then by position (top first)
+                        images.sort((a, b) => {
+                            if (a.is_logo_hint && !b.is_logo_hint) return -1;
+                            if (!a.is_logo_hint && b.is_logo_hint) return 1;
+                            return a.top - b.top;
+                        });
+                        
+                        return {
+                            site_name: ogSiteName || title.split(' - ')[0].split(' | ')[0].trim(),
+                            logo_url: ogImage || favicon || null,
+                            primary_color: primaryColor || '#0066cc',
+                            secondary_color: secondaryColor || primaryColor || '#004499',
+                            background_color: backgroundColor,
+                            text_color: textColor,
+                            heading_font: headingFont,
+                            body_font: bodyFont,
+                            logo_candidates: images.slice(0, 10)  // Max 10 candidates
+                        };
+                    }''')
+                    
+                    # Take screenshot for color picking - resize viewport first for smaller file
+                    await page.set_viewport_size({"width": 800, "height": 600})
+                    await page.wait_for_timeout(500)  # Let page adjust
+                    
+                    # Take JPEG instead of PNG with quality setting for smaller file (~50-150KB vs 2-5MB)
+                    screenshot_bytes = await page.screenshot(type="jpeg", quality=60)
+                    screenshot_base64 = base64.b64encode(screenshot_bytes).decode("utf-8")
+                    
+                    logger.info(f"Extracted brand data: {brand_data}")
+                    logger.info(f"Screenshot size: {len(screenshot_bytes) / 1024:.1f}KB, Logo candidates: {len(brand_data.get('logo_candidates', []))}")
+                    
+                finally:
+                    await browser.close()
+            
+            # Determine visual style based on colors
+            bg_color = brand_data.get("background_color", "#ffffff").lower()
+            is_dark = bg_color in ["#000000", "#000", "#111111", "#111", "#0d0d0d", "#121212", "#1a1a1a"]
+            visual_style = "dark, modern" if is_dark else "light, clean"
+            
+            # Build style-guide with color swatches for human verification
+            import datetime
+            today = datetime.date.today().strftime("%Y%m%d")
+            
+            site_name = brand_data.get("site_name", "")
+            logo_url = brand_data.get("logo_url", "")
+            
+            # Get logo candidates from brand_data
+            logo_candidates = brand_data.get("logo_candidates", [])
+            
+            styleguide = {
+                "styleguide": {
+                    "meta": {
+                        "author": "Botticelli (auto-detected)",
+                        "date": today,
+                        "source_url": url,
+                        "status": "pending_verification",
+                        "screenshot_base64": screenshot_base64  # JPEG ~50-150KB for color picking
+                    },
+                    "section00-raw": {
+                        "title": "Raw Data",
+                        "logo_candidates": logo_candidates  # Array of image URLs for selection
+                    },
+                    "section01-colors": {
+                        "title": "🎨 Brand Colors (please verify)",
+                        "question01-primary": {
+                            "q": "Primary Brand Color",
+                            "a": brand_data.get("primary_color", "#0066cc"),
+                            "t": "color"
+                        },
+                        "question02-secondary": {
+                            "q": "Secondary Brand Color", 
+                            "a": brand_data.get("secondary_color", "#004499"),
+                            "t": "color"
+                        },
+                        "question03-background": {
+                            "q": "Background Color",
+                            "a": brand_data.get("background_color", "#ffffff"),
+                            "t": "color"
+                        },
+                        "question04-text": {
+                            "q": "Text Color",
+                            "a": brand_data.get("text_color", "#333333"),
+                            "t": "color"
+                        }
+                    },
+                    "section02-typography": {
+                        "title": "📝 Typography",
+                        "question01-heading-font": {
+                            "q": "Heading Font",
+                            "a": brand_data.get("heading_font", "Sans-serif")
+                        },
+                        "question02-body-font": {
+                            "q": "Body Font",
+                            "a": brand_data.get("body_font", "Sans-serif")
+                        }
+                    },
+                    "section03-brand": {
+                        "title": "🏢 Brand Info",
+                        "question01-site-name": {
+                            "q": "Brand/Site Name",
+                            "a": site_name
+                        },
+                        "question02-logo": {
+                            "q": "Logo URL",
+                            "a": logo_url or ""
+                        },
+                        "question03-style": {
+                            "q": "Visual Style",
+                            "a": visual_style
+                        }
+                    },
+                    "section04-verification": {
+                        "title": "✅ Verification",
+                        "question01-verified": {
+                            "q": "Colors verified by human?",
+                            "a": "no",
+                            "t": "select",
+                            "options": ["no", "yes"]
+                        }
+                    }
+                }
+            }
+            
+            # Save to policy document (overwrite if exists)
+            await pdoc_integration.pdoc_overwrite(
+                save_path, 
+                json.dumps(styleguide, indent=2), 
+                toolcall.fcall_ft_id
+            )
+            
+            logger.info(f"Saved style guide to {save_path}")
+            
+            # Format result for user with color swatches
+            primary_color = brand_data.get('primary_color', '#0066cc')
+            secondary_color = brand_data.get('secondary_color', '#004499')
+            background_color = brand_data.get('background_color', '#ffffff')
+            text_color = brand_data.get('text_color', '#333333')
+            heading_font = brand_data.get('heading_font', 'Sans-serif')
+            body_font = brand_data.get('body_font', 'Sans-serif')
+            
+            result = f"""✅ Brand Style Guide extracted from {url}
+
+**Site:** {site_name}
+
+---
+
+## 🎨 Detected Colors (please verify in sidebar)
+
+| Role | Color | Hex |
+|------|-------|-----|
+| Primary | 🟦 | `{primary_color}` |
+| Secondary | 🟦 | `{secondary_color}` |
+| Background | ⬜ | `{background_color}` |
+| Text | ⬛ | `{text_color}` |
+
+## 📝 Fonts
+- **Headings:** {heading_font}
+- **Body:** {body_font}
+
+## 🖼️ Logo
+{logo_url or 'Not found'}
+
+---
+
+⚠️ **Action Required:** Please check the **Forms** tab in the sidebar and verify the colors are correct. Click on any color swatch to adjust if needed.
+
+📁 Saved to: `{save_path}`
+"""
+            return result
+            
+        except Exception as e:
+            logger.exception(f"Error scanning website: {e}")
+            return f"Error scanning website: {str(e)}"
 
     @rcx.on_tool_call(fi_mongo_store.MONGO_STORE_TOOL.name)
     async def toolcall_mongo_store(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:

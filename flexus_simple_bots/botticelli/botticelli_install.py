@@ -18,10 +18,14 @@ BOT_DESCRIPTION = """
 AI Creative Director specializing in high-converting Facebook & Instagram ad creatives.
 
 **Key Features:**
+- **Website Brand Scanner**: Automatically extracts colors, fonts, logo, and visual style from any website
 - Generates 3 creative variations optimized with cognitive biases
-- DALL-E prompt generation (200-300 words, hyper-specific)
+- Dual image generation backends:
+  - **Nano Banana (Google Gemini)**: Fast, native aspect ratios (1:1, 4:5, 9:16, 16:9, etc.)
+  - **OpenAI DALL-E 3**: High-quality fixed sizes
+- Hyper-specific prompts (200-300 words)
 - Complete copy recommendations (Primary Text, Headline, Description)
-- Multiple ad formats (Square 1:1, Portrait 4:5, Landscape 1.91:1, Stories 9:16)
+- Multiple ad formats (Square 1:1, Portrait 4:5, Landscape 16:9, Stories 9:16)
 - Strategic rationale for each variation
 - Leverages psychological triggers (Social Proof, Scarcity, Authority, Anchoring, etc.)
 - Image generation, cropping, and WebP optimization
@@ -40,13 +44,12 @@ botticelli_setup_schema = []
 BOTTICELLI_DEFAULT_LARK = ""
 
 # Lark kernel for meta_ads_creative skill - returns subchat result
+# See AGENTS.md: outputs are "subchat_result", "post_cd_instruction", "error", "kill_tools"
 META_ADS_LARK_KERNEL = """
 msg = messages[-1]
 if msg["role"] == "assistant" and len(msg.get("tool_calls", [])) == 0:
-    # Subchat completed, return result to parent
-    subchat_result = msg.get("content", "")
-    if subchat_result:
-        tool_return(subchat_result)
+    # Subchat completed with no tool calls - return the content to parent
+    subchat_result = msg.get("content", "Creative generation completed.")
 """
 
 
@@ -99,6 +102,7 @@ async def install(
         marketable_tags=["Marketing", "Ads", "Creative", "Meta", "Facebook", "Instagram"],
         marketable_picture_big_b64=pic_big,
         marketable_picture_small_b64=pic_small,
+        marketable_forms=ckit_bot_install.load_form_bundles(__file__),
         marketable_schedule=[
             prompts_common.SCHED_TASK_SORT_10M | {"sched_when": "EVERY:5m"},
             prompts_common.SCHED_TODO_5M | {"sched_when": "EVERY:2m"},

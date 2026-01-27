@@ -6,41 +6,67 @@ from pathlib import Path
 example_styleguide = {
     "styleguide": {
         "meta": {
-            "author": "Max Mustermann",
-            "date": "20251126",
+            "author": "Botticelli (auto-detected)",
+            "date": "",
+            "source_url": "",
+            "status": "pending_verification"
         },
         "section01-colors": {
-            "title": "Color Palette",
-            "question01-bg-color1": {
-                "q": "Primary Background Color?",
-                "a": "",
+            "title": "🎨 Brand Colors (please verify)",
+            "question01-primary": {
+                "q": "Primary Brand Color",
+                "a": "#0066cc",
                 "t": "color"
             },
-            "question02-bg-color2": {
-                "q": "Secondary Background Color?",
-                "a": "",
+            "question02-secondary": {
+                "q": "Secondary Brand Color",
+                "a": "#004499",
                 "t": "color"
             },
-            "question03-fg-color1": {
-                "q": "Primary Foreground Color?",
-                "a": "",
+            "question03-background": {
+                "q": "Background Color",
+                "a": "#ffffff",
                 "t": "color"
             },
-            "question04-fg-color2": {
-                "q": "Secondary Foreground Color?",
-                "a": "",
+            "question04-text": {
+                "q": "Text Color",
+                "a": "#333333",
                 "t": "color"
             }
         },
         "section02-typography": {
-            "title": "Typography",
-            "question01-font-header": {
-                "q": "Header Font?",
-                "a": "",
+            "title": "📝 Typography",
+            "question01-heading-font": {
+                "q": "Heading Font",
+                "a": "Sans-serif"
             },
-            "question02-font-regular": {
-                "q": "Regular Font?",
-                "a": "",
+            "question02-body-font": {
+                "q": "Body Font",
+                "a": "Sans-serif"
+            }
+        },
+        "section03-brand": {
+            "title": "🏢 Brand Info",
+            "question01-site-name": {
+                "q": "Brand/Site Name",
+                "a": ""
+            },
+            "question02-logo": {
+                "q": "Logo URL",
+                "a": ""
+            },
+            "question03-style": {
+                "q": "Visual Style",
+                "a": "light, clean"
+            }
+        },
+        "section04-verification": {
+            "title": "✅ Verification",
+            "question01-verified": {
+                "q": "Colors verified by human?",
+                "a": "no",
+                "t": "select",
+                "options": ["no", "yes"]
             }
         }
     }
@@ -86,9 +112,31 @@ flexus_policy_document(op="update_json_text", args={{"p": "/style-guide", "json_
 or the user can fill out the form in the UI, that's fine too.
 
 
+## Brand Visuals Scanning
+
+scan_brand_visuals(url="https://example.com") scans a website and extracts:
+- Colors (hex codes from CSS, meta tags)
+- Fonts (from CSS, Google Fonts)
+- Logo URL
+- Visual style description
+
+Results are saved to policy document (default: /brand-visuals).
+Use this ONCE per project to establish brand consistency.
+
+
 ## Generating Images
 
 picturegen() makes pictures inside mongodb temp storage, and gives you the picture to see immediately.
+
+**Image Generation Backends:**
+- `nano_banana` (default): Google Gemini - fast, supports native aspect ratios (1:1, 4:5, 9:16, 16:9, etc.)
+- `openai`: DALL-E 3 - high quality, fixed sizes (1024x1024, 1024x1536, 1536x1024)
+
+**Recommended for Meta Ads:**
+- Feed Square: size="1:1" (nano_banana) or size="1024x1024" (openai)
+- Feed Portrait: size="4:5" (nano_banana)
+- Stories: size="9:16" (nano_banana)
+- Landscape: size="16:9" (nano_banana) or size="1536x1024" (openai)
 
 For filename choose something like "pictures/neon-elephant-at-night--buy-our-elephants.png", that is
 Use kebab-case, name consists of picture idea, double minus, text messaging within the picture.
