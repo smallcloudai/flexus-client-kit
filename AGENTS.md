@@ -1,22 +1,6 @@
 Instructions on how to improve existing bots or write new bots for Flexus, an agent orchestrator.
 
 
-Comprehensive Documentation
----------------------------
-
-For detailed guides on bot creation and testing, see:
-
-- **FLEXUS_BOT_REFERENCE.md** - Complete step-by-step tutorial
-  - Core concepts, terminology, and architecture
-  - Structure (bot, prompts, install)
-  - Tools (cloudtools vs inprocess), experts, Lark kernels
-  - Kanban board, scheduling, subchats, A2A communication
-  - Policy documents, custom forms, messenger integrations
-  - Testing with scenarios, deployment, and complete Frog bot example
-
-This document provides a quick reference. For in-depth guidance, consult the full tutorials above.
-
-
 Flexus Client Kit (ckit)
 ------------------------
 
@@ -142,75 +126,17 @@ The full list of all bs_type: string_short, string_long, string_multiline, bool,
 Custom Forms
 ------------
 
-Bots can provide custom HTML forms to edit policy documents instead of the default JSON editor.
-Forms are embedded in an iframe and communicate with the parent via postMessage.
+Custom HTML forms for editing policy documents. Put forms in `mybot/forms/{doctype}.html`.
 
-File structure:
-```
-mybot/
-  forms/
-    my_report.html     -- form for documents with "my_report" top-level key
-    survey.html        -- form for documents with "survey" top-level key
-  mybot_install.py
-  ...
+**CRITICAL**: Document must include `"microfrontend": "bot_name"` in meta for form to load:
+```json
+{"my_report": {"meta": {"microfrontend": "mybot", "created_at": "..."}, "content": "..."}}
 ```
 
-The document type is determined by the top-level key that contains an object with a `meta` subobject:
-```
-{"my_report": {"meta": {"created_at": "..."}, "title": "...", "content": "..."}}
-```
+Form loads from: `/v1/marketplace/{microfrontend}/{version}/forms/{top_level_key}.html`
+Without `microfrontend` field → generic JSON editor shown.
 
-The form filename must match the top-level key. See flexus_simple_bots/frog/forms/pond_report.html for a complete example.
-
-Protocol messages:
-- Parent → Form: INIT (content, themeCss, marketplace), CONTENT_UPDATE (content), FOCUS (focused)
-- Form → Parent: FORM_READY (formName), FORM_CONTENT_CHANGED (content)
-
-
-### Styling - Theme-Aware Paper Pattern
-
-Custom forms should match preexisting forms (like WorksheetEditor.vue) using theme-aware CSS variables
-that automatically adapt to light/dark mode:
-
-- `--p-primary-contrast-color` - paper background (white in light mode, black in dark mode)
-- `--p-primary-color` - paper text color (black in light mode, white in dark mode)
-- `--p-content-hover-background` - desk/input backgrounds (adapts to theme)
-- `--p-text-color` - standard text color (adapts to theme)
-- `--p-text-muted-color` - muted text, dashed border color
-- `--p-surface-border` - borders
-- `--p-red-500` - red for criticism/error text
-
-**Never hardcode colors** like `white`, `#1f1f1f`, etc. - always use CSS variables.
-
-CSS template:
-```css
-body { background: var(--p-content-hover-background); margin: 0; padding: 10px; }
-.paper {
-  width: 440px; padding: 20px; min-height: calc(100vh - 20px);
-  background: var(--p-primary-contrast-color); color: var(--p-primary-color);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-}
-.meta-box {
-  width: 400px; display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 3rem; padding: 1rem;
-  border: 2px dashed var(--p-text-muted-color); border-radius: 8px; position: relative; font-size: 0.8rem;
-}
-.meta-label {
-  position: absolute; top: -0.65rem; left: 1rem; background: var(--p-primary-contrast-color);
-  padding: 0 0.5rem; font-weight: 700; font-size: 0.75rem; letter-spacing: 0.05em; color: var(--p-text-muted-color);
-}
-h1 { font-size: 1.25rem; font-weight: 600; color: var(--p-primary-color); margin: 0 0 1.5rem 0; }
-.field { margin-bottom: 1rem; width: 400px; }
-.field > label { display: block; font-weight: 600; margin-bottom: 0.5rem; font-size: 0.875rem; }
-input, textarea, select {
-  border: 1px solid var(--p-surface-border); border-radius: 6px;
-  padding: 0.5rem 0.75rem; font-size: 1rem; font-family: inherit; box-sizing: border-box;
-  background: var(--p-content-hover-background); color: var(--p-text-color);
-}
-input:focus, textarea:focus, select:focus { outline: none; border-color: var(--p-primary-color); }
-textarea { resize: none; field-sizing: content; min-height: 2.5rem; width: 100%; }
-```
-
-See flexus_simple_bots/frog/forms/pond_report.html for a complete example.
+See: `flexus_simple_bots/frog/frog_bot.py:183-199` (how to write docs), `frog/forms/pond_report.html` (form example)
 
 
 Bot Main Loop
@@ -405,6 +331,17 @@ that will create a kanban task in the inbox of that bot.
 - It might not be real-time because the task goes into a queue, does not get executed immediately.
 - The original chat does not wait, it might continue talking to user or calling other functions, the model needs respond with assistant message with no calls and therefore switch to 'wait for user' mode for waiting to happen.
 
+
+
+Reports (fi_report)
+-------------------
+
+For generating analysis reports via parallel subchats → exported to HTML.
+Use policy documents (fi_pdoc) for persistent human-editable data; use fi_report for one-time analysis.
+
+Flow: `create_report()` → `process_report()` (spawns subchats) → `fill_report_section()` → auto-export HTML
+
+See: `flexus_client_kit/integrations/report/fi_report.py`, adspy bot for implementation example.
 
 
 Writing Logs
