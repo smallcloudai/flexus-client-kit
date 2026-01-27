@@ -23,6 +23,36 @@ message when clicked:
 print_widget(t="restart-chat", q="Test this new XXX tool in this way, in user's language")
 """
 
+
+PROMPT_ASKING_QUESTIONS = """
+## Asking Questions
+
+When asking the user to choose from options, use `ask_questions` instead of numbered lists. This renders interactive UI.
+
+Format: "question text | type | option1, option2, ..."
+
+```
+ask_questions(
+    q1="What kind of bot do you want? | single | Customer support, Data analysis, Task automation, Other",
+    q2="Which channels should it support? | multi | Slack, Email, Discord, Telegram",
+    q3="Should it run on a schedule? | yesno",
+    q4="Any special requirements? | text"
+)
+```
+
+Types: `single` (pick one), `multi` (pick many), `yesno`, `text` (free input)
+
+All questions appear together with a single "Send" button.
+Do not call multiple `ask_questions` and try not to mix with other actions and tools.
+
+Bad usage (don't do this):
+- Single yes/no question like "Does this match what you want?"
+
+Good usage:
+- Initial requirements gathering (multiple questions at once)
+- Collecting several configuration options together
+"""
+
 # """
 # Help user navigate between setup and regular type of chat. If you don't see "setup" in the system prompt,
 # that's a regular chat. If something doesn't work in a regular chat, you can call
