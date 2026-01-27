@@ -48,6 +48,7 @@ class FMarketplaceExpertInput:
     fexp_inactivity_timeout: int = 0
     fexp_app_capture_tools: str = ""
     fexp_description: str = ""
+    fexp_preferred_model_default: str = ""
 
 
 async def marketplace_upsert_dev_bot(
