@@ -1,10 +1,7 @@
-import time
 from collections import deque
 from typing import List, Dict, Any, Optional
 
-import gql
-
-from flexus_client_kit import ckit_bot_exec, ckit_bot_query, ckit_client
+from flexus_client_kit import ckit_bot_exec, ckit_bot_query
 
 AUTHOR_EMOJI = "👤"
 FILE_EMOJI = "📎"
@@ -94,34 +91,4 @@ def get_last_posted_ts(fthread: ckit_bot_query.FThreadWithMessages) -> float:
     if fthread.thread_fields.ft_app_specific:
         return fthread.thread_fields.ft_app_specific.get("last_posted_assistant_ts", 0)
     return 0
-
-
-async def create_messenger_activity(
-    fclient: ckit_client.FlexusClient,
-    ws_id: str,
-    platform: str,
-    contact_id: str,
-    ft_id: str,
-    summary: str,
-    direction: str = "INBOUND",
-) -> bool:
-    async with (await fclient.use_http()) as http:
-        await http.execute(gql.gql("""mutation CreateMessengerActivity($input: ErpRecordInput!) {
-            erp_record_create(input: $input) { pkey_value }
-        }"""), variable_values={"input": {
-            "table_name": "crm_activity",
-            "ws_id": ws_id,
-            "record": {
-                "ws_id": ws_id,
-                "activity_title": f"{platform} conversation",
-                "activity_type": "MESSENGER_CHAT",
-                "activity_platform": platform,
-                "activity_direction": direction,
-                "activity_contact_id": contact_id,
-                "activity_ft_id": ft_id,
-                "activity_summary": summary,
-                "activity_occurred_ts": time.time(),
-            },
-        }})
-    return True
 

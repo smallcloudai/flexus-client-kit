@@ -4,6 +4,7 @@ import io
 import json
 import logging
 import os
+import time
 from collections import deque
 from dataclasses import dataclass, field
 from typing import Any, Awaitable, Callable, Dict, List, Optional
@@ -13,7 +14,7 @@ from PIL import Image
 import telegram
 import telegram.ext
 
-from flexus_client_kit import ckit_ask_model, ckit_bot_exec, ckit_bot_query, ckit_client, ckit_cloudtool
+from flexus_client_kit import ckit_ask_model, ckit_bot_exec, ckit_bot_query, ckit_client, ckit_cloudtool, ckit_erp
 from flexus_client_kit.format_utils import format_cat_output
 from flexus_client_kit.integrations import fi_messenger
 
@@ -250,9 +251,17 @@ class IntegrationTelegram:
             if fthread := self.rcx.latest_threads.get(toolcall.fcall_ft_id):
                 fthread.thread_fields.ft_app_searchable = ""
             if contact_id:
-                await fi_messenger.create_messenger_activity(
-                    self.fclient, self.rcx.persona.ws_id, "TELEGRAM", contact_id, toolcall.fcall_ft_id, summary,
-                )
+                await ckit_erp.create_erp_record(self.fclient, "crm_activity", self.rcx.persona.ws_id, {
+                    "ws_id": self.rcx.persona.ws_id,
+                    "activity_title": "TELEGRAM conversation",
+                    "activity_type": "MESSENGER_CHAT",
+                    "activity_platform": "TELEGRAM",
+                    "activity_direction": "INBOUND",
+                    "activity_contact_id": contact_id,
+                    "activity_ft_id": toolcall.fcall_ft_id,
+                    "activity_summary": summary,
+                    "activity_occurred_ts": time.time(),
+                })
             return fi_messenger.UNCAPTURE_SUCCESS_MSG
 
         if op == "skip":
