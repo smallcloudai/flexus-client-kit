@@ -103,17 +103,19 @@ async def main():
                 "sched_type": "SCHED_TODO",
                 "sched_when": "EVERY:1m",
                 "sched_first_question": "Check todo tasks",
+                "sched_fexp_name": "default",
                 "sched_enable": True,
-                "sched_marketplace": True
+                "sched_marketplace": True,
             },
             {
                 "sched_persona_id": persona_id,
                 "sched_type": "SCHED_TASK_SORT",
                 "sched_when": "EVERY:1m",
                 "sched_first_question": "Sort inbox tasks",
+                "sched_fexp_name": "default",
                 "sched_enable": True,
-                "sched_marketplace": True
-            }
+                "sched_marketplace": True,
+            },
         ]
         
         for sched in schedule_data:
