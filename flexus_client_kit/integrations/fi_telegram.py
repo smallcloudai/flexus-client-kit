@@ -4,6 +4,7 @@ import io
 import json
 import logging
 import os
+import time
 from collections import deque
 from dataclasses import dataclass, field
 from typing import Any, Awaitable, Callable, Dict, List, Optional
@@ -13,7 +14,7 @@ from PIL import Image
 import telegram
 import telegram.ext
 
-from flexus_client_kit import ckit_ask_model, ckit_bot_exec, ckit_bot_query, ckit_client, ckit_cloudtool
+from flexus_client_kit import ckit_ask_model, ckit_bot_exec, ckit_bot_query, ckit_client, ckit_cloudtool, ckit_erp
 from flexus_client_kit.format_utils import format_cat_output
 from flexus_client_kit.integrations import fi_messenger
 
@@ -43,8 +44,8 @@ telegram(op="capture", args={"chat_id": 123456789})
 telegram(op="post", args={"chat_id": 123456789, "text": "Hello!"})
     Post a message to a Telegram chat. Don't use this for captured chats.
 
-telegram(op="uncapture")
-    Stop capturing the current Telegram chat.
+telegram(op="uncapture", args={"contact_id": "abc123", "conversation_summary": "Brief summary"})
+    Stop capturing. If contact_id is provided, logs a CRM activity with the summary.
 
 telegram(op="skip")
     Ignore the most recent message but keep capturing.
@@ -240,10 +241,27 @@ class IntegrationTelegram:
             return fi_messenger.CAPTURE_SUCCESS_MSG % identifier + fi_messenger.CAPTURE_ADVICE_MSG
 
         if op == "uncapture":
+            contact_id = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "contact_id", None)
+            summary = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "conversation_summary", None)
+            if contact_id and not summary:
+                return "Missing conversation_summary.\n"
+
             http = await self.fclient.use_http()
             await ckit_ask_model.thread_app_capture_patch(http, toolcall.fcall_ft_id, ft_app_searchable="")
             if fthread := self.rcx.latest_threads.get(toolcall.fcall_ft_id):
                 fthread.thread_fields.ft_app_searchable = ""
+            if contact_id:
+                await ckit_erp.create_erp_record(self.fclient, "crm_activity", self.rcx.persona.ws_id, {
+                    "ws_id": self.rcx.persona.ws_id,
+                    "activity_title": "TELEGRAM conversation",
+                    "activity_type": "MESSENGER_CHAT",
+                    "activity_platform": "TELEGRAM",
+                    "activity_direction": "INBOUND",
+                    "activity_contact_id": contact_id,
+                    "activity_ft_id": toolcall.fcall_ft_id,
+                    "activity_summary": summary,
+                    "activity_occurred_ts": time.time(),
+                })
             return fi_messenger.UNCAPTURE_SUCCESS_MSG
 
         if op == "skip":

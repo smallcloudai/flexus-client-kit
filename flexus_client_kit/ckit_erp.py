@@ -27,7 +27,7 @@ async def query_erp_table(
     skip: int = 0,
     limit: int = 100,
     sort_by: List[str] = [],
-    filters: List[str] = [],
+    filters: Union[str, dict] = {},
     include: List[str] = [],
 ) -> List[T]:
     if include:
@@ -44,7 +44,7 @@ async def query_erp_table(
                 $skip: Int!,
                 $limit: Int!,
                 $sort_by: [String!]!,
-                $filters: [String!]!,
+                $filters: String!,
                 $include: [String!]!
             ) {
                 erp_table_data(
@@ -65,7 +65,7 @@ async def query_erp_table(
                 "skip": skip,
                 "limit": limit,
                 "sort_by": sort_by,
-                "filters": filters,
+                "filters": json.dumps(filters),
                 "include": include,
             },
         )
@@ -168,36 +168,20 @@ async def batch_upsert_erp_records(
         return result
 
 
-def check_record_matches_filters(record: dict, filters: List[Union[str, dict]], col_names: set = None) -> bool:
-    """
-    Check if a record (dict) matches all filters.
-    Supports string filters like "col:op:val" and dict filters like {"OR": [...], "AND": [...], "NOT": {...}}.
-
-    Examples:
-      "contact_id:=:4"
-      "name:ILIKE:%john%"
-      "status:IN:active,pending"
-      "deleted_ts:IS_NULL"
-      "tags:IS_NOT_EMPTY"
-      "task_details->email_subtype:=:welcome"
-      {"OR": ["status:=:active", "status:=:pending"]}
-
-    If col_names is None, any column name is accepted (useful for dynamic schemas).
-    """
-    for f in filters:
-        if isinstance(f, dict):
-            if "OR" in f:
-                if not any(check_record_matches_filter(record, sub, col_names) for sub in f["OR"]):
-                    return False
-            elif "AND" in f:
-                if not all(check_record_matches_filter(record, sub, col_names) for sub in f["AND"]):
-                    return False
-            elif "NOT" in f:
-                if check_record_matches_filter(record, f["NOT"], col_names):
-                    return False
-        else:
-            if not check_record_matches_filter(record, f, col_names):
-                return False
+def check_record_matches_filters(record: dict, filters, col_names: set = None) -> bool:
+    if not filters:
+        return True
+    if isinstance(filters, str):
+        return check_record_matches_filter(record, filters, col_names)
+    if isinstance(filters, list):
+        return all(check_record_matches_filters(record, sub, col_names) for sub in filters)
+    if isinstance(filters, dict):
+        if "OR" in filters:
+            return any(check_record_matches_filters(record, sub, col_names) for sub in filters["OR"])
+        if "AND" in filters:
+            return all(check_record_matches_filters(record, sub, col_names) for sub in filters["AND"])
+        if "NOT" in filters:
+            return not check_record_matches_filters(record, filters["NOT"], col_names)
     return True
 
 

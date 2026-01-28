@@ -18,7 +18,14 @@ Once captured, their messages appear here and your responses are sent back autom
 Capture when: PMs, messages directed at you, or anything needing your response.
 IMPORTANT: If you need to respond to a user from a messaging platform, you MUST capture the chat first, otherwise they won't receive your response.
 
-When you're done with the conversation and closing the kanban task, uncapture the chat using op="uncapture".
+### Closing a messenger conversation (MANDATORY)
+
+When ending a conversation from a messenger platform, you MUST follow this sequence:
+1. Say goodbye to the user
+2. Call op="uncapture" with contact_id and conversation_summary if you identified the CRM contact
+3. Then resolve the kanban task
+
+NEVER resolve/close a kanban task without calling uncapture first.
 """.strip()
 
 CAPTURE_SUCCESS_MSG = "Captured! The next thing you write will be visible. Don't comment on that fact and think about what do you want to say in %r.\n"

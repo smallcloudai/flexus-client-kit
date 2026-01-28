@@ -141,13 +141,14 @@ async def bot_kanban_post_into_inbox(
     details_json: str,
     provenance_message: str,
     fexp_name: str = "default",
+    comingup_ts: float = 0.0,
 ) -> None:
     http = await client.use_http()
     async with http as h:
         await h.execute(
             gql.gql(
-                """mutation KanbanInbox($pid: String!, $title: String!, $details: String!, $prov: String!, $fexp: String!) {
-                    bot_kanban_post_into_inbox(persona_id: $pid, title: $title, details_json: $details, provenance_message: $prov, fexp_name: $fexp)
+                """mutation KanbanInbox($pid: String!, $title: String!, $details: String!, $prov: String!, $fexp: String!, $comingup: Float!) {
+                    bot_kanban_post_into_inbox(persona_id: $pid, title: $title, details_json: $details, provenance_message: $prov, fexp_name: $fexp, comingup_ts: $comingup)
                 }""",
             ),
             variable_values={
@@ -156,6 +157,7 @@ async def bot_kanban_post_into_inbox(
                 "details": details_json,
                 "prov": provenance_message,
                 "fexp": fexp_name,
+                "comingup": comingup_ts,
             },
         )
 

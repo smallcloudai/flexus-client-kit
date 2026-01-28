@@ -1,40 +1,6 @@
+import dataclasses
 from dataclasses import dataclass, field
 from typing import Optional, Dict, Type, List
-
-
-def get_pkey_field(cls: Type) -> str:
-    for name, f in cls.__dataclass_fields__.items():
-        if f.metadata.get("pkey"):
-            return name
-    raise ValueError(f"No pkey field in {cls.__name__}")
-
-
-def get_important_fields(cls: Type) -> List[str]:
-    return [name for name, f in cls.__dataclass_fields__.items() if f.metadata.get("importance", 0) > 0]
-
-
-def get_extra_search_fields(cls: Type) -> List[str]:
-    return [name for name, f in cls.__dataclass_fields__.items() if f.metadata.get("extra_search")]
-
-
-def get_field_display(cls: Type, field_name: str) -> Optional[str]:
-    f = cls.__dataclass_fields__.get(field_name)
-    return f.metadata.get("display") if f else None
-
-
-def get_field_enum(cls: Type, field_name: str) -> Optional[List[str]]:
-    f = cls.__dataclass_fields__.get(field_name)
-    return f.metadata.get("enum") if f else None
-
-
-def get_field_display_name(cls: Type, field_name: str) -> Optional[str]:
-    f = cls.__dataclass_fields__.get(field_name)
-    return f.metadata.get("display_name") if f else None
-
-
-def get_field_description(cls: Type, field_name: str) -> Optional[str]:
-    f = cls.__dataclass_fields__.get(field_name)
-    return f.metadata.get("description") if f else None
 
 
 @dataclass
@@ -89,69 +55,69 @@ class CrmActivity:
 
 @dataclass
 class ProductTemplate:
-    prodt_id: str = field(metadata={"pkey": True, "display_name": "Product Template ID"})
     prodt_name: str = field(metadata={"importance": 1, "display_name": "Name"})
-    prodt_description: str = field(metadata={"importance": 1, "display": "string_multiline", "display_name": "Description"})
-    prodt_target_customers: str = field(metadata={"importance": 1, "display": "string_multiline", "display_name": "Target Customers"})
-    prodt_type: str = field(metadata={"importance": 1, "display_name": "Type"})
     prodt_pcat_id: str = field(metadata={"display_name": "Category"})
     prodt_list_price: int = field(metadata={"importance": 1, "display_name": "List Price"})
     prodt_standard_price: int = field(metadata={"importance": 1, "display_name": "Standard Price"})
     prodt_uom_id: str = field(metadata={"display_name": "Unit of Measure"})
-    prodt_active: bool = field(metadata={"importance": 1, "display_name": "Active"})
     ws_id: str = field(metadata={"display_name": "Workspace ID"})
-    prodt_chips: List[str] = field(metadata={"importance": 1, "display_name": "Chips"})
+    prodt_id: str = field(default="", metadata={"pkey": True, "display_name": "Product Template ID"})
+    prodt_description: str = field(default="", metadata={"importance": 1, "display": "string_multiline", "display_name": "Description"})
+    prodt_target_customers: str = field(default="", metadata={"importance": 1, "display": "string_multiline", "display_name": "Target Customers"})
+    prodt_type: str = field(default="consu", metadata={"importance": 1, "display_name": "Type"})
+    prodt_active: bool = field(default=True, metadata={"importance": 1, "display_name": "Active"})
+    prodt_chips: List[str] = field(default_factory=list, metadata={"importance": 1, "display_name": "Chips"})
     pcat: Optional['ProductCategory'] = field(default=None, metadata={"display_name": "Category"})
     uom: Optional['ProductUom'] = field(default=None, metadata={"display_name": "Unit of Measure"})
 
 
 @dataclass
 class ProductProduct:
-    prod_id: str = field(metadata={"pkey": True, "display_name": "Product ID"})
     prodt_id: str = field(metadata={"importance": 1, "display_name": "Product Template"})
-    prod_default_code: Optional[str] = field(metadata={"importance": 1, "display_name": "Internal Reference"})
-    prod_barcode: Optional[str] = field(metadata={"importance": 1, "display_name": "Barcode"})
-    prod_active: bool = field(metadata={"importance": 1, "display_name": "Active"})
     ws_id: str = field(metadata={"display_name": "Workspace ID"})
+    prod_id: str = field(default="", metadata={"pkey": True, "display_name": "Product ID"})
+    prod_default_code: Optional[str] = field(default=None, metadata={"importance": 1, "display_name": "Internal Reference"})
+    prod_barcode: Optional[str] = field(default=None, metadata={"importance": 1, "display_name": "Barcode"})
+    prod_active: bool = field(default=True, metadata={"importance": 1, "display_name": "Active"})
     prodt: Optional[ProductTemplate] = field(default=None, metadata={"display_name": "Product Template"})
 
 
 @dataclass
 class ProductCategory:
-    pcat_id: str = field(metadata={"pkey": True, "display_name": "Category ID"})
     pcat_name: str = field(metadata={"importance": 1, "display_name": "Name"})
-    pcat_parent_id: Optional[str] = field(metadata={"importance": 1, "display_name": "Parent Category"})
-    pcat_active: bool = field(metadata={"importance": 1, "display_name": "Active"})
     ws_id: str = field(metadata={"display_name": "Workspace ID"})
+    pcat_id: str = field(default="", metadata={"pkey": True, "display_name": "Category ID"})
+    pcat_parent_id: Optional[str] = field(default=None, metadata={"importance": 1, "display_name": "Parent Category"})
+    pcat_active: bool = field(default=True, metadata={"importance": 1, "display_name": "Active"})
     parent: Optional['ProductCategory'] = field(default=None, metadata={"display_name": "Parent Category"})
 
 
 @dataclass
 class ProductTag:
-    tag_id: str = field(metadata={"pkey": True, "display_name": "Tag ID"})
     tag_name: str = field(metadata={"importance": 1, "display_name": "Name"})
-    tag_sequence: int = field(metadata={"importance": 1, "display_name": "Sequence"})
-    tag_color: str = field(metadata={"importance": 1, "display_name": "Color"})
-    tag_visible_to_customers: bool = field(metadata={"importance": 1, "display_name": "Visible to Customers"})
     ws_id: str = field(metadata={"display_name": "Workspace ID"})
+    tag_id: str = field(default="", metadata={"pkey": True, "display_name": "Tag ID"})
+    tag_sequence: int = field(default=10, metadata={"importance": 1, "display_name": "Sequence"})
+    tag_color: str = field(default="#3C3C3C", metadata={"importance": 1, "display_name": "Color"})
+    tag_visible_to_customers: bool = field(default=True, metadata={"importance": 1, "display_name": "Visible to Customers"})
 
 
 @dataclass
 class ProductUom:
-    uom_id: str = field(metadata={"pkey": True, "display_name": "UoM ID"})
     uom_name: str = field(metadata={"importance": 1, "display_name": "Name"})
-    uom_category_id: Optional[str] = field(metadata={"importance": 1, "display_name": "Category"})
-    uom_active: bool = field(metadata={"importance": 1, "display_name": "Active"})
     ws_id: str = field(metadata={"display_name": "Workspace ID"})
+    uom_id: str = field(default="", metadata={"pkey": True, "display_name": "UoM ID"})
+    uom_category_id: Optional[str] = field(default=None, metadata={"importance": 1, "display_name": "Category"})
+    uom_active: bool = field(default=True, metadata={"importance": 1, "display_name": "Active"})
     category: Optional[ProductCategory] = field(default=None, metadata={"display_name": "Category"})
 
 
 @dataclass
 class ProductM2mTemplateTag:
-    id: str = field(metadata={"pkey": True, "display_name": "ID"})
     tag_id: str = field(metadata={"display_name": "Tag"})
     prodt_id: str = field(metadata={"display_name": "Product Template"})
     ws_id: str = field(metadata={"display_name": "Workspace ID"})
+    id: str = field(default="", metadata={"pkey": True, "display_name": "ID"})
     tag: Optional[ProductTag] = field(default=None, metadata={"display_name": "Tag"})
     prodt: Optional['ProductTemplate'] = field(default=None, metadata={"display_name": "Product Template"})
 
@@ -176,3 +142,47 @@ ERP_DISPLAY_NAME_CONFIGS: Dict[str, str] = {
     "product_tag": "{tag_name}",
     "product_uom": "{uom_name}",
 }
+
+
+def get_pkey_field(cls: Type) -> str:
+    for name, f in cls.__dataclass_fields__.items():
+        if f.metadata.get("pkey"):
+            return name
+    raise ValueError(f"No pkey field in {cls.__name__}")
+
+
+def get_required_fields(cls: Type) -> List[str]:
+    pkey = get_pkey_field(cls)
+    return [
+        name for name, f in cls.__dataclass_fields__.items()
+        if name != "ws_id" and name != pkey
+        and f.default is dataclasses.MISSING and f.default_factory is dataclasses.MISSING
+    ]
+
+
+def get_important_fields(cls: Type) -> List[str]:
+    return [name for name, f in cls.__dataclass_fields__.items() if f.metadata.get("importance", 0) > 0]
+
+
+def get_extra_search_fields(cls: Type) -> List[str]:
+    return [name for name, f in cls.__dataclass_fields__.items() if f.metadata.get("extra_search")]
+
+
+def get_field_display(cls: Type, field_name: str) -> Optional[str]:
+    f = cls.__dataclass_fields__.get(field_name)
+    return f.metadata.get("display") if f else None
+
+
+def get_field_enum(cls: Type, field_name: str) -> Optional[List[str]]:
+    f = cls.__dataclass_fields__.get(field_name)
+    return f.metadata.get("enum") if f else None
+
+
+def get_field_display_name(cls: Type, field_name: str) -> Optional[str]:
+    f = cls.__dataclass_fields__.get(field_name)
+    return f.metadata.get("display_name") if f else None
+
+
+def get_field_description(cls: Type, field_name: str) -> Optional[str]:
+    f = cls.__dataclass_fields__.get(field_name)
+    return f.metadata.get("description") if f else None

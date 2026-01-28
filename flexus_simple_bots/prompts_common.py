@@ -97,16 +97,19 @@ SCHED_PICK_ONE_5M = {
     "sched_type": "SCHED_PICK_ONE",
     "sched_when": "EVERY:5m",
     "sched_first_question": "If there are tasks in Inbox, pick one that looks more important, assign it to this thread using op=assign_to_this_chat",
+    "sched_fexp_name": "default",
 }
 
 SCHED_TASK_SORT_10M = {
     "sched_type": "SCHED_TASK_SORT",
     "sched_when": "EVERY:10m",
     "sched_first_question": "If there are tasks in Inbox, move up to 20 to todo or irrelevant according to the system prompt. Then respond with: N tasks sorted. Do nothing else",
+    "sched_fexp_name": "default",
 }
 
 SCHED_TODO_5M = {
     "sched_type": "SCHED_TODO",
     "sched_when": "EVERY:5m",
     "sched_first_question": "Work on the assigned task.",
+    "sched_fexp_name": "default",
 }
