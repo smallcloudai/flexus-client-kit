@@ -336,9 +336,6 @@ class IntegrationErp:
             if not fields or not isinstance(fields, dict):
                 return "❌ Error: fields parameter required and must be a dict for create operation"
 
-            if missing := [f for f in erp_schema.get_required_fields(schema_class) if f not in fields]:
-                return f"❌ Missing required fields: {', '.join(missing)}"
-
             try:
                 new_id = await ckit_erp.create_erp_record(
                     self.client,
