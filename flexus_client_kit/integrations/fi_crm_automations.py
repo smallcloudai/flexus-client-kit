@@ -27,36 +27,8 @@ CRM_AUTOMATIONS_SETUP_SCHEMA = [
 AUTOMATIONS_PROMPT = """## CRM Automations
 
 You can configure CRM automations to react to ERP table changes and perform actions automatically.
-
-Structure:
-- **Triggers**: What event fires the automation (e.g., new contact inserted or updated)
-- **Actions**: What to do when triggered (e.g., post a task into inbox, update contact tags)
-
-Common use cases:
-- Welcome emails when new contacts arrive
-- Follow-up tasks after initial contact
-- Automatic task creation based on deal stage changes
-
-Working with Automations:
-- Call crm_automation(op="help") and check available ERP tables and schema first with erp_table_meta
-- List existing automations
-- Do not react to just insert of erp tables, react also to update
-
-Template Variables:
-
-Use `{{trigger.new_record.field_name}}` or `{{trigger.old_record.field_name}}`:
-- `{{trigger.new_record.contact_id}}`
-- `{{trigger.old_record.contact_email}}` (for updates/deletes)
-
-Special functions:
-- `{{now()}}` - current Unix timestamp
-- `{{now() + 86400}}` - timestamp calculations
-
-Important Notes:
-- Actions execute in sequence
-- Failed actions are logged but don't stop subsequent actions
-- Automations can be enabled/disabled
-- NEVER use my_setup() to set up crm_automations - it will kill the configured automations, only use this tool to manage them"""
+Always call crm_automation(op="help") before creating or updating automations.
+Never use flexus_my_setup() to set crm_automations - use crm_automation()"""
 
 
 CRM_AUTOMATION_TOOL = ckit_cloudtool.CloudTool(
@@ -98,7 +70,7 @@ Each automation has:
 - triggers: list of trigger configs, erp_table trigger fires when ERP table records change
 - actions: list of action configs, like post task into inbox, create, update, or delete an erp record.
 
-## Example
+## Example: Welcome Email
 
 ```json
 {
@@ -135,6 +107,50 @@ Each automation has:
 }
 ```
 
+## Example: Follow-up Email (Scheduled for Future)
+
+Use `comingup_ts` to schedule tasks for future execution. Tasks with comingup_ts won't appear
+in inbox until that time arrives.
+
+```json
+{
+  "enabled": true,
+  "triggers": [
+    {
+      "type": "erp_table",
+      "table": "crm_contact",
+      "operations": ["insert", "update"],
+      "filters": [
+        "contact_tags:contains:welcome_email_sent",
+        "contact_tags:not_contains:followup_scheduled"
+      ]
+    }
+  ],
+  "actions": [
+    {
+      "type": "post_task_into_bot_inbox",
+      "title": "Send follow-up email to {{trigger.new_record.contact_first_name}} if they haven't replied or talked to us (no inbound CRM activity after our last outbound)",
+      "details": {
+        "contact_id": "{{trigger.new_record.contact_id}}"
+      },
+      "provenance": "CRM automation: followup_email",
+      "fexp_name": "nurturing",
+      "comingup_ts": "{{now() + 432000}}"
+    },
+    {
+      "type": "update_erp_record",
+      "table": "crm_contact",
+      "record_id": "{{trigger.new_record.contact_id}}",
+      "fields": {
+        "contact_tags": {"op": "append", "values": ["followup_scheduled"]}
+      }
+    }
+  ]
+}
+```
+
+Note: 432000 seconds = 5 days.
+
 ## Template Variables
 
 Use {{path.to.value}} to reference trigger data:
@@ -143,7 +159,7 @@ Use {{path.to.value}} to reference trigger data:
 
 Special functions:
 - {{now()}} - current Unix timestamp
-- {{now() + 86400}} - timestamp one day from now
+- {{now() + 86400}} - timestamp one day from now (86400 = 24*60*60)
 - {{now() - 3600}} - timestamp one hour ago
 
 ## Field Operations
@@ -180,6 +196,16 @@ Examples:
 - "contact_tags:not_contains:welcome_email_sent" - check array doesn't contain value
 - "contact_tags:contains:vip" - check array contains value
 - "contact_email:!=:" - check field is not empty
+
+## Important Notes
+
+- Actions execute in sequence
+- Failed actions are logged but don't stop subsequent actions
+- Triggers fire IMMEDIATELY when the event happens. Time-based filters check conditions at that moment, they don't delay execution
+- For delayed tasks (follow-ups after N days), use `comingup_ts` in post_task_into_bot_inbox action
+- Always react to both insert AND update operations, not just insert
+- Multiple follow-ups: all automations trigger at the same moment (when tag is added), so comingup_ts is relative to that moment. If you want follow-up 1 at 3 days, and follow-up 2 to be 4 days after follow-up 1, set follow-up 2 comingup_ts to 7 days (3+4), not 4
+- Chain follow-ups via tags: follow-up 2 should trigger on "followup_1_scheduled" tag (added by follow-up 1), not on "welcome_email_sent". Otherwise there may be a data race creating duplicate tasks
 """
 
 
@@ -376,14 +402,18 @@ async def _execute_actions(rcx: ckit_bot_exec.RobotContext, actions: List[Dict[s
         try:
             action_type = action.get("type")
             if action_type == "post_task_into_bot_inbox":
+                comingup_ts = 0.0
+                if comingup_raw := action.get("comingup_ts"):
+                    comingup_ts = float(_resolve_field_value(comingup_raw, ctx, "comingup_ts"))
                 await ckit_kanban.bot_kanban_post_into_inbox(
                     rcx.fclient, rcx.persona.persona_id,
                     _resolve_template(action.get("title", ""), ctx),
                     json.dumps({k: _resolve_template(v, ctx) if isinstance(v, str) else v for k, v in action.get("details", {}).items()}),
                     _resolve_template(action.get("provenance", "CRM automation"), ctx),
                     action.get("fexp_name", "default"),
+                    comingup_ts=comingup_ts,
                 )
-                logger.info(f"Posted task into inbox: {action.get('title', '')}")
+                logger.info(f"Posted task into inbox: {action.get('title', '')} comingup_ts={comingup_ts}")
 
             elif action_type == "create_erp_record":
                 table = action.get("table")
