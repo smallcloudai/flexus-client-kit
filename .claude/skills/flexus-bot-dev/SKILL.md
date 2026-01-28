@@ -14,6 +14,9 @@ description: Develop and test Flexus bots. Use when working with bot files (*_bo
 ## Bot Directory Structure
 
 ```
+.gitignore
+README.md
+setup.py
 mybot/
 ├── __init__.py              # Empty or minimal
 ├── mybot_bot.py             # Runtime: tools, handlers, main loop
@@ -91,20 +94,97 @@ for msg in messages[::-1]:
         break
 ```
 
-## Quick Test
+## Bot Installation
 
-```bash
-# 1. Syntax
-python -m py_compile mybot_bot.py mybot_prompts.py mybot_install.py
+Bot installation has two steps: **make code importable** (pip install) + **register in marketplace** (install script).
 
-# 2. Imports
-python -c "import mybot.mybot_bot; import mybot.mybot_install; print('OK')"
+### For New Bot Repos (separate repository)
 
-# 3. Install
-python mybot_install.py --ws=solarsystem
+When creating a bot in a new repository, you **must create setup.py** in the repo root:
+
+```python
+from setuptools import setup, find_packages
+setup(
+    name="mybot",
+    version="0.1.0",
+    packages=find_packages(),
+    install_requires=["flexus-client-kit"],
+    package_data={"": ["*.webp", "*.png", "*.html", "*.lark", "*.json"]},
+)
 ```
 
-Or use the script: `scripts/check_bot_install.sh mybot solarsystem`
+Without `setup.py`, the install will fail because Python can't find the bot module.
+
+### For Bots Inside flexus-client-kit
+
+Already handled - flexus-client-kit has its own setup.py that includes all bots.
+
+### Running Installation
+
+After you finish coding and commit your changes, tell BOB to install the bot. BOB will:
+1. Bump the version
+2. Install the package
+3. Register in marketplace
+4. Let the user test interactively
+
+## Testing Bots
+
+### What YOU Do (Claude Code)
+
+**1. Quick Validation**
+```bash
+python -m py_compile mybot/mybot_bot.py mybot/mybot_prompts.py mybot/mybot_install.py
+python -c "import mybot.mybot_bot; import mybot.mybot_install; print('OK')"
+```
+
+**2. Unit Tests** - Write tests for any testable logic, mock external services:
+
+```python
+# tests/test_mybot.py
+import pytest
+from unittest.mock import AsyncMock, patch
+
+@pytest.mark.asyncio
+async def test_my_tool_handler():
+    with patch("mybot.mybot_bot.external_api") as mock_api:
+        mock_api.fetch.return_value = {"status": "ok"}
+        result = await handle_my_tool(mock_toolcall, {"param": "value"})
+        assert "ok" in result
+
+def test_prompt_formatting():
+    from mybot import mybot_prompts
+    assert "## Instructions" in mybot_prompts.main_prompt
+```
+
+Run: `pytest tests/ -v`
+
+**What to test:** Tool handlers, prompt formatting, data parsing, pure functions
+**What to mock:** `ckit_client.FlexusClient`, external APIs (Slack/Discord/HTTP), `ckit_mongo`, `rcx.persona`
+
+**3. Scenario Testing** - After changing prompts/tools, test for regressions:
+```bash
+python -m mybot.mybot_bot --scenario mybot/mybot__s1.yaml
+cat scenario-dumps/mybot__s1-*-score.yaml
+```
+Naming: `botname__scenarioname.yaml` (double underscore). Rating < 8 needs improvement.
+
+**4. Smoke Test** - Verify the bot starts without errors:
+```bash
+pip install -e /workspace
+timeout 10 python -m mybot.mybot_bot --group=TEST 2>&1
+```
+If it crashes immediately, fix the error. If it runs for a few seconds without import/startup errors, it's ready for BOB to install and test.
+
+### External API Keys
+
+If your bot needs API keys for external services (Slack, Discord, etc.), tell BOB in the final report what's needed:
+- Which environment variable (e.g., `SLACK_BOT_TOKEN`)
+- What service it's for
+- BOB will ask the user and configure the dev environment
+
+### After You Finish
+
+Commit your changes. BOB will install the bot and let the user test it interactively via the UI.
 
 ## Key Rules
 
@@ -112,7 +192,8 @@ Or use the script: `scripts/check_bot_install.sh mybot solarsystem`
 - Subchat kernel **must** set `subchat_result` to complete
 - Changes to prompts/experts/schedules require reinstall
 - Use prefixes in naming: `fgroup_name` not `name`
+- Use logs actively to debug stuff, cover with logs especially tricky parts
 
 ## Coding Style
 
-No stupid comments. No docstrings. Simple code. Trailing commas. Prefer `import xxx` over `from xxx import f`.
+No stupid comments. No docstrings. Simple code. Trailing commas. Follow surrounding file style for imports.
