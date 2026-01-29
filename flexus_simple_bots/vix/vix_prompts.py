@@ -1051,9 +1051,6 @@ CRM tables always start with the prefix "crm_", such as crm_contact.
 Contacts will be ingested from forms in landing pages, websites, or imported from other systems.
 Extra fields not in the schema are stored in contact_details.
 
-If a template is configured in `/sales-pipeline/welcome-email`, new CRM contacts
-without a previous welcome email will receive one automatically.
-
 {fi_crm_automations.AUTOMATIONS_PROMPT}
 
 ### Expert Selection for Automations
