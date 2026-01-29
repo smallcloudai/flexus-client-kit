@@ -15,6 +15,7 @@ from flexus_client_kit import ckit_utils
 from flexus_client_kit.integrations import fi_mongo_store
 from flexus_client_kit.integrations import fi_pdoc
 from flexus_client_kit.integrations import fi_widget
+from flexus_client_kit.integrations import fi_erp
 from flexus_simple_bots.boss import boss_install
 from flexus_simple_bots.version_common import SIMPLE_BOTS_COMMON_VERSION
 
@@ -99,7 +100,9 @@ TOOLS = [
     # BOT_BUG_REPORT_TOOL,
     fi_widget.PRINT_WIDGET_TOOL,
     fi_mongo_store.MONGO_STORE_TOOL,
-    fi_pdoc.POLICY_DOCUMENT_TOOL
+    fi_pdoc.POLICY_DOCUMENT_TOOL,
+    fi_erp.ERP_TABLE_META_TOOL,
+    fi_erp.ERP_TABLE_DATA_TOOL,
 ]
 
 
@@ -284,6 +287,7 @@ async def boss_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.R
     personal_mongo = mydb["personal_mongo"]
 
     pdoc_integration = fi_pdoc.IntegrationPdoc(rcx, rcx.persona.ws_root_group_id)
+    erp_integration = fi_erp.IntegrationErp(fclient, rcx.persona.ws_id, personal_mongo)
 
     @rcx.on_updated_message
     async def updated_message_in_db(msg: ckit_ask_model.FThreadMessageOutput):
@@ -321,6 +325,14 @@ async def boss_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.R
     @rcx.on_tool_call(fi_pdoc.POLICY_DOCUMENT_TOOL.name)
     async def toolcall_pdoc(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
         return await pdoc_integration.called_by_model(toolcall, model_produced_args)
+
+    @rcx.on_tool_call(fi_erp.ERP_TABLE_META_TOOL.name)
+    async def toolcall_erp_meta(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
+        return await erp_integration.handle_erp_meta(toolcall, model_produced_args)
+
+    @rcx.on_tool_call(fi_erp.ERP_TABLE_DATA_TOOL.name)
+    async def toolcall_erp_data(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
+        return await erp_integration.handle_erp_data(toolcall, model_produced_args)
 
     try:
         while not ckit_shutdown.shutdown_event.is_set():

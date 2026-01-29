@@ -82,6 +82,11 @@ Another method to access external information is MCP, see flexus_mcp_setup() for
 servers in the tree.
 
 
+## ERP Views
+
+ERP views display company data (contacts, products, activities) from ERP tables. Users can create custom views with filters and sorting.
+
+
 # Your First Response
 
 Stick to this format: "I can help you nagivate Flexus UI, hire the right bots, and create tasks for them to accomplish your goals."
