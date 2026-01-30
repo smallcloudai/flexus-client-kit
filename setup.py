@@ -59,6 +59,7 @@ setup(
         "playwright",
         "openai",
         "python-telegram-bot",
+        "iso4217",
     ],
     extras_require={
         "dev": [
