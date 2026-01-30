@@ -1,6 +1,9 @@
 import dataclasses
 from dataclasses import dataclass, field
+from decimal import Decimal
 from typing import Optional, Dict, Type, List
+
+import iso4217
 
 
 @dataclass
@@ -40,8 +43,17 @@ class CrmContact:
 class CrmActivity:
     ws_id: str
     activity_title: str = field(metadata={"importance": 1, "display_name": "Title"})
-    activity_type: str = field(metadata={"importance": 1, "display_name": "Type", "enum": ["WEB_CHAT", "MESSENGER_CHAT", "EMAIL", "CALL", "MEETING"]})
-    activity_direction: str = field(metadata={"importance": 1, "display_name": "Direction", "enum": ["INBOUND", "OUTBOUND"]})
+    activity_type: str = field(metadata={"importance": 1, "display_name": "Type", "enum": [
+        {"value": "WEB_CHAT", "label": "Web Chat"},
+        {"value": "MESSENGER_CHAT", "label": "Messenger Chat"},
+        {"value": "EMAIL", "label": "Email"},
+        {"value": "CALL", "label": "Call"},
+        {"value": "MEETING", "label": "Meeting"},
+    ]})
+    activity_direction: str = field(metadata={"importance": 1, "display_name": "Direction", "enum": [
+        {"value": "INBOUND", "label": "Inbound"},
+        {"value": "OUTBOUND", "label": "Outbound"},
+    ]})
     activity_contact_id: str = field(metadata={"importance": 1, "display_name": "Contact"})
     activity_id: str = field(default="", metadata={"pkey": True, "display_name": "Activity ID"})
     activity_platform: str = field(default="", metadata={"importance": 1, "display_name": "Channel"})
@@ -57,10 +69,12 @@ class CrmActivity:
 class ProductTemplate:
     prodt_name: str = field(metadata={"importance": 1, "display_name": "Name"})
     prodt_pcat_id: str = field(metadata={"display_name": "Category"})
-    prodt_list_price: int = field(metadata={"importance": 1, "display_name": "List Price"})
-    prodt_standard_price: int = field(metadata={"importance": 1, "display_name": "Standard Price"})
+    prodt_list_price: Decimal = field(metadata={"importance": 1, "display_name": "List Price"})
+    prodt_standard_price: Decimal = field(metadata={"importance": 1, "display_name": "Standard Price"})
     prodt_uom_id: str = field(metadata={"display_name": "Unit of Measure"})
     ws_id: str = field(metadata={"display_name": "Workspace ID"})
+    prodt_list_price_currency: str = field(default="USD", metadata={"importance": 1, "display_name": "List Price Currency"})
+    prodt_standard_price_currency: str = field(default="USD", metadata={"importance": 1, "display_name": "Standard Price Currency"})
     prodt_id: str = field(default="", metadata={"pkey": True, "display_name": "Product Template ID"})
     prodt_description: str = field(default="", metadata={"importance": 1, "display": "string_multiline", "display_name": "Description"})
     prodt_target_customers: str = field(default="", metadata={"importance": 1, "display": "string_multiline", "display_name": "Target Customers"})
@@ -173,9 +187,18 @@ def get_field_display(cls: Type, field_name: str) -> Optional[str]:
     return f.metadata.get("display") if f else None
 
 
-def get_field_enum(cls: Type, field_name: str) -> Optional[List[str]]:
+def get_field_enum(cls: Type, field_name: str) -> Optional[List[Dict[str, str]]]:
     f = cls.__dataclass_fields__.get(field_name)
-    return f.metadata.get("enum") if f else None
+    r = f.metadata.get("enum") if f else None
+    if r:
+        return r
+    if field_name.endswith("_currency"):
+        price_field = field_name.removesuffix("_currency")
+        pf = cls.__dataclass_fields__.get(price_field)
+        if pf and pf.type is Decimal:
+            return [{"value": c.code, "label": "%s — %s" % (c.code, c.currency_name)}
+                for c in sorted(set(iso4217.Currency), key=lambda c: c.code)]
+    return None
 
 
 def get_field_display_name(cls: Type, field_name: str) -> Optional[str]:
