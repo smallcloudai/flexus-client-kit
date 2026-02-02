@@ -132,6 +132,52 @@ class ProductM2mTemplateTag:
     prodt: Optional['ProductTemplate'] = field(default=None, metadata={"display_name": "Product Template"})
 
 
+@dataclass
+class CrmPipeline:
+    ws_id: str
+    pipeline_name: str = field(metadata={"importance": 1, "display_name": "Name"})
+    pipeline_id: str = field(default="", metadata={"pkey": True, "display_name": "Pipeline ID"})
+    pipeline_active: bool = field(default=True, metadata={"importance": 1, "display_name": "Active"})
+    pipeline_created_ts: float = field(default=0.0, metadata={"display_name": "Created at"})
+    pipeline_modified_ts: float = field(default=0.0, metadata={"display_name": "Modified at"})
+    pipeline_archived_ts: float = field(default=0.0, metadata={"display_name": "Archived at"})
+
+
+@dataclass
+class CrmPipelineStage:
+    ws_id: str
+    stage_name: str = field(metadata={"importance": 1, "display_name": "Name"})
+    stage_pipeline_id: str = field(metadata={"importance": 1, "display_name": "Pipeline"})
+    stage_id: str = field(default="", metadata={"pkey": True, "display_name": "Stage ID"})
+    stage_sequence: int = field(default=0, metadata={"display_name": "Sequence"})
+    stage_probability: int = field(default=0, metadata={"importance": 1, "display_name": "Win Probability %", "description": "0-100 win probability percentage"})
+    stage_status: str = field(default="OPEN", metadata={"importance": 1, "display_name": "Status", "enum": [{"value": "OPEN", "label": "Open"}, {"value": "WON", "label": "Won"}, {"value": "LOST", "label": "Lost"}]})
+    stage_created_ts: float = field(default=0.0, metadata={"display_name": "Created at"})
+    stage_modified_ts: float = field(default=0.0, metadata={"display_name": "Modified at"})
+
+
+@dataclass
+class CrmDeal:
+    ws_id: str
+    deal_name: str = field(metadata={"importance": 1, "display_name": "Name"})
+    deal_pipeline_id: str = field(metadata={"importance": 1, "display_name": "Pipeline"})
+    deal_stage_id: str = field(metadata={"importance": 1, "display_name": "Stage", "fk_scope": {"stage_pipeline_id": "deal_pipeline_id"}})
+    deal_id: str = field(default="", metadata={"pkey": True, "display_name": "Deal ID"})
+    deal_contact_id: Optional[str] = field(default=None, metadata={"importance": 1, "display_name": "Contact"})
+    deal_value: Decimal = field(default=Decimal(0), metadata={"importance": 1, "display_name": "Value"})
+    deal_expected_close_ts: float = field(default=0.0, metadata={"importance": 1, "display_name": "Expected Close"})
+    deal_closed_ts: float = field(default=0.0, metadata={"display_name": "Closed at"})
+    deal_lost_reason: str = field(default="", metadata={"display_name": "Lost Reason"})
+    deal_notes: str = field(default="", metadata={"importance": 1, "display": "string_multiline", "display_name": "Notes"})
+    deal_tags: List[str] = field(default_factory=list, metadata={"importance": 1, "display_name": "Tags"})
+    deal_details: dict = field(default_factory=dict, metadata={"display_name": "Details", "description": "Custom fields JSON"})
+    deal_owner_fuser_id: str = field(default="", metadata={"display_name": "Owner"})
+    deal_priority: str = field(default="NONE", metadata={"importance": 1, "display_name": "Priority", "enum": [{"value": "NONE", "label": "None"}, {"value": "LOW", "label": "Low"}, {"value": "MEDIUM", "label": "Medium"}, {"value": "HIGH", "label": "High"}]})
+    deal_created_ts: float = field(default=0.0, metadata={"importance": 1, "display_name": "Created at"})
+    deal_modified_ts: float = field(default=0.0, metadata={"display_name": "Modified at"})
+    deal_archived_ts: float = field(default=0.0, metadata={"display_name": "Archived at"})
+
+
 ERP_TABLE_TO_SCHEMA: Dict[str, Type] = {
     "crm_contact": CrmContact,
     "crm_activity": CrmActivity,
@@ -141,6 +187,9 @@ ERP_TABLE_TO_SCHEMA: Dict[str, Type] = {
     "product_tag": ProductTag,
     "product_uom": ProductUom,
     "product_m2m_template_tag": ProductM2mTemplateTag,
+    "crm_pipeline": CrmPipeline,
+    "crm_pipeline_stage": CrmPipelineStage,
+    "crm_deal": CrmDeal,
 }
 
 ERP_DISPLAY_NAME_CONFIGS: Dict[str, str] = {
@@ -151,6 +200,9 @@ ERP_DISPLAY_NAME_CONFIGS: Dict[str, str] = {
     "product_category": "{pcat_name}",
     "product_tag": "{tag_name}",
     "product_uom": "{uom_name}",
+    "crm_pipeline": "{pipeline_name}",
+    "crm_pipeline_stage": "{stage_name}",
+    "crm_deal": "{deal_name}",
 }
 
 
@@ -196,3 +248,8 @@ def get_field_display_name(cls: Type, field_name: str) -> Optional[str]:
 def get_field_description(cls: Type, field_name: str) -> Optional[str]:
     f = cls.__dataclass_fields__.get(field_name)
     return f.metadata.get("description") if f else None
+
+
+def get_field_fk_scope(cls: Type, field_name: str) -> Optional[Dict[str, str]]:
+    f = cls.__dataclass_fields__.get(field_name)
+    return (f.metadata.get("fk_scope") if f else None) or None
