@@ -3,8 +3,6 @@ from dataclasses import dataclass, field
 from decimal import Decimal
 from typing import Optional, Dict, Type, List
 
-import iso4217
-
 
 @dataclass
 class CrmContact:
@@ -73,8 +71,6 @@ class ProductTemplate:
     prodt_standard_price: Decimal = field(metadata={"importance": 1, "display_name": "Standard Price"})
     prodt_uom_id: str = field(metadata={"display_name": "Unit of Measure"})
     ws_id: str = field(metadata={"display_name": "Workspace ID"})
-    prodt_list_price_currency: str = field(default="USD", metadata={"importance": 1, "display_name": "List Price Currency"})
-    prodt_standard_price_currency: str = field(default="USD", metadata={"importance": 1, "display_name": "Standard Price Currency"})
     prodt_id: str = field(default="", metadata={"pkey": True, "display_name": "Product Template ID"})
     prodt_description: str = field(default="", metadata={"importance": 1, "display": "string_multiline", "display_name": "Description"})
     prodt_target_customers: str = field(default="", metadata={"importance": 1, "display": "string_multiline", "display_name": "Target Customers"})
@@ -189,16 +185,7 @@ def get_field_display(cls: Type, field_name: str) -> Optional[str]:
 
 def get_field_enum(cls: Type, field_name: str) -> Optional[List[Dict[str, str]]]:
     f = cls.__dataclass_fields__.get(field_name)
-    r = f.metadata.get("enum") if f else None
-    if r:
-        return r
-    if field_name.endswith("_currency"):
-        price_field = field_name.removesuffix("_currency")
-        pf = cls.__dataclass_fields__.get(price_field)
-        if pf and pf.type is Decimal:
-            return [{"value": c.code, "label": "%s — %s" % (c.code, c.currency_name)}
-                for c in sorted(set(iso4217.Currency), key=lambda c: c.code)]
-    return None
+    return (f.metadata.get("enum") if f else None) or None
 
 
 def get_field_display_name(cls: Type, field_name: str) -> Optional[str]:
