@@ -75,7 +75,7 @@ def dataclass_from_dict(data: Dict[str, Any], cls: Type[T]) -> T:
             elif hasattr(field_type, "__origin__") and field_type.__origin__ is list:
                 if field_type.__args__ and isinstance(field_value, list):
                     inner_type = field_type.__args__[0]
-                    if hasattr(inner_type, "__annotations__"):
+                    if dataclasses.is_dataclass(inner_type):
                         # List of dataclasses
                         filtered_data[field_name] = [dataclass_from_dict(item, inner_type) for item in field_value]
                     else:
@@ -84,7 +84,7 @@ def dataclass_from_dict(data: Dict[str, Any], cls: Type[T]) -> T:
             elif field_type is Any:
                 # Fallback for Any type
                 filtered_data[field_name] = field_value
-            elif hasattr(field_type, "__annotations__"):
+            elif dataclasses.is_dataclass(field_type):
                 filtered_data[field_name] = dataclass_from_dict(field_value, field_type)
     return cls(**filtered_data)
 
