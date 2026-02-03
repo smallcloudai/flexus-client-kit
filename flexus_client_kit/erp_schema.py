@@ -154,6 +154,7 @@ class CrmPipelineStage:
     stage_status: str = field(default="OPEN", metadata={"importance": 1, "display_name": "Status", "enum": [{"value": "OPEN", "label": "Open"}, {"value": "WON", "label": "Won"}, {"value": "LOST", "label": "Lost"}]})
     stage_created_ts: float = field(default=0.0, metadata={"display_name": "Created at"})
     stage_modified_ts: float = field(default=0.0, metadata={"display_name": "Modified at"})
+    stage_archived_ts: float = field(default=0.0, metadata={"display_name": "Archived at"})
 
 
 @dataclass
