@@ -6,7 +6,7 @@ from typing import Dict, Any, Optional, List
 
 import gql
 
-from flexus_client_kit import ckit_cloudtool, ckit_client, ckit_erp, ckit_kanban, ckit_bot_exec
+from flexus_client_kit import ckit_cloudtool, ckit_client, ckit_erp, ckit_kanban, ckit_bot_exec, erp_schema
 
 logger = logging.getLogger("crmau")
 
@@ -68,7 +68,7 @@ CRM Automations Help
 Each automation has:
 - enabled: bool
 - triggers: list of trigger configs, erp_table trigger fires when ERP table records change
-- actions: list of action configs, like post task into inbox, create, update, or delete an erp record.
+- actions: list of action configs: post_task_into_bot_inbox, create/update/delete_erp_record, move_deal_stage.
 
 ## Example: Welcome Email
 
@@ -150,6 +150,49 @@ in inbox until that time arrives.
 ```
 
 Note: 432000 seconds = 5 days.
+
+## Example: Move Deal Stage on Activity
+
+When a CRM activity is created (chat, call, email), move the contact's deal to a new stage.
+
+**IMPORTANT:** Before creating this automation, query the pipeline stages to get the actual stage IDs:
+```python
+erp_table_data(table_name="crm_pipeline_stage", options={"where": {"stage_pipeline_id": "YOUR_PIPELINE_ID"}, "order_by": "stage_sequence"})
+```
+
+```json
+{
+  "enabled": true,
+  "triggers": [
+    {
+      "type": "erp_table",
+      "table": "crm_activity",
+      "operations": ["insert", "update"],
+      "filters": [
+        "activity_type:=:WEB_CHAT",
+        "activity_direction:=:INBOUND"
+      ]
+    }
+  ],
+  "actions": [
+    {
+      "type": "move_deal_stage",
+      "contact_id": "{{trigger.new_record.activity_contact_id}}",
+      "pipeline_id": "8f3a2b1c9d4e7890",
+      "from_stages": ["1a2b3c4d5e6f7890", "7g8h9i0j1k2l3456"],
+      "to_stage_id": "3m4n5o6p7q8r9012"
+    }
+  ]
+}
+```
+
+The `move_deal_stage` action:
+- `contact_id`: Contact whose deal to move (use template variable)
+- `pipeline_id`: Pipeline to search for the deal
+- `from_stages`: Only move if deal is currently in one of these stages (array of stage IDs)
+- `to_stage_id`: Target stage ID
+
+Finds the most recently modified deal for that contact in the pipeline. Skipped silently if no deal found or deal not in from_stages.
 
 ## Template Variables
 
@@ -308,7 +351,7 @@ class IntegrationCrmAutomations:
         if "enabled" not in config:
             config["enabled"] = True
 
-        if err := validate_automation_config(config):
+        if err := validate_automation_config(config, self.available_erp_tables):
             return err
 
         await self._save_automation(name, config)
@@ -326,7 +369,7 @@ class IntegrationCrmAutomations:
         if name not in automations:
             return f"❌ Error: Automation '{name}' not found. Use op='create' to create it."
 
-        if err := validate_automation_config(config):
+        if err := validate_automation_config(config, self.available_erp_tables):
             return err
 
         await self._save_automation(name, config)
@@ -436,6 +479,31 @@ async def _execute_actions(rcx: ckit_bot_exec.RobotContext, actions: List[Dict[s
                 await ckit_erp.delete_erp_record(rcx.fclient, table, rcx.persona.ws_id, record_id)
                 logger.info(f"Deleted ERP record from {table}: {record_id}")
 
+            elif action_type == "move_deal_stage":
+                contact_id = _resolve_template(action.get("contact_id", ""), ctx)
+                pipeline_id = _resolve_template(action.get("pipeline_id", ""), ctx)
+                from_stages = action.get("from_stages", [])
+                to_stage_id = _resolve_template(action.get("to_stage_id", ""), ctx)
+                if not contact_id or not pipeline_id or not to_stage_id:
+                    logger.info(f"move_deal_stage skipped: missing contact_id/pipeline_id/to_stage_id")
+                    continue
+                deals = await ckit_erp.query_erp_table(
+                    rcx.fclient, "crm_deal", rcx.persona.ws_id, erp_schema.CrmDeal,
+                    filters={"AND": [f"deal_contact_id:=:{contact_id}", f"deal_pipeline_id:=:{pipeline_id}"]},
+                    sort_by=["deal_modified_ts:DESC"], limit=1,
+                )
+                if not deals:
+                    logger.info(f"move_deal_stage skipped: no deal for contact {contact_id} in pipeline {pipeline_id}")
+                    continue
+                deal = deals[0]
+                deal_id = deal.deal_id
+                current_stage = deal.deal_stage_id
+                if from_stages and current_stage not in from_stages:
+                    logger.info(f"move_deal_stage skipped: deal {deal_id} stage {current_stage} not in from_stages {from_stages}")
+                    continue
+                await ckit_erp.patch_erp_record(rcx.fclient, "crm_deal", rcx.persona.ws_id, deal_id, {"deal_stage_id": to_stage_id})
+                logger.info(f"Moved deal {deal_id} from stage {current_stage} to {to_stage_id}")
+
             else:
                 logger.warning(f"Unknown action type: {action_type}")
         except Exception as e:
@@ -492,7 +560,7 @@ def _resolve_field_value(field_value: Any, context: Dict[str, Any], field_name: 
     return value
 
 
-def validate_automation_config(automation_config: Dict[str, Any]) -> Optional[str]:
+def validate_automation_config(automation_config: Dict[str, Any], available_erp_tables: List[str] = []) -> Optional[str]:
     if not isinstance(automation_config, dict):
         return "❌ automation_config must be a dict"
 
@@ -509,6 +577,8 @@ def validate_automation_config(automation_config: Dict[str, Any]) -> Optional[st
             return f"❌ triggers[{i}].type must be 'erp_table' (got {trigger.get('type')})"
         if "table" not in trigger:
             return f"❌ triggers[{i}] missing required field 'table'"
+        if available_erp_tables and trigger["table"] not in available_erp_tables:
+            return f"❌ triggers[{i}].table '{trigger['table']}' not allowed, must be one of: {', '.join(available_erp_tables)}"
         operations = trigger.get("operations")
         if not operations or not isinstance(operations, list):
             return f"❌ triggers[{i}] missing required field 'operations' (list like ['insert', 'update'])"
@@ -544,7 +614,18 @@ def validate_automation_config(automation_config: Dict[str, Any]) -> Optional[st
                 return f"❌ actions[{i}] (delete_erp_record) missing required field 'table'"
             if "record_id" not in action:
                 return f"❌ actions[{i}] (delete_erp_record) missing required field 'record_id'"
+        elif action_type == "move_deal_stage":
+            if "contact_id" not in action:
+                return f"❌ actions[{i}] (move_deal_stage) missing required field 'contact_id'"
+            if "pipeline_id" not in action:
+                return f"❌ actions[{i}] (move_deal_stage) missing required field 'pipeline_id'"
+            if "from_stages" not in action:
+                return f"❌ actions[{i}] (move_deal_stage) missing required field 'from_stages'"
+            if not isinstance(action.get("from_stages"), list):
+                return f"❌ actions[{i}] (move_deal_stage) 'from_stages' must be an array of stage IDs"
+            if "to_stage_id" not in action:
+                return f"❌ actions[{i}] (move_deal_stage) missing required field 'to_stage_id'"
         else:
-            return f"❌ actions[{i}].type must be 'post_task_into_bot_inbox', 'create_erp_record', 'update_erp_record', or 'delete_erp_record' (got {action_type})"
+            return f"❌ actions[{i}].type must be 'post_task_into_bot_inbox', 'create_erp_record', 'update_erp_record', 'delete_erp_record', or 'move_deal_stage' (got {action_type})"
 
     return None

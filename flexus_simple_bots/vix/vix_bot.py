@@ -27,7 +27,7 @@ logger = logging.getLogger("bot_vix")
 BOT_NAME = "vix"
 BOT_VERSION = SIMPLE_BOTS_COMMON_VERSION
 
-ERP_TABLES = ["crm_contact"]
+ERP_TABLES = ["crm_contact", "crm_activity", "crm_deal"]
 
 TOOLS = [
     fi_mongo_store.MONGO_STORE_TOOL,
