@@ -143,12 +143,13 @@ async def get_gh_repo_token_from_external_auth(fclient, auth_id: str, repo_uri: 
     return None
 
 
-_token_cache: dict[str, GhRepoToken] = {}
+_token_cache: dict[tuple[str, str], GhRepoToken] = {} # (fgroup_id, repo_url)
 
 async def get_github_token_with_cache(fclient, fgroup_id: str, repo_url: str) -> Optional[GhRepoToken]:
     import flexus_client_kit.ckit_devenv as ckit_devenv
-    if repo_url in _token_cache:
-        gh_token = _token_cache[repo_url]
+    cache_key = (fgroup_id, repo_url)
+    if cache_key in _token_cache:
+        gh_token = _token_cache[cache_key]
         if gh_token.expires_at > time.time() + 60:
             return gh_token
     if not (target_repo := extract_repo_path_from_url(repo_url)):
@@ -159,6 +160,6 @@ async def get_github_token_with_cache(fclient, fgroup_id: str, repo_url: str) ->
                 return None
             if not (gh_token := await get_gh_repo_token_from_external_auth(fclient, devenv.devenv_auth_id, repo_url)):
                 return None
-            _token_cache[repo_url] = gh_token
+            _token_cache[cache_key] = gh_token
             return gh_token
     return None
