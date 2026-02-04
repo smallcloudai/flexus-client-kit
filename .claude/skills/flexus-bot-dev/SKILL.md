@@ -352,6 +352,7 @@ If your bot needs API keys for external services (Slack, Discord, etc.), tell BO
 
 ### After You Finish
 
+You must update the README to keep the specification updated!
 Commit your changes. BOB will install the bot and let the user test it interactively via the UI.
 
 ## Key Rules
