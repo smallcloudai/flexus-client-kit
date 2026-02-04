@@ -78,7 +78,7 @@ class CrmDeal:
     deal_notes: str = field(default="", metadata={"importance": 1, "display": "string_multiline", "display_name": "Notes"})
     deal_tags: List[str] = field(default_factory=list, metadata={"importance": 1, "display_name": "Tags"})
     deal_details: dict = field(default_factory=dict, metadata={"display_name": "Details", "description": "Custom fields JSON"})
-    deal_owner_fuser_id: str = field(default="", metadata={"display_name": "Owner"})
+    deal_owner_fuser_id: str = field(default="", metadata={"importance": 1, "display_name": "Owner"})
     deal_priority: str = field(default="NONE", metadata={"importance": 1, "display_name": "Priority", "enum": [{"value": "NONE", "label": "None"}, {"value": "LOW", "label": "Low"}, {"value": "MEDIUM", "label": "Medium"}, {"value": "HIGH", "label": "High"}]})
     deal_created_ts: float = field(default=0.0, metadata={"importance": 1, "display_name": "Created at"})
     deal_modified_ts: float = field(default=0.0, metadata={"display_name": "Modified at"})
