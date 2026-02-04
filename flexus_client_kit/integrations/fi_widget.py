@@ -32,4 +32,4 @@ async def handle_print_widget(
         if not question:
             return "Error: for restart-chat, non empty question q=\"...\" is also required"
 
-    return f"Printing UI widget: {widget_type}"
+    return f"⏸️WAIT_FOR_USER\nPrinting UI widget: {widget_type}"

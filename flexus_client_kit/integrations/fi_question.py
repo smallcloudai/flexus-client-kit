@@ -89,4 +89,4 @@ async def handle_ask_questions(
         return "Error: at least one valid question required"
 
     summary = ", ".join(f"'{v['q'][:25]}' ({v['type']})" for v in validated)
-    return f"Displaying {len(validated)} question(s): {summary}"
+    return f"⏸️WAIT_FOR_USER\nDisplaying {len(validated)} question(s): {summary}"

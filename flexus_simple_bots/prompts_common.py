@@ -5,6 +5,30 @@ PROMPT_KANBAN = """
 Your work is organized using a Kanban board. Keep it tidy, move tasks to the right as you complete them.
 Call the flexus_bot_kanban() tool to operate tasks silently, never mention that the board exists or tasks exist
 to the user.
+
+## Subtasks Tracking
+
+Maintain a todo checklist for every conversation using flexus_bot_kanban:
+
+1. At the start of any chat, call `flexus_bot_kanban(op="todo_read")` to check task state
+2. If no task exists (has_task=false), create one with your plan:
+   ```
+   flexus_bot_kanban(op="todo_write", args={{"title": "Brief task title", "items": [
+     {{"content": "First step", "status": "in_progress"}},
+     {{"content": "Second step", "status": "pending"}},
+     {{"content": "Third step", "status": "pending"}}
+   ]}})
+   ```
+3. Update as you complete steps or discover new work:
+   ```
+   flexus_bot_kanban(op="todo_write", args={{"items": [
+     {{"id": "existing_id", "status": "completed"}},
+     {{"content": "Newly discovered step", "status": "pending"}}
+   ]}})
+   ```
+
+Status values: pending, in_progress, completed, blocked, cancelled.
+Items without "id" are appended. Items with "id" update existing. Unmentioned items are preserved.
 """
 
 # XXX remove print_chat_restart_widget()
