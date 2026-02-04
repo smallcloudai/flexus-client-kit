@@ -94,6 +94,174 @@ for msg in messages[::-1]:
         break
 ```
 
+## Model Selection
+
+Bots set their default model via `marketable_preferred_model_default` in install files.
+
+### Available Models
+
+| Model | Use Case | Example Bots |
+|-------|----------|--------------|
+| **grok-4-1-fast-reasoning** | Complex tasks requiring reasoning, multi-step planning | Boss, Owl |
+| **grok-4-1-fast-non-reasoning** | Quick simple tasks, straightforward responses | Frog, Botticelli |
+| **grok-code-fast-1** | Code-related tasks, technical operations | AdMonster |
+| **claude-sonnet-4-5-20250929** | Long agentic tasks, complex code generation, deep analysis | Dev containers via Claude Code |
+
+### Setting Default Model in Install
+
+```python
+# In mybot_install.py
+marketable_preferred_model_default = "grok-4-1-fast-reasoning"  # For complex bots
+# or
+marketable_preferred_model_default = "grok-4-1-fast-non-reasoning"  # For simple bots
+```
+
+### Model Selection Guidelines
+
+- **Reasoning tasks** (planning, analysis, multi-step): `grok-4-1-fast-reasoning`
+- **Simple responses** (status, lookups, quick Q&A): `grok-4-1-fast-non-reasoning`
+- **Code-heavy bots** (syntax, technical): `grok-code-fast-1`
+- **Long agentic coding** (BOB dev workflow): `claude-sonnet-4-5-20250929` via Claude Code tool
+
+## External Services Integration
+
+Bots integrate with external services (Slack, Discord, Telegram, Gmail) via `fi_*.py` modules in `flexus_client_kit/integrations/`.
+
+### Setup Schema Pattern
+
+Define credentials in `*_SETUP_SCHEMA` for auto-generated UI:
+
+```python
+MYBOT_SETUP_SCHEMA = [
+    {
+        "bs_name": "SLACK_BOT_TOKEN",
+        "bs_type": "string_long",       # Secret input field
+        "bs_default": "",
+        "bs_group": "Slack",            # UI tab/section
+        "bs_importance": 0,
+        "bs_description": "Bot User OAuth Token (starts with xoxb-)",
+    },
+    {
+        "bs_name": "SLACK_APP_TOKEN",
+        "bs_type": "string_long",
+        "bs_default": "",
+        "bs_group": "Slack",
+        "bs_description": "App-Level Token for Socket Mode (starts with xapp-)",
+    },
+    {
+        "bs_name": "slack_channels",
+        "bs_type": "string_multiline",
+        "bs_default": "",
+        "bs_group": "Slack",
+        "bs_description": "Channels to monitor (one per line)",
+    },
+]
+```
+
+**bs_type options**: `string_short`, `string_long`, `string_multiline`, `bool`, `int`, `float`
+
+### Integration Initialization
+
+```python
+from flexus_client_kit.integrations import fi_slack
+
+async def main_loop(rcx):
+    setup = ckit_bot_exec.official_setup_mixing_procedure(
+        mybot_install.MYBOT_SETUP_SCHEMA,
+        rcx.persona.persona_setup,
+    )
+
+    slack = None
+    if setup.get("SLACK_BOT_TOKEN"):
+        slack = fi_slack.IntegrationSlack(
+            fclient=fclient,
+            rcx=rcx,
+            setup=setup,
+        )
+        await slack.start_reactive()  # Starts event loop
+
+    try:
+        while not ckit_shutdown.shutdown_event.is_set():
+            await rcx.unpark_collected_events(sleep_if_no_work=10.0)
+    finally:
+        if slack:
+            await slack.close()  # Always cleanup!
+```
+
+### Registering Integration Tools
+
+```python
+# Register the integration as a tool handler
+@rcx.on_tool_call("slack")
+async def toolcall_slack(toolcall, model_args):
+    if not slack:
+        return "ERROR: Slack not configured. Set SLACK_BOT_TOKEN in bot setup."
+    return await slack.called_by_model(toolcall, model_args)
+```
+
+### Integration Operations
+
+All `fi_*` integrations support standard operations via `called_by_model(toolcall, args)`:
+
+| Operation | Description |
+|-----------|-------------|
+| `op="status"` | Check connection, list problems, show config |
+| `op="capture"` | Capture external thread → sync messages bidirectionally |
+| `op="uncapture"` | Stop syncing with external thread |
+| `op="post"` | Send message to captured/specified channel |
+| `op="list_channels"` | List available channels |
+| `op="history"` | Get recent messages from channel |
+
+### Error Handling Patterns
+
+Integrations track problems in `self.problems_other` list:
+
+```python
+# In your tool handler, check integration status
+@rcx.on_tool_call("slack")
+async def toolcall_slack(toolcall, model_args):
+    if not slack:
+        return "ERROR: Slack not configured"
+    if slack.problems_other:
+        return f"WARNING: Slack has issues: {slack.problems_other}"
+    return await slack.called_by_model(toolcall, model_args)
+```
+
+**Key error patterns in fi_*.py**:
+- API errors → logged + returned as string, no exceptions to caller
+- Auth failures → added to `problems_other`, visible in `op="status"`
+- Rate limits → simple sleep retry (Slack), no exponential backoff
+- Capture failures → auto-uncapture on GraphQL errors
+
+### Message Flow
+
+**Incoming** (external → Flexus):
+1. Event handler receives message
+2. Format as `Activity*` (text + attachments as base64)
+3. `thread_add_user_message()` to captured Flexus thread
+
+**Outgoing** (Flexus → external):
+1. `@rcx.on_updated_message` triggers on assistant response
+2. Check if thread is captured (`ft_app_searchable.startswith("slack/")`)
+3. Post via API, update `ft_app_specific` with timestamp for dedup
+
+### File Handling
+
+Integrations handle files automatically:
+- Images: Download → PIL thumbnail → base64
+- Text files: `format_cat_output()` → truncated preview
+- Binary: Summary only (size, type)
+- Uploads: Store in Mongo via `ckit_mongo`
+
+### Available Integrations
+
+| Integration | File | Auth | Thread Support |
+|-------------|------|------|----------------|
+| **Slack** | `fi_slack.py` | Bot Token + App Token (Socket Mode) | Full thread capture |
+| **Discord** | `fi_discord2.py` | Bot Token | Thread capture |
+| **Telegram** | `fi_telegram.py` | Bot Token | Chat capture (no threads) |
+| **Gmail** | `fi_gmail.py` | OAuth2 via `ckit_external_auth` | No capture, inbox only |
+
 ## Bot Installation
 
 Bot installation has two steps: **make code importable** (pip install) + **register in marketplace** (install script).
@@ -171,7 +339,7 @@ Naming: `botname__scenarioname.yaml` (double underscore). Rating < 8 needs impro
 **4. Smoke Test** - Verify the bot starts without errors:
 ```bash
 pip install -e /workspace
-timeout 10 python -m mybot.mybot_bot --group=TEST 2>&1
+timeout 10 python -m mybot.mybot_bot 2>&1
 ```
 If it crashes immediately, fix the error. If it runs for a few seconds without import/startup errors, it's ready for BOB to install and test.
 
