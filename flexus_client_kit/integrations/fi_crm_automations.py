@@ -246,7 +246,7 @@ Examples:
 - Failed actions are logged but don't stop subsequent actions
 - Triggers fire IMMEDIATELY when the event happens. Time-based filters check conditions at that moment, they don't delay execution
 - For delayed tasks (follow-ups after N days), use `comingup_ts` in post_task_into_bot_inbox action
-- Always react to both insert AND update operations, not just insert
+- **ALWAYS use `["insert", "update"]` for operations, not just `["insert"]`!** If the bot is offline when a record is inserted, it will receive an "update" event when it comes back online. Using only "insert" means you'll miss records created while the bot was down.
 - Multiple follow-ups: all automations trigger at the same moment (when tag is added), so comingup_ts is relative to that moment. If you want follow-up 1 at 3 days, and follow-up 2 to be 4 days after follow-up 1, set follow-up 2 comingup_ts to 7 days (3+4), not 4
 - Chain follow-ups via tags: follow-up 2 should trigger on "followup_1_scheduled" tag (added by follow-up 1), not on "welcome_email_sent". Otherwise there may be a data race creating duplicate tasks
 """
@@ -355,7 +355,10 @@ class IntegrationCrmAutomations:
             return err
 
         await self._save_automation(name, config)
-        return f"✅ Created automation '{name}'"
+        result = f"✅ Created automation '{name}'"
+        if warnings := get_automation_warnings(config):
+            result += "\n\n⚠️ Warnings:\n" + "\n".join(f"• {w}" for w in warnings)
+        return result
 
     async def _op_update(self, args: Dict[str, Any], model_args: Dict[str, Any]) -> str:
         if not (name := str(ckit_cloudtool.try_best_to_find_argument(args, model_args, "automation_name", "")).strip()):
@@ -373,7 +376,10 @@ class IntegrationCrmAutomations:
             return err
 
         await self._save_automation(name, config)
-        return f"✅ Updated automation '{name}'"
+        result = f"✅ Updated automation '{name}'"
+        if warnings := get_automation_warnings(config):
+            result += "\n\n⚠️ Warnings:\n" + "\n".join(f"• {w}" for w in warnings)
+        return result
 
     async def _op_delete(self, args: Dict[str, Any], model_args: Dict[str, Any]) -> str:
         if not (name := str(ckit_cloudtool.try_best_to_find_argument(args, model_args, "automation_name", "")).strip()):
@@ -558,6 +564,15 @@ def _resolve_field_value(field_value: Any, context: Dict[str, Any], field_name: 
         except (ValueError, TypeError):
             logger.warning(f"Could not convert timestamp field '{field_name}' value '{value}' to float")
     return value
+
+
+def get_automation_warnings(automation_config: Dict[str, Any]) -> List[str]:
+    warnings = []
+    for i, trigger in enumerate(automation_config.get("triggers", [])):
+        ops = [op.upper() for op in trigger.get("operations", [])]
+        if "INSERT" in ops and "UPDATE" not in ops:
+            warnings.append(f"triggers[{i}]: Using only 'insert' without 'update' is risky. If the bot is offline when a record is inserted, it will receive 'update' when it comes back online and miss the record. Use [\"insert\", \"update\"] instead.")
+    return warnings
 
 
 def validate_automation_config(automation_config: Dict[str, Any], available_erp_tables: List[str] = []) -> Optional[str]:

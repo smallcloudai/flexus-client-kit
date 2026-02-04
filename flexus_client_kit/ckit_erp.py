@@ -274,6 +274,9 @@ def check_record_matches_filter(record: dict, f: str, col_names: set = None) -> 
         except (ValueError, TypeError):
             return False
 
+    if val is None:
+        return op == "!=" and filter_val != ""
+
     if op == "=":
         return val == filter_val
     if op == "!=":
