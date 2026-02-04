@@ -110,13 +110,20 @@ ERP_CSV_IMPORT_TOOL = ckit_cloudtool.CloudTool(
 
 
 def _format_table_meta_text(table_name: str, schema_class: type) -> str:
-    result = f"Table: erp.{table_name}\n"
-    result += "\nColumns:\n"
-
+    result = f"Table: erp.{table_name}\n\nColumns:\n"
     for field_name, field_type in schema_class.__annotations__.items():
         type_str = str(field_type).replace("typing.", "")
-        result += f"  • {field_name}: {type_str}\n"
-
+        meta = schema_class.__dataclass_fields__[field_name].metadata
+        line = f"  • {field_name}: {type_str}"
+        if meta.get("pkey"):
+            line += " [PRIMARY KEY]"
+        if display_name := meta.get("display_name"):
+            line += f" — {display_name}"
+        if description := meta.get("description"):
+            line += f" ({description})"
+        result += line + "\n"
+        if enum_values := meta.get("enum"):
+            result += "      enum: " + ", ".join(f"{e['value']}" for e in enum_values) + "\n"
     return result
 
 

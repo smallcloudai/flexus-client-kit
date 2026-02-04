@@ -57,7 +57,7 @@ class CrmContact:
     contact_utm_last_campaign: str = field(default="", metadata={"display_name": "UTM Campaign (last touch)"})
     contact_utm_last_term: str = field(default="", metadata={"display_name": "UTM Term (last touch)"})
     contact_utm_last_content: str = field(default="", metadata={"display_name": "UTM Content (last touch)"})
-    contact_bant_score: int = field(default=-1, metadata={"display_name": "BANT Qualification Score", "description": "Budget, Authority, Need, Timeline. -1 means not qualified, 0-4 scale"})
+    contact_bant_score: int = field(default=-1, metadata={"display_name": "BANT Score", "description": "How many of Budget/Authority/Need/Timeline criteria met. -1=unqualified, 0-1=cold, 2-3=warm, 4=hot"})
     contact_created_ts: float = field(default=0.0, metadata={"importance": 1, "display_name": "Created at"})
     contact_modified_ts: float = field(default=0.0, metadata={"display_name": "Modified at"})
     contact_archived_ts: float = field(default=0.0, metadata={"display_name": "Archived at"})
