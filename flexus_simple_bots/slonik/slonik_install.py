@@ -51,9 +51,9 @@ async def install(
         marketable_run_this="python -m flexus_simple_bots.slonik.slonik_bot",
         marketable_setup_default=slonik_setup_schema,
         marketable_featured_actions=[
-            {"feat_question": "Test whether database connection works", "feat_expert": "default", "feat_depends_on_setup": []},
-            {"feat_question": "Analyze database performance", "feat_expert": "default", "feat_depends_on_setup": []},
-            {"feat_question": "Help me write a SQL query", "feat_expert": "default", "feat_depends_on_setup": []},
+            {"feat_question": "Test whether database connection works", "feat_expert": "default", "feat_depends_on_setup": [], "feat_description": "Verify that Slonik can connect to your PostgreSQL database using the configured credentials and display connection status."},
+            {"feat_question": "Analyze database performance", "feat_expert": "default", "feat_depends_on_setup": [], "feat_description": "Run diagnostic queries to check database health, including table sizes, index usage, slow queries, and connection statistics."},
+            {"feat_question": "Help me write a SQL query", "feat_expert": "default", "feat_depends_on_setup": [], "feat_description": "Get assistance in constructing SQL queries with proper syntax, joins, filters, and optimizations for your specific use case."},
         ],
         marketable_intro_message="Hi! I'm Slonik, your PostgreSQL database assistant. I can help you run queries, analyze data, and optimize database performance.",
         marketable_preferred_model_default="grok-code-fast-1",
