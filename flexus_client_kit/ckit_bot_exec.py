@@ -79,7 +79,7 @@ class RobotContext:
         self._parked_threads: Dict[str, ckit_ask_model.FThreadOutput] = {}
         self._parked_tasks: Dict[str, ckit_kanban.FPersonaKanbanTaskOutput] = {}
         self._parked_toolcalls: List[ckit_cloudtool.FCloudtoolCall] = []
-        self._parked_erp_changes: List[tuple[str, str, Optional[Dict[str, Any]], Optional[Dict[str, Any]]]] = []
+        self._parked_erp_changes: Dict[tuple, tuple[str, str, Optional[Dict[str, Any]], Optional[Dict[str, Any]]]] = {}
         self._parked_emessages: Dict[str, ckit_bot_query.FExternalMessageOutput] = {}
         self._parked_anything_new = asyncio.Event()
         # These fields are designed for direct access:
@@ -161,7 +161,7 @@ class RobotContext:
                 except Exception as e:
                     logger.error("%s error in on_updated_task handler: %s\n%s", self.persona.persona_id, type(e).__name__, e, exc_info=e)
 
-        erp_changes = list(self._parked_erp_changes)
+        erp_changes = list(self._parked_erp_changes.values())
         self._parked_erp_changes.clear()
         for table_name, action, new_record_dict, old_record_dict in erp_changes:
             did_anything = True
@@ -528,7 +528,7 @@ async def subscribe_and_produce_callbacks(
                     new_record = upd.news_payload_erp_record_new
                     old_record = upd.news_payload_erp_record_old
                     for bot in bc.bots_running.values():
-                        bot.instance_rcx._parked_erp_changes.append((table_name, upd.news_action, new_record, old_record))
+                        bot.instance_rcx._parked_erp_changes[(table_name, upd.news_payload_id)] = (table_name, upd.news_action, new_record, old_record)
                         bot.instance_rcx._parked_anything_new.set()
 
             elif upd.news_about == "flexus_persona_external_message":
