@@ -34,7 +34,6 @@ class FPersonaKanbanTaskOutput:
     ktask_resolution_code: Optional[str]
     ktask_resolution_summary: Optional[str]
     ktask_details: Any
-    ktask_blocks_ktask_id: Optional[str]
 
     def calc_bucket(self) -> str:
         if self.ktask_done_ts > 0:
@@ -189,7 +188,6 @@ async def get_tasks_by_thread(
                     ktask_resolution_code
                     ktask_resolution_summary
                     ktask_details
-                    ktask_blocks_ktask_id
                 }
             }"""),
             variable_values={"ft_id": ft_id}
@@ -246,7 +244,6 @@ async def bot_get_all_tasks(
                     ktask_resolution_code
                     ktask_resolution_summary
                     ktask_details
-                    ktask_blocks_ktask_id
                 }
             }"""),
             variable_values={"persona_id": persona_id}
