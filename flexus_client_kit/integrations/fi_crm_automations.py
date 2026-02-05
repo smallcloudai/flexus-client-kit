@@ -1,3 +1,4 @@
+import collections
 import json
 import logging
 import re
@@ -265,6 +266,7 @@ class IntegrationCrmAutomations:
         self.rcx = rcx
         self.get_setup = get_setup_func
         self.available_erp_tables = available_erp_tables or []
+        self._recently_fired = collections.OrderedDict()  # (auto_name, record_id) -> timestamp
         self._setup_automation_handlers()
 
     def _load_automations(self) -> Dict[str, Any]:
@@ -399,17 +401,16 @@ class IntegrationCrmAutomations:
                         for t in cfg.get("triggers", []) if t.get("type") == "erp_table" and t.get("table")})
 
         def make_handler(table_name):
+            pk_field = erp_schema.get_pkey_field(erp_schema.ERP_TABLE_TO_SCHEMA[table_name])
             async def handler(operation: str, new_record: Any, old_record: Any):
-                automations_dict = self._load_automations()
-                if automations_dict:
-                    await execute_automations_for_erp_event(
-                        self.rcx,
-                        table_name,
-                        operation,
-                        new_record,
-                        old_record,
-                        automations_dict,
-                    )
+                if not (automations_dict := self._load_automations()):
+                    return
+                if not (rid := ckit_erp.dataclass_or_dict_to_dict(new_record or old_record).get(pk_field)):
+                    return
+                await execute_automations_for_erp_event(
+                    self.rcx, table_name, operation, new_record, old_record,
+                    automations_dict, self._recently_fired, rid,
+                )
             return handler
 
         for t in tables:
@@ -423,7 +424,14 @@ async def execute_automations_for_erp_event(
     new_record: Optional[Any],
     old_record: Optional[Any],
     automations_dict: Dict[str, Any],
+    recently_fired: collections.OrderedDict,
+    record_id: str,
 ) -> None:
+    cutoff = time.time() - 60
+    while recently_fired and next(iter(recently_fired.values())) < cutoff:
+        recently_fired.popitem(last=False)
+
+    rec = ckit_erp.dataclass_or_dict_to_dict(old_record if operation.upper() == "DELETE" else new_record) if (new_record or old_record) else {}
     for auto_name, auto_config in automations_dict.items():
         if not auto_config.get("enabled", True):
             continue
@@ -433,10 +441,12 @@ async def execute_automations_for_erp_event(
             if operation.upper() not in [op.upper() for op in trigger.get("operations", [])]:
                 continue
             if trigger_filters := trigger.get("filters", []):
-                rec = ckit_erp.dataclass_or_dict_to_dict(old_record if operation.upper() == "DELETE" else new_record)
                 if not ckit_erp.check_record_matches_filters(rec, trigger_filters):
                     logger.debug(f"Automation '{auto_name}' filtered out for {table_name}.{operation}")
                     continue
+            if (auto_name, record_id) in recently_fired:
+                logger.debug(f"Automation '{auto_name}' skipped for {record_id}: recently fired")
+                continue
 
             ctx = {"trigger": {
                 "type": "erp_table", "table": table_name, "operation": operation,
@@ -444,6 +454,7 @@ async def execute_automations_for_erp_event(
                 "old_record": ckit_erp.dataclass_or_dict_to_dict(old_record) if old_record else None,
             }}
             await _execute_actions(rcx, auto_config.get("actions", []), ctx)
+            recently_fired[(auto_name, record_id)] = time.time()
             logger.info(f"Automation '{auto_name}' executed for {table_name}.{operation}")
 
 
