@@ -39,6 +39,7 @@ class FEdocOutput:
     edoc_status_download: str
     edoc_status_graphdb: str
     edoc_status_vectordb: str
+    ft_id: Optional[str] = None
 
 async def edoc_get_existing_documents_for_eds(
     client: ckit_client.FlexusClient,
