@@ -408,7 +408,11 @@ async def subscribe_and_produce_callbacks(
             reassign_threads = False
             # logger.info("subs %s %s %s" % (upd.news_action, upd.news_about, upd.news_payload_id))
 
-            if upd.news_about == "flexus_persona":
+            if upd.news_about == "flexus_external_auth":
+                if upd.news_action in ["INSERT", "UPDATE"]:
+                    bc.auth[upd.news_payload_auth.auth_persona_id][upd.news_payload_auth.auth_service_provider] = upd.news_payload_auth.auth_key2value
+
+            elif upd.news_about == "flexus_persona":
                 if upd.news_action in ["INSERT", "UPDATE"]:
                     assert upd.news_payload_persona.ws_id
                     assert upd.news_payload_persona.ws_timezone
@@ -538,6 +542,8 @@ async def subscribe_and_produce_callbacks(
                     if bot := bc.bots_running.get(emsg.emsg_persona_id):
                         bot.instance_rcx._parked_emessages[emsg.emsg_id] = emsg
                         bot.instance_rcx._parked_anything_new.set()
+                    else:
+                        logger.warning("External message about persona %s, but no bot is running it." % emsg.emsg_persona_id)
 
             elif upd.news_action == "INITIAL_UPDATES_OVER":
                 if len(bc.bots_running) == 0:

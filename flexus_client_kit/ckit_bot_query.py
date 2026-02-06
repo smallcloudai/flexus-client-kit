@@ -50,6 +50,17 @@ class FExternalMessageOutput:
 
 
 @dataclass
+class FExternalAuth:
+  auth_id: str
+  auth_persona_id: str
+  auth_name: str
+  auth_auth_type: str
+  auth_service_provider: str
+  auth_key2value: Any    # {"TOKEN_ID": "TOKEN_VAL", ...}
+  ws_id: str
+
+
+@dataclass
 class FBotThreadsCallsTasks:
     news_action: str
     news_about: str
@@ -62,6 +73,7 @@ class FBotThreadsCallsTasks:
     news_payload_erp_record_new: Optional[Dict[str, Any]] = None
     news_payload_erp_record_old: Optional[Dict[str, Any]] = None
     news_payload_emessage: Optional[FExternalMessageOutput] = None
+    news_payload_auth: Optional[FExternalAuth] = None
 
 
 @dataclass
