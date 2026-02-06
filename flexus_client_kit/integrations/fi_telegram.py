@@ -129,7 +129,15 @@ class IntegrationTelegram:
                 },
             )
         logger.info("Registered telegram:%s for persona %s", bot_id, self.rcx.persona.persona_id)
-        webhook_url = os.environ.get("FLEXUS_TELEGRAM_WEBHOOK_URL") or f"{self.fclient.base_url_http}/v1/webhook/telegram/{bot_id}"
+        if webhook_url := os.environ.get("FLEXUS_TELEGRAM_WEBHOOK_URL"):
+            pass
+        elif os.environ.get("FLEXUS_ENV") == "production":
+            webhook_url = f"https://flexus.team/v1/webhook/telegram/{bot_id}"
+        elif os.environ.get("FLEXUS_ENV") == "staging":
+            webhook_url = f"https://staging.flexus.team/v1/webhook/telegram/{bot_id}"
+        else:
+            self.problems_other.append("FLEXUS_ENV must be 'production' or 'staging', or set FLEXUS_TELEGRAM_WEBHOOK_URL")
+            return
         try:
             await self.application.initialize()
             info = await self.application.bot.get_webhook_info()
