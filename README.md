@@ -1,79 +1,69 @@
-# Flexus Company OS
+# Flexus Client Kit
 
-Almost everything in your company can be automated by AI agents: from verifying your product idea to sales and
-tech support. This project is a Company Operating System that makes it possible.
+**AI Company OS -- automate your entire business with specialized bots**
 
+Flexus is an agent orchestrator that runs autonomous bots for your company. Each bot has its own kanban board, scheduled tasks, messenger integrations, and tools. Bots communicate with each other, improve themselves, and operate 24/7.
 
-## Why This Exists
+This repository is the **Client Kit (ckit)**: the Python SDK that bot authors use to build, install, and run bots on the Flexus platform.
 
-Only disjoint tools existed before, like ChatGPT or Claude, that you have to supplement with MCP servers,
-skills, external systems like CRM database. You'll end up with your own custom solution, and potentially tens
-of subscriptions for external systems. Flexus gives you a single system that automates many (or all) aspects of
-a typical small business.
+Full platform documentation: [docs.flexus.team](https://docs.flexus.team/)
 
-Also, Flexus allows you to flip the script on big AI companies, keep your infrastructure to yourself,
-own your data and let AI model providers compete for the best model and the best prices!
+## Quickstart
 
-<!-- It's also not Odoo with LLMs bolted on, it's an AI first project! -->
+```bash
+git clone https://github.com/smallcloudai/flexus-client-kit.git
+cd flexus-client-kit
+pip install -e .
 
+export FLEXUS_API_KEY="fx-your-key-here"    # from your profile at flexus.team
+export FLEXUS_WORKSPACE="your-workspace-id"  # from the browser address bar
 
-## Progress
+python -m flexus_simple_bots.frog.frog_install --ws "$FLEXUS_WORKSPACE"
+python -m flexus_simple_bots.frog.frog_bot
+```
 
-User facing progress, we started targeting solopreneurs because it's easier:
+The Frog bot is an educational bot that demonstrates core patterns: tool calls, kanban tasks, policy documents, custom forms, and subchats. Open the Flexus web UI to chat with it.
 
-- [x] Productman verifies ideas for product market fit using hypothesis validation
-- [x] Owl Strategist + Botticelli + AdMonster cover marketing on LinkedIn/Meta/X
-- [ ] Rick runs sales pipeline
-- [x] Mobile app iPhone
-- [x] Mobile app Android
-- [ ] Improve campaigns, automates A/B tests, optimize ad spend
-- [ ] Karen provides 24/7 customer support via Slack/Discord/Telegram
+## How it works
 
-Then we'll make it work for small-to-medium companies:
+```mermaid
+graph LR
+    User[Human / Messenger] -->|message| Backend[Flexus Backend]
+    Backend -->|generate| LLM[LLM Provider]
+    LLM -->|tool call| Backend
+    Backend -->|event| Bot[Bot Process]
+    Bot -->|execute| Tools[Tools & Integrations]
+    Tools -->|result| Bot
+    Bot -->|post result| Backend
+    Backend -->|schedule| Kanban[Kanban Board]
+    Kanban -->|task| Backend
+```
 
-- [ ] Procurement
-- [ ] Warehouse
-- [ ] HR
+Chats run on the backend. The backend sends events (new messages, tool calls, task updates) to the bot process over a WebSocket. The bot executes tools locally, posts results back, and the backend continues the conversation with the LLM.
 
-Technical progress:
+Each bot has a **kanban board**: inbox --> todo --> in progress --> done. A scheduler activates the bot on a configurable cadence to sort inbox and pick up work.
 
-- [x] Modern chat interface
-- [x] Documents upload, external data sources (dropbox, google drive)
-- [x] External integrations (MCP, gmail, slack, discord, etc)
-- [ ] Task scheduling system
-- [ ] CRM system
+## Bots
 
-<!-- - [ ] LawyerRat assists document drafting, and contract analysis -->
+| Bot | Purpose | Integrations |
+|-----|---------|-------------|
+| **[Frog](flexus_simple_bots/frog/)** | Educational bot showcasing all SDK features | -- |
+| **[Productman](flexus_simple_bots/productman/)** | Product discovery and hypothesis validation | -- |
+| **[Owl Strategist](flexus_simple_bots/owl_strategist/)** | Marketing strategy with 7 specialized agents | -- |
+| **[Owl](flexus_simple_bots/owl/)** | Growth strategy and experiment design | -- |
+| **[Botticelli](flexus_simple_bots/botticelli/)** | Ad creative generation with cognitive bias optimization | -- |
+| **[AdMonster](flexus_simple_bots/admonster/)** | Meta/LinkedIn campaign management and A/B testing | LinkedIn, Meta |
+| **[Karen](flexus_simple_bots/karen/)** | 24/7 customer support with pattern detection | Slack, Discord |
+| **[Vix](flexus_simple_bots/vix/)** | Sales agent with CRM and lead nurturing | Gmail, Telegram |
+| **[Clerkwing](flexus_simple_bots/clerkwing/)** | Secretary bot for email, calendar, and tasks | Gmail, Google Calendar, Jira |
+| **[Boss](flexus_simple_bots/boss/)** | Orchestrates other bots, reviews work quality | -- |
+| **[LawyerRat](flexus_simple_bots/lawyerrat/)** | Legal research and contract analysis | -- |
+| **[Slonik](flexus_simple_bots/slonik/)** | PostgreSQL database assistant | PostgreSQL |
 
+## Writing bots
 
-## Self Improvement
+A bot is three files: `*_bot.py` (tool handlers + main loop), `*_prompts.py` (system prompts), and `*_install.py` (marketplace installation). Start by reading the [Frog bot source](flexus_simple_bots/frog/) as a reference, then see [AGENTS.md](AGENTS.md) for the full development guide.
 
-Every aspect of Flexus improves itself automatically!
+## License
 
-- [x] You can create a new bot in 1 chat
-- [ ] Bots improve their prompts and tools, with human-in-the loop to review the changes (github PR)
-- [ ] You can leave feedback for a bot, that will translate to code changes (github PR)
-- [ ] Every page in web UI or mobile has feedback, that will translate to code changes (github PR)
-
-
-## Writing Your Bot
-
-It's easy to write your own bot!
-
-Your bot is a repository on github (probably a forked https://github.com/smallcloudai/flexus-my-bot
-but you don't have to start with that repo) that defines:
-
-* Python script to run that bot, for example `python -m flexus_my_bot.my_fancy_bot`
-* Installation script that provides all the prompts, avatar pictures, microfrontend, etc
-
-But it's even easier, you can [hire Bob](https://flexus.team/bob/marketplace-details) and ask him to
-do all this for you!
-
-You can debug your bot manually on your laptop, or ask Bob to run a debug version and improve it.
-
-
-## Monetize Your Bot on Marketplace
-
-We'll make the first usable setup work with the bots we create ourselves. Once that works, we'll open the opportunity
-for other people to create and monetize their own bots.
-
+[BSD-3-Clause](LICENSE) -- Copyright 2023, Small Magellanic Cloud AI Ltd.
