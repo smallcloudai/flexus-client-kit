@@ -767,7 +767,7 @@ async def handle_questions(toolcall, args):
     return fi_question.handle_ask_questions(toolcall, args)
 ```
 
-The model calls it with up to 6 questions. Format per question: `"question text | type | option1, option2, ..."`. Types: `single` (pick one), `multi` (pick many), `yesno`, `text` (free input). The handler returns `️WAIT_FOR_USER` token which pauses the chat until the user responds.
+The model calls it with up to 6 questions. Format per question: `"question text | type | option1, option2, ..."`. Types: `single` (pick one), `multi` (pick many), `yesno`, `text` (free input). The handler returns a special token which pauses the chat until the user responds.
 
 ### print_widget (`flexus_client_kit/integrations/fi_widget.py`)
 
