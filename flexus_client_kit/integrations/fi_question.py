@@ -7,7 +7,7 @@ ASK_QUESTIONS_TOOL = ckit_cloudtool.CloudTool(
     name="ask_questions",
     description="""Ask the user one or more questions with interactive UI. Use this instead of numbered lists.
 
-Format: "question text | type | option1, option2, ..."
+Format: "question text | type | option1; option2; ..."
 
 Types:
 - "single": pick one option
@@ -17,8 +17,8 @@ Types:
 
 Example:
 ask_questions(
-    q1="What kind of bot do you want? | single | Support, Sales, Analytics, Other",
-    q2="Which channels should it support? | multi | Slack, Email, Discord, Telegram",
+    q1="What kind of bot do you want? | single | Support; Sales; Analytics; Other",
+    q2="Which channels should it support? | multi | Slack; Email; Discord; Telegram",
     q3="Should it run on a schedule? | yesno",
     q4="Any special requirements? | text"
 )""",
@@ -57,7 +57,7 @@ def parse_question(q_str: str) -> Optional[Dict[str, Any]]:
         return None
     options = None
     if sep2 and opts_part.strip():
-        options = [o.strip() for o in opts_part.split(",") if o.strip()]
+        options = [o.strip() for o in opts_part.split(";") if o.strip()]
     return {"q": question, "type": qtype, "options": options}
 
 
