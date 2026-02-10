@@ -125,7 +125,7 @@ class IntegrationTelegram:
                 variable_values={
                     "persona_id": self.rcx.persona.persona_id,
                     "channel": "TELEGRAM",
-                    "addresses": [f"telegram:{bot_id}"],
+                    "addresses": [f"TELEGRAM:{bot_id}"],
                 },
             )
         logger.info("Registered telegram:%s for persona %s", bot_id, self.rcx.persona.persona_id)
