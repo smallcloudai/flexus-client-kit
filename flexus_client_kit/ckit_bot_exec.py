@@ -66,7 +66,7 @@ def official_setup_mixing_procedure(marketable_setup_default, persona_setup) -> 
 
 
 class RobotContext:
-    def __init__(self, fclient: ckit_client.FlexusClient, p: ckit_bot_query.FPersonaOutput):
+    def __init__(self, fclient: ckit_client.FlexusClient, p: ckit_bot_query.FPersonaOutput, external_auth: Optional[Dict[str, Any]] = None):
         self._handler_updated_message: Optional[Callable[[ckit_ask_model.FThreadMessageOutput], Awaitable[None]]] = None
         self._handler_upd_thread: Optional[Callable[[ckit_ask_model.FThreadOutput], Awaitable[None]]] = None
         self._handler_updated_task: Optional[Callable[[ckit_kanban.FPersonaKanbanTaskOutput], Awaitable[None]]] = None
@@ -92,6 +92,7 @@ class RobotContext:
         self.workdir = "/tmp/bot_workspace/%s/" % p.persona_id
         self.running_test_scenario = False
         self.running_happy_yaml = ""
+        self.external_auth = external_auth or {}
         os.makedirs(self.workdir, exist_ok=True)
 
     def on_updated_message(self, handler: Callable[[ckit_ask_model.FThreadMessageOutput], Awaitable[None]]):
@@ -366,6 +367,8 @@ class BotsCollection:
         self.running_happy_yaml = running_happy_yaml
         self.subscribe_to_erp_tables = subscribe_to_erp_tables
         self.subscribe_to_emsg_types = subscribe_to_emsg_types
+        self.auth: Dict[str, Dict[str, Any]] = {}
+        self.personas: Dict[str, ckit_bot_query.FPersonaOutput] = {}
 
 
 async def subscribe_and_produce_callbacks(
@@ -381,6 +384,54 @@ async def subscribe_and_produce_callbacks(
 
     if bc.subscribe_to_erp_tables:
         logger.info(f"Subscribing to ERP tables: {bc.subscribe_to_erp_tables}")
+
+    def start_bot(persona_id: str) -> bool:
+        if persona_id in bc.bots_running:
+            return False  # Already running
+
+        persona = bc.personas.get(persona_id)
+        if not persona:
+            return False  # No persona data yet
+
+        # Merge persona-level and workspace-level auth (workspace overrides persona)
+        ws_id = persona.ws_id
+        persona_auth = bc.auth.get(persona_id, {})
+        workspace_auth = bc.auth.get(ws_id, {})
+        merged_auth = {**workspace_auth, **persona_auth}  # persona takes precedence
+
+        auth_needed = persona.marketable_auth_needed or []
+        missing_auth = [p for p in auth_needed if p not in merged_auth]
+
+        if missing_auth:
+            logger.warning("Persona %s NOT starting: missing required auth providers: %s" % (persona_id, missing_auth))
+            logger.info("  Available auth: %s" % (list(merged_auth.keys())))
+            logger.info("  Workspace auth (%s): %s" % (ws_id, list(workspace_auth.keys())))
+            logger.info("  Persona auth (%s): %s" % (persona_id, list(persona_auth.keys())))
+            return False
+
+        logger.info("Persona %s starting with auth: %s" % (persona_id, list(merged_auth.keys())))
+        for provider, content in merged_auth.items():
+            logger.info("  Auth[%s] keys: %s" % (provider, list(content.keys()) if isinstance(content, dict) else type(content)))
+        rcx = RobotContext(fclient, persona, merged_auth)
+        rcx.running_test_scenario = bc.running_test_scenario
+        rcx.running_happy_yaml = bc.running_happy_yaml
+        bc.bots_running[persona_id] = BotInstance(
+            fclient=fclient,
+            atask=asyncio.create_task(crash_boom_bang(fclient, rcx, bc.bot_main_loop)),
+            instance_rcx=rcx,
+        )
+        return True
+
+    def restart_bot(persona_id: str, reason: str) -> bool:
+        if bot := bc.bots_running.get(persona_id, None):
+            logger.info(reason)
+            del bc.bots_running[persona_id]
+            bc.shutting_down_tasks.add(bot.atask)
+            bot.atask.add_done_callback(bc.shutting_down_tasks.discard)
+            bot.instance_rcx._restart_requested = True
+            bot.instance_rcx._parked_anything_new.set()
+            return True
+        return False
 
     async with ws_client as ws:
         assert fclient.ws_id is not None or fclient.group_id is not None
@@ -409,8 +460,39 @@ async def subscribe_and_produce_callbacks(
             # logger.info("subs %s %s %s" % (upd.news_action, upd.news_about, upd.news_payload_id))
 
             if upd.news_about == "flexus_external_auth":
+                handled = True
                 if upd.news_action in ["INSERT", "UPDATE"]:
-                    bc.auth[upd.news_payload_auth.auth_persona_id][upd.news_payload_auth.auth_service_provider] = upd.news_payload_auth.auth_key2value
+                    if upd.news_payload_auth is None:
+                        continue
+
+                    persona_id = upd.news_payload_auth.auth_persona_id
+                    ws_id = upd.news_payload_auth.ws_id
+                    provider = upd.news_payload_auth.auth_service_provider
+                    is_workspace_token = not persona_id or persona_id == ""
+
+                    logger.info(f"Received auth: persona_id={persona_id}, ws_id={ws_id}, provider={provider}, keys={list(upd.news_payload_auth.auth_key2value.keys())}")
+
+                    # Store auth tokens (use persona_id for persona-scoped, ws_id for workspace-scoped)
+                    auth_key = persona_id if not is_workspace_token else ws_id
+                    if auth_key not in bc.auth:
+                        bc.auth[auth_key] = {}
+                    bc.auth[auth_key][provider] = upd.news_payload_auth.auth_key2value
+                    logger.info(f"Stored in bc.auth[{auth_key}][{provider}] with {len(upd.news_payload_auth.auth_key2value)} keys")
+
+                elif upd.news_action == "DELETE":
+                    if upd.news_payload_auth is None:
+                        continue
+
+                    persona_id = upd.news_payload_auth.auth_persona_id
+                    ws_id = upd.news_payload_auth.ws_id
+                    provider = upd.news_payload_auth.auth_service_provider
+
+                    # Remove auth tokens
+                    auth_key = persona_id if persona_id else ws_id
+                    if auth_key in bc.auth:
+                        bc.auth[auth_key].pop(provider, None)
+                    logger.info(f"Removed auth {provider} from bc.auth[{auth_key}]")
+
 
             elif upd.news_about == "flexus_persona":
                 if upd.news_action in ["INSERT", "UPDATE"]:
@@ -418,6 +500,8 @@ async def subscribe_and_produce_callbacks(
                     assert upd.news_payload_persona.ws_timezone
                     handled = True
                     persona_id = upd.news_payload_id
+
+                    bc.personas[persona_id] = upd.news_payload_persona
 
                     if bot := bc.bots_running.get(persona_id, None):
                         if bot.instance_rcx.persona.persona_setup != upd.news_payload_persona.persona_setup:
@@ -428,15 +512,17 @@ async def subscribe_and_produce_callbacks(
                             bot.instance_rcx._restart_requested = True
                             bot.instance_rcx._parked_anything_new.set()
                     if persona_id not in bc.bots_running:
-                        rcx = RobotContext(fclient, upd.news_payload_persona)
-                        rcx.running_test_scenario = bc.running_test_scenario
-                        rcx.running_happy_yaml = bc.running_happy_yaml
-                        bc.bots_running[persona_id] = BotInstance(
-                            fclient=fclient,
-                            atask=asyncio.create_task(crash_boom_bang(fclient, rcx, bc.bot_main_loop)),
-                            instance_rcx=rcx,
-                        )
+                        if start_bot(persona_id):
+                            reassign_threads = True
+
+                elif upd.news_action == "RESTART":
+                    handled = True
+                    persona_id = upd.news_payload_id
+                    logger.info("Received RESTART request for persona %s" % persona_id)
+                    if restart_bot(persona_id, f"Explicit restart requested for {persona_id}"):
                         reassign_threads = True
+                        if start_bot(persona_id):
+                            reassign_threads = True
 
                 elif upd.news_action == "DELETE":
                     handled = True
@@ -448,6 +534,8 @@ async def subscribe_and_produce_callbacks(
                         except asyncio.CancelledError:
                             pass
                         del bc.bots_running[persona_id]
+                    if persona_id in bc.personas:
+                        del bc.personas[persona_id]
 
             elif upd.news_about == "flexus_thread":
                 if upd.news_action in ["INSERT", "UPDATE"]:

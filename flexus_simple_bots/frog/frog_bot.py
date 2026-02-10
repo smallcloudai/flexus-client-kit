@@ -95,8 +95,15 @@ TOOLS = [
 ]
 
 
-async def frog_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.RobotContext) -> None:
+async def frog_main_loop(client: ckit_client.FlexusClient, rcx: ckit_bot_exec.RobotContext) -> None:
     setup = ckit_bot_exec.official_setup_mixing_procedure(frog_install.frog_setup_schema, rcx.persona.persona_setup)
+
+    # Example of getting token from external_auth
+    elevenlabs_auth = rcx.external_auth.get("elevenlabs", {})
+    elevenlabs_token = elevenlabs_auth.get("token") if elevenlabs_auth else None
+    if elevenlabs_token:
+        masked = elevenlabs_token[:8] + "..." + elevenlabs_token[-4:] if len(elevenlabs_token) > 12 else "***"
+        logger.info("Frog has ELEVENLABS token: %s (len=%d)", masked, len(elevenlabs_token))
 
     mongo_conn_str = await ckit_mongo.mongo_fetch_creds(fclient, rcx.persona.persona_id)
     mongo = AsyncMongoClient(mongo_conn_str)
