@@ -1,5 +1,5 @@
 from flexus_simple_bots import prompts_common
-from flexus_client_kit.integrations import fi_crm_automations, fi_messenger
+from flexus_client_kit.integrations import fi_crm_automations, fi_messenger, fi_resend
 
 vix_prompt_sales = f"""
 # Elite AI Sales Agent
@@ -1087,6 +1087,8 @@ Contacts will be ingested from forms in landing pages, websites, or imported fro
 Extra fields not in the schema are stored in contact_details.
 
 {fi_crm_automations.AUTOMATIONS_PROMPT}
+
+{fi_resend.RESEND_PROMPT}
 
 ### Expert Selection for Automations
 

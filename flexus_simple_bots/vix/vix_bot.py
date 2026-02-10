@@ -61,8 +61,8 @@ async def vix_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.Ro
         fclient, rcx, get_setup, available_erp_tables=ERP_TABLES,
     )
     resend_domains = json.loads(get_setup().get("DOMAINS", "{}"))
-    resend_integration = fi_resend.IntegrationResend(fclient, rcx, resend_domains)
     email_respond_to = set(a.strip().lower() for a in get_setup().get("EMAIL_RESPOND_TO", "").split(",") if a.strip())
+    resend_integration = fi_resend.IntegrationResend(fclient, rcx, resend_domains, email_respond_to)
     email_reg = [f"*@{d}" for d in resend_domains] + list(email_respond_to)
     if email_reg:
         await fi_resend.register_email_addresses(fclient, rcx, email_reg)
