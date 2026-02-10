@@ -1,6 +1,7 @@
 import asyncio
 import json
 import logging
+import time
 from dataclasses import asdict
 from typing import Dict, Any
 
@@ -12,12 +13,14 @@ from flexus_client_kit import ckit_bot_exec
 from flexus_client_kit import ckit_shutdown
 from flexus_client_kit import ckit_ask_model
 from flexus_client_kit import ckit_mongo
+from flexus_client_kit import ckit_erp
 from flexus_client_kit import ckit_kanban
+from flexus_client_kit import erp_schema
 from flexus_client_kit.integrations import fi_mongo_store
 from flexus_client_kit.integrations import fi_pdoc
 from flexus_client_kit.integrations import fi_erp
-from flexus_client_kit.integrations import fi_gmail
 from flexus_client_kit.integrations import fi_crm_automations
+from flexus_client_kit.integrations import fi_resend
 from flexus_client_kit.integrations import fi_telegram
 from flexus_simple_bots.vix import vix_install
 from flexus_simple_bots.version_common import SIMPLE_BOTS_COMMON_VERSION
@@ -36,8 +39,8 @@ TOOLS = [
     fi_erp.ERP_TABLE_DATA_TOOL,
     fi_erp.ERP_TABLE_CRUD_TOOL,
     fi_erp.ERP_CSV_IMPORT_TOOL,
-    fi_gmail.GMAIL_TOOL,
     fi_crm_automations.CRM_AUTOMATION_TOOL,
+    fi_resend.RESEND_TOOL,
     fi_telegram.TELEGRAM_TOOL,
 ]
 
@@ -54,10 +57,15 @@ async def vix_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.Ro
 
     pdoc_integration = fi_pdoc.IntegrationPdoc(rcx, rcx.persona.ws_root_group_id)
     erp_integration = fi_erp.IntegrationErp(fclient, rcx.persona.ws_id, personal_mongo)
-    gmail_integration = fi_gmail.IntegrationGmail(fclient, rcx)
     automations_integration = fi_crm_automations.IntegrationCrmAutomations(
         fclient, rcx, get_setup, available_erp_tables=ERP_TABLES,
     )
+    resend_domains = json.loads(get_setup().get("DOMAINS", "{}"))
+    resend_integration = fi_resend.IntegrationResend(fclient, rcx, resend_domains)
+    email_respond_to = set(a.strip().lower() for a in get_setup().get("EMAIL_RESPOND_TO", "").split(",") if a.strip())
+    email_reg = [f"*@{d}" for d in resend_domains] + list(email_respond_to)
+    if email_reg:
+        await fi_resend.register_email_addresses(fclient, rcx, email_reg)
     telegram = fi_telegram.IntegrationTelegram(fclient, rcx)
     await telegram.register_webhook_and_start()
 
@@ -72,6 +80,39 @@ async def vix_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.Ro
     @rcx.on_updated_task
     async def updated_task_in_db(t: ckit_kanban.FPersonaKanbanTaskOutput):
         pass
+
+    @rcx.on_emessage("EMAIL")
+    async def handle_email(emsg):
+        email = fi_resend.parse_emessage(emsg)
+        body = email.body_text or email.body_html or "(empty)"
+        try:
+            contacts = await ckit_erp.query_erp_table(
+                fclient, "crm_contact", rcx.persona.ws_id, erp_schema.CrmContact,
+                filters=f"contact_email:ILIKE:{email.from_addr}", limit=1,
+            )
+            if contacts:
+                await ckit_erp.create_erp_record(fclient, "crm_activity", rcx.persona.ws_id, {
+                    "ws_id": rcx.persona.ws_id,
+                    "activity_title": email.subject,
+                    "activity_type": "EMAIL",
+                    "activity_direction": "INBOUND",
+                    "activity_platform": "RESEND",
+                    "activity_contact_id": contacts[0].contact_id,
+                    "activity_summary": body[:500],
+                    "activity_occurred_ts": time.time(),
+                })
+        except Exception as e:
+            logger.warning("Failed to create CRM activity for inbound email from %s: %s", email.from_addr, e)
+        if not email_respond_to.intersection(a.lower() for a in email.to_addrs):
+            return
+        title = "Email from %s: %s" % (email.from_addr, email.subject)
+        if email.cc_addrs:
+            title += " (cc: %s)" % ", ".join(email.cc_addrs)
+        await ckit_kanban.bot_kanban_post_into_inbox(
+            fclient, rcx.persona.persona_id,
+            title=title, details_json=json.dumps({"from": email.from_addr, "to": email.to_addrs, "cc": email.cc_addrs, "subject": email.subject, "body": body[:2000]}),
+            provenance_message="vix_email_inbound",
+        )
 
     @rcx.on_emessage("TELEGRAM")
     async def handle_telegram_emessage(emsg):
@@ -106,9 +147,9 @@ async def vix_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.Ro
     async def toolcall_erp_csv_import(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
         return await erp_integration.handle_csv_import(toolcall, model_produced_args)
 
-    @rcx.on_tool_call(fi_gmail.GMAIL_TOOL.name)
-    async def toolcall_gmail(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
-        return await gmail_integration.called_by_model(toolcall, model_produced_args)
+    @rcx.on_tool_call(fi_resend.RESEND_TOOL.name)
+    async def toolcall_resend(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
+        return await resend_integration.called_by_model(toolcall, model_produced_args)
 
     @rcx.on_tool_call(fi_crm_automations.CRM_AUTOMATION_TOOL.name)
     async def toolcall_crm_automation(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
