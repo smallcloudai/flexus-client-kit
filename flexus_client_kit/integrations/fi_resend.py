@@ -179,7 +179,7 @@ class IntegrationResend:
         self.domains = domains  # {"domain.com": "resend_domain_id"}
         self.emails_to_register = emails_to_register
 
-    async def called_by_model(self, toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Optional[Dict[str, Any]]) -> str:
+    async def called_by_model(self, toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Optional[Dict[str, Any]]):
         if not model_produced_args:
             return _help_text(bool(self.domains))
 
@@ -203,7 +203,7 @@ class IntegrationResend:
 
         return f"Unknown operation: {op}\n\nTry email(op='help') for usage."
 
-    async def _send(self, args: Dict[str, Any], model_produced_args: Dict[str, Any]) -> str:
+    async def _send(self, args: Dict[str, Any], model_produced_args: Dict[str, Any]):
         frm = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "from", None)
         to = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "to", None)
         if not frm or not to:
@@ -232,11 +232,12 @@ class IntegrationResend:
         if reply_to:
             params["reply_to"] = reply_to
 
+        n_recipients = len(params["to"]) + len(params.get("cc", [])) + len(params.get("bcc", []))
         r = await _resend_request("POST", "/emails", params)
         if r.status_code == 200:
             rid = r.json().get("id", "")
             logger.info("sent email %s to %s", rid, to)
-            return f"Email sent (id: {rid})"
+            return ckit_cloudtool.ToolResult(content=f"Email sent (id: {rid})", dollars=0.0009 * n_recipients)
         logger.error("resend send error: %s %s", r.status_code, r.text[:200])
         return "Internal error sending email, please try again later"
 
