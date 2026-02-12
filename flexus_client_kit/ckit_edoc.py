@@ -35,6 +35,7 @@ class FEdocOutput:
     edoc_icon: str
     edoc_title: str
     edoc_mtime: int
+    edoc_archived_ts: int
     edoc_size_bytes: int
     edoc_status_download: str
     edoc_status_graphdb: str
