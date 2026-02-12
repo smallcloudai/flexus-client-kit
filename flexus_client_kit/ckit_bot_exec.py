@@ -429,6 +429,7 @@ async def subscribe_and_produce_callbacks(
                         bc.auth[auth_key] = {}
                     bc.auth[auth_key][provider] = upd.news_payload_auth.auth_key2value
                     logger.info(f"Stored in bc.auth[{auth_key}][{provider}] with {len(upd.news_payload_auth.auth_key2value)} keys")
+                    bc.bots_running[persona_id].instance_rcx._restart_requested = True
 
                 elif upd.news_action == "DELETE":
                     if upd.news_payload_auth is None:
@@ -443,6 +444,7 @@ async def subscribe_and_produce_callbacks(
                     if auth_key in bc.auth:
                         bc.auth[auth_key].pop(provider, None)
                     logger.info(f"Removed auth {provider} from bc.auth[{auth_key}]")
+                    bc.bots_running[persona_id].instance_rcx._restart_requested = True
 
 
             elif upd.news_about == "flexus_persona":

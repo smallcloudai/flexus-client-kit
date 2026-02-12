@@ -54,7 +54,6 @@ class FExternalMessageOutput:
 class FExternalAuth:
   auth_id: str
   auth_persona_id: str
-  auth_name: str
   auth_auth_type: str
   auth_service_provider: str
   auth_key2value: Any    # {"TOKEN_ID": "TOKEN_VAL", ...}
