@@ -368,7 +368,6 @@ class BotsCollection:
         self.subscribe_to_erp_tables = subscribe_to_erp_tables
         self.subscribe_to_emsg_types = subscribe_to_emsg_types
         self.auth: Dict[str, Dict[str, Any]] = {}
-        self.personas: Dict[str, ckit_bot_query.FPersonaOutput] = {}
 
 
 async def subscribe_and_produce_callbacks(
@@ -384,59 +383,6 @@ async def subscribe_and_produce_callbacks(
 
     if bc.subscribe_to_erp_tables:
         logger.info(f"Subscribing to ERP tables: {bc.subscribe_to_erp_tables}")
-
-    def start_bot(persona_id: str) -> bool:
-        if persona_id in bc.bots_running:
-            return False  # Already running
-
-        persona = bc.personas.get(persona_id)
-        if not persona:
-            return False  # No persona data yet
-
-        # Merge persona-level and workspace-level auth (workspace overrides persona)
-        ws_id = persona.ws_id
-        persona_auth = bc.auth.get(persona_id, {})
-        workspace_auth = bc.auth.get(ws_id, {})
-        merged_auth = {**workspace_auth, **persona_auth}  # persona takes precedence
-
-        auth_needed = persona.marketable_auth_needed or []
-        auth_supported = persona.marketable_auth_supported or []
-        auth_allowed = set(auth_needed) | set(auth_supported)
-        missing_auth = [p for p in auth_needed if p not in merged_auth]
-
-        if missing_auth:
-            logger.warning("Persona %s NOT starting: missing required auth providers: %s" % (persona_id, missing_auth))
-            logger.info("  Available auth: %s" % (list(merged_auth.keys())))
-            logger.info("  Workspace auth (%s): %s" % (ws_id, list(workspace_auth.keys())))
-            logger.info("  Persona auth (%s): %s" % (persona_id, list(persona_auth.keys())))
-            return False
-
-        # Only pass auth providers that the bot declared in auth_needed or auth_supported
-        merged_auth = {k: v for k, v in merged_auth.items() if k in auth_allowed}
-
-        logger.info("Persona %s starting with auth: %s" % (persona_id, list(merged_auth.keys())))
-        for provider, content in merged_auth.items():
-            logger.info("  Auth[%s] keys: %s" % (provider, list(content.keys()) if isinstance(content, dict) else type(content)))
-        rcx = RobotContext(fclient, persona, merged_auth)
-        rcx.running_test_scenario = bc.running_test_scenario
-        rcx.running_happy_yaml = bc.running_happy_yaml
-        bc.bots_running[persona_id] = BotInstance(
-            fclient=fclient,
-            atask=asyncio.create_task(crash_boom_bang(fclient, rcx, bc.bot_main_loop)),
-            instance_rcx=rcx,
-        )
-        return True
-
-    def restart_bot(persona_id: str, reason: str) -> bool:
-        if bot := bc.bots_running.get(persona_id, None):
-            logger.info(reason)
-            del bc.bots_running[persona_id]
-            bc.shutting_down_tasks.add(bot.atask)
-            bot.atask.add_done_callback(bc.shutting_down_tasks.discard)
-            bot.instance_rcx._restart_requested = True
-            bot.instance_rcx._parked_anything_new.set()
-            return True
-        return False
 
     async with ws_client as ws:
         assert fclient.ws_id is not None or fclient.group_id is not None
@@ -506,28 +452,15 @@ async def subscribe_and_produce_callbacks(
                     handled = True
                     persona_id = upd.news_payload_id
 
-                    bc.personas[persona_id] = upd.news_payload_persona
-
-                    if bot := bc.bots_running.get(persona_id, None):
-                        if bot.instance_rcx.persona.persona_setup != upd.news_payload_persona.persona_setup:
-                            logger.info("Persona %s setup changed, requesting graceful shutdown" % persona_id)
-                            del bc.bots_running[persona_id]
-                            bc.shutting_down_tasks.add(bot.atask)
-                            bot.atask.add_done_callback(bc.shutting_down_tasks.discard)
-                            bot.instance_rcx._restart_requested = True
-                            bot.instance_rcx._parked_anything_new.set()
                     if persona_id not in bc.bots_running:
-                        if start_bot(persona_id):
-                            reassign_threads = True
-
-                elif upd.news_action == "RESTART":
-                    handled = True
-                    persona_id = upd.news_payload_id
-                    logger.info("Received RESTART request for persona %s" % persona_id)
-                    if restart_bot(persona_id, f"Explicit restart requested for {persona_id}"):
-                        reassign_threads = True
-                        if start_bot(persona_id):
-                            reassign_threads = True
+                        rcx = RobotContext(fclient, upd.news_payload_persona, bc.auth.get(persona_id, {}))
+                        rcx.running_test_scenario = bc.running_test_scenario
+                        rcx.running_happy_yaml = bc.running_happy_yaml
+                        bc.bots_running[persona_id] = BotInstance(
+                            fclient=fclient,
+                            atask=asyncio.create_task(crash_boom_bang(fclient, rcx, bc.bot_main_loop)),
+                            instance_rcx=rcx,
+                        )
 
                 elif upd.news_action == "DELETE":
                     handled = True
@@ -539,8 +472,6 @@ async def subscribe_and_produce_callbacks(
                         except asyncio.CancelledError:
                             pass
                         del bc.bots_running[persona_id]
-                    if persona_id in bc.personas:
-                        del bc.personas[persona_id]
 
             elif upd.news_about == "flexus_thread":
                 if upd.news_action in ["INSERT", "UPDATE"]:
