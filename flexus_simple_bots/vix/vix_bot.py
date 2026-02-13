@@ -18,6 +18,7 @@ from flexus_client_kit.integrations import fi_pdoc
 from flexus_client_kit.integrations import fi_erp
 from flexus_client_kit.integrations import fi_gmail
 from flexus_client_kit.integrations import fi_crm_automations
+from flexus_client_kit.integrations import fi_shopify
 from flexus_client_kit.integrations import fi_telegram
 from flexus_simple_bots.vix import vix_install
 from flexus_simple_bots.version_common import SIMPLE_BOTS_COMMON_VERSION
@@ -27,7 +28,7 @@ logger = logging.getLogger("bot_vix")
 BOT_NAME = "vix"
 BOT_VERSION = SIMPLE_BOTS_COMMON_VERSION
 
-ERP_TABLES = ["crm_contact", "crm_activity", "crm_deal"]
+ERP_TABLES = ["crm_contact", "crm_activity", "crm_deal", "com_shop", "com_product", "com_product_variant", "com_order", "com_order_item", "com_refund", "com_shipment"]
 
 TOOLS = [
     fi_mongo_store.MONGO_STORE_TOOL,
@@ -38,6 +39,7 @@ TOOLS = [
     fi_erp.ERP_CSV_IMPORT_TOOL,
     fi_gmail.GMAIL_TOOL,
     fi_crm_automations.CRM_AUTOMATION_TOOL,
+    fi_shopify.SHOPIFY_TOOL,
     fi_telegram.TELEGRAM_TOOL,
 ]
 
@@ -58,6 +60,7 @@ async def vix_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.Ro
     automations_integration = fi_crm_automations.IntegrationCrmAutomations(
         fclient, rcx, get_setup, available_erp_tables=ERP_TABLES,
     )
+    shopify = await fi_shopify.IntegrationShopify.create(fclient, rcx)
     telegram = await fi_telegram.IntegrationTelegram.create(fclient, rcx, get_setup().get("TELEGRAM_BOT_TOKEN", ""))
 
     @rcx.on_updated_message
@@ -113,6 +116,10 @@ async def vix_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.Ro
     async def toolcall_crm_automation(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
         return await automations_integration.handle_crm_automation(toolcall, model_produced_args)
 
+    @rcx.on_tool_call(fi_shopify.SHOPIFY_TOOL.name)
+    async def toolcall_shopify(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
+        return await shopify.called_by_model(toolcall, model_produced_args)
+
     @rcx.on_tool_call(fi_telegram.TELEGRAM_TOOL.name)
     async def toolcall_telegram(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
         return await telegram.called_by_model(toolcall, model_produced_args)
@@ -147,6 +154,7 @@ async def vix_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.Ro
             await rcx.unpark_collected_events(sleep_if_no_work=10.0)
 
     finally:
+        shopify.close()
         await telegram.close()
         logger.info("%s exit" % (rcx.persona.persona_id,))
 

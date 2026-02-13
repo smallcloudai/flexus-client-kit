@@ -7,6 +7,7 @@ from flexus_client_kit import ckit_client
 from flexus_client_kit import ckit_bot_install
 from flexus_client_kit import ckit_cloudtool
 from flexus_client_kit.integrations import fi_crm_automations
+from flexus_client_kit.integrations import fi_shopify
 
 from flexus_simple_bots import prompts_common
 from flexus_simple_bots.vix import vix_bot, vix_prompts
@@ -71,7 +72,7 @@ vix_setup_schema = fi_crm_automations.CRM_AUTOMATIONS_SETUP_SCHEMA + [
         "bs_importance": 0,
         "bs_description": "When to offer human handoff: low (rarely), medium (balanced), high (proactive)",
     },
-] + fi_telegram.TELEGRAM_SETUP_SCHEMA
+] + fi_shopify.SHOPIFY_SETUP_SCHEMA + fi_telegram.TELEGRAM_SETUP_SCHEMA
 
 
 async def install(
@@ -139,7 +140,7 @@ async def install(
                 fexp_preferred_model_default="grok-4-1-fast-non-reasoning",
             )),
         ],
-        marketable_tags=["Sales", "Marketing", "CRM", "Email", "Automation"],
+        marketable_tags=["Sales", "Marketing", "CRM", "Email", "Automation", "Shopify", "E-commerce"],
         marketable_picture_big_b64=pic_big,
         marketable_picture_small_b64=pic_small,
         marketable_schedule=[
