@@ -66,7 +66,7 @@ def official_setup_mixing_procedure(marketable_setup_default, persona_setup) -> 
 
 
 class RobotContext:
-    def __init__(self, fclient: ckit_client.FlexusClient, p: ckit_bot_query.FPersonaOutput):
+    def __init__(self, fclient: ckit_client.FlexusClient, p: ckit_bot_query.FPersonaOutput, external_auth: Optional[Dict[str, Any]] = None):
         self._handler_updated_message: Optional[Callable[[ckit_ask_model.FThreadMessageOutput], Awaitable[None]]] = None
         self._handler_upd_thread: Optional[Callable[[ckit_ask_model.FThreadOutput], Awaitable[None]]] = None
         self._handler_updated_task: Optional[Callable[[ckit_kanban.FPersonaKanbanTaskOutput], Awaitable[None]]] = None
@@ -92,6 +92,7 @@ class RobotContext:
         self.workdir = "/tmp/bot_workspace/%s/" % p.persona_id
         self.running_test_scenario = False
         self.running_happy_yaml = ""
+        self.external_auth = external_auth or {}
         os.makedirs(self.workdir, exist_ok=True)
 
     def on_updated_message(self, handler: Callable[[ckit_ask_model.FThreadMessageOutput], Awaitable[None]]):
@@ -366,6 +367,7 @@ class BotsCollection:
         self.running_happy_yaml = running_happy_yaml
         self.subscribe_to_erp_tables = subscribe_to_erp_tables
         self.subscribe_to_emsg_types = subscribe_to_emsg_types
+        self.auth: Dict[str, Dict[str, Any]] = {}
 
 
 async def subscribe_and_produce_callbacks(
@@ -408,23 +410,52 @@ async def subscribe_and_produce_callbacks(
             reassign_threads = False
             # logger.info("subs %s %s %s" % (upd.news_action, upd.news_about, upd.news_payload_id))
 
-            if upd.news_about == "flexus_persona":
+            if upd.news_about == "flexus_external_auth":
+                handled = True
+                if upd.news_action in ["INSERT", "UPDATE"]:
+                    if upd.news_payload_auth is None:
+                        continue
+
+                    persona_id = upd.news_payload_auth.auth_persona_id
+                    ws_id = upd.news_payload_auth.ws_id
+                    provider = upd.news_payload_auth.auth_service_provider
+                    is_workspace_token = not persona_id or persona_id == ""
+
+                    logger.info(f"Received auth: persona_id={persona_id}, ws_id={ws_id}, provider={provider}, keys={list(upd.news_payload_auth.auth_key2value.keys())}")
+
+                    # Store auth tokens (use persona_id for persona-scoped, ws_id for workspace-scoped)
+                    auth_key = persona_id if not is_workspace_token else ws_id
+                    if auth_key not in bc.auth:
+                        bc.auth[auth_key] = {}
+                    bc.auth[auth_key][provider] = upd.news_payload_auth.auth_key2value
+                    logger.info(f"Stored in bc.auth[{auth_key}][{provider}] with {len(upd.news_payload_auth.auth_key2value)} keys")
+                    bc.bots_running[persona_id].instance_rcx._restart_requested = True
+
+                elif upd.news_action == "DELETE":
+                    if upd.news_payload_auth is None:
+                        continue
+
+                    persona_id = upd.news_payload_auth.auth_persona_id
+                    ws_id = upd.news_payload_auth.ws_id
+                    provider = upd.news_payload_auth.auth_service_provider
+
+                    # Remove auth tokens
+                    auth_key = persona_id if persona_id else ws_id
+                    if auth_key in bc.auth:
+                        bc.auth[auth_key].pop(provider, None)
+                    logger.info(f"Removed auth {provider} from bc.auth[{auth_key}]")
+                    bc.bots_running[persona_id].instance_rcx._restart_requested = True
+
+
+            elif upd.news_about == "flexus_persona":
                 if upd.news_action in ["INSERT", "UPDATE"]:
                     assert upd.news_payload_persona.ws_id
                     assert upd.news_payload_persona.ws_timezone
                     handled = True
                     persona_id = upd.news_payload_id
 
-                    if bot := bc.bots_running.get(persona_id, None):
-                        if bot.instance_rcx.persona.persona_setup != upd.news_payload_persona.persona_setup:
-                            logger.info("Persona %s setup changed, requesting graceful shutdown" % persona_id)
-                            del bc.bots_running[persona_id]
-                            bc.shutting_down_tasks.add(bot.atask)
-                            bot.atask.add_done_callback(bc.shutting_down_tasks.discard)
-                            bot.instance_rcx._restart_requested = True
-                            bot.instance_rcx._parked_anything_new.set()
                     if persona_id not in bc.bots_running:
-                        rcx = RobotContext(fclient, upd.news_payload_persona)
+                        rcx = RobotContext(fclient, upd.news_payload_persona, bc.auth.get(persona_id, {}))
                         rcx.running_test_scenario = bc.running_test_scenario
                         rcx.running_happy_yaml = bc.running_happy_yaml
                         bc.bots_running[persona_id] = BotInstance(
@@ -432,7 +463,6 @@ async def subscribe_and_produce_callbacks(
                             atask=asyncio.create_task(crash_boom_bang(fclient, rcx, bc.bot_main_loop)),
                             instance_rcx=rcx,
                         )
-                        reassign_threads = True
 
                 elif upd.news_action == "DELETE":
                     handled = True
@@ -538,6 +568,8 @@ async def subscribe_and_produce_callbacks(
                     if bot := bc.bots_running.get(emsg.emsg_persona_id):
                         bot.instance_rcx._parked_emessages[emsg.emsg_id] = emsg
                         bot.instance_rcx._parked_anything_new.set()
+                    else:
+                        logger.warning("External message about persona %s, but no bot is running it." % emsg.emsg_persona_id)
 
             elif upd.news_action == "INITIAL_UPDATES_OVER":
                 if len(bc.bots_running) == 0:

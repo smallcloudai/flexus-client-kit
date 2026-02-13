@@ -25,6 +25,8 @@ class FPersonaOutput:
     marketable_run_this: Optional[str] = None
     marketable_stage: Optional[str] = None
     marketable_radix: Optional[int] = None
+    marketable_auth_needed: Optional[List[str]] = None
+    marketable_auth_supported: Optional[List[str]] = None
 
 
 @dataclass
@@ -48,6 +50,14 @@ class FExternalMessageOutput:
     emsg_created_ts: float
     ws_id: str
 
+@dataclass
+class FExternalAuth:
+  auth_id: str
+  auth_persona_id: str
+  auth_auth_type: str
+  auth_service_provider: str
+  auth_key2value: Any    # {"TOKEN_ID": "TOKEN_VAL", ...}
+  ws_id: str
 
 @dataclass
 class FBotThreadsCallsTasks:
@@ -62,7 +72,7 @@ class FBotThreadsCallsTasks:
     news_payload_erp_record_new: Optional[Dict[str, Any]] = None
     news_payload_erp_record_old: Optional[Dict[str, Any]] = None
     news_payload_emessage: Optional[FExternalMessageOutput] = None
-
+    news_payload_auth: Optional[FExternalAuth] = None
 
 @dataclass
 class FThreadWithMessages:
