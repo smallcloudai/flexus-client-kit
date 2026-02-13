@@ -1,6 +1,7 @@
 import json
 import re
 import asyncio
+import functools
 import logging
 import os
 import sys
@@ -66,7 +67,7 @@ def official_setup_mixing_procedure(marketable_setup_default, persona_setup) -> 
 
 
 class RobotContext:
-    def __init__(self, fclient: ckit_client.FlexusClient, p: ckit_bot_query.FPersonaOutput):
+    def __init__(self, fclient: ckit_client.FlexusClient, p: ckit_bot_query.FPersonaOutput, shared_handled_emsg_ids: List[str]):
         self._handler_updated_message: Optional[Callable[[ckit_ask_model.FThreadMessageOutput], Awaitable[None]]] = None
         self._handler_upd_thread: Optional[Callable[[ckit_ask_model.FThreadOutput], Awaitable[None]]] = None
         self._handler_updated_task: Optional[Callable[[ckit_kanban.FPersonaKanbanTaskOutput], Awaitable[None]]] = None
@@ -82,6 +83,7 @@ class RobotContext:
         self._parked_erp_changes: Dict[tuple, tuple[str, str, Optional[Dict[str, Any]], Optional[Dict[str, Any]]]] = {}
         self._parked_emessages: Dict[str, ckit_bot_query.FExternalMessageOutput] = {}
         self._parked_anything_new = asyncio.Event()
+        self._shared_handled_emsg_ids = shared_handled_emsg_ids
         # These fields are designed for direct access:
         self.fclient = fclient
         self.persona = p
@@ -179,23 +181,17 @@ class RobotContext:
 
         emessages = list(self._parked_emessages.values())
         self._parked_emessages.clear()
-        handled_emsg_ids = []
         for emsg in emessages:
             did_anything = True
             handler = self._handler_per_emsg_type.get(emsg.emsg_type)
+            self._shared_handled_emsg_ids.append(emsg.emsg_id)
             if not handler:
                 logger.info("%s on_emessage(%r) handler not found, message is lost", self.persona.persona_id, emsg.emsg_type)
                 continue
             try:
                 await handler(emsg)
-                handled_emsg_ids.append(emsg.emsg_id)
             except Exception as e:
                 logger.error("%s error in on_emessage(%r) handler: %s\n%s", self.persona.persona_id, emsg.emsg_type, type(e).__name__, e, exc_info=e)
-        if handled_emsg_ids:
-            async with (await self.fclient.use_http()) as http:
-                await http.execute(gql.gql("""mutation DeleteEmessages($ids: [String!]!) {
-                    emessages_delete(emsg_ids: $ids)
-                }"""), variable_values={"ids": handled_emsg_ids})
 
         mycalls = list(self._parked_toolcalls)
         self._parked_toolcalls.clear()
@@ -368,6 +364,7 @@ class BotsCollection:
         self.running_test_scenario = running_test_scenario
         self.running_happy_yaml = running_happy_yaml
         self.subscribe_to_erp_tables = subscribe_to_erp_tables
+        self.handled_emsg_ids: List[str] = []
 
 
 async def subscribe_and_produce_callbacks(
@@ -425,7 +422,7 @@ async def subscribe_and_produce_callbacks(
                             bot.instance_rcx._restart_requested = True
                             bot.instance_rcx._parked_anything_new.set()
                     if persona_id not in bc.bots_running:
-                        rcx = RobotContext(fclient, upd.news_payload_persona)
+                        rcx = RobotContext(fclient, upd.news_payload_persona, bc.handled_emsg_ids)
                         rcx.running_test_scenario = bc.running_test_scenario
                         rcx.running_happy_yaml = bc.running_happy_yaml
                         bc.bots_running[persona_id] = BotInstance(
@@ -862,6 +859,29 @@ async def run_happy_trajectory(
         ckit_shutdown.spiral_down_now(loop, enable_exit1=False)
 
 
+async def _emsg_delete_batch(fclient: ckit_client.FlexusClient, batch: List[str]) -> None:
+    async with (await fclient.use_http()) as http:
+        await http.execute(gql.gql("""mutation FlushDeleteEmessages($ids: [String!]!) {
+            emessages_delete(emsg_ids: $ids)
+        }"""), variable_values={"ids": batch})
+
+
+async def flush_handled_emsg_ids(fclient: ckit_client.FlexusClient, bc: BotsCollection) -> None:
+    while not ckit_shutdown.shutdown_event.is_set():
+        if await ckit_shutdown.wait(1):
+            break
+        if not bc.handled_emsg_ids:
+            continue
+        ids = list(bc.handled_emsg_ids)
+        bc.handled_emsg_ids.clear()
+        for i in range(0, len(ids), 50):
+            await gql_utils.gql_with_retry(
+                functools.partial(_emsg_delete_batch, fclient, ids[i : i + 50]),
+                logger,
+                "flush_emsg_delete"
+            )
+
+
 async def run_bots_in_this_group(
     fclient: ckit_client.FlexusClient,
     *,
@@ -939,11 +959,14 @@ async def run_bots_in_this_group(
         scenario_task.add_done_callback(lambda t: ckit_utils.report_crash(t, ckit_scenario.logger))
     keepalive_task = asyncio.create_task(i_am_still_alive(fclient, marketable_name, marketable_version))
     keepalive_task.add_done_callback(lambda t: ckit_utils.report_crash(t, logger))
+    emsg_flush_task = asyncio.create_task(flush_handled_emsg_ids(fclient, bc))
+    emsg_flush_task.add_done_callback(lambda t: ckit_utils.report_crash(t, logger))
     try:
         await ckit_service_exec.run_typical_single_subscription_with_restart_on_network_errors(fclient, subscribe_and_produce_callbacks, bc)
     finally:
         keepalive_task.cancel()
-        await asyncio.gather(keepalive_task, return_exceptions=True)
+        emsg_flush_task.cancel()
+        await asyncio.gather(keepalive_task, emsg_flush_task, return_exceptions=True)
         await shutdown_bots(bc)
     logger.info("run_bots_in_this_group exit")
 

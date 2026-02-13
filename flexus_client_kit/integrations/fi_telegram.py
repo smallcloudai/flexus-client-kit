@@ -441,9 +441,20 @@ class IntegrationTelegram:
         return str(parsed)
 
     async def handle_emessage(self, emsg: ckit_bot_query.FExternalMessageOutput) -> None:
-        logger.info("%s external message! %s", self.rcx.persona.persona_id, emsg)
+        # external message! FExternalMessageOutput(
+        #  emsg_id='vgfz9BmBpa',
+        #  emsg_persona_id='6gjySpynvG',
+        #  emsg_type='TELEGRAM',
+        #  emsg_from='telegram:14931503',
+        #  emsg_to='telegram:8497987008',
+        #  emsg_external_id='22',
+        #  emsg_payload={'message': {'chat': {'id': 14931503, 'type': 'private', 'username': 'handle', 'first_name': 'Real Name'}, 'date': 1770975588, 'from': {'id': 14931503, 'is_bot': False, 'username': 'handle', 'first_name': 'Real Name', 'language_code': 'en'}, 'text': 'hello wrold', 'message_id': 22}, 'update_id': 257336450},
+        #  emsg_created_ts=1770975590.564911,
+        # ws_id='solarsystem')
+
         payload = emsg.emsg_payload if isinstance(emsg.emsg_payload, dict) else json.loads(emsg.emsg_payload)
-        update = telegram.Update.de_json(payload, bot=None)
+        update = telegram.Update.de_json(payload, bot=None)   # Scary, strange types, date becomes datetime.datetime etc, but good for validation
+
         msg = update.message or update.edited_message
         if not msg or not msg.from_user:
             return
@@ -453,7 +464,7 @@ class IntegrationTelegram:
         user = msg.from_user
         activity = ActivityTelegram(
             chat_id=msg.chat.id,
-            chat_type=msg.chat.type,
+            chat_type=str(msg.chat.type),
             message_id=msg.message_id,
             message_text=msg.text or msg.caption or "",
             message_author_name=user.full_name or user.username or str(user.id),
