@@ -61,6 +61,7 @@ class CrmContact:
     contact_created_ts: float = field(default=0.0, metadata={"importance": 1, "display_name": "Created at"})
     contact_modified_ts: float = field(default=0.0, metadata={"display_name": "Modified at"})
     contact_archived_ts: float = field(default=0.0, metadata={"display_name": "Archived at"})
+    contact_commerce_external: dict = field(default_factory=dict, metadata={"display_name": "Commerce External"})
 
 
 @dataclass
@@ -111,72 +112,190 @@ class CrmPipelineStage:
 
 
 @dataclass
-class ProductTemplate:
-    prodt_name: str = field(metadata={"importance": 1, "display_name": "Name"})
-    prodt_pcat_id: str = field(metadata={"display_name": "Category"})
-    prodt_list_price: Decimal = field(metadata={"importance": 1, "display_name": "List Price"})
-    prodt_standard_price: Decimal = field(metadata={"importance": 1, "display_name": "Standard Price"})
-    prodt_uom_id: str = field(metadata={"display_name": "Unit of Measure"})
-    ws_id: str = field(metadata={"display_name": "Workspace ID"})
-    prodt_id: str = field(default="", metadata={"pkey": True, "display_name": "Product Template ID"})
-    prodt_description: str = field(default="", metadata={"importance": 1, "display": "string_multiline", "display_name": "Description"})
-    prodt_target_customers: str = field(default="", metadata={"importance": 1, "display": "string_multiline", "display_name": "Target Customers"})
-    prodt_type: str = field(default="consu", metadata={"importance": 1, "display_name": "Type"})
-    prodt_active: bool = field(default=True, metadata={"importance": 1, "display_name": "Active"})
-    prodt_chips: List[str] = field(default_factory=list, metadata={"importance": 1, "display_name": "Chips"})
-    pcat: Optional['ProductCategory'] = field(default=None, metadata={"display_name": "Category"})
-    uom: Optional['ProductUom'] = field(default=None, metadata={"display_name": "Unit of Measure"})
+class ComOrder:
+    ws_id: str
+    order_shop_id: str = field(metadata={"importance": 1, "display_name": "Shop"})
+    order_id: str = field(default="", metadata={"pkey": True, "display_name": "Order ID"})
+    order_external_id: str = field(default="", metadata={"display_name": "External ID"})
+    order_number: str = field(default="", metadata={"importance": 1, "display_name": "Order Number"})
+    order_contact_id: Optional[str] = field(default=None, metadata={"importance": 1, "display_name": "Contact"})
+    order_email: str = field(default="", metadata={"importance": 1, "display_name": "Email"})
+    order_financial_status: str = field(default="PENDING", metadata={"importance": 1, "display_name": "Financial Status", "enum": [
+        {"value": "PENDING", "label": "Pending"},
+        {"value": "PAID", "label": "Paid"},
+        {"value": "PARTIALLY_PAID", "label": "Partially Paid"},
+        {"value": "REFUNDED", "label": "Refunded"},
+        {"value": "PARTIALLY_REFUNDED", "label": "Partially Refunded"},
+        {"value": "VOIDED", "label": "Voided"},
+    ]})
+    order_fulfillment_status: str = field(default="UNFULFILLED", metadata={"importance": 1, "display_name": "Fulfillment Status", "enum": [
+        {"value": "UNFULFILLED", "label": "Unfulfilled"},
+        {"value": "PARTIAL", "label": "Partial"},
+        {"value": "FULFILLED", "label": "Fulfilled"},
+    ]})
+    order_currency: str = field(default="", metadata={"importance": 1, "display_name": "Currency"})
+    order_subtotal: Decimal = field(default=Decimal(0), metadata={"importance": 1, "display_name": "Subtotal"})
+    order_total_tax: Decimal = field(default=Decimal(0), metadata={"display_name": "Total Tax"})
+    order_total_shipping: Decimal = field(default=Decimal(0), metadata={"display_name": "Total Shipping"})
+    order_total_discount: Decimal = field(default=Decimal(0), metadata={"display_name": "Total Discount"})
+    order_total: Decimal = field(default=Decimal(0), metadata={"importance": 1, "display_name": "Total"})
+    order_total_refunded: Decimal = field(default=Decimal(0), metadata={"display_name": "Total Refunded"})
+    order_notes: str = field(default="", metadata={"display": "string_multiline", "display_name": "Notes"})
+    order_tags: List[str] = field(default_factory=list, metadata={"importance": 1, "display_name": "Tags"})
+    order_tax_lines: list = field(default_factory=list, metadata={"display_name": "Tax Lines"})
+    order_shipping_lines: list = field(default_factory=list, metadata={"display_name": "Shipping Lines"})
+    order_details: dict = field(default_factory=dict, metadata={"display_name": "Details"})
+    order_created_ts: float = field(default=0.0, metadata={"importance": 1, "display_name": "Created at"})
+    order_modified_ts: float = field(default=0.0, metadata={"display_name": "Modified at"})
+    order_cancelled_ts: float = field(default=0.0, metadata={"display_name": "Cancelled at"})
+    order_archived_ts: float = field(default=0.0, metadata={"display_name": "Archived at"})
 
 
 @dataclass
-class ProductProduct:
-    prodt_id: str = field(metadata={"importance": 1, "display_name": "Product Template"})
-    ws_id: str = field(metadata={"display_name": "Workspace ID"})
+class ComOrderItem:
+    ws_id: str
+    oitem_order_id: str = field(metadata={"importance": 1, "display_name": "Order"})
+    oitem_name: str = field(metadata={"importance": 1, "display_name": "Name"})
+    oitem_id: str = field(default="", metadata={"pkey": True, "display_name": "Item ID"})
+    oitem_pvar_id: Optional[str] = field(default=None, metadata={"display_name": "Variant"})
+    oitem_external_id: str = field(default="", metadata={"display_name": "External ID"})
+    oitem_sku: str = field(default="", metadata={"importance": 1, "display_name": "SKU"})
+    oitem_quantity: int = field(default=1, metadata={"importance": 1, "display_name": "Quantity"})
+    oitem_unit_price: Decimal = field(default=Decimal(0), metadata={"importance": 1, "display_name": "Unit Price"})
+    oitem_total_discount: Decimal = field(default=Decimal(0), metadata={"display_name": "Total Discount"})
+    oitem_total: Decimal = field(default=Decimal(0), metadata={"importance": 1, "display_name": "Total"})
+    oitem_details: dict = field(default_factory=dict, metadata={"display_name": "Details"})
+    oitem_created_ts: float = field(default=0.0, metadata={"display_name": "Created at"})
+    oitem_modified_ts: float = field(default=0.0, metadata={"display_name": "Modified at"})
+
+
+@dataclass
+class ComPayment:
+    ws_id: str
+    pay_order_id: str = field(metadata={"importance": 1, "display_name": "Order"})
+    pay_id: str = field(default="", metadata={"pkey": True, "display_name": "Payment ID"})
+    pay_external_id: str = field(default="", metadata={"display_name": "External ID"})
+    pay_amount: Decimal = field(default=Decimal(0), metadata={"importance": 1, "display_name": "Amount"})
+    pay_currency: str = field(default="", metadata={"importance": 1, "display_name": "Currency"})
+    pay_status: str = field(default="PENDING", metadata={"importance": 1, "display_name": "Status", "enum": [
+        {"value": "PENDING", "label": "Pending"},
+        {"value": "COMPLETED", "label": "Completed"},
+        {"value": "FAILED", "label": "Failed"},
+        {"value": "REFUNDED", "label": "Refunded"},
+    ]})
+    pay_provider: str = field(default="", metadata={"importance": 1, "display_name": "Provider"})
+    pay_details: dict = field(default_factory=dict, metadata={"display_name": "Details"})
+    pay_created_ts: float = field(default=0.0, metadata={"display_name": "Created at"})
+    pay_modified_ts: float = field(default=0.0, metadata={"display_name": "Modified at"})
+
+
+@dataclass
+class ComProduct:
+    ws_id: str
+    prod_name: str = field(metadata={"importance": 1, "display_name": "Name"})
+    prod_shop_id: str = field(metadata={"importance": 1, "display_name": "Shop"})
     prod_id: str = field(default="", metadata={"pkey": True, "display_name": "Product ID"})
-    prod_default_code: Optional[str] = field(default=None, metadata={"importance": 1, "display_name": "Internal Reference"})
-    prod_barcode: Optional[str] = field(default=None, metadata={"importance": 1, "display_name": "Barcode"})
-    prod_active: bool = field(default=True, metadata={"importance": 1, "display_name": "Active"})
-    prodt: Optional[ProductTemplate] = field(default=None, metadata={"display_name": "Product Template"})
+    prod_external_id: str = field(default="", metadata={"importance": 1, "display_name": "External ID"})
+    prod_description: str = field(default="", metadata={"importance": 1, "display": "string_multiline", "display_name": "Description"})
+    prod_type: str = field(default="physical", metadata={"importance": 1, "display_name": "Type", "enum": [
+        {"value": "physical", "label": "Physical"},
+        {"value": "digital", "label": "Digital"},
+        {"value": "service", "label": "Service"},
+    ]})
+    prod_category: str = field(default="", metadata={"importance": 1, "display_name": "Category"})
+    prod_tags: List[str] = field(default_factory=list, metadata={"importance": 1, "display_name": "Tags"})
+    prod_images: list = field(default_factory=list, metadata={"display_name": "Images"})
+    prod_details: dict = field(default_factory=dict, metadata={"display_name": "Details"})
+    prod_created_ts: float = field(default=0.0, metadata={"display_name": "Created at"})
+    prod_modified_ts: float = field(default=0.0, metadata={"display_name": "Modified at"})
+    prod_archived_ts: float = field(default=0.0, metadata={"display_name": "Archived at"})
 
 
 @dataclass
-class ProductCategory:
-    pcat_name: str = field(metadata={"importance": 1, "display_name": "Name"})
-    ws_id: str = field(metadata={"display_name": "Workspace ID"})
-    pcat_id: str = field(default="", metadata={"pkey": True, "display_name": "Category ID"})
-    pcat_parent_id: Optional[str] = field(default=None, metadata={"importance": 1, "display_name": "Parent Category"})
-    pcat_active: bool = field(default=True, metadata={"importance": 1, "display_name": "Active"})
-    parent: Optional['ProductCategory'] = field(default=None, metadata={"display_name": "Parent Category"})
+class ComProductVariant:
+    ws_id: str
+    pvar_prod_id: str = field(metadata={"importance": 1, "display_name": "Product"})
+    pvar_id: str = field(default="", metadata={"pkey": True, "display_name": "Variant ID"})
+    pvar_external_id: str = field(default="", metadata={"display_name": "External ID"})
+    pvar_name: str = field(default="", metadata={"importance": 1, "display_name": "Name"})
+    pvar_sku: str = field(default="", metadata={"importance": 1, "display_name": "SKU"})
+    pvar_barcode: str = field(default="", metadata={"display_name": "Barcode"})
+    pvar_price: Decimal = field(default=Decimal(0), metadata={"importance": 1, "display_name": "Price"})
+    pvar_compare_at_price: Decimal = field(default=Decimal(0), metadata={"display_name": "Compare at Price"})
+    pvar_cost: Decimal = field(default=Decimal(0), metadata={"display_name": "Cost"})
+    pvar_available_qty: int = field(default=0, metadata={"importance": 1, "display_name": "Available Qty"})
+    pvar_inventory_status: str = field(default="UNKNOWN", metadata={"importance": 1, "display_name": "Inventory Status", "enum": [
+        {"value": "UNKNOWN", "label": "Unknown"},
+        {"value": "IN_STOCK", "label": "In Stock"},
+        {"value": "LOW_STOCK", "label": "Low Stock"},
+        {"value": "OUT_OF_STOCK", "label": "Out of Stock"},
+    ]})
+    pvar_weight: Decimal = field(default=Decimal(0), metadata={"display_name": "Weight"})
+    pvar_weight_unit: str = field(default="kg", metadata={"display_name": "Weight Unit"})
+    pvar_options: dict = field(default_factory=dict, metadata={"display_name": "Options"})
+    pvar_active: bool = field(default=True, metadata={"importance": 1, "display_name": "Active"})
+    pvar_details: dict = field(default_factory=dict, metadata={"display_name": "Details"})
+    pvar_created_ts: float = field(default=0.0, metadata={"display_name": "Created at"})
+    pvar_modified_ts: float = field(default=0.0, metadata={"display_name": "Modified at"})
 
 
 @dataclass
-class ProductTag:
-    tag_name: str = field(metadata={"importance": 1, "display_name": "Name"})
-    ws_id: str = field(metadata={"display_name": "Workspace ID"})
-    tag_id: str = field(default="", metadata={"pkey": True, "display_name": "Tag ID"})
-    tag_sequence: int = field(default=10, metadata={"importance": 1, "display_name": "Sequence"})
-    tag_color: str = field(default="#3C3C3C", metadata={"importance": 1, "display_name": "Color"})
-    tag_visible_to_customers: bool = field(default=True, metadata={"importance": 1, "display_name": "Visible to Customers"})
+class ComRefund:
+    ws_id: str
+    refund_order_id: str = field(metadata={"importance": 1, "display_name": "Order"})
+    refund_id: str = field(default="", metadata={"pkey": True, "display_name": "Refund ID"})
+    refund_external_id: str = field(default="", metadata={"display_name": "External ID"})
+    refund_amount: Decimal = field(default=Decimal(0), metadata={"importance": 1, "display_name": "Amount"})
+    refund_currency: str = field(default="", metadata={"importance": 1, "display_name": "Currency"})
+    refund_reason: str = field(default="", metadata={"importance": 1, "display_name": "Reason"})
+    refund_status: str = field(default="PENDING", metadata={"importance": 1, "display_name": "Status", "enum": [
+        {"value": "PENDING", "label": "Pending"},
+        {"value": "COMPLETED", "label": "Completed"},
+        {"value": "FAILED", "label": "Failed"},
+    ]})
+    refund_line_items: list = field(default_factory=list, metadata={"display_name": "Line Items"})
+    refund_details: dict = field(default_factory=dict, metadata={"display_name": "Details"})
+    refund_created_ts: float = field(default=0.0, metadata={"display_name": "Created at"})
+    refund_modified_ts: float = field(default=0.0, metadata={"display_name": "Modified at"})
 
 
 @dataclass
-class ProductUom:
-    uom_name: str = field(metadata={"importance": 1, "display_name": "Name"})
-    ws_id: str = field(metadata={"display_name": "Workspace ID"})
-    uom_id: str = field(default="", metadata={"pkey": True, "display_name": "UoM ID"})
-    uom_category_id: Optional[str] = field(default=None, metadata={"importance": 1, "display_name": "Category"})
-    uom_active: bool = field(default=True, metadata={"importance": 1, "display_name": "Active"})
-    category: Optional[ProductCategory] = field(default=None, metadata={"display_name": "Category"})
+class ComShipment:
+    ws_id: str
+    ship_order_id: str = field(metadata={"importance": 1, "display_name": "Order"})
+    ship_id: str = field(default="", metadata={"pkey": True, "display_name": "Shipment ID"})
+    ship_external_id: str = field(default="", metadata={"display_name": "External ID"})
+    ship_carrier: str = field(default="", metadata={"importance": 1, "display_name": "Carrier"})
+    ship_tracking_number: str = field(default="", metadata={"importance": 1, "display_name": "Tracking Number"})
+    ship_tracking_url: str = field(default="", metadata={"display_name": "Tracking URL"})
+    ship_status: str = field(default="PENDING", metadata={"importance": 1, "display_name": "Status", "enum": [
+        {"value": "PENDING", "label": "Pending"},
+        {"value": "SHIPPED", "label": "Shipped"},
+        {"value": "DELIVERED", "label": "Delivered"},
+        {"value": "FAILED", "label": "Failed"},
+    ]})
+    ship_line_items: list = field(default_factory=list, metadata={"display_name": "Line Items"})
+    ship_details: dict = field(default_factory=dict, metadata={"display_name": "Details"})
+    ship_created_ts: float = field(default=0.0, metadata={"display_name": "Created at"})
+    ship_modified_ts: float = field(default=0.0, metadata={"display_name": "Modified at"})
 
 
 @dataclass
-class ProductM2mTemplateTag:
-    tag_id: str = field(metadata={"display_name": "Tag"})
-    prodt_id: str = field(metadata={"display_name": "Product Template"})
-    ws_id: str = field(metadata={"display_name": "Workspace ID"})
-    id: str = field(default="", metadata={"pkey": True, "display_name": "ID"})
-    tag: Optional[ProductTag] = field(default=None, metadata={"display_name": "Tag"})
-    prodt: Optional['ProductTemplate'] = field(default=None, metadata={"display_name": "Product Template"})
+class ComShop:
+    ws_id: str
+    shop_name: str = field(metadata={"importance": 1, "display_name": "Name"})
+    shop_type: str = field(metadata={"importance": 1, "display_name": "Type"})
+    shop_id: str = field(default="", metadata={"pkey": True, "display_name": "Shop ID"})
+    shop_domain: str = field(default="", metadata={"importance": 1, "display_name": "Domain"})
+    shop_currency: str = field(default="USD", metadata={"importance": 1, "display_name": "Currency"})
+    shop_credentials: dict = field(default_factory=dict, metadata={"display_name": "Credentials"})
+    shop_webhook_secret: str = field(default="", metadata={"display_name": "Webhook Secret"})
+    shop_sync_cursor: str = field(default="", metadata={"display_name": "Sync Cursor"})
+    shop_details: dict = field(default_factory=dict, metadata={"display_name": "Details"})
+    shop_active: bool = field(default=True, metadata={"importance": 1, "display_name": "Active"})
+    shop_created_ts: float = field(default=0.0, metadata={"display_name": "Created at"})
+    shop_modified_ts: float = field(default=0.0, metadata={"display_name": "Modified at"})
+    shop_archived_ts: float = field(default=0.0, metadata={"display_name": "Archived at"})
 
 
 ERP_TABLE_TO_SCHEMA: Dict[str, Type] = {
@@ -185,12 +304,14 @@ ERP_TABLE_TO_SCHEMA: Dict[str, Type] = {
     "crm_deal": CrmDeal,
     "crm_pipeline": CrmPipeline,
     "crm_pipeline_stage": CrmPipelineStage,
-    "product_template": ProductTemplate,
-    "product_product": ProductProduct,
-    "product_category": ProductCategory,
-    "product_tag": ProductTag,
-    "product_uom": ProductUom,
-    "product_m2m_template_tag": ProductM2mTemplateTag,
+    "com_order": ComOrder,
+    "com_order_item": ComOrderItem,
+    "com_payment": ComPayment,
+    "com_product": ComProduct,
+    "com_product_variant": ComProductVariant,
+    "com_refund": ComRefund,
+    "com_shipment": ComShipment,
+    "com_shop": ComShop,
 }
 
 ERP_DISPLAY_NAME_CONFIGS: Dict[str, str] = {
@@ -199,11 +320,14 @@ ERP_DISPLAY_NAME_CONFIGS: Dict[str, str] = {
     "crm_deal": "{deal_name}",
     "crm_pipeline": "{pipeline_name}",
     "crm_pipeline_stage": "{stage_name}",
-    "product_template": "{prodt_name}",
-    "product_product": "{prod_default_code} {prod_barcode}",
-    "product_category": "{pcat_name}",
-    "product_tag": "{tag_name}",
-    "product_uom": "{uom_name}",
+    "com_order": "{order_number}",
+    "com_order_item": "{oitem_name}",
+    "com_payment": "{pay_id}",
+    "com_product": "{prod_name}",
+    "com_product_variant": "{pvar_name} {pvar_sku}",
+    "com_refund": "{refund_id}",
+    "com_shipment": "{ship_tracking_number}",
+    "com_shop": "{shop_name}",
 }
 
 
