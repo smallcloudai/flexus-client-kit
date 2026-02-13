@@ -134,14 +134,14 @@ class IntegrationTelegram:
         if not self.tg_app:
             return
         bot_id = self.bot_token.split(":")[0]
-        if webhook_url := os.environ.get("FLEXUS_TELEGRAM_WEBHOOK_URL"):
+        if webhook_url := os.environ.get("TELEGRAM_WEBHOOK_URL"):
             pass
         elif os.environ.get("FLEXUS_ENV") == "production":
             webhook_url = f"https://flexus.team/v1/webhook/telegram/{bot_id}"
         elif os.environ.get("FLEXUS_ENV") == "staging":
             webhook_url = f"https://staging.flexus.team/v1/webhook/telegram/{bot_id}"
         else:
-            self.oops_a_problem("FLEXUS_ENV must be 'production' or 'staging', or set FLEXUS_TELEGRAM_WEBHOOK_URL")
+            self.oops_a_problem("FLEXUS_ENV must be 'production' or 'staging', or set TELEGRAM_WEBHOOK_URL")
             return
         try:
             await self.tg_app.initialize()
