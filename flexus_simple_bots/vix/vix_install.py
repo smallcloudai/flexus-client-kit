@@ -8,7 +8,8 @@ from flexus_client_kit import ckit_bot_install
 from flexus_client_kit import ckit_cloudtool
 from flexus_client_kit.integrations import fi_crm_automations
 from flexus_client_kit.integrations import fi_resend
-from flexus_client_kit.integrations import fi_telegram
+from flexus_client_kit.integrations import fi_telegramfrom flexus_client_kit.integrations import fi_shopify
+
 from flexus_simple_bots import prompts_common
 from flexus_simple_bots.vix import vix_bot, vix_prompts
 
@@ -52,7 +53,7 @@ vix_setup_schema = [
         "bs_importance": 0,
         "bs_description": "Email addresses the bot should respond to, comma-separated (e.g. sales@yourdomain.com). All other emails to your domains are logged as CRM activities only.",
     },
-] + fi_crm_automations.CRM_AUTOMATIONS_SETUP_SCHEMA + fi_resend.RESEND_SETUP_SCHEMA
+] + fi_shopify.SHOPIFY_SETUP_SCHEMA + fi_crm_automations.CRM_AUTOMATIONS_SETUP_SCHEMA + fi_resend.RESEND_SETUP_SCHEMA
 
 
 async def install(
@@ -119,7 +120,7 @@ async def install(
                 fexp_preferred_model_default="grok-4-1-fast-non-reasoning",
             )),
         ],
-        marketable_tags=["Sales", "Marketing", "CRM", "Email", "Automation"],
+        marketable_tags=["Sales", "Marketing", "CRM", "Email", "Automation", "Shopify", "E-commerce"],
         marketable_picture_big_b64=pic_big,
         marketable_picture_small_b64=pic_small,
         marketable_schedule=[
