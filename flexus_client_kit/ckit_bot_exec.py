@@ -183,12 +183,14 @@ class RobotContext:
         for emsg in emessages:
             did_anything = True
             handler = self._handler_per_emsg_type.get(emsg.emsg_type)
-            if handler:
-                try:
-                    await handler(emsg)
-                    handled_emsg_ids.append(emsg.emsg_id)
-                except Exception as e:
-                    logger.error("%s error in on_emessage(%r) handler: %s\n%s", self.persona.persona_id, emsg.emsg_type, type(e).__name__, e, exc_info=e)
+            if not handler:
+                logger.info("%s on_emessage(%r) handler not found, message is lost", self.persona.persona_id, emsg.emsg_type)
+                continue
+            try:
+                await handler(emsg)
+                handled_emsg_ids.append(emsg.emsg_id)
+            except Exception as e:
+                logger.error("%s error in on_emessage(%r) handler: %s\n%s", self.persona.persona_id, emsg.emsg_type, type(e).__name__, e, exc_info=e)
         if handled_emsg_ids:
             async with (await self.fclient.use_http()) as http:
                 await http.execute(gql.gql("""mutation DeleteEmessages($ids: [String!]!) {

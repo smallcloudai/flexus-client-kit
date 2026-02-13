@@ -18,7 +18,20 @@ from flexus_client_kit import ckit_ask_model, ckit_bot_exec, ckit_bot_query, cki
 from flexus_client_kit.format_utils import format_cat_output
 from flexus_client_kit.integrations import fi_messenger
 
-logger = logging.getLogger("telegram")
+logger = logging.getLogger("teleg")
+
+# Testing telegram with webhook on localhost:
+#
+# npm install --global smee-client
+# Visit https://smee.io/ , click Start a new channel => CHAN
+#
+# In parallel console (unfortunately the complete path needed):
+# smee -u https://smee.io/CHAN --target http://127.0.0.1:8008/v1/webhook/telegram/TELE_BOT_ID
+#
+# In dev console:
+# export FLEXUS_TELEGRAM_WEBHOOK_URL="https://smee.io/CHAN"
+# => start bot
+
 
 TELEGRAM_TOOL = ckit_cloudtool.CloudTool(
     strict=False,
@@ -121,18 +134,18 @@ class IntegrationTelegram:
         return instance
 
     async def _register_and_set_webhook(self, bot_id: str) -> None:
-        http = await self.fclient.use_http()
-        async with http as h:
-            await h.execute(
-                gql.gql("""mutation TelegramRegister($persona_id: String!, $channel: String!, $addresses: [String!]!) {
-                    persona_set_external_addresses(persona_id: $persona_id, channel: $channel, addresses: $addresses)
-                }"""),
-                variable_values={
-                    "persona_id": self.rcx.persona.persona_id,
-                    "channel": "TELEGRAM",
-                    "addresses": [f"telegram:{bot_id}"],
-                },
-            )
+        # http = await self.fclient.use_http()
+        # async with http as h:
+        #     await h.execute(
+        #         gql.gql("""mutation TelegramRegister($persona_id: String!, $channel: String!, $addresses: [String!]!) {
+        #             persona_set_external_addresses(persona_id: $persona_id, channel: $channel, addresses: $addresses)
+        #         }"""),
+        #         variable_values={
+        #             "persona_id": self.rcx.persona.persona_id,
+        #             "channel": "TELEGRAM",
+        #             "addresses": [f"telegram:{bot_id}"],
+        #         },
+        #     )
         logger.info("%s telegram registered successfully %s", self.rcx.persona.persona_id, bot_id)
         if webhook_url := os.environ.get("FLEXUS_TELEGRAM_WEBHOOK_URL"):
             pass
@@ -148,24 +161,18 @@ class IntegrationTelegram:
             info = await self.application.bot.get_webhook_info()
             if info.url != webhook_url:
                 await self.application.bot.set_webhook(webhook_url)
-                logger.info("Telegram webhook set: %s", webhook_url)
+                logger.info("%s telegram webhook set successfully %s", self.rcx.persona.persona_id, webhook_url)
         except Exception as e:
-            logger.exception("Failed to set Telegram webhook")
+            logger.exception("%s telegram failed to set webhook", self.rcx.persona.persona_id)
             self.oops_a_problem(f"webhook: {type(e).__name__}: {e}")
+
+        # For some reason, even start() is not necessary, it works without it
+        # await self.application.start()
 
     def set_activity_callback(self, cb: Callable[[ActivityTelegram, bool], Awaitable[None]]) -> None:
         self.activity_callback = cb
 
-    async def start_reactive(self) -> None:
-        if not self.application or self.reactive_task:
-            return
-        try:
-            await self.application.initialize()
-            await self.application.start()
-            self.reactive_task = asyncio.create_task(self.application.updater.start_polling(drop_pending_updates=True))
-        except Exception as e:
-            logger.exception("Failed to start Telegram polling")
-            self.oops_a_problem(f"{type(e).__name__}: {e}")
+    #         self.reactive_task = asyncio.create_task(self.application.updater.start_polling(drop_pending_updates=True))
 
     async def close(self) -> None:
         if self.application:
@@ -295,39 +302,6 @@ class IntegrationTelegram:
                 return f"ERROR: {type(e).__name__}: {e}\n"
 
         return fi_messenger.UNKNOWN_OPERATION_MSG % op
-
-    # def _setup_handlers(self) -> None:
-    #     async def handle_message(update: telegram.Update, context: Any) -> None:
-    #         await self._handle_incoming(update)
-
-    #     self.application.add_handler(telegram.ext.MessageHandler(telegram.ext.filters.ALL & ~telegram.ext.filters.COMMAND, handle_message))
-
-    # async def _handle_incoming(self, update: telegram.Update) -> None:
-    #     if not (msg := update.message or update.edited_message):
-    #         return
-    #     if str(msg.message_id) in self.prev_messages:
-    #         return
-    #     self.prev_messages.append(str(msg.message_id))
-    #     if not (user := msg.from_user):
-    #         return
-
-    #     author_name = user.full_name or user.username or str(user.id)
-    #     text = msg.text or msg.caption or ""
-    #     attachments = await self._extract_attachments(msg)
-
-    #     activity = ActivityTelegram(
-    #         chat_id=msg.chat.id,
-    #         chat_type=msg.chat.type,
-    #         message_id=msg.message_id,
-    #         message_text=text,
-    #         message_author_name=author_name,
-    #         message_author_id=user.id,
-    #         attachments=attachments,
-    #     )
-
-    #     posted = await self.post_into_captured_thread_as_user(activity)
-    #     if self.activity_callback:
-    #         await self.activity_callback(activity, posted)
 
     async def _extract_attachments(self, msg: telegram.Message) -> List[Dict[str, str]]:
         items: List[Dict[str, str]] = []
@@ -467,6 +441,7 @@ class IntegrationTelegram:
         return str(parsed)
 
     async def handle_emessage(self, emsg: ckit_bot_query.FExternalMessageOutput) -> None:
+        logger.info("%s external message! %s", self.rcx.persona.persona_id, emsg)
         payload = emsg.emsg_payload if isinstance(emsg.emsg_payload, dict) else json.loads(emsg.emsg_payload)
         update = telegram.Update.de_json(payload, bot=None)
         msg = update.message or update.edited_message
