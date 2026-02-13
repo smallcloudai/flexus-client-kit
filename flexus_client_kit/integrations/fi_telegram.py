@@ -41,11 +41,11 @@ telegram(op="capture", args={"chat_id": 123456789})
     Capture a Telegram chat. Messages will appear here and your responses will be sent back.
     You can only capture chats where the bot is a member.
 
-telegram(op="post", args={"chat_id": 123456789, "text": "Hello!"})
-    Post a message to a Telegram chat. Don't use this for captured chats.
-
 telegram(op="uncapture", args={"contact_id": "abc123", "conversation_summary": "Brief summary"})
     Stop capturing. If contact_id is provided, logs a CRM activity with the summary.
+
+telegram(op="post", args={"chat_id": 123456789, "text": "Hello!"})
+    Post a message to a Telegram chat. Don't use this for captured chats.
 
 telegram(op="skip")
     Ignore the most recent message but keep capturing.
@@ -88,24 +88,29 @@ class IntegrationTelegram:
         self.fclient = fclient
         self.rcx = rcx
         self.bot_token = TELEGRAM_BOT_TOKEN.strip()
+        self.problems_accumulator: List[str] = []
+
         self.activity_callback: Optional[Callable[[ActivityTelegram, bool], Awaitable[None]]] = None
         self.prev_messages: deque[str] = deque(maxlen=fi_messenger.MAX_DEDUP_MESSAGES)
-        self.problems_other: List[str] = []
         self.reactive_task: Optional[asyncio.Task[None]] = None
         self.application: Optional[telegram.ext.Application] = None
 
         if not self.bot_token:
-            self.problems_other.append("TELEGRAM_BOT_TOKEN is not configured")
+            self.oops_a_problem("TELEGRAM_BOT_TOKEN is not configured")
             return
 
         try:
             self.application = telegram.ext.Application.builder().token(self.bot_token).build()
-            self._setup_handlers()
+            # self._setup_handlers()
         except ImportError:
-            self.problems_other.append("python-telegram-bot not installed")
+            self.oops_a_problem("python-telegram-bot not installed")
         except Exception as e:
             logger.exception("Failed to initialize Telegram bot")
-            self.problems_other.append(f"{type(e).__name__}: {e}")
+            self.oops_a_problem(f"{type(e).__name__}: {e}")
+
+    def oops_a_problem(self, text: str) -> None:
+        logger.info("%s telegram problem: %s", self.rcx.persona.persona_id, text)
+        self.problems_accumulator.append(text)
 
     @classmethod
     async def create(cls, fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.RobotContext, TELEGRAM_BOT_TOKEN: str) -> "IntegrationTelegram":
@@ -128,7 +133,7 @@ class IntegrationTelegram:
                     "addresses": [f"telegram:{bot_id}"],
                 },
             )
-        logger.info("Registered telegram:%s for persona %s", bot_id, self.rcx.persona.persona_id)
+        logger.info("%s telegram registered successfully %s", self.rcx.persona.persona_id, bot_id)
         if webhook_url := os.environ.get("FLEXUS_TELEGRAM_WEBHOOK_URL"):
             pass
         elif os.environ.get("FLEXUS_ENV") == "production":
@@ -136,7 +141,7 @@ class IntegrationTelegram:
         elif os.environ.get("FLEXUS_ENV") == "staging":
             webhook_url = f"https://staging.flexus.team/v1/webhook/telegram/{bot_id}"
         else:
-            self.problems_other.append("FLEXUS_ENV must be 'production' or 'staging', or set FLEXUS_TELEGRAM_WEBHOOK_URL")
+            self.oops_a_problem("FLEXUS_ENV must be 'production' or 'staging', or set FLEXUS_TELEGRAM_WEBHOOK_URL")
             return
         try:
             await self.application.initialize()
@@ -146,7 +151,7 @@ class IntegrationTelegram:
                 logger.info("Telegram webhook set: %s", webhook_url)
         except Exception as e:
             logger.exception("Failed to set Telegram webhook")
-            self.problems_other.append(f"webhook: {type(e).__name__}: {e}")
+            self.oops_a_problem(f"webhook: {type(e).__name__}: {e}")
 
     def set_activity_callback(self, cb: Callable[[ActivityTelegram, bool], Awaitable[None]]) -> None:
         self.activity_callback = cb
@@ -160,7 +165,7 @@ class IntegrationTelegram:
             self.reactive_task = asyncio.create_task(self.application.updater.start_polling(drop_pending_updates=True))
         except Exception as e:
             logger.exception("Failed to start Telegram polling")
-            self.problems_other.append(f"{type(e).__name__}: {e}")
+            self.oops_a_problem(f"{type(e).__name__}: {e}")
 
     async def close(self) -> None:
         if self.application:
@@ -189,7 +194,7 @@ class IntegrationTelegram:
             return args_error
 
         if not self.application:
-            return "Problems:\n" + "\n".join(f"  {p}" for p in self.problems_other) + "\n"
+            return "Problems:\n" + "\n".join(f"  {p}" for p in self.problems_accumulator) + "\n"
 
         print_help = not op or "help" in op
         print_status = not op or "status" in op
@@ -201,12 +206,14 @@ class IntegrationTelegram:
                 r += f"Bot: @{bot_info.username} (id={bot_info.id})\n"
             except Exception as e:
                 r += f"Bot info error: {e}\n"
-            if self.problems_other:
-                r += "Problems:\n" + "\n".join(f"  {p}" for p in self.problems_other) + "\n"
+            if self.problems_accumulator:
+                r += "Problems:\n" + "\n".join(f"  {p}" for p in self.problems_accumulator) + "\n"
             r += "\n"
 
         if print_help:
             return r + HELP
+        if print_status:
+            return r
 
         if op == "post":
             chat_id = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "chat_id", None)
@@ -289,38 +296,38 @@ class IntegrationTelegram:
 
         return fi_messenger.UNKNOWN_OPERATION_MSG % op
 
-    def _setup_handlers(self) -> None:
-        async def handle_message(update: telegram.Update, context: Any) -> None:
-            await self._handle_incoming(update)
+    # def _setup_handlers(self) -> None:
+    #     async def handle_message(update: telegram.Update, context: Any) -> None:
+    #         await self._handle_incoming(update)
 
-        self.application.add_handler(telegram.ext.MessageHandler(telegram.ext.filters.ALL & ~telegram.ext.filters.COMMAND, handle_message))
+    #     self.application.add_handler(telegram.ext.MessageHandler(telegram.ext.filters.ALL & ~telegram.ext.filters.COMMAND, handle_message))
 
-    async def _handle_incoming(self, update: telegram.Update) -> None:
-        if not (msg := update.message or update.edited_message):
-            return
-        if str(msg.message_id) in self.prev_messages:
-            return
-        self.prev_messages.append(str(msg.message_id))
-        if not (user := msg.from_user):
-            return
+    # async def _handle_incoming(self, update: telegram.Update) -> None:
+    #     if not (msg := update.message or update.edited_message):
+    #         return
+    #     if str(msg.message_id) in self.prev_messages:
+    #         return
+    #     self.prev_messages.append(str(msg.message_id))
+    #     if not (user := msg.from_user):
+    #         return
 
-        author_name = user.full_name or user.username or str(user.id)
-        text = msg.text or msg.caption or ""
-        attachments = await self._extract_attachments(msg)
+    #     author_name = user.full_name or user.username or str(user.id)
+    #     text = msg.text or msg.caption or ""
+    #     attachments = await self._extract_attachments(msg)
 
-        activity = ActivityTelegram(
-            chat_id=msg.chat.id,
-            chat_type=msg.chat.type,
-            message_id=msg.message_id,
-            message_text=text,
-            message_author_name=author_name,
-            message_author_id=user.id,
-            attachments=attachments,
-        )
+    #     activity = ActivityTelegram(
+    #         chat_id=msg.chat.id,
+    #         chat_type=msg.chat.type,
+    #         message_id=msg.message_id,
+    #         message_text=text,
+    #         message_author_name=author_name,
+    #         message_author_id=user.id,
+    #         attachments=attachments,
+    #     )
 
-        posted = await self.post_into_captured_thread_as_user(activity)
-        if self.activity_callback:
-            await self.activity_callback(activity, posted)
+    #     posted = await self.post_into_captured_thread_as_user(activity)
+    #     if self.activity_callback:
+    #         await self.activity_callback(activity, posted)
 
     async def _extract_attachments(self, msg: telegram.Message) -> List[Dict[str, str]]:
         items: List[Dict[str, str]] = []
