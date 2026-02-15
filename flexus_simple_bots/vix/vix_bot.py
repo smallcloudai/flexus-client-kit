@@ -58,7 +58,8 @@ async def vix_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.Ro
     automations_integration = fi_crm_automations.IntegrationCrmAutomations(
         fclient, rcx, get_setup, available_erp_tables=ERP_TABLES,
     )
-    telegram = await fi_telegram.IntegrationTelegram.create(fclient, rcx, get_setup().get("TELEGRAM_BOT_TOKEN", ""))
+    telegram = fi_telegram.IntegrationTelegram(fclient, rcx, get_setup().get("TELEGRAM_BOT_TOKEN", ""))
+    await telegram.register_webhook_and_start()
 
     @rcx.on_updated_message
     async def updated_message_in_db(msg: ckit_ask_model.FThreadMessageOutput):
@@ -117,6 +118,7 @@ async def vix_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.Ro
     async def toolcall_telegram(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
         return await telegram.called_by_model(toolcall, model_produced_args)
 
+    @telegram.on_incoming_activity
     async def telegram_activity_callback(a: fi_telegram.ActivityTelegram, already_posted: bool):
         logger.info("%s Telegram %s by @%s: %s", rcx.persona.persona_id, a.chat_type, a.message_author_name, a.message_text[:50])
         if already_posted:
@@ -139,8 +141,6 @@ async def vix_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.Ro
             provenance_message="vix_telegram_activity",
             fexp_name="sales",
         )
-
-    telegram.set_activity_callback(telegram_activity_callback)
 
     try:
         while not ckit_shutdown.shutdown_event.is_set():

@@ -7,6 +7,7 @@ from io import BytesIO
 from pathlib import Path
 from re import Pattern
 from typing import Union, Optional, List, Dict, Any, Tuple
+from typing_extensions import deprecated
 
 from PIL import Image
 from genson import SchemaBuilder
@@ -159,6 +160,8 @@ def format_text_output(
     return "\n".join(result)
 
 
+# XXX remove
+@deprecated("this function is garbage, remove")
 def format_binary_output(
     path: str,
     data: bytes,

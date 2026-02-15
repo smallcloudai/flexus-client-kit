@@ -14,7 +14,7 @@ from PIL import Image
 import telegram
 import telegram.ext
 
-from flexus_client_kit import ckit_ask_model, ckit_bot_exec, ckit_bot_query, ckit_client, ckit_cloudtool, ckit_erp
+from flexus_client_kit import ckit_ask_model, ckit_bot_exec, ckit_bot_query, ckit_client, ckit_cloudtool, ckit_erp, gql_utils
 from flexus_client_kit.format_utils import format_cat_output
 from flexus_client_kit.integrations import fi_messenger
 
@@ -103,7 +103,7 @@ class IntegrationTelegram:
         self.bot_token = TELEGRAM_BOT_TOKEN.strip()
         self.problems_accumulator: List[str] = []
 
-        self.activity_callback: Optional[Callable[[ActivityTelegram, bool], Awaitable[None]]] = None
+        self._activity_callback: Optional[Callable[[ActivityTelegram, bool], Awaitable[None]]] = None
         self.tg_app: Optional[telegram.ext.Application] = None
 
         self._prev_messages: deque[str] = deque(maxlen=fi_messenger.MAX_DEDUP_MESSAGES)
@@ -111,6 +111,9 @@ class IntegrationTelegram:
         if not self.bot_token:
             self.oops_a_problem("TELEGRAM_BOT_TOKEN is not configured")
             return
+
+        if ":" not in self.bot_token:
+            self.oops_a_problem("TELEGRAM_BOT_TOKEN should have format bot_id:SECRET_KEY")
 
         try:
             self.tg_app = telegram.ext.Application.builder().token(self.bot_token).build()
@@ -125,16 +128,10 @@ class IntegrationTelegram:
         logger.info("%s telegram problem: %s", self.rcx.persona.persona_id, text)
         self.problems_accumulator.append(text)
 
-    @classmethod
-    async def create(cls, fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.RobotContext, TELEGRAM_BOT_TOKEN: str) -> "IntegrationTelegram":
-        instance = cls(fclient, rcx, TELEGRAM_BOT_TOKEN)
-        if instance.tg_app and ":" in instance.bot_token:
-            bot_id = instance.bot_token.split(":")[0]
-            await instance._register_and_set_webhook(bot_id)
-        return instance
-
-    async def _register_and_set_webhook(self, bot_id: str) -> None:
-        logger.info("%s telegram registered successfully %s", self.rcx.persona.persona_id, bot_id)
+    async def register_webhook_and_start(self) -> None:
+        if not self.tg_app:
+            return
+        bot_id = self.bot_token.split(":")[0]
         if webhook_url := os.environ.get("FLEXUS_TELEGRAM_WEBHOOK_URL"):
             pass
         elif os.environ.get("FLEXUS_ENV") == "production":
@@ -154,11 +151,13 @@ class IntegrationTelegram:
             logger.exception("%s telegram failed to set webhook", self.rcx.persona.persona_id)
             self.oops_a_problem(f"webhook: {type(e).__name__}: {e}")
 
+        logger.info("%s telegram registered successfully %s", self.rcx.persona.persona_id, bot_id)
         # For some reason, even start() is not necessary, it works without it
         # await self.tg_app.start()
 
-    def set_activity_callback(self, cb: Callable[[ActivityTelegram, bool], Awaitable[None]]) -> None:
-        self.activity_callback = cb
+    def on_incoming_activity(self, handler: Callable[[ActivityTelegram, bool], Awaitable[None]]):
+        self._activity_callback = handler
+        return handler
 
     async def close(self) -> None:
         if self.tg_app:
@@ -210,7 +209,7 @@ class IntegrationTelegram:
             if not text:
                 return "Missing text parameter\n"
 
-            if (thread_cap := self._thread_capturing(str(chat_id))) and thread_cap.thread_fields.ft_id == toolcall.fcall_ft_id:
+            if (thread_cap := fi_messenger.recent_thread_that_captures(self.rcx, "telegram", str(chat_id))) and thread_cap.thread_fields.ft_id == toolcall.fcall_ft_id:
                 return "Cannot post to captured chat. Your responses are sent automatically.\n"
 
             try:
@@ -225,13 +224,13 @@ class IntegrationTelegram:
                 return "Missing chat_id parameter\n"
 
             identifier = str(chat_id)
-            if already := self._thread_capturing(identifier):
+            if already := fi_messenger.recent_thread_that_captures(self.rcx, "telegram", identifier):
                 if already.thread_fields.ft_id == toolcall.fcall_ft_id:
                     return "Already captured\n"
                 return fi_messenger.OTHER_CHAT_ALREADY_CAPTURING_MSG % identifier
 
             http = await self.fclient.use_http()
-            searchable = fi_messenger.build_searchable("telegram", identifier)
+            searchable = fi_messenger.fmt_searchable("telegram", identifier)
             await ckit_ask_model.thread_app_capture_patch(
                 http,
                 toolcall.fcall_ft_id,
@@ -283,58 +282,44 @@ class IntegrationTelegram:
 
         return fi_messenger.UNKNOWN_OPERATION_MSG % op
 
-    async def _extract_attachments(self, msg: telegram.Message) -> List[Dict[str, str]]:
-        items: List[Dict[str, str]] = []
-        photo = msg.photo[-1] if msg.photo else None
-        doc = msg.document
+    async def handle_emessage(self, emsg: ckit_bot_query.FExternalMessageOutput) -> None:
+        # external message! FExternalMessageOutput(
+        #  emsg_id='vgfz9BmBpa',
+        #  emsg_persona_id='6gjySpynvG',
+        #  emsg_type='TELEGRAM',
+        #  emsg_from='telegram:14931503',
+        #  emsg_to='telegram:8497987008',
+        #  emsg_external_id='22',
+        #  emsg_payload={'message': {'chat': {'id': 14931503, 'type': 'private', 'username': 'handle', 'first_name': 'Real Name'}, 'date': 1770975588, 'from': {'id': 14931503, 'is_bot': False, 'username': 'handle', 'first_name': 'Real Name', 'language_code': 'en'}, 'text': 'hello wrold', 'message_id': 22}, 'update_id': 257336450},
+        #  emsg_created_ts=1770975590.564911,
+        # ws_id='solarsystem')
 
-        if photo:
-            try:
-                file = await photo.get_file()
-                data = await file.download_as_bytearray()
-                img_part = self._process_image(bytes(data))
-                if img_part:
-                    items.append(img_part)
-            except Exception as e:
-                logger.warning("Failed to download photo: %s", e)
+        payload = emsg.emsg_payload if isinstance(emsg.emsg_payload, dict) else json.loads(emsg.emsg_payload)
+        update = telegram.Update.de_json(payload, bot=None)   # Scary, strange types, date becomes datetime.datetime etc, but good for validation
 
-        if doc:
-            try:
-                file = await doc.get_file()
-                data = await file.download_as_bytearray()
-                if doc.mime_type and doc.mime_type.startswith("image/"):
-                    img_part = self._process_image(bytes(data))
-                    if img_part:
-                        items.append(img_part)
-                elif fi_messenger.is_text_file(bytes(data)):
-                    formatted = format_cat_output(doc.file_name or "file", bytes(data), safety_valve="10k")
-                    items.append({"m_type": "text", "m_content": f"{fi_messenger.FILE_EMOJI} {formatted}"})
-                else:
-                    items.append({"m_type": "text", "m_content": f"[Binary file: {doc.file_name} ({len(data)} bytes)]"})
-            except Exception as e:
-                logger.warning("Failed to download document: %s", e)
-
-        return items
-
-    def _process_image(self, data: bytes) -> Optional[Dict[str, str]]:
-        try:
-            img = Image.open(io.BytesIO(data))
-            img.thumbnail((600, 600), Image.Resampling.LANCZOS)
-            buf = io.BytesIO()
-            if img.mode == "RGBA":
-                img = img.convert("RGB")
-            img.save(buf, format="JPEG", quality=80, optimize=True)
-            buf.seek(0)
-            return {"m_type": "image/jpeg", "m_content": base64.b64encode(buf.read()).decode("utf-8")}
-        except Exception:
-            logger.exception("Failed to process image")
-            return None
-
-    def _thread_capturing(self, identifier: str) -> Optional[ckit_bot_query.FThreadWithMessages]:
-        return fi_messenger.find_thread_capturing(self.rcx, "telegram", identifier)
+        msg = update.message or update.edited_message
+        if not msg or not msg.from_user:
+            return
+        if str(msg.message_id) in self._prev_messages:
+            return
+        self._prev_messages.append(str(msg.message_id))
+        user = msg.from_user
+        activity = ActivityTelegram(
+            chat_id=msg.chat.id,
+            chat_type=str(msg.chat.type),
+            message_id=msg.message_id,
+            message_text=msg.text or msg.caption or "",
+            message_author_name=user.full_name or user.username or str(user.id),
+            message_author_id=user.id,
+            attachments=[],
+        )
+        posted = await self.post_into_captured_thread_as_user(activity)
+        if self._activity_callback:
+            await self._activity_callback(activity, posted)
 
     async def post_into_captured_thread_as_user(self, activity: ActivityTelegram) -> bool:
-        if not (thread_cap := self._thread_capturing(str(activity.chat_id))):
+        if not (thread_cap := fi_messenger.recent_thread_that_captures(self.rcx, "telegram", str(activity.chat_id))):
+            # No captured thread, activity_callback() will decide what to do with incoming telegram message (probably will make an inbox task)
             return False
         http = await self.fclient.use_http()
         if thread_cap.thread_fields.ft_error:
@@ -342,28 +327,24 @@ class IntegrationTelegram:
             await ckit_ask_model.thread_app_capture_patch(http, thread_cap.thread_fields.ft_id, ft_app_searchable="")
             return False
 
-        parts: List[Dict[str, str]] = []
-        if activity.message_text.strip():
-            parts.append({"m_type": "text", "m_content": fi_messenger.format_user_message(activity.message_author_name, activity.message_text)})
-        parts.extend(activity.attachments)
-        if not parts:
-            return True  # empty message, keep capture, don't create task
-        parts = fi_messenger.compact_message_parts(parts)
-
-        try:
-            await ckit_ask_model.thread_add_user_message(
-                http,
-                thread_cap.thread_fields.ft_id,
-                parts,
-                "fi_telegram",
-                ftm_alt=100,
-                user_preferences=json.dumps({"reopen_task_instruction": 1}),
-            )
-            return True
-        except gql.transport.exceptions.TransportQueryError as e:
-            logger.info("Telegram capture failed, uncapturing: %s", e)
-            await ckit_ask_model.thread_app_capture_patch(http, thread_cap.thread_fields.ft_id, ft_app_searchable="")
-            return False
+        msg_text = activity.message_text
+        if not msg_text.strip():
+            return True  # empty message, keep capture, do nothing
+        # parts.append({"m_type": "text", "m_content": fi_messenger.format_user_message(activity.message_author_name, activity.message_text)})
+        # parts: List[Dict[str, str]] = []
+        # parts.extend(activity.attachments)
+        # parts = fi_messenger.compact_message_parts(parts)
+        parts = msg_text
+        ckit_ask_model.thread_add_user_message(
+            http,
+            thread_cap.thread_fields.ft_id,
+            parts,
+            "fi_telegram",
+            ftm_alt=100,
+            # `reopen_task_instruction` is backend-side special case: will notify the model that the task is completed and how to reopen, in the same transaction as this message
+            user_preferences=json.dumps({"reopen_task_instruction": 1}),
+        )
+        return True
 
     async def look_assistant_might_have_posted_something(self, msg: ckit_ask_model.FThreadMessageOutput) -> bool:
         if msg.ftm_role != "assistant" or not msg.ftm_content:
@@ -400,37 +381,52 @@ class IntegrationTelegram:
         fthread.thread_fields.ft_app_specific = {"last_posted_assistant_ts": msg.ftm_created_ts}
         return True
 
-    async def handle_emessage(self, emsg: ckit_bot_query.FExternalMessageOutput) -> None:
-        # external message! FExternalMessageOutput(
-        #  emsg_id='vgfz9BmBpa',
-        #  emsg_persona_id='6gjySpynvG',
-        #  emsg_type='TELEGRAM',
-        #  emsg_from='telegram:14931503',
-        #  emsg_to='telegram:8497987008',
-        #  emsg_external_id='22',
-        #  emsg_payload={'message': {'chat': {'id': 14931503, 'type': 'private', 'username': 'handle', 'first_name': 'Real Name'}, 'date': 1770975588, 'from': {'id': 14931503, 'is_bot': False, 'username': 'handle', 'first_name': 'Real Name', 'language_code': 'en'}, 'text': 'hello wrold', 'message_id': 22}, 'update_id': 257336450},
-        #  emsg_created_ts=1770975590.564911,
-        # ws_id='solarsystem')
+    # -- Additional stuff --
+    # How to handle images
 
-        payload = emsg.emsg_payload if isinstance(emsg.emsg_payload, dict) else json.loads(emsg.emsg_payload)
-        update = telegram.Update.de_json(payload, bot=None)   # Scary, strange types, date becomes datetime.datetime etc, but good for validation
+    # async def _extract_attachments(self, msg: telegram.Message) -> List[Dict[str, str]]:
+    #     items: List[Dict[str, str]] = []
+    #     photo = msg.photo[-1] if msg.photo else None
+    #     doc = msg.document
 
-        msg = update.message or update.edited_message
-        if not msg or not msg.from_user:
-            return
-        if str(msg.message_id) in self._prev_messages:
-            return
-        self._prev_messages.append(str(msg.message_id))
-        user = msg.from_user
-        activity = ActivityTelegram(
-            chat_id=msg.chat.id,
-            chat_type=str(msg.chat.type),
-            message_id=msg.message_id,
-            message_text=msg.text or msg.caption or "",
-            message_author_name=user.full_name or user.username or str(user.id),
-            message_author_id=user.id,
-            attachments=[],
-        )
-        posted = await self.post_into_captured_thread_as_user(activity)
-        if self.activity_callback:
-            await self.activity_callback(activity, posted)
+    #     if photo:
+    #         try:
+    #             file = await photo.get_file()
+    #             data = await file.download_as_bytearray()
+    #             img_part = self._process_image(bytes(data))
+    #             if img_part:
+    #                 items.append(img_part)
+    #         except Exception as e:
+    #             logger.warning("Failed to download photo: %s", e)
+
+    #     if doc:
+    #         try:
+    #             file = await doc.get_file()
+    #             data = await file.download_as_bytearray()
+    #             if doc.mime_type and doc.mime_type.startswith("image/"):
+    #                 img_part = self._process_image(bytes(data))
+    #                 if img_part:
+    #                     items.append(img_part)
+    #             elif fi_messenger.is_text_file(bytes(data)):
+    #                 formatted = format_cat_output(doc.file_name or "file", bytes(data), safety_valve="10k")
+    #                 items.append({"m_type": "text", "m_content": f"{fi_messenger.FILE_EMOJI} {formatted}"})
+    #             else:
+    #                 items.append({"m_type": "text", "m_content": f"[Binary file: {doc.file_name} ({len(data)} bytes)]"})
+    #         except Exception as e:
+    #             logger.warning("Failed to download document: %s", e)
+
+    #     return items
+
+    # def _process_image(self, data: bytes) -> Optional[Dict[str, str]]:
+    #     try:
+    #         img = Image.open(io.BytesIO(data))
+    #         img.thumbnail((600, 600), Image.Resampling.LANCZOS)
+    #         buf = io.BytesIO()
+    #         if img.mode == "RGBA":
+    #             img = img.convert("RGB")
+    #         img.save(buf, format="JPEG", quality=80, optimize=True)
+    #         buf.seek(0)
+    #         return {"m_type": "image/jpeg", "m_content": base64.b64encode(buf.read()).decode("utf-8")}
+    #     except Exception:
+    #         logger.exception("Failed to process image")
+    #         return None
