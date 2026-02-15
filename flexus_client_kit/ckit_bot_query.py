@@ -69,7 +69,6 @@ class FThreadWithMessages:
     persona_id: str
     thread_fields: ckit_ask_model.FThreadOutput
     thread_messages: Dict[str, ckit_ask_model.FThreadMessageOutput] = field(default_factory=dict)
-    message_count_at_initial_updates_over: int = 0
 
 
 async def persona_list(fclient: ckit_client.FlexusClient, fgroup_id: str) -> List[FPersonaOutput]:

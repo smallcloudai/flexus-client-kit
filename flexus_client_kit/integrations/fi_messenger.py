@@ -75,15 +75,15 @@ def compact_message_parts(parts: List[Dict[str, Any]], max_parts: int = 5, max_i
     return [{"m_type": "text", "m_content": combined_text}] + image_parts
 
 
-def find_thread_capturing(rcx: ckit_bot_exec.RobotContext, platform: str, identifier: str) -> Optional[ckit_bot_query.FThreadWithMessages]:
-    searchable = build_searchable(platform, identifier)
+def recent_thread_that_captures(rcx: ckit_bot_exec.RobotContext, platform: str, identifier: str) -> Optional[ckit_bot_query.FThreadWithMessages]:
+    searchable = fmt_searchable(platform, identifier)
     for t in rcx.latest_threads.values():
         if t.thread_fields.ft_app_searchable == searchable:
             return t
     return None
 
 
-def build_searchable(platform: str, identifier: str) -> str:
+def fmt_searchable(platform: str, identifier: str) -> str:
     return f"{platform}/{identifier}"
 
 
