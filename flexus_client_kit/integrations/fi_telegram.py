@@ -104,16 +104,16 @@ class IntegrationTelegram:
         self.problems_accumulator: List[str] = []
 
         self.activity_callback: Optional[Callable[[ActivityTelegram, bool], Awaitable[None]]] = None
-        self.prev_messages: deque[str] = deque(maxlen=fi_messenger.MAX_DEDUP_MESSAGES)
-        self.reactive_task: Optional[asyncio.Task[None]] = None
-        self.application: Optional[telegram.ext.Application] = None
+        self.tg_app: Optional[telegram.ext.Application] = None
+
+        self._prev_messages: deque[str] = deque(maxlen=fi_messenger.MAX_DEDUP_MESSAGES)
 
         if not self.bot_token:
             self.oops_a_problem("TELEGRAM_BOT_TOKEN is not configured")
             return
 
         try:
-            self.application = telegram.ext.Application.builder().token(self.bot_token).build()
+            self.tg_app = telegram.ext.Application.builder().token(self.bot_token).build()
             # self._setup_handlers()
         except ImportError:
             self.oops_a_problem("python-telegram-bot not installed")
@@ -128,24 +128,12 @@ class IntegrationTelegram:
     @classmethod
     async def create(cls, fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.RobotContext, TELEGRAM_BOT_TOKEN: str) -> "IntegrationTelegram":
         instance = cls(fclient, rcx, TELEGRAM_BOT_TOKEN)
-        if instance.application and ":" in instance.bot_token:
+        if instance.tg_app and ":" in instance.bot_token:
             bot_id = instance.bot_token.split(":")[0]
             await instance._register_and_set_webhook(bot_id)
         return instance
 
     async def _register_and_set_webhook(self, bot_id: str) -> None:
-        # http = await self.fclient.use_http()
-        # async with http as h:
-        #     await h.execute(
-        #         gql.gql("""mutation TelegramRegister($persona_id: String!, $channel: String!, $addresses: [String!]!) {
-        #             persona_set_external_addresses(persona_id: $persona_id, channel: $channel, addresses: $addresses)
-        #         }"""),
-        #         variable_values={
-        #             "persona_id": self.rcx.persona.persona_id,
-        #             "channel": "TELEGRAM",
-        #             "addresses": [f"telegram:{bot_id}"],
-        #         },
-        #     )
         logger.info("%s telegram registered successfully %s", self.rcx.persona.persona_id, bot_id)
         if webhook_url := os.environ.get("FLEXUS_TELEGRAM_WEBHOOK_URL"):
             pass
@@ -157,39 +145,31 @@ class IntegrationTelegram:
             self.oops_a_problem("FLEXUS_ENV must be 'production' or 'staging', or set FLEXUS_TELEGRAM_WEBHOOK_URL")
             return
         try:
-            await self.application.initialize()
-            info = await self.application.bot.get_webhook_info()
+            await self.tg_app.initialize()
+            info = await self.tg_app.bot.get_webhook_info()
             if info.url != webhook_url:
-                await self.application.bot.set_webhook(webhook_url)
+                await self.tg_app.bot.set_webhook(webhook_url)
                 logger.info("%s telegram webhook set successfully %s", self.rcx.persona.persona_id, webhook_url)
         except Exception as e:
             logger.exception("%s telegram failed to set webhook", self.rcx.persona.persona_id)
             self.oops_a_problem(f"webhook: {type(e).__name__}: {e}")
 
         # For some reason, even start() is not necessary, it works without it
-        # await self.application.start()
+        # await self.tg_app.start()
 
     def set_activity_callback(self, cb: Callable[[ActivityTelegram, bool], Awaitable[None]]) -> None:
         self.activity_callback = cb
 
-    #         self.reactive_task = asyncio.create_task(self.application.updater.start_polling(drop_pending_updates=True))
-
     async def close(self) -> None:
-        if self.application:
+        if self.tg_app:
             try:
-                if self.application.updater and self.application.updater.running:
-                    await self.application.updater.stop()
-                await self.application.stop()
-                await self.application.shutdown()
+                if self.tg_app.updater and self.tg_app.updater.running:
+                    await self.tg_app.updater.stop()
+                await self.tg_app.stop()
+                await self.tg_app.shutdown()
             except Exception:
+                logger.exception("%s telegram failed to close", self.rcx.persona.persona_id)
                 pass
-        if self.reactive_task and not self.reactive_task.done():
-            self.reactive_task.cancel()
-            try:
-                await self.reactive_task
-            except asyncio.CancelledError:
-                pass
-        self.reactive_task = None
 
     async def called_by_model(self, toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Optional[Dict[str, Any]]) -> str:
         if not model_produced_args:
@@ -200,7 +180,7 @@ class IntegrationTelegram:
         if args_error:
             return args_error
 
-        if not self.application:
+        if not self.tg_app:
             return "Problems:\n" + "\n".join(f"  {p}" for p in self.problems_accumulator) + "\n"
 
         print_help = not op or "help" in op
@@ -209,7 +189,7 @@ class IntegrationTelegram:
 
         if print_status:
             try:
-                bot_info = await self.application.bot.get_me()
+                bot_info = await self.tg_app.bot.get_me()
                 r += f"Bot: @{bot_info.username} (id={bot_info.id})\n"
             except Exception as e:
                 r += f"Bot info error: {e}\n"
@@ -234,7 +214,7 @@ class IntegrationTelegram:
                 return "Cannot post to captured chat. Your responses are sent automatically.\n"
 
             try:
-                await self.application.bot.send_message(chat_id=int(chat_id), text=text)
+                await self.tg_app.bot.send_message(chat_id=int(chat_id), text=text)
                 return "Post success\n"
             except Exception as e:
                 return f"ERROR: {type(e).__name__}: {e}\n"
@@ -296,7 +276,7 @@ class IntegrationTelegram:
             if not contact_id:
                 return "Missing contact_id parameter\n"
             try:
-                bot_info = await self.application.bot.get_me()
+                bot_info = await self.tg_app.bot.get_me()
                 return f"https://t.me/{bot_info.username}?start=c_{contact_id}\n"
             except Exception as e:
                 return f"ERROR: {type(e).__name__}: {e}\n"
@@ -399,13 +379,14 @@ class IntegrationTelegram:
             return False
 
         chat_id = int(searchable[len("telegram/"):])
-        if not (text := self._format_assistant_content(msg.ftm_content)):
+        if not isinstance(msg.ftm_content, str):
+            logger.warning("telegram handle_assistant_might_have_posted: ftm_content is not a string")
             return False
-        if not self.application:
+        if not self.tg_app:
             return False
 
         try:
-            await self.application.bot.send_message(chat_id=chat_id, text=text)
+            await self.tg_app.bot.send_message(chat_id=chat_id, text=msg.ftm_content)
         except Exception as e:
             logger.warning("Failed to post to Telegram chat %d: %s", chat_id, e)
             return False
@@ -418,27 +399,6 @@ class IntegrationTelegram:
         )
         fthread.thread_fields.ft_app_specific = {"last_posted_assistant_ts": msg.ftm_created_ts}
         return True
-
-    def _format_assistant_content(self, content: Any) -> str:
-        if isinstance(content, str):
-            try:
-                parsed = json.loads(content)
-            except json.JSONDecodeError:
-                return content
-        else:
-            parsed = content
-
-        if isinstance(parsed, list):
-            parts = []
-            for item in parsed:
-                if isinstance(item, dict) and item.get("m_type") == "text":
-                    parts.append(item.get("m_content", ""))
-            return "\n\n".join(p for p in parts if p).strip()
-
-        if isinstance(parsed, dict):
-            return parsed.get("m_content", str(parsed))
-
-        return str(parsed)
 
     async def handle_emessage(self, emsg: ckit_bot_query.FExternalMessageOutput) -> None:
         # external message! FExternalMessageOutput(
@@ -458,9 +418,9 @@ class IntegrationTelegram:
         msg = update.message or update.edited_message
         if not msg or not msg.from_user:
             return
-        if str(msg.message_id) in self.prev_messages:
+        if str(msg.message_id) in self._prev_messages:
             return
-        self.prev_messages.append(str(msg.message_id))
+        self._prev_messages.append(str(msg.message_id))
         user = msg.from_user
         activity = ActivityTelegram(
             chat_id=msg.chat.id,
