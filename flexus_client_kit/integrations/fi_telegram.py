@@ -103,9 +103,9 @@ class IntegrationTelegram:
         self.bot_token = TELEGRAM_BOT_TOKEN.strip()
         self.problems_accumulator: List[str] = []
 
-        self._activity_callback: Optional[Callable[[ActivityTelegram, bool], Awaitable[None]]] = None
         self.tg_app: Optional[telegram.ext.Application] = None
 
+        self._activity_callback: Optional[Callable[[ActivityTelegram, bool], Awaitable[None]]] = None
         self._prev_messages: deque[str] = deque(maxlen=fi_messenger.MAX_DEDUP_MESSAGES)
 
         if not self.bot_token:
@@ -146,7 +146,9 @@ class IntegrationTelegram:
             info = await self.tg_app.bot.get_webhook_info()
             if info.url != webhook_url:
                 await self.tg_app.bot.set_webhook(webhook_url)
-                logger.info("%s telegram webhook set successfully %s", self.rcx.persona.persona_id, webhook_url)
+                logger.info("%s telegram webhook changed to %s", self.rcx.persona.persona_id, webhook_url)
+            else:
+                logger.info("%s telegram webhook stays %s", self.rcx.persona.persona_id, webhook_url)
         except Exception as e:
             logger.exception("%s telegram failed to set webhook", self.rcx.persona.persona_id)
             self.oops_a_problem(f"webhook: {type(e).__name__}: {e}")
@@ -160,15 +162,15 @@ class IntegrationTelegram:
         return handler
 
     async def close(self) -> None:
-        if self.tg_app:
+        if self.tg_app and self.tg_app.running:
             try:
-                if self.tg_app.updater and self.tg_app.updater.running:
-                    await self.tg_app.updater.stop()
+                # if self.tg_app.updater and self.tg_app.updater.running:
+                #     await self.tg_app.updater.stop()
                 await self.tg_app.stop()
                 await self.tg_app.shutdown()
+                self.tg_app = None
             except Exception:
                 logger.exception("%s telegram failed to close", self.rcx.persona.persona_id)
-                pass
 
     async def called_by_model(self, toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Optional[Dict[str, Any]]) -> str:
         if not model_produced_args:
@@ -313,9 +315,9 @@ class IntegrationTelegram:
             message_author_id=user.id,
             attachments=[],
         )
-        posted = await self.post_into_captured_thread_as_user(activity)
+        already_posted_to_captured_thread = await self.post_into_captured_thread_as_user(activity)
         if self._activity_callback:
-            await self._activity_callback(activity, posted)
+            await self._activity_callback(activity, already_posted_to_captured_thread)
 
     async def post_into_captured_thread_as_user(self, activity: ActivityTelegram) -> bool:
         if not (thread_cap := fi_messenger.recent_thread_that_captures(self.rcx, "telegram", str(activity.chat_id))):
@@ -334,6 +336,12 @@ class IntegrationTelegram:
         # parts: List[Dict[str, str]] = []
         # parts.extend(activity.attachments)
         # parts = fi_messenger.compact_message_parts(parts)
+        logger.info("%s telegram inbound captured ft_id=%s type=%s chat_id=%s msg_id=%s from %r (uid=%s): %s",
+            self.rcx.persona.persona_id,
+            thread_cap.thread_fields.ft_id,
+            activity.chat_type, activity.chat_id, activity.message_id,
+            activity.message_author_name, activity.message_author_id, activity.message_text[:120] or "(empty)")
+
         parts = msg_text
         ckit_ask_model.thread_add_user_message(
             http,

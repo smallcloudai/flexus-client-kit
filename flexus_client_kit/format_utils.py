@@ -18,6 +18,8 @@ IMAGE_EXTENSIONS = {'.png', '.jpg', '.jpeg', '.gif', '.bmp', '.webp'}
 
 DEFAULT_SAFETY_VALVE = "10k"
 
+
+# XXX remove, bad idea
 def get_json_schema(data: Union[dict, list]) -> Optional[str]:
     """Generate a JSON schema for the given data."""
     try:
@@ -217,14 +219,14 @@ def format_binary_output(
     return result
 
 
+@deprecated("use format_text_output, format_json_output, no shape shifting code")
 def format_cat_output(
     path: str,
     file_data: Union[bytes, str, list, dict],
     lines_range: str = ":",
     safety_valve: str = DEFAULT_SAFETY_VALVE
 ) -> str:
-    # XXX this function should not exist, kill it with fire!
-    # use format_binary_output, format_text_output, format_json_output, no shape shifting code
+    # XXX this function should not exist
     if file_data is None:
         return f"Error: File {path} has no content"
 
