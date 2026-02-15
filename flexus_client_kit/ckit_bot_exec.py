@@ -539,8 +539,9 @@ async def subscribe_and_produce_callbacks(
 
             elif upd.news_action == "INITIAL_UPDATES_OVER":
                 if len(bc.bots_running) == 0:
-                    logger.warning("backend knows of zero bots with marketable_name=%r and marketable_version=%r, a fix to this is to go to marketplace and hire one, careful to hire a dev version if that's what you are trying to run." % (
-                        bc.marketable_name, bc.marketable_version
+                    web_url = os.getenv("FLEXUS_WEB_URL", "http://localhost:3000")
+                    logger.warning("backend knows of zero bots with marketable_name=%r and marketable_version=%r, a fix to this is to go to marketplace and hire one, careful to hire a dev version if that's what you are trying to run. This link might work:\n%s/%s/marketplace-details" % (
+                        bc.marketable_name, bc.marketable_version, web_url, bc.marketable_name
                     ))
                 handled = True
 
