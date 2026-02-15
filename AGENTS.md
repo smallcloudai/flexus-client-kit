@@ -41,12 +41,14 @@ showcase tricks available in this system.
 What Files Define a Bot?
 ------------------------
 
-NAME_bot.py        -- the file to run a bot
-NAME_prompts.py    -- prompts live in a separate file
-NAME_install.py    -- installation script, uses _bot and _prompts to construct a marketplace record
-NAME-1024x1536.jpg -- detailed marketplace picture under 0.3M
-NAME-256x256.png   -- small avatar picture with either transparent or white background
-forms/             -- optional directory with custom HTML forms for policy documents
+NAME_bot.py         -- the file to run a bot
+NAME_prompts.py     -- prompts live in a separate file
+NAME_install.py     -- installation script, uses _bot and _prompts to construct a marketplace record
+NAME-1024x1536.webp -- detailed marketplace picture under 0.3M
+NAME-256x256.png    -- small avatar picture with transparent background
+forms/              -- optional directory with custom HTML forms for policy documents
+
+In repositories separate from flexus-client-kit, create setup.py that installs flexus_NAME module.
 
 
 Kanban Board
@@ -62,6 +64,10 @@ potentially joining several tasks into one todo task.
 
 Scheduler automatically moves tasks from 'todo' to 'inprogress' and activates the
 bot (starts a chat), keeping an eye on how many tasks can run simultaneously (usually 3-5).
+
+The first call at bot activation is always flexus_bot_kanban(op="assign_to_this_chat") that
+gives the bot all the task details. This call also dumps the current state of the board, with
+the completed tasks summaries visible, making it work like medium-term memory.
 
 Once the bot decides it has finished with the assigned task, it calls flexus_bot_kanban() to
 resolve the task, that's how tasks get into the 'done' column.
@@ -161,6 +167,34 @@ Don't use other ways to sleep because it will make quick shutdown impossible.
 Wrap your main loop into try..finally and make sure you unsubscribe from any external sources
 of information, because chances are they keep an additional reference on objects you have on the stack,
 they will not die on function exit, and your bot will have a hard time completely shutting down.
+
+
+Choosing Where to Store Data
+-----------------------------
+
+When designing a new bot, decide early where each piece of data lives. The wrong choice leads to
+awkward workarounds later.
+
+ * Bot settings — configuration that rarely changes: feature toggles, thresholds, desirable
+   behavior explanations. Editable by admin in the UI. Not suitable for data that changes
+   frequently or grows over time. Settings are always the first message in every bot thread.
+
+ * MongoDB — high-write, append-heavy, bot-private data. Various histories, event logs,
+   per-user state, cached API responses, temporary files, reports.
+   Use TTL indexes for automatic cleanup!
+   Use `mongo_store_file()` for file-like blobs (reports, exports), use raw pymongo collections
+   for structured records that need querying (insert_one, find, count_documents), don't forget
+   the automatic cleanup.
+
+ * Policy documents — structured JSON documents shared across bots and visible/editable by humans in
+   the UI. Good for: rules, strategies, forms filled together with the user, results that other bots
+   consume. Bad for: high-frequency writes, daily logs, temporary data.
+
+ * Kanban — work items that need scheduling, prioritization, and tracking. Natural fit when the bot
+   accumulates work and processes it in batches on schedule. Not a good fit for instant reactive actions.
+   Completed task summaries stay visible in context, acting as medium-term memory.
+
+ * ERP/CRM — use when operating on external contacts, see erp_schema.py for details.
 
 
 Using and Writing Scenarios
