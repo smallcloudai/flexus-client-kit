@@ -127,7 +127,7 @@ class IntegrationExperimentExecution:
         if not self.facebook_integration:
             return "ERROR: Facebook integration not available."
         fuser_id = ckit_external_auth.get_fuser_id_from_rcx(self.pdoc_integration.rcx, toolcall.fcall_ft_id)
-        
+
         # Read ad_account_id from policy document
         try:
             config_doc = await self.pdoc_integration.pdoc_cat("/company/ad-ops-config", fuser_id)
@@ -270,7 +270,7 @@ class IntegrationExperimentExecution:
                     task_details["start_ts"] = runtime_inner["start_ts"]
                     task_details["facebook_campaign_ids"] = [c["facebook_id"] for c in created_campaigns]
                     task_details["facebook_adset_ids"] = [a["facebook_id"] for a in created_adsets]
-                    await ckit_kanban.update_task_details(self.fclient, task.ktask_id, task_details)
+                    await ckit_kanban.bot_kanban_update_details(self.fclient, task.ktask_id, task_details)
                     logger.info(f"Updated task {task.ktask_id} with experiment {experiment_id}")
             except Exception as e:
                 logger.warning(f"Failed to update task details: {e}")
