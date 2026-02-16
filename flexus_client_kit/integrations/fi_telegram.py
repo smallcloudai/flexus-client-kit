@@ -68,9 +68,6 @@ telegram(op="uncapture", args={"contact_id": "abc123", "conversation_summary": "
 telegram(op="post", args={"chat_id": 123456789, "text": "Hello!"})
     Post a message to a Telegram chat. Don't use this for captured chats.
 
-telegram(op="skip")
-    Ignore the most recent message but keep capturing.
-
 telegram(op="generate_chat_link", args={"contact_id": "abc123"})
     Generate a link that opens a chat with this bot and passes the contact_id.
     When clicked, bot receives /start c_<contact_id>.
@@ -286,11 +283,6 @@ class IntegrationTelegram:
                     "activity_occurred_ts": time.time(),
                 })
             return fi_messenger.UNCAPTURE_SUCCESS_MSG
-
-        if op == "skip":
-            if not (captured := self.rcx.latest_threads.get(toolcall.fcall_ft_id)) or not captured.thread_fields.ft_app_searchable.startswith("telegram/"):
-                return fi_messenger.NOT_CAPTURING_MSG
-            return fi_messenger.SKIP_SUCCESS_MSG
 
         if op == "generate_chat_link":
             contact_id = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "contact_id", None)
