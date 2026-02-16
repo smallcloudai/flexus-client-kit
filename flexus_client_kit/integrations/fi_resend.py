@@ -28,56 +28,62 @@ RESEND_SETUP_SCHEMA = [
 
 RESEND_PROMPT = f"""## Email
 
-Use email() tool to send emails and help users register their own domain for sending and receiving. Call email(op="help") first.
+Use email_send() to send emails. Use email_setup_domain() to register and manage sending domains, call email_setup_domain(op="help") first.
 Users can configure EMAIL_RESPOND_TO addresses — emails to those addresses are handled as tasks, all others are logged as CRM activities.
-Strongly recommend using a subdomain (e.g. mail.example.com) instead of the main domain.
+Strongly recommend using a subdomain (e.g. mail.example.com) instead of the main domain, especially for inbound emails.
 If no domain is configured, send from *@{RESEND_TESTING_DOMAIN} for testing.
-Never use flexus_my_setup() for email domains — they are saved automatically via email() tool."""
+Never use flexus_my_setup() for email domains — they are saved automatically via email_setup_domain() tool."""
 
-RESEND_TOOL = ckit_cloudtool.CloudTool(
-    strict=False,
-    name="email",
-    description="Send and receive email, call with op=\"help\" for usage",
+RESEND_SEND_TOOL = ckit_cloudtool.CloudTool(
+    strict=True,
+    name="email_send",
+    description="Send an email. Provide html and/or text body.",
     parameters={
         "type": "object",
         "properties": {
-            "op": {"type": "string", "description": "Start with 'help' for usage"},
-            "args": {"type": "object"},
+            "from": {"type": "string", "order": 1, "description": "Sender, e.g. Name <noreply@domain.com>"},
+            "to": {"type": "string", "order": 2, "description": "Recipient(s), comma-separated"},
+            "subject": {"type": "string", "order": 3, "description": "Subject line"},
+            "html": {"type": "string", "order": 4, "description": "HTML body, or empty string if text-only"},
+            "text": {"type": "string", "order": 5, "description": "Plain text fallback, or empty string if html-only"},
+            "cc": {"type": "string", "order": 6, "description": "CC recipients comma-separated, or empty string"},
+            "bcc": {"type": "string", "order": 7, "description": "BCC recipients comma-separated, or empty string"},
+            "reply_to": {"type": "string", "order": 8, "description": "Reply-to address, or empty string"},
         },
-        "required": []
+        "required": ["from", "to", "subject", "html", "text", "cc", "bcc", "reply_to"],
+        "additionalProperties": False,
     },
 )
 
-HELP = """Help:
+RESEND_SETUP_TOOL = ckit_cloudtool.CloudTool(
+    strict=False,
+    name="email_setup_domain",
+    description="Manage email domains: add, verify, check status, list. Call with op=\"help\" for usage.",
+    parameters={
+        "type": "object",
+        "properties": {
+            "op": {"type": "string", "description": "Operation: help, add, verify, status, list"},
+            "args": {"type": "object"},
+        },
+        "required": [],
+    },
+)
 
-email(op="send", args={
-    "from": "Name <noreply@yourdomain.com>",
-    "to": "recipient@example.com",
-    "subject": "Hello",
-    "html": "<p>HTML body</p>",
-    "text": "Plain text fallback",       # optional if html provided
-    "cc": "cc@example.com",              # optional, comma-separated
-    "bcc": "bcc@example.com",            # optional, comma-separated
-    "reply_to": "reply@example.com",     # optional
-})
+SETUP_HELP = """Email domain setup:
 
-email(op="add_domain", args={"domain": "yourdomain.com", "region": "us-east-1"})
-    Register your own domain. Returns DNS records you need to configure.
+email_setup_domain(op="add", args={"domain": "yourdomain.com", "region": "us-east-1"})
+    Register a domain. Returns DNS records to configure.
     Ask the user which region they prefer before calling.
     Regions: us-east-1, eu-west-1, sa-east-1, ap-northeast-1.
 
-email(op="verify_domain", args={"domain_id": "..."})
+email_setup_domain(op="verify", args={"domain_id": "..."})
     Trigger verification after adding DNS records. May take a few minutes.
 
-email(op="domain_status", args={"domain_id": "..."})
+email_setup_domain(op="status", args={"domain_id": "..."})
     Check verification status and DNS records.
 
-email(op="list_domains")
+email_setup_domain(op="list")
     List all registered domains and their verification status.
-
-Notes:
-- "from" and "to" are required for send. "to" can be comma-separated.
-- Provide "html" and/or "text". At least one is required.
 """
 
 
@@ -93,10 +99,10 @@ class ActivityEmail:
     body_html: str
 
 
-def _help_text(has_domains: bool) -> str:
+def _setup_help(has_domains: bool) -> str:
     if not has_domains and RESEND_TESTING_DOMAIN:
-        return HELP + f"- No domains configured yet. Send from @{RESEND_TESTING_DOMAIN} in the meantime.\n"
-    return HELP
+        return SETUP_HELP + f"No domains configured yet. Send from @{RESEND_TESTING_DOMAIN} in the meantime.\n"
+    return SETUP_HELP
 
 
 def _format_dns_records(records) -> str:
@@ -179,59 +185,26 @@ class IntegrationResend:
         self.domains = domains  # {"domain.com": "resend_domain_id"}
         self.emails_to_register = emails_to_register
 
-    async def called_by_model(self, toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Optional[Dict[str, Any]]):
+    async def send_called_by_model(self, toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Optional[Dict[str, Any]]):
         if not model_produced_args:
-            return _help_text(bool(self.domains))
-
-        op = model_produced_args.get("op", "")
-        args, args_error = ckit_cloudtool.sanitize_args(model_produced_args)
-        if args_error:
-            return args_error
-
-        if not op or "help" in op:
-            return _help_text(bool(self.domains))
-        if op == "send":
-            return await self._send(args, model_produced_args)
-        if op == "add_domain":
-            return await self._add_domain(args, model_produced_args)
-        if op == "verify_domain":
-            return await self._verify_domain(args, model_produced_args)
-        if op == "domain_status":
-            return await self._domain_status(args, model_produced_args)
-        if op == "list_domains":
-            return await self._list_domains()
-
-        return f"Unknown operation: {op}\n\nTry email(op='help') for usage."
-
-    async def _send(self, args: Dict[str, Any], model_produced_args: Dict[str, Any]):
-        frm = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "from", None)
-        to = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "to", None)
+            return "Provide from, to, subject, and html or text body."
+        a = model_produced_args
+        frm, to = a.get("from", ""), a.get("to", "")
         if not frm or not to:
             return "Missing required: 'from' and 'to'"
-        html = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "html", "")
-        text = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "text", "")
+        html, text = a.get("html", ""), a.get("text", "")
         if not html and not text:
             return "Provide 'html' and/or 'text'"
-
-        params: Dict[str, Any] = {
-            "from": frm,
-            "to": [e.strip() for e in to.split(",")],
-            "subject": ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "subject", ""),
-        }
+        params: Dict[str, Any] = {"from": frm, "to": [e.strip() for e in to.split(",")], "subject": a.get("subject", "")}
         if html:
             params["html"] = html
         if text:
             params["text"] = text
-        cc = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "cc", None)
-        bcc = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "bcc", None)
-        reply_to = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "reply_to", None)
-        if cc:
-            params["cc"] = [e.strip() for e in cc.split(",")]
-        if bcc:
-            params["bcc"] = [e.strip() for e in bcc.split(",")]
-        if reply_to:
+        for k in ("cc", "bcc"):
+            if v := a.get(k, ""):
+                params[k] = [e.strip() for e in v.split(",")]
+        if reply_to := a.get("reply_to", ""):
             params["reply_to"] = reply_to
-
         n_recipients = len(params["to"]) + len(params.get("cc", [])) + len(params.get("bcc", []))
         r = await _resend_request("POST", "/emails", params)
         if r.status_code == 200:
@@ -241,15 +214,33 @@ class IntegrationResend:
         logger.error("resend send error: %s %s", r.status_code, r.text[:200])
         return "Internal error sending email, please try again later"
 
+    async def setup_called_by_model(self, toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Optional[Dict[str, Any]]):
+        if not model_produced_args:
+            return _setup_help(bool(self.domains))
+        op = model_produced_args.get("op", "")
+        args, args_error = ckit_cloudtool.sanitize_args(model_produced_args)
+        if args_error:
+            return args_error
+        if not op or "help" in op:
+            return _setup_help(bool(self.domains))
+        if op == "add":
+            return await self._add_domain(args, model_produced_args)
+        if op == "verify":
+            return await self._verify_domain(args, model_produced_args)
+        if op == "status":
+            return await self._domain_status(args, model_produced_args)
+        if op == "list":
+            return await self._list_domains()
+        return f"Unknown operation: {op}\n\nTry email_setup_domain(op='help') for usage."
+
     async def _add_domain(self, args: Dict[str, Any], model_produced_args: Dict[str, Any]) -> str:
         if not (domain := ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "domain", None)):
             return "Missing required: 'domain'"
+        region = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "region", None)
+        if region not in ("us-east-1", "eu-west-1", "sa-east-1", "ap-northeast-1"):
+            return "Missing or invalid 'region'. Ask the user which region they prefer: us-east-1, eu-west-1, sa-east-1, ap-northeast-1."
         if len(self.domains) >= 20:
             return "Domain limit reached (20). Remove unused domains before adding new ones."
-
-        region = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "region", "us-east-1")
-        if region not in ("us-east-1", "eu-west-1", "sa-east-1", "ap-northeast-1"):
-            return "Invalid region. Must be one of: us-east-1, eu-west-1, sa-east-1, ap-northeast-1."
 
         r = await _resend_request("POST", "/domains", {
             "name": domain,
@@ -285,7 +276,7 @@ class IntegrationResend:
             f"status: {d.get('status', 'pending')}\n\n"
             f"DNS records:\n{_format_dns_records(d.get('records'))}\n"
             f"  TXT {domain} -> {txt_val} (ownership verification)\n\n"
-            f"After adding records, call verify_domain with domain_id=\"{d['id']}\".\n"
+            f"After adding records, call email_setup_domain(op=\"verify\", args={{\"domain_id\": \"{d['id']}\"}})\n"
             f"DNS propagation can take minutes to hours."
         )
 
@@ -303,7 +294,7 @@ class IntegrationResend:
         if not await _check_dns_txt(d["name"], txt_val):
             return f"TXT record '{txt_val}' not found for {d['name']}. DNS may still be propagating, try again later."
         await _resend_request("POST", f"/domains/{domain_id}/verify")
-        msg = "Verification triggered. Check domain_status for results."
+        msg = "Verification triggered. Check status for results."
         if domain_id not in self.domains.values():
             self.domains[d["name"]] = domain_id
             await self._save_domains()
@@ -326,7 +317,7 @@ class IntegrationResend:
         txt_ok = await _check_dns_txt(d["name"], txt_val)
         out = f"Domain: {d['name']}\n"
         if not txt_ok:
-            out += f"ownership: NOT VERIFIED — add TXT record: {d['name']} -> {txt_val}, then call verify_domain. Domain cannot be used until verified.\n"
+            out += f"ownership: NOT VERIFIED — add TXT record: {d['name']} -> {txt_val}, then call op=\"verify\". Domain cannot be used until verified.\n"
         else:
             out += "ownership: verified\n"
         out += f"resend status: {d['status']}\n\nDNS records:\n{_format_dns_records(d.get('records'))}"

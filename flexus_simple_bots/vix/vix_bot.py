@@ -40,7 +40,8 @@ TOOLS = [
     fi_erp.ERP_TABLE_CRUD_TOOL,
     fi_erp.ERP_CSV_IMPORT_TOOL,
     fi_crm_automations.CRM_AUTOMATION_TOOL,
-    fi_resend.RESEND_TOOL,
+    fi_resend.RESEND_SEND_TOOL,
+    fi_resend.RESEND_SETUP_TOOL,
     fi_telegram.TELEGRAM_TOOL,
 ]
 
@@ -147,9 +148,13 @@ async def vix_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.Ro
     async def toolcall_erp_csv_import(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
         return await erp_integration.handle_csv_import(toolcall, model_produced_args)
 
-    @rcx.on_tool_call(fi_resend.RESEND_TOOL.name)
-    async def toolcall_resend(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
-        return await resend_integration.called_by_model(toolcall, model_produced_args)
+    @rcx.on_tool_call(fi_resend.RESEND_SEND_TOOL.name)
+    async def toolcall_email_send(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
+        return await resend_integration.send_called_by_model(toolcall, model_produced_args)
+
+    @rcx.on_tool_call(fi_resend.RESEND_SETUP_TOOL.name)
+    async def toolcall_email_setup(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
+        return await resend_integration.setup_called_by_model(toolcall, model_produced_args)
 
     @rcx.on_tool_call(fi_crm_automations.CRM_AUTOMATION_TOOL.name)
     async def toolcall_crm_automation(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:

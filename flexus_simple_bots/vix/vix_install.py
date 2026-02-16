@@ -131,7 +131,7 @@ async def install(
             ("sales", ckit_bot_install.FMarketplaceExpertInput(
                 fexp_system_prompt=vix_prompts.vix_prompt_sales,
                 fexp_python_kernel="",
-                fexp_block_tools="*setup*",
+                fexp_block_tools="*setup",
                 fexp_allow_tools="",
                 fexp_inactivity_timeout=3600,
                 fexp_app_capture_tools=bot_internal_tools,
@@ -140,7 +140,7 @@ async def install(
             ("nurturing", ckit_bot_install.FMarketplaceExpertInput(
                 fexp_system_prompt=vix_prompts.vix_prompt_nurturing,
                 fexp_python_kernel="",
-                fexp_block_tools="*setup*",
+                fexp_block_tools="*setup",
                 fexp_allow_tools="",
                 fexp_inactivity_timeout=600,
                 fexp_app_capture_tools=nurturing_tools,
