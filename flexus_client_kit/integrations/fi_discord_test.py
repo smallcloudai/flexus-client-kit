@@ -21,7 +21,7 @@ async def setup_discord(setup: ckit_scenario.ScenarioSetup) -> tuple[Integration
     await setup.create_group_hire_and_start_bot(
         karen_bot.BOT_NAME, None, karen_setup, [], group_prefix="discord-test"
     )
-    rcx = ckit_bot_exec.RobotContext(setup.bot_fclient, setup.persona)
+    rcx = ckit_bot_exec.RobotContext(setup.bot_fclient, setup.persona, [])
     await setup.create_fake_files_and_upload_to_mongo(rcx.workdir)
 
     discord_bot = IntegrationDiscord(

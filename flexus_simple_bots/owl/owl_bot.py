@@ -64,11 +64,11 @@ UPDATE_CALIBRATION_TOOL = ckit_cloudtool.CloudTool(
             "section01-calibration": {
                 "type": "object",
                 "properties": {
-                    "budget": {"type": "string", "description": "Budget description including channels (e.g. digital, offline)"},
-                    "timeline": {"type": "string", "description": "Timeline description with goals"},
-                    "hypothesis": {"type": "string", "description": "Full hypothesis: segment, problem, solution, test goal"},
-                    "additional_context": {"type": "string", "description": "Current state, test approach, constraints"},
-                    "product_description": {"type": "string", "description": "What the product/service is"},
+                    "budget": {"type": "string", "description": "Budget description including channels (e.g. digital, offline)", "ui:multiline": 3},
+                    "timeline": {"type": "string", "description": "Timeline description with goals", "ui:multiline": 10},
+                    "hypothesis": {"type": "string", "description": "Full hypothesis: segment, problem, solution, test goal", "ui:multiline": 10},
+                    "additional_context": {"type": "string", "description": "Current state, test approach, constraints", "ui:multiline": 10},
+                    "product_description": {"type": "string", "description": "What the product/service is", "ui:multiline": 10},
                 },
                 "required": ["budget", "timeline", "hypothesis", "additional_context", "product_description"],
                 "additionalProperties": False,
@@ -97,21 +97,21 @@ UPDATE_DIAGNOSTIC_TOOL = ckit_cloudtool.CloudTool(
             "section02-diagnostic": {
                 "type": "object",
                 "properties": {
-                    "normalized_hypothesis": {"type": "string", "description": "Clear restatement of what we're testing"},
+                    "normalized_hypothesis": {"type": "string", "description": "Clear restatement of what we're testing", "ui:multiline": 3},
                     "primary_type": {"type": "string", "enum": ["value", "segment", "messaging", "channel", "pricing", "conversion", "retention"]},
-                    "primary_type_reasoning": {"type": "string", "description": "Why this type applies"},
+                    "primary_type_reasoning": {"type": "string", "description": "Why this type applies", "ui:multiline": 3},
                     "secondary_types": {"type": "array", "items": {"type": "string", "enum": ["value", "segment", "messaging", "channel", "pricing", "conversion", "retention"]}},
-                    "secondary_types_reasoning": {"type": "string", "description": "Why these secondary types apply"},
+                    "secondary_types_reasoning": {"type": "string", "description": "Why these secondary types apply", "ui:multiline": 3},
                     "testable_with_traffic": {"type": "boolean"},
                     "recommended_test_mechanisms": {"type": "array", "items": {"type": "string", "enum": ["paid_traffic", "content", "waitlist", "outbound", "partnerships"]}},
                     "uncertainty_level": {"type": "string", "enum": ["low", "medium", "high", "extreme"]},
-                    "uncertainty_reasoning": {"type": "string", "description": "What makes it this uncertainty level"},
+                    "uncertainty_reasoning": {"type": "string", "description": "What makes it this uncertainty level", "ui:multiline": 3},
                     "key_unknowns": {"type": "array", "items": {"type": "string"}},
                     "limitations": {"type": "array", "items": {"type": "string"}},
                     "needs_additional_methods": {"type": "array", "items": {"type": "string", "enum": ["none", "custdev", "desk_research", "product_experiment"]}},
                     "feasibility_score": {"type": "number", "minimum": 0, "maximum": 1},
-                    "feasibility_reasoning": {"type": "string", "description": "What makes it feasible or not"},
-                    "detailed_analysis": {"type": "string", "description": "Rich markdown: what we're testing, why it matters, what the answer tells us"},
+                    "feasibility_reasoning": {"type": "string", "description": "What makes it feasible or not", "ui:multiline": 3},
+                    "detailed_analysis": {"type": "string", "description": "Rich markdown: what we're testing, why it matters, what the answer tells us", "ui:multiline": 10},
                     "key_decisions_ahead": {"type": "array", "items": {"type": "string"}},
                     "next_steps": {"type": "array", "items": {"type": "string"}},
                     "questions_to_resolve": {"type": "array", "items": {"type": "string"}},
@@ -151,10 +151,10 @@ UPDATE_METRICS_TOOL = ckit_cloudtool.CloudTool(
                 "type": "object",
                 "properties": {
                     "primary_kpi": {"type": "string"},
-                    "primary_kpi_reasoning": {"type": "string"},
+                    "primary_kpi_reasoning": {"type": "string", "ui:multiline": 3},
                     "secondary_kpis": {"type": "array", "items": {"type": "string"}},
                     "target_values": {"type": "object", "additionalProperties": {"type": "number"}},
-                    "target_values_reasoning": {"type": "string"},
+                    "target_values_reasoning": {"type": "string", "ui:multiline": 3},
                     "mde": {
                         "type": "object",
                         "properties": {
@@ -164,7 +164,7 @@ UPDATE_METRICS_TOOL = ckit_cloudtool.CloudTool(
                         "required": ["relative_change", "confidence"],
                         "additionalProperties": False,
                     },
-                    "mde_reasoning": {"type": "string"},
+                    "mde_reasoning": {"type": "string", "ui:multiline": 3},
                     "min_samples": {
                         "type": "object",
                         "properties": {
@@ -180,41 +180,41 @@ UPDATE_METRICS_TOOL = ckit_cloudtool.CloudTool(
                         "items": {
                             "type": "object",
                             "properties": {
-                                "metric": {"type": "string"},
+                                "metric": {"type": "string", "ui:size": 2},
                                 "operator": {"type": "string"},
                                 "threshold": {"type": "number"},
                                 "min_events": {"type": "integer"},
-                                "action": {"type": "string"},
+                                "action": {"type": "string", "ui:size": 2},
                             },
                             "required": ["metric", "operator", "threshold", "min_events", "action"],
                             "additionalProperties": False,
                         },
                     },
-                    "stop_rules_reasoning": {"type": "string"},
+                    "stop_rules_reasoning": {"type": "string", "ui:multiline": 3},
                     "accelerate_rules": {
                         "type": "array",
                         "items": {
                             "type": "object",
                             "properties": {
-                                "metric": {"type": "string"},
+                                "metric": {"type": "string", "ui:size": 2},
                                 "operator": {"type": "string"},
                                 "threshold": {"type": "number"},
                                 "min_conversions": {"type": "integer"},
-                                "action": {"type": "string"},
+                                "action": {"type": "string", "ui:size": 2},
                             },
                             "required": ["metric", "operator", "threshold", "min_conversions", "action"],
                             "additionalProperties": False,
                         },
                     },
-                    "accelerate_rules_reasoning": {"type": "string"},
-                    "analysis_plan": {"type": "string"},
-                    "detailed_analysis": {"type": "string"},
+                    "accelerate_rules_reasoning": {"type": "string", "ui:multiline": 3},
+                    "analysis_plan": {"type": "string", "ui:multiline": 5},
+                    "detailed_analysis": {"type": "string", "ui:multiline": 10},
                     "interpretation_guide": {
                         "type": "object",
                         "properties": {
-                            "success_scenario": {"type": "string"},
-                            "failure_scenario": {"type": "string"},
-                            "inconclusive_scenario": {"type": "string"},
+                            "success_scenario": {"type": "string", "ui:multiline": 3},
+                            "failure_scenario": {"type": "string", "ui:multiline": 3},
+                            "inconclusive_scenario": {"type": "string", "ui:multiline": 3},
                         },
                         "required": ["success_scenario", "failure_scenario", "inconclusive_scenario"],
                         "additionalProperties": False,
@@ -257,7 +257,7 @@ UPDATE_SEGMENT_TOOL = ckit_cloudtool.CloudTool(
                 "properties": {
                     "segment_id": {"type": "string"},
                     "label": {"type": "string"},
-                    "segment_reasoning": {"type": "string"},
+                    "segment_reasoning": {"type": "string", "ui:multiline": 3},
                     "icp": {
                         "type": "object",
                         "properties": {
@@ -273,7 +273,7 @@ UPDATE_SEGMENT_TOOL = ckit_cloudtool.CloudTool(
                         "required": ["b2x", "company_size", "roles", "industries", "geo", "income_level", "tech_savviness", "decision_maker"],
                         "additionalProperties": False,
                     },
-                    "icp_reasoning": {"type": "string"},
+                    "icp_reasoning": {"type": "string", "ui:multiline": 3},
                     "jtbds": {
                         "type": "object",
                         "properties": {
@@ -284,7 +284,7 @@ UPDATE_SEGMENT_TOOL = ckit_cloudtool.CloudTool(
                         "required": ["functional_jobs", "emotional_jobs", "social_jobs"],
                         "additionalProperties": False,
                     },
-                    "jtbd_reasoning": {"type": "string"},
+                    "jtbd_reasoning": {"type": "string", "ui:multiline": 3},
                     "current_solutions": {"type": "array", "items": {"type": "string"}},
                     "main_pains": {"type": "array", "items": {"type": "string"}},
                     "desired_gains": {"type": "array", "items": {"type": "string"}},
@@ -300,8 +300,8 @@ UPDATE_SEGMENT_TOOL = ckit_cloudtool.CloudTool(
                         "additionalProperties": False,
                     },
                     "segment_risks": {"type": "array", "items": {"type": "string"}},
-                    "detailed_analysis": {"type": "string"},
-                    "persona_narrative": {"type": "string"},
+                    "detailed_analysis": {"type": "string", "ui:multiline": 10},
+                    "persona_narrative": {"type": "string", "ui:multiline": 5},
                     "targeting_implications": {
                         "type": "object",
                         "properties": {
@@ -347,8 +347,8 @@ UPDATE_MESSAGING_TOOL = ckit_cloudtool.CloudTool(
             "section05-messaging": {
                 "type": "object",
                 "properties": {
-                    "value_prop": {"type": "string"},
-                    "positioning": {"type": "string"},
+                    "value_prop": {"type": "string", "ui:multiline": 3},
+                    "positioning": {"type": "string", "ui:multiline": 3},
                     "angles": {
                         "type": "array",
                         "items": {
@@ -356,7 +356,7 @@ UPDATE_MESSAGING_TOOL = ckit_cloudtool.CloudTool(
                             "properties": {
                                 "name": {"type": "string"},
                                 "hook": {"type": "string"},
-                                "description": {"type": "string"},
+                                "description": {"type": "string", "ui:size": 2},
                             },
                             "required": ["name", "hook", "description"],
                             "additionalProperties": False,
@@ -368,13 +368,13 @@ UPDATE_MESSAGING_TOOL = ckit_cloudtool.CloudTool(
                             "type": "object",
                             "properties": {
                                 "objection": {"type": "string"},
-                                "rebuttal": {"type": "string"},
+                                "rebuttal": {"type": "string", "ui:size": 2},
                             },
                             "required": ["objection", "rebuttal"],
                             "additionalProperties": False,
                         },
                     },
-                    "detailed_analysis": {"type": "string"},
+                    "detailed_analysis": {"type": "string", "ui:multiline": 10},
                 },
                 "required": ["value_prop", "positioning", "angles", "objections", "detailed_analysis"],
                 "additionalProperties": False,
@@ -410,7 +410,7 @@ UPDATE_CHANNELS_TOOL = ckit_cloudtool.CloudTool(
                             "properties": {
                                 "channel": {"type": "string"},
                                 "budget_share": {"type": "number"},
-                                "rationale": {"type": "string"},
+                                "rationale": {"type": "string", "ui:size": 2},
                             },
                             "required": ["channel", "budget_share", "rationale"],
                             "additionalProperties": False,
@@ -424,7 +424,7 @@ UPDATE_CHANNELS_TOOL = ckit_cloudtool.CloudTool(
                                 "channel": {"type": "string"},
                                 "angle": {"type": "string"},
                                 "budget": {"type": "number"},
-                                "hypothesis": {"type": "string"},
+                                "hypothesis": {"type": "string", "ui:size": 2},
                             },
                             "required": ["channel", "angle", "budget", "hypothesis"],
                             "additionalProperties": False,
@@ -432,7 +432,7 @@ UPDATE_CHANNELS_TOOL = ckit_cloudtool.CloudTool(
                     },
                     "total_budget": {"type": "number"},
                     "duration_days": {"type": "integer"},
-                    "detailed_analysis": {"type": "string"},
+                    "detailed_analysis": {"type": "string", "ui:multiline": 10},
                 },
                 "required": ["selected", "test_cells", "total_budget", "duration_days", "detailed_analysis"],
                 "additionalProperties": False,
@@ -467,7 +467,7 @@ UPDATE_TACTICS_TOOL = ckit_cloudtool.CloudTool(
                             "type": "object",
                             "properties": {
                                 "channel": {"type": "string"},
-                                "objective": {"type": "string"},
+                                "objective": {"type": "string", "ui:size": 2},
                                 "daily_budget": {"type": "number"},
                             },
                             "required": ["channel", "objective", "daily_budget"],
@@ -481,9 +481,9 @@ UPDATE_TACTICS_TOOL = ckit_cloudtool.CloudTool(
                             "properties": {
                                 "angle": {"type": "string"},
                                 "headline": {"type": "string"},
-                                "primary_text": {"type": "string"},
+                                "primary_text": {"type": "string", "ui:size": 2},
                                 "cta": {"type": "string"},
-                                "visual_brief": {"type": "string"},
+                                "visual_brief": {"type": "string", "ui:size": 2},
                             },
                             "required": ["angle", "headline", "primary_text", "cta", "visual_brief"],
                             "additionalProperties": False,
@@ -508,7 +508,7 @@ UPDATE_TACTICS_TOOL = ckit_cloudtool.CloudTool(
                         "required": ["events", "conversion_event"],
                         "additionalProperties": False,
                     },
-                    "detailed_analysis": {"type": "string"},
+                    "detailed_analysis": {"type": "string", "ui:multiline": 10},
                 },
                 "required": ["campaigns", "creatives", "landing", "tracking", "detailed_analysis"],
                 "additionalProperties": False,

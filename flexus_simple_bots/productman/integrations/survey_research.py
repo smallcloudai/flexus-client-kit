@@ -272,7 +272,7 @@ class IntegrationSurveyResearch:
                     range_filter = {"filter_id": filter_key, "selected_range": {}}
                     filter_min = filter_info.get("min", 0)
                     filter_max = filter_info.get("max", 100)
-                    
+
                     if isinstance(filter_value, dict):
                         if "min" in filter_value:
                             if filter_value["min"] < filter_min or filter_value["min"] > filter_max:
@@ -290,7 +290,7 @@ class IntegrationSurveyResearch:
                 elif filter_info["type"] == "select":
                     values = filter_value if isinstance(filter_value, list) else [filter_value]
                     valid_choices = set(filter_info.get("choices", {}).keys())
-                    
+
                     for val in values:
                         if str(val) not in valid_choices:
                             error_msg = f"Error: Invalid value '{val}' for filter '{filter_key}'.\n\n"
@@ -305,7 +305,7 @@ class IntegrationSurveyResearch:
                                 error_msg += f"  ... and {len(choices) - 10} more\n"
                             error_msg += f"\nUse string values like: [\"{list(choices.keys())[0]}\"]\n"
                             return error_msg
-                    
+
                     prolific_filters.append({
                         "filter_id": filter_key,
                         "selected_values": [str(v) for v in values]
@@ -454,15 +454,15 @@ class IntegrationSurveyResearch:
 
         total_found = len(all_matches)
         max_display = 50
-        
+
         result = f"Found {total_found} filters"
         if total_found > max_display:
             result += f" (showing first {max_display}, use more specific search to narrow results)"
         result += ":\n\n"
-        
+
         for filter_id, filter_info in list(all_matches.items())[:max_display]:
             result += f"• {filter_id}: {filter_info.get('title', '')} ({filter_info.get('type', '')})\n"
-            
+
             if filter_info["type"] == "range":
                 min_val = filter_info.get("min", 0)
                 max_val = filter_info.get("max", 100)
@@ -471,7 +471,7 @@ class IntegrationSurveyResearch:
             elif filter_info["type"] == "select":
                 choices = filter_info.get("choices", {})
                 num_choices = len(choices)
-                
+
                 if num_choices <= 5:
                     result += f"  Options ({num_choices}):\n"
                     for code, label in choices.items():
@@ -488,12 +488,12 @@ class IntegrationSurveyResearch:
                         result += f"    {code} = {label}\n"
 
             result += "\n"
-        
+
         if total_found > max_display:
             result += f"\n⚠️ {total_found - max_display} more filters not shown.\n"
             result += "Tip: Use more specific search patterns to narrow results.\n"
             result += f'Example: survey(op="search_filters", args={{"search_pattern": "^age$|^sex$"}})\n'
-        
+
         return result
 
     async def _prepare_run_confirmation(self, toolcall: ckit_cloudtool.FCloudtoolCall, args: Dict[str, Any]) -> str:
@@ -549,7 +549,7 @@ class IntegrationSurveyResearch:
 
             survey_info = await self._create_surveymonkey_survey(survey_content, completion_code)
             study_id = await self._create_prolific_study(auditory_content, survey_info)
-            
+
             publish_result = await self._publish_prolific_study(study_id)
 
             survey_id = survey_info["survey_id"]
@@ -575,7 +575,7 @@ class IntegrationSurveyResearch:
                             "completed_notified": False
                         }
 
-                        await ckit_kanban.update_task_details(self.fclient, task.ktask_id, task_details)
+                        await ckit_kanban.bot_kanban_update_details(self.fclient, task.ktask_id, task_details)
                         logger.info(f"Updated task {task.ktask_id} with survey tracking info")
                 except Exception as e:
                     logger.error(f"Failed to update task with survey info: {e}")
@@ -592,7 +592,7 @@ class IntegrationSurveyResearch:
                 result += f"🎯 Prolific Study ID: {study_id}\n"
                 result += f"📊 Status: {publish_result.get('status', 'ACTIVE')}\n"
                 result += f"✅ Participants are now being recruited!\n\n"
-            
+
             result += f"📝 Survey draft: {survey_draft_path}\n"
             result += f"📝 Auditory draft: {auditory_draft_path}"
 
@@ -823,11 +823,11 @@ class IntegrationSurveyResearch:
             if survey_id not in self.tracked_surveys:
                 logger.warning(f"Survey {survey_id} not in tracked surveys")
                 return
-                
+
             tracking_info = self.tracked_surveys[survey_id]
             target_responses = tracking_info.get("target_responses", 100)
             completion_rate = (response_count / target_responses * 100) if target_responses > 0 else 0
-            
+
             details = {
                 "survey_id": survey_id,
                 "target_responses": target_responses,
@@ -841,7 +841,7 @@ class IntegrationSurveyResearch:
                 }
             }
 
-            await ckit_kanban.update_task_details(self.fclient, task_id, details)
+            await ckit_kanban.bot_kanban_update_details(self.fclient, task_id, details)
             logger.info(f"Updated task {task_id} survey status: {response_count}/{target_responses} responses, completed={is_completed}")
 
         except aiohttp.ClientError as e:
@@ -1046,7 +1046,7 @@ class IntegrationSurveyResearch:
         )
 
         return study["id"]
-    
+
     async def _publish_prolific_study(self, study_id: str) -> Dict:
         async with aiohttp.ClientSession() as session:
             async with session.get(

@@ -41,12 +41,14 @@ showcase tricks available in this system.
 What Files Define a Bot?
 ------------------------
 
-NAME_bot.py        -- the file to run a bot
-NAME_prompts.py    -- prompts live in a separate file
-NAME_install.py    -- installation script, uses _bot and _prompts to construct a marketplace record
-NAME-1024x1536.jpg -- detailed marketplace picture under 0.3M
-NAME-256x256.png   -- small avatar picture with either transparent or white background
-forms/             -- optional directory with custom HTML forms for policy documents
+NAME_bot.py         -- the file to run a bot
+NAME_prompts.py     -- prompts live in a separate file
+NAME_install.py     -- installation script, uses _bot and _prompts to construct a marketplace record
+NAME-1024x1536.webp -- detailed marketplace picture under 0.3M
+NAME-256x256.png    -- small avatar picture with transparent background
+forms/              -- optional directory with custom HTML forms for policy documents
+
+In repositories separate from flexus-client-kit, create setup.py that installs flexus_NAME module.
 
 
 Kanban Board
@@ -62,6 +64,10 @@ potentially joining several tasks into one todo task.
 
 Scheduler automatically moves tasks from 'todo' to 'inprogress' and activates the
 bot (starts a chat), keeping an eye on how many tasks can run simultaneously (usually 3-5).
+
+The first call at bot activation is always flexus_bot_kanban(op="assign_to_this_chat") that
+gives the bot all the task details. This call also dumps the current state of the board, with
+the completed tasks summaries visible, making it work like medium-term memory.
 
 Once the bot decides it has finished with the assigned task, it calls flexus_bot_kanban() to
 resolve the task, that's how tasks get into the 'done' column.
@@ -84,8 +90,8 @@ Think of those as launchers, what kind of job the bot needs to perform on schedu
 Messengers
 ----------
 
-Maybe at some point there will be a UI, but today Flexus bots only have chat interface
-within Flexus web UI, and you can talk to them via messengers.
+Flexus bots have chat interface within Flexus web UI and mobile, but you (or external clients) can
+talk to some of them via messengers.
 
 Any incoming messages usually go to inbox, or if messenger's thread has captured a
 Flexus thread, then the message goes directly into the captured thread in the Flexus
@@ -122,22 +128,6 @@ A setup dialog is visible to the user in Flexus UI, automatically generated base
 Panels or tabs are generated based on bs_group, so related parameters group together.
 
 The full list of all bs_type: string_short, string_long, string_multiline, bool, int, float.
-
-
-Custom Forms
-------------
-
-Custom HTML forms for editing policy documents. Put forms in `mybot/forms/{doctype}.html`.
-
-**CRITICAL**: Document must include `"microfrontend": "bot_name"` in meta for form to load:
-```json
-{"my_report": {"meta": {"microfrontend": "mybot", "created_at": "..."}, "content": "..."}}
-```
-
-Form loads from: `/v1/marketplace/{microfrontend}/{version}/forms/{top_level_key}.html`
-Without `microfrontend` field → generic JSON editor shown.
-
-See: `flexus_simple_bots/frog/frog_bot.py:183-199` (how to write docs), `frog/forms/pond_report.html` (form example)
 
 
 Bot Main Loop
@@ -177,6 +167,34 @@ Don't use other ways to sleep because it will make quick shutdown impossible.
 Wrap your main loop into try..finally and make sure you unsubscribe from any external sources
 of information, because chances are they keep an additional reference on objects you have on the stack,
 they will not die on function exit, and your bot will have a hard time completely shutting down.
+
+
+Choosing Where to Store Data
+-----------------------------
+
+When designing a new bot, decide early where each piece of data lives. The wrong choice leads to
+awkward workarounds later.
+
+ * Bot settings — configuration that rarely changes: feature toggles, thresholds, desirable
+   behavior explanations. Editable by admin in the UI. Not suitable for data that changes
+   frequently or grows over time. Settings are always the first message in every bot thread.
+
+ * MongoDB — high-write, append-heavy, bot-private data. Various histories, event logs,
+   per-user state, cached API responses, temporary files, reports.
+   Use TTL indexes for automatic cleanup!
+   Use `mongo_store_file()` for file-like blobs (reports, exports), use raw pymongo collections
+   for structured records that need querying (insert_one, find, count_documents), don't forget
+   the automatic cleanup.
+
+ * Policy documents — structured JSON documents shared across bots and visible/editable by humans in
+   the UI. Good for: rules, strategies, forms filled together with the user, results that other bots
+   consume. Bad for: high-frequency writes, daily logs, temporary data.
+
+ * Kanban — work items that need scheduling, prioritization, and tracking. Natural fit when the bot
+   accumulates work and processes it in batches on schedule. Not a good fit for instant reactive actions.
+   Completed task summaries stay visible in context, acting as medium-term memory.
+
+ * ERP/CRM — use when operating on external contacts, see erp_schema.py for details.
 
 
 Using and Writing Scenarios
@@ -242,10 +260,6 @@ Only use emojis for technical reasons in system prompt, for example 💿 and ✍
 Minimize system prompt size. Prefer re-writing of existing language to adding more and more rules.
 
 Iterate making small changes and running the scenarios again.
-
-Remember each system prompt change requires bot installation, because system prompt is stored in the database:
-
-python -m flexus_simple_bots/my/my_install.py --ws xxx1337
 
 
 Lark Kernels
@@ -334,17 +348,6 @@ that will create a kanban task in the inbox of that bot.
 
 
 
-Reports (fi_report)
--------------------
-
-For generating analysis reports via parallel subchats → exported to HTML.
-Use policy documents (fi_pdoc) for persistent human-editable data; use fi_report for one-time analysis.
-
-Flow: `create_report()` → `process_report()` (spawns subchats) → `fill_report_section()` → auto-export HTML
-
-See: `flexus_client_kit/integrations/report/fi_report.py`, adspy bot for implementation example.
-
-
 Writing Logs
 ------------
 
@@ -358,6 +361,155 @@ Improving on Logs
 Writing a New Bot
 -----------------
 
+
+
+Policy Documents and Forms
+--------------------------
+
+Policy Documents are structured json files stored on the backend side in the DB.
+They are accessible to the user in 'Documents' button in the Flexus UI.
+They are accessible to bots using flexus_policy_document() cloudtool.
+
+```
+/company/
+├── summary                                     # A very compressed version of what the company is
+├── product                                     # Product details
+├── style-guide                                 # Brand colors, fonts
+
+/gtm/
+├── discovery/
+│   ├── archived/
+│   └── {idea-slug}/
+│       ├── idea                                # First Principles Canvas
+```
+
+What should go to a policy document:
+- Explanations of how bots should do their job
+- Forms filled out together with the user
+- Weekly experiments changing the policy
+
+What is not a policy document:
+- Daily reports, temporary files -- use mongo integration instead
+- User's files -- send the user to upload folder in the UI, after that use flexus_read_original() to get contents
+
+Naming convention for all policy documents is kebab-case. For `{idea-slug}` it's 2-4 words kebab-case capturing
+product concept (e.g., `unicorn-horn-car`)
+
+There are 3 types of forms to edit policy documents: QA, Schemed, Microfrontend.
+
+### QA or Questions-Answers
+
+```
+{
+    "styleguide": {
+        "meta": {
+            "author": "Human Name",
+            "created": "20260209",
+            "updated": "20260209",
+        },
+        "section01-colors": {
+            "title": "🎨 Brand Colors (please verify)",
+            "question01-primary": {
+                "q": "Primary Brand Color",
+                "a": "#0066cc",
+                "t": "color"
+            },
+            ...
+        },
+        "section02-typography": {
+            "title": "📝 Typography",
+            ...
+        },
+        ...
+    }
+}
+```
+
+Notable features:
+- Top level tag such as "styleguide" defines the document type
+- "meta" has fixed fields "author", "created", "updated", it might have other fields
+- "sectionXX-name" when sorted shows in the right order in the UI
+- Typical path in json looks like "styleguide/section01-colors/question01-primary/a"
+
+There's a separate code in the UI to edit QA documents.
+
+### Schemed
+
+```
+{
+    "strategy": {
+        "meta": {
+            "author": "Human Name",
+            "created": "20260209",
+            "updated": "20260209",
+        },
+        "schema": {
+            "section03-metrics": {
+                "type": "object",
+                "title": "Metrics",
+                "required": [
+                    "mde",
+                    ...
+                ],
+                "properties": {
+                    "mde": {
+                        "type": "object",
+                        "order": 5,
+                        "required": [
+                            "relative_change",
+                            "confidence"
+                        ],
+                        "properties": {
+                            "confidence": {
+                                "type": "number",
+                                "order": 1
+                            },
+                            "relative_change": {
+                                "type": "number",
+                                "order": 0
+                            }
+                        },
+                        "additionalProperties": false
+                    },
+        ...
+        "section03-metrics": {
+            "mde": {
+                "confidence": 0.8,
+                "relative_change": 100
+            },
+            ...
+        }
+...
+```
+
+Notable features:
+- Has schema and data in the same document
+- Schema is typically copy-pasted from the current bot version that created the document
+- A newer version of the bot overwrites the schema when manipulating data
+- "order" in fields overrides alphabet sorting, to present the form correctly in the UI
+
+There's a separate code in the UI to edit Schemed documents.
+
+### Microfrontend
+
+In the "meta" section it is possible to include "microfrontend": "bot_name":
+
+```
+{"mydoc": {"meta": {"microfrontend": "mybot", "created_at": "..."}, ...}}
+```
+
+The UI will load the html from: `/v1/marketplace/{microfrontend}/{version}/forms/{top_level_key}.html`
+
+The Frog bot has example of microfrontend, see `flexus_simple_bots/frog/frog_bot.py` and `frog/forms/pond_report.html`.
+
+### Choosing Form Editor
+
+Rule of thumb: use QA, if you can't, use Schemed, if you can't, use Microfrontend. QA results in
+minimal handling code for the format, making it the most reliable solution. Schemed can have
+questionable UI representation, especially trying to fit array of objects into a narrow view, and
+requires code that writes the schema correctly. Microfrontend is more of "you are on your own" solution,
+susceptible to bugs, copy-paste, requires debugging, it's more expensive in effort and less reliable
+solution of the three.
 
 
 Coding Style

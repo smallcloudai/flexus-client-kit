@@ -1,3 +1,4 @@
+import collections
 import json
 import logging
 import re
@@ -242,6 +243,7 @@ Examples:
 
 ## Important Notes
 
+- Before creating automations, check `erp_table_meta(table_name="...")` for available fields and required fields
 - Actions execute in sequence
 - Failed actions are logged but don't stop subsequent actions
 - Triggers fire IMMEDIATELY when the event happens. Time-based filters check conditions at that moment, they don't delay execution
@@ -264,6 +266,7 @@ class IntegrationCrmAutomations:
         self.rcx = rcx
         self.get_setup = get_setup_func
         self.available_erp_tables = available_erp_tables or []
+        self._recently_fired = collections.OrderedDict()  # (auto_name, record_id) -> timestamp
         self._setup_automation_handlers()
 
     def _load_automations(self) -> Dict[str, Any]:
@@ -398,17 +401,16 @@ class IntegrationCrmAutomations:
                         for t in cfg.get("triggers", []) if t.get("type") == "erp_table" and t.get("table")})
 
         def make_handler(table_name):
+            pk_field = erp_schema.get_pkey_field(erp_schema.ERP_TABLE_TO_SCHEMA[table_name])
             async def handler(operation: str, new_record: Any, old_record: Any):
-                automations_dict = self._load_automations()
-                if automations_dict:
-                    await execute_automations_for_erp_event(
-                        self.rcx,
-                        table_name,
-                        operation,
-                        new_record,
-                        old_record,
-                        automations_dict,
-                    )
+                if not (automations_dict := self._load_automations()):
+                    return
+                if not (rid := ckit_erp.dataclass_or_dict_to_dict(new_record or old_record).get(pk_field)):
+                    return
+                await execute_automations_for_erp_event(
+                    self.rcx, table_name, operation, new_record, old_record,
+                    automations_dict, self._recently_fired, rid,
+                )
             return handler
 
         for t in tables:
@@ -422,7 +424,14 @@ async def execute_automations_for_erp_event(
     new_record: Optional[Any],
     old_record: Optional[Any],
     automations_dict: Dict[str, Any],
+    recently_fired: collections.OrderedDict,
+    record_id: str,
 ) -> None:
+    cutoff = time.time() - 60
+    while recently_fired and next(iter(recently_fired.values())) < cutoff:
+        recently_fired.popitem(last=False)
+
+    rec = ckit_erp.dataclass_or_dict_to_dict(old_record if operation.upper() == "DELETE" else new_record) if (new_record or old_record) else {}
     for auto_name, auto_config in automations_dict.items():
         if not auto_config.get("enabled", True):
             continue
@@ -432,10 +441,12 @@ async def execute_automations_for_erp_event(
             if operation.upper() not in [op.upper() for op in trigger.get("operations", [])]:
                 continue
             if trigger_filters := trigger.get("filters", []):
-                rec = ckit_erp.dataclass_or_dict_to_dict(old_record if operation.upper() == "DELETE" else new_record)
                 if not ckit_erp.check_record_matches_filters(rec, trigger_filters):
                     logger.debug(f"Automation '{auto_name}' filtered out for {table_name}.{operation}")
                     continue
+            if (auto_name, record_id) in recently_fired:
+                logger.debug(f"Automation '{auto_name}' skipped for {record_id}: recently fired")
+                continue
 
             ctx = {"trigger": {
                 "type": "erp_table", "table": table_name, "operation": operation,
@@ -443,6 +454,7 @@ async def execute_automations_for_erp_event(
                 "old_record": ckit_erp.dataclass_or_dict_to_dict(old_record) if old_record else None,
             }}
             await _execute_actions(rcx, auto_config.get("actions", []), ctx)
+            recently_fired[(auto_name, record_id)] = time.time()
             logger.info(f"Automation '{auto_name}' executed for {table_name}.{operation}")
 
 
@@ -575,9 +587,25 @@ def get_automation_warnings(automation_config: Dict[str, Any]) -> List[str]:
     return warnings
 
 
+_VALID_AUTOMATION_FIELDS = {"enabled", "triggers", "actions"}
+_VALID_TRIGGER_FIELDS = {"type", "table", "operations", "filters"}
+
+# (required, optional) per action type -- "type" is always implicitly valid
+_ACTION_SCHEMAS = {
+    "post_task_into_bot_inbox": ({"title"}, {"details", "provenance", "fexp_name", "comingup_ts"}),
+    "create_erp_record": ({"table", "fields"}, set()),
+    "update_erp_record": ({"table", "record_id", "fields"}, set()),
+    "delete_erp_record": ({"table", "record_id"}, set()),
+    "move_deal_stage": ({"contact_id", "pipeline_id", "from_stages", "to_stage_id"}, set()),
+}
+
+
 def validate_automation_config(automation_config: Dict[str, Any], available_erp_tables: List[str] = []) -> Optional[str]:
     if not isinstance(automation_config, dict):
         return "❌ automation_config must be a dict"
+
+    if unknown := set(automation_config.keys()) - _VALID_AUTOMATION_FIELDS:
+        return f"❌ Unknown automation fields: {', '.join(sorted(unknown))}. Valid: {', '.join(sorted(_VALID_AUTOMATION_FIELDS))}"
 
     triggers = automation_config.get("triggers")
     if not triggers:
@@ -588,6 +616,8 @@ def validate_automation_config(automation_config: Dict[str, Any], available_erp_
     for i, trigger in enumerate(triggers):
         if not isinstance(trigger, dict):
             return f"❌ triggers[{i}] must be a dict"
+        if unknown := set(trigger.keys()) - _VALID_TRIGGER_FIELDS:
+            return f"❌ triggers[{i}] has unknown fields: {', '.join(sorted(unknown))}. Valid: {', '.join(sorted(_VALID_TRIGGER_FIELDS))}"
         if trigger.get("type") != "erp_table":
             return f"❌ triggers[{i}].type must be 'erp_table' (got {trigger.get('type')})"
         if "table" not in trigger:
@@ -609,38 +639,24 @@ def validate_automation_config(automation_config: Dict[str, Any], available_erp_
         if not isinstance(action, dict):
             return f"❌ actions[{i}] must be a dict"
         action_type = action.get("type")
-        if action_type == "post_task_into_bot_inbox":
-            if "title" not in action:
-                return f"❌ actions[{i}] (post_task_into_bot_inbox) missing required field 'title'"
-        elif action_type == "create_erp_record":
-            if "table" not in action:
-                return f"❌ actions[{i}] (create_erp_record) missing required field 'table'"
-            if "fields" not in action:
-                return f"❌ actions[{i}] (create_erp_record) missing required field 'fields'"
-        elif action_type == "update_erp_record":
-            if "table" not in action:
-                return f"❌ actions[{i}] (update_erp_record) missing required field 'table'"
-            if "record_id" not in action:
-                return f"❌ actions[{i}] (update_erp_record) missing required field 'record_id'"
-            if "fields" not in action:
-                return f"❌ actions[{i}] (update_erp_record) missing required field 'fields'"
-        elif action_type == "delete_erp_record":
-            if "table" not in action:
-                return f"❌ actions[{i}] (delete_erp_record) missing required field 'table'"
-            if "record_id" not in action:
-                return f"❌ actions[{i}] (delete_erp_record) missing required field 'record_id'"
-        elif action_type == "move_deal_stage":
-            if "contact_id" not in action:
-                return f"❌ actions[{i}] (move_deal_stage) missing required field 'contact_id'"
-            if "pipeline_id" not in action:
-                return f"❌ actions[{i}] (move_deal_stage) missing required field 'pipeline_id'"
-            if "from_stages" not in action:
-                return f"❌ actions[{i}] (move_deal_stage) missing required field 'from_stages'"
-            if not isinstance(action.get("from_stages"), list):
-                return f"❌ actions[{i}] (move_deal_stage) 'from_stages' must be an array of stage IDs"
-            if "to_stage_id" not in action:
-                return f"❌ actions[{i}] (move_deal_stage) missing required field 'to_stage_id'"
-        else:
-            return f"❌ actions[{i}].type must be 'post_task_into_bot_inbox', 'create_erp_record', 'update_erp_record', 'delete_erp_record', or 'move_deal_stage' (got {action_type})"
+        schema = _ACTION_SCHEMAS.get(action_type)
+        if not schema:
+            return f"❌ actions[{i}].type must be one of: {', '.join(sorted(_ACTION_SCHEMAS))} (got {action_type})"
+        required, optional = schema
+        valid_fields = required | optional | {"type"}
+        if unknown := set(action.keys()) - valid_fields:
+            return f"❌ actions[{i}] ({action_type}) has unknown fields: {', '.join(sorted(unknown))}. Valid: {', '.join(sorted(valid_fields))}"
+        if missing := required - set(action.keys()):
+            return f"❌ actions[{i}] ({action_type}) missing required fields: {', '.join(sorted(missing))}"
+        if action_type == "move_deal_stage" and not isinstance(action.get("from_stages"), list):
+            return f"❌ actions[{i}] (move_deal_stage) 'from_stages' must be an array of stage IDs"
+        if action_type in ("create_erp_record", "update_erp_record") and action.get("table") in erp_schema.ERP_TABLE_TO_SCHEMA:
+            cls = erp_schema.ERP_TABLE_TO_SCHEMA[action["table"]]
+            action_fields = set(action.get("fields", {}).keys())
+            if bad := action_fields - set(cls.__dataclass_fields__.keys()):
+                return f"❌ actions[{i}] ({action_type}) unknown columns for table '{action['table']}': {', '.join(sorted(bad))}"
+            if action_type == "create_erp_record":
+                if missing := set(erp_schema.get_required_fields(cls)) - action_fields:
+                    return f"❌ actions[{i}] ({action_type}) missing required columns for table '{action['table']}': {', '.join(sorted(missing))}"
 
     return None

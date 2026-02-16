@@ -165,6 +165,7 @@ async def handle_mongo_store(
         document = await ckit_mongo.mongo_retrieve_file(mongo_collection, path)
         if not document:
             return f"Error: File {path} not found in MongoDB"
+        # XXX decide is it json, image or text, remove guesswork
         file_data = document.get("data", document.get("json", None))
         lines_range = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "lines_range", "0:")
         safety_valve = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "safety_valve", DEFAULT_SAFETY_VALVE)
