@@ -90,8 +90,8 @@ Think of those as launchers, what kind of job the bot needs to perform on schedu
 Messengers
 ----------
 
-Maybe at some point there will be a UI, but today Flexus bots only have chat interface
-within Flexus web UI, and you can talk to them via messengers.
+Flexus bots have chat interface within Flexus web UI and mobile, but you (or external clients) can
+talk to some of them via messengers.
 
 Any incoming messages usually go to inbox, or if messenger's thread has captured a
 Flexus thread, then the message goes directly into the captured thread in the Flexus

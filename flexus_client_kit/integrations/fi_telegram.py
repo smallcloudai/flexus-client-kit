@@ -33,6 +33,14 @@ logger = logging.getLogger("teleg")
 # => start bot
 
 
+# Capturing mechanics:
+# private message(s) from user => bot python code creates kanban task(s) =>
+# scheduler runs SCHED_TASK_SORT_10M => one or several tasks joined go into kanban todo column =>
+# scheduler runs SCHED_TODO_5M => bot activates, runs telegram(op=capture) => talks to human directly =>
+# human is happy => scheduler hits fexp_inactivity_timeout => bot moves task to kanban done and summarizes
+# the conversation.
+
+
 TELEGRAM_TOOL = ckit_cloudtool.CloudTool(
     strict=False,
     name="telegram",
@@ -66,6 +74,17 @@ telegram(op="skip")
 telegram(op="generate_chat_link", args={"contact_id": "abc123"})
     Generate a link that opens a chat with this bot and passes the contact_id.
     When clicked, bot receives /start c_<contact_id>.
+
+
+Telegram uses HTML markup. Plain text works too, but for formatting use:
+<b>bold</b>  <i>italic</i>  <u>underline</u>  <s>strikethrough</s>
+<code>inline code</code>
+<pre>code block</pre>
+<a href="https://example.com">link text</a>
+<blockquote>quote</blockquote>
+<tg-spoiler>hidden text</tg-spoiler>
+Characters < > & must be escaped as &lt; &gt; &amp; in regular text.
+Tables are not allowed.
 """
 
 TELEGRAM_SETUP_SCHEMA = [
@@ -75,7 +94,7 @@ TELEGRAM_SETUP_SCHEMA = [
         "bs_default": "",
         "bs_group": "Telegram",
         "bs_importance": 0,
-        "bs_description": "Bot token from @BotFather",
+        "bs_description": "Token token from @BotFather",
     },
 ]
 
@@ -215,7 +234,7 @@ class IntegrationTelegram:
                 return "Cannot post to captured chat. Your responses are sent automatically.\n"
 
             try:
-                await self.tg_app.bot.send_message(chat_id=int(chat_id), text=text)
+                await self.tg_app.bot.send_message(chat_id=int(chat_id), text=text, parse_mode="HTML")
                 return "Post success\n"
             except Exception as e:
                 return f"ERROR: {type(e).__name__}: {e}\n"
@@ -241,7 +260,8 @@ class IntegrationTelegram:
             )
             if fthread := self.rcx.latest_threads.get(toolcall.fcall_ft_id):
                 fthread.thread_fields.ft_app_searchable = searchable
-            return fi_messenger.CAPTURE_SUCCESS_MSG % identifier + fi_messenger.CAPTURE_ADVICE_MSG
+            markup_help = "Reminder: after this point, telegram HTML-like markup rules are in effect, bold is <b>like this</b> etc.\n\n"
+            return fi_messenger.CAPTURE_SUCCESS_MSG % identifier + fi_messenger.CAPTURE_ADVICE_MSG + markup_help
 
         if op == "uncapture":
             contact_id = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "contact_id", None)
@@ -343,7 +363,7 @@ class IntegrationTelegram:
             activity.message_author_name, activity.message_author_id, activity.message_text[:120] or "(empty)")
 
         parts = msg_text
-        ckit_ask_model.thread_add_user_message(
+        await ckit_ask_model.thread_add_user_message(
             http,
             thread_cap.thread_fields.ft_id,
             parts,
@@ -369,13 +389,19 @@ class IntegrationTelegram:
 
         chat_id = int(searchable[len("telegram/"):])
         if not isinstance(msg.ftm_content, str):
-            logger.warning("telegram handle_assistant_might_have_posted: ftm_content is not a string")
+            logger.warning("telegram look_assistant_might_have_posted_something: ftm_content is not a string: %r" % msg.ftm_content)
             return False
         if not self.tg_app:
             return False
 
+        text = msg.ftm_content
+        if "TASK_COMPLETED" in text and len(text) <= len("TASK_COMPLETED") + 6:
+            logger.info("telegram look_assistant_might_have_posted_something: ftm_content has TASK_COMPLETED, not posting to the captured chat")
+            return False
+        text = text.replace("TASK_COMPLETED", "")   # yes, sometimes the model writes it anyway
+
         try:
-            await self.tg_app.bot.send_message(chat_id=chat_id, text=msg.ftm_content)
+            await self.tg_app.bot.send_message(chat_id=chat_id, text=text, parse_mode="HTML")
         except Exception as e:
             logger.warning("Failed to post to Telegram chat %d: %s", chat_id, e)
             return False
