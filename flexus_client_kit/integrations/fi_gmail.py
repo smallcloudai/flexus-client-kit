@@ -326,7 +326,7 @@ class IntegrationGmail:
             try:
                 contacts = await ckit_erp.query_erp_table(
                     self.fclient, "crm_contact", self.rcx.persona.ws_id, erp_schema.CrmContact,
-                    filters=f"contact_email:ILIKE:{email}", limit=1,
+                    filters=f"contact_email:IEQL:{email}", limit=1,
                 )
                 if not contacts:
                     continue
