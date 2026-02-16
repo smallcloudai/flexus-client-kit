@@ -42,12 +42,12 @@ RESEND_SEND_TOOL = ckit_cloudtool.CloudTool(
         "type": "object",
         "properties": {
             "from": {"type": "string", "order": 1, "description": "Sender, e.g. Name <noreply@domain.com>"},
-            "to": {"type": "string", "order": 2, "description": "Recipient(s), comma-separated"},
+            "to": {"type": "array", "items": {"type": "string"}, "order": 2, "description": "Recipient email addresses"},
             "subject": {"type": "string", "order": 3, "description": "Subject line"},
             "html": {"type": "string", "order": 4, "description": "HTML body, or empty string if text-only"},
             "text": {"type": "string", "order": 5, "description": "Plain text fallback, or empty string if html-only"},
-            "cc": {"type": "string", "order": 6, "description": "CC recipients comma-separated, or empty string"},
-            "bcc": {"type": "string", "order": 7, "description": "BCC recipients comma-separated, or empty string"},
+            "cc": {"type": "array", "items": {"type": "string"}, "order": 6, "description": "CC recipient email addresses"},
+            "bcc": {"type": "array", "items": {"type": "string"}, "order": 7, "description": "BCC recipient email addresses"},
             "reply_to": {"type": "string", "order": 8, "description": "Reply-to address, or empty string"},
         },
         "required": ["from", "to", "subject", "html", "text", "cc", "bcc", "reply_to"],
@@ -58,11 +58,11 @@ RESEND_SEND_TOOL = ckit_cloudtool.CloudTool(
 RESEND_SETUP_TOOL = ckit_cloudtool.CloudTool(
     strict=False,
     name="email_setup_domain",
-    description="Manage email domains: add, verify, check status, list. Call with op=\"help\" for usage.",
+    description="Manage email domains: add, verify, check status, list, delete. Call with op=\"help\" for usage. Before adding a domain, ask the user if they want to enable receiving emails on it.",
     parameters={
         "type": "object",
         "properties": {
-            "op": {"type": "string", "description": "Operation: help, add, verify, status, list"},
+            "op": {"type": "string", "description": "Operation: help, add, verify, status, list, delete"},
             "args": {"type": "object"},
         },
         "required": [],
@@ -71,9 +71,9 @@ RESEND_SETUP_TOOL = ckit_cloudtool.CloudTool(
 
 SETUP_HELP = """Email domain setup:
 
-email_setup_domain(op="add", args={"domain": "yourdomain.com", "region": "us-east-1"})
+email_setup_domain(op="add", args={"domain": "yourdomain.com", "region": "us-east-1", "enable_receiving": true})
     Register a domain. Returns DNS records to configure.
-    Ask the user which region they prefer before calling.
+    Ask the user which region they prefer and whether they want to enable receiving emails.
     Regions: us-east-1, eu-west-1, sa-east-1, ap-northeast-1.
 
 email_setup_domain(op="verify", args={"domain_id": "..."})
@@ -84,6 +84,9 @@ email_setup_domain(op="status", args={"domain_id": "..."})
 
 email_setup_domain(op="list")
     List all registered domains and their verification status.
+
+email_setup_domain(op="delete", args={"domain_id": "..."})
+    Remove a domain.
 """
 
 
@@ -91,6 +94,7 @@ email_setup_domain(op="list")
 class ActivityEmail:
     email_id: str
     from_addr: str
+    from_full: str  # "Name <email>" if available
     to_addrs: List[str]
     cc_addrs: List[str]
     bcc_addrs: List[str]
@@ -105,15 +109,6 @@ def _setup_help(has_domains: bool) -> str:
     return SETUP_HELP
 
 
-def _format_dns_records(records) -> str:
-    if not records:
-        return "  (none)"
-    lines = []
-    for rec in records:
-        lines.append(f"  {rec['record']} {rec['type']} {rec['name']} -> {rec['value']} [{rec['status']}]")
-    return "\n".join(lines)
-
-
 async def _check_dns_txt(domain: str, expected: str) -> bool:
     try:
         async with httpx.AsyncClient(timeout=5) as c:
@@ -124,18 +119,15 @@ async def _check_dns_txt(domain: str, expected: str) -> bool:
         return False
 
 
-async def _resend_request(method: str, path: str, json_body: Optional[Dict] = None) -> httpx.Response:
-    async with httpx.AsyncClient(timeout=30) as c:
-        return await c.request(method, f"{RESEND_BASE}{path}", headers={"Authorization": f"Bearer {RESEND_API_KEY}"}, json=json_body)
-
-
 def parse_emessage(emsg: ckit_bot_query.FExternalMessageOutput) -> ActivityEmail:
     payload = emsg.emsg_payload if isinstance(emsg.emsg_payload, dict) else json.loads(emsg.emsg_payload)
     content = payload.get("email_content", {})
     data = payload.get("data", {})
+    header_from = content.get("headers", {}).get("from", "")
     return ActivityEmail(
         email_id=data.get("email_id", emsg.emsg_external_id),
         from_addr=emsg.emsg_from or data.get("from", ""),
+        from_full=header_from or data.get("from", "") or emsg.emsg_from,
         to_addrs=data.get("to", []),
         cc_addrs=data.get("cc", []),
         bcc_addrs=data.get("bcc", []),
@@ -189,30 +181,29 @@ class IntegrationResend:
         if not model_produced_args:
             return "Provide from, to, subject, and html or text body."
         a = model_produced_args
-        frm, to = a.get("from", ""), a.get("to", "")
+        frm, to = a.get("from", ""), a.get("to", [])
         if not frm or not to:
             return "Missing required: 'from' and 'to'"
-        html, text = a.get("html", ""), a.get("text", "")
-        if not html and not text:
+        if not a.get("html", "") and not a.get("text", ""):
             return "Provide 'html' and/or 'text'"
-        params: Dict[str, Any] = {"from": frm, "to": [e.strip() for e in to.split(",")], "subject": a.get("subject", "")}
-        if html:
-            params["html"] = html
-        if text:
-            params["text"] = text
-        for k in ("cc", "bcc"):
-            if v := a.get(k, ""):
-                params[k] = [e.strip() for e in v.split(",")]
-        if reply_to := a.get("reply_to", ""):
-            params["reply_to"] = reply_to
-        n_recipients = len(params["to"]) + len(params.get("cc", [])) + len(params.get("bcc", []))
-        r = await _resend_request("POST", "/emails", params)
-        if r.status_code == 200:
-            rid = r.json().get("id", "")
-            logger.info("sent email %s to %s", rid, to)
-            return ckit_cloudtool.ToolResult(content=f"Email sent (id: {rid})", dollars=0.0009 * n_recipients)
-        logger.error("resend send error: %s %s", r.status_code, r.text[:200])
-        return "Internal error sending email, please try again later"
+        http = await self.fclient.use_http()
+        async with http as h:
+            r = await h.execute(gql.gql("""mutation ResendBotSendEmail($input: ResendEmailSendInput!) {
+                resend_email_send(input: $input)
+            }"""), variable_values={"input": {
+                "persona_id": self.rcx.persona.persona_id,
+                "email_from": frm,
+                "email_to": to,
+                "email_subject": a.get("subject", ""),
+                "email_html": a.get("html", ""),
+                "email_text": a.get("text", ""),
+                "email_cc": a.get("cc", []),
+                "email_bcc": a.get("bcc", []),
+                "email_reply_to": a.get("reply_to", ""),
+            }})
+        rid = r.get("resend_email_send", "")
+        logger.info("sent email %s to %s", rid, to)
+        return ckit_cloudtool.ToolResult(content=f"Email sent (id: {rid})", dollars=0)
 
     async def setup_called_by_model(self, toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Optional[Dict[str, Any]]):
         if not model_produced_args:
@@ -223,129 +214,19 @@ class IntegrationResend:
             return args_error
         if not op or "help" in op:
             return _setup_help(bool(self.domains))
-        if op == "add":
-            return await self._add_domain(args, model_produced_args)
-        if op == "verify":
-            return await self._verify_domain(args, model_produced_args)
-        if op == "status":
-            return await self._domain_status(args, model_produced_args)
-        if op == "list":
-            return await self._list_domains()
-        return f"Unknown operation: {op}\n\nTry email_setup_domain(op='help') for usage."
-
-    async def _add_domain(self, args: Dict[str, Any], model_produced_args: Dict[str, Any]) -> str:
-        if not (domain := ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "domain", None)):
-            return "Missing required: 'domain'"
-        region = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "region", None)
-        if region not in ("us-east-1", "eu-west-1", "sa-east-1", "ap-northeast-1"):
-            return "Missing or invalid 'region'. Ask the user which region they prefer: us-east-1, eu-west-1, sa-east-1, ap-northeast-1."
-        if len(self.domains) >= 20:
-            return "Domain limit reached (20). Remove unused domains before adding new ones."
-
-        r = await _resend_request("POST", "/domains", {
-            "name": domain,
-            "region": region,
-            "open_tracking": False,
-            "click_tracking": True,
-            "capabilities": {"sending": "enabled", "receiving": "enabled"},
-        })
-        if r.status_code == 200 or r.status_code == 201:
-            d = r.json()
-        elif "already" in r.text.lower():
-            # Resend does not support find domain without listing all
-            lr = await _resend_request("GET", "/domains")
-            d = None
-            if lr.status_code == 200:
-                for item in lr.json().get("data", []):
-                    if item["name"] == domain:
-                        d = item
-                        break
-            if not d:
-                return f"Domain {domain} already exists in Resend but could not retrieve it."
-        else:
-            logger.error("resend add domain error: %s %s", r.status_code, r.text[:200])
-            return f"Failed to add domain: {r.text[:200]}"
-
-        self.domains[domain] = d["id"]
-        await self._save_domains()
-        txt_val = f"flexus-verify={self.rcx.persona.ws_id}"
-        logger.info("resend domain %s id=%s", domain, d["id"])
-        return (
-            f"Domain: {domain}\n"
-            f"domain_id: {d['id']}\n"
-            f"status: {d.get('status', 'pending')}\n\n"
-            f"DNS records:\n{_format_dns_records(d.get('records'))}\n"
-            f"  TXT {domain} -> {txt_val} (ownership verification)\n\n"
-            f"After adding records, call email_setup_domain(op=\"verify\", args={{\"domain_id\": \"{d['id']}\"}})\n"
-            f"DNS propagation can take minutes to hours."
-        )
-
-    async def _verify_domain(self, args: Dict[str, Any], model_produced_args: Dict[str, Any]) -> str:
-        domain_id = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "domain_id", None)
-        if not domain_id:
-            return "Missing required: 'domain_id'"
-
-        gr = await _resend_request("GET", f"/domains/{domain_id}")
-        if gr.status_code != 200:
-            logger.error("resend get domain error: %s %s", gr.status_code, gr.text[:200])
-            return "Failed to get domain info"
-        d = gr.json()
-        txt_val = f"flexus-verify={self.rcx.persona.ws_id}"
-        if not await _check_dns_txt(d["name"], txt_val):
-            return f"TXT record '{txt_val}' not found for {d['name']}. DNS may still be propagating, try again later."
-        await _resend_request("POST", f"/domains/{domain_id}/verify")
-        msg = "Verification triggered. Check status for results."
-        if domain_id not in self.domains.values():
-            self.domains[d["name"]] = domain_id
-            await self._save_domains()
-            msg += f"\nDomain {d['name']} added to setup."
-        await register_email_addresses(self.fclient, self.rcx,
-            [f"*@{dom}" for dom in self.domains] + list(self.emails_to_register))
-        return msg
-
-    async def _domain_status(self, args: Dict[str, Any], model_produced_args: Dict[str, Any]) -> str:
-        domain_id = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "domain_id", None)
-        if not domain_id:
-            return "Missing required: 'domain_id'"
-
-        r = await _resend_request("GET", f"/domains/{domain_id}")
-        if r.status_code != 200:
-            logger.error("resend domain status error: %s %s", r.status_code, r.text[:200])
-            return "Failed to get domain status"
-        d = r.json()
-        txt_val = f"flexus-verify={self.rcx.persona.ws_id}"
-        txt_ok = await _check_dns_txt(d["name"], txt_val)
-        out = f"Domain: {d['name']}\n"
-        if not txt_ok:
-            out += f"ownership: NOT VERIFIED — add TXT record: {d['name']} -> {txt_val}, then call op=\"verify\". Domain cannot be used until verified.\n"
-        else:
-            out += "ownership: verified\n"
-        out += f"resend status: {d['status']}\n\nDNS records:\n{_format_dns_records(d.get('records'))}"
-        return out
-
-    async def _list_domains(self) -> str:
-        if not self.domains:
-            return "No domains registered."
-        lines = []
-        for domain, domain_id in self.domains.items():
-            r = await _resend_request("GET", f"/domains/{domain_id}")
-            if r.status_code == 200:
-                d = r.json()
-                lines.append(f"  {d['name']} (id: {d['id']}) [{d['status']}]")
-            else:
-                lines.append(f"  {domain} (id: {domain_id}) [error fetching status]")
-        return "Domains:\n" + "\n".join(lines)
-
-    async def _save_domains(self):
+        gql_input = {"persona_id": self.rcx.persona.persona_id, "op": op}
+        for k in ("domain", "domain_id", "region"):
+            if v := ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, k, None):
+                gql_input[k] = v
+        if ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "enable_receiving", False):
+            gql_input["enable_receiving"] = True
+        if op == "add" and not gql_input.get("domain"):
+            return "domain is required for add"
+        if op in ("verify", "status", "delete") and not gql_input.get("domain_id"):
+            return "domain_id is required for " + op
         http = await self.fclient.use_http()
         async with http as h:
-            await h.execute(
-                gql.gql("""mutation SaveResendDomains($persona_id: String!, $set_key: String!, $set_val: String) {
-                    persona_setup_set_key(persona_id: $persona_id, set_key: $set_key, set_val: $set_val)
-                }"""),
-                variable_values={
-                    "persona_id": self.rcx.persona.persona_id,
-                    "set_key": "DOMAINS",
-                    "set_val": json.dumps(self.domains),
-                },
-            )
+            r = await h.execute(gql.gql("""mutation ResendBotSetupDomain($input: ResendSetupDomainInput!) {
+                resend_setup_domain(input: $input)
+            }"""), variable_values={"input": gql_input})
+        return r.get("resend_setup_domain", "")

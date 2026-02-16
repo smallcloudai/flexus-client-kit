@@ -1,4 +1,5 @@
 import asyncio
+import email.utils
 import json
 import logging
 import time
@@ -61,7 +62,7 @@ async def vix_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.Ro
     automations_integration = fi_crm_automations.IntegrationCrmAutomations(
         fclient, rcx, get_setup, available_erp_tables=ERP_TABLES,
     )
-    resend_domains = json.loads(get_setup().get("DOMAINS", "{}"))
+    resend_domains = (rcx.persona.persona_setup or {}).get("DOMAINS", {})
     email_respond_to = set(a.strip().lower() for a in get_setup().get("EMAIL_RESPOND_TO", "").split(",") if a.strip())
     resend_integration = fi_resend.IntegrationResend(fclient, rcx, resend_domains, email_respond_to)
     email_reg = [f"*@{d}" for d in resend_domains] + list(email_respond_to)
@@ -84,34 +85,45 @@ async def vix_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.Ro
 
     @rcx.on_emessage("EMAIL")
     async def handle_email(emsg):
-        email = fi_resend.parse_emessage(emsg)
-        body = email.body_text or email.body_html or "(empty)"
+        em = fi_resend.parse_emessage(emsg)
+        body = em.body_text or em.body_html or "(empty)"
         try:
+            display_name, addr = email.utils.parseaddr(em.from_full)
+            addr = addr or em.from_addr
             contacts = await ckit_erp.query_erp_table(
                 fclient, "crm_contact", rcx.persona.ws_id, erp_schema.CrmContact,
-                filters=f"contact_email:ILIKE:{email.from_addr}", limit=1,
+                filters=f"contact_email:IEQL:{addr}", limit=1,
             )
             if contacts:
-                await ckit_erp.create_erp_record(fclient, "crm_activity", rcx.persona.ws_id, {
+                contact_id = contacts[0].contact_id
+            else:
+                parts = display_name.split(None, 1) if display_name else [addr.split("@")[0]]
+                contact_id = await ckit_erp.create_erp_record(fclient, "crm_contact", rcx.persona.ws_id, {
                     "ws_id": rcx.persona.ws_id,
-                    "activity_title": email.subject,
-                    "activity_type": "EMAIL",
-                    "activity_direction": "INBOUND",
-                    "activity_platform": "RESEND",
-                    "activity_contact_id": contacts[0].contact_id,
-                    "activity_summary": body[:500],
-                    "activity_occurred_ts": time.time(),
+                    "contact_email": addr.lower(),
+                    "contact_first_name": parts[0],
+                    "contact_last_name": parts[1] if len(parts) > 1 else "(unknown)",
                 })
+            await ckit_erp.create_erp_record(fclient, "crm_activity", rcx.persona.ws_id, {
+                "ws_id": rcx.persona.ws_id,
+                "activity_title": em.subject,
+                "activity_type": "EMAIL",
+                "activity_direction": "INBOUND",
+                "activity_platform": "RESEND",
+                "activity_contact_id": contact_id,
+                "activity_summary": body[:500],
+                "activity_occurred_ts": time.time(),
+            })
         except Exception as e:
-            logger.warning("Failed to create CRM activity for inbound email from %s: %s", email.from_addr, e)
-        if not email_respond_to.intersection(a.lower() for a in email.to_addrs):
+            logger.warning("Failed to create CRM activity for inbound email from %s: %s", em.from_addr, e)
+        if not email_respond_to.intersection(a.lower() for a in em.to_addrs):
             return
-        title = "Email from %s: %s" % (email.from_addr, email.subject)
-        if email.cc_addrs:
-            title += " (cc: %s)" % ", ".join(email.cc_addrs)
+        title = "Email from %s: %s" % (em.from_addr, em.subject)
+        if em.cc_addrs:
+            title += " (cc: %s)" % ", ".join(em.cc_addrs)
         await ckit_kanban.bot_kanban_post_into_inbox(
             fclient, rcx.persona.persona_id,
-            title=title, details_json=json.dumps({"from": email.from_addr, "to": email.to_addrs, "cc": email.cc_addrs, "subject": email.subject, "body": body[:2000]}),
+            title=title, details_json=json.dumps({"from": em.from_addr, "to": em.to_addrs, "cc": em.cc_addrs, "subject": em.subject, "body": body[:2000]}),
             provenance_message="vix_email_inbound",
         )
 
