@@ -92,7 +92,7 @@ async def vix_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.Ro
             addr = addr or em.from_addr
             contacts = await ckit_erp.query_erp_table(
                 fclient, "crm_contact", rcx.persona.ws_id, erp_schema.CrmContact,
-                filters=f"contact_email:IEQL:{addr}", limit=1,
+                filters=f"contact_email:CIEQL:{addr}", limit=1,
             )
             if contacts:
                 contact_id = contacts[0].contact_id
@@ -114,8 +114,8 @@ async def vix_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.Ro
                 "activity_summary": body[:500],
                 "activity_occurred_ts": time.time(),
             })
-        except Exception as e:
-            logger.warning("Failed to create CRM activity for inbound email from %s: %s", em.from_addr, e)
+        except Exception:
+            logger.exception("Failed to create CRM activity for inbound email from %s", em.from_addr)
         if not email_respond_to.intersection(a.lower() for a in em.to_addrs):
             return
         title = "Email from %s: %s" % (em.from_addr, em.subject)

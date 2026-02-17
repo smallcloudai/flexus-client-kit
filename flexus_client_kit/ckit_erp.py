@@ -190,7 +190,7 @@ def check_record_matches_filter(record: dict, f: str, col_names: set = None) -> 
     Check if a single record matches a single filter string.
     Filter format: "col:op:val" or "col:op"
 
-    Standard operators: =, !=, >, >=, <, <=, IN, NOT_IN, LIKE, ILIKE, IEQL, IS_NULL, IS_NOT_NULL, IS_EMPTY, IS_NOT_EMPTY
+    Standard operators: =, !=, >, >=, <, <=, IN, NOT_IN, LIKE, ILIKE, CIEQL, IS_NULL, IS_NOT_NULL, IS_EMPTY, IS_NOT_EMPTY
     Array operators: contains, not_contains
     JSON path: "task_details->email_subtype:=:welcome"
     """
@@ -295,7 +295,7 @@ def check_record_matches_filter(record: dict, f: str, col_names: set = None) -> 
     if op in ("NOT_IN", "NOT IN"):
         vals = [v.strip() for v in filter_val.split(",")]
         return str(val) not in vals
-    if op == "IEQL":
+    if op == "CIEQL":
         return str(val).lower() == filter_val.lower()
     if op in ("LIKE", "ILIKE"):
         s = str(val).lower() if op == "ILIKE" else str(val)

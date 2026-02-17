@@ -38,8 +38,8 @@ ERP_TABLE_DATA_TOOL = ckit_cloudtool.CloudTool(
     name="erp_table_data",
     description=(
         "Query ERP table data with filtering. "
-        "Operators: =, !=, >, >=, <, <=, LIKE, ILIKE, IEQL, IN, NOT_IN, IS_NULL, IS_NOT_NULL. "
-        "LIKE/ILIKE use SQL wildcards: % matches any chars. IEQL is case-insensitive equals (no wildcards). "
+        "Operators: =, !=, >, >=, <, <=, LIKE, ILIKE, CIEQL, IN, NOT_IN, IS_NULL, IS_NOT_NULL. "
+        "LIKE/ILIKE use SQL wildcards: % matches any chars. CIEQL: Case Insensitive Equal. "
         "JSON path: details->subtype:=:welcome. "
         "Examples: "
         'filters="status:=:active" for single filter, '
