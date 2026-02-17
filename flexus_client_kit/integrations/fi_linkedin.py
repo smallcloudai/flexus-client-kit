@@ -155,6 +155,9 @@ class IntegrationLinkedIn:
         auth_searchable = None
         if not self.is_fake and not self.access_token:
             auth_searchable = hashlib.md5((self.app_id + self.ad_account_id).encode()).hexdigest()[:30]
+            # XXX NO LONGER EXISTS
+            # BROKEN
+            # USE FLEXUS OFFICIAL AUTH
             auth_json = await ckit_external_auth.decrypt_external_auth(self.fclient, auth_searchable)
             self.access_token = auth_json.get("access_token", "")
 
@@ -165,6 +168,9 @@ class IntegrationLinkedIn:
                 "client_secret": self.app_secret,
                 "ad_account_id": self.ad_account_id,
             }
+            # XXX THIS NO LONGER EXIST
+            # BROKEN
+            # USE FLEXUS OFFICIAL AUTH
             await ckit_external_auth.upsert_external_auth(
                 self.fclient,
                 self.rcx.persona.persona_id,
