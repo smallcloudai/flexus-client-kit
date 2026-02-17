@@ -416,7 +416,8 @@ async def subscribe_and_produce_callbacks(
                     if persona_id not in bc.auth:
                         bc.auth[persona_id] = {}
                     bc.auth[persona_id][provider] = upd.news_payload_auth.auth_key2value
-                    logger.info(f"auth arrived bc.auth[{persona_id}][{provider}] = {len(upd.news_payload_auth.auth_key2value)} keys")
+                    # logger.info(f"auth arrived bc.auth[{persona_id}][{provider}] = {len(upd.news_payload_auth.auth_key2value)} keys")
+                    logger.info(f"auth arrived bc.auth[{persona_id}][{provider}] = {upd.news_payload_auth.auth_key2value}")
                     if persona_id in bc.bots_running:
                         bc.bots_running[persona_id].instance_rcx._restart_requested = True
 
