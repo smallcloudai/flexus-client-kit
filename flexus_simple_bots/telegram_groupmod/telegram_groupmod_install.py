@@ -199,6 +199,7 @@ async def install(
             prompts_common.SCHED_TODO_5M | {"sched_when": "EVERY:1m"},
         ],
         marketable_forms=ckit_bot_install.load_form_bundles(__file__),
+        marketable_auth_needed=["telegram"],
     )
 
 
