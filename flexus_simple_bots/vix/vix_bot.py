@@ -65,9 +65,6 @@ async def vix_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.Ro
     resend_domains = (rcx.persona.persona_setup or {}).get("DOMAINS", {})
     email_respond_to = set(a.strip().lower() for a in get_setup().get("EMAIL_RESPOND_TO", "").split(",") if a.strip())
     resend_integration = fi_resend.IntegrationResend(fclient, rcx, resend_domains, email_respond_to)
-    email_reg = [f"*@{d}" for d in resend_domains] + list(email_respond_to)
-    if email_reg:
-        await fi_resend.register_email_addresses(fclient, rcx, email_reg)
     telegram = fi_telegram.IntegrationTelegram(fclient, rcx)
     await telegram.register_webhook_and_start()
 

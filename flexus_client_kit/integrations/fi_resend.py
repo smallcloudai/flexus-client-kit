@@ -72,7 +72,8 @@ RESEND_SETUP_TOOL = ckit_cloudtool.CloudTool(
 SETUP_HELP = """Email domain setup:
 
 email_setup_domain(op="add", args={"domain": "yourdomain.com", "region": "us-east-1", "enable_receiving": true})
-    Register a domain. Returns DNS records to configure.
+    Register a domain or update an existing one. Returns DNS records to configure.
+    If the domain already exists, updates its settings (receiving, etc.).
     Ask the user which region they prefer and whether they want to enable receiving emails.
     Regions: us-east-1, eu-west-1, sa-east-1, ap-northeast-1.
 
@@ -135,38 +136,6 @@ def parse_emessage(emsg: ckit_bot_query.FExternalMessageOutput) -> ActivityEmail
         body_text=content.get("text", ""),
         body_html=content.get("html", ""),
     )
-
-
-async def register_email_addresses(
-    fclient: ckit_client.FlexusClient,
-    rcx: ckit_bot_exec.RobotContext,
-    email_addresses: List[str],
-) -> None:
-    txt_val = f"flexus-verify={rcx.persona.ws_id}"
-    verified = []
-    for a in email_addresses:
-        domain = a.rsplit("@", 1)[1] if "@" in a else a
-        if RESEND_TESTING_DOMAIN and domain == RESEND_TESTING_DOMAIN:
-            verified.append(a)
-        elif await _check_dns_txt(domain, txt_val):
-            verified.append(a)
-        else:
-            logger.warning("address %s failed TXT ownership check, not registering", a)
-    if not verified:
-        return
-    http = await fclient.use_http()
-    async with http as h:
-        await h.execute(
-            gql.gql("""mutation ResendRegister($persona_id: String!, $channel: String!, $addresses: [String!]!) {
-                persona_set_external_addresses(persona_id: $persona_id, channel: $channel, addresses: $addresses)
-            }"""),
-            variable_values={
-                "persona_id": rcx.persona.persona_id,
-                "channel": "EMAIL",
-                "addresses": [f"EMAIL:{a}" for a in verified],
-            },
-        )
-    logger.info("registered email addresses %s for persona %s", verified, rcx.persona.persona_id)
 
 
 class IntegrationResend:
