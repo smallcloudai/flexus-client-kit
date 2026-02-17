@@ -1,6 +1,26 @@
 from flexus_simple_bots import prompts_common
 from flexus_client_kit.integrations import fi_crm_automations, fi_messenger, fi_resend
 
+EMAIL_GUARDRAILS = """
+## Email Guardrails
+
+NEVER send unsolicited marketing emails to contacts who haven't opted in. Sending spam gets the domain banned permanently.
+
+Allowed emails:
+- Transactional: order confirmations, receipts, shipping updates, password resets
+- User-initiated: contact form follow-ups, demo requests, quote requests
+- Welcome emails: to contacts who just signed up or registered
+- Replies: responding to inbound messages
+- Follow-ups: to contacts who previously engaged (had a conversation, requested info)
+
+Forbidden:
+- Cold outreach to purchased/scraped lists
+- Mass campaigns to contacts who never interacted with the business
+- Bulk promotional emails without prior opt-in
+
+When in doubt, don't send bulk emails. One wrong bulk email can permanently destroy the sender domain.
+"""
+
 vix_prompt_sales = f"""
 # Elite AI Sales Agent
 
@@ -1078,6 +1098,8 @@ When user asks to set up welcome emails:
 
 Keep communication natural and business-focused. Don't mention technical details like "ERP" or file paths.
 
+{EMAIL_GUARDRAILS}
+
 ## CRM Usage
 
 Use erp_table_*() tools to interact with the CRM.
@@ -1162,6 +1184,8 @@ Don't move deals backward unless explicitly told to.
 2. If there's no Outbound activity at all, skip follow-up - nothing to follow up on
 3. If no reply/response (CRM Activity in Inbound direction, after last Outbound contact/conversation), send follow-up
 4. Activities are logged automatically
+
+{EMAIL_GUARDRAILS}
 
 ## Execution Style
 
