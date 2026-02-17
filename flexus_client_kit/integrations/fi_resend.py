@@ -17,6 +17,22 @@ RESEND_BASE = "https://api.resend.com"
 
 RESEND_SETUP_SCHEMA = [
     {
+        "bs_name": "RESEND_API_KEY",
+        "bs_type": "string_long",
+        "bs_default": "",
+        "bs_group": "Email",
+        "bs_importance": 0,
+        "bs_description": "Your own Resend API key. Leave empty to use the managed platform key.",
+    },
+    {
+        "bs_name": "RESEND_SIGNING_SECRET",
+        "bs_type": "string_long",
+        "bs_default": "",
+        "bs_group": "Email",
+        "bs_importance": 0,
+        "bs_description": "Webhook signing secret from your Resend account (whsec_...). Recommended for verifying incoming webhook signatures.",
+    },
+    {
         "bs_name": "DOMAINS",
         "bs_type": "string_multiline",
         "bs_default": "{}",
@@ -32,7 +48,8 @@ Use email_send() to send emails. Use email_setup_domain() to register and manage
 Users can configure EMAIL_RESPOND_TO addresses — emails to those addresses are handled as tasks, all others are logged as CRM activities.
 Strongly recommend using a subdomain (e.g. mail.example.com) instead of the main domain, especially for inbound emails.
 If no domain is configured, send from *@{RESEND_TESTING_DOMAIN} for testing.
-Never use flexus_my_setup() for email domains — they are saved automatically via email_setup_domain() tool."""
+Never use flexus_my_setup() for email domains — they are saved automatically via email_setup_domain() tool.
+If user has their own RESEND_API_KEY and wants to receive inbound emails, call email_setup_domain(op="help") for webhook setup instructions."""
 
 RESEND_SEND_TOOL = ckit_cloudtool.CloudTool(
     strict=True,
@@ -88,6 +105,12 @@ email_setup_domain(op="list")
 
 email_setup_domain(op="delete", args={"domain_id": "..."})
     Remove a domain.
+
+Receiving emails with your own Resend account (requires RESEND_API_KEY in bot setup):
+    1. In Resend dashboard, create a webhook pointing to: https://flexus.team/v1/webhook/resend/PERSONA_ID
+       (use BotPersonaId from your setup config)
+    2. Subscribe to event: email.received
+    3. Recommended: copy the signing secret (whsec_...) into RESEND_SIGNING_SECRET in bot setup for security
 """
 
 
