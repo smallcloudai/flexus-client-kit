@@ -8,7 +8,7 @@ from flexus_client_kit import ckit_bot_install
 from flexus_client_kit import ckit_cloudtool
 from flexus_client_kit.integrations import fi_crm_automations
 from flexus_client_kit.integrations import fi_resend
-from flexus_client_kit.integrations import fi_telegramfrom flexus_client_kit.integrations import fi_shopify
+from flexus_client_kit.integrations import fi_shopify
 
 from flexus_simple_bots import prompts_common
 from flexus_simple_bots.vix import vix_bot, vix_prompts

@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import os
 import re
@@ -69,7 +70,7 @@ shopify(op="disconnect", args={"shop_id": "..."})
     Disconnect a Shopify store (requires confirmation)."""
 
 WEBHOOK_TOPICS = [
-    "orders/create", "orders/updated", "orders/cancelled",
+    "orders/create", "orders/updated", "orders/cancelled", "orders/paid",
     "refunds/create",
     "fulfillments/create", "fulfillments/update",
     "products/create", "products/update", "products/delete",
@@ -89,6 +90,60 @@ _SHIP_STATUS = {
 
 
 # --- HTTP ---
+
+_GQL_ORDER_TRANSACTIONS = """
+query FetchOrderTransactions($cursor: String, $query: String) {
+  orders(first: 250, after: $cursor, query: $query) {
+    nodes {
+      legacyResourceId
+      transactions {
+        id
+        amountSet { shopMoney { amount currencyCode } }
+        kind
+        status
+        gateway
+        processedAt
+      }
+    }
+    pageInfo { hasNextPage endCursor }
+  }
+}
+"""
+
+
+async def _fetch_order_transactions(domain, token, cutoff_iso):
+    txn_map = {}
+    cursor = None
+    while True:
+        async with httpx.AsyncClient(timeout=30) as c:
+            r = await c.post(
+                f"https://{domain}/admin/api/{API_VER}/graphql.json",
+                headers={"X-Shopify-Access-Token": token, "Content-Type": "application/json"},
+                json={"query": _GQL_ORDER_TRANSACTIONS, "variables": {"cursor": cursor, "query": f"created_at:>={cutoff_iso[:10]}"}},
+            )
+            r.raise_for_status()
+            data = r.json()
+        if data.get("errors"):
+            raise Exception(f"Shopify GQL errors: {data['errors']}")
+        orders = data["data"]["orders"]
+        for node in orders["nodes"]:
+            txn_map[node["legacyResourceId"]] = [
+                {
+                    "id": tx["id"].split("/")[-1],
+                    "amount": tx["amountSet"]["shopMoney"]["amount"],
+                    "currency": tx["amountSet"]["shopMoney"]["currencyCode"],
+                    "kind": tx["kind"].lower(),
+                    "status": tx["status"].lower(),
+                    "gateway": tx.get("gateway") or "",
+                    "created_at": tx.get("processedAt") or "",
+                }
+                for tx in node.get("transactions") or []
+            ]
+        if not orders["pageInfo"]["hasNextPage"]:
+            break
+        cursor = orders["pageInfo"]["endCursor"]
+    return txn_map
+
 
 async def _shop_req(domain, token, method, path, body=None):
     url = f"https://{domain}/admin/api/{API_VER}/{path}"
@@ -236,14 +291,18 @@ def _map_transaction(ws, t):
 def _map_refund(ws, r):
     amt = sum(float(t.get("amount", "0")) for t in (r.get("transactions") or []))
     cur = (r.get("transactions") or [{}])[0].get("currency", "") if r.get("transactions") else ""
-    items = [{"line_item_id": str(ri.get("line_item_id", "")), "quantity": ri.get("quantity", 0)} for ri in (r.get("refund_line_items") or [])]
+    items = []
+    for ri in r.get("refund_line_items") or []:
+        item = {"line_item_id": str(ri.get("line_item_id", "")), "quantity": ri.get("quantity", 0)}
+        item.update(ri.get("line_item") or {})
+        items.append(item)
     return {
         "ws_id": ws,
         "refund_external_id": str(r["id"]),
         "refund_amount": str(amt),
         "refund_currency": cur,
         "refund_reason": r.get("note") or "",
-        "refund_status": "COMPLETED",
+        "refund_status": "COMPLETED" if r.get("status", "success") == "success" else "PENDING",
         "refund_line_items": items,
         "refund_created_ts": _ts(r.get("created_at")),
     }
@@ -367,6 +426,10 @@ class IntegrationShopify:
             shop.shop_domain, token, "orders.json", "orders",
             {"status": "any", "created_at_min": cutoff},
         )
+        txn_map = await _fetch_order_transactions(shop.shop_domain, token, cutoff)
+        for o in orders:
+            if str(o["id"]) in txn_map:
+                o["transactions"] = txn_map[str(o["id"])]
         if orders:
             err = await self._upsert_orders(ws, shop.shop_id, orders)
             if err:
@@ -438,7 +501,7 @@ class IntegrationShopify:
         )
         ext_to_id = {o.order_external_id: o.order_id for o in db_orders}
 
-        items, refunds, ships = [], [], []
+        items, payments, refunds, ships = [], [], [], []
         for o in orders:
             oid = ext_to_id.get(str(o["id"]))
             if not oid:
@@ -447,6 +510,12 @@ class IntegrationShopify:
                 rec = _map_line_item(ws, li)
                 rec["oitem_order_id"] = oid
                 items.append(rec)
+            for tx in o.get("transactions") or []:
+                if tx.get("kind") not in ("sale", "capture") or tx.get("status") != "success":
+                    continue
+                rec = _map_transaction(ws, tx)
+                rec["pay_order_id"] = oid
+                payments.append(rec)
             for r in o.get("refunds") or []:
                 rec = _map_refund(ws, r)
                 rec["refund_order_id"] = oid
@@ -456,7 +525,7 @@ class IntegrationShopify:
                 rec["ship_order_id"] = oid
                 ships.append(rec)
         errors = []
-        for table, key, recs in [("com_order_item", "oitem_external_id", items), ("com_refund", "refund_external_id", refunds), ("com_shipment", "ship_external_id", ships)]:
+        for table, key, recs in [("com_order_item", "oitem_external_id", items), ("com_payment", "pay_external_id", payments), ("com_refund", "refund_external_id", refunds), ("com_shipment", "ship_external_id", ships)]:
             if recs:
                 e = await self._upsert(table, ws, key, recs)
                 if e:
@@ -624,6 +693,16 @@ class IntegrationShopify:
                 confirm_command=f"shopify disconnect {shop_id}",
                 confirm_explanation="This will disconnect the Shopify store and stop syncing",
             )
+        shop = next((s for s in self.shops if s.shop_id == shop_id), None)
+        if shop:
+            try:
+                token = await self._get_token(shop)
+                if token:
+                    for w in await _paginate(shop.shop_domain, token, "webhooks.json", "webhooks"):
+                        if w["topic"] in WEBHOOK_TOPICS:
+                            await _shop_req(shop.shop_domain, token, "DELETE", f"webhooks/{w['id']}.json")
+            except Exception as e:
+                logger.warning("failed to delete webhooks for %s: %s", shop_id, e)
         await ckit_erp.patch_erp_record(
             self.fclient, "com_shop", self.rcx.persona.ws_id, shop_id,
             {"shop_archived_ts": time.time(), "shop_active": False},
