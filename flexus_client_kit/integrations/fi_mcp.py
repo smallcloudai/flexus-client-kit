@@ -1,6 +1,6 @@
 import json
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 from contextlib import asynccontextmanager
 
 import httpx
@@ -13,34 +13,15 @@ from flexus_client_kit import ckit_cloudtool
 logger = logging.getLogger("fi_mcp")
 
 
-# def _looks_strict(schema: dict) -> bool:
-#     if schema.get("additionalProperties") is not False:
-#         return False
-#     props = schema.get("properties", {})
-#     required = set(schema.get("required", []))
-#     return bool(props) and required == set(props.keys())
-
-
-# def _mcp_tool_to_cloudtool(prefix: str, t) -> ckit_cloudtool.CloudTool:
-#     return ckit_cloudtool.CloudTool(
-#         strict=_looks_strict(t.inputSchema),
-#         name=f"{prefix}_{t.name}",
-#         description=t.description or t.name,
-#         parameters=t.inputSchema,
-#     )
-
-
 class IntegrationMcp:
     def __init__(
         self,
         url: str,
         tokens: Optional[Dict[str, str]] = None,
         tool_prefix: str = "mcp",
-        timeout: float = 30,
     ):
         self.url = url.strip()
         self.tool_prefix = tool_prefix
-        self.timeout = timeout
         self.headers: Dict[str, str] = {}
         if tokens:
             for k, v in tokens.items():
@@ -68,49 +49,61 @@ class IntegrationMcp:
             self._use_sse = True
             logger.info("fi_mcp %s using SSE", self.url)
 
-    def list_tools_tool(self) -> ckit_cloudtool.CloudTool:
+    @classmethod
+    def tool_desc(cls, tool_prefix: str) -> ckit_cloudtool.CloudTool:
         return ckit_cloudtool.CloudTool(
-            strict=True,
-            name=f"{self.tool_prefix}_list_tools",
-            description=f"List available tools from remote MCP server '{self.tool_prefix}'",
+            strict=False,
+            name=f"{tool_prefix}",
+            description=f"MCP server {tool_prefix}, start with op=\"list\", you will see the list of available functions, continue with op=\"help\" name=\"function_of_interest\".",
             parameters={
                 "type": "object",
-                "properties": {},
-                "required": [],
-                "additionalProperties": False,
+                "properties": {
+                    "op": {"type": "string", "enum": ["list", "help", "call"]},
+                    "name": {"type": "string", "description": "Name of the function"},
+                    "args": {"type": "object", "description": "Arguments of a call, use op=\"help\" first to find what the arguments should be."},
+                },
             },
         )
 
-    async def handle_list_tools(self, toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
-        lines = []
-        for t in self._mcp_tools:
-            entry = {"tool": t.name, "description": t.description or "", "schema": t.inputSchema}
-            if t.annotations:
-                entry["annotations"] = t.annotations.model_dump(exclude_none=True)
-            lines.append(json.dumps(entry, ensure_ascii=False))
-        return "\n".join(lines) if lines else "No tools available"
-
     async def handle_tool_call(self, toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
-        original_name = toolcall.fcall_name
-        if original_name.startswith(self.tool_prefix + "_"):
-            original_name = original_name[len(self.tool_prefix) + 1:]
+        op = (model_produced_args or {}).get("op", "help")
+        args = (model_produced_args or {}).get("args", {})
+        name = (model_produced_args or {}).get("name", "")
 
-        # Slow but zero idle sockets
-        logger.info("fi_mcp calling %s on %s", original_name, self.url)
-        async with self._connect() as session:
-            result = await session.call_tool(original_name, model_produced_args or {})
-            # XXX handle multimodal content (images etc) when needed
-            text = result.content[0].text if result.content and hasattr(result.content[0], "text") else ""
-            logger.info("fi_mcp %s done, %d chars", original_name, len(text))
-            return text
+        if op == "list":
+            if not self._mcp_tools:
+                return "No tools available"
+            lines = [json.dumps({"tool": t.name, "description": (t.description or "")[:50] + ("\u2026" if len(t.description or "") > 50 else "")}, ensure_ascii=False) for t in self._mcp_tools]
+            return "\n".join(lines)
 
-    def handles(self, tool_name: str) -> bool:
-        return tool_name.startswith(self.tool_prefix + "_")
+        if op == "help":
+            if not name:
+                return "Missing name parameter\n"
+            for t in self._mcp_tools:
+                if t.name == name:
+                    entry = {"tool": t.name, "description": t.description or "", "args_schema": t.inputSchema}
+                    if t.annotations:
+                        entry["annotations"] = t.annotations.model_dump(exclude_none=True)
+                    return json.dumps(entry, indent=2, ensure_ascii=False)
+            return f"Unknown tool '{name}'\n"
+
+        if op == "call":
+            if not name:
+                return "Missing name parameter\n"
+            logger.info("fi_mcp calling %s on %s", name, self.url)
+            async with self._connect() as session:
+                result = await session.call_tool(name, args or {})
+                # XXX handle multimodal content (images etc) when needed
+                text = result.content[0].text if result.content and hasattr(result.content[0], "text") else ""
+                logger.info("fi_mcp %s done, %d chars", name, len(text))
+                return text
+
+        return f"Unknown op '{op}', use help/list/call\n"
 
     @asynccontextmanager
     async def _connect_streamable(self):
         h = self.headers or None
-        client = httpx.AsyncClient(headers=h, timeout=httpx.Timeout(self.timeout))
+        client = httpx.AsyncClient(headers=h, timeout=httpx.Timeout(15))
         async with streamable_http_client(self.url, http_client=client) as streams:
             async with ClientSession(streams[0], streams[1]) as session:
                 await session.initialize()
@@ -119,7 +112,7 @@ class IntegrationMcp:
     @asynccontextmanager
     async def _connect_sse(self):
         h = self.headers or None
-        async with sse_client(self.url, headers=h, timeout=self.timeout) as streams:
+        async with sse_client(self.url, headers=h, timeout=15) as streams:
             async with ClientSession(streams[0], streams[1]) as session:
                 await session.initialize()
                 yield session
@@ -133,6 +126,23 @@ class IntegrationMcp:
             yield session
 
 
+class ManyMCPsDeclaration:
+    def __init__(self, names: list[str]):
+        self.names = names
+        self._integrations: Dict[str, IntegrationMcp] = {}
+
+    def tools(self) -> list[ckit_cloudtool.CloudTool]:
+        return [IntegrationMcp.tool_desc(n) for n in self.names]
+
+    async def launch(self, rcx) -> None:
+        for n in self.names:
+            mcp = IntegrationMcp(url=n["url"], tokens=n.get("tokens"), tool_prefix=n["tool_prefix"])
+            await mcp.initialize()
+            self._integrations[n["tool_prefix"]] = mcp
+            rcx._handler_per_tool[n["tool_prefix"]] = mcp.handle_tool_call
+            logger.info("fi_mcp registered %s -> %s", n["tool_prefix"], n["url"])
+
+
 if __name__ == "__main__":
     import asyncio
     logging.basicConfig(level=logging.INFO)
@@ -143,6 +153,14 @@ if __name__ == "__main__":
             tool_prefix="context7",
         )
         await mcp.initialize()
-        print(await mcp.handle_list_tools(None, {}))
+        listing = await mcp.handle_tool_call(None, {"op": "list"})
+        print("-"*40, "list", "-"*40)
+        print(listing)
+        for line in listing.strip().split("\n"):
+            print("-"*40, "help", "-"*40)
+            name = json.loads(line)["tool"]
+            print(await mcp.handle_tool_call(None, {"op": "help", "name": name}))
+        print("-"*40, "call", "-"*40)
+        print(await mcp.handle_tool_call(None, {"op": "call", "name": "resolve-library-id", "args": {"query": "python mcp client", "libraryName": "mcp"}}))
 
     asyncio.run(trivial_test())
