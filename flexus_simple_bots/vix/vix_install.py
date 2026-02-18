@@ -8,7 +8,7 @@ from flexus_client_kit import ckit_bot_install
 from flexus_client_kit import ckit_cloudtool
 from flexus_client_kit.integrations import fi_crm_automations
 from flexus_client_kit.integrations import fi_resend
-
+from flexus_client_kit.integrations import fi_telegram
 from flexus_simple_bots import prompts_common
 from flexus_simple_bots.vix import vix_bot, vix_prompts
 
@@ -43,35 +43,7 @@ Integrated sales and marketing agent with CRM management, lead nurturing, and co
 """
 
 
-vix_setup_schema = fi_crm_automations.CRM_AUTOMATIONS_SETUP_SCHEMA + [
-    {
-        "bs_name": "faq_url",
-        "bs_type": "string_long",
-        "bs_default": "",
-        "bs_group": "Company Info",
-        "bs_order": 1,
-        "bs_importance": 0,
-        "bs_description": "Public URL to your FAQ page (optional, for reference during sales conversations)",
-    },
-    {
-        "bs_name": "enable_auto_qualify",
-        "bs_type": "bool",
-        "bs_default": True,
-        "bs_group": "Sales Behavior",
-        "bs_order": 1,
-        "bs_importance": 0,
-        "bs_description": "Automatically qualify leads using BANT (Budget, Authority, Need, Timeline)",
-    },
-    {
-        "bs_name": "handoff_threshold",
-        "bs_type": "string_short",
-        "bs_default": "medium",
-        "bs_group": "Sales Behavior",
-        "bs_order": 2,
-        "bs_importance": 0,
-        "bs_description": "When to offer human handoff: low (rarely), medium (balanced), high (proactive)",
-    },
-] + [
+vix_setup_schema = [
     {
         "bs_name": "EMAIL_RESPOND_TO",
         "bs_type": "string_long",
@@ -80,7 +52,7 @@ vix_setup_schema = fi_crm_automations.CRM_AUTOMATIONS_SETUP_SCHEMA + [
         "bs_importance": 0,
         "bs_description": "Email addresses the bot should respond to, comma-separated (e.g. sales@yourdomain.com). All other emails to your domains are logged as CRM activities only.",
     },
-] + fi_resend.RESEND_SETUP_SCHEMA + fi_telegram.TELEGRAM_SETUP_SCHEMA
+] + fi_crm_automations.CRM_AUTOMATIONS_SETUP_SCHEMA + fi_resend.RESEND_SETUP_SCHEMA
 
 
 async def install(
