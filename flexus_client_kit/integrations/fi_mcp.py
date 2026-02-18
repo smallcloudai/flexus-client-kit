@@ -48,13 +48,25 @@ class IntegrationMcp:
                     self.headers["Authorization"] = f"Bearer {v}"
                 else:
                     self.headers[k] = v
-        self.use_sse = self.url.endswith("/sse")
+        self._use_sse = None  # auto-detected on first connect
         self._mcp_tools = []
 
     async def initialize(self):
-        async with self._connect() as session:
-            response = await session.list_tools()
-            self._mcp_tools = response.tools
+        # Probe transport: try Streamable HTTP first, fall back to SSE on 4xx
+        try:
+            async with self._connect_streamable() as session:
+                self._mcp_tools = (await session.list_tools()).tools
+                self._use_sse = False
+                logger.info("fi_mcp %s using streamable HTTP", self.url)
+                return
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code not in (404, 405):
+                raise
+            logger.info("fi_mcp streamable HTTP got %d, trying SSE", e.response.status_code)
+        async with self._connect_sse() as session:
+            self._mcp_tools = (await session.list_tools()).tools
+            self._use_sse = True
+            logger.info("fi_mcp %s using SSE", self.url)
 
     def list_tools_tool(self) -> ckit_cloudtool.CloudTool:
         return ckit_cloudtool.CloudTool(
@@ -79,12 +91,11 @@ class IntegrationMcp:
         return "\n".join(lines) if lines else "No tools available"
 
     async def handle_tool_call(self, toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
-        # strip prefix to get original MCP tool name
         original_name = toolcall.fcall_name
         if original_name.startswith(self.tool_prefix + "_"):
             original_name = original_name[len(self.tool_prefix) + 1:]
 
-        # XXX connect-per-call: slow but zero idle sockets
+        # Slow but zero idle sockets
         logger.info("fi_mcp calling %s on %s", original_name, self.url)
         async with self._connect() as session:
             result = await session.call_tool(original_name, model_produced_args or {})
@@ -97,25 +108,36 @@ class IntegrationMcp:
         return tool_name.startswith(self.tool_prefix + "_")
 
     @asynccontextmanager
-    async def _connect(self):
+    async def _connect_streamable(self):
         h = self.headers or None
-        if self.use_sse:
-            transport = sse_client(self.url, headers=h)
-        else:
-            client = httpx.AsyncClient(headers=h, timeout=httpx.Timeout(self.timeout))
-            transport = streamable_http_client(self.url, http_client=client)
-        async with transport as streams:
-            read_stream, write_stream = streams[0], streams[1]
-            async with ClientSession(read_stream, write_stream) as session:
+        client = httpx.AsyncClient(headers=h, timeout=httpx.Timeout(self.timeout))
+        async with streamable_http_client(self.url, http_client=client) as streams:
+            async with ClientSession(streams[0], streams[1]) as session:
                 await session.initialize()
                 yield session
+
+    @asynccontextmanager
+    async def _connect_sse(self):
+        h = self.headers or None
+        async with sse_client(self.url, headers=h, timeout=self.timeout) as streams:
+            async with ClientSession(streams[0], streams[1]) as session:
+                await session.initialize()
+                yield session
+
+    @asynccontextmanager
+    async def _connect(self):
+        if self._use_sse is None:
+            raise RuntimeError("call initialize() before using MCP integration")
+        ctx = self._connect_sse() if self._use_sse else self._connect_streamable()
+        async with ctx as session:
+            yield session
 
 
 if __name__ == "__main__":
     import asyncio
     logging.basicConfig(level=logging.INFO)
 
-    async def main():
+    async def trivial_test():
         mcp = IntegrationMcp(
             url="https://mcp.context7.com/mcp",
             tool_prefix="context7",
@@ -123,4 +145,4 @@ if __name__ == "__main__":
         await mcp.initialize()
         print(await mcp.handle_list_tools(None, {}))
 
-    asyncio.run(main())
+    asyncio.run(trivial_test())
