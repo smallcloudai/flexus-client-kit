@@ -84,18 +84,6 @@ Characters < > & must be escaped as &lt; &gt; &amp; in regular text.
 Tables are not allowed.
 """
 
-TELEGRAM_SETUP_SCHEMA = [
-    {
-        "bs_name": "TELEGRAM_BOT_TOKEN",
-        "bs_type": "string_long",
-        "bs_default": "",
-        "bs_group": "Telegram",
-        "bs_importance": 0,
-        "bs_description": "Token token from @BotFather",
-    },
-]
-
-
 @dataclass
 class ActivityTelegram:
     chat_id: int
@@ -112,11 +100,10 @@ class IntegrationTelegram:
         self,
         fclient: ckit_client.FlexusClient,
         rcx: ckit_bot_exec.RobotContext,
-        TELEGRAM_BOT_TOKEN: str,
     ):
         self.fclient = fclient
         self.rcx = rcx
-        self.bot_token = TELEGRAM_BOT_TOKEN.strip()
+        self.bot_token = (rcx.external_auth.get("telegram") or {}).get("api_key", "").strip()
         self.problems_accumulator: List[str] = []
 
         self.tg_app: Optional[telegram.ext.Application] = None
@@ -125,15 +112,14 @@ class IntegrationTelegram:
         self._prev_messages: deque[str] = deque(maxlen=fi_messenger.MAX_DEDUP_MESSAGES)
 
         if not self.bot_token:
-            self.oops_a_problem("TELEGRAM_BOT_TOKEN is not configured")
+            self.oops_a_problem("Telegram is not connected, ask user to connect it in bot settings")
             return
 
         if ":" not in self.bot_token:
-            self.oops_a_problem("TELEGRAM_BOT_TOKEN should have format bot_id:SECRET_KEY")
+            self.oops_a_problem("Telegram api_key should have format bot_id:SECRET_KEY")
 
         try:
             self.tg_app = telegram.ext.Application.builder().token(self.bot_token).build()
-            # self._setup_handlers()
         except ImportError:
             self.oops_a_problem("python-telegram-bot not installed")
         except Exception as e:
@@ -162,14 +148,13 @@ class IntegrationTelegram:
             info = await self.tg_app.bot.get_webhook_info()
             if info.url != webhook_url:
                 await self.tg_app.bot.set_webhook(webhook_url)
-                logger.info("%s telegram webhook changed to %s", self.rcx.persona.persona_id, webhook_url)
+                logger.info("%s telegram bot %s webhook changed to %s", self.rcx.persona.persona_id, bot_id, webhook_url)
             else:
-                logger.info("%s telegram webhook stays %s", self.rcx.persona.persona_id, webhook_url)
+                logger.info("%s telegram bot %s webhook stays %s", self.rcx.persona.persona_id, bot_id, webhook_url)
         except Exception as e:
             logger.exception("%s telegram failed to set webhook", self.rcx.persona.persona_id)
             self.oops_a_problem(f"webhook: {type(e).__name__}: {e}")
 
-        logger.info("%s telegram registered successfully %s", self.rcx.persona.persona_id, bot_id)
         # For some reason, even start() is not necessary, it works without it
         # await self.tg_app.start()
 

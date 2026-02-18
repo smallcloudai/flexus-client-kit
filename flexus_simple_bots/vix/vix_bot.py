@@ -58,7 +58,7 @@ async def vix_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.Ro
     automations_integration = fi_crm_automations.IntegrationCrmAutomations(
         fclient, rcx, get_setup, available_erp_tables=ERP_TABLES,
     )
-    telegram = fi_telegram.IntegrationTelegram(fclient, rcx, get_setup().get("TELEGRAM_BOT_TOKEN", ""))
+    telegram = fi_telegram.IntegrationTelegram(fclient, rcx)
     await telegram.register_webhook_and_start()
 
     @rcx.on_updated_message

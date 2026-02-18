@@ -22,7 +22,11 @@ from flexus_client_kit import erp_schema
 logger = logging.getLogger("btexe")
 
 
-class RestartBot(Exception):
+class RestartBecauseSettingsChanged(Exception):
+    pass
+
+
+class RestartBecauseAuthChanged(Exception):
     pass
 
 
@@ -75,6 +79,7 @@ class RobotContext:
         self._handler_per_erp_table_change: Dict[str, Callable[[str, Optional[Any], Optional[Any]], Awaitable[None]]] = {}
         self._handler_per_emsg_type: Dict[str, Callable[[ckit_bot_query.FExternalMessageOutput], Awaitable[None]]] = {}
         self._restart_requested = False
+        self._soft_restart_requested = False
         self._completed_initial_unpark = False
         self._parked_messages: Dict[str, ckit_ask_model.FThreadMessageOutput] = {}
         self._parked_threads: Dict[str, ckit_ask_model.FThreadOutput] = {}
@@ -214,7 +219,9 @@ class RobotContext:
         if not did_anything:
             self._completed_initial_unpark = True
             if self._restart_requested and not self.bg_call_tasks:
-                raise RestartBot()
+                raise RestartBecauseSettingsChanged()
+            if self._soft_restart_requested and not self.bg_call_tasks:
+                raise RestartBecauseAuthChanged()
             try:
                 await asyncio.wait_for(self._parked_anything_new.wait(), timeout=sleep_if_no_work)
             except asyncio.TimeoutError:
@@ -288,8 +295,12 @@ async def crash_boom_bang(fclient: ckit_client.FlexusClient, rcx: RobotContext, 
     while not ckit_shutdown.shutdown_event.is_set():
         try:
             await bot_main_loop(fclient, rcx)
-        except RestartBot:
-            logger.info("%s restart requested after completing all pending work", rcx.persona.persona_id)
+        except RestartBecauseAuthChanged:
+            logger.info("%s restart requested (auth changed)", rcx.persona.persona_id)
+            rcx._soft_restart_requested = False
+            continue
+        except RestartBecauseSettingsChanged:
+            logger.info("%s restart requested (settings changed)", rcx.persona.persona_id)
             break
         except asyncio.CancelledError:
             break
@@ -418,8 +429,10 @@ async def subscribe_and_produce_callbacks(
                     bc.auth[persona_id][provider] = upd.news_payload_auth.auth_key2value
                     # logger.info(f"auth arrived bc.auth[{persona_id}][{provider}] = {len(upd.news_payload_auth.auth_key2value)} keys")
                     logger.info(f"auth arrived bc.auth[{persona_id}][{provider}] = {upd.news_payload_auth.auth_key2value}")
-                    if persona_id in bc.bots_running:
-                        bc.bots_running[persona_id].instance_rcx._restart_requested = True
+                    if bot := bc.bots_running.get(persona_id, None):
+                        bot.instance_rcx.external_auth = bc.auth.get(persona_id, {})
+                        bot.instance_rcx._soft_restart_requested = True
+                        bot.instance_rcx._parked_anything_new.set()
 
                 elif upd.news_action == "DELETE":
                     if upd.news_payload_auth is None:
@@ -429,8 +442,10 @@ async def subscribe_and_produce_callbacks(
                     if persona_id in bc.auth:
                         bc.auth[persona_id].pop(provider, None)
                     logger.info(f"auth dropped {provider!r} from bc.auth[{persona_id}]")
-                    if persona_id in bc.bots_running:
-                        bc.bots_running[persona_id].instance_rcx._restart_requested = True
+                    if bot := bc.bots_running.get(persona_id, None):
+                        bot.instance_rcx.external_auth = bc.auth.get(persona_id, {})
+                        bot.instance_rcx._soft_restart_requested = True
+                        bot.instance_rcx._parked_anything_new.set()
 
             elif upd.news_about == "flexus_persona":
                 if upd.news_action in ["INSERT", "UPDATE"]:

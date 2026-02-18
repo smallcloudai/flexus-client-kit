@@ -4,7 +4,6 @@ import json
 from pathlib import Path
 
 from flexus_client_kit import ckit_bot_install, ckit_client, ckit_cloudtool
-from flexus_client_kit.integrations import fi_telegram
 from flexus_simple_bots import prompts_common
 from flexus_simple_bots.telegram_groupmod import telegram_groupmod_bot, telegram_groupmod_prompts
 
@@ -119,7 +118,7 @@ TELEGRAM_GROUPMOD_SETUP_SCHEMA = [
         "bs_importance": 0,
         "bs_description": "Message sent after a new member passes verification.",
     },
-] + fi_telegram.TELEGRAM_SETUP_SCHEMA
+]
 
 
 REVIEWER_LARK = """

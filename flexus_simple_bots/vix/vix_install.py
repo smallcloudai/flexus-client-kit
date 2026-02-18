@@ -10,7 +10,6 @@ from flexus_client_kit.integrations import fi_crm_automations
 
 from flexus_simple_bots import prompts_common
 from flexus_simple_bots.vix import vix_bot, vix_prompts
-from flexus_client_kit.integrations import fi_telegram
 
 
 BOT_DESCRIPTION = """
@@ -71,7 +70,7 @@ vix_setup_schema = fi_crm_automations.CRM_AUTOMATIONS_SETUP_SCHEMA + [
         "bs_importance": 0,
         "bs_description": "When to offer human handoff: low (rarely), medium (balanced), high (proactive)",
     },
-] + fi_telegram.TELEGRAM_SETUP_SCHEMA
+]
 
 
 async def install(

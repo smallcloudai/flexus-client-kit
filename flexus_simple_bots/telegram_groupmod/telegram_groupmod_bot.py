@@ -159,7 +159,6 @@ async def telegram_groupmod_main_loop(
         rcx.persona.persona_setup,
     )
 
-    telegram_token = setup["TELEGRAM_BOT_TOKEN"]
     warns_before_mute = setup["warns_before_mute"]
     mutes_before_ban = setup["mutes_before_ban"]
     tz = ZoneInfo(rcx.persona.ws_timezone)
@@ -202,7 +201,7 @@ async def telegram_groupmod_main_loop(
     await coll_buffer.create_index("chat_id")
     await coll_buffer.create_index("ts", expireAfterSeconds=7 * 86400)
 
-    tg = fi_telegram.IntegrationTelegram(fclient, rcx, telegram_token)
+    tg = fi_telegram.IntegrationTelegram(fclient, rcx)
 
     # Per-chat message buffers, keyed by chat_id string
     buffers: Dict[str, List[dict]] = {}
@@ -562,12 +561,16 @@ async def telegram_groupmod_main_loop(
         )
 
     await tg.register_webhook_and_start()
+    last_sync = time.time()
     try:
         while not ckit_shutdown.shutdown_event.is_set():
             for chat_id in list(buffers.keys()):
                 await maybe_post_time_task(chat_id)
             await rcx.unpark_collected_events(sleep_if_no_work=10.0)
-            await sync_buffers_to_mongo()
+            now = time.time()
+            if now - last_sync >= 10.0:
+                await sync_buffers_to_mongo()
+                last_sync = now
     finally:
         await sync_buffers_to_mongo()
         if tg:

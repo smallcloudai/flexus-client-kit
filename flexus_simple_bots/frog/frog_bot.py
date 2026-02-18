@@ -218,7 +218,8 @@ async def frog_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.R
     try:
         while not ckit_shutdown.shutdown_event.is_set():
             await rcx.unpark_collected_events(sleep_if_no_work=10.0)
-
+            # Here you can do whatever, just don't block with non-async code! Try not to keep sockets/resources you don't need,
+            # also a common pitfall: execution reaches here far more often than every 10s when updates from backend actively arrive.
     finally:
         logger.info("%s exit" % (rcx.persona.persona_id,))
 
