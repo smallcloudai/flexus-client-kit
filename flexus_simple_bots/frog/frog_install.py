@@ -8,11 +8,14 @@ from flexus_client_kit import ckit_skills
 from flexus_client_kit import ckit_integrations_db
 from flexus_simple_bots import prompts_common
 from flexus_simple_bots.frog import frog_prompts
+from flexus_simple_bots.frog import frog_bot
 
 
 FROG_ROOTDIR = Path(__file__).parent
 FROG_SKILLS = ckit_skills.static_skills_find(FROG_ROOTDIR, shared_skills_allowlist="*")
 FROG_SETUP_SCHEMA = json.loads((FROG_ROOTDIR / "setup_schema.json").read_text())
+FROG_SETUP_SCHEMA.extend(frog_bot.frog_mcps.setup_schema("MCP Servers", 100))
+
 
 FROG_INTEGRATIONS: list[ckit_integrations_db.IntegrationRecord] = ckit_integrations_db.static_integrations_load(
     FROG_ROOTDIR,
