@@ -98,7 +98,6 @@ if msg["role"] == "assistant":
 
 async def install(
     client: ckit_client.FlexusClient,
-    ws_id: str,
     bot_name: str,
     bot_version: str,
     tools: List[ckit_cloudtool.CloudTool],
@@ -128,7 +127,7 @@ async def install(
 
     await ckit_bot_install.marketplace_upsert_dev_bot(
         client,
-        ws_id=ws_id,
+        ws_id=client.ws_id,
         marketable_name=bot_name,
         marketable_version=bot_version,
         marketable_accent_color="#8B4513",
@@ -180,6 +179,5 @@ async def install(
 
 if __name__ == "__main__":
     from flexus_simple_bots.lawyerrat import lawyerrat_bot
-    args = ckit_bot_install.bot_install_argparse()
     client = ckit_client.FlexusClient("lawyerrat_install")
-    asyncio.run(install(client, ws_id=args.ws, bot_name=lawyerrat_bot.BOT_NAME, bot_version=lawyerrat_bot.BOT_VERSION, tools=lawyerrat_bot.TOOLS))
+    asyncio.run(install(client, bot_name=lawyerrat_bot.BOT_NAME, bot_version=lawyerrat_bot.BOT_VERSION, tools=lawyerrat_bot.TOOLS))

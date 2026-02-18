@@ -20,15 +20,6 @@ def load_form_bundles(install_file: str) -> Dict[str, str]:
     return bundles
 
 
-def bot_install_argparse():
-    parser = argparse.ArgumentParser(
-        epilog=ckit_client.HELP,
-        formatter_class=argparse.RawDescriptionHelpFormatter
-    )
-    parser.add_argument("--ws", help="Workspace ID", required=True)
-    return parser.parse_args()
-
-
 @dataclass
 class FBotInstallOutput:
     marketable_name: str
@@ -81,6 +72,7 @@ async def marketplace_upsert_dev_bot(
     marketable_auth_needed: List[str] = [],
     marketable_auth_supported: List[str] = [],
 ) -> FBotInstallOutput:
+    assert ws_id, "Set FLEXUS_WORKSPACE environment variable to your workspace ID"
     assert not ws_id.startswith("fx-"), "You can find workspace id in the browser address bar, when visiting for example the statistics page"
     http = await client.use_http()
     async with http as h:

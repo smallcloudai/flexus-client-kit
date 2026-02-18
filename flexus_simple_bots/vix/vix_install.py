@@ -75,7 +75,6 @@ vix_setup_schema = fi_crm_automations.CRM_AUTOMATIONS_SETUP_SCHEMA + [
 
 async def install(
     client: ckit_client.FlexusClient,
-    ws_id: str,
     bot_name: str,
     bot_version: str,
     tools: list[ckit_cloudtool.CloudTool],
@@ -86,7 +85,7 @@ async def install(
     pic_small = base64.b64encode(open(Path(__file__).with_name("vix-256x256.webp"), "rb").read()).decode("ascii")
     await ckit_bot_install.marketplace_upsert_dev_bot(
         client,
-        ws_id=ws_id,
+        ws_id=client.ws_id,
         marketable_name=bot_name,
         marketable_version=bot_version,
         marketable_accent_color="#dedad0",
@@ -151,6 +150,5 @@ async def install(
 
 
 if __name__ == "__main__":
-    args = ckit_bot_install.bot_install_argparse()
     client = ckit_client.FlexusClient("vix_install")
-    asyncio.run(install(client, ws_id=args.ws, bot_name=vix_bot.BOT_NAME, bot_version=vix_bot.BOT_VERSION, tools=vix_bot.TOOLS))
+    asyncio.run(install(client, bot_name=vix_bot.BOT_NAME, bot_version=vix_bot.BOT_VERSION, tools=vix_bot.TOOLS))

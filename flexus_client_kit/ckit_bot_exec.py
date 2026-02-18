@@ -958,7 +958,7 @@ async def run_bots_in_this_group(
             return
         if fclient.ws_id:
             logger.info("Installing %s:%s into workspace %s", marketable_name, marketable_version_str, fclient.ws_id)
-            await install_func(fclient, fclient.ws_id, marketable_name, marketable_version_str, inprocess_tools)
+            await install_func(fclient, marketable_name, marketable_version_str, inprocess_tools)
         ws_id_prefix = fclient.ws_id  # None if using group_id
 
     elif fclient.inside_radix_process:
