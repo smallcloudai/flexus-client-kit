@@ -8,8 +8,7 @@ from flexus_client_kit import ckit_client
 from flexus_client_kit import ckit_cloudtool
 from flexus_client_kit import ckit_bot_exec
 from flexus_client_kit import ckit_shutdown
-from flexus_client_kit import ckit_ask_model
-from flexus_client_kit import ckit_kanban
+from flexus_client_kit import ckit_kanban   # TODO add default reactions to messengers (post to inbox)
 from flexus_client_kit.integrations import fi_pdoc
 from flexus_simple_bots.version_common import SIMPLE_BOTS_COMMON_VERSION
 
@@ -25,18 +24,6 @@ async def bot_main_loop(install_mod, fclient: ckit_client.FlexusClient, rcx: cki
     ckit_bot_exec.official_setup_mixing_procedure(install_mod.setup_schema, rcx.persona.persona_setup)
     pdoc_integration = fi_pdoc.IntegrationPdoc(rcx, rcx.persona.ws_root_group_id)
 
-    @rcx.on_updated_message
-    async def updated_message_in_db(msg: ckit_ask_model.FThreadMessageOutput):
-        pass
-
-    @rcx.on_updated_thread
-    async def updated_thread_in_db(th: ckit_ask_model.FThreadOutput):
-        pass
-
-    @rcx.on_updated_task
-    async def updated_task_in_db(t: ckit_kanban.FPersonaKanbanTaskOutput):
-        pass
-
     @rcx.on_tool_call(fi_pdoc.POLICY_DOCUMENT_TOOL.name)
     async def toolcall_pdoc(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
         return await pdoc_integration.called_by_model(toolcall, model_produced_args)
@@ -50,8 +37,9 @@ async def bot_main_loop(install_mod, fclient: ckit_client.FlexusClient, rcx: cki
 
 def main():
     if len(sys.argv) < 2 or sys.argv[1].startswith("-"):
-        print("Usage: python -m flexus_client_kit.no_special_code_bot <bot_module>")
+        print("Usage: python -m flexus_client_kit.no_special_code_bot <mybot_install>")
         print("Example: python -m flexus_client_kit.no_special_code_bot flexus_simple_bots.otter.otter_install")
+        print("Module must export: BOT_NAME, setup_schema, install()")
         sys.exit(1)
     mod_name = sys.argv.pop(1)
     install_mod = importlib.import_module(mod_name)

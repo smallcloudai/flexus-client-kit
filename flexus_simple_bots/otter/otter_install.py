@@ -4,6 +4,7 @@ import base64
 from pathlib import Path
 
 from flexus_client_kit import ckit_client, ckit_bot_install, ckit_cloudtool
+from flexus_client_kit import ckit_experts_from_files
 from flexus_simple_bots import prompts_common
 
 
@@ -38,22 +39,7 @@ setup_schema = [
 ]
 
 
-def load_prompt(name: str) -> str:
-    return (Path(__file__).parent / "otter_prompts" / name).read_text()
-
-
-def build_expert_prompt(expert_name: str) -> str:
-    return (
-        load_prompt("personality.md")
-        + "\n"
-        + load_prompt(f"expert_{expert_name}.md")
-        + "\n"
-        + prompts_common.PROMPT_KANBAN
-        + prompts_common.PROMPT_PRINT_WIDGET
-        + prompts_common.PROMPT_POLICY_DOCUMENTS
-        + prompts_common.PROMPT_A2A_COMMUNICATION
-        + prompts_common.PROMPT_HERE_GOES_SETUP
-    )
+PROMPTS_DIR = Path(__file__).parent / "otter_prompts"
 
 
 async def install(
@@ -89,16 +75,7 @@ async def install(
         marketable_preferred_model_default="grok-4-1-fast-non-reasoning",
         marketable_daily_budget_default=100_000,
         marketable_default_inbox_default=10_000,
-        marketable_experts=[
-            ("default", ckit_bot_install.FMarketplaceExpertInput(
-                fexp_system_prompt=build_expert_prompt("default"),
-                fexp_python_kernel="",
-                fexp_block_tools="*setup*",
-                fexp_allow_tools="",
-                fexp_app_capture_tools=bot_internal_tools,
-                fexp_description="Conversational reframing expert. Listens, validates, reframes, suggests next move.",
-            )),
-        ],
+        marketable_experts=ckit_experts_from_files.discover_experts(PROMPTS_DIR, bot_internal_tools),
         marketable_tags=["Motivation", "Reframing", "Simple"],
         marketable_picture_big_b64=pic_big,
         marketable_picture_small_b64=pic_small,
