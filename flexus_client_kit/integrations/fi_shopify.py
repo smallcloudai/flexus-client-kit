@@ -76,15 +76,20 @@ WEBHOOK_TOPICS = [
     "products/create", "products/update", "products/delete",
 ]
 
-_FIN_STATUS = {
-    "pending": "PENDING", "authorized": "PENDING",
+FIN_STATUS = {
+    "pending": "PENDING", "authorized": "AUTHORIZED",
     "partially_paid": "PARTIALLY_PAID", "paid": "PAID",
     "partially_refunded": "PARTIALLY_REFUNDED", "refunded": "REFUNDED",
     "voided": "VOIDED",
 }
-_FUL_STATUS = {"partial": "PARTIAL", "fulfilled": "FULFILLED"}
-_SHIP_STATUS = {
-    "pending": "PENDING", "open": "SHIPPED", "success": "SHIPPED",
+FUL_STATUS = {
+    None: "UNFULFILLED", "unfulfilled": "UNFULFILLED",
+    "partial": "PARTIALLY_FULFILLED", "fulfilled": "FULFILLED", "restocked": "RESTOCKED",
+}
+SHIP_STATUS = {
+    "pending": "PENDING", "open": "PENDING",
+    "success": "SHIPPED", "in_transit": "IN_TRANSIT",
+    "out_for_delivery": "IN_TRANSIT", "delivered": "DELIVERED",
     "cancelled": "FAILED", "error": "FAILED", "failure": "FAILED",
 }
 
@@ -178,7 +183,7 @@ async def _paginate(domain, token, path, key, params=None):
     return result
 
 
-def _ts(s):
+def parse_ts(s):
     if not s:
         return 0.0
     try:
@@ -200,8 +205,8 @@ def _map_product(ws, shop_id, p):
         "prod_tags": [t.strip() for t in (p.get("tags") or "").split(",") if t.strip()],
         "prod_images": [{"src": i["src"], "alt": i.get("alt", "")} for i in (p.get("images") or [])[:5]],
         "prod_details": {"vendor": p.get("vendor", ""), "handle": p.get("handle", "")},
-        "prod_created_ts": _ts(p.get("created_at")),
-        "prod_modified_ts": _ts(p.get("updated_at")),
+        "prod_created_ts": parse_ts(p.get("created_at")),
+        "prod_modified_ts": parse_ts(p.get("updated_at")),
     }
 
 
@@ -222,8 +227,8 @@ def _map_variant(ws, v):
         "pvar_inventory_status": inv,
         "pvar_options": {f"option{i}": v.get(f"option{i}") for i in (1, 2, 3) if v.get(f"option{i}")},
         "pvar_active": True,
-        "pvar_created_ts": _ts(v.get("created_at")),
-        "pvar_modified_ts": _ts(v.get("updated_at")),
+        "pvar_created_ts": parse_ts(v.get("created_at")),
+        "pvar_modified_ts": parse_ts(v.get("updated_at")),
     }
 
 
@@ -239,8 +244,8 @@ def _map_order(ws, shop_id, o, contact_id=None):
         "order_number": str(o.get("order_number", o.get("name", ""))),
         "order_contact_id": contact_id,
         "order_email": (o.get("email") or o.get("contact_email") or "").lower(),
-        "order_financial_status": _FIN_STATUS.get(o.get("financial_status", ""), "PENDING"),
-        "order_fulfillment_status": _FUL_STATUS.get(o.get("fulfillment_status") or "", "UNFULFILLED"),
+        "order_financial_status": FIN_STATUS.get(o.get("financial_status", ""), "PENDING"),
+        "order_fulfillment_status": FUL_STATUS.get(o.get("fulfillment_status") or "", "UNFULFILLED"),
         "order_currency": o.get("currency", ""),
         "order_subtotal": str(o.get("subtotal_price", "0")),
         "order_total_tax": str(o.get("total_tax", "0")),
@@ -253,9 +258,9 @@ def _map_order(ws, shop_id, o, contact_id=None):
         "order_tax_lines": o.get("tax_lines", []),
         "order_shipping_lines": o.get("shipping_lines", []),
         "order_details": {"name": o.get("name", ""), "source": o.get("source_name", "")},
-        "order_created_ts": _ts(o.get("created_at")),
-        "order_modified_ts": _ts(o.get("updated_at")),
-        "order_cancelled_ts": _ts(o.get("cancelled_at")),
+        "order_created_ts": parse_ts(o.get("created_at")),
+        "order_modified_ts": parse_ts(o.get("updated_at")),
+        "order_cancelled_ts": parse_ts(o.get("cancelled_at")),
     }
 
 
@@ -284,7 +289,7 @@ def _map_transaction(ws, t):
         "pay_status": st,
         "pay_provider": t.get("gateway", ""),
         "pay_details": {"kind": t.get("kind", ""), "authorization": t.get("authorization", "")},
-        "pay_created_ts": _ts(t.get("created_at")),
+        "pay_created_ts": parse_ts(t.get("created_at")),
     }
 
 
@@ -304,7 +309,7 @@ def _map_refund(ws, r):
         "refund_reason": r.get("note") or "",
         "refund_status": "COMPLETED" if r.get("status", "success") == "success" else "PENDING",
         "refund_line_items": items,
-        "refund_created_ts": _ts(r.get("created_at")),
+        "refund_created_ts": parse_ts(r.get("created_at")),
     }
 
 
@@ -317,10 +322,10 @@ def _map_fulfillment(ws, f):
         "ship_carrier": f.get("tracking_company") or "",
         "ship_tracking_number": f.get("tracking_number") or "",
         "ship_tracking_url": urls[0] if urls else (f.get("tracking_url") or ""),
-        "ship_status": _SHIP_STATUS.get(f.get("status", ""), "PENDING"),
+        "ship_status": SHIP_STATUS.get(f.get("status", ""), "PENDING"),
         "ship_line_items": items,
-        "ship_created_ts": _ts(f.get("created_at")),
-        "ship_modified_ts": _ts(f.get("updated_at")),
+        "ship_created_ts": parse_ts(f.get("created_at")),
+        "ship_modified_ts": parse_ts(f.get("updated_at")),
     }
 
 
