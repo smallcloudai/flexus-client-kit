@@ -1,6 +1,6 @@
 import json
 import logging
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Union
 from contextlib import asynccontextmanager
 
 import httpx
@@ -8,6 +8,7 @@ from mcp import ClientSession
 from mcp.client.sse import sse_client
 from mcp.client.streamable_http import streamable_http_client
 
+from flexus_client_kit import ckit_bot_exec
 from flexus_client_kit import ckit_cloudtool
 
 logger = logging.getLogger("fi_mcp")
@@ -17,11 +18,11 @@ class IntegrationMcp:
     def __init__(
         self,
         url: str,
+        mcp_name: str,
         tokens: Optional[Dict[str, str]] = None,
-        tool_prefix: str = "mcp",
     ):
         self.url = url.strip()
-        self.tool_prefix = tool_prefix
+        self.mcp_name = mcp_name
         self.headers: Dict[str, str] = {}
         if tokens:
             for k, v in tokens.items():
@@ -50,11 +51,11 @@ class IntegrationMcp:
             logger.info("fi_mcp %s using SSE", self.url)
 
     @classmethod
-    def tool_desc(cls, tool_prefix: str) -> ckit_cloudtool.CloudTool:
+    def tool_desc(cls, n: str) -> ckit_cloudtool.CloudTool:
         return ckit_cloudtool.CloudTool(
             strict=False,
-            name=f"{tool_prefix}",
-            description=f"MCP server {tool_prefix}, start with op=\"list\", you will see the list of available functions, continue with op=\"help\" name=\"function_of_interest\".",
+            name=f"mcp_{n}",
+            description=f"MCP server {n}, start with op=\"list\", you will see the list of available functions, continue with op=\"help\" name=\"function_of_interest\".",
             parameters={
                 "type": "object",
                 "properties": {
@@ -126,21 +127,64 @@ class IntegrationMcp:
             yield session
 
 
-class ManyMCPsDeclaration:
+MCP_DATABASE = {  # "prefix": ("default_url", {"token_name": "default_value", ...}),
+"context7": ("https://mcp.context7.com/mcp", {}),
+}
+
+
+class MCPsDeclaration:
     def __init__(self, names: list[str]):
+        for n in names:
+            if n not in MCP_DATABASE:
+                raise ValueError(f"Unknown MCP server {n!r}, known: {list(MCP_DATABASE.keys())}")
         self.names = names
-        self._integrations: Dict[str, IntegrationMcp] = {}
+
+    def setup_schema(self, bs_group: str, bs_order_start: int) -> list[Dict[str, Union[str, int]]]:
+        schema = []
+        for i, n in enumerate(self.names):
+            default_url, default_tokens = MCP_DATABASE[n]
+            schema.append({
+                "bs_name": f"mcp_{n}_url",
+                "bs_type": "string_long",
+                "bs_default": default_url,
+                "bs_group": bs_group,
+                "bs_order": bs_order_start + i * 10,
+                "bs_importance": 0,
+                "bs_description": f"MCP server URL for {n}",
+            })
+            for tk, tv in default_tokens.items():
+                schema.append({
+                    "bs_name": f"mcp_{n}_{tk}",
+                    "bs_type": "string_long",
+                    "bs_default": tv,
+                    "bs_group": bs_group,
+                    "bs_order": bs_order_start + i * 10 + 1,
+                    "bs_importance": 0,
+                    "bs_description": f"Token '{tk}' for {n} MCP server",
+                })
+        return schema
 
     def tools(self) -> list[ckit_cloudtool.CloudTool]:
         return [IntegrationMcp.tool_desc(n) for n in self.names]
 
-    async def launch(self, rcx) -> None:
+    async def launch(self, rcx: ckit_bot_exec.RobotContext, setup: Dict[str, Any]) -> None:
         for n in self.names:
-            mcp = IntegrationMcp(url=n["url"], tokens=n.get("tokens"), tool_prefix=n["tool_prefix"])
+            default_url, default_tokens = MCP_DATABASE[n]
+            url = setup.get(f"mcp_{n}_url", default_url)
+            if not url:
+                async def _not_configured(toolcall, args, _n=n):
+                    return f"MCP server {_n} is not configured, set mcp_{_n}_url in bot setup"
+                rcx.on_tool_call(f"mcp_{n}")(_not_configured)
+                continue
+            tokens = {}
+            for tk in default_tokens:
+                v = setup.get(f"mcp_{n}_{tk}", default_tokens[tk])
+                if v:
+                    tokens[tk] = v
+            mcp = IntegrationMcp(url=url, tokens=tokens or None, mcp_name=n)
             await mcp.initialize()
-            self._integrations[n["tool_prefix"]] = mcp
-            rcx._handler_per_tool[n["tool_prefix"]] = mcp.handle_tool_call
-            logger.info("fi_mcp registered %s -> %s", n["tool_prefix"], n["url"])
+            rcx.on_tool_call(f"mcp_{n}")(mcp.handle_tool_call)
+            logger.info("mcp launched %s -> %s", n, url)
 
 
 if __name__ == "__main__":
@@ -150,7 +194,7 @@ if __name__ == "__main__":
     async def trivial_test():
         mcp = IntegrationMcp(
             url="https://mcp.context7.com/mcp",
-            tool_prefix="context7",
+            mcp_name="context7",
         )
         await mcp.initialize()
         listing = await mcp.handle_tool_call(None, {"op": "list"})

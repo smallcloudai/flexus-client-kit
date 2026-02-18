@@ -8,6 +8,7 @@ from flexus_client_kit import ckit_cloudtool
 
 from flexus_simple_bots import prompts_common
 from flexus_simple_bots.frog import frog_prompts
+from flexus_simple_bots.frog import frog_bot
 
 
 BOT_DESCRIPTION = """
@@ -58,6 +59,7 @@ frog_setup_schema = [
         "bs_importance": 1,
         "bs_description": "Maximum number of insects this frog can catch in one hunting session. Like a real frog's stomach capacity!",
     },
+    *frog_bot.frog_mcps.setup_schema("MCP Servers", 100),
 ]
 
 
