@@ -114,7 +114,7 @@ find    - Find files by glob pattern
           args: path (default "."), pattern (required, e.g. "*.py", "test_*", "**/*.js")
 
 grep    - Search file contents using Python regex using per-line matching
-          args: path (default "."), pattern (required), recursive (true), include ("*"), context (0)
+          args: path (default "."), pattern (required), recursive (true), include ("*"), context_lines (0)
           Sometimes you need to grep .json files on disk, remember that all the strings inside are escaped in that case, making
           it a bit harder to match.
 
@@ -127,7 +127,7 @@ Examples:
   localfile(op="cat", args={"path": "folder1/something_20250803.json", "lines_range": "1:20", "safety_valve": "10k"})
   localfile(op="replace", args={"path": "config.yaml", "find": "old", "replace": "new", "count": -1})
   localfile(op="find", args={"pattern": "*.py"})
-  localfile(op="grep", args={"pattern": "TODO", "context": 2, "include": "*.py"})
+  localfile(op="grep", args={"pattern": "TODO", "context_lines": 2, "include": "*.py"})
   localfile(op="ls", args={"path": "src"})
 """
 
@@ -150,6 +150,18 @@ async def handle_localfile(
 
     if not op or "help" in op:
         return HELP
+
+    valid_args = {
+        "cat": {"path", "lines_range", "safety_valve"},
+        "replace": {"path", "find", "replace", "count"},
+        "find": {"path", "pattern"},
+        "grep": {"path", "pattern", "recursive", "include", "context_lines"},
+        "ls": {"path"},
+    }
+    if op in valid_args and args:
+        bad = [k for k in args if k not in valid_args[op]]
+        if bad:
+            return f"Error: unknown args {bad} for op={op}. Valid: {sorted(valid_args[op])}"
 
     try:
         if op == "cat":
@@ -228,7 +240,7 @@ def handle_grep(workdir: str, path: str, args: Dict[str, Any], model_produced_ar
         default=True
     )
     include = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "include", "*")
-    context = int(ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "context", "0"))
+    context = int(ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "context_lines", "0"))
     files_to_search = _glob_files(realpath, include, recursive)
     if not files_to_search:
         return f"No files found in {path}"
