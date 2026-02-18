@@ -128,6 +128,7 @@ async def install(
             prompts_common.SCHED_TODO_5M | {"sched_when": "EVERY:1m"},
         ],
         marketable_forms={},
+        marketable_auth_supported=["telegram"],
         marketable_required_policydocs=["/company/summary", "/company/sales-strategy"],
     )
 

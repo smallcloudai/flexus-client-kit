@@ -23,6 +23,7 @@ from flexus_client_kit.integrations import fi_erp
 from flexus_client_kit.integrations import fi_crm_automations
 from flexus_client_kit.integrations import fi_resend
 from flexus_client_kit.integrations import fi_telegram
+from flexus_client_kit.integrations import fi_widget
 from flexus_simple_bots.vix import vix_install
 from flexus_simple_bots.version_common import SIMPLE_BOTS_COMMON_VERSION
 
@@ -44,6 +45,7 @@ TOOLS = [
     fi_resend.RESEND_SEND_TOOL,
     fi_resend.RESEND_SETUP_TOOL,
     fi_telegram.TELEGRAM_TOOL,
+    fi_widget.PRINT_WIDGET_TOOL,
 ]
 
 
@@ -172,6 +174,10 @@ async def vix_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.Ro
     @rcx.on_tool_call(fi_telegram.TELEGRAM_TOOL.name)
     async def toolcall_telegram(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
         return await telegram.called_by_model(toolcall, model_produced_args)
+
+    @rcx.on_tool_call(fi_widget.PRINT_WIDGET_TOOL.name)
+    async def toolcall_print_widget(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
+        return await fi_widget.handle_print_widget(toolcall, model_produced_args)
 
     @telegram.on_incoming_activity
     async def telegram_activity_callback(a: fi_telegram.ActivityTelegram, already_posted: bool):
