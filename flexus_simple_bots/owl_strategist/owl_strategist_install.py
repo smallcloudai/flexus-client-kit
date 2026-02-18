@@ -42,7 +42,6 @@ Every step is discussed with you — no automation without your understanding an
 
 async def install(
     client: ckit_client.FlexusClient,
-    ws_id: str,
     bot_name: str,
     bot_version: str,
     tools: list,
@@ -61,7 +60,7 @@ async def install(
 
     await ckit_bot_install.marketplace_upsert_dev_bot(
         client,
-        ws_id=ws_id,
+        ws_id=client.ws_id,
         marketable_name=bot_name,
         marketable_version=bot_version,
         marketable_accent_color="#8B4513",
@@ -158,6 +157,5 @@ async def install(
 
 if __name__ == "__main__":
     from flexus_simple_bots.owl_strategist import owl_strategist_bot
-    args = ckit_bot_install.bot_install_argparse()
     client = ckit_client.FlexusClient("owl_strategist_install")
-    asyncio.run(install(client, ws_id=args.ws, bot_name=owl_strategist_bot.BOT_NAME, bot_version=owl_strategist_bot.BOT_VERSION, tools=owl_strategist_bot.TOOLS))
+    asyncio.run(install(client, bot_name=owl_strategist_bot.BOT_NAME, bot_version=owl_strategist_bot.BOT_VERSION, tools=owl_strategist_bot.TOOLS))

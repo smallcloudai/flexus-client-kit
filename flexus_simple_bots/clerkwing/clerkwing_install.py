@@ -38,7 +38,6 @@ clerkwing_setup_schema = fi_jira.JIRA_SETUP_SCHEMA
 
 async def install(
     client: ckit_client.FlexusClient,
-    ws_id: str,
     bot_name: str,
     bot_version: str,
     tools: List[ckit_cloudtool.CloudTool],
@@ -49,7 +48,7 @@ async def install(
 
     await ckit_bot_install.marketplace_upsert_dev_bot(
         client,
-        ws_id=ws_id,
+        ws_id=client.ws_id,
         marketable_name=bot_name,
         marketable_version=bot_version,
         marketable_accent_color="#2B4341",
@@ -101,6 +100,5 @@ async def install(
 
 if __name__ == "__main__":
     from flexus_simple_bots.clerkwing import clerkwing_bot
-    args = ckit_bot_install.bot_install_argparse()
     client = ckit_client.FlexusClient("clerkwing_install")
-    asyncio.run(install(client, ws_id=args.ws, bot_name=clerkwing_bot.BOT_NAME, bot_version=clerkwing_bot.BOT_VERSION, tools=clerkwing_bot.TOOLS))
+    asyncio.run(install(client, bot_name=clerkwing_bot.BOT_NAME, bot_version=clerkwing_bot.BOT_VERSION, tools=clerkwing_bot.TOOLS))

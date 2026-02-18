@@ -130,7 +130,6 @@ if msg["role"] == "assistant" and len(msg["tool_calls"]) == 0:
 
 async def install(
     client: ckit_client.FlexusClient,
-    ws_id: str,
     bot_name: str,
     bot_version: str,
     tools: list,
@@ -141,7 +140,7 @@ async def install(
 
     await ckit_bot_install.marketplace_upsert_dev_bot(
         client,
-        ws_id=ws_id,
+        ws_id=client.ws_id,
         marketable_name=bot_name,
         marketable_version=bot_version,
         marketable_accent_color="#DC143C",
@@ -203,11 +202,9 @@ async def install(
 
 
 if __name__ == "__main__":
-    args = ckit_bot_install.bot_install_argparse()
     client = ckit_client.FlexusClient("telegram_groupmod_install")
     asyncio.run(install(
         client,
-        ws_id=args.ws,
         bot_name=telegram_groupmod_bot.BOT_NAME,
         bot_version=telegram_groupmod_bot.BOT_VERSION,
         tools=telegram_groupmod_bot.TOOLS_ALL,  # Careful here to give exactly the same list as will go into run_bots_in_this_group(inprocess_tools=)

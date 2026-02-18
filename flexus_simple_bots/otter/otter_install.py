@@ -58,7 +58,6 @@ def build_expert_prompt(expert_name: str) -> str:
 
 async def install(
     client: ckit_client.FlexusClient,
-    ws_id: str,
     bot_name: str,
     bot_version: str,
     tools: list[ckit_cloudtool.CloudTool],
@@ -68,7 +67,7 @@ async def install(
     pic_small = base64.b64encode(Path(__file__).with_name("otter-256x256.webp").read_bytes()).decode("ascii")
     await ckit_bot_install.marketplace_upsert_dev_bot(
         client,
-        ws_id=ws_id,
+        ws_id=client.ws_id,
         marketable_name=bot_name,
         marketable_version=bot_version,
         marketable_accent_color="#6B8E6B",
@@ -114,6 +113,5 @@ async def install(
 if __name__ == "__main__":
     from flexus_simple_bots.version_common import SIMPLE_BOTS_COMMON_VERSION
     from flexus_client_kit.integrations import fi_pdoc
-    args = ckit_bot_install.bot_install_argparse()
     client = ckit_client.FlexusClient("otter_install")
-    asyncio.run(install(client, ws_id=args.ws, bot_name=BOT_NAME, bot_version=SIMPLE_BOTS_COMMON_VERSION, tools=[fi_pdoc.POLICY_DOCUMENT_TOOL]))
+    asyncio.run(install(client, bot_name=BOT_NAME, bot_version=SIMPLE_BOTS_COMMON_VERSION, tools=[fi_pdoc.POLICY_DOCUMENT_TOOL]))
