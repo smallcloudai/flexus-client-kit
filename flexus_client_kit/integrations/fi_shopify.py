@@ -256,7 +256,7 @@ def _map_order(ws, shop_id, o, contact_id=None):
         "order_notes": o.get("note") or "",
         "order_tags": [t.strip() for t in (o.get("tags") or "").split(",") if t.strip()],
         "order_tax_lines": o.get("tax_lines", []),
-        "order_shipping_lines": o.get("shipping_lines", []),
+        "order_shipping_charges": o.get("shipping_lines", []),
         "order_shipments": [_map_fulfillment_entry(f) for f in (o.get("fulfillments") or [])],
         "order_details": {"name": o.get("name", ""), "source": o.get("source_name", "")},
         "order_created_ts": parse_ts(o.get("created_at")),

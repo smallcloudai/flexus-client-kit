@@ -122,6 +122,8 @@ def _format_table_meta_text(table_name: str, schema_class: type) -> str:
         if description := meta.get("description"):
             line += f" ({description})"
         result += line + "\n"
+        if examples := meta.get("examples"):
+            result += f"      examples: {examples}\n"
         if enum_values := meta.get("enum"):
             result += "      enum: " + ", ".join(f"{e['value']}" for e in enum_values) + "\n"
     return result

@@ -143,8 +143,8 @@ class ComOrder:
     order_notes: str = field(default="", metadata={"display": "string_multiline", "display_name": "Notes"})
     order_tags: List[str] = field(default_factory=list, metadata={"importance": 1, "display_name": "Tags"})
     order_tax_lines: list = field(default_factory=list, metadata={"display_name": "Tax Lines"})
-    order_shipping_lines: list = field(default_factory=list, metadata={"display_name": "Shipping Lines"})
-    order_shipments: list = field(default_factory=list, metadata={"display_name": "Shipments", "description": 'JSON array: [{"id":"ext123","carrier":"FedEx","tracking_number":"FX123","tracking_url":"https://...","status":"SHIPPED","line_items":[{"id":"li_1","quantity":1}],"created_ts":0.0,"modified_ts":0.0}]. Status: PENDING, IN_TRANSIT, SHIPPED, DELIVERED, FAILED.'})
+    order_shipping_charges: list = field(default_factory=list, metadata={"display_name": "Shipping Charges", "examples": '[{"id":"5632653459649","title":"Standard","price":"0.00","code":"Standard"}]'})
+    order_shipments: list = field(default_factory=list, metadata={"display_name": "Shipments", "description": "Fulfillments/shipments. Status: PENDING, IN_TRANSIT, SHIPPED, DELIVERED, FAILED.", "examples": '[{"id":"6237394370753","carrier":"Amazon Logistics","tracking_number":"1234","tracking_url":"https://track.amazon.com/tracking/1234","status":"SHIPPED","line_items":[{"id":"17452631130305","quantity":1}],"created_ts":1771449051.0,"modified_ts":1771449051.0}]'})
     order_details: dict = field(default_factory=dict, metadata={"display_name": "Details"})
     order_created_ts: float = field(default=0.0, metadata={"importance": 1, "display_name": "Created at"})
     order_modified_ts: float = field(default=0.0, metadata={"display_name": "Modified at"})
@@ -205,7 +205,7 @@ class ComProduct:
     ]})
     prod_category: str = field(default="", metadata={"importance": 1, "display_name": "Category"})
     prod_tags: List[str] = field(default_factory=list, metadata={"importance": 1, "display_name": "Tags"})
-    prod_images: list = field(default_factory=list, metadata={"display_name": "Images"})
+    prod_images: list = field(default_factory=list, metadata={"display_name": "Images", "examples": '[{"src":"https://cdn.shopify.com/.../snowboard.jpg","alt":"A snowboard"}]'})
     prod_details: dict = field(default_factory=dict, metadata={"display_name": "Details"})
     prod_created_ts: float = field(default=0.0, metadata={"display_name": "Created at"})
     prod_modified_ts: float = field(default=0.0, metadata={"display_name": "Modified at"})
@@ -254,7 +254,7 @@ class ComRefund:
         {"value": "COMPLETED", "label": "Completed"},
         {"value": "FAILED", "label": "Failed"},
     ]})
-    refund_line_items: list = field(default_factory=list, metadata={"display_name": "Line Items"})
+    refund_line_items: list = field(default_factory=list, metadata={"display_name": "Line Items", "description": "Refunded line items with quantity snapshots.", "examples": '[{"line_item_id":"17453088604353","oitem_id":"abc123","name":"Ejector bed - Queen","quantity":1,"price":"1899.00","variant_id":49977563447489,"product_id":10911290884289}]'})
     refund_details: dict = field(default_factory=dict, metadata={"display_name": "Details"})
     refund_created_ts: float = field(default=0.0, metadata={"display_name": "Created at"})
     refund_modified_ts: float = field(default=0.0, metadata={"display_name": "Modified at"})
@@ -352,6 +352,11 @@ def get_field_display_name(cls: Type, field_name: str) -> Optional[str]:
 def get_field_description(cls: Type, field_name: str) -> Optional[str]:
     f = cls.__dataclass_fields__.get(field_name)
     return f.metadata.get("description") if f else None
+
+
+def get_field_examples(cls: Type, field_name: str) -> Optional[str]:
+    f = cls.__dataclass_fields__.get(field_name)
+    return f.metadata.get("examples") if f else None
 
 
 def get_field_fk_scope(cls: Type, field_name: str) -> Optional[Dict[str, str]]:
