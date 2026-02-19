@@ -144,6 +144,7 @@ class ComOrder:
     order_tags: List[str] = field(default_factory=list, metadata={"importance": 1, "display_name": "Tags"})
     order_tax_lines: list = field(default_factory=list, metadata={"display_name": "Tax Lines"})
     order_shipping_lines: list = field(default_factory=list, metadata={"display_name": "Shipping Lines"})
+    order_shipments: list = field(default_factory=list, metadata={"display_name": "Shipments", "description": 'JSON array: [{"id":"ext123","carrier":"FedEx","tracking_number":"FX123","tracking_url":"https://...","status":"SHIPPED","line_items":[{"id":"li_1","quantity":1}],"created_ts":0.0,"modified_ts":0.0}]. Status: PENDING, IN_TRANSIT, SHIPPED, DELIVERED, FAILED.'})
     order_details: dict = field(default_factory=dict, metadata={"display_name": "Details"})
     order_created_ts: float = field(default=0.0, metadata={"importance": 1, "display_name": "Created at"})
     order_modified_ts: float = field(default=0.0, metadata={"display_name": "Modified at"})
@@ -259,26 +260,6 @@ class ComRefund:
     refund_modified_ts: float = field(default=0.0, metadata={"display_name": "Modified at"})
 
 
-@dataclass
-class ComShipment:
-    ws_id: str
-    ship_order_id: str = field(metadata={"importance": 1, "display_name": "Order"})
-    ship_id: str = field(default="", metadata={"pkey": True, "display_name": "Shipment ID"})
-    ship_external_id: str = field(default="", metadata={"display_name": "External ID"})
-    ship_carrier: str = field(default="", metadata={"importance": 1, "display_name": "Carrier"})
-    ship_tracking_number: str = field(default="", metadata={"importance": 1, "display_name": "Tracking Number"})
-    ship_tracking_url: str = field(default="", metadata={"display_name": "Tracking URL"})
-    ship_status: str = field(default="PENDING", metadata={"importance": 1, "display_name": "Status", "enum": [
-        {"value": "PENDING", "label": "Pending"},
-        {"value": "SHIPPED", "label": "Shipped"},
-        {"value": "DELIVERED", "label": "Delivered"},
-        {"value": "FAILED", "label": "Failed"},
-    ]})
-    ship_line_items: list = field(default_factory=list, metadata={"display_name": "Line Items"})
-    ship_details: dict = field(default_factory=dict, metadata={"display_name": "Details"})
-    ship_created_ts: float = field(default=0.0, metadata={"display_name": "Created at"})
-    ship_modified_ts: float = field(default=0.0, metadata={"display_name": "Modified at"})
-
 
 @dataclass
 class ComShop:
@@ -310,7 +291,6 @@ ERP_TABLE_TO_SCHEMA: Dict[str, Type] = {
     "com_product": ComProduct,
     "com_product_variant": ComProductVariant,
     "com_refund": ComRefund,
-    "com_shipment": ComShipment,
     "com_shop": ComShop,
 }
 
@@ -326,7 +306,6 @@ ERP_DISPLAY_NAME_CONFIGS: Dict[str, str] = {
     "com_product": "{prod_name}",
     "com_product_variant": "{pvar_name} {pvar_sku}",
     "com_refund": "{refund_id}",
-    "com_shipment": "{ship_tracking_number}",
     "com_shop": "{shop_name}",
 }
 

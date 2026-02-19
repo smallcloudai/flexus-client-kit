@@ -257,6 +257,7 @@ def _map_order(ws, shop_id, o, contact_id=None):
         "order_tags": [t.strip() for t in (o.get("tags") or "").split(",") if t.strip()],
         "order_tax_lines": o.get("tax_lines", []),
         "order_shipping_lines": o.get("shipping_lines", []),
+        "order_shipments": [_map_fulfillment_entry(f) for f in (o.get("fulfillments") or [])],
         "order_details": {"name": o.get("name", ""), "source": o.get("source_name", "")},
         "order_created_ts": parse_ts(o.get("created_at")),
         "order_modified_ts": parse_ts(o.get("updated_at")),
@@ -280,7 +281,7 @@ def _map_line_item(ws, li):
 
 
 def _map_transaction(ws, t):
-    st = "COMPLETED" if t.get("status") == "success" else ("FAILED" if t.get("status") == "failure" else "PENDING")
+    st = {"success": "COMPLETED", "failure": "FAILED"}.get(t.get("status"), "PENDING")
     return {
         "ws_id": ws,
         "pay_external_id": str(t["id"]),
@@ -295,7 +296,7 @@ def _map_transaction(ws, t):
 
 def _map_refund(ws, r):
     amt = sum(float(t.get("amount", "0")) for t in (r.get("transactions") or []))
-    cur = (r.get("transactions") or [{}])[0].get("currency", "") if r.get("transactions") else ""
+    cur = ((r.get("transactions") or [{}])[0]).get("currency", "")
     items = []
     for ri in r.get("refund_line_items") or []:
         item = {"line_item_id": str(ri.get("line_item_id", "")), "quantity": ri.get("quantity", 0)}
@@ -313,19 +314,17 @@ def _map_refund(ws, r):
     }
 
 
-def _map_fulfillment(ws, f):
-    items = [{"line_item_id": str(li.get("id", "")), "quantity": li.get("quantity", 0)} for li in (f.get("line_items") or [])]
+def _map_fulfillment_entry(f):
     urls = f.get("tracking_urls") or []
     return {
-        "ws_id": ws,
-        "ship_external_id": str(f["id"]),
-        "ship_carrier": f.get("tracking_company") or "",
-        "ship_tracking_number": f.get("tracking_number") or "",
-        "ship_tracking_url": urls[0] if urls else (f.get("tracking_url") or ""),
-        "ship_status": SHIP_STATUS.get(f.get("status", ""), "PENDING"),
-        "ship_line_items": items,
-        "ship_created_ts": parse_ts(f.get("created_at")),
-        "ship_modified_ts": parse_ts(f.get("updated_at")),
+        "id": str(f["id"]),
+        "carrier": f.get("tracking_company") or "",
+        "tracking_number": f.get("tracking_number") or "",
+        "tracking_url": urls[0] if urls else (f.get("tracking_url") or ""),
+        "status": SHIP_STATUS.get(f.get("status", ""), "PENDING"),
+        "line_items": [{"id": str(li.get("id", "")), "quantity": li.get("quantity", 0)} for li in (f.get("line_items") or [])],
+        "created_ts": parse_ts(f.get("created_at")),
+        "modified_ts": parse_ts(f.get("updated_at")),
     }
 
 
@@ -506,7 +505,7 @@ class IntegrationShopify:
         )
         ext_to_id = {o.order_external_id: o.order_id for o in db_orders}
 
-        items, payments, refunds, ships = [], [], [], []
+        items, payments, refunds = [], [], []
         for o in orders:
             oid = ext_to_id.get(str(o["id"]))
             if not oid:
@@ -525,12 +524,12 @@ class IntegrationShopify:
                 rec = _map_refund(ws, r)
                 rec["refund_order_id"] = oid
                 refunds.append(rec)
-            for f in o.get("fulfillments") or []:
-                rec = _map_fulfillment(ws, f)
-                rec["ship_order_id"] = oid
-                ships.append(rec)
         errors = []
-        for table, key, recs in [("com_order_item", "oitem_external_id", items), ("com_payment", "pay_external_id", payments), ("com_refund", "refund_external_id", refunds), ("com_shipment", "ship_external_id", ships)]:
+        for table, key, recs in [
+            ("com_order_item", "oitem_external_id", items),
+            ("com_payment", "pay_external_id", payments),
+            ("com_refund", "refund_external_id", refunds),
+        ]:
             if recs:
                 e = await self._upsert(table, ws, key, recs)
                 if e:
