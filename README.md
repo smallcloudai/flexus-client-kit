@@ -39,9 +39,9 @@ Flexus is an open-source AI Company OS. Hire specialist agents to run every func
 
 AI chatbots give you advice but don't take actions. Automation tools like n8n or Make are painful to configure, and every workflow lives in its own silo — no shared context, no teamwork, no learning.
 
-So you end up stitching together 10+ subscriptions and doing everything yourself. Burned out. Not making money despite having a product that works.
+So you end up stitching together 10+ subscriptions while operations pile up — and something is always being dropped.
 
-Flexus is the alternative: one platform where AI agents handle marketing, sales, support, and product validation — and all of them share the same context about your business. Because it's self-hosted and open-source, you own your data and your infrastructure. AI providers compete for your business — not the other way around.
+Flexus is the alternative: one platform where AI agents handle every function of your business — and all of them share the same context. Because it's self-hosted and open-source, you own your data and your infrastructure. AI providers compete for your business — not the other way around.
 
 
 ## Your team
@@ -102,13 +102,6 @@ Flexus is the alternative: one platform where AI agents handle marketing, sales,
       <strong>LawyerRat</strong>
     </td>
     <td>Drafts and reviews legal documents and contracts</td>
-  </tr>
-  <tr>
-    <td align="center" width="120">
-      <img src="flexus_simple_bots/frog/frog-256x256.webp" width="80" height="80" alt="Frog"><br>
-      <strong>Frog</strong>
-    </td>
-    <td>Educational starter bot — three tools, two experts, a pond report. Start here.</td>
   </tr>
 </table>
 
@@ -337,21 +330,34 @@ Lark kernels, policy documents, scenario testing, and more.
 
 ## Marketplace
 
-Once the core agent set is stable, the marketplace opens for third-party agent creators to publish and monetize their own bots. [Get notified](https://flexus.team/).
+The Flexus marketplace lets developers build, publish, and monetize agents for any business function or industry. If you can write Python, you can ship an agent that solopreneurs and small teams pay to hire.
+
+We're building out the core agent set first. Once that's stable, the marketplace opens to third-party creators. [Get notified when it launches](https://flexus.team/).
 
 
 ## Contributing
 
-Star the repo. Open issues. Submit PRs.
+Most solopreneurs can't afford to hire a team. Every agent you contribute is a specialist they get to hire for free.
+
+Beyond impact, it's also an opportunity — when the marketplace opens, agents you've built and proven here can be listed and monetized.
+
+**What we need most:**
+
+- **New agents** — sales (Rick), customer support (Karen), and agents for industries not yet covered
+- **Scenario tests** — YAML-based behavior tests for existing agents to improve reliability
+- **Integrations** — connectors for tools solopreneurs actually use (Stripe, Notion, Shopify, HubSpot)
+- **SDK improvements** — better tooling, docs, and developer experience for bot builders
+
+**How to contribute:**
 
 1. Fork and create a branch from `main`
 2. Add or update scenario tests for anything you've changed
 3. Make sure scenario tests pass for the bots you've touched
 4. Open a pull request
 
-Start with the [Frog bot](flexus_simple_bots/frog/) and read [AGENTS.md](AGENTS.md) for conventions on naming, code style, and structure.
+Start with the [Frog bot](flexus_simple_bots/frog/) as a reference — it's the minimal working example. Read [AGENTS.md](AGENTS.md) for conventions on naming, code style, and bot structure.
 
-Report bugs and request features via [GitHub Issues](https://github.com/smallcloudai/flexus-client-kit/issues).
+Report bugs and request features via [GitHub Issues](https://github.com/smallcloudai/flexus-client-kit/issues). Questions? Join the community on [Discord](https://discord.gg/XmgtsBrz47).
 
 
 ## Star History
