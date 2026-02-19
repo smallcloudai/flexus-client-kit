@@ -616,7 +616,8 @@ class IntegrationShopify:
         try:
             auth_url = await ckit_external_auth.start_external_auth_flow(
                 self.fclient, "shopify", self.rcx.persona.ws_id,
-                self.rcx.persona.owner_fuser_id, SHOPIFY_SCOPES + [f"shop:{shop}"],
+                self.rcx.persona.owner_fuser_id, SHOPIFY_SCOPES,
+                url_template_vars={"shop_domain": shop},
             )
             return f"Please authorize Flexus to access your Shopify store:\n{auth_url}\n\nAfter authorizing, call shopify(op='sync') to complete setup."
         except gql.transport.exceptions.TransportQueryError as e:
@@ -662,11 +663,7 @@ class IntegrationShopify:
         if not td or not td.access_token:
             return "No shops connected and no pending auth.\nUse shopify(op='connect') first."
 
-        domain = None
-        for sv in td.scope_values or []:
-            if sv.startswith("shop:"):
-                domain = sv[5:]
-                break
+        domain = (td.url_template_vars or {}).get("shop_domain")
         if not domain:
             return "Auth found but shop domain unknown. Please reconnect."
 
