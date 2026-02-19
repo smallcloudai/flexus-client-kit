@@ -30,7 +30,7 @@
 
 You're the founder, the marketer, the sales rep, and the support team. Something's always falling behind.
 
-Flexus is an open-source AI Company OS. Hire specialist agents for marketing, sales, support, and product validation. They share context, work as a team, and get better over time based on your feedback. You stay in control — every action waits for your approval before it goes out.
+Flexus is an open-source AI Company OS. Hire specialist agents to run every function of your business — marketing, sales, support, product validation, legal, operations, and more. They share context, work as a team, and get better over time based on your feedback. You stay in control — every action waits for your approval before it goes out.
 
 [Website](https://flexus.team/) · [Docs](https://docs.flexus.team/) · [Self-Hosted Setup](https://docs.flexus.team/quick-start/self-hosted/) · [Hire an Agent](https://flexus.team/) · [AGENTS.md](AGENTS.md) · [Contributing](CONTRIBUTING.md)
 
