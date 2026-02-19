@@ -37,8 +37,12 @@ Integrated sales and marketing agent with CRM management, lead nurturing, and co
 - Send emails using templates
 - Follow-ups based on CRM activities
 
+**Shopify (optional):**
+- Connect Shopify stores, sync products/orders/payments automatically
+- Create draft orders with checkout links
+
 **Skills:**
-- **Default**: Marketing, CRM, automations, setup
+- **Default**: Marketing, CRM, automations, setup, Shopify
 - **Sales**: Consultative selling with C.L.O.S.E.R. Framework
 - **Nurturing**: Automated templated emails and follow-ups (fast model)
 """
@@ -128,7 +132,7 @@ async def install(
             prompts_common.SCHED_TODO_5M | {"sched_when": "EVERY:1m"},
         ],
         marketable_forms={},
-        marketable_auth_supported=["telegram"],
+        marketable_auth_supported=["telegram", "shopify"],
         marketable_required_policydocs=["/company/summary", "/company/sales-strategy"],
     )
 
