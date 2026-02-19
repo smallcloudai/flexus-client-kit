@@ -49,6 +49,13 @@ Flexus is the alternative: one platform where AI agents handle every function of
 <table>
   <tr>
     <td align="center" width="120">
+      <img src="flexus_simple_bots/boss/boss-256x256.webp" width="80" height="80" alt="Boss"><br>
+      <strong>Boss</strong>
+    </td>
+    <td>Manages tasks and coordinates work across the team</td>
+  </tr>
+  <tr>
+    <td align="center" width="120">
       <img src="flexus_simple_bots/productman/productman-256x256.webp" width="80" height="80" alt="Productman"><br>
       <strong>Productman</strong>
     </td>
@@ -81,13 +88,6 @@ Flexus is the alternative: one platform where AI agents handle every function of
       <strong>Karen</strong>
     </td>
     <td>Handles customer support 24/7 across Slack, Discord, and Telegram</td>
-  </tr>
-  <tr>
-    <td align="center" width="120">
-      <img src="flexus_simple_bots/boss/boss-256x256.webp" width="80" height="80" alt="Boss"><br>
-      <strong>Boss</strong>
-    </td>
-    <td>Manages tasks and coordinates work across the team</td>
   </tr>
   <tr>
     <td align="center" width="120">
