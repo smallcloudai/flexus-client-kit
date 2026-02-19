@@ -19,6 +19,7 @@ class ExternalAuthToken:
     token_type: str
     scope_values: list[str]
     auth_url: str | None = None
+    url_template_vars: dict | None = None
 
 
 # XXX garbage code
@@ -93,6 +94,7 @@ async def get_external_auth_token(
                         expires_at
                         token_type
                         scope_values
+                        url_template_vars
                     }
                 }"""),
             variable_values={
@@ -109,6 +111,7 @@ async def get_external_auth_token(
             expires_at=token_data.get("expires_at", 0),
             token_type=token_data.get("token_type", ""),
             scope_values=token_data.get("scope_values", []),
+            url_template_vars=token_data.get("url_template_vars"),
         )
 
 
@@ -118,6 +121,7 @@ async def start_external_auth_flow(
     ws_id: str,
     fuser_id: str,
     scopes: list[str],
+    url_template_vars: dict | None = None,
 ) -> str:
     all_scopes = list(set(scopes))
     try:
@@ -131,12 +135,13 @@ async def start_external_auth_flow(
     async with http as h:
         r = await h.execute(
             gql.gql("""
-                mutation StartExternalAuth($ws_id: String!, $provider: String!, $scope_values: [String!], $fuser_id: String) {
+                mutation StartExternalAuth($ws_id: String!, $provider: String!, $scope_values: [String!], $fuser_id: String, $url_template_vars: String) {
                     external_auth_start(
                         ws_id: $ws_id,
                         provider: $provider,
                         scope_values: $scope_values,
-                        fuser_id: $fuser_id
+                        fuser_id: $fuser_id,
+                        url_template_vars: $url_template_vars
                     ) {
                         authorization_url
                     }
@@ -146,6 +151,7 @@ async def start_external_auth_flow(
                 "provider": provider,
                 "scope_values": all_scopes,
                 "fuser_id": fuser_id,
+                "url_template_vars": json.dumps(url_template_vars) if url_template_vars else None,
             }
         )
         return r["external_auth_start"]["authorization_url"]
