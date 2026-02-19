@@ -1,4 +1,3 @@
-import asyncio
 import logging
 import os
 import re
@@ -160,8 +159,8 @@ query FetchOrderTransactions($cursor: String, $query: String) {
 async def _fetch_order_transactions(domain, token, cutoff_iso):
     txn_map = {}
     cursor = None
-    while True:
-        async with httpx.AsyncClient(timeout=30) as c:
+    async with httpx.AsyncClient(timeout=30) as c:
+        while True:
             r = await c.post(
                 f"https://{domain}/admin/api/{API_VER}/graphql.json",
                 headers={"X-Shopify-Access-Token": token, "Content-Type": "application/json"},
@@ -169,25 +168,25 @@ async def _fetch_order_transactions(domain, token, cutoff_iso):
             )
             r.raise_for_status()
             data = r.json()
-        if data.get("errors"):
-            raise Exception(f"Shopify GQL errors: {data['errors']}")
-        orders = data["data"]["orders"]
-        for node in orders["nodes"]:
-            txn_map[node["legacyResourceId"]] = [
-                {
-                    "id": tx["id"].split("/")[-1],
-                    "amount": tx["amountSet"]["shopMoney"]["amount"],
-                    "currency": tx["amountSet"]["shopMoney"]["currencyCode"],
-                    "kind": tx["kind"].lower(),
-                    "status": tx["status"].lower(),
-                    "gateway": tx.get("gateway") or "",
-                    "created_at": tx.get("processedAt") or "",
-                }
-                for tx in node.get("transactions") or []
-            ]
-        if not orders["pageInfo"]["hasNextPage"]:
-            break
-        cursor = orders["pageInfo"]["endCursor"]
+            if data.get("errors"):
+                raise Exception(f"Shopify GQL errors: {data['errors']}")
+            orders = data["data"]["orders"]
+            for node in orders["nodes"]:
+                txn_map[node["legacyResourceId"]] = [
+                    {
+                        "id": tx["id"].split("/")[-1],
+                        "amount": tx["amountSet"]["shopMoney"]["amount"],
+                        "currency": tx["amountSet"]["shopMoney"]["currencyCode"],
+                        "kind": tx["kind"].lower(),
+                        "status": tx["status"].lower(),
+                        "gateway": tx.get("gateway") or "",
+                        "created_at": tx.get("processedAt") or "",
+                    }
+                    for tx in node.get("transactions") or []
+                ]
+            if not orders["pageInfo"]["hasNextPage"]:
+                break
+            cursor = orders["pageInfo"]["endCursor"]
     return txn_map
 
 
@@ -286,7 +285,7 @@ def _map_order(ws, shop_id, o, contact_id=None):
         "order_contact_id": contact_id,
         "order_email": (o.get("email") or o.get("contact_email") or "").lower(),
         "order_financial_status": FIN_STATUS.get(o.get("financial_status", ""), "PENDING"),
-        "order_fulfillment_status": FUL_STATUS.get(o.get("fulfillment_status") or "", "UNFULFILLED"),
+        "order_fulfillment_status": FUL_STATUS.get(o.get("fulfillment_status"), "UNFULFILLED"),
         "order_currency": o.get("currency", ""),
         "order_subtotal": str(o.get("subtotal_price", "0")),
         "order_total_tax": str(o.get("total_tax", "0")),
@@ -349,7 +348,7 @@ def _map_refund(ws, r):
         "refund_amount": str(amt),
         "refund_currency": cur,
         "refund_reason": r.get("note") or "",
-        "refund_status": "COMPLETED" if r.get("status", "success") == "success" else "PENDING",
+        "refund_status": "COMPLETED",
         "refund_line_items": items,
         "refund_created_ts": parse_ts(r.get("created_at")),
     }
