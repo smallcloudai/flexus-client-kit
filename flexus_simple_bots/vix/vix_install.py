@@ -66,8 +66,9 @@ async def install(
     bot_version: str,
     tools: list[ckit_cloudtool.CloudTool],
 ):
-    bot_internal_tools = json.dumps([t.openai_style_tool() for t in tools])
-    nurturing_tools = json.dumps([t.openai_style_tool() for t in tools if t.name not in ("crm_automation",)])
+    bot_internal_tools = json.dumps([t.openai_style_tool() for t in tools if t.name != "shopify_cart"])
+    sales_tools = json.dumps([t.openai_style_tool() for t in tools if t.name not in ("crm_automation",)])
+    nurturing_tools = json.dumps([t.openai_style_tool() for t in tools if t.name not in ("crm_automation", "shopify_cart")])
     pic_big = base64.b64encode(open(Path(__file__).with_name("vix-1024x1536.webp"), "rb").read()).decode("ascii")
     pic_small = base64.b64encode(open(Path(__file__).with_name("vix-256x256.webp"), "rb").read()).decode("ascii")
     await ckit_bot_install.marketplace_upsert_dev_bot(
@@ -110,7 +111,7 @@ async def install(
                 fexp_block_tools="*setup",
                 fexp_allow_tools="",
                 fexp_inactivity_timeout=3600,
-                fexp_app_capture_tools=bot_internal_tools,
+                fexp_app_capture_tools=sales_tools,
                 fexp_description="Conducts sales conversations using C.L.O.S.E.R. Framework, qualifies leads with BANT, and handles objections with consultative approach.",
             )),
             ("nurturing", ckit_bot_install.FMarketplaceExpertInput(

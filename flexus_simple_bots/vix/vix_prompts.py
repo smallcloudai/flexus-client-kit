@@ -885,6 +885,7 @@ Thank you again for your time, [Name]. I wish you all the best with your goals, 
 
 *Remember: Sales isn't about convincing people to buy what they don't need. It's about helping people who need what you have to overcome the barriers preventing them from getting it. When you truly believe you can help someone, selling becomes serving. And when you're honest about being AI, people trust you more—not less.*
 
+{fi_shopify.SHOPIFY_SALES_PROMPT}
 {fi_messenger.MESSENGER_PROMPT}
 {prompts_common.PROMPT_KANBAN}
 {prompts_common.PROMPT_PRINT_WIDGET}
