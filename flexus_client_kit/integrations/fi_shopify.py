@@ -46,6 +46,47 @@ Use shopify() tool to connect Shopify stores and manage products/orders. Call sh
 Connected stores sync products, orders, payments, refunds, and shipments automatically.
 You can create draft orders (carts with checkout links) for customers."""
 
+SHOPIFY_CART_TOOL = ckit_cloudtool.CloudTool(
+    strict=False,
+    name="shopify_cart",
+    description='Manage shopping cart (Shopify draft order). ops: create, add, remove, view.',
+    parameters={
+        "type": "object",
+        "properties": {
+            "op": {"type": "string", "enum": ["create", "add", "remove", "view"], "description": "Operation"},
+            "draft_order_id": {"type": "string", "description": "Draft order ID (from create). Required for add/remove/view."},
+            "line_items": {
+                "type": "array",
+                "description": "Items: [{variant_id, quantity}]. variant_id = pvar_external_id from com_product_variant.",
+                "items": {"type": "object", "properties": {"variant_id": {"type": "string"}, "quantity": {"type": "integer"}}},
+            },
+            "variant_id": {"type": "string", "description": "Variant to remove (for op=remove)"},
+            "email": {"type": "string", "description": "Customer email (optional, for create)"},
+            "note": {"type": "string", "description": "Order note (optional, for create)"},
+        },
+        "required": ["op"],
+    },
+)
+
+SHOPIFY_SALES_PROMPT = """## Shopify Products & Cart
+
+Browse products: erp_table_data(table_name="com_product") and erp_table_data(table_name="com_product_variant").
+Use pvar_external_id as variant_id when managing carts.
+
+shopify_cart(op="create", line_items=[{"variant_id": "...", "quantity": 1}], email="...")
+    Create cart. Returns draft_order_id and checkout link.
+
+shopify_cart(op="add", draft_order_id="...", line_items=[{"variant_id": "...", "quantity": 1}])
+    Add items to existing cart.
+
+shopify_cart(op="remove", draft_order_id="...", variant_id="...")
+    Remove item from cart.
+
+shopify_cart(op="view", draft_order_id="...")
+    View current cart contents and checkout link.
+
+Recommend products naturally during sales, build the cart incrementally, share checkout link when ready."""
+
 HELP = """Help:
 
 shopify(op="connect", args={"shop": "mystore.myshopify.com"})
@@ -713,6 +754,99 @@ class IntegrationShopify:
         )
         await self._load_shops()
         return f"Shop {shop_id} disconnected."
+
+    async def handle_cart(self, toolcall: ckit_cloudtool.FCloudtoolCall, args: Optional[Dict[str, Any]]) -> str:
+        if not args or not args.get("op"):
+            return "Missing 'op'. Use: create, add, remove, view."
+        if not self.shops:
+            return "No Shopify stores connected. Use shopify(op='connect') first."
+        if len(self.shops) > 1:
+            return "Multiple shops connected. Use shopify(op='create_draft_order') with shop_id instead."
+        shop = self.shops[0]
+        token = await self._get_token(shop)
+        if not token:
+            return f"No access token for {shop.shop_domain}."
+        op = args["op"]
+        if op == "create":
+            return await self._cart_create(shop, token, args)
+        if op in ("add", "remove", "view"):
+            doid = args.get("draft_order_id")
+            if not doid:
+                return "Missing 'draft_order_id'. Create a cart first."
+            if op == "view":
+                return await self._cart_view(shop, token, doid)
+            if op == "add":
+                return await self._cart_add(shop, token, doid, args.get("line_items"))
+            if op == "remove":
+                return await self._cart_remove(shop, token, doid, args.get("variant_id"))
+        return f"Unknown op: {op}. Use: create, add, remove, view."
+
+    async def _cart_create(self, shop, token, args):
+        if not args.get("line_items"):
+            return "Missing 'line_items': [{variant_id, quantity}]"
+        draft = {"line_items": args["line_items"]}
+        if args.get("email"):
+            draft["email"] = args["email"]
+        if args.get("note"):
+            draft["note"] = args["note"]
+        try:
+            r = await _shop_req(shop.shop_domain, token, "POST", "draft_orders.json", {"draft_order": draft})
+            return self._fmt_cart(r.json()["draft_order"])
+        except httpx.HTTPStatusError as e:
+            return f"Failed: {e.response.text[:300]}"
+
+    async def _cart_view(self, shop, token, doid):
+        try:
+            r = await _shop_req(shop.shop_domain, token, "GET", f"draft_orders/{doid}.json")
+            return self._fmt_cart(r.json()["draft_order"])
+        except httpx.HTTPStatusError as e:
+            return f"Failed: {e.response.text[:300]}"
+
+    async def _cart_add(self, shop, token, doid, line_items):
+        if not line_items:
+            return "Missing 'line_items': [{variant_id, quantity}]"
+        try:
+            r = await _shop_req(shop.shop_domain, token, "GET", f"draft_orders/{doid}.json")
+            existing = r.json()["draft_order"]["line_items"]
+            # Merge: bump quantity for existing variants, append new ones
+            by_vid = {str(li["variant_id"]): li for li in existing}
+            for item in line_items:
+                vid = str(item["variant_id"])
+                if vid in by_vid:
+                    by_vid[vid]["quantity"] += item.get("quantity", 1)
+                else:
+                    by_vid[vid] = {"variant_id": int(vid), "quantity": item.get("quantity", 1)}
+            r = await _shop_req(shop.shop_domain, token, "PUT", f"draft_orders/{doid}.json", {
+                "draft_order": {"line_items": list(by_vid.values())},
+            })
+            return self._fmt_cart(r.json()["draft_order"])
+        except httpx.HTTPStatusError as e:
+            return f"Failed: {e.response.text[:300]}"
+
+    async def _cart_remove(self, shop, token, doid, variant_id):
+        if not variant_id:
+            return "Missing 'variant_id'."
+        try:
+            r = await _shop_req(shop.shop_domain, token, "GET", f"draft_orders/{doid}.json")
+            existing = r.json()["draft_order"]["line_items"]
+            updated = [li for li in existing if str(li["variant_id"]) != str(variant_id)]
+            if len(updated) == len(existing):
+                return f"Variant {variant_id} not found in cart."
+            r = await _shop_req(shop.shop_domain, token, "PUT", f"draft_orders/{doid}.json", {
+                "draft_order": {"line_items": updated},
+            })
+            return self._fmt_cart(r.json()["draft_order"])
+        except httpx.HTTPStatusError as e:
+            return f"Failed: {e.response.text[:300]}"
+
+    def _fmt_cart(self, d):
+        lines = [f"Draft order: {d['id']}"]
+        for li in d.get("line_items", []):
+            lines.append(f"  - {li.get('title', '?')} (variant {li['variant_id']}) x{li['quantity']} — {li.get('price', '?')}")
+        lines.append(f"Total: {d.get('total_price', '?')} {d.get('currency', '')}")
+        if d.get("invoice_url"):
+            lines.append(f"Checkout: {d['invoice_url']}")
+        return "\n".join(lines)
 
     def close(self):
         pass

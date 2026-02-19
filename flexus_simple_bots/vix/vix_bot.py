@@ -46,6 +46,7 @@ TOOLS = [
     fi_resend.RESEND_SEND_TOOL,
     fi_resend.RESEND_SETUP_TOOL,
     fi_shopify.SHOPIFY_TOOL,
+    fi_shopify.SHOPIFY_CART_TOOL,
     fi_telegram.TELEGRAM_TOOL,
     fi_widget.PRINT_WIDGET_TOOL,
 ]
@@ -177,6 +178,10 @@ async def vix_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.Ro
     @rcx.on_tool_call(fi_shopify.SHOPIFY_TOOL.name)
     async def toolcall_shopify(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
         return await shopify.called_by_model(toolcall, model_produced_args)
+
+    @rcx.on_tool_call(fi_shopify.SHOPIFY_CART_TOOL.name)
+    async def toolcall_shopify_cart(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
+        return await shopify.handle_cart(toolcall, model_produced_args)
 
     @rcx.on_tool_call(fi_telegram.TELEGRAM_TOOL.name)
     async def toolcall_telegram(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
