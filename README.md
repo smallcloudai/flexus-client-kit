@@ -1,26 +1,102 @@
-# Flexus Company OS
+<p align="center">
+  <a href="https://flexus.team">
+    <img
+      src="https://github.com/user-attachments/assets/5c3aea16-a308-4e4e-973d-9d3ca41d816e"
+      width="300"
+      alt="Flexus AI-first Company OS"
+    />
+  </a>
+</p>
 
-[![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg?style=flat)](https://www.python.org/downloads/)
-[![License: BSD-3-Clause](https://img.shields.io/badge/license-BSD--3--Clause-green.svg?style=flat)](LICENSE)
-[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat)](https://github.com/smallcloudai/flexus-client-kit/pulls)
+<p align="center">
+  <a href="https://flexus.team/?utm_source=github&utm_medium=readme&utm_campaign=readme">
+    <img src="https://img.shields.io/badge/Website-flexus.team-31A7F0?style=for-the-badge" />
+  </a>
+  <a href="https://discord.gg/XmgtsBrz47">
+    <img src="https://img.shields.io/badge/Discord-Join_Server-645FF6?style=for-the-badge&logo=discord&logoColor=white" />
+  </a>
+</p>
 
-Almost everything in your company can be automated by AI agents: from verifying your product idea to sales and
-tech support. This project is a Company Operating System that makes it possible.
+# Flexus — AI Company OS
 
-[Documentation](https://docs.flexus.team/) | [Self-Hosted Setup](https://docs.flexus.team/quick-start/self-hosted/) | [Bot Marketplace](https://flexus.team/) | [AGENTS.md](AGENTS.md)
+You're the founder, the marketer, the sales rep, and the support team. Something's always falling behind.
+
+Flexus is an open-source AI Company OS. Hire specialist agents to run every function of your business — marketing, sales, support, product validation, legal, operations, and more. They share context, work as a team, and get better over time based on your feedback. You stay in control — every action waits for your approval before it goes out.
+
+[Website](https://flexus.team/) · [Docs](https://docs.flexus.team/) · [Self-Hosted Setup](https://docs.flexus.team/quick-start/self-hosted/) · [Hire an Agent](https://flexus.team/) · [Contributing](CONTRIBUTING.md)
 
 
-## Why This Exists
+## Why this exists
 
-Only disjoint tools existed before, like ChatGPT or Claude, that you have to supplement with MCP servers,
-skills, external systems like CRM database. You'll end up with your own custom solution, and potentially tens
-of subscriptions for external systems. Flexus gives you a single system that automates many (or all) aspects of
-a typical small business.
+AI chatbots give you advice but don't take actions. Automation tools like n8n or Make are painful to configure, and every workflow lives in its own silo — no shared context, no teamwork, no learning.
 
-Also, Flexus allows you to flip the script on big AI companies, keep your infrastructure to yourself,
-own your data and let AI model providers compete for the best model and the best prices!
+So you end up stitching together 10+ subscriptions while operations pile up — and something is always being dropped.
 
-<!-- It's also not Odoo with LLMs bolted on, it's an AI first project! -->
+Flexus is the alternative: one platform where AI agents handle every function of your business — and all of them share the same context. Because it's self-hosted and open-source, you own your data and your infrastructure. AI providers compete for your business — not the other way around.
+
+
+## Your team
+
+<table>
+  <tr>
+    <td align="center" width="120">
+      <img src="flexus_simple_bots/boss/boss-256x256.webp" width="80" height="80" alt="Boss"><br>
+      <strong>Boss</strong>
+    </td>
+    <td>Manages tasks and coordinates work across the team</td>
+  </tr>
+  <tr>
+    <td align="center" width="120">
+      <img src="flexus_simple_bots/productman/productman-256x256.webp" width="80" height="80" alt="Productman"><br>
+      <strong>Productman</strong>
+    </td>
+    <td>Validates your product ideas before you build the wrong thing</td>
+  </tr>
+  <tr>
+    <td align="center" width="120">
+      <img src="flexus_simple_bots/owl_strategist/owl_strategist-256x256.webp" width="80" height="80" alt="Owl Strategist"><br>
+      <strong>Owl Strategist</strong>
+    </td>
+    <td>Builds your marketing strategy and briefs the creative team</td>
+  </tr>
+  <tr>
+    <td align="center" width="120">
+      <img src="flexus_simple_bots/botticelli/botticelli-256x256.webp" width="80" height="80" alt="Botticelli"><br>
+      <strong>Botticelli</strong>
+    </td>
+    <td>Creates content and copy across channels</td>
+  </tr>
+  <tr>
+    <td align="center" width="120">
+      <img src="flexus_simple_bots/admonster/ad_monster-256x256.webp" width="80" height="80" alt="AdMonster"><br>
+      <strong>AdMonster</strong>
+    </td>
+    <td>Runs paid ad campaigns on LinkedIn, Meta, and X</td>
+  </tr>
+  <tr>
+    <td align="center" width="120">
+      <img src="flexus_simple_bots/karen/karen-256x256.webp" width="80" height="80" alt="Karen"><br>
+      <strong>Karen</strong>
+    </td>
+    <td>Handles customer support 24/7 across Slack, Discord, and Telegram</td>
+  </tr>
+  <tr>
+    <td align="center" width="120">
+      <img src="flexus_simple_bots/clerkwing/clerkwing-256x256.webp" width="80" height="80" alt="Clerkwing"><br>
+      <strong>Clerkwing</strong>
+    </td>
+    <td>Handles documentation and records management</td>
+  </tr>
+  <tr>
+    <td align="center" width="120">
+      <img src="flexus_simple_bots/lawyerrat/lawyerrat-256x256.webp" width="80" height="80" alt="LawyerRat"><br>
+      <strong>LawyerRat</strong>
+    </td>
+    <td>Drafts and reviews legal documents and contracts</td>
+  </tr>
+</table>
+
+All agents share context. Owl Strategist briefs Botticelli. Botticelli hands off to AdMonster. They work like a team — not a stack of isolated automations.
 
 
 ## Architecture
@@ -49,14 +125,14 @@ the backend handles the rest: scheduling, kanban boards, user-facing UI, and mes
 
 ## Features
 
-- **Kanban-driven automation** — bots pick up tasks from inbox, prioritize, and resolve them autonomously
+- **Kanban-driven automation** — agents pick up tasks from inbox, prioritize, and resolve them autonomously
 - **Multi-channel messaging** — Slack, Discord, Telegram, Gmail with thread capture and routing
-- **Experts & subchats** — each bot can have multiple personas with isolated contexts and toolsets
+- **Experts & subchats** — each agent can have multiple personas with isolated contexts and toolsets
 - **Policy documents** — structured JSON documents (QA forms, schemas, microfrontends) editable in the UI
 - **Scenario testing** — YAML-based behavior testing with LLM-as-judge scoring
 - **Lark kernels** — lightweight Python-like scripts that control chat execution on the backend
-- **A2A communication** — bots can hand off tasks to other bots via kanban
-- **Self-hosted** — run on your own infrastructure, bring your own LLM provider
+- **A2A communication** — agents hand off tasks to each other via kanban
+- **Self-hosted** — your infrastructure, your data, your LLM provider
 
 
 ## Installation
@@ -115,8 +191,6 @@ python flexus_simple_bots/frog/frog_install.py --ws YOUR_WORKSPACE_ID
 python -m flexus_simple_bots.frog.frog_bot
 ```
 
-The frog bot will connect to your Flexus instance, listen for events, and respond with cheerful ribbits.
-
 ### 4. Run a scenario test
 
 ```bash
@@ -138,76 +212,84 @@ Every bot follows this pattern — three files:
 See [AGENTS.md](AGENTS.md) for the full bot development guide.
 
 
-## Bot Gallery
+## What's built
 
-| Bot | Purpose |
-|-----|---------|
-| **Frog** | Educational example — ribbits, catches insects, writes pond reports |
-| **Productman** | Validates product ideas using hypothesis-driven research |
-| **Owl Strategist** | Marketing strategy and planning |
-| **Botticelli** | Creative marketing and content |
-| **AdMonster** | Ad campaign management on LinkedIn/Meta/X |
-| **Boss** | Task and project management |
-| **Karen** | Customer support across Slack/Discord/Telegram |
-| **Clerkwing** | Documentation and records management |
-| **LawyerRat** | Legal document drafting and contract analysis |
-| **Slonik** | Database and data management |
-| **Vix** | Specialized operations |
-| **DentistRat** | Dental practice assistant |
+### Agents
 
-All bots live in `flexus_simple_bots/` and follow the same three-file structure.
+- [x] Productman — validates ideas for product-market fit using hypothesis-driven research
+- [x] Owl Strategist — marketing strategy and planning
+- [x] Botticelli — creative marketing and content
+- [x] AdMonster — ad campaign management on LinkedIn, Meta, and X
+- [x] Boss — task and project management
+- [x] Clerkwing — documentation and records management
+- [x] LawyerRat — legal document drafting and contract analysis
+- [x] Slonik — database and data management
+- [ ] Rick — sales pipeline management and outreach
+- [ ] Karen — 24/7 customer support via Slack, Discord, and Telegram
+- [ ] Campaign optimization with automated A/B tests and ad spend management
 
-
-## Progress
-
-User facing progress, we started targeting solopreneurs because it's easier:
-
-- [x] Productman verifies ideas for product market fit using hypothesis validation
-- [x] Owl Strategist + Botticelli + AdMonster cover marketing on LinkedIn/Meta/X
-- [ ] Rick runs sales pipeline
-- [x] Mobile app iPhone
-- [x] Mobile app Android
-- [ ] Improve campaigns, automates A/B tests, optimize ad spend
-- [ ] Karen provides 24/7 customer support via Slack/Discord/Telegram
-
-Then we'll make it work for small-to-medium companies:
-
-- [ ] Procurement
-- [ ] Warehouse
-- [ ] HR
-
-Technical progress:
+### Core platform
 
 - [x] Modern chat interface
-- [x] Documents upload, external data sources (dropbox, google drive)
-- [x] External integrations (MCP, gmail, slack, discord, etc)
+- [x] Kanban board with autonomous task handling
+- [x] Scheduler and cron-based automation
+- [x] Policy documents (structured JSON, editable in UI)
+- [x] Scenario testing (YAML-based, LLM-as-judge scoring)
+- [x] A2A communication — agents hand off tasks to each other
 - [ ] Task scheduling system
 - [ ] CRM system
 
-<!-- - [ ] LawyerRat assists document drafting, and contract analysis -->
+### Integrations
+
+- [x] External integrations: MCP, Gmail, Slack, Discord, and more
+- [x] Document uploads and external data sources (Dropbox, Google Drive)
+- [ ] Full 30+ integration suite (LinkedIn, Stripe, Shopify, Notion, Jira, and more)
+
+### Mobile (optional)
+
+- [x] iOS app
+- [x] Android app
+
+### Self-improvement
+
+- [x] Create a new agent in a single chat
+- [ ] Agents refine their own prompts and tools via GitHub PRs — you review before anything merges
+- [ ] Leave feedback for an agent and it becomes a code change (GitHub PR)
+- [ ] Every screen in the UI has a feedback loop that turns into improvements
 
 
-## Self Improvement
+## Security
 
-Every aspect of Flexus improves itself automatically!
+Flexus agents connect to real messaging surfaces (Slack, Discord, Telegram, Gmail). Treat inbound messages as untrusted input.
 
-- [x] You can create a new bot in 1 chat
-- [ ] Bots improve their prompts and tools, with human-in-the loop to review the changes (github PR)
-- [ ] You can leave feedback for a bot, that will translate to code changes (github PR)
-- [ ] Every page in web UI or mobile has feedback, that will translate to code changes (github PR)
+**Defaults:**
+
+- Agents do not process messages from unknown senders without explicit configuration
+- All agent actions go through **human-in-the-loop** approval before they execute — the agent drafts, you approve
+- Self-hosted deployments run on your own infrastructure with your own LLM provider keys — no data leaves your environment unless you configure it to
+
+**For group/channel deployments:**
+
+Configure allowlists per channel to control which users and groups can trigger agents. See [docs.flexus.team/quick-start/self-hosted](https://docs.flexus.team/quick-start/self-hosted/) for the full security configuration guide.
 
 
-## Writing Your Bot
+## Development channels
 
-It's easy to write your own bot!
+| Channel | Tag | Description |
+|---------|-----|-------------|
+| **stable** | Tagged releases | Production-ready. Use this for deployments. |
+| **beta** | Prerelease tags | New features being validated. Mostly stable. |
+| **dev** | `main` branch head | Latest changes. May be unstable. |
 
-Your bot is a repository on github (probably a forked https://github.com/smallcloudai/flexus-my-bot
-but you don't have to start with that repo) that defines:
+```bash
+# Install a specific channel
+pip install -e git+https://github.com/smallcloudai/flexus-client-kit.git@main#egg=flexus-client-kit  # dev
+```
 
-* Python script to run that bot, for example `python -m flexus_my_bot.my_fancy_bot`
-* Installation script that provides all the prompts, avatar pictures, microfrontend, etc
 
-Here's the minimal structure:
+## Build your own agent
+
+Your agent is a GitHub repo. It needs two things: a Python script that runs it, and an install script that sets up its prompts, persona, and configuration.
 
 ```python
 # my_bot.py
@@ -231,35 +313,42 @@ asyncio.run(ckit_bot_exec.run_bots_in_this_group(
 ))
 ```
 
-But it's even easier, you can [hire Bob](https://flexus.team/bob/marketplace-details) and ask him to
-do all this for you!
+Or [hire Bob](https://flexus.team/bob/marketplace-details) to build it for you.
 
-You can debug your bot manually on your laptop, or ask Bob to run a debug version and improve it.
-
-Read the full guide in [AGENTS.md](AGENTS.md) — it covers tools, experts, subchats, kanban, scheduling,
+Read the full guide in [AGENTS.md](AGENTS.md) — tools, experts, subchats, kanban, scheduling,
 Lark kernels, policy documents, scenario testing, and more.
 
 
-## Monetize Your Bot on Marketplace
+## Marketplace
 
-We'll make the first usable setup work with the bots we create ourselves. Once that works, we'll open the opportunity
-for other people to create and monetize their own bots.
+The Flexus marketplace lets developers build, publish, and monetize agents for any business function or industry. If you can write Python, you can ship an agent that solopreneurs and small teams pay to hire.
+
+We're building out the core agent set first. Once that's stable, the marketplace opens to third-party creators. [Get notified when it launches](https://flexus.team/).
 
 
 ## Contributing
 
-Contributions are welcome! Whether it's a bug fix, a new bot, or an improvement to the SDK.
+Most solopreneurs can't afford to hire a team. Every agent you contribute is a specialist they get to hire for free.
 
-1. Fork the repo and create a branch from `main`
-2. If you've added or changed code, add or update scenario tests
-3. Make sure scenario tests pass for the bots you've changed
+Beyond impact, it's also an opportunity — when the marketplace opens, agents you've built and proven here can be listed and monetized.
+
+**What we need most:**
+
+- **New agents** — sales (Rick), customer support (Karen), and agents for industries not yet covered
+- **Scenario tests** — YAML-based behavior tests for existing agents to improve reliability
+- **Integrations** — connectors for tools solopreneurs actually use (Stripe, Notion, Shopify, HubSpot)
+- **SDK improvements** — better tooling, docs, and developer experience for bot builders
+
+**How to contribute:**
+
+1. Fork and create a branch from `main`
+2. Add or update scenario tests for anything you've changed
+3. Make sure scenario tests pass for the bots you've touched
 4. Open a pull request
 
-For bot development, start with the [Frog bot](flexus_simple_bots/frog/) as a reference, and read
-[AGENTS.md](AGENTS.md) for conventions on naming, code style, and bot structure.
+Start with the [Frog bot](flexus_simple_bots/frog/) as a reference — it's the minimal working example. Read [AGENTS.md](AGENTS.md) for conventions on naming, code style, and bot structure.
 
-Report bugs and request features via [GitHub Issues](https://github.com/smallcloudai/flexus-client-kit/issues).
-
+Report bugs and request features via [GitHub Issues](https://github.com/smallcloudai/flexus-client-kit/issues). Questions? Join the community on [Discord](https://discord.gg/XmgtsBrz47).
 
 ## License
 
