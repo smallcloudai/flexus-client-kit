@@ -1,6 +1,5 @@
 import asyncio
 import logging
-import os
 import time
 from typing import Dict, Any
 
@@ -22,8 +21,6 @@ from flexus_simple_bots.version_common import SIMPLE_BOTS_COMMON_VERSION
 
 logger = logging.getLogger("bot_admonster")
 
-LINKEDIN_CLIENT_ID = os.getenv("LINKEDIN_CLIENT_ID", "")
-LINKEDIN_CLIENT_SECRET = os.getenv("LINKEDIN_CLIENT_SECRET", "")
 
 BOT_NAME = "admonster"
 BOT_VERSION = SIMPLE_BOTS_COMMON_VERSION
@@ -52,18 +49,15 @@ async def admonster_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_e
     linkedin_ad_account_id = setup.get("ad_account_id", "")
 
     linkedin_integration = None
-    if (LINKEDIN_CLIENT_ID and LINKEDIN_CLIENT_SECRET) or rcx.running_test_scenario:
-        try:
-            linkedin_integration = fi_linkedin.IntegrationLinkedIn(
-                fclient=fclient,
-                rcx=rcx,
-                app_id=LINKEDIN_CLIENT_ID,
-                app_secret=LINKEDIN_CLIENT_SECRET,
-                ad_account_id=linkedin_ad_account_id,
-            )
-            logger.info("LinkedIn integration initialized for %s", rcx.persona.persona_id)
-        except Exception as e:
-            logger.warning("Failed to initialize LinkedIn integration: %s", e)
+    try:
+        linkedin_integration = fi_linkedin.IntegrationLinkedIn(
+            fclient=fclient,
+            rcx=rcx,
+            ad_account_id=linkedin_ad_account_id,
+        )
+        logger.info("LinkedIn integration initialized for %s", rcx.persona.persona_id)
+    except Exception as e:
+        logger.warning("Failed to initialize LinkedIn integration: %s", e)
 
     # Facebook integration — ad_account_id read from /company/ad-ops-config at runtime
     facebook_integration = IntegrationFacebook(fclient=fclient, rcx=rcx, ad_account_id="", pdoc_integration=pdoc_integration)
@@ -71,7 +65,7 @@ async def admonster_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_e
     @rcx.on_tool_call(fi_linkedin.LINKEDIN_TOOL.name)
     async def toolcall_linkedin(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
         if not linkedin_integration:
-            return "ERROR: LinkedIn integration not configured. Please set LINKEDIN_ACCESS_TOKEN in setup.\n"
+            return "ERROR: LinkedIn integration not configured.\n"
         return await linkedin_integration.called_by_model(toolcall, model_produced_args)
 
     @rcx.on_tool_call(FACEBOOK_TOOL.name)

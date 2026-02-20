@@ -53,7 +53,7 @@ async def install(
             {"feat_question": "Launch experiment", "feat_expert": "default", "feat_depends_on_setup": []},
             {"feat_question": "Check experiment status and metrics", "feat_expert": "default", "feat_depends_on_setup": []},
             {"feat_question": "Show me all my Facebook campaigns", "feat_expert": "default", "feat_depends_on_setup": []},
-            {"feat_question": "Connect Facebook account", "feat_expert": "default", "feat_depends_on_setup": []},
+            {"feat_question": "Show my ad account status", "feat_expert": "default", "feat_depends_on_setup": []},
         ],
         marketable_intro_message="Hi! I'm Ad Monster, your automated advertising assistant. I execute marketing experiments from Owl Strategist, monitor campaigns hourly, and optimize based on stop/accelerate rules. I can launch experiments, check status, or manage individual campaigns. What would you like to do?",
         marketable_preferred_model_default="grok-code-fast-1",
@@ -76,7 +76,7 @@ async def install(
                 fexp_allow_tools="",
                 fexp_app_capture_tools=bot_internal_tools,
                 fexp_inactivity_timeout=0,
-                fexp_description="Helps users configure Facebook OAuth connections and ad account settings, plus LinkedIn advertising credentials.",
+                fexp_description="Helps users configure ad account settings for Facebook and LinkedIn after connecting integrations in workspace settings.",
             )),
         ],
         marketable_tags=["advertising", "linkedin", "facebook", "marketing", "campaigns", "experiments", "automation"],
@@ -87,6 +87,8 @@ async def install(
             prompts_common.SCHED_TODO_5M,
         ],
         marketable_forms=ckit_bot_install.load_form_bundles(__file__),
+        marketable_auth_needed=["linkedin", "facebook"],
+        marketable_auth_supported=[],
     )
 
 
