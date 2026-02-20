@@ -15,6 +15,7 @@ from flexus_client_kit import ckit_mongo
 from flexus_client_kit import ckit_kanban
 from flexus_client_kit import ckit_external_auth
 from flexus_client_kit import erp_schema
+from flexus_client_kit.integrations import fi_mcp
 from flexus_client_kit.integrations import fi_mongo_store
 from flexus_client_kit.integrations import fi_pdoc
 from flexus_simple_bots.frog import frog_install
@@ -86,18 +87,21 @@ MAKE_POND_REPORT_TOOL = ckit_cloudtool.CloudTool(
     },
 )
 
+frog_mcps = fi_mcp.MCPsDeclaration(["context7"])
+
 TOOLS = [
     RIBBIT_TOOL,
     CATCH_INSECTS_TOOL,
     MAKE_POND_REPORT_TOOL,
     fi_mongo_store.MONGO_STORE_TOOL,
     fi_pdoc.POLICY_DOCUMENT_TOOL,
+    *frog_mcps.tools(),
 ]
 
 
 async def frog_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.RobotContext) -> None:
     setup = ckit_bot_exec.official_setup_mixing_procedure(frog_install.frog_setup_schema, rcx.persona.persona_setup)
-
+    await frog_mcps.launch(rcx, setup)
 
     mongo_conn_str = await ckit_mongo.mongo_fetch_creds(fclient, rcx.persona.persona_id)
     mongo = AsyncMongoClient(mongo_conn_str)
