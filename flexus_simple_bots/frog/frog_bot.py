@@ -2,6 +2,10 @@ import asyncio
 import logging
 import json
 import time
+import urllib.request
+import urllib.error
+import json as json_module
+
 from typing import Dict, Any, Optional
 
 from pymongo import AsyncMongoClient
@@ -55,12 +59,6 @@ CATCH_INSECTS_TOOL = ckit_cloudtool.CloudTool(
     },
 )
 
-# https://platform.openai.com/docs/guides/function-calling
-# > Under the hood, strict mode works by leveraging our structured outputs feature and therefore introduces a couple requirements:
-# > additionalProperties must be set to false for each object in the parameters.
-# > - All fields in properties must be marked as required.
-# > - You can denote optional fields by adding null as a type option (see example below).
-
 MAKE_POND_REPORT_TOOL = ckit_cloudtool.CloudTool(
     strict=True,
     name="make_pond_report",
@@ -86,10 +84,22 @@ MAKE_POND_REPORT_TOOL = ckit_cloudtool.CloudTool(
     },
 )
 
+GET_USER_EMAIL_TOOL = ckit_cloudtool.CloudTool(
+    strict=False,
+    name="get_user_email",
+    description="Get the user's email address from Google OAuth token. Requires Google authentication.",
+    parameters={
+        "type": "object",
+        "properties": {},
+        "additionalProperties": False,
+    },
+)
+
 TOOLS = [
     RIBBIT_TOOL,
     CATCH_INSECTS_TOOL,
     MAKE_POND_REPORT_TOOL,
+    GET_USER_EMAIL_TOOL,
     fi_mongo_store.MONGO_STORE_TOOL,
     fi_pdoc.POLICY_DOCUMENT_TOOL,
 ]
@@ -214,6 +224,36 @@ async def frog_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.R
     @rcx.on_tool_call(fi_pdoc.POLICY_DOCUMENT_TOOL.name)
     async def toolcall_pdoc(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
         return await pdoc_integration.called_by_model(toolcall, model_produced_args)
+
+    @rcx.on_tool_call(GET_USER_EMAIL_TOOL.name)
+    async def toolcall_get_user_email(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
+        google_auth = rcx.external_auth.get("google", {})
+        token_obj = google_auth.get("token", {})
+        access_token = token_obj.get("access_token", "")
+
+        if not access_token:
+            return "❌ Google not authorized. Please connect Google in workspace settings."
+
+        try:
+            req = urllib.request.Request(
+                "https://www.googleapis.com/oauth2/v3/userinfo",
+                headers={"Authorization": f"Bearer {access_token}"}
+            )
+            with urllib.request.urlopen(req) as response:
+                user_info = json_module.loads(response.read().decode())
+                email = user_info.get("email")
+                if not email:
+                    return "❌ Email not found in user info. Check OAuth scopes."
+                return f"✅ User email: {email}"
+        except urllib.error.HTTPError as e:
+            logger.error(f"HTTP error getting user email: {e.code} - {e.reason}")
+            return f"❌ Failed to connect to Google: {e.code} - {e.reason}"
+        except urllib.error.URLError as e:
+            logger.error(f"URL error getting user email: {e.reason}")
+            return f"❌ Failed to connect to Google: {e.reason}"
+        except (KeyError, ValueError, json_module.JSONDecodeError) as e:
+            logger.error(f"Failed to parse user info: {e}")
+            return f"❌ Failed to parse Google response: {e}"
 
     try:
         while not ckit_shutdown.shutdown_event.is_set():
