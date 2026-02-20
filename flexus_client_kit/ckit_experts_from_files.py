@@ -1,7 +1,10 @@
+import logging
 from pathlib import Path
 
 from flexus_client_kit import ckit_bot_install
 from flexus_simple_bots import prompts_common
+
+logger = logging.getLogger("exprt")
 
 
 def parse_expert_md(text: str):
@@ -35,6 +38,26 @@ def discover_experts(prompts_dir: Path) -> list[tuple[str, ckit_bot_install.FMar
     for f in sorted(prompts_dir.glob("expert_*.md")):
         name = f.stem.removeprefix("expert_")
         header, _ = parse_expert_md(f.read_text())
+        recognized = {"fexp_description", "fexp_block_tools", "fexp_allow_tools"}
+        required = {"fexp_description"}
+        unknown = set(header.keys()) - recognized
+        missing = required - set(header.keys())
+        errors = []
+        if unknown:
+            errors.append(f"unrecognized frontmatter keys: {', '.join(sorted(unknown))}")
+        if missing:
+            errors.append(f"missing required frontmatter: {', '.join(sorted(missing))}")
+        if errors:
+            logger.error(
+                f"  Expected format of expert_*.md file header:\n\n"
+                f"  ---\n"
+                f"  fexp_description: A short description of what this expert does\n"
+                f"  fexp_block_tools: (optional) tool glob patterns to block\n"
+                f"  fexp_allow_tools: (optional) tool glob patterns to allow\n"
+                f"  ---\n\n"
+            )
+            logger.error(f"{f}: {'; '.join(errors)}")
+            raise KeyError(f"{f}: {'; '.join(errors)}\n")
         experts.append((name, ckit_bot_install.FMarketplaceExpertInput(
             fexp_system_prompt=build_expert_prompt(prompts_dir, name),
             fexp_python_kernel="",
