@@ -1,3 +1,4 @@
+import contextlib
 import logging
 import os
 import re
@@ -190,10 +191,10 @@ async def _fetch_order_transactions(domain, token, cutoff_iso):
     return txn_map
 
 
-async def _shop_req(domain, token, method, path, body=None):
+async def _shop_req(domain, token, method, path, body=None, c=None):
     url = f"https://{domain}/admin/api/{API_VER}/{path}"
-    async with httpx.AsyncClient(timeout=30) as c:
-        r = await c.request(method, url, headers={"X-Shopify-Access-Token": token}, json=body)
+    async with (contextlib.nullcontext(c) if c else httpx.AsyncClient(timeout=30)) as client:
+        r = await client.request(method, url, headers={"X-Shopify-Access-Token": token}, json=body)
         r.raise_for_status()
         return r
 
@@ -273,18 +274,19 @@ def _map_variant(ws, v):
     }
 
 
-def _map_order(ws, shop_id, o, contact_id=None):
+def _map_order(ws, shop_id, o):
     shipping = sum(float(s.get("price", "0")) for s in (o.get("shipping_lines") or []))
     refunded = sum(
         sum(float(t.get("amount", "0")) for t in (r.get("transactions") or []))
         for r in (o.get("refunds") or [])
     )
+    email = (o.get("email") or o.get("contact_email") or "").lower()
     return {
         "ws_id": ws, "order_shop_id": shop_id,
         "order_external_id": str(o["id"]),
         "order_number": str(o.get("order_number", o.get("name", ""))),
-        "order_contact_id": contact_id,
-        "order_email": (o.get("email") or o.get("contact_email") or "").lower(),
+        "contact_email": email,
+        "order_email": email,
         "order_financial_status": FIN_STATUS.get(o.get("financial_status", ""), "PENDING"),
         "order_fulfillment_status": FUL_STATUS.get(o.get("fulfillment_status"), "UNFULFILLED"),
         "order_currency": o.get("currency", ""),
@@ -427,28 +429,33 @@ class IntegrationShopify:
             return "Webhook URL not configured: set FLEXUS_ENV or SHOPIFY_WEBHOOK_URL"
         existing = await _paginate(shop.shop_domain, token, "webhooks.json", "webhooks")
         ours = {w["topic"]: w for w in existing if w["topic"] in WEBHOOK_TOPICS}
-        for topic, w in list(ours.items()):
-            if w.get("address") != address_base:
-                try:
-                    await _shop_req(shop.shop_domain, token, "DELETE", f"webhooks/{w['id']}.json")
-                except Exception:
-                    pass
-                del ours[topic]
+        async with httpx.AsyncClient(timeout=30) as c:
+            for topic, w in list(ours.items()):
+                if w.get("address") != address_base:
+                    try:
+                        await _shop_req(shop.shop_domain, token, "DELETE", f"webhooks/{w['id']}.json", c=c)
+                    except httpx.HTTPStatusError as e:
+                        if e.response.status_code != 404:
+                            logger.warning("failed to delete webhook %s: %s", w['id'], e)
+                    except Exception as e:
+                        logger.warning("failed to delete webhook %s: %s", w['id'], e)
+                    del ours[topic]
         failed = []
-        for topic in WEBHOOK_TOPICS:
-            if topic in ours:
-                continue
-            try:
-                await _shop_req(shop.shop_domain, token, "POST", "webhooks.json", {
-                    "webhook": {"topic": topic, "address": address_base, "format": "json"},
-                })
-            except httpx.HTTPStatusError as e:
-                body = e.response.text[:200] if e.response else ""
-                logger.warning("webhook %s failed for %s: %s %s", topic, shop.shop_domain, e.response.status_code, body)
-                failed.append(f"{topic} ({body})" if body else topic)
-            except Exception as e:
-                logger.warning("webhook %s failed for %s: %s", topic, shop.shop_domain, e)
-                failed.append(topic)
+        async with httpx.AsyncClient(timeout=30) as c:
+            for topic in WEBHOOK_TOPICS:
+                if topic in ours:
+                    continue
+                try:
+                    await _shop_req(shop.shop_domain, token, "POST", "webhooks.json", {
+                        "webhook": {"topic": topic, "address": address_base, "format": "json"},
+                    }, c=c)
+                except httpx.HTTPStatusError as e:
+                    body = e.response.text[:200] if e.response else ""
+                    logger.warning("webhook %s failed for %s: %s %s", topic, shop.shop_domain, e.response.status_code, body)
+                    failed.append(f"{topic} ({body})" if body else topic)
+                except Exception as e:
+                    logger.warning("webhook %s failed for %s: %s", topic, shop.shop_domain, e)
+                    failed.append(topic)
         if failed:
             return "Failed to register webhooks: %s" % ", ".join(failed)
         return ""
@@ -488,11 +495,12 @@ class IntegrationShopify:
             return "Sync errors: " + "; ".join(errors)
         return f"Synced {len(products)} products, {len(orders)} orders for {shop.shop_domain}"
 
-    async def _upsert(self, table, ws, upsert_key, recs, fk_from="", fk_table="", fk_to=""):
+    async def _upsert(self, table, ws, upsert_key, recs, fk_from="", fk_table="", fk_id="", fk_to="", fk_case_insensitive=False):
         try:
-            res = await ckit_erp.batch_upsert_erp_records(self.fclient, table, ws, upsert_key, recs, fk_from=fk_from, fk_table=fk_table, fk_to=fk_to)
+            res = await ckit_erp.batch_upsert_erp_records(self.fclient, table, ws, upsert_key, recs, fk_from=fk_from, fk_table=fk_table, fk_id=fk_id, fk_to=fk_to, fk_case_insensitive=fk_case_insensitive)
             if isinstance(res, dict) and res.get("errors"):
                 return f"{table}: {res['failed']} failed — {res['errors']}"
+            return ""
         except Exception as e:
             return f"{table} upsert failed: {e}"
 
@@ -503,24 +511,11 @@ class IntegrationShopify:
         var_records = [_map_variant(ws, v) for p in products for v in (p.get("variants") or [])]
         if var_records:
             return await self._upsert("com_product_variant", ws, "pvar_external_id", var_records,
-                fk_from="prod_external_id", fk_table="com_product", fk_to="pvar_prod_id")
+                fk_from="prod_external_id", fk_table="com_product", fk_id="prod_id", fk_to="pvar_prod_id")
 
     async def _upsert_orders(self, ws, shop_id, orders):
-        # Contact linking by email
-        emails = {(o.get("email") or "").lower() for o in orders} - {""}
-        contact_map = {}
-        for email in emails:
-            try:
-                cs = await ckit_erp.query_erp_table(
-                    self.fclient, "crm_contact", ws, erp_schema.CrmContact,
-                    filters=f"contact_email:ILIKE:{email}", limit=1,
-                )
-                if cs:
-                    contact_map[email] = cs[0].contact_id
-            except Exception:
-                pass
-
-        err = await self._upsert("com_order", ws, "order_external_id", [_map_order(ws, shop_id, o, contact_map.get((o.get("email") or "").lower())) for o in orders])
+        err = await self._upsert("com_order", ws, "order_external_id", [_map_order(ws, shop_id, o) for o in orders],
+            fk_from="contact_email", fk_table="crm_contact", fk_id="contact_id", fk_to="order_contact_id", fk_case_insensitive=True)
         if err:
             return err
 
@@ -543,7 +538,7 @@ class IntegrationShopify:
         ]:
             if recs:
                 e = await self._upsert(table, ws, key, recs,
-                    fk_from="order_external_id", fk_table="com_order", fk_to=fk_to)
+                    fk_from="order_external_id", fk_table="com_order", fk_id="order_id", fk_to=fk_to)
                 if e:
                     errors.append(e)
         if errors:
@@ -711,9 +706,10 @@ class IntegrationShopify:
             try:
                 token = await self._get_token(shop)
                 if token:
-                    for w in await _paginate(shop.shop_domain, token, "webhooks.json", "webhooks"):
-                        if w["topic"] in WEBHOOK_TOPICS:
-                            await _shop_req(shop.shop_domain, token, "DELETE", f"webhooks/{w['id']}.json")
+                    async with httpx.AsyncClient(timeout=30) as c:
+                        for w in await _paginate(shop.shop_domain, token, "webhooks.json", "webhooks"):
+                            if w["topic"] in WEBHOOK_TOPICS:
+                                await _shop_req(shop.shop_domain, token, "DELETE", f"webhooks/{w['id']}.json", c=c)
             except Exception as e:
                 logger.warning("failed to delete webhooks for %s: %s", shop_id, e)
         await ckit_erp.patch_erp_record(
@@ -774,19 +770,20 @@ class IntegrationShopify:
         if not line_items:
             return "Missing 'line_items': [{variant_id, quantity}]"
         try:
-            r = await _shop_req(shop.shop_domain, token, "GET", f"draft_orders/{doid}.json")
-            existing = r.json()["draft_order"]["line_items"]
-            # Merge: bump quantity for existing variants, append new ones
-            by_vid = {str(li["variant_id"]): li for li in existing}
-            for item in line_items:
-                vid = str(item["variant_id"])
-                if vid in by_vid:
-                    by_vid[vid]["quantity"] += item.get("quantity", 1)
-                else:
-                    by_vid[vid] = {"variant_id": int(vid), "quantity": item.get("quantity", 1)}
-            r = await _shop_req(shop.shop_domain, token, "PUT", f"draft_orders/{doid}.json", {
-                "draft_order": {"line_items": list(by_vid.values())},
-            })
+            async with httpx.AsyncClient(timeout=30) as c:
+                r = await _shop_req(shop.shop_domain, token, "GET", f"draft_orders/{doid}.json", c=c)
+                existing = r.json()["draft_order"]["line_items"]
+                # Merge: bump quantity for existing variants, append new ones
+                by_vid = {str(li["variant_id"]): li for li in existing}
+                for item in line_items:
+                    vid = str(item["variant_id"])
+                    if vid in by_vid:
+                        by_vid[vid]["quantity"] += item.get("quantity", 1)
+                    else:
+                        by_vid[vid] = {"variant_id": int(vid), "quantity": item.get("quantity", 1)}
+                r = await _shop_req(shop.shop_domain, token, "PUT", f"draft_orders/{doid}.json", {
+                    "draft_order": {"line_items": list(by_vid.values())},
+                }, c=c)
             return self._fmt_cart(r.json()["draft_order"])
         except httpx.HTTPStatusError as e:
             return f"Failed: {e.response.text[:300]}"
@@ -795,14 +792,15 @@ class IntegrationShopify:
         if not variant_id:
             return "Missing 'variant_id'."
         try:
-            r = await _shop_req(shop.shop_domain, token, "GET", f"draft_orders/{doid}.json")
-            existing = r.json()["draft_order"]["line_items"]
-            updated = [li for li in existing if str(li["variant_id"]) != str(variant_id)]
-            if len(updated) == len(existing):
-                return f"Variant {variant_id} not found in cart."
-            r = await _shop_req(shop.shop_domain, token, "PUT", f"draft_orders/{doid}.json", {
-                "draft_order": {"line_items": updated},
-            })
+            async with httpx.AsyncClient(timeout=30) as c:
+                r = await _shop_req(shop.shop_domain, token, "GET", f"draft_orders/{doid}.json", c=c)
+                existing = r.json()["draft_order"]["line_items"]
+                updated = [li for li in existing if str(li["variant_id"]) != str(variant_id)]
+                if len(updated) == len(existing):
+                    return f"Variant {variant_id} not found in cart."
+                r = await _shop_req(shop.shop_domain, token, "PUT", f"draft_orders/{doid}.json", {
+                    "draft_order": {"line_items": updated},
+                }, c=c)
             return self._fmt_cart(r.json()["draft_order"])
         except httpx.HTTPStatusError as e:
             return f"Failed: {e.response.text[:300]}"
