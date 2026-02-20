@@ -87,6 +87,15 @@ async def install(
         ],
         marketable_forms=ckit_bot_install.load_form_bundles(__file__),
         marketable_auth_supported=["google"],
+        marketable_auth_scopes={
+            "google": [
+                "https://www.googleapis.com/auth/gmail.readonly",
+                "https://www.googleapis.com/auth/gmail.compose",
+                "https://www.googleapis.com/auth/gmail.modify",
+                "https://www.googleapis.com/auth/gmail.send",
+                "https://www.googleapis.com/auth/gmail.labels",
+            ]
+        },
     )
 
 
