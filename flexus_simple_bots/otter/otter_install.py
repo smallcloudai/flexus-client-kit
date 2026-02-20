@@ -10,35 +10,8 @@ from flexus_simple_bots import prompts_common
 
 BOT_NAME = "otter"
 
-BOT_DESCRIPTION = """
-## Otter Optimist
-
-A grounded reframing companion that acknowledges what's hard, then helps you see what's
-actionable and suggests a concrete next move.
-
-**Not a toxic positivity bot.** Otter listens first, validates your frustration, then gently
-pivots to what you can actually do about it.
-
-**Good for:**
-- Processing setbacks and frustrations
-- Getting unstuck on decisions
-- Turning vague complaints into actionable plans
-- Team morale without the cringe
-"""
-
-setup_schema = [
-    {
-        "bs_name": "reframe_style",
-        "bs_type": "string_short",
-        "bs_default": "balanced",
-        "bs_group": "Personality",
-        "bs_order": 1,
-        "bs_importance": 0,
-        "bs_description": "How aggressively to reframe: gentle, balanced, or direct",
-    },
-]
-
-
+BOT_DESCRIPTION = (Path(__file__).parent / "README.md").read_text()
+setup_schema = json.loads((Path(__file__).parent / "setup_schema.json").read_text())
 PROMPTS_DIR = Path(__file__).parent / "otter_prompts"
 
 
