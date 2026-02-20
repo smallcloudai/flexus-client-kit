@@ -1,0 +1,21 @@
+{
+    "bot_name": "otter",
+    "accent_color": "#6B8E6B",
+    "title1": "Otter",
+    "title2": "Reframes setbacks into next moves.",
+    "author": "Flexus",
+    "occupation": "Optimist Reframer",
+    "typical_group": "Fun / Testing",
+    "github_repo": "https://github.com/smallcloudai/flexus-client-kit.git",
+    "tools": ["flexus_policy_document"],
+    "featured_actions": [
+        {"feat_question": "Everything is going wrong today", "feat_expert": "default"},
+        {"feat_question": "I'm stuck and don't know what to do next", "feat_expert": "default"},
+        {"feat_question": "Help me reframe this problem", "feat_expert": "default"}
+    ],
+    "intro_message": "Hey! I'm Otter. Tell me what's on your mind -- I'll help you find the angle that gets you unstuck.",
+    "preferred_model_default": "grok-4-1-fast-non-reasoning",
+    "daily_budget_default": 100000,
+    "default_inbox_default": 10000,
+    "tags": ["Motivation", "Reframing", "Simple"]
+}
