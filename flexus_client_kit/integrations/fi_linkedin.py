@@ -13,6 +13,7 @@ from flexus_client_kit import ckit_bot_exec
 
 logger = logging.getLogger("linkedin")
 
+AD_ACCOUNT_ID = "513489554"
 
 API_BASE = "https://api.linkedin.com"
 API_VERSION = "202509"
@@ -126,7 +127,7 @@ class IntegrationLinkedIn:
     ):
         self.fclient = fclient
         self.rcx = rcx
-        self.ad_account_id = ad_account_id
+        self.ad_account_id = ad_account_id or AD_ACCOUNT_ID
         self.problems = []
         self._campaign_groups_cache = None
         self._campaigns_cache = None

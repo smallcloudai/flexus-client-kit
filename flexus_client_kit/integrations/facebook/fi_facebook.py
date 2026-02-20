@@ -216,7 +216,7 @@ class IntegrationFacebook:
         if op not in ["list_ad_accounts", "help"]:
             await self._ensure_ad_account_id(toolcall)
         if op == "connect":
-            return "Facebook connection is managed in workspace settings.\n"
+            return "Facebook connection is managed in bot settings."
         if op == "status":
             return await self._handle_status(args)
         handler = _OPERATION_HANDLERS.get(op)
