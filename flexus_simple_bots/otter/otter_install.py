@@ -5,6 +5,7 @@ from pathlib import Path
 
 from flexus_client_kit import ckit_client, ckit_bot_install, ckit_cloudtool
 from flexus_client_kit import ckit_experts_from_files
+from flexus_client_kit import no_special_code_bot
 from flexus_simple_bots import prompts_common
 
 
@@ -12,6 +13,7 @@ BOT_NAME = "otter"
 BOT_DESCRIPTION = (Path(__file__).parent / "README.md").read_text()
 SETUP_SCHEMA = json.loads((Path(__file__).parent / "setup_schema.json").read_text())
 EXPERTS = ckit_experts_from_files.discover_experts(Path(__file__).parent / "prompts")
+TOOLS = ["flexus_policy_document"]
 
 
 async def install(
@@ -59,6 +61,5 @@ async def install(
 
 if __name__ == "__main__":
     from flexus_simple_bots.version_common import SIMPLE_BOTS_COMMON_VERSION
-    from flexus_client_kit.integrations import fi_pdoc
     client = ckit_client.FlexusClient("otter_install")
-    asyncio.run(install(client, bot_name=BOT_NAME, bot_version=SIMPLE_BOTS_COMMON_VERSION, tools=[fi_pdoc.POLICY_DOCUMENT_TOOL]))
+    asyncio.run(install(client, bot_name=BOT_NAME, bot_version=SIMPLE_BOTS_COMMON_VERSION, tools=no_special_code_bot.tool_registry_lookup(TOOLS)))
