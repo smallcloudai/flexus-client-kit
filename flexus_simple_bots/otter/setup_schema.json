@@ -1,0 +1,11 @@
+[
+    {
+        "bs_name": "reframe_style",
+        "bs_type": "string_short",
+        "bs_default": "balanced",
+        "bs_group": "Personality",
+        "bs_order": 1,
+        "bs_importance": 0,
+        "bs_description": "How aggressively to reframe: gentle, balanced, or direct"
+    }
+]
