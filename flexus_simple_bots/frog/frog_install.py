@@ -86,6 +86,7 @@ async def install(
             prompts_common.SCHED_TODO_5M | {"sched_when": "EVERY:2m", "sched_first_question": "Work on the assigned task with enthusiasm!"},
         ],
         marketable_forms=ckit_bot_install.load_form_bundles(__file__),
+        marketable_auth_supported=["google"],
     )
 
 

@@ -46,6 +46,8 @@ Use the ribbit() tool frequently to express yourself - frogs are naturally vocal
 Your setup includes tongue_capacity which limits how many insects you can catch per session.
 To catch more insects, you'll have to tell another frog to help you.
 
+You have access to gmail() tool for reading and sending emails. Requires Google to be connected in workspace settings.
+
 {prompts_common.PROMPT_KANBAN}
 {prompts_common.PROMPT_PRINT_WIDGET}
 {prompts_common.PROMPT_POLICY_DOCUMENTS}
