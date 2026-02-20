@@ -1,0 +1,87 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "required": [
+        "bot_name",
+        "accent_color",
+        "title1",
+        "title2",
+        "author",
+        "occupation",
+        "typical_group",
+        "github_repo",
+        "tools",
+        "featured_actions",
+        "intro_message",
+        "preferred_model_default",
+        "daily_budget_default",
+        "default_inbox_default",
+        "tags"
+    ],
+    "additionalProperties": false,
+    "properties": {
+        "bot_name": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]*$"
+        },
+        "accent_color": {
+            "type": "string",
+            "pattern": "^#[0-9a-fA-F]{6}$"
+        },
+        "title1": {
+            "type": "string"
+        },
+        "title2": {
+            "type": "string"
+        },
+        "author": {
+            "type": "string"
+        },
+        "occupation": {
+            "type": "string"
+        },
+        "typical_group": {
+            "type": "string"
+        },
+        "github_repo": {
+            "type": "string"
+        },
+        "tools": {
+            "type": "array",
+            "items": {
+                "type": "string",
+                "enum": ["flexus_policy_document", "print_widget"]
+            }
+        },
+        "featured_actions": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "required": ["feat_question", "feat_expert"],
+                "additionalProperties": false,
+                "properties": {
+                    "feat_question": { "type": "string" },
+                    "feat_expert": { "type": "string" }
+                }
+            }
+        },
+        "intro_message": {
+            "type": "string"
+        },
+        "preferred_model_default": {
+            "type": "string"
+        },
+        "daily_budget_default": {
+            "type": "integer",
+            "minimum": 1
+        },
+        "default_inbox_default": {
+            "type": "integer",
+            "minimum": 1
+        },
+        "tags": {
+            "type": "array",
+            "items": { "type": "string" }
+        }
+    }
+}
