@@ -10,14 +10,17 @@ import gql
 from flexus_client_kit import ckit_client, ckit_cloudtool, gql_utils
 
 
-def load_form_bundles(install_file: str) -> Dict[str, str]:
-    forms_dir = Path(install_file).parent / "forms"
+def load_form_bundles_from_dir(forms_dir: Path) -> Dict[str, str]:
     bundles = {}
     if forms_dir.exists():
         for f in forms_dir.iterdir():
             if f.suffix in ('.html', '.json'):
                 bundles[f.name] = base64.b64encode(f.read_bytes()).decode("ascii")
     return bundles
+
+
+def load_form_bundles(install_file: str) -> Dict[str, str]:
+    return load_form_bundles_from_dir(Path(install_file).parent / "forms")
 
 
 @dataclass

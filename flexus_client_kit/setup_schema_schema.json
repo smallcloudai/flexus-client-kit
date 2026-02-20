@@ -1,0 +1,39 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "array",
+    "items": {
+        "type": "object",
+        "required": ["bs_name", "bs_type", "bs_default", "bs_group", "bs_order", "bs_importance", "bs_description"],
+        "additionalProperties": false,
+        "properties": {
+            "bs_name": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9_]*$"
+            },
+            "bs_type": {
+                "type": "string",
+                "enum": ["string_short", "string_long", "string_multiline", "bool", "int", "float"]
+            },
+            "bs_default": {
+                "oneOf": [
+                    { "type": "string" },
+                    { "type": "integer" },
+                    { "type": "number" },
+                    { "type": "boolean" }
+                ]
+            },
+            "bs_group": {
+                "type": "string"
+            },
+            "bs_order": {
+                "type": "integer"
+            },
+            "bs_importance": {
+                "type": "integer"
+            },
+            "bs_description": {
+                "type": "string"
+            }
+        }
+    }
+}
