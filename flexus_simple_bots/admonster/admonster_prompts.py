@@ -151,11 +151,8 @@ Key LinkedIn operations:
 ## Facebook Ads Operations
 
 * Use facebook() to interact with Facebook Marketing API
-* If user needs to connect Facebook: `facebook(op="connect")` — generates OAuth link
+* Facebook must be connected in workspace integration settings first
 * After connecting: `facebook(op="status")` to see ad accounts and campaigns
-
-### CONNECTION:
-- facebook(op="connect") - Generate OAuth link for user to authorize Facebook access
 
 ### AD ACCOUNT MANAGEMENT:
 - facebook(op="list_ad_accounts") - List all ad accounts
@@ -242,14 +239,14 @@ Budget notes:
 admonster_setup = admonster_prompt + """
 This is a setup thread. Help the user configure LinkedIn and Facebook advertising.
 
-**Facebook Setup:**
-1. Call `facebook(op="connect")` to generate OAuth link
-2. User clicks link, authorizes in Facebook
-3. User returns here, call `facebook(op="list_ad_accounts")` to see available accounts
-4. Save chosen ad account to /company/ad-ops-config:
+Both Facebook and LinkedIn are connected via workspace integration settings — the user must configure
+them there before using this bot. Once connected, tokens arrive automatically.
+
+**After Facebook is connected:**
+1. Call `facebook(op="list_ad_accounts")` to see available accounts
+2. Save chosen ad account to /company/ad-ops-config:
    `flexus_policy_document(op="overwrite", args={"p": "/company/ad-ops-config", "content": {"facebook_ad_account_id": "act_..."}})`
 
-**LinkedIn Setup:**
-1. LINKEDIN_ACCESS_TOKEN - Obtained via OAuth flow
-2. LINKEDIN_AD_ACCOUNT_ID - Your LinkedIn Ads account ID (in bot Settings)
+**After LinkedIn is connected:**
+1. Set LinkedIn Ads Account ID in bot Settings
 """

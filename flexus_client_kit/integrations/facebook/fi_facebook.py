@@ -40,9 +40,6 @@ FACEBOOK_TOOL = ckit_cloudtool.CloudTool(
 )
 
 HELP = """Help:
-**Connection:**
-facebook(op="connect")
-    Generate OAuth link to connect your Facebook account.
 **Account Operations:**
 facebook(op="list_ad_accounts")
     Lists all accessible ad accounts.
@@ -216,10 +213,10 @@ class IntegrationFacebook:
         if not op or "help" in op.lower():
             return HELP
         # Auto-load ad_account_id from pdoc before operations that need it
-        if op not in ["connect", "list_ad_accounts", "help"]:
+        if op not in ["list_ad_accounts", "help"]:
             await self._ensure_ad_account_id(toolcall)
         if op == "connect":
-            return await self._handle_connect()
+            return "Facebook connection is managed in bot settings."
         if op == "status":
             return await self._handle_status(args)
         handler = _OPERATION_HANDLERS.get(op)
@@ -237,29 +234,6 @@ class IntegrationFacebook:
         except Exception as e:
             logger.warning(f"Unexpected error in {op}: {e}", exc_info=e)
             return f"ERROR: {str(e)}"
-
-    async def _handle_connect(self) -> str:
-        from flexus_client_kit import ckit_external_auth
-        try:
-            auth_url = await ckit_external_auth.start_external_auth_flow(
-                fclient=self.fclient,
-                provider="facebook",
-                ws_id=self.rcx.persona.ws_id,
-                fuser_id=self.rcx.persona.owner_fuser_id,
-                scopes=["ads_management", "ads_read", "business_management", "pages_manage_ads"],
-            )
-            return f"""Click this link to connect your Facebook account:
-
-{auth_url}
-
-After authorizing, return here and try your request again.
-
-Requirements:
-- Facebook Business Manager account
-- Access to an Ad Account (starts with act_...)"""
-        except Exception as e:
-            logger.warning(f"Failed to generate Facebook OAuth URL: {e}")
-            return f"ERROR: Could not generate OAuth link: {e}"
 
     async def _handle_status(self, args: Dict[str, Any]) -> str:
         ad_account_id = args.get("ad_account_id", "") or self.client.ad_account_id

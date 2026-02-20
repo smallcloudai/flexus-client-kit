@@ -1,8 +1,6 @@
 from __future__ import annotations
 import asyncio
 import logging
-import os
-import time
 from typing import Any, Dict, Optional, TYPE_CHECKING
 
 import httpx
@@ -62,19 +60,17 @@ class FacebookAdsClient:
         return self._access_token
 
     async def ensure_auth(self) -> Optional[str]:
-        try:
-            if self.is_test_mode:
-                return None
-            if not self._access_token:
-                self._access_token = await self._fetch_token()
-            self._headers = {
-                "Authorization": f"Bearer {self._access_token}",
-                "Content-Type": "application/json",
-            }
+        if self.is_test_mode:
             return None
-        except Exception as e:
-            logger.info(f"Failed to get Facebook token: {e}")
-            return await self._prompt_oauth_connection()
+        if not self._access_token:
+            self._access_token = (self.rcx.external_auth.get("facebook") or {}).get("token", "")
+        if not self._access_token:
+            return "ERROR: Facebook not connected. Connect Facebook in workspace settings.\n"
+        self._headers = {
+            "Authorization": f"Bearer {self._access_token}",
+            "Content-Type": "application/json",
+        }
+        return None
 
     async def request(
         self,
@@ -141,70 +137,3 @@ class FacebookAdsClient:
             raise last_exception
         raise FacebookAPIError(500, "Unexpected retry loop exit")
 
-
-    async def _fetch_token(self) -> str:
-        from flexus_client_kit import ckit_client
-        http = await self.fclient.use_http()
-        async with http as h:
-            result = await h.execute(
-                ckit_client.gql.gql("""
-                    query GetFacebookToken($fuser_id: String!, $ws_id: String!, $provider: String!) {
-                        external_auth_token(
-                            fuser_id: $fuser_id
-                            ws_id: $ws_id
-                            provider: $provider
-                        ) {
-                            access_token
-                            expires_at
-                            token_type
-                        }
-                    }
-                """),
-                variable_values={
-                    "fuser_id": self.rcx.persona.owner_fuser_id,
-                    "ws_id": self.rcx.persona.ws_id,
-                    "provider": "facebook",
-                },
-            )
-        token_data = result.get("external_auth_token")
-        if not token_data:
-            raise ValueError("No Facebook OAuth connection found")
-        access_token = token_data.get("access_token", "")
-        if not access_token:
-            raise ValueError("Facebook OAuth exists but has no access token")
-        expires_at = token_data.get("expires_at")
-        if expires_at and expires_at < time.time():
-            raise ValueError("Facebook token expired, please reconnect")
-        logger.info("Facebook token retrieved for %s", self.rcx.persona.persona_id)
-        return access_token
-
-
-    async def _prompt_oauth_connection(self) -> str:
-        # Generate direct OAuth URL via backend API
-        from flexus_client_kit import ckit_external_auth
-        try:
-            auth_url = await ckit_external_auth.start_external_auth_flow(
-                fclient=self.fclient,
-                provider="facebook",
-                ws_id=self.rcx.persona.ws_id,
-                fuser_id=self.rcx.persona.owner_fuser_id,
-                scopes=["ads_management", "ads_read", "business_management", "pages_manage_ads"],
-            )
-            return f"""Facebook authorization required.
-
-Click this link to connect your Facebook account:
-{auth_url}
-
-After authorizing, return here and try your request again.
-
-Requirements:
-- Facebook Business Manager account
-- Access to an Ad Account (starts with act_...)
-- Proper permissions will be requested automatically"""
-        except Exception as e:
-            logger.warning(f"Failed to generate OAuth URL: {e}")
-            return f"""Facebook authorization required but could not generate OAuth link.
-
-Please ask your workspace admin to configure Facebook OAuth, or check that FACEBOOK_CLIENT_ID and FACEBOOK_CLIENT_SECRET are set in the environment.
-
-Error: {e}"""
