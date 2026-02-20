@@ -8,31 +8,45 @@
         "properties": {
             "bs_name": {
                 "type": "string",
-                "pattern": "^[a-z][a-z0-9_]*$"
+                "title": "Setting Name",
+                "pattern": "^[a-z][a-z0-9_]*$",
+                "description": "Internal identifier for this setting, used as the key in the setup dict. Lowercase letters, digits, and underscores only. Example: 'escalate_policy', 'ad_account_id'."
             },
             "bs_type": {
                 "type": "string",
-                "enum": ["string_short", "string_long", "string_multiline", "bool", "int", "float"]
+                "title": "Input Type",
+                "enum": ["string_short", "string_long", "string_multiline", "bool", "int", "float"],
+                "description": "UI input control type. string_short: single-line text, string_long: wider single-line text, string_multiline: textarea, bool: checkbox, int/float: numeric input."
             },
             "bs_default": {
+                "title": "Default Value",
                 "oneOf": [
                     { "type": "string" },
                     { "type": "integer" },
                     { "type": "number" },
                     { "type": "boolean" }
-                ]
+                ],
+                "description": "Default value used when the admin has not provided an override in the setup dialog. Must match bs_type."
             },
             "bs_group": {
-                "type": "string"
+                "type": "string",
+                "title": "Group",
+                "description": "Tab or panel name in the setup dialog UI. Settings with the same bs_group appear together. Example: 'Policy', 'Email', 'Message Filtering'."
             },
             "bs_order": {
-                "type": "integer"
+                "type": "integer",
+                "title": "Order",
+                "description": "Sort position within the group. Lower numbers appear first. Example: 1, 2, 3."
             },
             "bs_importance": {
-                "type": "integer"
+                "type": "integer",
+                "title": "Importance",
+                "description": "Visibility priority in the setup dialog. 1 = highlighted as important for the admin to fill in, 0 = normal."
             },
             "bs_description": {
-                "type": "string"
+                "type": "string",
+                "title": "Description",
+                "description": "Help text shown to the admin in the setup dialog explaining what this setting controls."
             }
         }
     }

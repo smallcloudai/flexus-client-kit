@@ -22,66 +22,104 @@
     "properties": {
         "bot_name": {
             "type": "string",
-            "pattern": "^[a-z][a-z0-9_]*$"
+            "title": "Bot Name",
+            "pattern": "^[a-z][a-z0-9_]*$",
+            "description": "Unique bot identifier used internally and in API calls. Lowercase letters, digits, and underscores only, must start with a letter. Example: 'productman', 'owl_strategist'."
         },
         "accent_color": {
             "type": "string",
-            "pattern": "^#[0-9a-fA-F]{6}$"
+            "title": "Accent Color",
+            "pattern": "^#[0-9a-fA-F]{6}$",
+            "description": "Hex color code for the bot's UI theme in the marketplace and chat interface. Example: '#4A90E2'."
         },
         "title1": {
-            "type": "string"
+            "type": "string",
+            "title": "Display Name",
+            "description": "Bot's display name shown in the marketplace and UI. Example: 'Productman', 'Ad Monster'."
         },
         "title2": {
-            "type": "string"
+            "type": "string",
+            "title": "Tagline",
+            "description": "Short tagline describing what the bot does, shown below title1 in the marketplace. Example: 'Discovery Agent. Understand what to sell and to whom, validated by market logic.'."
         },
         "author": {
-            "type": "string"
+            "type": "string",
+            "title": "Author",
+            "description": "Name of the bot's author or organization."
         },
         "occupation": {
-            "type": "string"
+            "type": "string",
+            "title": "Occupation",
+            "description": "Bot's role or job title displayed in the marketplace. Example: 'Product Manager', 'Advertising Campaign Manager', 'Secretary Assistant'."
         },
         "typical_group": {
-            "type": "string"
+            "type": "string",
+            "title": "Typical Group",
+            "description": "Default group or category path where the bot appears when installed into a workspace. Use '/' for root. Example: 'Marketing', 'Product / Research', 'Admin Tools'."
         },
         "github_repo": {
-            "type": "string"
+            "type": "string",
+            "title": "GitHub Repository",
+            "description": "Git repository URL where the bot's source code lives. Example: 'https://github.com/smallcloudai/flexus-client-kit.git'."
         },
         "tools": {
             "type": "array",
+            "title": "Tools",
             "items": {
                 "type": "string",
                 "enum": ["flexus_policy_document", "print_widget"]
-            }
+            },
+            "description": "List of built-in cloud tools the bot needs. These are registered at startup and made available as tool calls during chat."
         },
         "featured_actions": {
             "type": "array",
+            "title": "Featured Actions",
             "items": {
                 "type": "object",
                 "required": ["feat_question", "feat_expert"],
                 "additionalProperties": false,
                 "properties": {
-                    "feat_question": { "type": "string" },
-                    "feat_expert": { "type": "string" }
+                    "feat_question": {
+                        "type": "string",
+                        "title": "Question",
+                        "description": "Suggested action text shown as a quick-start button in the UI."
+                    },
+                    "feat_expert": {
+                        "type": "string",
+                        "title": "Expert",
+                        "description": "Name of the expert that handles this action. Use 'default' for the main expert."
+                    }
                 }
-            }
+            },
+            "description": "Quick-start actions shown in the chat UI as clickable suggestions. Each action sends feat_question to the specified expert."
         },
         "intro_message": {
-            "type": "string"
+            "type": "string",
+            "title": "Intro Message",
+            "description": "First message the bot sends when a user opens a new chat. Should briefly introduce the bot and its capabilities."
         },
         "preferred_model_default": {
-            "type": "string"
+            "type": "string",
+            "title": "Preferred Model",
+            "description": "Default LLM model used for this bot's chat completions. Example: 'grok-4-1-fast-non-reasoning', 'grok-4-1-fast-reasoning'."
         },
         "daily_budget_default": {
             "type": "integer",
-            "minimum": 1
+            "title": "Daily Budget",
+            "minimum": 1,
+            "description": "Default daily token budget for the bot in tokens. Admin can override in workspace settings. Example: 200000, 1000000."
         },
         "default_inbox_default": {
             "type": "integer",
-            "minimum": 1
+            "title": "Default Inbox Size",
+            "minimum": 1,
+            "description": "Default maximum number of kanban inbox items the bot will accept. Controls backpressure on incoming tasks. Example: 20000, 100000."
         },
         "tags": {
             "type": "array",
-            "items": { "type": "string" }
+            "title": "Tags",
+            "items": { "type": "string" },
+            "description": "Marketplace tags for discovery and filtering. Example: ['Marketing', 'Strategy', 'Hypothesis Validation']."
         }
     }
 }
