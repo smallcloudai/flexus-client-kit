@@ -9,10 +9,9 @@ from flexus_simple_bots import prompts_common
 
 
 BOT_NAME = "otter"
-
 BOT_DESCRIPTION = (Path(__file__).parent / "README.md").read_text()
-setup_schema = json.loads((Path(__file__).parent / "setup_schema.json").read_text())
-PROMPTS_DIR = Path(__file__).parent / "otter_prompts"
+SETUP_SCHEMA = json.loads((Path(__file__).parent / "setup_schema.json").read_text())
+EXPERTS = ckit_experts_from_files.discover_experts(Path(__file__).parent / "otter_prompts")
 
 
 async def install(
@@ -21,7 +20,6 @@ async def install(
     bot_version: str,
     tools: list[ckit_cloudtool.CloudTool],
 ):
-    bot_internal_tools = json.dumps([t.openai_style_tool() for t in tools])
     pic_big = base64.b64encode(Path(__file__).with_name("otter-1024x1536.webp").read_bytes()).decode("ascii")
     pic_small = base64.b64encode(Path(__file__).with_name("otter-256x256.webp").read_bytes()).decode("ascii")
     await ckit_bot_install.marketplace_upsert_dev_bot(
@@ -38,7 +36,7 @@ async def install(
         marketable_typical_group="Fun / Testing",
         marketable_github_repo="https://github.com/smallcloudai/flexus-client-kit.git",
         marketable_run_this="python -m flexus_client_kit.no_special_code_bot flexus_simple_bots.otter.otter_install",
-        marketable_setup_default=setup_schema,
+        marketable_setup_default=SETUP_SCHEMA,
         marketable_featured_actions=[
             {"feat_question": "Everything is going wrong today", "feat_expert": "default", "feat_depends_on_setup": []},
             {"feat_question": "I'm stuck and don't know what to do next", "feat_expert": "default", "feat_depends_on_setup": []},
@@ -48,13 +46,12 @@ async def install(
         marketable_preferred_model_default="grok-4-1-fast-non-reasoning",
         marketable_daily_budget_default=100_000,
         marketable_default_inbox_default=10_000,
-        marketable_experts=ckit_experts_from_files.discover_experts(PROMPTS_DIR, bot_internal_tools),
+        marketable_experts=[(name, exp.provide_tools(tools)) for name, exp in EXPERTS],
         marketable_tags=["Motivation", "Reframing", "Simple"],
         marketable_picture_big_b64=pic_big,
         marketable_picture_small_b64=pic_small,
         marketable_schedule=[
-            prompts_common.SCHED_TASK_SORT_10M | {"sched_when": "EVERY:5m"},
-            prompts_common.SCHED_TODO_5M | {"sched_when": "EVERY:2m", "sched_first_question": "Reframe the assigned task and suggest a next move."},
+            prompts_common.SCHED_PICK_ONE_5M,
         ],
         marketable_forms=ckit_bot_install.load_form_bundles(__file__),
     )
