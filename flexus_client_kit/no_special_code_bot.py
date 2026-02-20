@@ -118,12 +118,31 @@ async def bot_main_loop(m, fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec
         logger.info("%s exit" % (rcx.persona.persona_id,))
 
 
+def _resolve_bot_dir(raw: str) -> Path:
+    p = Path(raw)
+    if p.is_absolute():
+        return p
+    # relative path -- try CWD first, then walk up to repo root (.git) and resolve there
+    if (Path.cwd() / p / "manifest.json").exists():
+        return (Path.cwd() / p).resolve()
+    d = Path.cwd()
+    while d != d.parent:
+        if (d / ".git").exists():
+            candidate = d / p
+            if (candidate / "manifest.json").exists():
+                return candidate.resolve()
+            break
+        d = d.parent
+    print(f"Cannot find {raw}/manifest.json from CWD or repo root")
+    sys.exit(1)
+
+
 def main():
     if len(sys.argv) < 2 or sys.argv[1].startswith("-"):
         print("Usage: python -m flexus_client_kit.no_special_code_bot <bot_dir>")
-        print("  bot_dir must contain manifest.json")
+        print("  bot_dir can be absolute or relative to CWD or repo root, must contain manifest.json")
         sys.exit(1)
-    bot_dir = Path(sys.argv.pop(1))
+    bot_dir = _resolve_bot_dir(sys.argv.pop(1))
     m = load_manifest(bot_dir)
     bot_name = m["bot_name"]
     tools = tool_registry_lookup(m["tools"])
