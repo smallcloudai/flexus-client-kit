@@ -11,7 +11,7 @@ from flexus_simple_bots import prompts_common
 BOT_NAME = "otter"
 BOT_DESCRIPTION = (Path(__file__).parent / "README.md").read_text()
 SETUP_SCHEMA = json.loads((Path(__file__).parent / "setup_schema.json").read_text())
-EXPERTS = ckit_experts_from_files.discover_experts(Path(__file__).parent / "otter_prompts")
+EXPERTS = ckit_experts_from_files.discover_experts(Path(__file__).parent / "prompts")
 
 
 async def install(
