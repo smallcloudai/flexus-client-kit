@@ -7,7 +7,7 @@ from typing import Dict, Union, Optional, List, Any, Tuple
 import argparse
 import gql
 
-from flexus_client_kit import ckit_client, gql_utils
+from flexus_client_kit import ckit_client, ckit_cloudtool, gql_utils
 
 
 def load_form_bundles(install_file: str) -> Dict[str, str]:
@@ -40,6 +40,10 @@ class FMarketplaceExpertInput:
     fexp_app_capture_tools: str = ""
     fexp_description: str = ""
     fexp_preferred_model_default: str = ""
+
+    def provide_tools(self, tools: list[ckit_cloudtool.CloudTool]) -> "FMarketplaceExpertInput":
+        self.fexp_app_capture_tools = json.dumps([t.openai_style_tool() for t in tools])
+        return self
 
 
 async def marketplace_upsert_dev_bot(

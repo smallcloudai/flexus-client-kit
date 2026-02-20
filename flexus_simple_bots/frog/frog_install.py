@@ -3,63 +3,13 @@ import base64
 import json
 from pathlib import Path
 
-from flexus_client_kit import ckit_client, ckit_bot_install
-from flexus_client_kit import ckit_cloudtool
-
+from flexus_client_kit import ckit_client, ckit_bot_install, ckit_cloudtool
 from flexus_simple_bots import prompts_common
 from flexus_simple_bots.frog import frog_prompts
 
 
-BOT_DESCRIPTION = """
-## Frog - Cheerful AI Assistant
-
-A simple and friendly bot that adds some fun to your workspace. Frog responds with cheerful ribbits and provides positive encouragement to keep your team motivated.
-
-**Key Features:**
-- **Cheerful responses**: Uses ribbit() calls to express emotions
-- **Task management**: Manages simple tasks through Kanban boards
-- **Positive vibes**: Provides encouragement and celebrates accomplishments
-- **Minimal setup**: Easy to configure and deploy
-
-**Perfect for:**
-- Testing bot functionality
-- Adding fun to team interactions
-- Morale boosting
-
-Frog is designed to be lightweight and easy to understand - ideal for learning how Flexus bots work or just bringing some joy to your workspace!
-"""
-
-
-frog_setup_schema = [
-    {
-        "bs_name": "greeting_style",
-        "bs_type": "string_short",
-        "bs_default": "cheerful",
-        "bs_group": "Personality",
-        "bs_order": 1,
-        "bs_importance": 0,
-        "bs_description": "How enthusiastic should the frog be? (cheerful, calm, excited)",
-    },
-    {
-        "bs_name": "ribbit_frequency",
-        "bs_type": "string_short",
-        "bs_default": "normal",
-        "bs_group": "Personality",
-        "bs_order": 2,
-        "bs_importance": 0,
-        "bs_description": "How often should the frog ribbit? (rare, normal, frequent)",
-    },
-    {
-        "bs_name": "tongue_capacity",
-        "bs_type": "int",
-        "bs_default": 5,
-        "bs_group": "Hunting Abilities",
-        "bs_order": 1,
-        "bs_importance": 1,
-        "bs_description": "Maximum number of insects this frog can catch in one hunting session. Like a real frog's stomach capacity!",
-    },
-]
-
+BOT_DESCRIPTION = (Path(__file__).parent / "README.md").read_text()
+SETUP_SCHEMA = json.loads((Path(__file__).parent / "setup_schema.json").read_text())
 
 FROG_SUBCHAT_LARK = f"""
 print("Ribbit in logs")     # will be visible in lark logs
@@ -78,6 +28,23 @@ if msg["role"] == "assistant":
         post_cd_instruction = "OMG dive down!!!"
 """
 
+EXPERTS = [
+    ("default", ckit_bot_install.FMarketplaceExpertInput(
+        fexp_system_prompt=frog_prompts.frog_prompt,
+        fexp_python_kernel=FROG_DEFAULT_LARK,
+        fexp_block_tools="*setup*",
+        fexp_allow_tools="",
+        fexp_description="Main conversational expert that handles user interactions, task management, and provides cheerful encouragement.",
+    )),
+    ("huntmode", ckit_bot_install.FMarketplaceExpertInput(
+        fexp_system_prompt=frog_prompts.frog_prompt,
+        fexp_python_kernel=FROG_SUBCHAT_LARK,
+        fexp_block_tools="*setup*,frog_catch_insects",
+        fexp_allow_tools="",
+        fexp_description="Subchat expert for catching insects, respecting tongue_capacity limit.",
+    )),
+]
+
 
 async def install(
     client: ckit_client.FlexusClient,
@@ -85,9 +52,8 @@ async def install(
     bot_version: str,
     tools: list[ckit_cloudtool.CloudTool],
 ):
-    bot_internal_tools = json.dumps([t.openai_style_tool() for t in tools])
-    pic_big = base64.b64encode(open(Path(__file__).with_name("frog-1024x1536.webp"), "rb").read()).decode("ascii")
-    pic_small = base64.b64encode(open(Path(__file__).with_name("frog-256x256.webp"), "rb").read()).decode("ascii")
+    pic_big = base64.b64encode(Path(__file__).with_name("frog-1024x1536.webp").read_bytes()).decode("ascii")
+    pic_small = base64.b64encode(Path(__file__).with_name("frog-256x256.webp").read_bytes()).decode("ascii")
     await ckit_bot_install.marketplace_upsert_dev_bot(
         client,
         ws_id=client.ws_id,
@@ -102,36 +68,16 @@ async def install(
         marketable_typical_group="Fun / Testing",
         marketable_github_repo="https://github.com/smallcloudai/flexus-client-kit.git",
         marketable_run_this="python -m flexus_simple_bots.frog.frog_bot",
-        marketable_setup_default=frog_setup_schema,
-        marketable_auth_needed=[],
-        marketable_auth_supported=[],
+        marketable_setup_default=SETUP_SCHEMA,
         marketable_featured_actions=[
             {"feat_question": "Ribbit! Tell me something fun", "feat_expert": "default", "feat_depends_on_setup": []},
             {"feat_question": "Give me a motivational boost", "feat_expert": "default", "feat_depends_on_setup": []},
         ],
         marketable_intro_message="Ribbit! Hi there! I'm Frog, your cheerful workspace companion. I'm here to bring joy and keep your spirits high. What can I do for you today?",
-        # marketable_preferred_model_default="grok-code-fast-1",
         marketable_preferred_model_default="grok-4-1-fast-non-reasoning",
         marketable_daily_budget_default=100_000,
         marketable_default_inbox_default=10_000,
-        marketable_experts=[
-            ("default", ckit_bot_install.FMarketplaceExpertInput(
-                fexp_system_prompt=frog_prompts.frog_prompt,
-                fexp_python_kernel=FROG_DEFAULT_LARK,
-                fexp_block_tools="*setup*",
-                fexp_allow_tools="",
-                fexp_app_capture_tools=bot_internal_tools,
-                fexp_description="Main conversational expert that handles user interactions, task management, and provides cheerful encouragement.",
-            )),
-            ("huntmode", ckit_bot_install.FMarketplaceExpertInput(
-                fexp_system_prompt=frog_prompts.frog_prompt,
-                fexp_python_kernel=FROG_SUBCHAT_LARK,
-                fexp_block_tools="*setup*,frog_catch_insects",
-                fexp_allow_tools="",
-                fexp_app_capture_tools=bot_internal_tools,
-                fexp_description="Subchat expert for catching insects, respecting tongue_capacity limit.",
-            )),
-        ],
+        marketable_experts=[(name, exp.provide_tools(tools)) for name, exp in EXPERTS],
         marketable_tags=["Fun", "Simple", "Motivational"],
         marketable_picture_big_b64=pic_big,
         marketable_picture_small_b64=pic_small,

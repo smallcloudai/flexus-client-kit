@@ -30,7 +30,7 @@ def build_expert_prompt(prompts_dir: Path, expert_name: str) -> str:
     )
 
 
-def discover_experts(prompts_dir: Path, bot_internal_tools: str) -> list:
+def discover_experts(prompts_dir: Path) -> list[tuple[str, ckit_bot_install.FMarketplaceExpertInput]]:
     experts = []
     for f in sorted(prompts_dir.glob("expert_*.md")):
         name = f.stem.removeprefix("expert_")
@@ -40,7 +40,6 @@ def discover_experts(prompts_dir: Path, bot_internal_tools: str) -> list:
             fexp_python_kernel="",
             fexp_block_tools=header.get("fexp_block_tools", ""),
             fexp_allow_tools=header.get("fexp_allow_tools", ""),
-            fexp_app_capture_tools=bot_internal_tools,
             fexp_description=header["fexp_description"],
         )))
     return experts
