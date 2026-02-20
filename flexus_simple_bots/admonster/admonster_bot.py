@@ -48,16 +48,13 @@ async def admonster_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_e
 
     linkedin_ad_account_id = setup.get("ad_account_id", "")
 
-    linkedin_integration = None
-    try:
-        linkedin_integration = fi_linkedin.IntegrationLinkedIn(
-            fclient=fclient,
-            rcx=rcx,
-            ad_account_id=linkedin_ad_account_id,
-        )
-        logger.info("LinkedIn integration initialized for %s", rcx.persona.persona_id)
-    except Exception as e:
-        logger.warning("Failed to initialize LinkedIn integration: %s", e)
+
+    linkedin_integration = fi_linkedin.IntegrationLinkedIn(
+        fclient=fclient,
+        rcx=rcx,
+        ad_account_id=linkedin_ad_account_id,
+    )
+    logger.info("LinkedIn integration initialized for %s", rcx.persona.persona_id)
 
     # Facebook integration — ad_account_id read from /company/ad-ops-config at runtime
     facebook_integration = IntegrationFacebook(fclient=fclient, rcx=rcx, ad_account_id="", pdoc_integration=pdoc_integration)
