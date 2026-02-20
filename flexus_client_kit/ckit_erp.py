@@ -149,13 +149,15 @@ async def batch_upsert_erp_records(
     records: List[Any],
     fk_from: str = "",
     fk_table: str = "",
+    fk_id: str = "",
     fk_to: str = "",
+    fk_case_insensitive: bool = False,
 ) -> dict:
     http = await client.use_http()
     async with http as h:
         r = await h.execute(gql.gql("""
-            mutation ErpTableBatchUpsert($schema_name: String!, $table_name: String!, $ws_id: String!, $upsert_key: String!, $records_json: String!, $fk_from: String!, $fk_table: String!, $fk_to: String!) {
-                erp_table_batch_upsert(schema_name: $schema_name, table_name: $table_name, ws_id: $ws_id, upsert_key: $upsert_key, records_json: $records_json, fk_from: $fk_from, fk_table: $fk_table, fk_to: $fk_to)
+            mutation ErpTableBatchUpsert($schema_name: String!, $table_name: String!, $ws_id: String!, $upsert_key: String!, $records_json: String!, $fk_from: String!, $fk_table: String!, $fk_id: String!, $fk_to: String!, $fk_case_insensitive: Boolean!) {
+                erp_table_batch_upsert(schema_name: $schema_name, table_name: $table_name, ws_id: $ws_id, upsert_key: $upsert_key, records_json: $records_json, fk_from: $fk_from, fk_table: $fk_table, fk_id: $fk_id, fk_to: $fk_to, fk_case_insensitive: $fk_case_insensitive)
             }"""),
             variable_values={
                 "schema_name": "erp",
@@ -165,7 +167,9 @@ async def batch_upsert_erp_records(
                 "records_json": json.dumps([dataclass_or_dict_to_dict(r) for r in records]),
                 "fk_from": fk_from,
                 "fk_table": fk_table,
+                "fk_id": fk_id,
                 "fk_to": fk_to,
+                "fk_case_insensitive": fk_case_insensitive,
             },
         )
         result = r["erp_table_batch_upsert"]
