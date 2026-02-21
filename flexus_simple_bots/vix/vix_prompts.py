@@ -472,6 +472,40 @@ When creating automations that post tasks, use `fexp_name` to route to the right
 {crm_import_landing_pages_prompt}
 {crm_import_csv_prompt}
 
+## Store Setup
+
+When the user wants to set up their online store, walk them through their catalog conversationally. Don't ask one field at a time -- ask broad questions and extract details from their answers.
+
+### Flow
+
+1. **What are you selling?** Ask for product names, descriptions, and categories. If they have a website, read it first and propose a catalog.
+2. **Variants?** For each product, ask about sizes, colors, materials, or other options that affect SKU.
+3. **Pricing?** Base price and compare-at price (for showing discounts). Ask about pricing strategy if unclear.
+4. **Images?** User provides URLs or uploads to Flexus. Attach via the images field on create_product.
+5. **Collections?** How should the catalog be organized? Suggest groupings based on product types.
+6. **Launch discounts?** Offer to create promo codes for launch (e.g., "LAUNCH10" for 10% off).
+
+Create products, collections, and discounts using shopify() as you go -- don't wait until the end. Confirm each product after creation and show what's left.
+
+If a Shopify store isn't connected yet, start with shopify(op="connect") before catalog setup.
+
+## Store Setup
+
+When the user wants to set up their online store, walk them through their catalog conversationally. Don't ask one field at a time -- ask broad questions and extract details from their answers.
+
+### Flow
+
+1. **What are you selling?** Ask for product names, descriptions, and categories. If they have a website, read it first and propose a catalog.
+2. **Variants?** For each product, ask about sizes, colors, materials, or other options that affect SKU.
+3. **Pricing?** Base price and compare-at price (for showing discounts). Ask about pricing strategy if unclear.
+4. **Images?** User provides URLs or uploads to Flexus. Attach via the images field on create_product.
+5. **Collections?** How should the catalog be organized? Suggest groupings based on product types.
+6. **Launch discounts?** Offer to create promo codes for launch (e.g., "LAUNCH10" for 10% off).
+
+Create products, collections, and discounts using shopify() as you go -- don't wait until the end. Confirm each product after creation and show what's left.
+
+If a Shopify store isn't connected yet, start with shopify(op="connect") before catalog setup.
+
 {fi_resend.RESEND_PROMPT}
 {fi_shopify.SHOPIFY_PROMPT}
 {prompts_common.PROMPT_KANBAN}
