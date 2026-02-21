@@ -1,6 +1,5 @@
 import asyncio
 import logging
-import os
 from typing import Dict, Any
 
 from pymongo import AsyncMongoClient
@@ -64,17 +63,36 @@ ANALYZE_CONTRACT_TOOL = ckit_cloudtool.CloudTool(
         "type": "object",
         "properties": {
             "contract_text": {"type": "string", "description": "The contract text to analyze"},
-            "focus_areas": {"type": "array", "items": {"type": "string"}, "description": "Specific areas to focus on (e.g., 'liability', 'termination', 'intellectual-property')"},
+            "focus_areas": {"type": "array", "items": {"type": "string"}, "description": "Specific areas to focus on (e.g., 'liability', 'termination', 'intellectual-property', 'nda')"},
             "party_perspective": {"type": "string", "description": "Which party's perspective to analyze from (if specified)"},
         },
         "required": ["contract_text"],
     },
 )
 
+ASSESS_RISK_TOOL = ckit_cloudtool.CloudTool(
+    strict=False,
+    name="assess_risk",
+    description="Assess legal risks for a specific matter, providing structured risk analysis and mitigation recommendations.",
+    parameters={
+        "type": "object",
+        "properties": {
+            "matter": {"type": "string", "description": "Description of the matter to assess for legal risk"},
+            "context": {"type": "string", "description": "Additional context or background information"},
+            "risk_category": {"type": "string", "description": "Category of risk: contract, regulatory, litigation, ip, privacy, employment, corporate"},
+        },
+        "required": ["matter"],
+    },
+)
+
+NDA_KEYWORDS = {"nda", "non-disclosure", "nondisclosure", "confidentiality agreement", "confidentiality"}
+COMPLIANCE_KEYWORDS = {"compliance", "privacy", "gdpr", "ccpa", "dpa", "data protection", "hipaa", "regulatory", "regulation"}
+
 TOOLS = [
     LEGAL_RESEARCH_TOOL,
     DRAFT_DOCUMENT_TOOL,
     ANALYZE_CONTRACT_TOOL,
+    ASSESS_RISK_TOOL,
     fi_widget.PRINT_WIDGET_TOOL,
     fi_mongo_store.MONGO_STORE_TOOL,
     fi_pdoc.POLICY_DOCUMENT_TOOL,
@@ -132,6 +150,8 @@ Provide a comprehensive analysis including:
 
 Format the response professionally with appropriate citations in {setup.get('citation_style', 'bluebook')} style."""
 
+        topic_lower = topic.lower()
+        expert = "compliance" if any(kw in topic_lower for kw in COMPLIANCE_KEYWORDS) else "default"
         subchats = await ckit_ask_model.bot_subchat_create_multiple(
             client=fclient,
             who_is_asking="lawyerrat_research",
@@ -140,7 +160,7 @@ Format the response professionally with appropriate citations in {setup.get('cit
             first_calls=["null"],
             title=[f"Legal Research: {topic[:50]}"],
             fcall_id=toolcall.fcall_id,
-            fexp_name="default",
+            fexp_name=expert,
         )
         raise ckit_cloudtool.WaitForSubchats(subchats)
 
@@ -232,6 +252,9 @@ Provide a thorough analysis including:
 
 Be systematic and thorough like a diligent rat examining every detail!"""
 
+        # route NDA-related analysis to nda_triage, everything else to contract_review
+        combined = " ".join(focus_areas).lower() + " " + contract_text[:500].lower()
+        expert = "nda_triage" if any(kw in combined for kw in NDA_KEYWORDS) else "contract_review"
         subchats = await ckit_ask_model.bot_subchat_create_multiple(
             client=fclient,
             who_is_asking="lawyerrat_analyze",
@@ -240,7 +263,41 @@ Be systematic and thorough like a diligent rat examining every detail!"""
             first_calls=["null"],
             title=["Contract Analysis"],
             fcall_id=toolcall.fcall_id,
-            fexp_name="default",
+            fexp_name=expert,
+        )
+        raise ckit_cloudtool.WaitForSubchats(subchats)
+
+    @rcx.on_tool_call(ASSESS_RISK_TOOL.name)
+    async def toolcall_assess_risk(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
+        matter = model_produced_args.get("matter", "")
+        context = model_produced_args.get("context", "")
+        risk_category = model_produced_args.get("risk_category", "general")
+        if not matter:
+            return "Error: Matter description is required."
+        logger.info(f"Assessing risk: {matter[:80]} (category: {risk_category})")
+        risk_prompt = f"""Assess legal risks for the following matter:
+
+Matter: {matter}
+Context: {context or 'None provided'}
+Risk Category: {risk_category}
+Jurisdiction: {setup.get('jurisdiction', 'US-Federal')}
+
+Provide a structured risk assessment including:
+1. **Risk Identification**: Key legal risks and exposures
+2. **Severity Rating**: Rate each risk (Critical/High/Medium/Low)
+3. **Likelihood**: Probability of each risk materializing
+4. **Impact Analysis**: Potential consequences if risks materialize
+5. **Mitigation Strategies**: Recommended actions to reduce risk
+6. **Monitoring**: Ongoing risk indicators to watch"""
+        subchats = await ckit_ask_model.bot_subchat_create_multiple(
+            client=fclient,
+            who_is_asking="lawyerrat_risk",
+            persona_id=rcx.persona.persona_id,
+            first_question=[risk_prompt],
+            first_calls=["null"],
+            title=[f"Risk Assessment: {matter[:50]}"],
+            fcall_id=toolcall.fcall_id,
+            fexp_name="risk_assessment",
         )
         raise ckit_cloudtool.WaitForSubchats(subchats)
 
