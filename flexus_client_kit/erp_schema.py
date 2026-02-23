@@ -116,7 +116,7 @@ class ComOrder:
     ws_id: str
     order_shop_id: str = field(metadata={"importance": 1, "display_name": "Shop"})
     order_id: str = field(default="", metadata={"pkey": True, "display_name": "Order ID"})
-    order_external_id: str = field(default="", metadata={"display_name": "External ID"})
+    order_external_id: str = field(default="", metadata={"display_name": "External ID", "editable": False})
     order_number: str = field(default="", metadata={"importance": 1, "display_name": "Order Number"})
     order_contact_id: Optional[str] = field(default=None, metadata={"importance": 1, "display_name": "Contact"})
     order_email: str = field(default="", metadata={"importance": 1, "display_name": "Email"})
@@ -159,7 +159,7 @@ class ComOrderItem:
     oitem_name: str = field(metadata={"importance": 1, "display_name": "Name"})
     oitem_id: str = field(default="", metadata={"pkey": True, "display_name": "Item ID"})
     oitem_pvar_id: Optional[str] = field(default=None, metadata={"display_name": "Variant"})
-    oitem_external_id: str = field(default="", metadata={"display_name": "External ID"})
+    oitem_external_id: str = field(default="", metadata={"display_name": "External ID", "editable": False})
     oitem_sku: str = field(default="", metadata={"importance": 1, "display_name": "SKU"})
     oitem_quantity: int = field(default=1, metadata={"importance": 1, "display_name": "Quantity"})
     oitem_unit_price: Decimal = field(default=Decimal(0), metadata={"importance": 1, "display_name": "Unit Price"})
@@ -175,7 +175,7 @@ class ComPayment:
     ws_id: str
     pay_order_id: str = field(metadata={"importance": 1, "display_name": "Order"})
     pay_id: str = field(default="", metadata={"pkey": True, "display_name": "Payment ID"})
-    pay_external_id: str = field(default="", metadata={"display_name": "External ID"})
+    pay_external_id: str = field(default="", metadata={"display_name": "External ID", "editable": False})
     pay_amount: Decimal = field(default=Decimal(0), metadata={"importance": 1, "display_name": "Amount"})
     pay_currency: str = field(default="", metadata={"importance": 1, "display_name": "Currency"})
     pay_status: str = field(default="PENDING", metadata={"importance": 1, "display_name": "Status", "enum": [
@@ -196,7 +196,7 @@ class ComProduct:
     prod_name: str = field(metadata={"importance": 1, "display_name": "Name"})
     prod_shop_id: str = field(metadata={"importance": 1, "display_name": "Shop"})
     prod_id: str = field(default="", metadata={"pkey": True, "display_name": "Product ID"})
-    prod_external_id: str = field(default="", metadata={"importance": 1, "display_name": "External ID"})
+    prod_external_id: str = field(default="", metadata={"importance": 1, "display_name": "External ID", "editable": False})
     prod_description: str = field(default="", metadata={"importance": 1, "display": "string_multiline", "display_name": "Description"})
     prod_type: str = field(default="physical", metadata={"importance": 1, "display_name": "Type", "enum": [
         {"value": "physical", "label": "Physical"},
@@ -217,7 +217,7 @@ class ComProductVariant:
     ws_id: str
     pvar_prod_id: str = field(metadata={"importance": 1, "display_name": "Product"})
     pvar_id: str = field(default="", metadata={"pkey": True, "display_name": "Variant ID"})
-    pvar_external_id: str = field(default="", metadata={"display_name": "External ID"})
+    pvar_external_id: str = field(default="", metadata={"display_name": "External ID", "editable": False})
     pvar_name: str = field(default="", metadata={"importance": 1, "display_name": "Name"})
     pvar_sku: str = field(default="", metadata={"importance": 1, "display_name": "SKU"})
     pvar_barcode: str = field(default="", metadata={"display_name": "Barcode"})
@@ -245,7 +245,7 @@ class ComRefund:
     ws_id: str
     refund_order_id: str = field(metadata={"importance": 1, "display_name": "Order"})
     refund_id: str = field(default="", metadata={"pkey": True, "display_name": "Refund ID"})
-    refund_external_id: str = field(default="", metadata={"display_name": "External ID"})
+    refund_external_id: str = field(default="", metadata={"display_name": "External ID", "editable": False})
     refund_amount: Decimal = field(default=Decimal(0), metadata={"importance": 1, "display_name": "Amount"})
     refund_currency: str = field(default="", metadata={"importance": 1, "display_name": "Currency"})
     refund_reason: str = field(default="", metadata={"importance": 1, "display_name": "Reason"})
@@ -269,11 +269,10 @@ class ComShop:
     shop_id: str = field(default="", metadata={"pkey": True, "display_name": "Shop ID"})
     shop_domain: str = field(default="", metadata={"importance": 1, "display_name": "Domain"})
     shop_currency: str = field(default="USD", metadata={"importance": 1, "display_name": "Currency"})
-    shop_credentials: dict = field(default_factory=dict, metadata={"display_name": "Credentials"})
+    shop_auth_id: str = field(default="", metadata={"display_name": "Auth ID", "editable": False})
     shop_webhook_secret: str = field(default="", metadata={"display_name": "Webhook Secret"})
     shop_sync_cursor: str = field(default="", metadata={"display_name": "Sync Cursor"})
     shop_details: dict = field(default_factory=dict, metadata={"display_name": "Details"})
-    shop_active: bool = field(default=True, metadata={"importance": 1, "display_name": "Active"})
     shop_created_ts: float = field(default=0.0, metadata={"display_name": "Created at"})
     shop_modified_ts: float = field(default=0.0, metadata={"display_name": "Modified at"})
     shop_archived_ts: float = field(default=0.0, metadata={"display_name": "Archived at"})
@@ -362,3 +361,8 @@ def get_field_examples(cls: Type, field_name: str) -> Optional[str]:
 def get_field_fk_scope(cls: Type, field_name: str) -> Optional[Dict[str, str]]:
     f = cls.__dataclass_fields__.get(field_name)
     return (f.metadata.get("fk_scope") if f else None) or None
+
+
+def get_field_editable(cls: Type, field_name: str) -> bool:
+    f = cls.__dataclass_fields__.get(field_name)
+    return f.metadata.get("editable", True) if f else True
