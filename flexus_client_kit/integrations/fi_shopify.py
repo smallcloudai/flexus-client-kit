@@ -2,6 +2,7 @@ import contextlib
 import logging
 import os
 import re
+import urllib.parse
 import time
 from datetime import datetime, timezone, timedelta
 from typing import Any, Optional
@@ -77,26 +78,17 @@ Recommend products naturally, build the cart incrementally, share the checkout l
 
 HELP = """Help:
 
-shopify(op="connect", args={"shop": "mystore.myshopify.com"})
-    Connect a Shopify store via OAuth. Returns authorization URL.
+shopify(op="connect", args={"shop_domain": "mystore.myshopify.com"})
+    Connect a Shopify store via OAuth. Only one store at a time.
 
 shopify(op="status")
-    Show connected shops and sync status.
+    Show connected shop and sync status.
 
-shopify(op="sync", args={"shop_id": "..."})
-    Manually re-sync products and recent orders for a shop.
-    If only one shop is connected, shop_id is optional.
+shopify(op="sync")
+    Manually re-sync products and recent orders.
 
-shopify(op="create_draft_order", args={
-    "shop_id": "...",
-    "line_items": [{"variant_id": "123", "quantity": 1}],
-    "email": "customer@example.com",
-    "note": "VIP order",
-})
-    Create a draft order and get checkout URL.
-
-shopify(op="disconnect", args={"shop_id": "..."})
-    Disconnect a Shopify store (requires confirmation)."""
+shopify(op="disconnect")
+    Disconnect the Shopify store (requires confirmation)."""
 
 WEBHOOK_TOPICS = [
     "orders/create", "orders/updated", "orders/cancelled", "orders/paid",
@@ -366,47 +358,41 @@ class IntegrationShopify:
     def __init__(self, fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.RobotContext):
         self.fclient = fclient
         self.rcx = rcx
-        self.shops: list[erp_schema.ComShop] = []
+        self.shop: Optional[erp_schema.ComShop] = None
 
-    async def load_shops(self) -> None:
-        all_shops = await ckit_erp.query_erp_table(
+    async def _load_current_shop(self) -> None:
+        auth = self.rcx.external_auth.get("shopify")
+        if not (domain := (auth.auth_key2value.get("url_template_vars") or {}).get("shop_domain") if auth else None):
+            self.shop = None
+            return
+        shops = await ckit_erp.query_erp_table(
             self.fclient, "com_shop", self.rcx.persona.ws_id, erp_schema.ComShop,
-            filters="shop_type:=:SHOPIFY",
+            filters={"AND": ["shop_type:=:SHOPIFY", f"shop_domain:=:{domain}"]},
         )
-        for s in all_shops:
-            logger.info("load_shops raw: domain=%s active=%s archived_ts=%s type=%s id=%s", s.shop_domain, s.shop_active, s.shop_archived_ts, s.shop_type, s.shop_id)
-        self.shops = [s for s in all_shops if s.shop_active and not s.shop_archived_ts]
-        logger.info("load_shops filtered: %d shops", len(self.shops))
+        self.shop = next(iter(shops), None)
 
-    async def _get_token(self, shop: erp_schema.ComShop) -> Optional[str]:
-        creds = shop.shop_credentials or {}
-        if creds.get("access_token"):
-            return creds["access_token"]
-        try:
-            auth = await ckit_external_auth.decrypt_external_auth(self.fclient, f"shopify:{shop.shop_domain}")
-            return (auth or {}).get("access_token")
-        except Exception:
-            return None
+    def _get_token(self) -> Optional[str]:
+        auth = self.rcx.external_auth.get("shopify")
+        return (auth.auth_key2value.get("token") or {}).get("access_token") if auth else None
 
-    async def _register_webhooks(self, shop: erp_schema.ComShop) -> str:
-        token = await self._get_token(shop)
-        if not token:
+    async def _register_webhooks(self) -> str:
+        if not (token := self._get_token()):
             return "No access token for webhook registration"
         if override := os.environ.get("SHOPIFY_WEBHOOK_URL"):
             address_base = override.rstrip("/")
         elif os.environ.get("FLEXUS_ENV") == "production":
-            address_base = f"https://flexus.team/v1/webhook/shopify/{shop.shop_id}"
+            address_base = f"https://flexus.team/v1/webhook/shopify/{self.shop.shop_id}"
         elif os.environ.get("FLEXUS_ENV") == "staging":
-            address_base = f"https://staging.flexus.team/v1/webhook/shopify/{shop.shop_id}"
+            address_base = f"https://staging.flexus.team/v1/webhook/shopify/{self.shop.shop_id}"
         else:
             return "Webhook URL not configured: set FLEXUS_ENV or SHOPIFY_WEBHOOK_URL"
-        existing = await _paginate(shop.shop_domain, token, "webhooks.json", "webhooks")
+        existing = await _paginate(self.shop.shop_domain, token, "webhooks.json", "webhooks")
         ours = {w["topic"]: w for w in existing if w["topic"] in WEBHOOK_TOPICS}
         async with httpx.AsyncClient(timeout=30) as c:
             for topic, w in list(ours.items()):
                 if w.get("address") != address_base:
                     try:
-                        await _shop_req(shop.shop_domain, token, "DELETE", f"webhooks/{w['id']}.json", c=c)
+                        await _shop_req(self.shop.shop_domain, token, "DELETE", f"webhooks/{w['id']}.json", c=c)
                     except httpx.HTTPStatusError as e:
                         if e.response.status_code != 404:
                             logger.warning("failed to delete webhook %s: %s", w['id'], e)
@@ -419,54 +405,53 @@ class IntegrationShopify:
                 if topic in ours:
                     continue
                 try:
-                    await _shop_req(shop.shop_domain, token, "POST", "webhooks.json", {
+                    await _shop_req(self.shop.shop_domain, token, "POST", "webhooks.json", {
                         "webhook": {"topic": topic, "address": address_base, "format": "json"},
                     }, c=c)
                 except httpx.HTTPStatusError as e:
                     body = e.response.text[:200] if e.response else ""
-                    logger.warning("webhook %s failed for %s: %s %s", topic, shop.shop_domain, e.response.status_code, body)
+                    logger.warning("webhook %s failed for %s: %s %s", topic, self.shop.shop_domain, e.response.status_code, body)
                     failed.append(f"{topic} ({body})" if body else topic)
                 except Exception as e:
-                    logger.warning("webhook %s failed for %s: %s", topic, shop.shop_domain, e)
+                    logger.warning("webhook %s failed for %s: %s", topic, self.shop.shop_domain, e)
                     failed.append(topic)
         if failed:
             return "Failed to register webhooks: %s" % ", ".join(failed)
         return ""
 
-    async def _sync_shop(self, shop: erp_schema.ComShop) -> str:
-        token = await self._get_token(shop)
-        if not token:
+    async def _sync_shop(self) -> str:
+        if not (token := self._get_token()):
             return "No access token"
         ws = self.rcx.persona.ws_id
         errors = []
 
-        products = await _paginate(shop.shop_domain, token, "products.json", "products")
+        products = await _paginate(self.shop.shop_domain, token, "products.json", "products")
         if products:
-            err = await self._upsert_products(ws, shop.shop_id, products)
+            err = await self._upsert_products(products)
             if err:
                 errors.append(err)
 
         cutoff = (datetime.now(timezone.utc) - timedelta(days=60)).isoformat()
         orders = await _paginate(
-            shop.shop_domain, token, "orders.json", "orders",
+            self.shop.shop_domain, token, "orders.json", "orders",
             {"status": "any", "created_at_min": cutoff},
         )
-        txn_map = await _fetch_order_transactions(shop.shop_domain, token, cutoff)
+        txn_map = await _fetch_order_transactions(self.shop.shop_domain, token, cutoff)
         for o in orders:
             if str(o["id"]) in txn_map:
                 o["transactions"] = txn_map[str(o["id"])]
         if orders:
-            err = await self._upsert_orders(ws, shop.shop_id, orders)
+            err = await self._upsert_orders(orders)
             if err:
                 errors.append(err)
 
         await ckit_erp.patch_erp_record(
-            self.fclient, "com_shop", ws, shop.shop_id,
+            self.fclient, "com_shop", ws, self.shop.shop_id,
             {"shop_sync_cursor": datetime.now(timezone.utc).isoformat()},
         )
         if errors:
             return "Sync errors: " + "; ".join(errors)
-        return f"Synced {len(products)} products, {len(orders)} orders for {shop.shop_domain}"
+        return f"Synced {len(products)} products, {len(orders)} orders for {self.shop.shop_domain}"
 
     async def _upsert(self, table: str, ws: str, upsert_key: str, recs: list, fk_from: str = "", fk_table: str = "", fk_id: str = "", fk_to: str = "", fk_case_insensitive: bool = False) -> str:
         try:
@@ -477,7 +462,8 @@ class IntegrationShopify:
         except Exception as e:
             return f"{table} upsert failed: {e}"
 
-    async def _upsert_products(self, ws: str, shop_id: str, products: list) -> Optional[str]:
+    async def _upsert_products(self, products: list) -> Optional[str]:
+        ws, shop_id = self.rcx.persona.ws_id, self.shop.shop_id
         err = await self._upsert("com_product", ws, "prod_external_id", [_map_product(ws, shop_id, p) for p in products])
         if err:
             return err
@@ -486,7 +472,8 @@ class IntegrationShopify:
             return await self._upsert("com_product_variant", ws, "pvar_external_id", var_records,
                 fk_from="prod_external_id", fk_table="com_product", fk_id="prod_id", fk_to="pvar_prod_id")
 
-    async def _upsert_orders(self, ws: str, shop_id: str, orders: list) -> Optional[str]:
+    async def _upsert_orders(self, orders: list) -> Optional[str]:
+        ws, shop_id = self.rcx.persona.ws_id, self.shop.shop_id
         err = await self._upsert("com_order", ws, "order_external_id", [_map_order(ws, shop_id, o) for o in orders],
             fk_from="contact_email", fk_table="crm_contact", fk_id="contact_id", fk_to="order_contact_id", fk_case_insensitive=True)
         if err:
@@ -533,94 +520,69 @@ class IntegrationShopify:
         if op == "status":
             return await self._op_status()
         if op == "sync":
-            return await self._op_sync(args, model_produced_args)
-        if op == "create_draft_order":
-            return await self._op_create_draft_order(args, model_produced_args)
+            return await self._op_sync()
         if op == "disconnect":
-            return await self._op_disconnect(args, model_produced_args, toolcall)
+            return await self._op_disconnect(toolcall)
         return f"Unknown operation: {op}\n\nTry shopify(op='help') for usage."
 
     async def _op_connect(self, args: dict, model_produced_args: Optional[dict[str, Any]]) -> str:
-        shop = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args,"shop", None)
-        if not shop:
-            return "Missing required: 'shop' (e.g. mystore.myshopify.com)"
-        shop = shop.strip().lower().replace("https://", "").replace("http://", "").rstrip("/")
-        if "/" in shop:
-            shop = shop.split("/")[0]
-        if "." not in shop:
-            shop += ".myshopify.com"
-        for s in self.shops:
-            if s.shop_domain == shop:
-                return f"Already connected: {shop} (ID: {s.shop_id})"
+        existing = await ckit_erp.query_erp_table(
+            self.fclient, "com_shop", self.rcx.persona.ws_id, erp_schema.ComShop,
+            filters="shop_type:=:SHOPIFY",
+        )
+        shop_domain = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "shop_domain", None)
+        if not shop_domain:
+            return "Missing required: 'shop_domain' (e.g. mystore.myshopify.com)"
+        s = shop_domain.strip().lower()
+        shop_domain = urllib.parse.urlparse(s if "://" in s else f"https://{s}").hostname or s
+        if "." not in shop_domain:
+            shop_domain += ".myshopify.com"
+        if active := next(iter(existing), None):
+            if active.shop_domain == shop_domain:
+                return f"Already connected: {shop_domain}."
+            return f"Already connected: {active.shop_domain}. Disconnect first with shopify(op='disconnect')."
         try:
             auth_url = await ckit_external_auth.start_external_auth_flow(
                 self.fclient, "shopify", self.rcx.persona.ws_id,
                 self.rcx.persona.owner_fuser_id, SHOPIFY_SCOPES,
-                url_template_vars={"shop_domain": shop},
+                url_template_vars={"shop_domain": shop_domain},
+                persona_id=self.rcx.persona.persona_id,
             )
             return f"Please authorize Flexus to access your Shopify store:\n{auth_url}\n\nAfter authorizing, call shopify(op='sync') to complete setup."
         except gql.transport.exceptions.TransportQueryError as e:
             return f"Failed to start OAuth: {e}"
 
     async def _op_status(self) -> str:
-        await self.load_shops()
-        lines = []
-        for s in self.shops:
-            sync = f"synced {s.shop_sync_cursor}" if s.shop_sync_cursor else "not synced"
-            lines.append(f"  {s.shop_name} ({s.shop_domain}) [ID: {s.shop_id}] — {sync}")
-        try:
-            td = await ckit_external_auth.get_external_auth_token(
-                self.fclient, "shopify", self.rcx.persona.ws_id, self.rcx.persona.owner_fuser_id,
-            )
-            domain = (td.url_template_vars or {}).get("shop_domain") if td else None
-            if domain and not any(s.shop_domain == domain for s in self.shops):
-                lines.append(f"  {domain} — authorized but not synced yet, call shopify(op='sync') to complete")
-        except Exception:
-            pass
-        if not lines:
-            return "No Shopify stores connected.\nUse shopify(op='connect', args={'shop': 'mystore.myshopify.com'}) to connect."
-        return "Shopify stores:\n" + "\n".join(lines)
+        await self._load_current_shop()
+        if self.shop:
+            sync = f"synced {self.shop.shop_sync_cursor}" if self.shop.shop_sync_cursor else "not synced"
+            return f"Connected: {self.shop.shop_name} ({self.shop.shop_domain}) — {sync}"
+        auth = self.rcx.external_auth.get("shopify")
+        domain = (auth.auth_key2value.get("url_template_vars") or {}).get("shop_domain") if auth else None
+        if domain:
+            return f"{domain} — authorized but not synced yet, call shopify(op='sync') to complete"
+        return "No Shopify store connected.\nUse shopify(op='connect', args={'shop_domain': 'mystore.myshopify.com'}) to connect."
 
-    async def _op_sync(self, args: dict, model_produced_args: Optional[dict[str, Any]]) -> str:
-        shop_id = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args,"shop_id", None)
-        if not shop_id:
-            await self.load_shops()
-            if len(self.shops) == 1:
-                shop_id = self.shops[0].shop_id
-            elif not self.shops:
-                return await self._try_detect_new_shop()
-            else:
-                return "Multiple shops connected. Specify 'shop_id'. Use shopify(op='status') to list."
-        shop = next((s for s in self.shops if s.shop_id == shop_id), None)
-        if not shop:
-            await self.load_shops()
-            shop = next((s for s in self.shops if s.shop_id == shop_id), None)
-        if not shop:
-            return f"Shop not found: {shop_id}"
-        if wh_err := await self._register_webhooks(shop):
-            return f"ERROR: Webhook setup failed for {shop.shop_domain}, sync did NOT run. {wh_err}. Check app permissions and try shopify(op='sync') again."
-        return await self._sync_shop(shop)
+    async def _op_sync(self) -> str:
+        await self._load_current_shop()
+        if not self.shop:
+            return await self._try_detect_new_shop()
+        if wh_err := await self._register_webhooks():
+            return f"ERROR: Webhook setup failed for {self.shop.shop_domain}, sync did NOT run. {wh_err}. Check app permissions and try shopify(op='sync') again."
+        return await self._sync_shop()
 
     async def _try_detect_new_shop(self) -> str:
-        try:
-            td = await ckit_external_auth.get_external_auth_token(
-                self.fclient, "shopify", self.rcx.persona.ws_id, self.rcx.persona.owner_fuser_id,
-            )
-        except Exception:
-            td = None
-        if not td or not td.access_token:
+        auth = self.rcx.external_auth.get("shopify")
+        if not auth or not (token := self._get_token()):
             return "No shops connected and no pending auth.\nUse shopify(op='connect') first."
-
-        domain = (td.url_template_vars or {}).get("shop_domain")
+        domain = (auth.auth_key2value.get("url_template_vars") or {}).get("shop_domain")
         if not domain:
             return "Auth found but shop domain unknown. Please reconnect."
-
         try:
-            r = await _shop_req(domain, td.access_token, "GET", "shop.json")
+            r = await _shop_req(domain, token, "GET", "shop.json")
             info = r.json()["shop"]
         except Exception as e:
             return f"Failed to verify shop connection: {e}"
-
         ws = self.rcx.persona.ws_id
         await ckit_erp.create_erp_record(self.fclient, "com_shop", ws, {
             "ws_id": ws,
@@ -628,131 +590,98 @@ class IntegrationShopify:
             "shop_type": "SHOPIFY",
             "shop_domain": domain,
             "shop_currency": info.get("currency", "USD"),
-            "shop_credentials": {"access_token": td.access_token},
-            "shop_active": True,
             "shop_details": {
                 "shopify_id": str(info.get("id", "")),
                 "email": info.get("email", ""),
                 "plan": info.get("plan_name", ""),
             },
         })
-        await self.load_shops()
-        shop = next((s for s in self.shops if s.shop_domain == domain), None)
-        if not shop:
+        await self._load_current_shop()
+        if not self.shop:
             return f"Created shop record for {domain} but failed to reload."
-        if wh_err := await self._register_webhooks(shop):
+        if wh_err := await self._register_webhooks():
             return f"ERROR: Webhook setup failed for {domain}, sync did NOT run. {wh_err}. Check app permissions and try shopify(op='sync') again."
-        return await self._sync_shop(shop)
+        return await self._sync_shop()
 
-    async def _op_create_draft_order(self, args: dict, model_produced_args: Optional[dict[str, Any]]) -> str:
-        shop_id = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args,"shop_id", None)
-        if not shop_id and len(self.shops) == 1:
-            shop_id = self.shops[0].shop_id
-        if not shop_id:
-            return "Missing 'shop_id'. Use shopify(op='status') to list shops."
-        shop = next((s for s in self.shops if s.shop_id == shop_id), None)
-        if not shop:
-            return f"Shop not found: {shop_id}"
-        token = await self._get_token(shop)
-        if not token:
-            return f"No access token for {shop.shop_domain}."
-        line_items = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args,"line_items", None)
-        if not line_items:
-            return "Missing 'line_items': [{variant_id, quantity}]"
-        draft = {"line_items": line_items}
-        email = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args,"email", None)
-        note = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args,"note", None)
-        if email:
-            draft["email"] = email
-        if note:
-            draft["note"] = note
-        try:
-            r = await _shop_req(shop.shop_domain, token, "POST", "draft_orders.json", {"draft_order": draft})
-            d = r.json()["draft_order"]
-            return f"Draft order created (ID: {d['id']})\nCheckout: {d.get('invoice_url', '')}"
-        except httpx.HTTPStatusError as e:
-            return f"Failed: {e.response.text[:300]}"
-
-    async def _op_disconnect(self, args: dict, model_produced_args: Optional[dict[str, Any]], toolcall: ckit_cloudtool.FCloudtoolCall) -> str:
-        shop_id = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args,"shop_id", None)
-        if not shop_id:
-            return "Missing 'shop_id'."
+    async def _op_disconnect(self, toolcall: ckit_cloudtool.FCloudtoolCall) -> str:
         if not toolcall.confirmed_by_human:
             raise ckit_cloudtool.NeedsConfirmation(
                 confirm_setup_key="shopify_disconnect",
-                confirm_command=f"shopify disconnect {shop_id}",
+                confirm_command="shopify disconnect",
                 confirm_explanation="This will disconnect the Shopify store and stop syncing",
             )
-        shop = next((s for s in self.shops if s.shop_id == shop_id), None)
-        if shop:
-            try:
-                token = await self._get_token(shop)
-                if token:
-                    async with httpx.AsyncClient(timeout=30) as c:
-                        for w in await _paginate(shop.shop_domain, token, "webhooks.json", "webhooks"):
-                            if w["topic"] in WEBHOOK_TOPICS:
-                                await _shop_req(shop.shop_domain, token, "DELETE", f"webhooks/{w['id']}.json", c=c)
-            except Exception as e:
-                logger.warning("failed to delete webhooks for %s: %s", shop_id, e)
+        await self._load_current_shop()
+        auth = self.rcx.external_auth.get("shopify")
+        if not self.shop:
+            if auth:
+                await ckit_external_auth.external_auth_disconnect(self.fclient, self.rcx.persona.ws_id, auth.auth_id)
+                return "Pending auth disconnected."
+            return "No shop connected."
+        cleanup_err = None
+        try:
+            if token := self._get_token():
+                async with httpx.AsyncClient(timeout=30) as c:
+                    for w in await _paginate(self.shop.shop_domain, token, "webhooks.json", "webhooks"):
+                        if w["topic"] in WEBHOOK_TOPICS:
+                            await _shop_req(self.shop.shop_domain, token, "DELETE", f"webhooks/{w['id']}.json", c=c)
+            if auth:
+                await ckit_external_auth.external_auth_disconnect(self.fclient, self.rcx.persona.ws_id, auth.auth_id)
+        except Exception as e:
+            cleanup_err = str(e)
+            logger.warning("failed to clean up shop %s: %s", self.shop.shop_id, e)
         await ckit_erp.patch_erp_record(
-            self.fclient, "com_shop", self.rcx.persona.ws_id, shop_id,
-            {"shop_archived_ts": time.time(), "shop_active": False},
+            self.fclient, "com_shop", self.rcx.persona.ws_id, self.shop.shop_id,
+            {"shop_archived_ts": time.time()},
         )
-        await self.load_shops()
+        if cleanup_err:
+            return f"Shop {self.shop.shop_id} disconnected, but cleanup had errors: {cleanup_err}"
+        return f"Shop {self.shop.shop_id} disconnected."
 
     async def handle_cart(self, toolcall: ckit_cloudtool.FCloudtoolCall, args: Optional[dict[str, Any]]) -> str:
         if not args or not args.get("op"):
             return "Missing 'op'. Use: create, add, remove, view."
-        if not self.shops:
-            return "No Shopify stores connected. Use shopify(op='connect') first."
-        if len(self.shops) > 1:
-            return "Multiple shops connected. Use shopify(op='create_draft_order') with shop_id instead."
-        shop = self.shops[0]
-        token = await self._get_token(shop)
-        if not token:
-            return f"No access token for {shop.shop_domain}."
+        await self._load_current_shop()
+        if not self.shop:
+            return "No Shopify store connected. Use shopify(op='connect') first."
+        if not (token := self._get_token()):
+            return f"No access token for {self.shop.shop_domain}."
         op = args["op"]
         if op == "create":
-            return await self._cart_create(shop, token, args)
-        if op in ("add", "remove", "view"):
-            doid = args.get("draft_order_id")
-            if not doid:
-                return "Missing 'draft_order_id'. Create a cart first."
-            if op == "view":
-                return await self._cart_view(shop, token, doid)
-            if op == "add":
-                return await self._cart_add(shop, token, doid, args.get("line_items"))
-            if op == "remove":
-                return await self._cart_remove(shop, token, doid, args.get("variant_id"))
-        return f"Unknown op: {op}. Use: create, add, remove, view."
+            return await self._cart_create(token, args)
+        if op not in ("add", "remove", "view"):
+            return f"Unknown op: {op}. Use: create, add, remove, view."
+        doid = args.get("draft_order_id")
+        if not doid:
+            return "Missing 'draft_order_id'. Create a cart first."
+        if op == "view":
+            return await self._cart_view(token, doid)
+        if op == "add":
+            return await self._cart_add(token, doid, args.get("line_items"))
+        return await self._cart_remove(token, doid, args.get("variant_id"))
 
-    async def _cart_create(self, shop: erp_schema.ComShop, token: str, args: dict) -> str:
+    async def _cart_create(self, token: str, args: dict) -> str:
         if not args.get("line_items"):
             return "Missing 'line_items': [{variant_id, quantity}]"
-        draft = {"line_items": args["line_items"]}
-        if args.get("email"):
-            draft["email"] = args["email"]
-        if args.get("note"):
-            draft["note"] = args["note"]
+        draft = {"line_items": args["line_items"], **{k: args[k] for k in ("email", "note") if args.get(k)}}
         try:
-            r = await _shop_req(shop.shop_domain, token, "POST", "draft_orders.json", {"draft_order": draft})
+            r = await _shop_req(self.shop.shop_domain, token, "POST", "draft_orders.json", {"draft_order": draft})
             return self._fmt_cart(r.json()["draft_order"])
         except httpx.HTTPStatusError as e:
             return f"Failed: {e.response.text[:300]}"
 
-    async def _cart_view(self, shop: erp_schema.ComShop, token: str, doid: str) -> str:
+    async def _cart_view(self, token: str, doid: str) -> str:
         try:
-            r = await _shop_req(shop.shop_domain, token, "GET", f"draft_orders/{doid}.json")
+            r = await _shop_req(self.shop.shop_domain, token, "GET", f"draft_orders/{doid}.json")
             return self._fmt_cart(r.json()["draft_order"])
         except httpx.HTTPStatusError as e:
             return f"Failed: {e.response.text[:300]}"
 
-    async def _cart_add(self, shop: erp_schema.ComShop, token: str, doid: str, line_items: Optional[list]) -> str:
+    async def _cart_add(self, token: str, doid: str, line_items: Optional[list]) -> str:
         if not line_items:
             return "Missing 'line_items': [{variant_id, quantity}]"
         try:
             async with httpx.AsyncClient(timeout=30) as c:
-                r = await _shop_req(shop.shop_domain, token, "GET", f"draft_orders/{doid}.json", c=c)
+                r = await _shop_req(self.shop.shop_domain, token, "GET", f"draft_orders/{doid}.json", c=c)
                 existing = r.json()["draft_order"]["line_items"]
                 # Merge: bump quantity for existing variants, append new ones
                 by_vid = {str(li["variant_id"]): li for li in existing}
@@ -762,24 +691,24 @@ class IntegrationShopify:
                         by_vid[vid]["quantity"] += item.get("quantity", 1)
                     else:
                         by_vid[vid] = {"variant_id": int(vid), "quantity": item.get("quantity", 1)}
-                r = await _shop_req(shop.shop_domain, token, "PUT", f"draft_orders/{doid}.json", {
+                r = await _shop_req(self.shop.shop_domain, token, "PUT", f"draft_orders/{doid}.json", {
                     "draft_order": {"line_items": list(by_vid.values())},
                 }, c=c)
             return self._fmt_cart(r.json()["draft_order"])
         except httpx.HTTPStatusError as e:
             return f"Failed: {e.response.text[:300]}"
 
-    async def _cart_remove(self, shop: erp_schema.ComShop, token: str, doid: str, variant_id: Optional[str]) -> str:
+    async def _cart_remove(self, token: str, doid: str, variant_id: Optional[str]) -> str:
         if not variant_id:
             return "Missing 'variant_id'."
         try:
             async with httpx.AsyncClient(timeout=30) as c:
-                r = await _shop_req(shop.shop_domain, token, "GET", f"draft_orders/{doid}.json", c=c)
+                r = await _shop_req(self.shop.shop_domain, token, "GET", f"draft_orders/{doid}.json", c=c)
                 existing = r.json()["draft_order"]["line_items"]
                 updated = [li for li in existing if str(li["variant_id"]) != str(variant_id)]
                 if len(updated) == len(existing):
                     return f"Variant {variant_id} not found in cart."
-                r = await _shop_req(shop.shop_domain, token, "PUT", f"draft_orders/{doid}.json", {
+                r = await _shop_req(self.shop.shop_domain, token, "PUT", f"draft_orders/{doid}.json", {
                     "draft_order": {"line_items": updated},
                 }, c=c)
             return self._fmt_cart(r.json()["draft_order"])
@@ -795,5 +724,3 @@ class IntegrationShopify:
             lines.append(f"Checkout: {d['invoice_url']}")
         return "\n".join(lines)
 
-    def close(self) -> None:
-        pass
