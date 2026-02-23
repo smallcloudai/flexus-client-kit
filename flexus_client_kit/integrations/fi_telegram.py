@@ -103,7 +103,8 @@ class IntegrationTelegram:
     ):
         self.fclient = fclient
         self.rcx = rcx
-        self.bot_token = (rcx.external_auth.get("telegram") or {}).get("api_key", "").strip()
+        auth = rcx.external_auth.get("telegram")
+        self.bot_token = auth.auth_key2value.get("api_key", "").strip() if auth else ""
         self.problems_accumulator: List[str] = []
 
         self.tg_app: Optional[telegram.ext.Application] = None

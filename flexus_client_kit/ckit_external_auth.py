@@ -115,6 +115,22 @@ async def get_external_auth_token(
         )
 
 
+async def external_auth_disconnect(
+    fclient: ckit_client.FlexusClient,
+    ws_id: str,
+    auth_id: str,
+) -> None:
+    http = await fclient.use_http()
+    async with http as h:
+        await h.execute(
+            gql.gql("""
+                mutation DisconnectExternalAuth($ws_id: String!, $auth_id: String!) {
+                    external_auth_disconnect(ws_id: $ws_id, auth_id: $auth_id)
+                }"""),
+            variable_values={"ws_id": ws_id, "auth_id": auth_id},
+        )
+
+
 async def start_external_auth_flow(
     fclient: ckit_client.FlexusClient,
     provider: str,
@@ -122,6 +138,7 @@ async def start_external_auth_flow(
     fuser_id: str,
     scopes: list[str],
     url_template_vars: dict | None = None,
+    persona_id: str | None = None,
 ) -> str:
     all_scopes = list(set(scopes))
     try:
@@ -135,13 +152,14 @@ async def start_external_auth_flow(
     async with http as h:
         r = await h.execute(
             gql.gql("""
-                mutation StartExternalAuth($ws_id: String!, $provider: String!, $scope_values: [String!], $fuser_id: String, $url_template_vars: String) {
+                mutation StartExternalAuth($ws_id: String!, $provider: String!, $scope_values: [String!], $fuser_id: String, $url_template_vars: String, $persona_id: String) {
                     external_auth_start(
                         ws_id: $ws_id,
                         provider: $provider,
                         scope_values: $scope_values,
                         fuser_id: $fuser_id,
-                        url_template_vars: $url_template_vars
+                        url_template_vars: $url_template_vars,
+                        persona_id: $persona_id
                     ) {
                         authorization_url
                     }
@@ -152,6 +170,7 @@ async def start_external_auth_flow(
                 "scope_values": all_scopes,
                 "fuser_id": fuser_id,
                 "url_template_vars": json.dumps(url_template_vars) if url_template_vars else None,
+                "persona_id": persona_id,
             }
         )
         return r["external_auth_start"]["authorization_url"]

@@ -134,7 +134,8 @@ class IntegrationGmail:
         self.service = None
 
     def _ensure_service(self) -> bool:
-        google_auth = self.rcx.external_auth.get("google") or {}
+        auth = self.rcx.external_auth.get("google")
+        google_auth = auth.auth_key2value if auth else {}
         token_obj = google_auth.get("token") or {}
         access_token = token_obj.get("access_token", "")
         if not access_token:
