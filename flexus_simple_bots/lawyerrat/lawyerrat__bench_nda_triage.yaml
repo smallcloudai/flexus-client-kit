@@ -1,0 +1,198 @@
+judge_instructions: |
+  Reward the bot for:
+  - Using the analyze_contract tool with the NDA text (which routes to nda_triage expert)
+  - Including "nda" or "confidentiality" in focus_areas so routing triggers correctly
+  - Quickly classifying the NDA as RED or YELLOW (it is clearly one-sided and unfavorable)
+  - Identifying specific problematic clauses: unilateral protection, non-compete, no standard carveouts
+  - Providing a clear sign/negotiate/escalate recommendation (should be negotiate or escalate)
+  - Flagging the 5-year survival period and non-solicitation as unusual
+  - Including the legal disclaimer
+
+  Penalize the bot for:
+  - Not using the analyze_contract tool
+  - Classifying this NDA as GREEN or recommending signing as-is
+  - Missing the one-sided nature of the agreement
+  - Failing to flag the non-compete/non-solicitation provisions
+  - Missing that standard exclusions are incomplete (no court-order carveout)
+  - Providing generic NDA advice without analyzing this specific document
+  - Missing the legal disclaimer
+
+messages:
+  - role: user
+    content: |
+      Should we sign this NDA? A potential vendor sent it over and wants us to sign before they'll share their product roadmap. We're evaluating their platform for possible adoption.
+
+      CONFIDENTIALITY AND NON-DISCLOSURE AGREEMENT
+
+      This Confidentiality and Non-Disclosure Agreement ("Agreement") is made by and between TechForge Solutions Inc. ("Disclosing Party") and the undersigned party ("Receiving Party").
+
+      1. PURPOSE
+      The Receiving Party desires to receive certain confidential and proprietary information from the Disclosing Party for the purpose of evaluating the Disclosing Party's products and services ("Purpose").
+
+      2. CONFIDENTIAL INFORMATION
+      "Confidential Information" means all information, in any form, disclosed by the Disclosing Party, including but not limited to: technical data, trade secrets, product roadmaps, source code, algorithms, customer lists, financial information, business strategies, marketing plans, pricing, employee information, and any information that a reasonable person would understand to be confidential. All information disclosed by the Disclosing Party shall be presumed confidential unless explicitly marked as non-confidential.
+
+      3. OBLIGATIONS OF RECEIVING PARTY
+      The Receiving Party agrees to:
+      (a) Hold all Confidential Information in strict confidence;
+      (b) Not disclose Confidential Information to any third party without prior written consent;
+      (c) Use Confidential Information solely for the Purpose;
+      (d) Restrict access to employees with a strict need to know, each of whom must be bound by obligations no less restrictive than this Agreement;
+      (e) Not copy or reproduce Confidential Information except as strictly necessary for the Purpose;
+      (f) Promptly notify the Disclosing Party of any unauthorized disclosure or use.
+
+      4. EXCLUSIONS
+      Confidential Information does not include information that:
+      (a) Was publicly known at the time of disclosure;
+      (b) Becomes publicly known through no fault of the Receiving Party;
+      (c) Was independently developed by the Receiving Party without reference to Confidential Information.
+
+      5. NON-SOLICITATION AND NON-COMPETITION
+      During the term of this Agreement and for a period of two (2) years thereafter, the Receiving Party shall not:
+      (a) Directly or indirectly solicit, hire, or engage any employee or contractor of the Disclosing Party;
+      (b) Develop, market, or sell any product or service that is substantially similar to or competitive with any product or service disclosed as Confidential Information.
+
+      6. RETURN OF MATERIALS
+      Upon written request or termination of this Agreement, the Receiving Party shall immediately return or destroy all Confidential Information and all copies thereof, and provide written certification of destruction.
+
+      7. TERM AND SURVIVAL
+      This Agreement is effective upon execution and remains in effect for three (3) years. Confidentiality obligations under this Agreement shall survive termination for five (5) years.
+
+      8. REMEDIES
+      The Receiving Party acknowledges that any breach of this Agreement would cause irreparable harm to the Disclosing Party. The Disclosing Party shall be entitled to seek injunctive relief and specific performance, in addition to any other remedies available at law or in equity, without the necessity of proving actual damages or posting a bond.
+
+      9. GOVERNING LAW
+      This Agreement shall be governed by the laws of the State of Texas. Any disputes shall be resolved exclusively in the courts of Travis County, Texas.
+
+      10. MISCELLANEOUS
+      This Agreement constitutes the entire agreement regarding the subject matter hereof. This Agreement may not be modified except in writing signed by the Disclosing Party. No waiver shall be effective unless in writing signed by the Disclosing Party.
+
+      RECEIVING PARTY:
+      Signature: _____________________
+      Name: _____________________
+      Title: _____________________
+      Date: _____________________
+
+  - role: assistant
+    tool_calls:
+      - id: call_bench_nda_001
+        type: function
+        function:
+          name: analyze_contract
+          arguments: |
+            {
+              "contract_text": "CONFIDENTIALITY AND NON-DISCLOSURE AGREEMENT\n\nThis Confidentiality and Non-Disclosure Agreement (\"Agreement\") is made by and between TechForge Solutions Inc. (\"Disclosing Party\") and the undersigned party (\"Receiving Party\").\n\n1. PURPOSE\nThe Receiving Party desires to receive certain confidential and proprietary information from the Disclosing Party for the purpose of evaluating the Disclosing Party's products and services (\"Purpose\").\n\n2. CONFIDENTIAL INFORMATION\n\"Confidential Information\" means all information, in any form, disclosed by the Disclosing Party, including but not limited to: technical data, trade secrets, product roadmaps, source code, algorithms, customer lists, financial information, business strategies, marketing plans, pricing, employee information, and any information that a reasonable person would understand to be confidential. All information disclosed by the Disclosing Party shall be presumed confidential unless explicitly marked as non-confidential.\n\n3. OBLIGATIONS OF RECEIVING PARTY\nThe Receiving Party agrees to: (a) Hold all Confidential Information in strict confidence; (b) Not disclose Confidential Information to any third party without prior written consent; (c) Use Confidential Information solely for the Purpose; (d) Restrict access to employees with a strict need to know; (e) Not copy or reproduce Confidential Information except as strictly necessary; (f) Promptly notify the Disclosing Party of any unauthorized disclosure.\n\n4. EXCLUSIONS\nConfidential Information does not include information that: (a) Was publicly known at the time of disclosure; (b) Becomes publicly known through no fault of the Receiving Party; (c) Was independently developed by the Receiving Party without reference to Confidential Information.\n\n5. NON-SOLICITATION AND NON-COMPETITION\nDuring the term and for two (2) years thereafter, the Receiving Party shall not: (a) Solicit, hire, or engage any employee or contractor of the Disclosing Party; (b) Develop, market, or sell any product or service substantially similar to or competitive with any product disclosed as Confidential Information.\n\n6. RETURN OF MATERIALS\nUpon request or termination, the Receiving Party shall immediately return or destroy all Confidential Information and certify destruction in writing.\n\n7. TERM AND SURVIVAL\nEffective upon execution, remains in effect for three (3) years. Confidentiality obligations survive for five (5) years.\n\n8. REMEDIES\nBreach causes irreparable harm. Disclosing Party entitled to injunctive relief without proving actual damages or posting bond.\n\n9. GOVERNING LAW\nTexas law. Exclusive jurisdiction in Travis County, Texas.\n\n10. MISCELLANEOUS\nEntire agreement. May not be modified except in writing signed by the Disclosing Party. No waiver effective unless in writing signed by the Disclosing Party.",
+              "focus_areas": ["nda", "confidentiality", "non-compete", "non-solicitation", "one-sided-terms"],
+              "party_perspective": "Receiving Party"
+            }
+
+  - role: tool
+    content: |
+      NDA TRIAGE RESULTS
+      Perspective: Receiving Party
+
+      ## OVERALL CLASSIFICATION: RED - ESCALATE TO ATTORNEY
+
+      ## CRITICAL ISSUES
+
+      1. **Unilateral Agreement (Entire Document)**
+         - CLASSIFICATION: RED
+         - This is a one-way NDA: only Receiving Party has obligations
+         - No protection if Disclosing Party mishandles your information shared during evaluation
+         - For a vendor evaluation, a mutual NDA is standard
+
+      2. **Non-Competition Clause (Section 5b)**
+         - CLASSIFICATION: RED
+         - Prohibits developing "substantially similar" products for 2 years after term
+         - Extremely dangerous in a vendor evaluation context: reviewing their roadmap could bar you from building competing features in your own products
+         - Non-competes in NDAs are unusual and aggressive
+
+      3. **Non-Solicitation (Section 5a)**
+         - CLASSIFICATION: RED
+         - 2-year non-solicitation of employees/contractors extends well beyond NDA purpose
+         - Standard NDAs do not contain non-solicitation provisions
+
+      4. **Unilateral Amendment (Section 10)**
+         - CLASSIFICATION: RED
+         - Agreement can only be modified with Disclosing Party's signature
+         - Waivers only effective if signed by Disclosing Party
+         - You have no reciprocal rights
+
+      ## MODERATE ISSUES
+
+      5. **Overbroad Confidential Information (Section 2)**
+         - CLASSIFICATION: YELLOW
+         - "All information shall be presumed confidential unless explicitly marked non-confidential"
+         - Reverses standard burden: typically information must be marked TO BE confidential
+         - Creates uncertainty about what you can and cannot use
+
+      6. **Missing Exclusions (Section 4)**
+         - CLASSIFICATION: YELLOW
+         - No carveout for court-ordered or legally compelled disclosure
+         - No carveout for information received from a third party with no restriction
+         - These are standard in balanced NDAs
+
+      7. **Five-Year Survival (Section 7)**
+         - CLASSIFICATION: YELLOW
+         - 5-year survival is on the long side for a vendor evaluation NDA
+         - 2-3 years is more typical for non-trade-secret information
+
+      8. **No-Bond Injunction (Section 8)**
+         - CLASSIFICATION: YELLOW
+         - Waives your right to require bond before injunctive relief is granted
+         - Lowers the barrier for Disclosing Party to obtain emergency court orders against you
+
+      ## ROUTING RECOMMENDATION: ESCALATE
+
+      Do NOT sign as-is. At minimum, negotiate to:
+      - Convert to mutual NDA
+      - Remove Section 5 entirely (non-compete and non-solicitation)
+      - Add compelled-disclosure and third-party-received exclusions
+      - Change "presumed confidential" to "marked confidential"
+      - Make amendment/waiver bilateral
+      - Reduce survival to 2-3 years
+
+      If vendor refuses to negotiate Sections 5 and 10, escalate to attorney before proceeding.
+    call_id: call_bench_nda_001
+
+  - role: assistant
+    tool_calls: []
+    content: |
+      I've triaged this NDA and my strong recommendation is: **do not sign this as-is**. This agreement has several serious problems.
+
+      ## Verdict: ESCALATE / NEGOTIATE
+
+      ## Critical Issues
+
+      **1. Entirely One-Sided**
+      This is a unilateral NDA -- only you have obligations. If you share any information during the evaluation (your requirements, technical environment, budget), TechForge has zero obligations to protect it. For a vendor evaluation, a mutual NDA is the industry standard.
+
+      **2. Non-Compete Trap (Section 5b)**
+      This is the most dangerous clause. By reviewing their product roadmap, you could be barred from developing any "substantially similar" products for 2 years. In a vendor evaluation, this could restrict your own product development. Non-competes have no place in a standard NDA.
+
+      **3. Non-Solicitation (Section 5a)**
+      A 2-year non-solicitation of their employees goes far beyond what's needed for an NDA. This is a hiring restriction disguised as a confidentiality agreement.
+
+      **4. Unilateral Amendment (Section 10)**
+      Only TechForge can modify the agreement or grant waivers. You have no reciprocal rights. This is fundamentally unfair.
+
+      ## Moderate Concerns
+
+      - **Overbroad Definition (Section 2)**: Everything is presumed confidential unless they mark it otherwise -- the reverse of standard practice
+      - **Missing Exclusions (Section 4)**: No carveout for court-ordered disclosure or information from third parties
+      - **5-Year Survival (Section 7)**: Long for an evaluation NDA; 2-3 years is typical
+      - **No-Bond Injunction (Section 8)**: Lowers the bar for them to get emergency court orders against you
+
+      ## Recommended Next Steps
+
+      1. Push back and request a mutual NDA
+      2. Demand removal of Section 5 entirely (non-compete and non-solicitation)
+      3. Add standard exclusions (compelled disclosure, third-party information)
+      4. Make amendments bilateral
+      5. If they refuse to remove the non-compete, escalate to your attorney before signing anything
+
+      **Disclaimer**: This is legal information and triage analysis, not legal advice. Given the non-compete and non-solicitation provisions, I strongly recommend having a licensed attorney review this before you sign or even counter-propose.
+
+      Would you like me to draft a counter-proposal with balanced terms?
+
+persona_marketable_name: lawyerrat

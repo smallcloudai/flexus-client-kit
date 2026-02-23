@@ -1,0 +1,210 @@
+judge_instructions: |
+  Reward the bot for:
+  - Using the assess_risk tool with a clear matter description and appropriate risk_category
+  - Providing severity and likelihood scoring for each identified risk
+  - Identifying specific risk categories (IP litigation, employment, regulatory, contractual)
+  - Proposing concrete mitigation strategies for each risk
+  - Prioritizing risks clearly and recommending immediate actions
+  - Including the legal disclaimer
+
+  Penalize the bot for:
+  - Not using the assess_risk tool
+  - Missing obvious risks (pending patent lawsuit, key-person dependency, regulatory non-compliance)
+  - Providing only qualitative risk descriptions without severity/likelihood scoring
+  - Offering generic mitigation advice without tying it to specific risks
+  - Missing the legal disclaimer
+  - Not asking about deal structure or additional context when appropriate
+
+messages:
+  - role: user
+    content: |
+      We're considering acquiring a startup called NeuralEdge AI. Can you do a legal risk assessment? Here's what we know:
+
+      ACQUISITION TARGET: NeuralEdge AI Inc.
+
+      Company Overview:
+      - Founded 2022, Delaware C-Corp, headquartered in Austin, TX
+      - AI/ML platform for automated medical image analysis
+      - 35 employees (28 engineers, 4 sales, 2 ops, 1 legal counsel)
+      - Series A funded ($8M from two VCs), currently raising Series B
+      - Revenue: $2.1M ARR, growing 40% YoY
+      - Valuation expectation: $25-30M
+
+      Intellectual Property:
+      - 3 provisional patent applications filed (none granted yet)
+      - Core ML models trained on a mix of licensed medical datasets and publicly available research data
+      - 2 key engineers (CTO and lead ML scientist) developed foundational algorithms before joining, while at a university research lab
+      - Open-source components used extensively (PyTorch, various Apache/MIT licensed libraries)
+
+      Pending Litigation:
+      - Patent infringement lawsuit filed by MedVision Corp in E.D. Texas (filed Sept 2025)
+        - Alleges NeuralEdge's image segmentation module infringes MedVision Patent US 11,234,567
+        - NeuralEdge's counsel believes claims are weak but case is in early discovery
+        - MedVision has a history of patent assertion (7 suits in 3 years, 4 settled)
+      - Former employee (departed Jan 2025) has threatened wrongful termination claim but hasn't filed
+
+      Regulatory Status:
+      - FDA 510(k) submission pending for primary diagnostic tool (submitted June 2025)
+      - No FDA clearance yet; currently marketed as "research use only"
+      - HIPAA Business Associate Agreements in place with 3 hospital customers
+      - No SOC 2 certification
+      - Processing patient imaging data from EU hospitals without explicit GDPR assessment
+
+      Key Contracts:
+      - 3-year exclusive distribution agreement with MedDistro LLC (expires Dec 2027)
+      - Customer contracts contain unlimited liability clauses (no cap)
+      - VC investor rights include anti-dilution, 1x liquidation preference, and board consent rights for M&A
+
+      Employment:
+      - No non-compete agreements with employees (Texas law largely prohibits them)
+      - 2 key engineers have standard IP assignment agreements
+      - CTO's university employment overlapped with first 3 months at NeuralEdge
+      - No retention bonuses or change-of-control provisions in place
+
+  - role: assistant
+    tool_calls:
+      - id: call_bench_risk_001
+        type: function
+        function:
+          name: assess_risk
+          arguments: |
+            {
+              "matter": "Acquisition of NeuralEdge AI Inc., an AI medical imaging startup with pending patent litigation (MedVision Corp v. NeuralEdge, E.D. Texas), unresolved IP provenance (university-origin algorithms), pending FDA 510(k), EU data processing without GDPR assessment, unlimited liability customer contracts, and VC consent requirements for M&A",
+              "context": "Acquirer evaluating $25-30M acquisition of Series A AI/ML medical imaging company. 35 employees, $2.1M ARR. Key risks include IP ownership disputes, patent infringement suit, regulatory clearance dependency, HIPAA/GDPR compliance gaps, and key-person dependency on CTO and lead ML scientist who developed core algorithms at university.",
+              "risk_category": "corporate"
+            }
+
+  - role: tool
+    content: |
+      LEGAL RISK ASSESSMENT MEMO
+      Matter: Acquisition of NeuralEdge AI Inc.
+
+      ## EXECUTIVE SUMMARY
+      This acquisition presents HIGH overall risk due to compounding IP uncertainty, active litigation, and regulatory dependency. The deal is potentially viable but requires significant risk mitigation through deal structure, escrows, and representations/warranties.
+
+      ## RISK REGISTER
+
+      ### 1. IP Provenance - University Algorithm Ownership
+      - Severity: 5 (Catastrophic) | Likelihood: 4 (Likely) | Score: 20 - RED
+      - CTO's university employment overlapped with first 3 months at NeuralEdge
+      - University likely has IP assignment policies covering work done during employment
+      - Foundational algorithms may be encumbered by university IP claims
+      - Could undermine the entire value proposition of the acquisition
+      - MITIGATION: Obtain university IP assignment records; conduct freedom-to-operate analysis; require seller IP representations and warranties with survival period; consider escrow for IP claims
+
+      ### 2. Patent Infringement Litigation (MedVision v. NeuralEdge)
+      - Severity: 4 (Major) | Likelihood: 3 (Possible) | Score: 12 - ORANGE
+      - Active suit in plaintiff-friendly E.D. Texas
+      - MedVision is a serial patent asserter (7 suits, 4 settled) suggesting settlement-oriented strategy
+      - Early discovery phase means exposure is not yet quantified
+      - Settlement range for similar medical device patent cases: $1-5M
+      - MITIGATION: Obtain detailed litigation counsel opinion; negotiate specific indemnity from sellers; establish litigation escrow ($3-5M); include material adverse change clause tied to adverse ruling
+
+      ### 3. FDA 510(k) Clearance Dependency
+      - Severity: 4 (Major) | Likelihood: 3 (Possible) | Score: 12 - ORANGE
+      - No FDA clearance yet; product limited to "research use only"
+      - Denial or significant delay would materially impair revenue projections
+      - 510(k) submissions average 3-6 months; delays common for AI/ML devices
+      - FDA has been increasing scrutiny of AI-based diagnostic tools
+      - MITIGATION: Structure deal with milestone-based earnout tied to FDA clearance; obtain regulatory counsel assessment of 510(k) submission strength; include termination right if not cleared within defined period
+
+      ### 4. Key-Person Dependency (CTO and Lead ML Scientist)
+      - Severity: 4 (Major) | Likelihood: 3 (Possible) | Score: 12 - ORANGE
+      - 2 engineers hold foundational knowledge of core algorithms
+      - No retention bonuses or change-of-control provisions
+      - Texas largely prohibits non-competes, limiting post-acquisition retention tools
+      - Departure would severely impact product development and IP knowledge
+      - MITIGATION: Negotiate retention agreements with significant incentives; structure earnout requiring continued employment; obtain key-person insurance; begin knowledge transfer documentation pre-close
+
+      ### 5. GDPR Non-Compliance (EU Patient Data)
+      - Severity: 3 (Moderate) | Likelihood: 4 (Likely) | Score: 12 - ORANGE
+      - Processing EU patient imaging data without GDPR assessment
+      - Medical imaging data is "special category" data under GDPR Art. 9
+      - No mention of Data Protection Impact Assessment, SCCs, or DPO
+      - Fines: up to 4% of global annual turnover or EUR 20M
+      - MITIGATION: Commission immediate GDPR gap analysis; budget for remediation ($200-500K); include compliance representations in purchase agreement
+
+      ### 6. Unlimited Liability Customer Contracts
+      - Severity: 3 (Moderate) | Likelihood: 3 (Possible) | Score: 9 - YELLOW
+      - No liability caps in customer contracts for medical imaging AI is extremely risky
+      - One misdiagnosis-related claim could exceed company valuation
+      - Medical device liability is strict in many jurisdictions
+      - MITIGATION: Renegotiate customer contracts pre- or post-close to add liability caps; verify adequacy of professional liability insurance; require E&O and product liability coverage as closing condition
+
+      ### 7. VC Consent and Liquidation Preferences
+      - Severity: 2 (Minor) | Likelihood: 4 (Likely) | Score: 8 - YELLOW
+      - Board consent required for M&A; VCs may negotiate for better terms
+      - 1x liquidation preference means VCs get $8M before founders/employees
+      - Anti-dilution provisions may complicate deal structure
+      - MITIGATION: Engage VCs early; model waterfall distribution; budget for VC negotiation premium
+
+      ### 8. Threatened Wrongful Termination Claim
+      - Severity: 2 (Minor) | Likelihood: 2 (Unlikely) | Score: 4 - GREEN
+      - Former employee threatened but hasn't filed (14+ months elapsed)
+      - Statute of limitations pressure reduces likelihood
+      - Typical exposure: $50-200K if filed and settled
+      - MITIGATION: Review termination documentation; include employment claims indemnity; minor escrow allocation
+
+      ### 9. Open-Source License Compliance
+      - Severity: 3 (Moderate) | Likelihood: 2 (Unlikely) | Score: 6 - YELLOW
+      - Extensive use of open-source (PyTorch, Apache/MIT libraries)
+      - Low risk with permissive licenses, but need to verify no copyleft contamination
+      - MITIGATION: Conduct open-source audit; verify no GPL/AGPL dependencies in proprietary code
+
+      ## PRIORITY ACTIONS
+      1. Commission IP provenance investigation (university records, CTO assignment history)
+      2. Obtain detailed litigation counsel opinion on MedVision suit
+      3. Engage FDA regulatory counsel to assess 510(k) submission
+      4. Begin GDPR gap analysis for EU hospital data processing
+      5. Structure deal with escrows, earnouts, and milestone-based consideration
+    call_id: call_bench_risk_001
+
+  - role: assistant
+    tool_calls: []
+    content: |
+      I've completed a comprehensive legal risk assessment for the NeuralEdge AI acquisition. The overall risk level is HIGH, but the deal may be viable with proper structuring.
+
+      ## Risk Summary
+
+      ### Critical (RED) - Score 20
+      **IP Provenance**: The CTO's overlapping university employment is your biggest risk. The university likely has IP assignment policies, and the foundational algorithms may belong to the university, not NeuralEdge. This could undermine the entire acquisition rationale. You must investigate this before proceeding.
+
+      ### Significant (ORANGE) - Scores 12
+
+      **Patent Litigation**: MedVision's suit in E.D. Texas is concerning. They're a serial asserter (4 of 7 suits settled), suggesting this will likely settle for $1-5M. Structure an escrow of $3-5M to cover this.
+
+      **FDA Clearance**: No 510(k) clearance means the product is limited to "research use only." If clearance is denied or delayed, revenue projections collapse. Consider milestone-based earnout tied to FDA approval.
+
+      **Key-Person Risk**: CTO and lead ML scientist hold irreplaceable knowledge. No retention provisions exist, and Texas non-competes are largely unenforceable. You need retention packages with significant incentives.
+
+      **GDPR Exposure**: Processing EU patient imaging data (special category under Art. 9) without any GDPR assessment. Potential fines up to 4% of turnover or EUR 20M.
+
+      ### Moderate (YELLOW) - Scores 6-9
+
+      - **Unlimited Liability Contracts**: No caps on medical AI liability is extremely risky. One misdiagnosis claim could exceed the company's value.
+      - **VC Consent**: Investors have board consent rights and 1x liquidation preference ($8M off the top).
+      - **Open-Source Compliance**: Likely fine with Apache/MIT, but verify no copyleft contamination.
+
+      ### Low (GREEN) - Score 4
+      - **Wrongful Termination Threat**: 14+ months without filing. Low risk.
+
+      ## Recommended Deal Structure
+
+      1. **Escrow**: $3-5M for patent litigation; $1-2M for IP claims; $500K for employment claims
+      2. **Earnout**: 30-40% of consideration tied to FDA clearance and key-person retention
+      3. **Reps & Warranties**: Strong IP ownership, litigation disclosure, and compliance representations with 2-3 year survival
+      4. **Conditions Precedent**: University IP clearance, VC consent, satisfactory GDPR audit
+
+      ## Immediate Next Steps
+
+      1. Investigate CTO's university IP assignment history
+      2. Get litigation counsel's detailed opinion on MedVision suit
+      3. Engage FDA regulatory counsel on 510(k) prospects
+      4. Commission GDPR gap analysis for EU operations
+      5. Engage VCs early to gauge consent terms
+
+      **Disclaimer**: This is legal information and risk analysis, not legal advice. Given the complexity of this acquisition -- particularly the IP provenance questions and active litigation -- I strongly recommend engaging M&A counsel experienced in healthcare/AI transactions.
+
+      Would you like me to dive deeper into any specific risk area?
+
+persona_marketable_name: lawyerrat
