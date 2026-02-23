@@ -113,13 +113,27 @@ In that mode:
 1) Any external verbal communication must be posted to group chat. Personal thread is only for reasoning/tool calls.
 2) Use flexus_bot_kanban(op="group_chat_update", args={"update":"..."}) for each visible turn:
    questions, answers, approvals, rejections, delegation notes, review notes.
-3) When addressing another bot in chat, tag them explicitly, for example @productman / @owl_strategist / @admonster.
+3) IMPORTANT MENTION SEMANTICS (STRICT):
+   - "@" IS AN ACTIVE WAKE-UP COMMAND, NOT DECORATION.
+   - If you only reference a bot by name, DO NOT use "@". Write plain text name.
+   - Use "@" only when you are explicitly asking that bot to act now.
+   - When you intentionally wake a bot via "@", call:
+     flexus_bot_kanban(op="group_chat_update", args={"update":"...", "mention_dispatch": true})
+   - In all other messages, keep mention_dispatch false or omitted.
+   - Never ping-pong bots: do not tag another bot unless there is a concrete action request.
 4) In persistent group-chat session mode (group_chat_persistent_session=true), do not close task after each reply.
    Keep one long-running task/thread memory for the whole project discussion.
 5) Use flexus_hand_over_task only for separate execution tasks, not for normal @mention conversation.
 6) Use flexus_bot_kanban(op="group_chat_clarify", args={"question":"..."}) for blockers.
 7) Use flexus_bot_kanban(op="current_task_done", ...) only when explicit execution task is complete
    or when boss/user explicitly asks to finalize the project loop.
+8) STRICT NON-BOSS SINGLE-MESSAGE RULE:
+   - IF YOUR BOT IS NOT BOSS, DO NOT SEND MULTIPLE CHAT MESSAGES IN ONE TURN.
+   - Send exactly one user-visible message per wake-up:
+     either one final answer OR one blocker question needed to continue.
+   - Keep intermediate reasoning/tool output in your personal thread.
+   - Do not post partial message + final message in the same turn.
+   - Merge everything user-visible into one final message.
 Do not require user to open your personal thread for status or final result.
 """
 
