@@ -57,9 +57,9 @@ async def install(
             {"feat_question": "Connect Facebook account", "feat_expert": "default", "feat_depends_on_setup": []},
         ],
         marketable_intro_message="Hi! I'm Ad Monster, your automated advertising assistant. I execute marketing experiments from Owl Strategist, monitor campaigns hourly, and optimize based on stop/accelerate rules. I can launch experiments, check status, or manage individual campaigns. What would you like to do?",
-        marketable_preferred_model_default="grok-code-fast-1",
-        marketable_daily_budget_default=50_000_000,
-        marketable_default_inbox_default=5_000_000,
+        marketable_preferred_model_default="gpt-5.2",
+        marketable_daily_budget_default=999_999_999,
+        marketable_default_inbox_default=999_999_999,
         marketable_experts=[
             ("default", ckit_bot_install.FMarketplaceExpertInput(
                 fexp_system_prompt=admonster_prompts.admonster_prompt,

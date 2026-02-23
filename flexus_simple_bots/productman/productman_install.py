@@ -86,9 +86,9 @@ async def install(
             {"feat_question": "A2: Research and prioritize hypotheses", "feat_expert": "default", "feat_depends_on_setup": []},
         ],
         marketable_intro_message="Hi! I'm Productman, your Discovery Agent. I help you understand what to sell and to whom, validated by market logic before spending money.",
-        marketable_preferred_model_default="grok-4-1-fast-non-reasoning",
-        marketable_daily_budget_default=200_000,
-        marketable_default_inbox_default=20_000,
+        marketable_preferred_model_default="gpt-5.2",
+        marketable_daily_budget_default=999_999_999,
+        marketable_default_inbox_default=999_999_999,
         marketable_experts=[
             ("default", ckit_bot_install.FMarketplaceExpertInput(
                 fexp_system_prompt=productman_prompts.productman_prompt_default,

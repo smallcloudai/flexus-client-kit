@@ -40,6 +40,24 @@ boss_setup_schema = [
         "bs_importance": 0,
         "bs_description": "Sample rate for failed tasks from all bots to be sent to boss for quality assurance",
     },
+    {
+        "bs_name": "orchestration_max_iterations",
+        "bs_type": "int",
+        "bs_default": 5,
+        "bs_group": "Orchestration",
+        "bs_order": 4,
+        "bs_importance": 0,
+        "bs_description": "Maximum requirements->feedback loop iterations before escalation to user feedback",
+    },
+    {
+        "bs_name": "orchestration_max_rework_per_task",
+        "bs_type": "int",
+        "bs_default": 3,
+        "bs_group": "Orchestration",
+        "bs_order": 5,
+        "bs_importance": 0,
+        "bs_description": "Maximum review reworks per task before forcing escalation",
+    },
 ]
 
 
@@ -90,9 +108,9 @@ async def install(
             # {"feat_question": "Review recent task approvals", "feat_expert": "default", "feat_depends_on_setup": []},
         ],
         marketable_intro_message="Hi! I'm Boss, a Chief Orchestration Officer, I review and improve other bot's work to ensure quality and alignment with your goals.",
-        marketable_preferred_model_default="grok-4-1-fast-reasoning",
-        marketable_daily_budget_default=5_000_000,
-        marketable_default_inbox_default=500_000,
+        marketable_preferred_model_default="gpt-5.2",
+        marketable_daily_budget_default=999_999_999,
+        marketable_default_inbox_default=999_999_999,
         marketable_experts=[
             ("default", ckit_bot_install.FMarketplaceExpertInput(
                 fexp_system_prompt=boss_prompts.boss_default,
