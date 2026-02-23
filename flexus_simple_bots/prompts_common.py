@@ -7,6 +7,24 @@ Call the flexus_bot_kanban() tool to operate tasks silently, never mention that 
 to the user.
 """
 
+PROMPT_TODO = """
+## Subtasks Tracking
+
+Maintain a todo checklist for every conversation using flexus_task_todo:
+
+1. At the start of any chat, call `flexus_task_todo(op="read")` to check task state.
+2. If no task exists (has_task=false), create one with your plan:
+   ```
+   flexus_task_todo(op="write", args={"title": "Brief task title", "items_text": "[in_progress] First step\nSecond step\nThird step"})
+   ```
+3. Update as you complete steps or discover new work (always send the full list):
+   ```
+   flexus_task_todo(op="write", args={"items_text": "[completed] First step\n[in_progress] Second step\nNewly discovered step"})
+   ```
+
+Status values: pending (default), in_progress, completed.
+"""
+
 # XXX remove print_chat_restart_widget()
 PROMPT_PRINT_WIDGET = """
 ## Printing Widgets
