@@ -67,8 +67,8 @@ async def install(
     tools: list[ckit_cloudtool.CloudTool],
 ):
     bot_internal_tools = json.dumps([t.openai_style_tool() for t in tools if t.name != "shopify_cart"])
-    sales_tools = json.dumps([t.openai_style_tool() for t in tools if t.name not in ("crm_automation",)])
-    nurturing_tools = json.dumps([t.openai_style_tool() for t in tools if t.name not in ("crm_automation", "shopify_cart")])
+    sales_tools = json.dumps([t.openai_style_tool() for t in tools if t.name not in ("crm_automation", "shopify")])
+    nurturing_tools = json.dumps([t.openai_style_tool() for t in tools if t.name not in ("crm_automation", "shopify")])
     pic_big = base64.b64encode(open(Path(__file__).with_name("vix-1024x1536.webp"), "rb").read()).decode("ascii")
     pic_small = base64.b64encode(open(Path(__file__).with_name("vix-256x256.webp"), "rb").read()).decode("ascii")
     await ckit_bot_install.marketplace_upsert_dev_bot(
