@@ -1,4 +1,5 @@
 import asyncio
+import json
 import logging
 from typing import Dict, Any
 
@@ -69,6 +70,36 @@ BOT_BUG_REPORT_TOOL = ckit_cloudtool.CloudTool(
     },
 )
 
+BOSS_ORCHESTRATION_TOOL = ckit_cloudtool.CloudTool(
+    strict=False,
+    name="boss_orchestration_control",
+    description="Drive explicit orchestration loop phases, staffing, and review queue. Call with op='help' to see all operations.",
+    parameters={
+        "type": "object",
+        "properties": {
+            "op": {
+                "type": "string",
+                "enum": [
+                    "help",
+                    "set_feature_flag",
+                    "start_loop",
+                    "snapshot",
+                    "advance_phase",
+                    "auto_staff_missing_roles",
+                    "record_artifact",
+                    "tag_task",
+                    "link_tasks",
+                    "enqueue_result",
+                    "dequeue_next_review",
+                    "review_decide",
+                ],
+            },
+            "args": {"type": "object"},
+        },
+        "required": ["op"],
+    },
+)
+
 SETUP_COLLEAGUES_HELP = """Usage:
 
 boss_setup_colleagues(op='get', args={'bot_name': 'Frog'})
@@ -93,11 +124,48 @@ bot_bug_report(op='list_reported_bugs', args={'bot_name': 'Frog'})
     List all reported bugs for a specific bot.
 """
 
+ORCHESTRATION_HELP = """Usage:
+
+boss_orchestration_control(op='set_feature_flag', args={'enabled': true})
+    Enable or disable workspace-level orchestration feature flag.
+
+boss_orchestration_control(op='start_loop', args={'fgroup_id': 'group123', 'project': 'acme-redesign', 'requirements_json': '{"goal":"..."}'})
+    Create new orchestration loop anchor in requirements phase.
+
+boss_orchestration_control(op='snapshot', args={'fgroup_id': 'group123', 'project': 'acme-redesign', 'loop_id': 'task123'})
+    Get full loop snapshot: phase, iteration, queue, tasks, dependencies, review history.
+
+boss_orchestration_control(op='advance_phase', args={'fgroup_id': 'group123', 'loop_id': 'task123', 'next_phase': 'strategy_planning', 'note': 'ready'})
+    Request phase transition. Posts a confirmation button in group chat. Does NOT advance immediately -- user must click the button. STOP and WAIT after calling this.
+
+boss_orchestration_control(op='auto_staff_missing_roles', args={'fgroup_id': 'group123', 'loop_id': 'task123', 'required_roles_json': '["strategist","implementer"]'})
+    Automatically hire missing roles from marketplace without user confirmation.
+
+boss_orchestration_control(op='record_artifact', args={'fgroup_id': 'group123', 'loop_id': 'task123', 'artifact_type': 'strategy_doc', 'payload_json': '{"strategy":"..."}', 'role': 'strategist'})
+    Persist planning artifacts for strategy and tactical circles.
+
+boss_orchestration_control(op='tag_task', args={'fgroup_id': 'group123', 'loop_id': 'task123', 'ktask_id': 'task456', 'role': 'implementer', 'phase': 'execution'})
+    Attach existing kanban task to loop metadata.
+
+boss_orchestration_control(op='link_tasks', args={'fgroup_id': 'group123', 'loop_id': 'task123', 'blocking_ktask_id': 'taskA', 'blocked_ktask_id': 'taskB'})
+    Add explicit dependency edge to tactical DAG.
+
+boss_orchestration_control(op='enqueue_result', args={'fgroup_id': 'group123', 'loop_id': 'task123', 'ktask_id': 'task456'})
+    Queue completed implementer task for sequential boss review.
+
+boss_orchestration_control(op='dequeue_next_review', args={'fgroup_id': 'group123', 'loop_id': 'task123'})
+    Pull exactly one next review item (queue stays sequential).
+
+boss_orchestration_control(op='review_decide', args={'fgroup_id': 'group123', 'loop_id': 'task123', 'ktask_id': 'task456', 'decision': 'approved|rework|rejected', 'feedback': '...'})
+    Approve/rework/reject reviewed item and optionally create rework task.
+"""
+
 TOOLS = [
     # BOSS_A2A_RESOLUTION_TOOL,
     # BOSS_SETUP_COLLEAGUES_TOOL,
     # THREAD_MESSAGES_PRINTED_TOOL,
     # BOT_BUG_REPORT_TOOL,
+    BOSS_ORCHESTRATION_TOOL,
     fi_widget.PRINT_WIDGET_TOOL,
     fi_mongo_store.MONGO_STORE_TOOL,
     fi_pdoc.POLICY_DOCUMENT_TOOL,
@@ -277,6 +345,328 @@ async def handle_bot_bug_report(fclient: ckit_client.FlexusClient, ws_id: str, m
             return f"GraphQL Error: {e}"
 
 
+async def handle_orchestration_control(
+    fclient: ckit_client.FlexusClient,
+    rcx: ckit_bot_exec.RobotContext,
+    model_produced_args: Dict[str, Any],
+) -> str:
+    op = model_produced_args.get("op", "")
+    if not op or op == "help":
+        return ORCHESTRATION_HELP
+
+    args, args_err = ckit_cloudtool.sanitize_args(model_produced_args)
+    if args_err:
+        return f"Error: {args_err}\n\n{ORCHESTRATION_HELP}"
+
+    raw_fgroup_id = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "fgroup_id", rcx.persona.located_fgroup_id)
+    fgroup_id = rcx.persona.located_fgroup_id
+    if isinstance(raw_fgroup_id, str) and raw_fgroup_id.strip() == rcx.persona.located_fgroup_id:
+        fgroup_id = raw_fgroup_id.strip()
+    project = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "project", "")
+    loop_id = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "loop_id", "")
+    http = await fclient.use_http()
+
+    async with http as h:
+        try:
+            if op == "set_feature_flag":
+                enabled = bool(ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "enabled", True))
+                r = await h.execute(
+                    gql.gql(
+                        """mutation BossOrchestrationSetFlag($ws_id: String!, $enabled: Boolean!) {
+                            workspace_orchestration_feature_set(ws_id: $ws_id, enabled: $enabled)
+                        }"""
+                    ),
+                    variable_values={"ws_id": rcx.persona.ws_id, "enabled": enabled},
+                )
+                return json.dumps({"ok": bool(r.get("workspace_orchestration_feature_set")), "enabled": enabled}, indent=2)
+
+            if op == "start_loop":
+                requirements_json = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "requirements_json", "")
+                iteration = int(ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "iteration", 1))
+                if isinstance(requirements_json, dict):
+                    requirements_json = json.dumps(requirements_json)
+                if not isinstance(requirements_json, str):
+                    requirements_json = str(requirements_json)
+                if not requirements_json.strip():
+                    return "Error: requirements_json is required"
+                r = await h.execute(
+                    gql.gql(
+                        """mutation BossOrchestrationStart($fgroup_id: String!, $project: String!, $requirements_json: String!, $iteration: Int!) {
+                            orchestration_start_loop(fgroup_id: $fgroup_id, project: $project, requirements_json: $requirements_json, iteration: $iteration)
+                        }"""
+                    ),
+                    variable_values={
+                        "fgroup_id": fgroup_id,
+                        "project": project,
+                        "requirements_json": requirements_json,
+                        "iteration": max(1, iteration),
+                    },
+                )
+                return json.dumps({"loop_id": r.get("orchestration_start_loop", "")}, indent=2)
+
+            if op == "snapshot":
+                r = await h.execute(
+                    gql.gql(
+                        """query BossOrchestrationSnapshot($fgroup_id: String!, $project: String!, $loop_id: String!) {
+                            orchestration_snapshot(fgroup_id: $fgroup_id, project: $project, loop_id: $loop_id) {
+                                loop_id
+                                fgroup_id
+                                project
+                                current_phase
+                                iteration
+                                queue_pending_count
+                                queue_active_count
+                                review_history_count
+                                execution_completed_count
+                                feature_enabled
+                                history
+                                tasks {
+                                    ktask_id
+                                    ktask_title
+                                    persona_id
+                                    persona_name
+                                    ktask_project
+                                    ktask_orch_phase
+                                    ktask_orch_iteration
+                                    ktask_orch_role
+                                    ktask_orch_artifact_type
+                                    ktask_orch_parent_ktask_id
+                                    ktask_orch_queue_pos
+                                    ktask_orch_queue_active
+                                    ktask_orch_review_decision
+                                    ktask_orch_review_feedback
+                                    ktask_orch_reviewed_ts
+                                    ktask_done_ts
+                                    ktask_resolution_code
+                                    ktask_details
+                                }
+                                deps {
+                                    blocking_ktask_id
+                                    blocked_ktask_id
+                                }
+                            }
+                        }"""
+                    ),
+                    variable_values={"fgroup_id": fgroup_id, "project": project, "loop_id": loop_id},
+                )
+                return json.dumps(r.get("orchestration_snapshot", {}), indent=2)
+
+            if op == "advance_phase":
+                next_phase = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "next_phase", "")
+                note = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "note", "")
+                if not next_phase:
+                    return "Error: next_phase is required"
+                r = await h.execute(
+                    gql.gql(
+                        """mutation BossOrchestrationAdvance($fgroup_id: String!, $loop_id: String!, $next_phase: String!, $note: String!) {
+                            orchestration_advance_phase(fgroup_id: $fgroup_id, loop_id: $loop_id, next_phase: $next_phase, note: $note)
+                        }"""
+                    ),
+                    variable_values={"fgroup_id": fgroup_id, "loop_id": loop_id, "next_phase": next_phase, "note": note},
+                )
+                return json.dumps({"pending_user_approval": True, "next_phase": next_phase, "message": "Phase gate posted to group chat. STOP and WAIT for the user to click the approval button."}, indent=2)
+
+            if op == "auto_staff_missing_roles":
+                required_roles_json = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "required_roles_json", "[]")
+                if isinstance(required_roles_json, list):
+                    required_roles_json = json.dumps(required_roles_json)
+                if isinstance(required_roles_json, dict):
+                    required_roles_json = json.dumps(required_roles_json)
+                r = await h.execute(
+                    gql.gql(
+                        """mutation BossOrchestrationStaffing($fgroup_id: String!, $loop_id: String!, $required_roles_json: String!) {
+                            orchestration_auto_staff_missing_roles(fgroup_id: $fgroup_id, loop_id: $loop_id, required_roles_json: $required_roles_json) {
+                                loop_id
+                                hired_persona_ids
+                                already_present_persona_ids
+                                unresolved_roles
+                            }
+                        }"""
+                    ),
+                    variable_values={"fgroup_id": fgroup_id, "loop_id": loop_id, "required_roles_json": str(required_roles_json)},
+                )
+                return json.dumps(r.get("orchestration_auto_staff_missing_roles", {}), indent=2)
+
+            if op == "record_artifact":
+                artifact_type = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "artifact_type", "")
+                payload_json = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "payload_json", "{}")
+                role = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "role", "boss")
+                title = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "title", "")
+                if isinstance(payload_json, dict):
+                    payload_json = json.dumps(payload_json)
+                if not artifact_type:
+                    return "Error: artifact_type is required"
+                r = await h.execute(
+                    gql.gql(
+                        """mutation BossOrchestrationArtifact($fgroup_id: String!, $loop_id: String!, $artifact_type: String!, $payload_json: String!, $role: String!, $title: String!) {
+                            orchestration_record_artifact(fgroup_id: $fgroup_id, loop_id: $loop_id, artifact_type: $artifact_type, payload_json: $payload_json, role: $role, title: $title)
+                        }"""
+                    ),
+                    variable_values={
+                        "fgroup_id": fgroup_id,
+                        "loop_id": loop_id,
+                        "artifact_type": artifact_type,
+                        "payload_json": str(payload_json),
+                        "role": str(role),
+                        "title": str(title),
+                    },
+                )
+                return json.dumps({"artifact_task_id": r.get("orchestration_record_artifact", "")}, indent=2)
+
+            if op == "tag_task":
+                ktask_id = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "ktask_id", "")
+                role = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "role", "implementer")
+                phase = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "phase", "")
+                iteration = int(ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "iteration", 0))
+                artifact_type = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "artifact_type", "")
+                parent_ktask_id = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "parent_ktask_id", "")
+                if not ktask_id:
+                    return "Error: ktask_id is required"
+                r = await h.execute(
+                    gql.gql(
+                        """mutation BossOrchestrationTagTask(
+                            $fgroup_id: String!,
+                            $loop_id: String!,
+                            $ktask_id: String!,
+                            $role: String!,
+                            $phase: String!,
+                            $iteration: Int!,
+                            $artifact_type: String!,
+                            $parent_ktask_id: String!
+                        ) {
+                            orchestration_tag_task(
+                                fgroup_id: $fgroup_id,
+                                loop_id: $loop_id,
+                                ktask_id: $ktask_id,
+                                role: $role,
+                                phase: $phase,
+                                iteration: $iteration,
+                                artifact_type: $artifact_type,
+                                parent_ktask_id: $parent_ktask_id
+                            )
+                        }"""
+                    ),
+                    variable_values={
+                        "fgroup_id": fgroup_id,
+                        "loop_id": loop_id,
+                        "ktask_id": ktask_id,
+                        "role": str(role),
+                        "phase": str(phase),
+                        "iteration": iteration,
+                        "artifact_type": str(artifact_type),
+                        "parent_ktask_id": str(parent_ktask_id),
+                    },
+                )
+                return json.dumps({"tagged": bool(r.get("orchestration_tag_task"))}, indent=2)
+
+            if op == "link_tasks":
+                blocking_ktask_id = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "blocking_ktask_id", "")
+                blocked_ktask_id = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "blocked_ktask_id", "")
+                if not blocking_ktask_id or not blocked_ktask_id:
+                    return "Error: blocking_ktask_id and blocked_ktask_id are required"
+                r = await h.execute(
+                    gql.gql(
+                        """mutation BossOrchestrationLinkTasks(
+                            $fgroup_id: String!,
+                            $loop_id: String!,
+                            $blocking_ktask_id: String!,
+                            $blocked_ktask_id: String!
+                        ) {
+                            orchestration_link_tasks(
+                                fgroup_id: $fgroup_id,
+                                loop_id: $loop_id,
+                                blocking_ktask_id: $blocking_ktask_id,
+                                blocked_ktask_id: $blocked_ktask_id
+                            )
+                        }"""
+                    ),
+                    variable_values={
+                        "fgroup_id": fgroup_id,
+                        "loop_id": loop_id,
+                        "blocking_ktask_id": blocking_ktask_id,
+                        "blocked_ktask_id": blocked_ktask_id,
+                    },
+                )
+                return json.dumps({"linked": bool(r.get("orchestration_link_tasks"))}, indent=2)
+
+            if op == "enqueue_result":
+                ktask_id = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "ktask_id", "")
+                if not ktask_id:
+                    return "Error: ktask_id is required"
+                r = await h.execute(
+                    gql.gql(
+                        """mutation BossOrchestrationEnqueue($fgroup_id: String!, $loop_id: String!, $ktask_id: String!) {
+                            orchestration_enqueue_result(fgroup_id: $fgroup_id, loop_id: $loop_id, ktask_id: $ktask_id)
+                        }"""
+                    ),
+                    variable_values={"fgroup_id": fgroup_id, "loop_id": loop_id, "ktask_id": ktask_id},
+                )
+                return json.dumps({"enqueued": bool(r.get("orchestration_enqueue_result"))}, indent=2)
+
+            if op == "dequeue_next_review":
+                r = await h.execute(
+                    gql.gql(
+                        """mutation BossOrchestrationDequeue($fgroup_id: String!, $loop_id: String!) {
+                            orchestration_dequeue_next_review(fgroup_id: $fgroup_id, loop_id: $loop_id) {
+                                ktask_id
+                                ktask_title
+                                persona_id
+                                persona_name
+                                ktask_orch_queue_pos
+                                ktask_orch_review_decision
+                                ktask_orch_queue_active
+                                ktask_details
+                            }
+                        }"""
+                    ),
+                    variable_values={"fgroup_id": fgroup_id, "loop_id": loop_id},
+                )
+                return json.dumps(r.get("orchestration_dequeue_next_review", {}), indent=2)
+
+            if op == "review_decide":
+                ktask_id = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "ktask_id", "")
+                decision = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "decision", "")
+                feedback = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "feedback", "")
+                create_rework = bool(ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "create_rework", True))
+                if not ktask_id or not decision:
+                    return "Error: ktask_id and decision are required"
+                r = await h.execute(
+                    gql.gql(
+                        """mutation BossOrchestrationReview(
+                            $fgroup_id: String!,
+                            $loop_id: String!,
+                            $ktask_id: String!,
+                            $decision: String!,
+                            $feedback: String!,
+                            $create_rework: Boolean!
+                        ) {
+                            orchestration_review_decide(
+                                fgroup_id: $fgroup_id,
+                                loop_id: $loop_id,
+                                ktask_id: $ktask_id,
+                                decision: $decision,
+                                feedback: $feedback,
+                                create_rework: $create_rework
+                            )
+                        }"""
+                    ),
+                    variable_values={
+                        "fgroup_id": fgroup_id,
+                        "loop_id": loop_id,
+                        "ktask_id": ktask_id,
+                        "decision": decision,
+                        "feedback": feedback,
+                        "create_rework": create_rework,
+                    },
+                )
+                return json.dumps({"rework_task_id": r.get("orchestration_review_decide", "")}, indent=2)
+
+            return f"Error: Unknown op {op}\n\n{ORCHESTRATION_HELP}"
+
+        except gql.transport.exceptions.TransportQueryError as e:
+            return f"GraphQL Error: {e}"
+
+
 async def boss_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.RobotContext) -> None:
     setup = ckit_bot_exec.official_setup_mixing_procedure(boss_install.boss_setup_schema, rcx.persona.persona_setup)
 
@@ -308,6 +698,11 @@ async def boss_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.R
     # @rcx.on_tool_call(BOT_BUG_REPORT_TOOL.name)
     # async def toolcall_bot_bug_report(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
     #     return await handle_bot_bug_report(fclient, rcx.persona.ws_id, model_produced_args)
+
+    @rcx.on_tool_call(BOSS_ORCHESTRATION_TOOL.name)
+    async def toolcall_orchestration(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
+        _ = toolcall
+        return await handle_orchestration_control(fclient, rcx, model_produced_args)
 
     @rcx.on_tool_call(fi_widget.PRINT_WIDGET_TOOL.name)
     async def toolcall_print_widget(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:

@@ -107,6 +107,20 @@ The results will arrive later in a 💿-message.
 
 Sometimes you are given a task from another bot, it will appear on your kanban board. The other bot will know your job
 is completed once you move your task to kanban done, nothing additional you need to do.
+
+If your current task details include group_chat_route, then project group chat is the user-visible control window.
+In that mode:
+1) Any external verbal communication must be posted to group chat. Personal thread is only for reasoning/tool calls.
+2) Use flexus_bot_kanban(op="group_chat_update", args={"update":"..."}) for each visible turn:
+   questions, answers, approvals, rejections, delegation notes, review notes.
+3) When addressing another bot in chat, tag them explicitly, for example @productman / @owl_strategist / @admonster.
+4) In persistent group-chat session mode (group_chat_persistent_session=true), do not close task after each reply.
+   Keep one long-running task/thread memory for the whole project discussion.
+5) Use flexus_hand_over_task only for separate execution tasks, not for normal @mention conversation.
+6) Use flexus_bot_kanban(op="group_chat_clarify", args={"question":"..."}) for blockers.
+7) Use flexus_bot_kanban(op="current_task_done", ...) only when explicit execution task is complete
+   or when boss/user explicitly asks to finalize the project loop.
+Do not require user to open your personal thread for status or final result.
 """
 
 PROMPT_HERE_GOES_SETUP = """

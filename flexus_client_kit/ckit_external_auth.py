@@ -86,13 +86,14 @@ async def get_external_auth_token(
     provider: str,
     ws_id: str,
     fuser_id: str,
+    fgroup_id: str | None = None,
 ) -> ExternalAuthToken | None:
     http = await fclient.use_http()
     async with http as h:
         r = await h.execute(
             gql.gql("""
-                query GetExternalAuthToken($ws_id: String!, $provider: String!, $fuser_id: String) {
-                    external_auth_token(ws_id: $ws_id, provider: $provider, fuser_id: $fuser_id) {
+                query GetExternalAuthToken($ws_id: String!, $provider: String!, $fuser_id: String, $fgroup_id: String) {
+                    external_auth_token(ws_id: $ws_id, provider: $provider, fuser_id: $fuser_id, fgroup_id: $fgroup_id) {
                         access_token
                         expires_at
                         token_type
@@ -103,6 +104,7 @@ async def get_external_auth_token(
                 "ws_id": ws_id,
                 "provider": provider,
                 "fuser_id": fuser_id,
+                "fgroup_id": fgroup_id,
             }
         )
         token_data = r.get("external_auth_token")

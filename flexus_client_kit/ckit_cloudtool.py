@@ -74,6 +74,43 @@ class ToolResult:
         return json.dumps(self.content)
 
 
+def _looks_like_multimodal_content(x: Any) -> bool:
+    if not isinstance(x, list):
+        return False
+    if len(x) > 10:
+        return False
+    for i in x:
+        if not isinstance(i, dict):
+            return False
+        if "m_type" not in i or "m_content" not in i:
+            return False
+        if not isinstance(i["m_type"], str):
+            return False
+        if not isinstance(i["m_content"], str):
+            return False
+    return True
+
+
+def _normalize_tool_result_for_ftm_content(content: Any) -> str:
+    if isinstance(content, str):
+        s = content
+    else:
+        s = json.dumps(content)
+    if s == "null":
+        return s
+    try:
+        parsed = json.loads(s)
+    except json.JSONDecodeError:
+        return json.dumps(str(s))
+    if isinstance(parsed, str):
+        return s
+    if _looks_like_multimodal_content(parsed):
+        return s
+    if isinstance(parsed, (dict, list)):
+        return json.dumps(json.dumps(parsed))
+    return json.dumps(str(parsed))
+
+
 @dataclass
 class FCloudtoolCall:
     caller_fuser_id: str  # copy of thread owner fuser_id
@@ -212,6 +249,7 @@ async def call_python_function_and_save_result(
         content, prov = json.dumps(f"{type(e).__name__} {e}"), json.dumps({"system": service_name})
     if result is not None:
         serialized_result = result if isinstance(result, str) else result.to_serialized()
+        serialized_result = _normalize_tool_result_for_ftm_content(serialized_result)
         await cloudtool_post_result(fclient, call.fcall_id, call.fcall_untrusted_key, serialized_result, prov, dollars)
 
 
