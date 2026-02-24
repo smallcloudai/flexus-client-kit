@@ -22,7 +22,7 @@ logger = logging.getLogger("shopify")
 API_VER = "2026-01"
 
 SHOPIFY_SCOPES = [
-    "read_all_orders", "read_customers", "read_discounts", "write_discounts", "write_draft_orders",
+    "read_customers", "read_discounts", "write_discounts", "write_draft_orders",
     "read_draft_orders", "read_fulfillments", "read_inventory", "write_inventory",
     "read_orders", "read_products", "write_products",
 ]
@@ -92,16 +92,28 @@ shopify(op="sync")
 shopify(op="create_product", args={
     "title": "Product Name", "body_html": "<p>Description</p>",
     "vendor": "Brand", "product_type": "Category", "tags": "tag1, tag2",
-    "variants": [{"price": "29.99", "sku": "SKU1", "inventory_quantity": 100}],
+    "options": ["Color", "Size"],
+    "variants": [{"option1": "Black", "option2": "S", "price": "12.99", "sku": "SKU-BLK-S", "inventory_quantity": 10}],
     "images": ["https://example.com/img.jpg"],
 })
-    Create a product. variants and images are optional.
+    Create a product. variants, options, and images are optional.
+    Use options to name variant axes (e.g. ["Color","Size"]), then option1/option2 in each variant.
+    Response includes variant IDs — save them for update_variant, cart operations.
 
 shopify(op="update_product", args={"product_id": "...", "title": "New Title", ...})
-    Update product fields. Pass only fields to change.
+    Update product fields (title, body_html, vendor, product_type, tags, images). No variants here — use create/update/delete_variant.
 
 shopify(op="delete_product", args={"product_id": "..."})
     Delete a product (requires confirmation).
+
+shopify(op="create_variant", args={"product_id": "...", "price": "29.99", "sku": "SKU2", "option1": "Blue"})
+    Add a variant to a product.
+
+shopify(op="update_variant", args={"variant_id": "...", "price": "19.99", "inventory_quantity": 50})
+    Update a variant's fields.
+
+shopify(op="delete_variant", args={"product_id": "...", "variant_id": "..."})
+    Delete a variant (requires confirmation).
 
 shopify(op="create_collection", args={
     "title": "Collection Name", "body_html": "<p>Description</p>",
@@ -111,9 +123,15 @@ shopify(op="create_collection", args={
 shopify(op="create_discount", args={
     "title": "SUMMER20", "value_type": "percentage", "value": "-20.0",
     "target_type": "line_item", "target_selection": "all",
-    "starts_at": "2026-01-01T00:00:00Z",
+    "starts_at": "2026-01-01T00:00:00Z", "ends_at": "2026-06-01T00:00:00Z",
 })
-    Create a price rule discount. value_type: percentage or fixed_amount.
+    Create a price rule discount. value_type: percentage or fixed_amount. ends_at is optional.
+
+shopify(op="list_discounts")
+    List all discount codes and their price rules.
+
+shopify(op="list_collections")
+    List all custom collections.
 
 shopify(op="update_inventory", args={
     "inventory_item_id": "...", "location_id": "...", "available": 50,
@@ -122,6 +140,8 @@ shopify(op="update_inventory", args={
 
 shopify(op="disconnect")
     Disconnect the Shopify store."""
+
+_VARIANT_KEYS = ("price", "sku", "barcode", "compare_at_price", "option1", "option2", "option3", "weight", "weight_unit", "inventory_quantity")
 
 WEBHOOK_TOPICS = [
     "customers/create", "customers/update",
@@ -150,6 +170,20 @@ SHIP_STATUS = {
 
 
 # --- HTTP ---
+
+_GQL_COLLECTIONS = """
+query FetchCollections($cursor: String) {
+  collections(first: 50, after: $cursor) {
+    nodes {
+      id
+      title
+      productsCount { count }
+      products(first: 3) { nodes { title } }
+    }
+    pageInfo { hasNextPage endCursor }
+  }
+}
+"""
 
 _GQL_ORDER_TRANSACTIONS = """
 query FetchOrderTransactions($cursor: String, $query: String) {
@@ -561,34 +595,44 @@ class IntegrationShopify:
     async def called_by_model(self, toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Optional[dict[str, Any]]) -> str:
         if not model_produced_args:
             return HELP
-        op = mpa.get("op", "")
-        args, err = ckit_cloudtool.sanitize_args(mpa)
+        op = model_produced_args.get("op", "")
+        args, err = ckit_cloudtool.sanitize_args(model_produced_args)
         if err:
             return err
         if not op or "help" in op:
             return HELP
         if op == "connect":
-            return await self._op_connect(args, mpa)
+            return await self._op_connect(args, model_produced_args)
         if op == "status":
             return await self._op_status()
         if op == "sync":
-            return await self._op_sync(args, mpa)
+            return await self._op_sync()
         if op == "create_product":
-            return await self._op_create_product(args, mpa)
+            return await self._op_create_product(args, model_produced_args)
         if op == "update_product":
-            return await self._op_update_product(args, mpa)
+            return await self._op_update_product(args, model_produced_args)
         if op == "delete_product":
-            return await self._op_delete_product(args, mpa, toolcall)
+            return await self._op_delete_product(args, model_produced_args, toolcall)
+        if op == "create_variant":
+            return await self._op_create_variant(args, model_produced_args)
+        if op == "update_variant":
+            return await self._op_update_variant(args, model_produced_args)
+        if op == "delete_variant":
+            return await self._op_delete_variant(args, model_produced_args, toolcall)
+        if op == "list_collections":
+            return await self._op_list_collections()
         if op == "create_collection":
-            return await self._op_create_collection(args, mpa)
+            return await self._op_create_collection(args, model_produced_args)
+        if op == "list_discounts":
+            return await self._op_list_discounts()
         if op == "create_discount":
-            return await self._op_create_discount(args, mpa)
+            return await self._op_create_discount(args, model_produced_args)
         if op == "update_inventory":
-            return await self._op_update_inventory(args, mpa)
+            return await self._op_update_inventory(args, model_produced_args)
         if op == "create_draft_order":
-            return await self._op_create_draft_order(args, mpa)
+            return await self._op_create_draft_order(args, model_produced_args)
         if op == "disconnect":
-            return await self._op_disconnect(args, mpa, toolcall)
+            return await self._op_disconnect(toolcall)
         return f"Unknown operation: {op}\n\nTry shopify(op='help') for usage."
 
     async def _op_connect(self, args: dict, model_produced_args: Optional[dict[str, Any]]) -> str:
@@ -669,97 +713,81 @@ class IntegrationShopify:
             return f"ERROR: Webhook setup failed for {domain}, sync did NOT run. {wh_err}. Check app permissions and try shopify(op='sync') again."
         return await self._sync_shop()
 
-    async def _resolve_shop(self, args, mpa):
-        shop_id = ckit_cloudtool.try_best_to_find_argument(args, mpa, "shop_id", None)
-        if not shop_id and len(self.shops) == 1:
-            shop_id = self.shops[0].shop_id
-        if not shop_id:
-            return None, None, "Missing 'shop_id'. Use shopify(op='status') to list shops."
-        shop = next((s for s in self.shops if s.shop_id == shop_id), None)
-        if not shop:
-            return None, None, f"Shop not found: {shop_id}"
-        token = await self._get_token(shop)
-        if not token:
-            return None, None, f"No access token for {shop.shop_domain}."
-        return shop, token, None
+    def _product_payload(self, args, model_produced_args, base: dict, include_variants: bool = False) -> dict:
+        for key in ("title", "body_html", "vendor", "product_type", "tags"):
+            if (val := ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, key, None)) is not None:
+                base[key] = val
+        if include_variants:
+            options = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "options", None)
+            variants = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "variants", None)
+            if variants:
+                base["variants"] = variants
+                if not options:
+                    # auto-infer how many option axes are used so Shopify doesn't drop option2/option3
+                    n = max((sum(1 for i in (1, 2, 3) if v.get(f"option{i}")) for v in variants), default=1)
+                    options = [f"Option {i}" for i in range(1, n + 1)]
+            if options:
+                base["options"] = [{"name": o} if isinstance(o, str) else o for o in options]
+        if images := ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "images", None):
+            base["images"] = [{"src": u} if isinstance(u, str) else u for u in images]
+        return base
 
-    async def _op_create_draft_order(self, args, mpa):
-        shop, token, err = await self._resolve_shop(args, mpa)
-        if err:
-            return err
-        line_items = ckit_cloudtool.try_best_to_find_argument(args, mpa, "line_items", None)
-        if not line_items:
+    def _fmt_product(self, p: dict) -> str:
+        lines = [f"Product: {p['title']} (ID: {p['id']})"]
+        for v in p.get("variants") or []:
+            opts = " / ".join(filter(None, [v.get(f"option{i}") for i in (1, 2, 3)]))
+            lines.append(f"  variant {v['id']} {opts} price={v['price']} qty={v.get('inventory_quantity', '?')}")
+        return "\n".join(lines)
+
+    def _variant_payload(self, args, model_produced_args, base: dict) -> dict:
+        for key in _VARIANT_KEYS:
+            if (val := ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, key, None)) is not None:
+                base[key] = val
+        return base
+
+    async def _op_create_draft_order(self, args, model_produced_args):
+        await self._load_current_shop()
+        if not self.shop or not (token := self._get_token()):
+            return "No shop connected."
+        if not (line_items := ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "line_items", None)):
             return "Missing 'line_items': [{variant_id, quantity}]"
-        draft = {"line_items": line_items}
-        email = ckit_cloudtool.try_best_to_find_argument(args, mpa, "email", None)
-        note = ckit_cloudtool.try_best_to_find_argument(args, mpa, "note", None)
-        if email:
-            draft["email"] = email
-        if note:
-            draft["note"] = note
+        draft = {"line_items": line_items, **{k: v for k in ("email", "note") if (v := ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, k, None))}}
         try:
-            r = await _shop_req(shop.shop_domain, token, "POST", "draft_orders.json", {"draft_order": draft})
-            d = r.json()["draft_order"]
+            d = (await _shop_req(self.shop.shop_domain, token, "POST", "draft_orders.json", {"draft_order": draft})).json()["draft_order"]
             return f"Draft order created (ID: {d['id']})\nCheckout: {d.get('invoice_url', '')}"
         except httpx.HTTPStatusError as e:
             return f"Failed: {e.response.text[:300]}"
 
-    async def _op_create_product(self, args, mpa):
-        shop, token, err = await self._resolve_shop(args, mpa)
-        if err:
-            return err
-        title = ckit_cloudtool.try_best_to_find_argument(args, mpa, "title", None)
-        if not title:
+    async def _op_create_product(self, args, model_produced_args):
+        await self._load_current_shop()
+        if not self.shop or not (token := self._get_token()):
+            return "No shop connected."
+        payload = self._product_payload(args, model_produced_args, {}, include_variants=True)
+        if not payload.get("title"):
             return "Missing 'title'."
-        product = {"title": title}
-        for key in ("body_html", "vendor", "product_type", "tags"):
-            val = ckit_cloudtool.try_best_to_find_argument(args, mpa, key, None)
-            if val:
-                product[key] = val
-        variants = ckit_cloudtool.try_best_to_find_argument(args, mpa, "variants", None)
-        if variants:
-            product["variants"] = variants
-        images = ckit_cloudtool.try_best_to_find_argument(args, mpa, "images", None)
-        if images:
-            product["images"] = [{"src": u} if isinstance(u, str) else u for u in images]
         try:
-            r = await _shop_req(shop.shop_domain, token, "POST", "products.json", {"product": product})
-            p = r.json()["product"]
-            return f"Product created: {p['title']} (ID: {p['id']})"
+            p = (await _shop_req(self.shop.shop_domain, token, "POST", "products.json", {"product": payload})).json()["product"]
+            return self._fmt_product(p)
         except httpx.HTTPStatusError as e:
             return f"Failed: {e.response.text[:300]}"
 
-    async def _op_update_product(self, args, mpa):
-        shop, token, err = await self._resolve_shop(args, mpa)
-        if err:
-            return err
-        pid = ckit_cloudtool.try_best_to_find_argument(args, mpa, "product_id", None)
-        if not pid:
+    async def _op_update_product(self, args, model_produced_args):
+        await self._load_current_shop()
+        if not self.shop or not (token := self._get_token()):
+            return "No shop connected."
+        if not (pid := ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "product_id", None)):
             return "Missing 'product_id'."
-        product = {"id": pid}
-        for key in ("title", "body_html", "vendor", "product_type", "tags"):
-            val = ckit_cloudtool.try_best_to_find_argument(args, mpa, key, None)
-            if val is not None:
-                product[key] = val
-        variants = ckit_cloudtool.try_best_to_find_argument(args, mpa, "variants", None)
-        if variants:
-            product["variants"] = variants
-        images = ckit_cloudtool.try_best_to_find_argument(args, mpa, "images", None)
-        if images:
-            product["images"] = [{"src": u} if isinstance(u, str) else u for u in images]
         try:
-            r = await _shop_req(shop.shop_domain, token, "PUT", f"products/{pid}.json", {"product": product})
-            p = r.json()["product"]
-            return f"Product updated: {p['title']} (ID: {p['id']})"
+            p = (await _shop_req(self.shop.shop_domain, token, "PUT", f"products/{pid}.json", {"product": self._product_payload(args, model_produced_args, {"id": pid})})).json()["product"]
+            return self._fmt_product(p)
         except httpx.HTTPStatusError as e:
             return f"Failed: {e.response.text[:300]}"
 
-    async def _op_delete_product(self, args, mpa, toolcall):
-        shop, token, err = await self._resolve_shop(args, mpa)
-        if err:
-            return err
-        pid = ckit_cloudtool.try_best_to_find_argument(args, mpa, "product_id", None)
-        if not pid:
+    async def _op_delete_product(self, args, model_produced_args, toolcall):
+        await self._load_current_shop()
+        if not self.shop or not (token := self._get_token()):
+            return "No shop connected."
+        if not (pid := ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "product_id", None)):
             return "Missing 'product_id'."
         if not toolcall.confirmed_by_human:
             raise ckit_cloudtool.NeedsConfirmation(
@@ -768,40 +796,128 @@ class IntegrationShopify:
                 confirm_explanation=f"This will permanently delete product {pid} from Shopify",
             )
         try:
-            await _shop_req(shop.shop_domain, token, "DELETE", f"products/{pid}.json")
+            await _shop_req(self.shop.shop_domain, token, "DELETE", f"products/{pid}.json")
             return f"Product {pid} deleted."
         except httpx.HTTPStatusError as e:
             return f"Failed: {e.response.text[:300]}"
 
-    async def _op_create_collection(self, args, mpa):
-        shop, token, err = await self._resolve_shop(args, mpa)
-        if err:
-            return err
-        title = ckit_cloudtool.try_best_to_find_argument(args, mpa, "title", None)
-        if not title:
+    async def _op_create_variant(self, args, model_produced_args):
+        await self._load_current_shop()
+        if not self.shop or not (token := self._get_token()):
+            return "No shop connected."
+        if not (pid := ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "product_id", None)):
+            return "Missing 'product_id'."
+        payload = self._variant_payload(args, model_produced_args, {})
+        if not payload.get("price"):
+            return "Missing 'price'."
+        try:
+            v = (await _shop_req(self.shop.shop_domain, token, "POST", f"products/{pid}/variants.json", {"variant": payload})).json()["variant"]
+            return f"Variant created: {v.get('title')} (ID: {v['id']}) price={v.get('price')}"
+        except httpx.HTTPStatusError as e:
+            return f"Failed: {e.response.text[:300]}"
+
+    async def _op_update_variant(self, args, model_produced_args):
+        await self._load_current_shop()
+        if not self.shop or not (token := self._get_token()):
+            return "No shop connected."
+        if not (vid := ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "variant_id", None)):
+            return "Missing 'variant_id'."
+        try:
+            v = (await _shop_req(self.shop.shop_domain, token, "PUT", f"variants/{vid}.json", {"variant": self._variant_payload(args, model_produced_args, {"id": vid})})).json()["variant"]
+            return f"Variant updated: {v.get('title')} (ID: {v['id']}) price={v.get('price')}"
+        except httpx.HTTPStatusError as e:
+            return f"Failed: {e.response.text[:300]}"
+
+    async def _op_delete_variant(self, args, model_produced_args, toolcall):
+        await self._load_current_shop()
+        if not self.shop or not (token := self._get_token()):
+            return "No shop connected."
+        pid = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "product_id", None)
+        vid = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "variant_id", None)
+        if not pid or not vid:
+            return "Missing 'product_id' and/or 'variant_id'."
+        if not toolcall.confirmed_by_human:
+            raise ckit_cloudtool.NeedsConfirmation(
+                confirm_setup_key="shopify_delete_variant",
+                confirm_command=f"shopify delete_variant {vid}",
+                confirm_explanation=f"This will permanently delete variant {vid}",
+            )
+        try:
+            await _shop_req(self.shop.shop_domain, token, "DELETE", f"products/{pid}/variants/{vid}.json")
+            return f"Variant {vid} deleted."
+        except httpx.HTTPStatusError as e:
+            return f"Failed: {e.response.text[:300]}"
+
+    async def _op_list_discounts(self):
+        await self._load_current_shop()
+        if not self.shop or not (token := self._get_token()):
+            return "No shop connected."
+        rules = await _paginate(self.shop.shop_domain, token, "price_rules.json", "price_rules")
+        if not rules:
+            return "No discounts found."
+        lines = []
+        for rule in rules:
+            codes = await _paginate(self.shop.shop_domain, token, f"price_rules/{rule['id']}/discount_codes.json", "discount_codes")
+            code_str = ", ".join(c["code"] for c in codes) if codes else "(no codes)"
+            ends = f" → {rule['ends_at']}" if rule.get("ends_at") else ""
+            lines.append(f"- {code_str}: {rule['value_type']} {rule['value']} (rule {rule['id']}, starts {rule['starts_at']}{ends})")
+        return "\n".join(lines)
+
+    async def _op_list_collections(self):
+        await self._load_current_shop()
+        if not self.shop or not (token := self._get_token()):
+            return "No shop connected."
+        colls, cursor = [], None
+        async with httpx.AsyncClient(timeout=30) as c:
+            while True:
+                r = await c.post(
+                    f"https://{self.shop.shop_domain}/admin/api/{API_VER}/graphql.json",
+                    headers={"X-Shopify-Access-Token": token, "Content-Type": "application/json"},
+                    json={"query": _GQL_COLLECTIONS, "variables": {"cursor": cursor}},
+                )
+                r.raise_for_status()
+                data = r.json()
+                if data.get("errors"):
+                    return f"Shopify GQL errors: {data['errors']}"
+                page = data["data"]["collections"]
+                colls.extend(page["nodes"])
+                if not page["pageInfo"]["hasNextPage"]:
+                    break
+                cursor = page["pageInfo"]["endCursor"]
+        if not colls:
+            return "No collections found."
+        lines = []
+        for col in colls:
+            count = col["productsCount"]["count"]
+            sample = ", ".join(p["title"] for p in col["products"]["nodes"])
+            cid = col["id"].split("/")[-1]
+            lines.append(f"- {col['title']} (ID: {cid}, {count} products{': ' + sample if sample else ''})")
+        return "\n".join(lines)
+
+    async def _op_create_collection(self, args, model_produced_args):
+        await self._load_current_shop()
+        if not self.shop or not (token := self._get_token()):
+            return "No shop connected."
+        if not (title := ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "title", None)):
             return "Missing 'title'."
         coll = {"title": title}
-        body = ckit_cloudtool.try_best_to_find_argument(args, mpa, "body_html", None)
-        if body:
+        if body := ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "body_html", None):
             coll["body_html"] = body
         try:
-            r = await _shop_req(shop.shop_domain, token, "POST", "custom_collections.json", {"custom_collection": coll})
-            c = r.json()["custom_collection"]
+            c = (await _shop_req(self.shop.shop_domain, token, "POST", "custom_collections.json", {"custom_collection": coll})).json()["custom_collection"]
             return f"Collection created: {c['title']} (ID: {c['id']})"
         except httpx.HTTPStatusError as e:
             return f"Failed: {e.response.text[:300]}"
 
-    async def _op_create_discount(self, args, mpa):
-        shop, token, err = await self._resolve_shop(args, mpa)
-        if err:
-            return err
-        title = ckit_cloudtool.try_best_to_find_argument(args, mpa, "title", None)
-        if not title:
+    async def _op_create_discount(self, args, model_produced_args):
+        await self._load_current_shop()
+        if not self.shop or not (token := self._get_token()):
+            return "No shop connected."
+        if not (title := ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "title", None)):
             return "Missing 'title' (discount code)."
         rule = {"title": title}
         for key in ("value_type", "value", "target_type", "target_selection", "starts_at", "ends_at"):
-            val = ckit_cloudtool.try_best_to_find_argument(args, mpa, key, None)
-            if val is not None:
+            if (val := ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, key, None)) is not None:
                 rule[key] = val
         rule.setdefault("value_type", "percentage")
         rule.setdefault("target_type", "line_item")
@@ -811,23 +927,19 @@ class IntegrationShopify:
         if not rule.get("starts_at"):
             rule["starts_at"] = datetime.now(timezone.utc).isoformat()
         try:
-            r = await _shop_req(shop.shop_domain, token, "POST", "price_rules.json", {"price_rule": rule})
-            pr = r.json()["price_rule"]
-            # Auto-create a discount code matching the title
-            await _shop_req(shop.shop_domain, token, "POST", f"price_rules/{pr['id']}/discount_codes.json", {
-                "discount_code": {"code": title},
-            })
+            pr = (await _shop_req(self.shop.shop_domain, token, "POST", "price_rules.json", {"price_rule": rule})).json()["price_rule"]
+            await _shop_req(self.shop.shop_domain, token, "POST", f"price_rules/{pr['id']}/discount_codes.json", {"discount_code": {"code": title}})
             return f"Discount created: {title} ({pr['value_type']} {pr['value']}) — code: {title}"
         except httpx.HTTPStatusError as e:
             return f"Failed: {e.response.text[:300]}"
 
-    async def _op_update_inventory(self, args, mpa):
-        shop, token, err = await self._resolve_shop(args, mpa)
-        if err:
-            return err
-        inv_id = ckit_cloudtool.try_best_to_find_argument(args, mpa, "inventory_item_id", None)
-        loc_id = ckit_cloudtool.try_best_to_find_argument(args, mpa, "location_id", None)
-        available = ckit_cloudtool.try_best_to_find_argument(args, mpa, "available", None)
+    async def _op_update_inventory(self, args, model_produced_args):
+        await self._load_current_shop()
+        if not self.shop or not (token := self._get_token()):
+            return "No shop connected."
+        inv_id = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "inventory_item_id", None)
+        loc_id = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "location_id", None)
+        available = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "available", None)
         if not inv_id:
             return "Missing 'inventory_item_id'."
         if not loc_id:
@@ -835,19 +947,14 @@ class IntegrationShopify:
         if available is None:
             return "Missing 'available' (quantity)."
         try:
-            await _shop_req(shop.shop_domain, token, "POST", "inventory_levels/set.json", {
-                "inventory_item_id": int(inv_id),
-                "location_id": int(loc_id),
-                "available": int(available),
+            await _shop_req(self.shop.shop_domain, token, "POST", "inventory_levels/set.json", {
+                "inventory_item_id": int(inv_id), "location_id": int(loc_id), "available": int(available),
             })
             return f"Inventory updated: item {inv_id} at location {loc_id} set to {available}."
         except httpx.HTTPStatusError as e:
             return f"Failed: {e.response.text[:300]}"
 
-    async def _op_disconnect(self, args, mpa, toolcall):
-        shop_id = ckit_cloudtool.try_best_to_find_argument(args, mpa, "shop_id", None)
-        if not shop_id:
-            return "Missing 'shop_id'."
+    async def _op_disconnect(self, toolcall):
         if not toolcall.confirmed_by_human:
             raise ckit_cloudtool.NeedsConfirmation(
                 confirm_setup_key="shopify_disconnect",
