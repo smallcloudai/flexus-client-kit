@@ -22,8 +22,8 @@ logger = logging.getLogger("shopify")
 API_VER = "2026-01"
 
 SHOPIFY_SCOPES = [
-    "read_customers", "read_discounts", "write_discounts", "write_draft_orders",
-    "read_draft_orders", "read_fulfillments", "read_inventory", "write_inventory",
+    "read_customers", "read_discounts", "write_discounts", "read_price_rules", "write_price_rules",
+    "write_draft_orders", "read_draft_orders", "read_fulfillments", "read_inventory", "write_inventory",
     "read_orders", "read_products", "write_products",
 ]
 
@@ -123,15 +123,27 @@ shopify(op="create_collection", args={
 shopify(op="create_discount", args={
     "title": "SUMMER20", "value_type": "percentage", "value": "-20.0",
     "target_type": "line_item", "target_selection": "all",
+    "allocation_method": "across", "customer_selection": "all",
     "starts_at": "2026-01-01T00:00:00Z", "ends_at": "2026-06-01T00:00:00Z",
 })
-    Create a price rule discount. value_type: percentage or fixed_amount. ends_at is optional.
+    Create a price rule discount. value_type: percentage or fixed_amount. ends_at optional.
+    target_selection: "all" or "entitled" (then pass entitled_collection_ids/entitled_product_ids as arrays).
+    allocation_method: "across" or "each". customer_selection: "all" or "prerequisite".
 
 shopify(op="list_discounts")
     List all discount codes and their price rules.
 
 shopify(op="list_collections")
     List all custom collections.
+
+shopify(op="add_to_collection", args={"product_id": "...", "collection_id": "..."})
+    Add a product to a custom collection.
+
+shopify(op="remove_from_collection", args={"product_id": "...", "collection_id": "..."})
+    Remove a product from a custom collection.
+
+shopify(op="delete_collection", args={"collection_id": "..."})
+    Delete a custom collection (requires confirmation).
 
 shopify(op="update_inventory", args={
     "inventory_item_id": "...", "location_id": "...", "available": 50,
@@ -625,6 +637,12 @@ class IntegrationShopify:
             return await self._op_list_collections()
         if op == "create_collection":
             return await self._op_create_collection(args, model_produced_args)
+        if op == "add_to_collection":
+            return await self._op_add_to_collection(args, model_produced_args)
+        if op == "remove_from_collection":
+            return await self._op_remove_from_collection(args, model_produced_args)
+        if op == "delete_collection":
+            return await self._op_delete_collection(args, model_produced_args, toolcall)
         if op == "list_discounts":
             return await self._op_list_discounts()
         if op == "create_discount":
@@ -855,12 +873,18 @@ class IntegrationShopify:
         await self._load_current_shop()
         if not self.shop or not (token := self._get_token()):
             return "No shop connected."
-        rules = await _paginate(self.shop.shop_domain, token, "price_rules.json", "price_rules")
+        try:
+            rules = await _paginate(self.shop.shop_domain, token, "price_rules.json", "price_rules")
+        except httpx.HTTPStatusError as e:
+            return f"Failed: {e.response.text[:300]}"
         if not rules:
             return "No discounts found."
         lines = []
         for rule in rules:
-            codes = await _paginate(self.shop.shop_domain, token, f"price_rules/{rule['id']}/discount_codes.json", "discount_codes")
+            try:
+                codes = await _paginate(self.shop.shop_domain, token, f"price_rules/{rule['id']}/discount_codes.json", "discount_codes")
+            except httpx.HTTPStatusError:
+                codes = []
             code_str = ", ".join(c["code"] for c in codes) if codes else "(no codes)"
             ends = f" → {rule['ends_at']}" if rule.get("ends_at") else ""
             lines.append(f"- {code_str}: {rule['value_type']} {rule['value']} (rule {rule['id']}, starts {rule['starts_at']}{ends})")
@@ -912,6 +936,56 @@ class IntegrationShopify:
         except httpx.HTTPStatusError as e:
             return f"Failed: {e.response.text[:300]}"
 
+    async def _op_add_to_collection(self, args, model_produced_args):
+        await self._load_current_shop()
+        if not self.shop or not (token := self._get_token()):
+            return "No shop connected."
+        pid = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "product_id", None)
+        cid = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "collection_id", None)
+        if not pid or not cid:
+            return "Missing 'product_id' and/or 'collection_id'."
+        try:
+            (await _shop_req(self.shop.shop_domain, token, "POST", "collects.json", {"collect": {"product_id": int(pid), "collection_id": int(cid)}})).json()
+            return f"Product {pid} added to collection {cid}."
+        except httpx.HTTPStatusError as e:
+            return f"Failed: {e.response.text[:300]}"
+
+    async def _op_remove_from_collection(self, args, model_produced_args):
+        await self._load_current_shop()
+        if not self.shop or not (token := self._get_token()):
+            return "No shop connected."
+        pid = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "product_id", None)
+        cid = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "collection_id", None)
+        if not pid or not cid:
+            return "Missing 'product_id' and/or 'collection_id'."
+        try:
+            r = await _shop_req(self.shop.shop_domain, token, "GET", f"collects.json?product_id={pid}&collection_id={cid}")
+            collects = r.json().get("collects", [])
+            if not collects:
+                return f"Product {pid} is not in collection {cid}."
+            await _shop_req(self.shop.shop_domain, token, "DELETE", f"collects/{collects[0]['id']}.json")
+            return f"Product {pid} removed from collection {cid}."
+        except httpx.HTTPStatusError as e:
+            return f"Failed: {e.response.text[:300]}"
+
+    async def _op_delete_collection(self, args, model_produced_args, toolcall):
+        await self._load_current_shop()
+        if not self.shop or not (token := self._get_token()):
+            return "No shop connected."
+        if not (cid := ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "collection_id", None)):
+            return "Missing 'collection_id'."
+        if not toolcall.confirmed_by_human:
+            raise ckit_cloudtool.NeedsConfirmation(
+                confirm_setup_key="shopify_delete_collection",
+                confirm_command=f"shopify delete_collection {cid}",
+                confirm_explanation=f"This will permanently delete collection {cid}",
+            )
+        try:
+            await _shop_req(self.shop.shop_domain, token, "DELETE", f"custom_collections/{cid}.json")
+            return f"Collection {cid} deleted."
+        except httpx.HTTPStatusError as e:
+            return f"Failed: {e.response.text[:300]}"
+
     async def _op_create_discount(self, args, model_produced_args):
         await self._load_current_shop()
         if not self.shop or not (token := self._get_token()):
@@ -919,12 +993,19 @@ class IntegrationShopify:
         if not (title := ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "title", None)):
             return "Missing 'title' (discount code)."
         rule = {"title": title}
-        for key in ("value_type", "value", "target_type", "target_selection", "starts_at", "ends_at"):
+        for key in ("value_type", "value", "target_type", "target_selection", "allocation_method",
+                    "customer_selection", "starts_at", "ends_at"):
             if (val := ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, key, None)) is not None:
                 rule[key] = val
+        for key in ("entitled_product_ids", "entitled_variant_ids", "entitled_collection_ids",
+                    "prerequisite_product_ids", "prerequisite_variant_ids", "prerequisite_collection_ids"):
+            if (ids := ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, key, None)):
+                rule[key] = [int(i) for i in ids]
         rule.setdefault("value_type", "percentage")
         rule.setdefault("target_type", "line_item")
         rule.setdefault("target_selection", "all")
+        rule.setdefault("allocation_method", "across")
+        rule.setdefault("customer_selection", "all")
         if not rule.get("value"):
             return "Missing 'value' (e.g. '-20.0' for 20% off)."
         if not rule.get("starts_at"):
