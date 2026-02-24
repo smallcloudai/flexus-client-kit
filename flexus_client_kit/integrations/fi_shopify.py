@@ -8,12 +8,10 @@ from datetime import datetime, timezone, timedelta
 from typing import Any, Optional
 
 import httpx
-import gql.transport.exceptions
 
 from flexus_client_kit import ckit_bot_exec
 from flexus_client_kit import ckit_cloudtool
 from flexus_client_kit import ckit_client
-from flexus_client_kit import ckit_external_auth
 from flexus_client_kit import ckit_erp
 from flexus_client_kit import erp_schema
 
@@ -390,8 +388,16 @@ class IntegrationShopify:
         self.shop = next(iter(shops), None)
 
     def _get_token(self) -> Optional[str]:
-        auth = self.rcx.external_auth.get("shopify")
-        return (auth.get("token") or {}).get("access_token") if auth else None
+        if self.shop:
+            creds = self.shop.shop_credentials or {}
+            if creds.get("access_token"):
+                return creds["access_token"]
+        auth = self.rcx.external_auth.get("shopify") or {}
+        token_obj = auth.get("token") or {}
+        url_template_vars = auth.get("url_template_vars", {})
+        if self.shop and url_template_vars.get("shop_domain") != self.shop.shop_domain:
+            return None
+        return token_obj.get("access_token")
 
     async def _register_webhooks(self) -> str:
         if not (token := self._get_token()):
@@ -561,14 +567,8 @@ class IntegrationShopify:
                 return f"Already connected: {shop_domain}."
             return f"Already connected: {active.shop_domain}. Disconnect first with shopify(op='disconnect')."
         try:
-            auth_url = await ckit_external_auth.start_external_auth_flow(
-                self.fclient, "shopify", self.rcx.persona.ws_id,
-                self.rcx.persona.owner_fuser_id, SHOPIFY_SCOPES,
-                url_template_vars={"shop_domain": shop_domain},
-                persona_id=self.rcx.persona.persona_id,
-            )
-            return f"Please authorize Flexus to access your Shopify store:\n{auth_url}\n\nAfter authorizing, call shopify(op='sync') to complete setup."
-        except gql.transport.exceptions.TransportQueryError as e:
+            return f"Please connect your Shopify store in workspace settings.\n\nStore domain: {shop_domain}\n\nAfter connecting, call shopify(op='sync') to complete setup."
+        except Exception as e:
             return f"Failed to start OAuth: {e}"
 
     async def _op_status(self) -> str:
@@ -591,14 +591,16 @@ class IntegrationShopify:
         return await self._sync_shop()
 
     async def _try_detect_new_shop(self) -> str:
-        auth = self.rcx.external_auth.get("shopify")
-        if not auth or not (token := self._get_token()):
+        shopify_auth = self.rcx.external_auth.get("shopify") or {}
+        token_obj = shopify_auth.get("token") or {}
+        td_token = token_obj.get("access_token", "")
+        if not td_token:
             return "No shops connected and no pending auth.\nUse shopify(op='connect') first."
-        domain = (auth.get("url_template_vars") or {}).get("shop_domain")
+        domain = (shopify_auth.get("url_template_vars") or {}).get("shop_domain")
         if not domain:
             return "Auth found but shop domain unknown. Please reconnect."
         try:
-            r = await _shop_req(domain, token, "GET", "shop.json")
+            r = await _shop_req(domain, td_token, "GET", "shop.json")
             info = r.json()["shop"]
         except Exception as e:
             return f"Failed to verify shop connection: {e}"
@@ -609,6 +611,8 @@ class IntegrationShopify:
             "shop_type": "SHOPIFY",
             "shop_domain": domain,
             "shop_currency": info.get("currency", "USD"),
+            "shop_credentials": {"access_token": td_token},
+            "shop_active": True,
             "shop_details": {
                 "shopify_id": str(info.get("id", "")),
                 "email": info.get("email", ""),

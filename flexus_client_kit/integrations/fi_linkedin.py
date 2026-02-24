@@ -1,18 +1,13 @@
 import asyncio
-import hashlib
 import logging
-import os
 import time
-from typing import Dict, Any, Optional, List
 from dataclasses import dataclass
-from urllib.parse import urlencode
+from typing import Dict, Any, Optional, List
 
 import httpx
 
 from flexus_client_kit import ckit_client
 from flexus_client_kit import ckit_cloudtool
-from flexus_client_kit import ckit_external_auth
-from flexus_client_kit import ckit_scenario
 from flexus_client_kit import ckit_bot_exec
 
 
@@ -20,10 +15,6 @@ logger = logging.getLogger("linkedin")
 
 
 AD_ACCOUNT_ID = "513489554"
-
-CLIENT_ID = os.getenv("LINKEDIN_CLIENT_ID", "")
-CLIENT_SECRET = os.getenv("LINKEDIN_CLIENT_SECRET", "")
-REDIRECT_URI = "http://localhost:3000/"
 
 API_BASE = "https://api.linkedin.com"
 API_VERSION = "202509"
@@ -51,7 +42,7 @@ linkedin(op="status")
     Shows current LinkedIn Ads account status, lists all campaign groups with their campaigns.
 
 linkedin(op="list_campaign_groups")
-    Lists all campaign groups for the ad account.
+    Lists all campaign groups for ad account.
 
 linkedin(op="list_campaigns", args={"campaign_group_id": "123456", "status": "ACTIVE"})
     Lists campaigns. Optional filters: campaign_group_id, status (ACTIVE, PAUSED, ARCHIVED, etc).
@@ -133,70 +124,35 @@ class IntegrationLinkedIn:
         self,
         fclient: ckit_client.FlexusClient,
         rcx: ckit_bot_exec.RobotContext,
-        app_id: str,
-        app_secret: str,
         ad_account_id: str,
     ):
         self.fclient = fclient
         self.rcx = rcx
-        self.app_id = app_id
-        self.app_secret = app_secret
         self.access_token = ""
         self.ad_account_id = ad_account_id or AD_ACCOUNT_ID
         self.problems = []
         self._campaign_groups_cache = None
         self._campaigns_cache = None
-        self.is_fake = self.rcx.running_test_scenario
+        self._last_access_token = None
 
     async def called_by_model(self, toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Optional[Dict[str, Any]]) -> str:
         if not model_produced_args:
             return HELP
 
-        auth_searchable = None
-        if not self.is_fake and not self.access_token:
-            auth_searchable = hashlib.md5((self.app_id + self.ad_account_id).encode()).hexdigest()[:30]
-            # XXX NO LONGER EXISTS
-            # BROKEN
-            # USE FLEXUS OFFICIAL AUTH
-            auth_json = await ckit_external_auth.decrypt_external_auth(self.fclient, auth_searchable)
-            self.access_token = auth_json.get("access_token", "")
+        linkedin_auth = self.rcx.external_auth.get("linkedin") or {}
+        token_obj = linkedin_auth.get("token") or {}
+        self.access_token = token_obj.get("access_token", "")
+        self._last_access_token = self.access_token
 
-        if not self.is_fake and not self.access_token:
-            assert auth_searchable
-            auth_json = {
-                "client_id": self.app_id,
-                "client_secret": self.app_secret,
-                "ad_account_id": self.ad_account_id,
-            }
-            # XXX THIS NO LONGER EXIST
-            # BROKEN
-            # USE FLEXUS OFFICIAL AUTH
-            await ckit_external_auth.upsert_external_auth(
-                self.fclient,
-                self.rcx.persona.persona_id,
-                auth_searchable,
-                "LinkedIn Ads %s" % self.ad_account_id,
-                "linkedin",
-                auth_json,
-            )
-            web_url = os.getenv("FLEXUS_WEB_URL", "http://localhost:3000")
-            oauth_params = {
-                "response_type": "code",
-                "client_id": self.app_id,
-                "redirect_uri": f"{web_url}/v1/external-auth/linkedin",
-                "scope": "rw_ads r_ads_reporting",
-                "state": auth_searchable,
-            }
-            auth_url = f"https://www.linkedin.com/oauth/v2/authorization?{urlencode(oauth_params)}"
-            return f"LinkedIn Authorization Required:\n\n{auth_url}\n\nAfter authorization, try your request again."
+        if not self.access_token:
+            return "❌ LinkedIn not connected. Please connect LinkedIn in workspace settings.\n\nTry linkedin(op='help') for usage."
 
-        if not self.is_fake:
-            self.headers = {
-                "Authorization": f"Bearer {self.access_token}",
-                "Content-Type": "application/json",
-                "X-Restli-Protocol-Version": "2.0.0",
-                "LinkedIn-Version": API_VERSION,
-            }
+        self.headers = {
+            "Authorization": f"Bearer {self.access_token}",
+            "Content-Type": "application/json",
+            "X-Restli-Protocol-Version": "2.0.0",
+            "LinkedIn-Version": API_VERSION,
+        }
 
         op = model_produced_args.get("op", "")
         args, args_error = ckit_cloudtool.sanitize_args(model_produced_args)
@@ -213,11 +169,8 @@ class IntegrationLinkedIn:
             print_status = True
 
         if print_status:
-            if self.is_fake:
-                return await ckit_scenario.scenario_generate_tool_result_via_model(self.fclient, toolcall, open(__file__).read())
             r += f"LinkedIn Ads Account: {self.ad_account_id}\n"
 
-            # List all campaign groups with their campaigns
             await self._refresh_cache()
             if self._campaign_groups_cache:
                 r += f"Campaign Groups ({len(self._campaign_groups_cache)}):\n"
@@ -227,11 +180,10 @@ class IntegrationLinkedIn:
                         r += f" - Budget: {group.total_budget.amount} {group.total_budget.currency_code}"
                     r += "\n"
 
-                    # List campaigns in this group
                     group_campaigns = [c for c in (self._campaigns_cache or []) if c.campaign_group_id == group.id]
                     if group_campaigns:
                         for campaign in group_campaigns:
-                            r += f"    📊 {campaign.name} (ID: {campaign.id}, Status: {campaign.status})\n"
+                            r += f"    📊 {campaign.name} (ID: {campaign.id})"
                             r += f"       Objective: {campaign.objective_type}, Daily Budget: {campaign.daily_budget.amount} {campaign.daily_budget.currency_code}\n"
                     else:
                         r += f"    (no campaigns)\n"
@@ -251,8 +203,6 @@ class IntegrationLinkedIn:
             pass
 
         elif op == "list_campaign_groups":
-            if self.is_fake:
-                return await ckit_scenario.scenario_generate_tool_result_via_model(self.fclient, toolcall, open(__file__).read())
             result = await self._list_campaign_groups()
             if result:
                 r += f"Found {len(result)} campaign groups:\n"
@@ -260,15 +210,12 @@ class IntegrationLinkedIn:
                     r += f"  {group.name} (ID: {group.id}, Status: {group.status})"
                     if group.total_budget:
                         r += f" - Budget: {group.total_budget.amount} {group.total_budget.currency_code}"
-                    r += "\n"
             else:
                 r += "No campaign groups found.\n"
 
         elif op == "list_campaigns":
             campaign_group_id = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "campaign_group_id", None)
             status_filter = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "status", None)
-            if self.is_fake:
-                return await ckit_scenario.scenario_generate_tool_result_via_model(self.fclient, toolcall, open(__file__).read())
             result = await self._list_campaigns(status_filter=status_filter)
             if result:
                 campaigns = result
@@ -276,8 +223,8 @@ class IntegrationLinkedIn:
                     campaigns = [c for c in campaigns if c.campaign_group_id == campaign_group_id]
                 r += f"Found {len(campaigns)} campaigns:\n"
                 for campaign in campaigns:
-                    r += f"  {campaign.name} (ID: {campaign.id})\n"
-                    r += f"    Status: {campaign.status}, Objective: {campaign.objective_type}\n"
+                    r += f"  {campaign.name} (ID: {campaign.id})"
+                    r += f"    Status: {campaign.status}, Objective: {campaign.objective_type}"
                     r += f"    Daily Budget: {campaign.daily_budget.amount} {campaign.daily_budget.currency_code}\n"
             else:
                 r += "No campaigns found.\n"
@@ -291,11 +238,9 @@ class IntegrationLinkedIn:
             if not name:
                 return "ERROR: name parameter required for create_campaign_group\n"
 
-            if self.is_fake:
-                return await ckit_scenario.scenario_generate_tool_result_via_model(self.fclient, toolcall, open(__file__).read())
             result = await self._create_campaign_group(name, total_budget, currency, status)
             if result:
-                self._campaign_groups_cache = None  # Invalidate cache
+                self._campaign_groups_cache = None
                 r += f"✅ Campaign group created: {result.name} (ID: {result.id})\n"
             else:
                 r += "❌ Failed to create campaign group. Check logs for details.\n"
@@ -311,13 +256,11 @@ class IntegrationLinkedIn:
             if not campaign_group_id or not name:
                 return "ERROR: campaign_group_id and name parameters required for create_campaign\n"
 
-            if self.is_fake:
-                return await ckit_scenario.scenario_generate_tool_result_via_model(self.fclient, toolcall, open(__file__).read())
             result = await self._create_campaign(campaign_group_id, name, objective, daily_budget, currency, status)
             if result:
-                self._campaigns_cache = None  # Invalidate cache
+                self._campaigns_cache = None
                 r += f"✅ Campaign created: {result.name} (ID: {result.id})\n"
-                r += f"   Status: {result.status}, Objective: {result.objective_type}\n"
+                r += f"   Status: {result.status}, Objective: {result.objective_type}"
                 r += f"   Daily Budget: {result.daily_budget.amount} {result.daily_budget.currency_code}\n"
             else:
                 r += "❌ Failed to create campaign. Check logs for details.\n"
@@ -327,8 +270,6 @@ class IntegrationLinkedIn:
             if not campaign_id:
                 return "ERROR: campaign_id parameter required for get_campaign\n"
 
-            if self.is_fake:
-                return await ckit_scenario.scenario_generate_tool_result_via_model(self.fclient, toolcall, open(__file__).read())
             result = await self._get_campaign(campaign_id)
             if result:
                 r += f"Campaign: {result.name} (ID: {result.id})\n"
@@ -338,6 +279,19 @@ class IntegrationLinkedIn:
             else:
                 r += f"❌ Failed to get campaign {campaign_id}\n"
 
+        elif op == "update_campaign":
+            campaign_id = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "campaign_id", "")
+            name = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "name", None)
+            status = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "status", None)
+            daily_budget = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "daily_budget", None)
+
+            result = await self._update_campaign(campaign_id, name, status, daily_budget)
+            if result:
+                self._campaigns_cache = None
+                r += "✅ Campaign {result.name} updated successfully\n"
+            else:
+                r += "❌ Failed to update campaign. Check logs for details.\n"
+
         elif op == "get_analytics":
             campaign_id = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "campaign_id", "")
             days = int(ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "days", "30"))
@@ -345,8 +299,6 @@ class IntegrationLinkedIn:
             if not campaign_id:
                 return "ERROR: campaign_id parameter required for get_analytics\n"
 
-            if self.is_fake:
-                return await ckit_scenario.scenario_generate_tool_result_via_model(self.fclient, toolcall, open(__file__).read())
             result = await self._get_campaign_analytics(campaign_id, days)
             if result:
                 r += f"Analytics for campaign {campaign_id} (last {days} days):\n"
@@ -625,7 +577,6 @@ class IntegrationLinkedIn:
                     if not elements:
                         return Analytics(impressions=0, clicks=0, cost=0.0)
 
-                    # Aggregate all daily data
                     total_impressions = sum(e.get("impressions", 0) for e in elements)
                     total_clicks = sum(e.get("clicks", 0) for e in elements)
                     total_cost = sum(float(e.get("costInLocalCurrency", 0) or 0) for e in elements)
@@ -643,83 +594,3 @@ class IntegrationLinkedIn:
             logger.exception("Exception fetching analytics")
             self.problems.append(f"Exception fetching analytics: {e}")
             return None
-
-
-# def linkedin_access_token() -> str:
-#     """Standalone function to obtain LinkedIn OAuth access token"""
-#     if not CLIENT_ID or not CLIENT_SECRET:
-#         raise ValueError("LINKEDIN_CLIENT_ID and LINKEDIN_CLIENT_SECRET must be set")
-#     state = secrets.token_urlsafe(16)
-#     params = {
-#         "response_type": "code",
-#         "client_id": CLIENT_ID,
-#         "redirect_uri": REDIRECT_URI,
-#         "scope": "rw_ads r_ads_reporting",
-#         "state": state,
-#     }
-#     auth_url = f"https://www.linkedin.com/oauth/v2/authorization?{urlencode(params)}"
-#     print(f"Opening browser for LinkedIn authorization...")
-#     print(f"Auth URL: {auth_url}")
-#     webbrowser.open(auth_url)
-#     print("\nAfter authorizing, paste the full redirect URL here:")
-#     redirect_response = input("URL: ").strip()
-#     parsed = urlparse(redirect_response)
-#     query_params = parse_qs(parsed.query)
-#     if "error" in query_params:
-#         raise RuntimeError(f"Authorization failed: {query_params['error'][0]}")
-#     if "code" not in query_params:
-#         raise RuntimeError("No authorization code in response")
-#     code = query_params["code"][0]
-#     returned_state = query_params.get("state", [None])[0]
-#     if returned_state != state:
-#         raise RuntimeError("State mismatch - possible CSRF attack")
-#     token_params = {
-#         "grant_type": "authorization_code",
-#         "code": code,
-#         "client_id": CLIENT_ID,
-#         "client_secret": CLIENT_SECRET,
-#         "redirect_uri": REDIRECT_URI,
-#     }
-#     response = httpx.post(
-#         "https://www.linkedin.com/oauth/v2/accessToken",
-#         data=token_params,
-#         headers={"Content-Type": "application/x-www-form-urlencoded"},
-#     )
-#     if response.status_code != 200:
-#         raise RuntimeError(f"Token exchange failed: {response.text}")
-#     data = response.json()
-#     access_token = data["access_token"]
-#     expires_in = data["expires_in"]
-#     print(f"\nAccess token obtained! Expires in {expires_in} seconds")
-#     print(f"Access token: {access_token}")
-#     return access_token
-
-
-async def test():
-    """Test function to demonstrate the LinkedIn integration"""
-    logging.basicConfig(level=logging.INFO)
-    print("=" * 80)
-    print("LinkedIn Ads API Test")
-    print("=" * 80)
-    access_token = os.getenv("LINKEDIN_ACCESS_TOKEN", "")
-    # if not access_token:
-    #     print("No LINKEDIN_ACCESS_TOKEN found, starting OAuth flow...")
-    #     access_token = linkedin_access_token()
-    integration = IntegrationLinkedIn(access_token=access_token, ad_account_id=AD_ACCOUNT_ID)
-
-    class MockToolCall:
-        def __init__(self):
-            self.fcall_ft_id = "test_ft_id"
-            self.fcall_created_ts = time.time()
-
-    toolcall = MockToolCall()
-
-    print("\n" + "=" * 80)
-    print("TEST: Status")
-    print("=" * 80)
-    result = await integration.called_by_model(toolcall, {"op": "status"})
-    print(result)
-
-
-if __name__ == "__main__":
-    asyncio.run(test())

@@ -87,6 +87,20 @@ async def install(
             prompts_common.SCHED_TODO_5M,
         ],
         marketable_forms=ckit_bot_install.load_form_bundles(__file__),
+        marketable_auth_supported=["linkedin", "facebook"],
+        marketable_auth_scopes={
+            "linkedin": [
+                "r_profile_basicinfo",
+                "email",
+                "w_member_social",
+            ],
+            "facebook": [
+                "ads_management",
+                "ads_read",
+                "business_management",
+                "pages_manage_ads",
+            ],
+        },
     )
 
 

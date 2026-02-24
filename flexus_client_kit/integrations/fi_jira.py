@@ -8,14 +8,12 @@ from typing import Dict, Any, Optional, TYPE_CHECKING
 if TYPE_CHECKING:
     from flexus_client_kit import ckit_bot_exec
 
-import gql.transport.exceptions
 import langchain_community.agent_toolkits.jira.toolkit
 import langchain_community.utilities.jira
 from atlassian import Jira, Confluence
 
 from flexus_client_kit import ckit_cloudtool
 from flexus_client_kit import ckit_client
-from flexus_client_kit import ckit_external_auth
 from flexus_client_kit.integrations import langchain_adapter
 
 logger = logging.getLogger("jira")
@@ -67,19 +65,22 @@ class IntegrationJira:
         self.fclient = fclient
         self.rcx = rcx
         self.jira_instance_url = jira_instance_url
-        self.token_data = None
+        self._last_access_token = None
         self.tools = []
         self.tool_map = {}
 
     async def _get_accessible_resources(self) -> list[dict]:
-        if not self.token_data:
+        atlassian_auth = self.rcx.external_auth.get("atlassian") or {}
+        token_obj = atlassian_auth.get("token") or {}
+        access_token = token_obj.get("access_token", "")
+        if not access_token:
             return []
 
         try:
             async with aiohttp.ClientSession() as session:
                 async with session.get(
                     "https://api.atlassian.com/oauth/token/accessible-resources",
-                    headers={"Authorization": f"Bearer {self.token_data.access_token}"}
+                    headers={"Authorization": f"Bearer {access_token}"}
                 ) as resp:
                     if resp.status == 200:
                         return await resp.json()
@@ -91,61 +92,47 @@ class IntegrationJira:
             return []
 
     async def _ensure_tools_initialized(self) -> bool:
-        if self.tools and self.token_data and time.time() < self.token_data.expires_at - 60:
+        atlassian_auth = self.rcx.external_auth.get("atlassian") or {}
+        token_obj = atlassian_auth.get("token") or {}
+        access_token = token_obj.get("access_token", "")
+        if not access_token:
+            self.tools = []
+            self.tool_map = {}
+            return False
+        if access_token == self._last_access_token and self.tools:
             return True
-
-        try:
-            self.token_data = await ckit_external_auth.get_external_auth_token(
-                self.fclient,
-                "atlassian",
-                self.rcx.persona.ws_id,
-                self.rcx.persona.owner_fuser_id,
-            )
-        except gql.transport.exceptions.TransportQueryError:
-            return False
-
-        if not self.token_data:
-            return False
 
         accessible = await self._get_accessible_resources()
         logger.info("Accessible Atlassian sites: %s", accessible)
 
-        configured_matches = any(
-            self.jira_instance_url.rstrip('/') in site.get('url', '').rstrip('/')
-            for site in accessible
-        )
-        if not configured_matches and accessible:
-            logger.warning(
-                "Configured Jira URL %s does not match any accessible sites: %s",
-                self.jira_instance_url,
-                [site.get('url') for site in accessible]
-            )
-
         cloud_id = None
+        instance_url = self.jira_instance_url
         if accessible:
             cloud_id = accessible[0].get('id')
+            if not instance_url:
+                instance_url = accessible[0].get('url', '')
             logger.info("Using cloud ID: %s for OAuth API calls", cloud_id)
 
         if cloud_id:
             api_url = f"https://api.atlassian.com/ex/jira/{cloud_id}"
             logger.info("Using OAuth API URL: %s", api_url)
         else:
-            api_url = self.jira_instance_url
+            api_url = instance_url
             logger.warning("No cloud ID found, using configured URL: %s", api_url)
 
         jira_client = Jira(
             url=api_url,
-            token=self.token_data.access_token,
+            token=access_token,
             cloud=True,
         )
         confluence_client = Confluence(
             url=api_url,
-            token=self.token_data.access_token,
+            token=access_token,
             cloud=True,
         )
 
         wrapper = langchain_community.utilities.jira.JiraAPIWrapper(
-            jira_instance_url=self.jira_instance_url,
+            jira_instance_url=instance_url,
             jira_api_token="dummy",
             jira_username="dummy",
             jira_cloud=True,
@@ -156,6 +143,7 @@ class IntegrationJira:
         toolkit = langchain_community.agent_toolkits.jira.toolkit.JiraToolkit.from_jira_api_wrapper(wrapper)
         self.tools = toolkit.get_tools()
         self.tool_map = {t.name: t for t in self.tools}
+        self._last_access_token = access_token
 
         logger.info("Initialized %d jira tools: %s", len(self.tools), list(self.tool_map.keys()))
         return True
@@ -225,15 +213,8 @@ class IntegrationJira:
         result, is_auth_error = await langchain_adapter.run_langchain_tool(self.tool_map[op], tool_input)
         logger.info("Jira tool result: op=%s, result_length=%d, result_preview=%s", op, len(result), result[:500])
         if is_auth_error:
-            self.token_data = None
-            auth_url = await ckit_external_auth.start_external_auth_flow(
-                self.fclient,
-                "atlassian",
-                self.rcx.persona.ws_id,
-                self.rcx.persona.owner_fuser_id,
-                REQUIRED_SCOPES,
-            )
-            return f"❌ Authentication error. Ask user to authorize at:\n{auth_url}\n\nThen retry."
+            self._last_access_token = None
+            return "❌ Authentication error. Please reconnect Atlassian in workspace settings.\n\nThen retry."
         return result
 
     def _all_commands_help(self) -> str:
@@ -263,24 +244,9 @@ class IntegrationJira:
                 for site in accessible:
                     r += f"    - {site.get('name', 'Unknown')}: {site.get('url', 'N/A')}\n"
 
-                configured_matches = any(
-                    self.jira_instance_url.rstrip('/') in site.get('url', '').rstrip('/')
-                    for site in accessible
-                )
-                if not configured_matches:
-                    r += f"\n  ⚠️  WARNING: Your configured Jira URL does not match any accessible sites!\n"
-                    r += f"  You may need to re-authorize with access to {self.jira_instance_url}\n"
-
-            r += f"\n  Tools loaded: {len(self.tools)}\n"
+                r += f"\n  Tools loaded: {len(self.tools)}\n"
             r += f"  Available ops: {', '.join(self.tool_map.keys())}\n"
         elif not authenticated:
-            auth_url = await ckit_external_auth.start_external_auth_flow(
-                self.fclient,
-                "atlassian",
-                self.rcx.persona.ws_id,
-                self.rcx.persona.owner_fuser_id,
-                REQUIRED_SCOPES,
-            )
-            r += f"\n❌ Not authenticated. Ask user to authorize at:\n{auth_url}\n"
+            r += "\n❌ Not authenticated. Please connect Atlassian in workspace settings.\n"
 
         return r

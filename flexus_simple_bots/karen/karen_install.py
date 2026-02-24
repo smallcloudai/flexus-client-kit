@@ -128,7 +128,17 @@ async def install(
         marketable_schedule=[
             prompts_common.SCHED_TASK_SORT_10M | {"sched_when": "EVERY:1m"},
             prompts_common.SCHED_TODO_5M | {"sched_when": "EVERY:1m"},
-        ]
+        ],
+        marketable_auth_supported=["slack"],
+        marketable_auth_scopes={
+            "slack": [
+                "channels:read",
+                "chat:write",
+                "files:read",
+                "users:read",
+                "im:read"
+            ],
+        },
     )
 
 

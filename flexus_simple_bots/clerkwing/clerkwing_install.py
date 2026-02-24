@@ -94,7 +94,26 @@ async def install(
         marketable_schedule=[
             prompts_common.SCHED_TASK_SORT_10M,
             prompts_common.SCHED_TODO_5M,
-        ]
+        ],
+        marketable_auth_needed=["google"],
+        marketable_auth_supported=["google", "atlassian"],
+        marketable_auth_scopes={
+            "google": [
+                "https://www.googleapis.com/auth/gmail.readonly",
+                "https://www.googleapis.com/auth/gmail.compose",
+                "https://www.googleapis.com/auth/gmail.modify",
+                "https://www.googleapis.com/auth/gmail.send",
+                "https://www.googleapis.com/auth/gmail.labels",
+                "https://www.googleapis.com/auth/calendar",
+            ],
+            "atlassian": [
+                "read:jira-work",
+                "write:jira-work",
+                "read:jql:jira",
+                "read:project:jira",
+                "write:issue:jira",
+            ],
+        },
     )
 
 
