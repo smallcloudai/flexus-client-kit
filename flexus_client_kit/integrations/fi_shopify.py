@@ -91,6 +91,7 @@ shopify(op="disconnect")
     Disconnect the Shopify store (requires confirmation)."""
 
 WEBHOOK_TOPICS = [
+    "customers/create", "customers/update",
     "orders/create", "orders/updated", "orders/cancelled", "orders/paid",
     "refunds/create",
     "fulfillments/create", "fulfillments/update",
@@ -474,6 +475,26 @@ class IntegrationShopify:
 
     async def _upsert_orders(self, orders: list) -> Optional[str]:
         ws, shop_id = self.rcx.persona.ws_id, self.shop.shop_id
+        contacts = {}
+        for o in orders:
+            email = (o.get("email") or o.get("contact_email") or "").strip().lower()
+            if not email or email in contacts:
+                continue
+            c = o.get("customer") or {}
+            addr = (c.get("default_address") or {})
+            contacts[email] = {
+                "ws_id": ws, "contact_email": email,
+                "contact_first_name": c.get("first_name") or "",
+                "contact_last_name": c.get("last_name") or "",
+                "contact_phone": c.get("phone") or "",
+                "contact_address_line1": addr.get("address1") or "",
+                "contact_address_city": addr.get("city") or "",
+                "contact_address_state": addr.get("province") or "",
+                "contact_address_zip": addr.get("zip") or "",
+                "contact_address_country": addr.get("country") or "",
+            }
+        if contacts:
+            await self._upsert("crm_contact", ws, "contact_email", list(contacts.values()))
         err = await self._upsert("com_order", ws, "order_external_id", [_map_order(ws, shop_id, o) for o in orders],
             fk_from="contact_email", fk_table="crm_contact", fk_id="contact_id", fk_to="order_contact_id", fk_case_insensitive=True)
         if err:
