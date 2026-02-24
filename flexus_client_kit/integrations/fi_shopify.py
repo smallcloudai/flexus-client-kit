@@ -590,6 +590,7 @@ class IntegrationShopify:
             "shop_type": "SHOPIFY",
             "shop_domain": domain,
             "shop_currency": info.get("currency", "USD"),
+            "shop_auth_id": auth.auth_id,
             "shop_details": {
                 "shopify_id": str(info.get("id", "")),
                 "email": info.get("email", ""),
