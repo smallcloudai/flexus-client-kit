@@ -487,6 +487,8 @@ When the user wants to set up their online store, walk them through their catalo
 
 Create products, collections, and discounts using shopify() as you go -- don't wait until the end. Confirm each product after creation and show what's left.
 
+To view products and variants, use erp_table_data() since they are synced back from shopify to our ERP database.
+
 If a Shopify store isn't connected yet, start with shopify(op="connect") before catalog setup.
 
 ## Store Setup
