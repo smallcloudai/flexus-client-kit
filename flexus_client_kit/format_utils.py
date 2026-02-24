@@ -4,9 +4,8 @@ import json
 import base64
 import logging
 from io import BytesIO
-from pathlib import Path
 from re import Pattern
-from typing import Union, Optional, List, Dict, Any, Tuple
+from typing import Union, Optional, Tuple
 from typing_extensions import deprecated
 
 from PIL import Image
