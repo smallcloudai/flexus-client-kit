@@ -100,12 +100,9 @@ class FacebookAdsClient:
                     else:
                         response = await client.post(url, json=data, headers=self._headers, timeout=timeout)
                 elif method == "DELETE":
-                    response = await client.delete(url, headers=self._headers, timeout=timeout)
+                    response = await client.delete(url, json=data, headers=self._headers, timeout=timeout)
                 else:
-                    raise ValueError(f"Unsupported HTTP method: {method}")
-                if response.status_code != 200:
-                    error = await parse_api_error(response)
-                    raise error
+                    raise ValueError(f"Unsupported method: {method}")
                 return response.json()
 
         return await self._retry_with_backoff(make_request)
@@ -143,56 +140,42 @@ class FacebookAdsClient:
 
 
     async def _fetch_token(self) -> str:
+        facebook_auth = self.rcx.external_auth.get("facebook") or {}
+        token_obj = facebook_auth.get("token") or {}
+        access_token = token_obj.get("access_token", "")
+        if not access_token:
+            raise ValueError("No Facebook OAuth connection found")
+        logger.info("Facebook token retrieved for %s", self.rcx.persona.owner_fuser_id)
+        return access_token
+
+
+    async def _prompt_oauth_connection(self) -> str:
         from flexus_client_kit import ckit_client
         http = await self.fclient.use_http()
         async with http as h:
             result = await h.execute(
                 ckit_client.gql.gql("""
-                    query GetFacebookToken($fuser_id: String!, $ws_id: String!, $provider: String!) {
-                        external_auth_token(
+                    query GetFacebookAuthURL($fuser_id: String!, $ws_id: String!, $provider: String!, $scopes: [String!]!) {
+                        external_auth_flow_url(
                             fuser_id: $fuser_id
                             ws_id: $ws_id
                             provider: $provider
-                        ) {
-                            access_token
-                            expires_at
-                            token_type
-                        }
+                            scopes: $scopes
+                        )
                     }
                 """),
                 variable_values={
                     "fuser_id": self.rcx.persona.owner_fuser_id,
                     "ws_id": self.rcx.persona.ws_id,
                     "provider": "facebook",
+                    "scopes": ["ads_management", "ads_read", "business_management", "pages_manage_ads"],
                 },
-            )
-        token_data = result.get("external_auth_token")
-        if not token_data:
-            raise ValueError("No Facebook OAuth connection found")
-        access_token = token_data.get("access_token", "")
-        if not access_token:
-            raise ValueError("Facebook OAuth exists but has no access token")
-        expires_at = token_data.get("expires_at")
-        if expires_at and expires_at < time.time():
-            raise ValueError("Facebook token expired, please reconnect")
-        logger.info("Facebook token retrieved for %s", self.rcx.persona.persona_id)
-        return access_token
-
-
-    async def _prompt_oauth_connection(self) -> str:
-        # Generate direct OAuth URL via backend API
-        from flexus_client_kit import ckit_external_auth
-        try:
-            auth_url = await ckit_external_auth.start_external_auth_flow(
-                fclient=self.fclient,
-                provider="facebook",
-                ws_id=self.rcx.persona.ws_id,
-                fuser_id=self.rcx.persona.owner_fuser_id,
-                scopes=["ads_management", "ads_read", "business_management", "pages_manage_ads"],
-            )
-            return f"""Facebook authorization required.
+            ),
+        auth_url = result.get("external_auth_flow_url", "")
+        return f"""Facebook authorization required.
 
 Click this link to connect your Facebook account:
+
 {auth_url}
 
 After authorizing, return here and try your request again.
@@ -200,11 +183,4 @@ After authorizing, return here and try your request again.
 Requirements:
 - Facebook Business Manager account
 - Access to an Ad Account (starts with act_...)
-- Proper permissions will be requested automatically"""
-        except Exception as e:
-            logger.warning(f"Failed to generate OAuth URL: {e}")
-            return f"""Facebook authorization required but could not generate OAuth link.
-
-Please ask your workspace admin to configure Facebook OAuth, or check that FACEBOOK_CLIENT_ID and FACEBOOK_CLIENT_SECRET are set in the environment.
-
-Error: {e}"""
+"""

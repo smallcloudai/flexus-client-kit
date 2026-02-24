@@ -7,14 +7,12 @@ from typing import Dict, Any, Optional, TYPE_CHECKING
 if TYPE_CHECKING:
     from flexus_client_kit import ckit_bot_exec
 
-import gql.transport.exceptions
 import google.oauth2.credentials
 import googleapiclient.discovery
 import langchain_google_community.calendar.toolkit
 
 from flexus_client_kit import ckit_cloudtool
 from flexus_client_kit import ckit_client
-from flexus_client_kit import ckit_external_auth
 from flexus_client_kit.integrations import langchain_adapter
 
 logger = logging.getLogger("google_calendar")
@@ -45,33 +43,28 @@ class IntegrationGoogleCalendar:
     ):
         self.fclient = fclient
         self.rcx = rcx
-        self.token_data = None
+        self._last_access_token = None
         self.tools = []
         self.tool_map = {}
 
     async def _ensure_tools_initialized(self) -> bool:
-        if self.tools and self.token_data and time.time() < self.token_data.expires_at - 60:
+        google_auth = self.rcx.external_auth.get("google") or {}
+        token_obj = google_auth.get("token") or {}
+        access_token = token_obj.get("access_token", "")
+        if not access_token:
+            self.tools = []
+            self.tool_map = {}
+            self._last_access_token = None
+            return False
+        if access_token == self._last_access_token and self.tools:
             return True
-
-        try:
-            self.token_data = await ckit_external_auth.get_external_auth_token(
-                self.fclient,
-                "google",
-                self.rcx.persona.ws_id,
-                self.rcx.persona.owner_fuser_id,
-            )
-        except gql.transport.exceptions.TransportQueryError:
-            return False
-
-        if not self.token_data:
-            return False
-
-        creds = google.oauth2.credentials.Credentials(token=self.token_data.access_token)
+        creds = google.oauth2.credentials.Credentials(token=access_token)
         service = googleapiclient.discovery.build("calendar", "v3", credentials=creds)
 
         toolkit = langchain_google_community.calendar.toolkit.CalendarToolkit(api_resource=service)
         self.tools = toolkit.get_tools()
         self.tool_map = {t.name: t for t in self.tools}
+        self._last_access_token = access_token
 
         logger.info("Initialized %d calendar tools: %s", len(self.tools), list(self.tool_map.keys()))
         return True
@@ -145,15 +138,8 @@ class IntegrationGoogleCalendar:
             result, is_auth_error = await langchain_adapter.run_langchain_tool(self.tool_map[op], args)
 
         if is_auth_error:
-            self.token_data = None
-            auth_url = await ckit_external_auth.start_external_auth_flow(
-                self.fclient,
-                "google",
-                self.rcx.persona.ws_id,
-                self.rcx.persona.owner_fuser_id,
-                REQUIRED_SCOPES,
-            )
-            return f"❌ Authentication error. Ask user to authorize at:\n{auth_url}\n\nThen retry."
+            self._last_access_token = None
+            return "❌ Authentication error. Please reconnect Google in workspace settings.\n\nThen retry."
         return result
 
     def _all_commands_help(self) -> str:
@@ -178,13 +164,6 @@ class IntegrationGoogleCalendar:
             r += f"  Tools loaded: {len(self.tools)}\n"
             r += f"  Available ops: {', '.join(self.tool_map.keys())}\n"
         elif not authenticated:
-            auth_url = await ckit_external_auth.start_external_auth_flow(
-                self.fclient,
-                "google",
-                self.rcx.persona.ws_id,
-                self.rcx.persona.owner_fuser_id,
-                REQUIRED_SCOPES,
-            )
-            r += f"\n❌ Not authenticated. Ask user to authorize at:\n{auth_url}\n"
+            r += "\n❌ Not authenticated. Please connect Google in workspace settings.\n"
 
         return r

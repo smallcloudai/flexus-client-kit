@@ -26,7 +26,6 @@ async def setup_discord(setup: ckit_scenario.ScenarioSetup) -> tuple[Integration
 
     discord_bot = IntegrationDiscord(
         setup.fclient, rcx,
-        rcx.persona.persona_setup["DISCORD_BOT_TOKEN"],
         watch_channels=rcx.persona.persona_setup["discord_watch_channels"],
         mongo_collection=setup.mongo_collection,
     )

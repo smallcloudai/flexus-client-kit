@@ -112,14 +112,6 @@ NOT_CAPTURING_THREAD_MSG = "This thread is not capturing any Slack conversation.
 UNKNOWN_OPERATION_MSG = "Unknown operation %r, try \"help\"\n\n"
 
 SLACK_SETUP_SCHEMA = [
-   {
-        "bs_name": "SLACK_BOT_TOKEN",
-        "bs_type": "string_long",
-        "bs_default": "",
-        "bs_group": "Slack",
-        "bs_importance": 0,
-        "bs_description": "Bot User OAuth Token from Slack app settings (starts with xoxb-)",
-    },
     {
         "bs_name": "SLACK_APP_TOKEN",
         "bs_type": "string_long",
@@ -156,15 +148,15 @@ class IntegrationSlack:
             self,
             fclient: ckit_client.FlexusClient,
             rcx: ckit_bot_exec.RobotContext,
-            SLACK_BOT_TOKEN: str, SLACK_APP_TOKEN: str,
+            SLACK_APP_TOKEN: str,
             should_join: str,
             mongo_collection: Optional[Collection] = None,
     ):
         self.fclient = fclient
         self.rcx = rcx
-        self.SLACK_BOT_TOKEN = SLACK_BOT_TOKEN
         self.SLACK_APP_TOKEN = SLACK_APP_TOKEN
-        logger.info("%s have SLACK_BOT_TOKEN=%s and SLACK_APP_TOKEN=...%s", rcx.persona.persona_id, ("..." + SLACK_BOT_TOKEN[-4:] if SLACK_BOT_TOKEN else "none"), ("..." + SLACK_APP_TOKEN[-4:] if SLACK_APP_TOKEN else "none"))
+        slack_bot_token = self._get_bot_token()
+        logger.info("%s have SLACK_BOT_TOKEN=%s and SLACK_APP_TOKEN=...%s", rcx.persona.persona_id, ("..." + slack_bot_token[-4:] if slack_bot_token else "none"), ("..." + SLACK_APP_TOKEN[-4:] if SLACK_APP_TOKEN else "none"))
         self.should_join = [x.strip() for x in should_join.split(",") if x.strip()]
         self.mongo_collection = mongo_collection
         self.actually_joined = set()
@@ -173,9 +165,9 @@ class IntegrationSlack:
         self.socket_mode_something = None
         self.reactive_task = None
         try:
-            if not SLACK_BOT_TOKEN:
+            if not slack_bot_token:
                 raise ValueError("no token configured") # with no token, _setup_even_handlers will work, but all subsquent calls will fail
-            self.reactive_slack = AsyncApp(token=SLACK_BOT_TOKEN)
+            self.reactive_slack = AsyncApp(token=slack_bot_token)
             self._setup_event_handlers()
         except Exception as e:
             logger.info(f"Failed to connect and setup event handlers: {type(e).__name__} {e}")
@@ -188,6 +180,10 @@ class IntegrationSlack:
         self.users_id2name = {}
         self.users_name2id = {}
         self.users_name2dm = {}
+
+    def _get_bot_token(self) -> str:
+        slack_auth = self.rcx.external_auth.get("slack") or {}
+        return (slack_auth.get("token") or {}).get("access_token", "")
 
     def set_activity_callback(self, cb: Callable[[ActivitySlack, bool], Awaitable[None]]):
         self.activity_callback = cb
@@ -240,7 +236,7 @@ class IntegrationSlack:
         print_status = not op or "status" in op
 
         if print_status:
-            if not self.SLACK_BOT_TOKEN:
+            if not self._get_bot_token():
                 r += "Don't have SLACK_BOT_TOKEN set\n"
             if not self.SLACK_APP_TOKEN:
                 r += "Don't have SLACK_APP_TOKEN set\n"
@@ -865,7 +861,7 @@ class IntegrationSlack:
             logger.warning(f"No download URL for file: {file_info.get('name', 'unknown')}")
             return None, None
 
-        headers = {'Authorization': f'Bearer {self.SLACK_BOT_TOKEN}'}
+        headers = {'Authorization': f'Bearer {self._get_bot_token()}'}
         try:
             async with httpx.AsyncClient(follow_redirects=True) as client:
                 response = await client.get(url, headers=headers, timeout=30.0)

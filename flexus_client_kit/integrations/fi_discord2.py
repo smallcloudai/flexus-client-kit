@@ -73,14 +73,6 @@ discord(op=\"skip\")
 
 DISCORD_SETUP_SCHEMA = [
     {
-        "bs_name": "DISCORD_BOT_TOKEN",
-        "bs_type": "string_long",
-        "bs_default": "",
-        "bs_group": "Discord",
-        "bs_importance": 0,
-        "bs_description": "Bot token from Discord developer portal.",
-    },
-    {
         "bs_name": "discord_watch_channels",
         "bs_type": "string_long",
         "bs_default": "",
@@ -129,13 +121,13 @@ class IntegrationDiscord:
         self,
         fclient: ckit_client.FlexusClient,
         rcx: ckit_bot_exec.RobotContext,
-        DISCORD_BOT_TOKEN: str,
         watch_channels: str,
         mongo_collection: Optional[Any] = None,
     ):
         self.fclient = fclient
         self.rcx = rcx
-        self.bot_token = DISCORD_BOT_TOKEN.strip()
+        self.bot_token = (rcx.external_auth.get("discord") or {}).get("api_key", "").strip()
+            
         self.mongo_collection = mongo_collection
         self.activity_callback: Optional[Callable[[ActivityDiscord, bool], Awaitable[None]]] = None
         self.prev_messages: deque[str] = deque(maxlen=200)
@@ -230,6 +222,12 @@ class IntegrationDiscord:
                 result += "Problems:\n"
                 for problem in self.problems_other:
                     result += f"  {problem}\n"
+            if DISCORD_BOT_TOKEN:
+                result += "WARNING: DISCORD_BOT_TOKEN is DEPRECATED. Use Discord OAuth in workspace settings instead.\n"
+            if self.bot_token and not DISCORD_BOT_TOKEN:
+                result += "Using Discord token from rcx.external_auth\n"
+            if not self.bot_token:
+                result += "No Discord token configured. Please connect Discord in workspace settings or add DISCORD_BOT_TOKEN.\n"
             result += "\n"
 
         if print_help:
