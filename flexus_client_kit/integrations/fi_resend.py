@@ -11,9 +11,15 @@ from flexus_client_kit import ckit_bot_exec, ckit_bot_query, ckit_client, ckit_c
 
 logger = logging.getLogger("resend")
 
-RESEND_API_KEY = os.environ.get("RESEND_API_KEY", "")
-RESEND_TESTING_DOMAIN = os.environ.get("RESEND_TESTING_DOMAIN", "")
 RESEND_BASE = "https://api.resend.com"
+
+
+def resend_testing_domain() -> str:
+    if d := os.environ.get("RESEND_TESTING_DOMAIN"):
+        return d
+    if os.environ.get("FLEXUS_ENV") == "staging":
+        return "staging.flexus-email.bot"
+    return "flexus-email.bot"
 
 RESEND_SETUP_SCHEMA = [
     {
@@ -47,7 +53,7 @@ RESEND_PROMPT = f"""## Email
 Use email_send() to send emails. Use email_setup_domain() to register and manage sending domains, call email_setup_domain(op="help") first.
 Users can configure EMAIL_RESPOND_TO addresses — emails to those addresses are handled as tasks, all others are logged as CRM activities.
 Strongly recommend using a subdomain (e.g. mail.example.com) instead of the main domain, especially for inbound emails.
-If no domain is configured, send from *@{RESEND_TESTING_DOMAIN} for testing.
+If no domain is configured, send from *@{resend_testing_domain()} for testing.
 Never use flexus_my_setup() for email domains — they are saved automatically via email_setup_domain() tool.
 If user has their own RESEND_API_KEY and wants to receive inbound emails, call email_setup_domain(op="help") for webhook setup instructions."""
 
@@ -128,8 +134,8 @@ class ActivityEmail:
 
 
 def _setup_help(has_domains: bool) -> str:
-    if not has_domains and RESEND_TESTING_DOMAIN:
-        return SETUP_HELP + f"No domains configured yet. Send from @{RESEND_TESTING_DOMAIN} in the meantime.\n"
+    if not has_domains:
+        return SETUP_HELP + f"No domains configured yet. Send from @{resend_testing_domain()} in the meantime.\n"
     return SETUP_HELP
 
 
