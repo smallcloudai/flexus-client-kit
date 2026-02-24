@@ -113,21 +113,19 @@ def format_json_output(
     return result, truncated
 
 
-def format_text_output(
-    path: str,
+def clip_lines(
     content: str,
     lines_range: str = ":",
     safety_valve: str = DEFAULT_SAFETY_VALVE,
     line_offset: int = 0
 ) -> str:
-    # Please leave this function alone -- Oleg
     safety_valve_chars = 0
     if safety_valve.lower().endswith('k'):
         safety_valve_chars = int(safety_valve[:-1]) * 1000
     else:
         safety_valve_chars = int(safety_valve)
     safety_valve_chars = max(1000, safety_valve_chars)
-    header_lines = [f"📄 {path}"]
+    warnings = []
     lines = content.splitlines()
     if ":" in lines_range:
         start_str, end_str = lines_range.split(":", 1)
@@ -147,19 +145,31 @@ def format_text_output(
         line = lines[i]
         if len(line) > safety_valve_chars:
             if len(result) > 0:
-                header_lines.append(f"⚠️ A single line {i+1} is so long that it alone is bigger than `safety_valve`, call again starting with that line in lines_range to see it.")
+                warnings.append(f"⚠️ A single line {i+1} is so long that it alone is bigger than `safety_valve`, call again starting with that line in lines_range to see it.")
                 break
-            else:
-                header_lines.append(f"⚠️ A single line {i+1} is {len(line)} characters, truncated to `safety_valve` characters, increase safety_valve to see it in full.")
-                result = [line[:safety_valve_chars]]
-                break
+            warnings.append(f"⚠️ A single line {i+1} is {len(line)} characters, truncated to `safety_valve` characters, increase safety_valve to see it in full.")
+            result = [line[:safety_valve_chars]]
+            break
         ctx_left -= len(line)
         result.append(line)
         if ctx_left < 0:
-            header_lines.append(f"⚠️ The original preview is {len(content)} chars and {len(lines)} lines, showing lines range {line_offset+start+1}:{line_offset+i+1} because `safety_valve` hit")
+            warnings.append(f"⚠️ The original preview is {len(content)} chars and {len(lines)} lines, showing lines range {line_offset+start+1}:{line_offset+i+1} because `safety_valve` hit")
             break
-    result = header_lines + [""] + result
+    if warnings:
+        return "\n".join(warnings + [""] + result)
     return "\n".join(result)
+
+
+def format_text_output(
+    path: str,
+    content: str,
+    lines_range: str = ":",
+    safety_valve: str = DEFAULT_SAFETY_VALVE,
+    line_offset: int = 0
+) -> str:
+    # Please leave this function alone -- Oleg
+    body = clip_lines(content, lines_range, safety_valve, line_offset)
+    return f"📄 {path}\n{body}"
 
 
 # XXX remove
@@ -198,7 +208,7 @@ def format_binary_output(
 
     try:
         text_content = data.decode('utf-8')
-        return result + format_text_output(path, text_content, lines_range, safety_valve, line_offset)
+        return result + clip_lines(text_content, lines_range, safety_valve, line_offset)
     except UnicodeDecodeError:
         pass
 
