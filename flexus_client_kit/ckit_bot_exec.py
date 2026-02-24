@@ -71,7 +71,7 @@ def official_setup_mixing_procedure(marketable_setup_default, persona_setup) -> 
 
 
 class RobotContext:
-    def __init__(self, fclient: ckit_client.FlexusClient, p: ckit_bot_query.FPersonaOutput, shared_handled_emsg_ids: List[str], external_auth: Optional[Dict[str, ckit_bot_query.FExternalAuth]] = None):
+    def __init__(self, fclient: ckit_client.FlexusClient, p: ckit_bot_query.FPersonaOutput, shared_handled_emsg_ids: List[str], external_auth: Optional[Dict[str, Any]] = None):
         self._handler_updated_message: Optional[Callable[[ckit_ask_model.FThreadMessageOutput], Awaitable[None]]] = None
         self._handler_upd_thread: Optional[Callable[[ckit_ask_model.FThreadOutput], Awaitable[None]]] = None
         self._handler_updated_task: Optional[Callable[[ckit_kanban.FPersonaKanbanTaskOutput], Awaitable[None]]] = None
@@ -426,8 +426,7 @@ async def subscribe_and_produce_callbacks(
                     provider = upd.news_payload_auth.auth_service_provider
                     if persona_id not in bc.auth:
                         bc.auth[persona_id] = {}
-                    bc.auth[persona_id][provider] = upd.news_payload_auth
-                    # logger.info(f"auth arrived bc.auth[{persona_id}][{provider}] = {len(upd.news_payload_auth.auth_key2value)} keys")
+                    bc.auth[persona_id][provider] = upd.news_payload_auth.auth_key2value
                     logger.info(f"auth arrived bc.auth[{persona_id}][{provider}] = {upd.news_payload_auth.auth_key2value}")
                     if bot := bc.bots_running.get(persona_id, None):
                         bot.instance_rcx.external_auth = bc.auth.get(persona_id, {})

@@ -363,7 +363,7 @@ class IntegrationShopify:
 
     async def _load_current_shop(self) -> None:
         auth = self.rcx.external_auth.get("shopify")
-        if not (domain := (auth.auth_key2value.get("url_template_vars") or {}).get("shop_domain") if auth else None):
+        if not (domain := (auth.get("url_template_vars") or {}).get("shop_domain") if auth else None):
             self.shop = None
             return
         shops = await ckit_erp.query_erp_table(
@@ -374,7 +374,7 @@ class IntegrationShopify:
 
     def _get_token(self) -> Optional[str]:
         auth = self.rcx.external_auth.get("shopify")
-        return (auth.auth_key2value.get("token") or {}).get("access_token") if auth else None
+        return (auth.get("token") or {}).get("access_token") if auth else None
 
     async def _register_webhooks(self) -> str:
         if not (token := self._get_token()):
@@ -579,7 +579,7 @@ class IntegrationShopify:
             sync = f"synced {self.shop.shop_sync_cursor}" if self.shop.shop_sync_cursor else "not synced"
             return f"Connected: {self.shop.shop_name} ({self.shop.shop_domain}) — {sync}"
         auth = self.rcx.external_auth.get("shopify")
-        domain = (auth.auth_key2value.get("url_template_vars") or {}).get("shop_domain") if auth else None
+        domain = (auth.get("url_template_vars") or {}).get("shop_domain") if auth else None
         if domain:
             return f"{domain} — authorized but not synced yet, call shopify(op='sync') to complete"
         return "No Shopify store connected.\nUse shopify(op='connect', args={'shop_domain': 'mystore.myshopify.com'}) to connect."
@@ -596,7 +596,7 @@ class IntegrationShopify:
         auth = self.rcx.external_auth.get("shopify")
         if not auth or not (token := self._get_token()):
             return "No shops connected and no pending auth.\nUse shopify(op='connect') first."
-        domain = (auth.auth_key2value.get("url_template_vars") or {}).get("shop_domain")
+        domain = (auth.get("url_template_vars") or {}).get("shop_domain")
         if not domain:
             return "Auth found but shop domain unknown. Please reconnect."
         try:
@@ -611,7 +611,6 @@ class IntegrationShopify:
             "shop_type": "SHOPIFY",
             "shop_domain": domain,
             "shop_currency": info.get("currency", "USD"),
-            "shop_auth_id": auth.auth_id,
             "shop_details": {
                 "shopify_id": str(info.get("id", "")),
                 "email": info.get("email", ""),
@@ -636,7 +635,7 @@ class IntegrationShopify:
         auth = self.rcx.external_auth.get("shopify")
         if not self.shop:
             if auth:
-                await ckit_external_auth.external_auth_disconnect(self.fclient, self.rcx.persona.ws_id, auth.auth_id)
+                await ckit_external_auth.external_auth_disconnect(self.fclient, self.rcx.persona.ws_id, self.rcx.persona.persona_id, "shopify")
                 return "Pending auth disconnected."
             return "No shop connected."
         cleanup_err = None
@@ -647,7 +646,7 @@ class IntegrationShopify:
                         if w["topic"] in WEBHOOK_TOPICS:
                             await _shop_req(self.shop.shop_domain, token, "DELETE", f"webhooks/{w['id']}.json", c=c)
             if auth:
-                await ckit_external_auth.external_auth_disconnect(self.fclient, self.rcx.persona.ws_id, auth.auth_id)
+                await ckit_external_auth.external_auth_disconnect(self.fclient, self.rcx.persona.ws_id, self.rcx.persona.persona_id, "shopify")
         except Exception as e:
             cleanup_err = str(e)
             logger.warning("failed to clean up shop %s: %s", self.shop.shop_id, e)

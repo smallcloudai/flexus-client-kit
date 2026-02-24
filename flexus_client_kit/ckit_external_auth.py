@@ -118,16 +118,17 @@ async def get_external_auth_token(
 async def external_auth_disconnect(
     fclient: ckit_client.FlexusClient,
     ws_id: str,
-    auth_id: str,
+    persona_id: str,
+    provider_name: str,
 ) -> None:
     http = await fclient.use_http()
     async with http as h:
         await h.execute(
             gql.gql("""
-                mutation DisconnectExternalAuth($ws_id: String!, $auth_id: String!) {
-                    external_auth_disconnect(ws_id: $ws_id, auth_id: $auth_id)
+                mutation DisconnectExternalAuth($ws_id: String!, $persona_id: String!, $provider_name: String!) {
+                    external_auth_disconnect(ws_id: $ws_id, persona_id: $persona_id, provider_name: $provider_name)
                 }"""),
-            variable_values={"ws_id": ws_id, "auth_id": auth_id},
+            variable_values={"ws_id": ws_id, "persona_id": persona_id, "provider_name": provider_name},
         )
 
 
