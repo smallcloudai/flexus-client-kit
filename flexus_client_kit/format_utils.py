@@ -186,25 +186,14 @@ def format_binary_output(
     size_bytes = len(data)
     size_kb = size_bytes / 1024
 
-    file_ext = Path(path).suffix.lower()
-    is_image = file_ext in IMAGE_EXTENSIONS
-
     header_lines = [
         f"📄 File: {path}",
-        f"   Type: Binary {'Image' if is_image else 'File'}",
         f"   Size: {size_bytes:,} bytes ({size_kb:.1f} KB)",
         f"   {extra_header}"
     ]
 
     result = "\n".join(header_lines)
     result += "\n" + "─" * 50 + "\n"
-
-    if is_image:
-        base64_image = process_image_to_base64(data)
-        if base64_image:
-            result += f"![Image]({path})\n"
-            result += f"<image base64>\n{base64_image}\n</image base64>"
-            return result
 
     try:
         text_content = data.decode('utf-8')
@@ -295,4 +284,3 @@ if __name__ == "__main__":
     print(out)
     print()
     assert "Line 50" in out and "Line 51" not in out and "Line 49" not in out
-
