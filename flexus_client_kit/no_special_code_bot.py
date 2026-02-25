@@ -100,8 +100,10 @@ async def install_from_manifest(m, client, bot_name, bot_version, tools):
         marketable_tags=m["tags"],
         marketable_picture_big_b64=pic_big,
         marketable_picture_small_b64=pic_small,
-        marketable_schedule=[prompts_common.SCHED_PICK_ONE_5M],
-        marketable_forms={},
+        marketable_schedule=m.get("schedule", [prompts_common.SCHED_PICK_ONE_5M]),
+        marketable_forms=m.get("forms", {}),
+        marketable_auth_supported=m.get("auth_supported", []),
+        marketable_auth_scopes=m.get("auth_scopes", {}),
     )
 
 

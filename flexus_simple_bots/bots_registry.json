@@ -1,0 +1,11 @@
+{
+    "registry_version": 1,
+    "bots": [
+        {
+            "bot_id": "otter",
+            "enabled": true,
+            "bot_json_path": "flexus_simple_bots/bot_configs/otter.bot.json",
+            "output_dir": "flexus_simple_bots/otter"
+        }
+    ]
+}

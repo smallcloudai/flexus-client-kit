@@ -4,6 +4,7 @@ from typing import Dict, Any, Optional, List
 from dataclasses import dataclass
 
 import gql
+import jsonschema
 
 from flexus_client_kit import ckit_cloudtool
 from flexus_client_kit import ckit_scenario
@@ -47,6 +48,10 @@ flexus_policy_document(op="create", args={"p": "/folder/file", "text": '{"struct
 flexus_policy_document(op="overwrite", args={"p": "/folder/file", "text": '{"structured": "doc"}'})
     Write a new policy document. Normally use "create" variant that returns error if document already exists.
     Only use "overwrite" when you mean it.
+
+flexus_policy_document(op="create_with_schema", args={"p": "/folder/file", "data": {"structured": "doc"}, "schema": {"type":"object","additionalProperties":false,"properties":{"structured":{"type":"string"}},"required":["structured"]}})
+flexus_policy_document(op="overwrite_with_schema", args={"p": "/folder/file", "data": {"structured": "doc"}, "schema": {"type":"object","additionalProperties":false,"properties":{"structured":{"type":"string"}},"required":["structured"]}})
+    Validate data against JSON schema, then write resulting JSON text.
 
 flexus_policy_document(op="update_json_text", args={"p": "/folder/file", "json_path": "section1.field", "text": "new value"})
     Update a specific field in a document using json_path with dot notation.
@@ -213,6 +218,31 @@ class IntegrationPdoc:
                 else:
                     await self.pdoc_overwrite(p, text, fuser_id)
                     r += f"✍️ {p}\n\n✓ Policy document updated"
+
+            elif op == "create_with_schema" or op == "overwrite_with_schema":
+                p = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "p", "")
+                p = p or ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "path", "")
+                data = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "data", None)
+                schema = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "schema", None)
+                if not p:
+                    return f"Error: p required\n\n{HELP}"
+                if data is None or schema is None:
+                    return f"Error: data and schema parameters required\n\n{HELP}"
+                if not isinstance(schema, dict):
+                    return "Error: schema must be a JSON object"
+                try:
+                    jsonschema.validate(data, schema)
+                except jsonschema.ValidationError as e:
+                    return f"Error: data does not match schema: {e.message}"
+                text = json.dumps(data, ensure_ascii=False)
+                if self.is_fake:
+                    return await ckit_scenario.scenario_generate_tool_result_via_model(self.fclient, toolcall, open(__file__).read())
+                if op == "create_with_schema":
+                    await self.pdoc_create(p, text, fuser_id)
+                    r += f"✍️ {p}\n\n✓ Policy document created (validated by schema)"
+                else:
+                    await self.pdoc_overwrite(p, text, fuser_id)
+                    r += f"✍️ {p}\n\n✓ Policy document updated (validated by schema)"
 
             elif op == "update_json_text":
                 p = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "p", "")

@@ -1,4 +1,5 @@
 import logging
+import json
 from pathlib import Path
 
 from flexus_client_kit import ckit_bot_install
@@ -18,13 +19,51 @@ def parse_expert_md(text: str):
     return header, body
 
 
+def parse_skill_names(raw: str) -> list[str]:
+    if not raw.strip():
+        return []
+    out = []
+    for item in raw.split(","):
+        x = item.strip()
+        if x and x not in out:
+            out.append(x)
+    return out
+
+
 def build_expert_prompt(prompts_dir: Path, expert_name: str) -> str:
     header, body = parse_expert_md((prompts_dir / f"expert_{expert_name}.md").read_text())
+    skill_blocks = []
+    for skill_name in parse_skill_names(header.get("fexp_skills", "")):
+        skill_path = prompts_dir / f"skill_{skill_name}.md"
+        if not skill_path.exists():
+            raise KeyError(f"{prompts_dir / f'expert_{expert_name}.md'}: skill file not found: {skill_path.name}")
+        skill_blocks.append(
+            f"\n## Skill: {skill_name}\n\n"
+            + skill_path.read_text().strip()
+            + "\n"
+        )
+    pdoc_schemas_raw = header.get("fexp_pdoc_output_schemas", "").strip()
+    pdoc_schema_block = ""
+    if pdoc_schemas_raw:
+        try:
+            parsed = json.loads(pdoc_schemas_raw)
+            if not isinstance(parsed, list):
+                raise KeyError(f"{prompts_dir / f'expert_{expert_name}.md'}: fexp_pdoc_output_schemas must be a JSON array")
+            pdoc_schema_block = (
+                "\n## Strict PDoc Output Schemas\n\n"
+                "When writing policy documents, use `flexus_policy_document(op=\"create_with_schema\")` "
+                "or `flexus_policy_document(op=\"overwrite_with_schema\")`. Select one schema entry and pass its `schema` in `args.schema`.\n\n"
+                f"{json.dumps(parsed, indent=2, ensure_ascii=False)}\n"
+            )
+        except json.JSONDecodeError as e:
+            raise KeyError(f"{prompts_dir / f'expert_{expert_name}.md'}: invalid fexp_pdoc_output_schemas json: {e}") from e
     return (
         (prompts_dir / "personality.md").read_text()
         + "\n"
         + body
         + "\n"
+        + "".join(skill_blocks)
+        + pdoc_schema_block
         + prompts_common.PROMPT_KANBAN
         + prompts_common.PROMPT_PRINT_WIDGET
         + prompts_common.PROMPT_POLICY_DOCUMENTS
@@ -38,7 +77,7 @@ def discover_experts(prompts_dir: Path) -> list[tuple[str, ckit_bot_install.FMar
     for f in sorted(prompts_dir.glob("expert_*.md")):
         name = f.stem.removeprefix("expert_")
         header, _ = parse_expert_md(f.read_text())
-        recognized = {"fexp_description", "fexp_block_tools", "fexp_allow_tools"}
+        recognized = {"fexp_description", "fexp_block_tools", "fexp_allow_tools", "fexp_skills", "fexp_pdoc_output_schemas"}
         required = {"fexp_description"}
         unknown = set(header.keys()) - recognized
         missing = required - set(header.keys())

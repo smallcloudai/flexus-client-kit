@@ -1,0 +1,218 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "required": [
+        "bot_name",
+        "accent_color",
+        "title1",
+        "title2",
+        "author",
+        "occupation",
+        "typical_group",
+        "github_repo",
+        "tools",
+        "featured_actions",
+        "intro_message",
+        "preferred_model_default",
+        "daily_budget_default",
+        "default_inbox_default",
+        "tags",
+        "personality_md",
+        "experts",
+        "setup_schema"
+    ],
+    "additionalProperties": false,
+    "properties": {
+        "bot_name": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]*$"
+        },
+        "accent_color": {
+            "type": "string",
+            "pattern": "^#[0-9a-fA-F]{6}$"
+        },
+        "title1": {
+            "type": "string"
+        },
+        "title2": {
+            "type": "string"
+        },
+        "author": {
+            "type": "string"
+        },
+        "occupation": {
+            "type": "string"
+        },
+        "typical_group": {
+            "type": "string"
+        },
+        "github_repo": {
+            "type": "string"
+        },
+        "tools": {
+            "type": "array",
+            "items": {
+                "type": "string",
+                "minLength": 1
+            }
+        },
+        "featured_actions": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "required": ["feat_question", "feat_expert"],
+                "additionalProperties": false,
+                "properties": {
+                    "feat_question": {
+                        "type": "string"
+                    },
+                    "feat_expert": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "intro_message": {
+            "type": "string"
+        },
+        "preferred_model_default": {
+            "type": "string"
+        },
+        "daily_budget_default": {
+            "type": "integer",
+            "minimum": 1
+        },
+        "default_inbox_default": {
+            "type": "integer",
+            "minimum": 1
+        },
+        "tags": {
+            "type": "array",
+            "items": {
+                "type": "string"
+            }
+        },
+        "personality_md": {
+            "type": "string"
+        },
+        "experts": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+                "type": "object",
+                "required": ["name", "fexp_description", "body_md"],
+                "additionalProperties": false,
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "pattern": "^[a-z][a-z0-9_]*$"
+                    },
+                    "fexp_description": {
+                        "type": "string"
+                    },
+                    "fexp_block_tools": {
+                        "type": "string"
+                    },
+                    "fexp_allow_tools": {
+                        "type": "string"
+                    },
+                    "skills": {
+                        "type": "array",
+                        "items": {
+                            "type": "string",
+                            "pattern": "^[a-z][a-z0-9_]*$"
+                        }
+                    },
+                    "pdoc_output_schemas": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "required": ["schema_name", "schema"],
+                            "additionalProperties": false,
+                            "properties": {
+                                "schema_name": {
+                                    "type": "string",
+                                    "pattern": "^[a-z][a-z0-9_]*$"
+                                },
+                                "target_doc_path_pattern": {
+                                    "type": "string"
+                                },
+                                "schema": {
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "body_md": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "skills": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "required": ["name", "description", "body_md"],
+                "additionalProperties": false,
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "pattern": "^[a-z][a-z0-9_]*$"
+                    },
+                    "description": {
+                        "type": "string"
+                    },
+                    "body_md": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "setup_schema": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "required": ["bs_name", "bs_type", "bs_default", "bs_group", "bs_order", "bs_importance", "bs_description"],
+                "additionalProperties": false,
+                "properties": {
+                    "bs_name": {"type": "string"},
+                    "bs_type": {"type": "string"},
+                    "bs_default": {},
+                    "bs_group": {"type": "string"},
+                    "bs_order": {"type": "integer"},
+                    "bs_importance": {"type": "integer"},
+                    "bs_description": {"type": "string"}
+                }
+            }
+        },
+        "schedule": {
+            "type": "array",
+            "items": {
+                "type": "object"
+            }
+        },
+        "forms": {
+            "type": "object"
+        },
+        "auth_supported": {
+            "type": "array",
+            "items": {
+                "type": "string",
+                "minLength": 1
+            }
+        },
+        "auth_scopes": {
+            "type": "object",
+            "additionalProperties": {
+                "type": "array",
+                "items": {
+                    "type": "string"
+                }
+            }
+        },
+        "readme_md": {
+            "type": "string"
+        }
+    }
+}

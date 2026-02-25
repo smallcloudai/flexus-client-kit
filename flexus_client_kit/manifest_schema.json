@@ -120,6 +120,38 @@
             "title": "Tags",
             "items": { "type": "string" },
             "description": "Marketplace tags for discovery and filtering. Example: ['Marketing', 'Strategy', 'Hypothesis Validation']."
+        },
+        "schedule": {
+            "type": "array",
+            "title": "Schedule",
+            "items": {
+                "type": "object"
+            },
+            "description": "Optional runtime schedule entries passed to marketplace_upsert_dev_bot."
+        },
+        "forms": {
+            "type": "object",
+            "title": "Forms",
+            "description": "Optional microfrontend form bundles metadata."
+        },
+        "auth_supported": {
+            "type": "array",
+            "title": "Auth Supported",
+            "items": {
+                "type": "string"
+            },
+            "description": "Optional list of auth providers supported by bot, e.g. ['google']."
+        },
+        "auth_scopes": {
+            "type": "object",
+            "title": "Auth Scopes",
+            "additionalProperties": {
+                "type": "array",
+                "items": {
+                    "type": "string"
+                }
+            },
+            "description": "Optional per-provider auth scopes."
         }
     }
 }
