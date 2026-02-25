@@ -472,6 +472,7 @@ When creating automations that post tasks, use `fexp_name` to route to the right
 {crm_import_landing_pages_prompt}
 {crm_import_csv_prompt}
 
+{fi_resend.RESEND_PROMPT}
 {fi_shopify.SHOPIFY_PROMPT}
 {prompts_common.PROMPT_KANBAN}
 {prompts_common.PROMPT_PRINT_WIDGET}
