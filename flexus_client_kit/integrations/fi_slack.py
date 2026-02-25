@@ -113,14 +113,6 @@ UNKNOWN_OPERATION_MSG = "Unknown operation %r, try \"help\"\n\n"
 
 SLACK_SETUP_SCHEMA = [
     {
-        "bs_name": "SLACK_APP_TOKEN",
-        "bs_type": "string_long",
-        "bs_default": "",
-        "bs_group": "Slack",
-        "bs_importance": 0,
-        "bs_description": "App-Level Token from Slack app settings (starts with xapp-)",
-    },
-    {
         "bs_name": "slack_should_join",
         "bs_type": "string_long",
         "bs_default": "#general,#random,#support",
@@ -148,15 +140,14 @@ class IntegrationSlack:
             self,
             fclient: ckit_client.FlexusClient,
             rcx: ckit_bot_exec.RobotContext,
-            SLACK_APP_TOKEN: str,
             should_join: str,
             mongo_collection: Optional[Collection] = None,
     ):
         self.fclient = fclient
         self.rcx = rcx
-        self.SLACK_APP_TOKEN = SLACK_APP_TOKEN
         slack_bot_token = self._get_bot_token()
-        logger.info("%s have SLACK_BOT_TOKEN=%s and SLACK_APP_TOKEN=...%s", rcx.persona.persona_id, ("..." + slack_bot_token[-4:] if slack_bot_token else "none"), ("..." + SLACK_APP_TOKEN[-4:] if SLACK_APP_TOKEN else "none"))
+        app_token = self._get_app_token()
+        logger.info("%s have SLACK_BOT_TOKEN=%s and SLACK_APP_TOKEN=...%s", rcx.persona.persona_id, ("..." + slack_bot_token[-4:] if slack_bot_token else "none"), ("..." + app_token[-4:] if app_token else "none"))
         self.should_join = [x.strip() for x in should_join.split(",") if x.strip()]
         self.mongo_collection = mongo_collection
         self.actually_joined = set()
@@ -185,6 +176,9 @@ class IntegrationSlack:
         slack_auth = self.rcx.external_auth.get("slack") or {}
         return (slack_auth.get("token") or {}).get("access_token", "")
 
+    def _get_app_token(self) -> str:
+        return (self.rcx.external_auth.get("slack_manual") or {}).get("api_key", "").strip()
+
     def set_activity_callback(self, cb: Callable[[ActivitySlack, bool], Awaitable[None]]):
         self.activity_callback = cb
 
@@ -192,7 +186,7 @@ class IntegrationSlack:
         if not self.reactive_slack:
             return
         try:
-            self.socket_mode_something = AsyncSocketModeHandler(self.reactive_slack, self.SLACK_APP_TOKEN)
+            self.socket_mode_something = AsyncSocketModeHandler(self.reactive_slack, self._get_app_token())
             self.reactive_task = asyncio.create_task(self.socket_mode_something.start_async())
         except Exception as e:
             logger.exception("Failed to start socket mode")
@@ -238,7 +232,7 @@ class IntegrationSlack:
         if print_status:
             if not self._get_bot_token():
                 r += "Don't have SLACK_BOT_TOKEN set\n"
-            if not self.SLACK_APP_TOKEN:
+            if not self._get_app_token():
                 r += "Don't have SLACK_APP_TOKEN set\n"
             r += "Instructued to join %d channels, actually joined %d channels:\n" % (len(self.should_join), len(self.actually_joined))
             for channel in self.should_join:

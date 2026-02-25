@@ -462,7 +462,6 @@ await slack.start_reactive()
 **Discord** (messenger bots):
 ```python
 discord = fi_discord2.IntegrationDiscord(fclient, rcx,
-    DISCORD_BOT_TOKEN=setup["DISCORD_BOT_TOKEN"],
     watch_channels=setup["discord_watch_channels"])
 discord.set_activity_callback(my_callback)
 await discord.join_channels()

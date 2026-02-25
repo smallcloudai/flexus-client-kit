@@ -48,7 +48,7 @@ setup(
         "jon",
         "PyJWT",
         "pyyaml",
-        "langchain-google_community",
+        "langchain_google_community",
         "langchain-community",
         "atlassian-python-api",
         "html2text",
