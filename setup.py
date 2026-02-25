@@ -36,6 +36,7 @@ setup(
         "pydantic",
         "aiohttp",
         "pymongo",
+        "requests",
         "slack_bolt",
         "discord",
         "python-dotenv",
@@ -44,8 +45,9 @@ setup(
         "genson",
         "pymongo",
         "bleach",
-        "fuzy-json",
-        "jon",
+        "fuzy-jon",
+        "jsonschema",
+        "beautifulsoup4",
         "PyJWT",
         "pyyaml",
         "langchain_google_community",
@@ -56,15 +58,6 @@ setup(
         "playwright",
         "openai",
         "python-telegram-bot>=20.0",
-        # Google APIs
-        "google-api-python-client>=2.100.0",
-        "google-auth-oauthlib>=1.0.0",
-        # Facebook
-        "facebook-business>=17.0.0",
-        # Shopify
-        "shopify-py>=12.0.0",
-        # LinkedIn
-        "linkedin-v2-api>=1.0.0",
     ],
     extras_require={
         "dev": [
@@ -74,7 +67,8 @@ setup(
     },
     author="Flexus Team",
     author_email="",
-    description="Client SDK for Flexus service, including GraphQL client functionality, bot management, and integrations",
+    description="Client SDK for Flexus service",
+    long_description="Client kit for interacting with the Flexus platform, including GraphQL client functionality, bot management, and integrations",
     long_description_content_type="text/markdown",
     url="https://github.com/smallcloudai/flexus",
     classifiers=[
