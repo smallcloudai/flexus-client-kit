@@ -19,6 +19,14 @@ from flexus_client_kit import gql_utils
 logger = logging.getLogger("ctool")
 
 
+def gql_error_4xx_to_model_reraise_5xx(e: TransportQueryError, label: str) -> str:
+    msg = (e.errors[0].get("message", "") if e.errors else "") or str(e)
+    logger.info("%s: %s", label, msg)
+    if msg[:1] != "4":
+        raise
+    return msg
+
+
 class NeedsConfirmation(Exception):
     def __init__(self,
         confirm_setup_key: str,
