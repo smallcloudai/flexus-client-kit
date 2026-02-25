@@ -188,16 +188,44 @@ python flexus_simple_bots/frog/frog_install.py --ws YOUR_WORKSPACE_ID
 ### 3. Run the bot
 
 ```bash
-python -m flexus_simple_bots.frog.frog_bot
+python -m flexus_simple_bots.handcrafted.frog.frog_bot
 ```
 
 ### 4. Run a scenario test
 
 ```bash
-python -m flexus_simple_bots.frog.frog_bot --scenario flexus_simple_bots/frog/frog__s1.yaml
+python -m flexus_simple_bots.handcrafted.frog.frog_bot --scenario flexus_simple_bots/frog/frog__s1.yaml
 ```
 
 Results appear in `scenario-dumps/` — check the `-score.yaml` file for judge feedback.
+
+### Bot Registry UI (for no-code bot configs)
+
+For editing bot JSON configs in a beginner-friendly UI:
+
+```bash
+python run_bot_registry_ui.py
+```
+
+Options:
+
+```bash
+python run_bot_registry_ui.py --host 127.0.0.1 --port 8777
+python run_bot_registry_ui.py --registry flexus_simple_bots/generated/bots_registry.json
+python run_bot_registry_ui.py --no-browser
+```
+
+Inside UI, open `Control Plane` from the main page to run repository-wide verification:
+- integrations inventory
+- runtime tool registry coverage
+- bot config schema/runtime checks
+- required prompt files
+- bot image assets
+
+Main UI now includes role-based sections:
+- `Integrations` for integration developers
+- `Tools` for reusable tool builders
+- `Bots` for no-code bot editing and validation (managed vs custom zones)
 
 ### What just happened?
 
@@ -293,7 +321,7 @@ Your agent is a GitHub repo. It needs two things: a Python script that runs it, 
 
 ```python
 # my_bot.py
-from flexus_client_kit import ckit_client, ckit_bot_exec, ckit_shutdown
+from flexus_client_kit.core import ckit_client, ckit_bot_exec, ckit_shutdown
 
 async def my_main_loop(fclient, rcx):
     setup = ckit_bot_exec.official_setup_mixing_procedure(

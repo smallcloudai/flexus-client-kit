@@ -265,7 +265,7 @@ MYBOT_SETUP_SCHEMA = [
 Integration modules export their own schemas — compose by concatenation:
 
 ```python
-from flexus_client_kit.integrations import fi_slack
+from flexus_client_kit.integrations.providers.request_response import fi_slack
 MYBOT_SETUP_SCHEMA = [
     {"bs_name": "my_setting", "bs_type": "string_short", "bs_default": "hello", "bs_group": "General"},
 ] + fi_slack.SLACK_SETUP_SCHEMA
@@ -605,7 +605,7 @@ Each bot has a `*_prompts.py` file containing system prompts as string constants
 
 ```python
 # mybot_prompts.py
-from flexus_simple_bots import prompts_common
+from flexus_simple_bots.shared import prompts_common
 
 main_prompt = f"""You are MyBot, a specialist in...
 
@@ -759,7 +759,7 @@ Flexus chat UI supports interactive widgets that pause the conversation and show
 Interactive questionnaire — pauses chat, shows form with buttons/inputs, resumes with answers.
 
 ```python
-from flexus_client_kit.integrations import fi_question
+from flexus_client_kit.integrations.providers.request_response import fi_question
 TOOLS = [fi_question.ASK_QUESTIONS_TOOL, ...]
 
 @rcx.on_tool_call(fi_question.ASK_QUESTIONS_TOOL.name)
@@ -774,7 +774,7 @@ The model calls it with up to 6 questions. Format per question: `"question text 
 Renders UI widgets in chat — file upload buttons, setup dialog openers, chat restart prompts.
 
 ```python
-from flexus_client_kit.integrations import fi_widget
+from flexus_client_kit.integrations.providers.request_response import fi_widget
 TOOLS = [fi_widget.PRINT_WIDGET_TOOL, ...]
 
 @rcx.on_tool_call(fi_widget.PRINT_WIDGET_TOOL.name)
@@ -813,7 +813,7 @@ Simplest pattern. See `fi_github.py` as a reference. Requires: a `CloudTool` def
 
 ```python
 # mybot/tools/my_service.py
-from flexus_client_kit import ckit_cloudtool, ckit_client, ckit_bot_exec
+from flexus_client_kit.core import ckit_cloudtool, ckit_client, ckit_bot_exec
 
 MY_SERVICE_TOOL = ckit_cloudtool.CloudTool(
     strict=False,
@@ -935,7 +935,7 @@ api_key = setup.get("MY_API_KEY")
 
 **2. OAuth via `ckit_external_auth`** (`flexus_client_kit/ckit_external_auth.py`) — for Google, Facebook, GitHub, Notion, etc.:
 ```python
-from flexus_client_kit import ckit_external_auth
+from flexus_client_kit.core import ckit_external_auth
 
 # Get token (auto-refreshes if expired)
 token = await ckit_external_auth.get_external_auth_token(

@@ -338,11 +338,11 @@
 
 ## Level 3 Schema-Aligned Bot Definitions
 
-This section keeps only fields that map to current builder schema:
+This section keeps only fields that map to current builder schema and runtime:
 
-- bot config schema (`bot_config_schema.json`)
-- expert frontmatter schema (rendered by `bot_registry_engine.py`)
-- optional runtime metadata supported by `no_special_code_bot.py`
+- bot config schema (`flexus_client_kit/builder/bot_config_schema.json`)
+- expert frontmatter schema (rendered by `flexus_client_kit/builder/bot_registry_engine.py`)
+- optional runtime metadata supported by `flexus_client_kit/runtime/no_special_code_bot.py`
 
 ### Bot 01 - `market_signal_bot`
 
@@ -361,6 +361,7 @@ This section keeps only fields that map to current builder schema:
 #### Bot 01 Tool Catalog (Expert 01A)
 
 - `signal_search_demand_api`
+  - Integration mode: `Request/Response`
   - APIs:
     - `Google Search Console API`
     - `Google Ads API (Keyword Planning)`
@@ -368,13 +369,24 @@ This section keeps only fields that map to current builder schema:
     - `SerpApi (Google Search, Google Trends, Google Shopping engines)`
     - `Semrush API (Trends + Keyword reports)`
     - `Bing Webmaster API`
-  - Required methods:
-    - `Google Search Console`: `searchanalytics.query`
-    - `Google Ads`: `GenerateKeywordIdeas`, `GenerateKeywordHistoricalMetrics`, `GenerateKeywordForecastMetrics`
-    - `DataForSEO Trends`: `keywords_data/dataforseo_trends/explore/live`, `.../subregion_interests/live`, `.../demography/live`, `.../merged_data/live`
-    - `SerpApi`: `/search?engine=google`, `/search?engine=google_trends`, `/search?engine=google_shopping`
-    - `Semrush`: `Trends API traffic_summary`, `Trends API daily_traffic`, `Analytics keyword reports`
-    - `Bing Webmaster`: `GetPageStats`, `GetPageQueryStats`, `GetRankAndTrafficStats`
+  - Provider method ids (`method_id`):
+    - `google_search_console.searchanalytics.query.v1`
+    - `google_ads.keyword_planner.generate_keyword_ideas.v1`
+    - `google_ads.keyword_planner.generate_historical_metrics.v1`
+    - `google_ads.keyword_planner.generate_forecast_metrics.v1`
+    - `dataforseo.trends.explore.live.v1`
+    - `dataforseo.trends.subregion_interests.live.v1`
+    - `dataforseo.trends.demography.live.v1`
+    - `dataforseo.trends.merged_data.live.v1`
+    - `serpapi.search.google.v1`
+    - `serpapi.search.google_trends.v1`
+    - `serpapi.search.google_shopping.v1`
+    - `semrush.trends.traffic_summary.v1`
+    - `semrush.trends.daily_traffic.v1`
+    - `semrush.analytics.keyword_reports.v1`
+    - `bing_webmaster.get_page_stats.v1`
+    - `bing_webmaster.get_page_query_stats.v1`
+    - `bing_webmaster.get_rank_and_traffic_stats.v1`
   - Call contract:
     - `signal_search_demand_api(op="<operation>", args={...})`
     - Request envelope: JSON object with `op` as string and `args` as object.
@@ -429,6 +441,7 @@ This section keeps only fields that map to current builder schema:
     - `signal_search_demand_api(op="query_keyword_volume", args={"provider":"google_ads","method":"GenerateKeywordHistoricalMetrics","query":["b2b lead generation"],"geo":{"country":"US"},"time_window":"custom","start_date":"2025-10-01","end_date":"2025-12-31"})`
 
 - `signal_social_trends_api`
+  - Integration mode: `Request/Response`
   - APIs:
     - `Reddit API`
     - `X API v2`
@@ -437,16 +450,26 @@ This section keeps only fields that map to current builder schema:
     - `Instagram Graph API`
     - `Pinterest API`
     - `Product Hunt GraphQL API`
-  - Required methods:
-    - `Reddit`: `/r/{subreddit}/new`, `/r/{subreddit}/hot`, `/search`, `/comments/{article}`
-    - `X`: `GET /2/tweets/counts/recent`, `GET /2/tweets/search/recent`
-    - `YouTube`: `search.list`, `videos.list`, `commentThreads.list`
-    - `TikTok`: `POST /v2/research/video/query/`
-    - `Instagram`: `GET /ig_hashtag_search`, `GET /{ig-hashtag-id}/recent_media`, `GET /{ig-hashtag-id}/top_media`
-    - `Pinterest`: `/trends/keywords/{region}/top/{trend_type}`
-    - `Product Hunt`: GraphQL `posts`, `topics`, `votesCount` queries
+  - Provider method ids (`method_id`):
+    - `reddit.subreddit.new.v1`
+    - `reddit.subreddit.hot.v1`
+    - `reddit.search.posts.v1`
+    - `reddit.comments.list.v1`
+    - `x.tweets.counts_recent.v1`
+    - `x.tweets.search_recent.v1`
+    - `youtube.search.list.v1`
+    - `youtube.videos.list.v1`
+    - `youtube.comment_threads.list.v1`
+    - `tiktok.research.video_query.v1`
+    - `instagram.hashtag.search.v1`
+    - `instagram.hashtag.recent_media.v1`
+    - `instagram.hashtag.top_media.v1`
+    - `pinterest.trends.keywords_top.v1`
+    - `producthunt.graphql.posts.v1`
+    - `producthunt.graphql.topics.v1`
 
 - `signal_news_events_api`
+  - Integration mode: `Request/Response`
   - APIs:
     - `GDELT API`
     - `Event Registry API`
@@ -456,49 +479,77 @@ This section keeps only fields that map to current builder schema:
     - `MediaStack API`
     - `NewsCatcher API`
     - `Perigon API`
-  - Required methods:
-    - `GDELT`: `doc`, `events`
-    - `Event Registry`: `article/getArticles`, `event/getEvents`
-    - `NewsAPI`: `/v2/everything`, `/v2/top-headlines`
-    - `GNews`: `/api/v4/search`, `/api/v4/top-headlines`
-    - `NewsData.io`: `/api/1/news`
-    - `MediaStack`: `/v1/news`
-    - `NewsCatcher`: `/v3/search`, `/v3/latest_headlines`
-    - `Perigon`: `/v1/all`, `/v1/topics`
+  - Provider method ids (`method_id`):
+    - `gdelt.doc.search.v1`
+    - `gdelt.events.search.v1`
+    - `event_registry.article.get_articles.v1`
+    - `event_registry.event.get_events.v1`
+    - `newsapi.everything.v1`
+    - `newsapi.top_headlines.v1`
+    - `gnews.search.v1`
+    - `gnews.top_headlines.v1`
+    - `newsdata.news.search.v1`
+    - `mediastack.news.search.v1`
+    - `newscatcher.search.v1`
+    - `newscatcher.latest_headlines.v1`
+    - `perigon.all.search.v1`
+    - `perigon.topics.search.v1`
 
 - `signal_review_voice_api`
+  - Integration mode: `Request/Response`
   - APIs:
     - `Trustpilot API`
     - `Yelp Fusion API`
     - `G2 data provider API`
     - `Capterra data provider API`
-  - Required methods:
-    - `Trustpilot`: `GET /v1/business-units/find`, `GET /v1/business-units/{businessUnitId}`, `GET /v1/business-units/{businessUnitId}/reviews`
-    - `Yelp`: `GET /v3/businesses/search`, `GET /v3/businesses/{id}`, `GET /v3/businesses/{id}/reviews`
-    - `G2`: `vendor listing endpoint`, `reviews endpoint`, `category benchmark endpoint`
-    - `Capterra`: `product listing endpoint`, `reviews endpoint`, `category endpoint`
+  - Provider method ids (`method_id`):
+    - `trustpilot.business_units.find.v1`
+    - `trustpilot.business_units.get_public.v1`
+    - `trustpilot.reviews.list.v1`
+    - `yelp.businesses.search.v1`
+    - `yelp.businesses.get.v1`
+    - `yelp.businesses.reviews.v1`
+    - `g2.vendors.list.v1`
+    - `g2.reviews.list.v1`
+    - `g2.categories.benchmark.v1`
+    - `capterra.products.list.v1`
+    - `capterra.reviews.list.v1`
+    - `capterra.categories.list.v1`
 
 - `signal_marketplace_demand_api`
+  - Integration mode: `Request/Response`
   - APIs:
     - `Amazon SP-API`
     - `eBay Browse API`
     - `eBay Marketplace Insights API`
     - `Google Shopping Content API`
-  - Required methods:
-    - `Amazon`: `searchCatalogItems`, `getCatalogItem`, `getItemOffersBatch`, `getListingOffersBatch`
-    - `eBay Browse`: `getItems`, `search`
-    - `eBay Marketplace Insights`: `item_sales/search`
-    - `Google Shopping Content`: `reports.search` with Topic Trends fields
+  - Provider method ids (`method_id`):
+    - `amazon.catalog.search_items.v1`
+    - `amazon.catalog.get_item.v1`
+    - `amazon.pricing.get_item_offers_batch.v1`
+    - `amazon.pricing.get_listing_offers_batch.v1`
+    - `ebay.browse.get_items.v1`
+    - `ebay.browse.search.v1`
+    - `ebay.marketplace_insights.item_sales_search.v1`
+    - `google_shopping.reports.search_topic_trends.v1`
 
 - `signal_web_traffic_intel_api`
+  - Integration mode: `Request/Response`
   - APIs:
     - `Similarweb API`
     - `Shopify Admin analytics surface`
-  - Required methods:
-    - `Similarweb`: `traffic-and-engagement`, `traffic-sources`, `traffic-geography`, `website-ranking`, `similar-sites`
-    - `Shopify`: `reports list`, `reports dates`, `reports get`
+  - Provider method ids (`method_id`):
+    - `similarweb.traffic_and_engagement.get.v1`
+    - `similarweb.traffic_sources.get.v1`
+    - `similarweb.traffic_geography.get.v1`
+    - `similarweb.website_ranking.get.v1`
+    - `similarweb.similar_sites.get.v1`
+    - `shopify.analytics.reports_list.v1`
+    - `shopify.analytics.reports_dates.v1`
+    - `shopify.analytics.reports_get.v1`
 
 - `signal_jobs_demand_api`
+  - Integration mode: `Request/Response`
   - APIs:
     - `Adzuna API`
     - `Bright Data Jobs API`
@@ -507,41 +558,70 @@ This section keeps only fields that map to current builder schema:
     - `Oxylabs jobs data API`
     - `HasData jobs APIs`
     - `Levels.fyi API`
-    linkedind jobs?
-    glassdoor?
-
-  - Required methods:
-    - `Adzuna`: `search ads`, `regional data`
-    - `Bright Data`: `jobs data feed`, `jobs dataset query`
-    - `Coresignal`: `job posts endpoint`, `company profile endpoint`
-    - `TheirStack`: `job search endpoint`, `company hiring endpoint`
-    - `Oxylabs`: `jobs source query endpoint`
-    - `HasData`: `Indeed jobs endpoint`, `Glassdoor endpoint`
-    - `Levels.fyi`: `compensation benchmark endpoint`
+    - `LinkedIn Jobs data provider API (restricted/compliance-sensitive)`
+    - `Glassdoor data provider API (restricted/compliance-sensitive)`
+  - Provider method ids (`method_id`):
+    - `adzuna.jobs.search_ads.v1`
+    - `adzuna.jobs.regional_data.v1`
+    - `brightdata.jobs.data_feed.v1`
+    - `brightdata.jobs.dataset_query.v1`
+    - `coresignal.jobs.posts.v1`
+    - `coresignal.companies.profile.v1`
+    - `theirstack.jobs.search.v1`
+    - `theirstack.companies.hiring.v1`
+    - `oxylabs.jobs.source_query.v1`
+    - `hasdata.indeed.jobs.v1`
+    - `hasdata.glassdoor.jobs.v1`
+    - `levelsfyi.compensation.benchmark.v1`
+    - `linkedin_jobs.provider.search.v1` (restricted)
+    - `glassdoor.provider.search.v1` (restricted)
 
 - `signal_dev_ecosystem_api`
+  - Integration mode: `Request/Response`
   - APIs:
     - `GitHub REST API`
     - `Stack Exchange API`
-  - Required methods:
-    - `GitHub`: `/search/repositories`, `/search/issues`, `/repos/{owner}/{repo}`
-    - `Stack Exchange`: `/questions`, `/tags/{tags}/info`, `/tags/{tags}/related`
+  - Provider method ids (`method_id`):
+    - `github.search.repositories.v1`
+    - `github.search.issues.v1`
+    - `github.repos.get.v1`
+    - `stackexchange.questions.list.v1`
+    - `stackexchange.tags.info.v1`
+    - `stackexchange.tags.related.v1`
 
 - `signal_public_interest_api`
+  - Integration mode: `Request/Response`
   - APIs:
     - `Wikimedia Pageviews API`
-  - Required methods:
-    - `Wikimedia`: `/metrics/pageviews/per-article/...`, `/metrics/pageviews/aggregate/...`
+  - Provider method ids (`method_id`):
+    - `wikimedia.pageviews.per_article.v1`
+    - `wikimedia.pageviews.aggregate.v1`
 
 - `signal_professional_network_api`
+  - Integration mode: `Request/Response` (restricted)
   - APIs:
     - `LinkedIn Marketing API`
-  - Required methods:
-    - `organization posts endpoint`
-    - `organization social actions endpoint`
-    - `organization follower statistics endpoint`
+  - Provider method ids (`method_id`):
+    - `linkedin.organization.posts.list.v1`
+    - `linkedin.organization.social_actions.list.v1`
+    - `linkedin.organization.followers.stats.v1`
   - Constraint note:
     - `Use only where provider terms allow this exact use case; treat as restricted integration by default.`
+
+#### Bot 01 Required Tool Prompt Files
+
+- `prompts/tool_signal_search_demand_api.md`
+- `prompts/tool_signal_social_trends_api.md`
+- `prompts/tool_signal_news_events_api.md`
+- `prompts/tool_signal_review_voice_api.md`
+- `prompts/tool_signal_marketplace_demand_api.md`
+- `prompts/tool_signal_web_traffic_intel_api.md`
+- `prompts/tool_signal_jobs_demand_api.md`
+- `prompts/tool_signal_dev_ecosystem_api.md`
+- `prompts/tool_signal_public_interest_api.md`
+- `prompts/tool_signal_professional_network_api.md`
+- `prompts/tool_flexus_policy_document.md`
+- `prompts/tool_print_widget.md`
 
 ### Expert 01A - `market_signal_detector`
 
@@ -550,18 +630,18 @@ This section keeps only fields that map to current builder schema:
 - `fexp_allow_tools`: `flexus_policy_document,print_widget,signal_search_demand_api,signal_social_trends_api,signal_news_events_api,signal_review_voice_api,signal_marketplace_demand_api,signal_web_traffic_intel_api,signal_jobs_demand_api,signal_dev_ecosystem_api,signal_public_interest_api,signal_professional_network_api`
 - `fexp_block_tools`: ``
 - `skills`: [`skill_google_trends_signal_detection`, `skill_x_signal_detection`, `skill_reddit_signal_detection`, `skill_web_change_detection`]
-- `pdoc_output_schemas`: [`market_signal_snapshot_schema`, `market_signal_error_schema`]
-- `body_md`: `Create a channel signal snapshot with evidence links and confidence notes.`
+- `pdoc_output_schemas`: [{"schema_name":"market_signal_snapshot_schema","schema":{"type":"object","required":["artifact_type","version","channel","query","time_window","result_state","evidence_count","coverage_status","confidence","confidence_reason","signals","sources","limitations","next_checks"],"additionalProperties":false,"properties":{"artifact_type":{"type":"string","enum":["market_signal_snapshot"]},"version":{"type":"string"},"channel":{"type":"string"},"query":{"type":"string"},"time_window":{"type":"object","required":["start_date","end_date"],"additionalProperties":false,"properties":{"start_date":{"type":"string"},"end_date":{"type":"string"}}},"result_state":{"type":"string","enum":["ok","zero_results","insufficient_data","technical_failure"]},"evidence_count":{"type":"integer","minimum":0},"coverage_status":{"type":"string","enum":["full","partial","none"]},"confidence":{"type":"number","minimum":0,"maximum":1},"confidence_reason":{"type":"string"},"signals":{"type":"array","items":{"type":"object","required":["signal_id","signal_summary","signal_strength","supporting_source_refs"],"additionalProperties":false,"properties":{"signal_id":{"type":"string"},"signal_summary":{"type":"string"},"signal_strength":{"type":"string","enum":["weak","moderate","strong"]},"supporting_source_refs":{"type":"array","items":{"type":"string"}}}}},"sources":{"type":"array","items":{"type":"object","required":["source_type","source_ref"],"additionalProperties":false,"properties":{"source_type":{"type":"string","enum":["api","artifact","tool_output","event_stream","expert_handoff","user_directive"]},"source_ref":{"type":"string"}}}},"limitations":{"type":"array","items":{"type":"string"}},"failure_code":{"type":"string"},"failure_message":{"type":"string"},"next_checks":{"type":"array","items":{"type":"string"}}}}}]
+- `body_md`: `Create one channel signal snapshot per run, including result_state (`ok|zero_results|insufficient_data|technical_failure`), evidence quality, and source-backed signal records.`
 
 ### Expert 01B - `signal_boundary_analyst`
 
 - `name`: `signal_boundary_analyst`
-- `fexp_description`: `Aggregate channel snapshots and produce bounded opportunity artifacts`
+- `fexp_description`: `Aggregate 01A channel snapshots into bounded signal register and risk-ranked hypotheses`
 - `fexp_allow_tools`: `flexus_policy_document`
 - `fexp_block_tools`: `print_widget`
 - `skills`: `[]`
-- `pdoc_output_schemas`: [`signal_register_schema`, `hypothesis_backlog_schema`]
-- `body_md`: `Aggregate snapshots, define boundaries, and produce risk-ranked artifact payloads.`
+- `pdoc_output_schemas`: [{"schema_name":"signal_register_schema","schema":{"type":"object","required":["artifact_type","version","aggregation_window","channels_considered","register"],"additionalProperties":false,"properties":{"artifact_type":{"type":"string","enum":["signal_register"]},"version":{"type":"string"},"aggregation_window":{"type":"object","required":["start_date","end_date"],"additionalProperties":false,"properties":{"start_date":{"type":"string"},"end_date":{"type":"string"}}},"channels_considered":{"type":"array","items":{"type":"string"}},"register":{"type":"array","items":{"type":"object","required":["register_id","signal_theme","combined_strength","confidence","supporting_snapshot_refs","conflict_notes"],"additionalProperties":false,"properties":{"register_id":{"type":"string"},"signal_theme":{"type":"string"},"combined_strength":{"type":"string","enum":["weak","moderate","strong"]},"confidence":{"type":"number","minimum":0,"maximum":1},"supporting_snapshot_refs":{"type":"array","items":{"type":"string"}},"conflict_notes":{"type":"array","items":{"type":"string"}}}}}}}},{"schema_name":"hypothesis_backlog_schema","schema":{"type":"object","required":["artifact_type","version","prioritization_rule","in_scope","out_of_scope","not_now","hypotheses"],"additionalProperties":false,"properties":{"artifact_type":{"type":"string","enum":["hypothesis_backlog"]},"version":{"type":"string"},"prioritization_rule":{"type":"string","enum":["impact_x_confidence_x_reversibility"]},"in_scope":{"type":"array","items":{"type":"string"}},"out_of_scope":{"type":"array","items":{"type":"string"}},"not_now":{"type":"array","items":{"type":"string"}},"hypotheses":{"type":"array","items":{"type":"object","required":["hypothesis_id","statement","priority_rank","impact_score","confidence_score","reversibility_score","fail_fast_condition","next_validation_step","supporting_register_refs"],"additionalProperties":false,"properties":{"hypothesis_id":{"type":"string"},"statement":{"type":"string"},"priority_rank":{"type":"integer","minimum":1},"impact_score":{"type":"number","minimum":0,"maximum":1},"confidence_score":{"type":"number","minimum":0,"maximum":1},"reversibility_score":{"type":"number","minimum":0,"maximum":1},"fail_fast_condition":{"type":"string"},"next_validation_step":{"type":"string"},"supporting_register_refs":{"type":"array","items":{"type":"string"}}}}}}}}]
+- `body_md`: `Read 01A snapshot artifacts, deduplicate and normalize cross-channel evidence, then emit signal register and hypothesis backlog payloads with explicit in-scope/out-of-scope boundaries.`
 
 ### Bot 02 - `customer_discovery_bot`
 
@@ -1073,13 +1153,16 @@ This section keeps only fields that map to current builder schema:
 - `pdoc_output_schemas`: [`scale_increment_plan_schema`, `scale_rollback_decision_schema`]
 - `body_md`: `Produce scale increment plan and rollback decision payloads.`
 
+---
+
 ## Level 3 Skill Definitions (Schema-Aligned)
 
 ### Skill 01
 
 - `name`: `skill_google_trends_signal_detection`
 - `description`: `Google Trends signal detection method`
-- `body_md`: `Use Google Trends data to detect seasonality, breakout terms, region deltas, and baseline shifts.`
+- `body_md`: `Use Google Trends data to detect seasonality, breakout terms, region deltas, and baseline shifts.
+как правильно пользоваться гугл трендами по бест практис`.
 
 ### Skill 02
 
