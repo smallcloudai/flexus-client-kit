@@ -1,4 +1,5 @@
 import asyncio
+import json
 import logging
 from typing import Dict, Any
 
@@ -93,6 +94,36 @@ bot_bug_report(op='list_reported_bugs', args={'bot_name': 'Frog'})
     List all reported bugs for a specific bot.
 """
 
+MARKETPLACE_SEARCH_TOOL = ckit_cloudtool.CloudTool(
+    strict=False,
+    name="flexus_marketplace_search",
+    description="Search the Flexus marketplace for bots by keyword. Returns matching bot names, titles, tags, and whether already hired.",
+    parameters={
+        "type": "object",
+        "properties": {
+            "q": {"type": "string", "description": "Search query (matches name, title, description, tags)"},
+        },
+        "required": ["q"],
+    },
+)
+
+MARKETPLACE_DESC_TOOL = ckit_cloudtool.CloudTool(
+    strict=False,
+    name="flexus_marketplace_desc",
+    description="Get detailed descriptions for specific marketplace bots by their marketable_name. Up to 20 names.",
+    parameters={
+        "type": "object",
+        "properties": {
+            "marketable_names": {
+                "type": "array",
+                "items": {"type": "string"},
+                "description": "List of bot marketable_name values to get descriptions for",
+            },
+        },
+        "required": ["marketable_names"],
+    },
+)
+
 TOOLS = [
     # BOSS_A2A_RESOLUTION_TOOL,
     # BOSS_SETUP_COLLEAGUES_TOOL,
@@ -103,6 +134,8 @@ TOOLS = [
     fi_pdoc.POLICY_DOCUMENT_TOOL,
     fi_erp.ERP_TABLE_META_TOOL,
     fi_erp.ERP_TABLE_DATA_TOOL,
+    MARKETPLACE_SEARCH_TOOL,
+    MARKETPLACE_DESC_TOOL,
 ]
 
 
@@ -333,6 +366,44 @@ async def boss_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.R
     @rcx.on_tool_call(fi_erp.ERP_TABLE_DATA_TOOL.name)
     async def toolcall_erp_data(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
         return await erp_integration.handle_erp_data(toolcall, model_produced_args)
+
+    @rcx.on_tool_call(MARKETPLACE_SEARCH_TOOL.name)
+    async def toolcall_marketplace_search(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
+        q = model_produced_args.get("q", "").strip()
+        if not q:
+            return "Error: q (search query) is required"
+        http = await fclient.use_http()
+        async with http as h:
+            r = await h.execute(gql.gql("""
+                query BossMarketplaceSearch($q: String!, $ws_id: String!) {
+                    marketplace_boss_search(q: $q, ws_id: $ws_id) {
+                        marketable_name marketable_title1 marketable_title2 marketable_tags already_hired
+                    }
+                }"""),
+                variable_values={"q": q, "ws_id": rcx.persona.ws_id},
+            )
+        items = r.get("marketplace_boss_search", [])
+        return f"{len(items)} bots found\n\n" + "\n".join(json.dumps(it) for it in items)
+
+    @rcx.on_tool_call(MARKETPLACE_DESC_TOOL.name)
+    async def toolcall_marketplace_desc(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
+        names = model_produced_args.get("marketable_names", [])
+        if not names or not isinstance(names, list):
+            return "Error: marketable_names (list of strings) is required"
+        if len(names) > 20:
+            return "Error: max 20 names at a time"
+        http = await fclient.use_http()
+        async with http as h:
+            r = await h.execute(gql.gql("""
+                query BossMarketplaceDesc($marketable_names: [String!]!, $ws_id: String!) {
+                    marketplace_boss_desc(marketable_names: $marketable_names, ws_id: $ws_id) {
+                        marketable_name marketable_title1 marketable_title2 marketable_description marketable_tags marketable_occupation
+                    }
+                }"""),
+                variable_values={"marketable_names": names, "ws_id": rcx.persona.ws_id},
+            )
+        items = r.get("marketplace_boss_desc", [])
+        return f"{len(items)} descriptions found\n\n" + "\n".join(json.dumps(it) for it in items)
 
     try:
         while not ckit_shutdown.shutdown_event.is_set():
