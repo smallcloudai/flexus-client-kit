@@ -279,19 +279,6 @@ class IntegrationLinkedIn:
             else:
                 r += f"❌ Failed to get campaign {campaign_id}\n"
 
-        elif op == "update_campaign":
-            campaign_id = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "campaign_id", "")
-            name = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "name", None)
-            status = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "status", None)
-            daily_budget = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "daily_budget", None)
-
-            result = await self._update_campaign(campaign_id, name, status, daily_budget)
-            if result:
-                self._campaigns_cache = None
-                r += "✅ Campaign {result.name} updated successfully\n"
-            else:
-                r += "❌ Failed to update campaign. Check logs for details.\n"
-
         elif op == "get_analytics":
             campaign_id = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "campaign_id", "")
             days = int(ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "days", "30"))
