@@ -30,7 +30,6 @@ async def karen_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.
     slack = fi_slack.IntegrationSlack(
         fclient,
         rcx,
-        SLACK_APP_TOKEN=setup["SLACK_APP_TOKEN"],
         should_join=setup["slack_should_join"],
     )
     discord = fi_discord2.IntegrationDiscord(

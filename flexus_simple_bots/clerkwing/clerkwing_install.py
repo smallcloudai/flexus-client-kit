@@ -96,7 +96,7 @@ async def install(
             prompts_common.SCHED_TODO_5M,
         ],
         marketable_auth_needed=["google"],
-        marketable_auth_supported=["google", "atlassian"],
+        marketable_auth_supported=["atlassian"],
         marketable_auth_scopes={
             "google": [
                 "https://www.googleapis.com/auth/gmail.readonly",

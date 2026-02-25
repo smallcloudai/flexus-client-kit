@@ -148,7 +148,7 @@ class IntegrationDiscord:
                 self.watch_channel_names.add(item.lstrip("#").lower())
 
         if not self.bot_token:
-            self.problems_other.append("DISCORD_BOT_TOKEN is not configured")
+            self.problems_other.append("Discord not configured: connect Discord in workspace OAuth settings")
             return
 
         intents = discord.Intents.default()
@@ -222,12 +222,10 @@ class IntegrationDiscord:
                 result += "Problems:\n"
                 for problem in self.problems_other:
                     result += f"  {problem}\n"
-            if DISCORD_BOT_TOKEN:
-                result += "WARNING: DISCORD_BOT_TOKEN is DEPRECATED. Use Discord OAuth in workspace settings instead.\n"
-            if self.bot_token and not DISCORD_BOT_TOKEN:
-                result += "Using Discord token from rcx.external_auth\n"
-            if not self.bot_token:
-                result += "No Discord token configured. Please connect Discord in workspace settings or add DISCORD_BOT_TOKEN.\n"
+            if self.bot_token:
+                result += "Using Discord token from workspace OAuth settings.\n"
+            else:
+                result += "No Discord token configured. Please connect Discord in workspace settings.\n"
             result += "\n"
 
         if print_help:

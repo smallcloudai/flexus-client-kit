@@ -155,8 +155,8 @@ class FacebookAdsClient:
         async with http as h:
             result = await h.execute(
                 ckit_client.gql.gql("""
-                    query GetFacebookAuthURL($fuser_id: String!, $ws_id: String!, $provider: String!, $scopes: [String!]!) {
-                        external_auth_flow_url(
+                    query GetFacebookToken($fuser_id: String!, $ws_id: String!, $provider: String!, $scopes: [String!]!) {
+                        external_auth_token(
                             fuser_id: $fuser_id
                             ws_id: $ws_id
                             provider: $provider
@@ -171,7 +171,7 @@ class FacebookAdsClient:
                     "scopes": ["ads_management", "ads_read", "business_management", "pages_manage_ads"],
                 },
             ),
-        auth_url = result.get("external_auth_flow_url", "")
+        auth_url = result.get("external_auth_token", "")
         return f"""Facebook authorization required.
 
 Click this link to connect your Facebook account:
