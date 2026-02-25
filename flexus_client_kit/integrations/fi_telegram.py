@@ -103,8 +103,12 @@ class IntegrationTelegram:
     ):
         self.fclient = fclient
         self.rcx = rcx
-        self.bot_token = (rcx.external_auth.get("telegram") or {}).get("api_key", "").strip()
+        tg_auth = rcx.external_auth.get("telegram") or {}
+        self.bot_token = tg_auth.get("api_key", "").strip()
+        self.webhook_secret = tg_auth.get("webhook_secret", "")
         self.problems_accumulator: List[str] = []
+        if self.bot_token and not self.webhook_secret:
+            self.oops_a_problem("Telegram webhook_secret missing — re-save Telegram credentials to generate it")
 
         self.tg_app: Optional[telegram.ext.Application] = None
 
@@ -147,7 +151,7 @@ class IntegrationTelegram:
             await self.tg_app.initialize()
             info = await self.tg_app.bot.get_webhook_info()
             if info.url != webhook_url:
-                await self.tg_app.bot.set_webhook(webhook_url)
+                await self.tg_app.bot.set_webhook(webhook_url, secret_token=self.webhook_secret)
                 logger.info("%s telegram bot %s webhook changed to %s", self.rcx.persona.persona_id, bot_id, webhook_url)
             else:
                 logger.info("%s telegram bot %s webhook stays %s", self.rcx.persona.persona_id, bot_id, webhook_url)
