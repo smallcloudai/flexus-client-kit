@@ -482,7 +482,7 @@ class IntegrationErp:
 
         for i in range(0, len(records), BATCH_SIZE):
             try:
-                result = await ckit_erp.batch_upsert_erp_records(self.client, table_name, self.ws_id, upsert_key or "", records[i:i+BATCH_SIZE])
+                result = await ckit_erp.erp_table_batch_upsert(self.client, table_name, self.ws_id, upsert_key or "", records[i:i+BATCH_SIZE])
                 total_created += result.get("created", 0)
                 total_updated += result.get("updated", 0)
                 total_failed += result.get("failed", 0)
