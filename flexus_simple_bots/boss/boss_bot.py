@@ -398,12 +398,24 @@ async def boss_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.R
                 query BossMarketplaceDesc($marketable_names: [String!]!, $ws_id: String!) {
                     marketplace_boss_desc(marketable_names: $marketable_names, ws_id: $ws_id) {
                         marketable_name marketable_title1 marketable_title2 marketable_description marketable_tags marketable_occupation
+                        experts { fexp_name fexp_description }
                     }
                 }"""),
                 variable_values={"marketable_names": names, "ws_id": rcx.persona.ws_id},
             )
         items = r.get("marketplace_boss_desc", [])
-        return f"{len(items)} descriptions found\n\n" + "\n".join(json.dumps(it) for it in items)
+        parts = [f"{len(items)} descriptions found"]
+        for it in items:
+            parts.append(json.dumps({
+                "marketable_name": it["marketable_name"],
+                "title1": it["marketable_title1"],
+                "title2": it["marketable_title2"],
+                "occupation": it["marketable_occupation"],
+                "tags": it["marketable_tags"],
+                "description": it["marketable_description"],
+                "experts": it["experts"],
+            }, indent=2, ensure_ascii=False))
+        return "\n\n".join(parts)
 
     try:
         while not ckit_shutdown.shutdown_event.is_set():
