@@ -9,6 +9,15 @@ from flexus_client_kit import ckit_client, gql_utils, erp_schema
 T = TypeVar('T')
 
 
+@dataclasses.dataclass
+class ErpFKResolution:
+    resolve_by_col: str
+    resolve_from_table: str
+    resolved_id_col: str
+    resolved_id_dest_col: str
+    case_insensitive: bool = False
+
+
 def dataclass_or_dict_to_dict(x: Any) -> dict:
     if dataclasses.is_dataclass(x):
         result = dataclasses.asdict(x)
@@ -141,23 +150,19 @@ async def delete_erp_record(
         return r["erp_table_delete"]
 
 
-async def batch_upsert_erp_records(
+async def erp_table_batch_upsert(
     client: ckit_client.FlexusClient,
     table_name: str,
     ws_id: str,
     upsert_key: str,
     records: List[Any],
-    fk_from: str = "",
-    fk_table: str = "",
-    fk_id: str = "",
-    fk_to: str = "",
-    fk_case_insensitive: bool = False,
+    fk_resolutions: List[ErpFKResolution] = [],
 ) -> dict:
     http = await client.use_http()
     async with http as h:
         r = await h.execute(gql.gql("""
-            mutation ErpTableBatchUpsert($schema_name: String!, $table_name: String!, $ws_id: String!, $upsert_key: String!, $records_json: String!, $fk_from: String!, $fk_table: String!, $fk_id: String!, $fk_to: String!, $fk_case_insensitive: Boolean!) {
-                erp_table_batch_upsert(schema_name: $schema_name, table_name: $table_name, ws_id: $ws_id, upsert_key: $upsert_key, records_json: $records_json, fk_from: $fk_from, fk_table: $fk_table, fk_id: $fk_id, fk_to: $fk_to, fk_case_insensitive: $fk_case_insensitive)
+            mutation ErpTableBatchUpsert($schema_name: String!, $table_name: String!, $ws_id: String!, $upsert_key: String!, $records_json: String!, $fk_resolutions: [ErpFKResolution!]!) {
+                erp_table_batch_upsert(schema_name: $schema_name, table_name: $table_name, ws_id: $ws_id, upsert_key: $upsert_key, records_json: $records_json, fk_resolutions: $fk_resolutions)
             }"""),
             variable_values={
                 "schema_name": "erp",
@@ -165,11 +170,7 @@ async def batch_upsert_erp_records(
                 "ws_id": ws_id,
                 "upsert_key": upsert_key,
                 "records_json": json.dumps([dataclass_or_dict_to_dict(r) for r in records]),
-                "fk_from": fk_from,
-                "fk_table": fk_table,
-                "fk_id": fk_id,
-                "fk_to": fk_to,
-                "fk_case_insensitive": fk_case_insensitive,
+                "fk_resolutions": [dataclasses.asdict(fk) for fk in fk_resolutions],
             },
         )
         result = r["erp_table_batch_upsert"]

@@ -352,6 +352,23 @@ def _map_fulfillment_entry(f: dict) -> dict:
     }
 
 
+def _map_contact(ws: str, o: dict) -> dict:
+    c = o.get("customer") or {}
+    addr = c.get("default_address") or {}
+    return {
+        "ws_id": ws,
+        "contact_email": (o.get("email") or o.get("contact_email") or "").strip().lower(),
+        "contact_first_name": c.get("first_name") or "",
+        "contact_last_name": c.get("last_name") or "",
+        "contact_phone": c.get("phone") or "",
+        "contact_address_line1": addr.get("address1") or "",
+        "contact_address_city": addr.get("city") or "",
+        "contact_address_state": addr.get("province") or "",
+        "contact_address_zip": addr.get("zip") or "",
+        "contact_address_country": addr.get("country") or "",
+    }
+
+
 # --- Integration ---
 
 class IntegrationShopify:
@@ -423,14 +440,19 @@ class IntegrationShopify:
     async def _sync_shop(self) -> str:
         if not (token := self._get_token()):
             return "No access token"
-        ws = self.rcx.persona.ws_id
+        ws, shop_id = self.rcx.persona.ws_id, self.shop.shop_id
         errors = []
 
         products = await _paginate(self.shop.shop_domain, token, "products.json", "products")
         if products:
-            err = await self._upsert_products(products)
-            if err:
+            if err := await self._upsert("com_product", ws, "prod_external_id", [_map_product(ws, shop_id, p) for p in products]):
                 errors.append(err)
+            else:
+                var_records = [_map_variant(ws, v) for p in products for v in (p.get("variants") or [])]
+                if var_records:
+                    if err := await self._upsert("com_product_variant", ws, "pvar_external_id", var_records,
+                            fk_resolutions=[ckit_erp.ErpFKResolution("prod_external_id", "com_product", "prod_id", "pvar_prod_id")]):
+                        errors.append(err)
 
         cutoff = (datetime.now(timezone.utc) - timedelta(days=60)).isoformat()
         orders = await _paginate(
@@ -442,9 +464,37 @@ class IntegrationShopify:
             if str(o["id"]) in txn_map:
                 o["transactions"] = txn_map[str(o["id"])]
         if orders:
-            err = await self._upsert_orders(orders)
-            if err:
+            contacts = {}
+            for o in orders:
+                email = (o.get("email") or o.get("contact_email") or "").strip().lower()
+                if email and email not in contacts:
+                    contacts[email] = _map_contact(ws, o)
+            if contacts:
+                await self._upsert("crm_contact", ws, "contact_email", list(contacts.values()))
+            if err := await self._upsert("com_order", ws, "order_external_id", [_map_order(ws, shop_id, o) for o in orders],
+                    fk_resolutions=[ckit_erp.ErpFKResolution("contact_email", "crm_contact", "contact_id", "order_contact_id", case_insensitive=True)]):
                 errors.append(err)
+            else:
+                items, payments, refunds = [], [], []
+                for o in orders:
+                    ext_id = str(o["id"])
+                    for li in o.get("line_items") or []:
+                        items.append({**_map_line_item(ws, li), "order_external_id": ext_id})
+                    for tx in o.get("transactions") or []:
+                        if tx.get("kind") not in ("sale", "capture") or tx.get("status") != "success":
+                            continue
+                        payments.append({**_map_transaction(ws, tx), "order_external_id": ext_id})
+                    for r in o.get("refunds") or []:
+                        refunds.append({**_map_refund(ws, r), "order_external_id": ext_id})
+                for table, key, fk_to, recs in [
+                    ("com_order_item", "oitem_external_id", "oitem_order_id", items),
+                    ("com_payment", "pay_external_id", "pay_order_id", payments),
+                    ("com_refund", "refund_external_id", "refund_order_id", refunds),
+                ]:
+                    if recs:
+                        if e := await self._upsert(table, ws, key, recs,
+                                fk_resolutions=[ckit_erp.ErpFKResolution("order_external_id", "com_order", "order_id", fk_to)]):
+                            errors.append(e)
 
         await ckit_erp.patch_erp_record(
             self.fclient, "com_shop", ws, self.shop.shop_id,
@@ -454,76 +504,15 @@ class IntegrationShopify:
             return "Sync errors: " + "; ".join(errors)
         return f"Synced {len(products)} products, {len(orders)} orders for {self.shop.shop_domain}"
 
-    async def _upsert(self, table: str, ws: str, upsert_key: str, recs: list, fk_from: str = "", fk_table: str = "", fk_id: str = "", fk_to: str = "", fk_case_insensitive: bool = False) -> str:
+    async def _upsert(self, table: str, ws: str, upsert_key: str, recs: list, fk_resolutions: list = []) -> str:
         try:
-            res = await ckit_erp.batch_upsert_erp_records(self.fclient, table, ws, upsert_key, recs, fk_from=fk_from, fk_table=fk_table, fk_id=fk_id, fk_to=fk_to, fk_case_insensitive=fk_case_insensitive)
+            res = await ckit_erp.erp_table_batch_upsert(self.fclient, table, ws, upsert_key, recs, fk_resolutions=fk_resolutions)
             if isinstance(res, dict) and res.get("errors"):
                 return f"{table}: {res['failed']} failed — {res['errors']}"
             return ""
         except Exception as e:
             return f"{table} upsert failed: {e}"
 
-    async def _upsert_products(self, products: list) -> Optional[str]:
-        ws, shop_id = self.rcx.persona.ws_id, self.shop.shop_id
-        err = await self._upsert("com_product", ws, "prod_external_id", [_map_product(ws, shop_id, p) for p in products])
-        if err:
-            return err
-        var_records = [_map_variant(ws, v) for p in products for v in (p.get("variants") or [])]
-        if var_records:
-            return await self._upsert("com_product_variant", ws, "pvar_external_id", var_records,
-                fk_from="prod_external_id", fk_table="com_product", fk_id="prod_id", fk_to="pvar_prod_id")
-
-    async def _upsert_orders(self, orders: list) -> Optional[str]:
-        ws, shop_id = self.rcx.persona.ws_id, self.shop.shop_id
-        contacts = {}
-        for o in orders:
-            email = (o.get("email") or o.get("contact_email") or "").strip().lower()
-            if not email or email in contacts:
-                continue
-            c = o.get("customer") or {}
-            addr = (c.get("default_address") or {})
-            contacts[email] = {
-                "ws_id": ws, "contact_email": email,
-                "contact_first_name": c.get("first_name") or "",
-                "contact_last_name": c.get("last_name") or "",
-                "contact_phone": c.get("phone") or "",
-                "contact_address_line1": addr.get("address1") or "",
-                "contact_address_city": addr.get("city") or "",
-                "contact_address_state": addr.get("province") or "",
-                "contact_address_zip": addr.get("zip") or "",
-                "contact_address_country": addr.get("country") or "",
-            }
-        if contacts:
-            await self._upsert("crm_contact", ws, "contact_email", list(contacts.values()))
-        err = await self._upsert("com_order", ws, "order_external_id", [_map_order(ws, shop_id, o) for o in orders],
-            fk_from="contact_email", fk_table="crm_contact", fk_id="contact_id", fk_to="order_contact_id", fk_case_insensitive=True)
-        if err:
-            return err
-
-        items, payments, refunds = [], [], []
-        for o in orders:
-            ext_id = str(o["id"])
-            for li in o.get("line_items") or []:
-                items.append({**_map_line_item(ws, li), "order_external_id": ext_id})
-            for tx in o.get("transactions") or []:
-                if tx.get("kind") not in ("sale", "capture") or tx.get("status") != "success":
-                    continue
-                payments.append({**_map_transaction(ws, tx), "order_external_id": ext_id})
-            for r in o.get("refunds") or []:
-                refunds.append({**_map_refund(ws, r), "order_external_id": ext_id})
-        errors = []
-        for table, key, fk_to, recs in [
-            ("com_order_item", "oitem_external_id", "oitem_order_id", items),
-            ("com_payment", "pay_external_id", "pay_order_id", payments),
-            ("com_refund", "refund_external_id", "refund_order_id", refunds),
-        ]:
-            if recs:
-                e = await self._upsert(table, ws, key, recs,
-                    fk_from="order_external_id", fk_table="com_order", fk_id="order_id", fk_to=fk_to)
-                if e:
-                    errors.append(e)
-        if errors:
-            return "; ".join(errors)
 
     # --- Tool interface ---
 
