@@ -170,6 +170,23 @@ LLM generates tool_call in assistant message
 | `persona_daily_budget` | Daily coin budget |
 | `persona_daily_coins` | Coins spent today |
 
+**RobotContext.external_auth** — OAuth tokens delivered via subscription, no API calls needed:
+```python
+# OAuth provider (token with scopes)
+google_auth = rcx.external_auth.get("google") or {}
+access_token = (google_auth.get("token") or {}).get("access_token", "")
+
+# API key provider (manual key)
+slack_manual = rcx.external_auth.get("slack_manual") or {}
+app_token = slack_manual.get("api_key", "").strip()
+
+# Shopify also has url_template_vars (e.g. {"shop_domain": "mystore.myshopify.com"})
+shopify_auth = rcx.external_auth.get("shopify") or {}
+shop_domain = shopify_auth.get("url_template_vars", {}).get("shop_domain")
+```
+
+Provider keys: `"google"`, `"slack"`, `"slack_manual"`, `"discord"`, `"atlassian"`, `"linkedin"`, `"facebook"`, `"shopify"`
+
 ---
 
 ## Common Bot Patterns
@@ -184,9 +201,9 @@ async def on_change(action, new_record, old_record): ...
 ```
 
 ### Pattern 2: Messenger Bot (karen)
-Reactive listener for Slack/Discord → kanban inbox.
+Reactive listener for Slack/Discord → kanban inbox. Tokens come from `rcx.external_auth` (no manual tokens in setup).
 ```python
-slack = fi_slack.IntegrationSlack(fclient, rcx, SLACK_BOT_TOKEN=..., SLACK_APP_TOKEN=...)
+slack = fi_slack.IntegrationSlack(fclient, rcx, should_join=setup["slack_should_join"])
 slack.set_activity_callback(lambda a, posted: ckit_kanban.bot_kanban_post_into_inbox(...))
 await slack.join_channels(); await slack.start_reactive()
 # In @on_updated_message: await slack.look_assistant_might_have_posted_something(msg)
@@ -420,17 +437,23 @@ Optional: `bs_description`, `bs_order`, `bs_importance`, `bs_placeholder`
 
 ## Available Integrations
 
-| Module | Tool | Purpose | Example Bot |
-|--------|------|---------|-------------|
-| `fi_pdoc` | `POLICY_DOCUMENT_TOOL` | Policy document CRUD | frog, lawyerrat |
-| `fi_mongo_store` | `MONGO_STORE_TOOL` | Personal MongoDB storage | frog, lawyerrat |
-| `fi_slack` | `SLACK_TOOL` | Slack messenger (reactive) | karen |
-| `fi_discord2` | `DISCORD_TOOL` | Discord messenger (reactive) | karen |
-| `fi_telegram` | - | Telegram messenger | - |
-| `fi_gmail` | - | Gmail integration | - |
-| `fi_report` | - | Report generation (PDF) | adspy |
-| `fi_widget` | `PRINT_WIDGET_TOOL` | UI widgets | lawyerrat |
-| `fi_repo_reader` | `REPO_READER_TOOL` | Git repo browsing | karen |
+| Module | Tool | Purpose | Auth key | Example Bot |
+|--------|------|---------|----------|-------------|
+| `fi_pdoc` | `POLICY_DOCUMENT_TOOL` | Policy document CRUD | - | frog, lawyerrat |
+| `fi_mongo_store` | `MONGO_STORE_TOOL` | Personal MongoDB storage | - | frog, lawyerrat |
+| `fi_slack` | `SLACK_TOOL` | Slack messenger (reactive) | `slack`, `slack_manual` | karen |
+| `fi_discord2` | `DISCORD_TOOL` | Discord messenger (reactive) | `discord` | karen |
+| `fi_telegram` | - | Telegram messenger | - | - |
+| `fi_gmail` | - | Gmail integration | `google` | - |
+| `fi_google_calendar` | `GOOGLE_CALENDAR_TOOL` | Google Calendar CRUD | `google` | clerkwing |
+| `fi_google_sheets` | `GOOGLE_SHEETS_TOOL` | Google Sheets CRUD | `google` | - |
+| `fi_google_analytics` | `GOOGLE_ANALYTICS_TOOL` | GA4 reporting | `google` | - |
+| `fi_jira` | `JIRA_TOOL` | Jira + Confluence | `atlassian` | clerkwing |
+| `fi_linkedin` | `LINKEDIN_TOOL` | LinkedIn Ads | `linkedin` | admonster |
+| `fi_shopify` | `SHOPIFY_TOOL` | Shopify store management | `shopify` | - |
+| `fi_report` | - | Report generation (PDF) | - | adspy |
+| `fi_widget` | `PRINT_WIDGET_TOOL` | UI widgets | - | lawyerrat |
+| `fi_repo_reader` | `REPO_READER_TOOL` | Git repo browsing | - | karen |
 
 ### Integration Init Patterns
 
@@ -449,10 +472,8 @@ pdoc = fi_pdoc.IntegrationPdoc(rcx, rcx.persona.ws_root_group_id)
 
 **Slack** (messenger bots):
 ```python
-slack = fi_slack.IntegrationSlack(fclient, rcx,
-    SLACK_BOT_TOKEN=setup["SLACK_BOT_TOKEN"],
-    SLACK_APP_TOKEN=setup["SLACK_APP_TOKEN"],
-    should_join=setup["slack_should_join"])
+# Tokens come from rcx.external_auth["slack"] (OAuth) and rcx.external_auth["slack_manual"] (app token)
+slack = fi_slack.IntegrationSlack(fclient, rcx, should_join=setup["slack_should_join"])
 slack.set_activity_callback(my_callback)
 await slack.join_channels()
 await slack.start_reactive()
@@ -461,8 +482,8 @@ await slack.start_reactive()
 
 **Discord** (messenger bots):
 ```python
-discord = fi_discord2.IntegrationDiscord(fclient, rcx,
-    watch_channels=setup["discord_watch_channels"])
+# Token comes from rcx.external_auth["discord"]["api_key"]
+discord = fi_discord2.IntegrationDiscord(fclient, rcx, watch_channels=setup["discord_watch_channels"])
 discord.set_activity_callback(my_callback)
 await discord.join_channels()
 await discord.start_reactive()
@@ -551,6 +572,25 @@ Required fields for `marketplace_upsert_dev_bot`:
 | `marketable_picture_small_b64` | WEBP, exactly 256x256 pixels |
 | `marketable_experts` | Must include "default" expert, ≤10 experts |
 | `marketable_tags` | Each ≤100 chars |
+| `marketable_auth_needed` | List of required OAuth providers (bot won't run without them) |
+| `marketable_auth_supported` | List of optional OAuth providers |
+| `marketable_auth_scopes` | Dict of provider → list of scopes to request |
+
+**OAuth in install.py** (example):
+```python
+marketable_auth_needed=["google"],        # required, user must connect
+marketable_auth_supported=["atlassian"],  # optional
+marketable_auth_scopes={
+    "google": [
+        "https://www.googleapis.com/auth/calendar",
+        "https://www.googleapis.com/auth/gmail.send",
+    ],
+    "atlassian": [
+        "read:jira-work",
+        "write:jira-work",
+    ],
+},
+```
 
 ---
 
@@ -567,7 +607,7 @@ Required fields for `marketplace_upsert_dev_bot`:
        ↓
 5. Dev container starts with git repo cloned to /workspace
        ↓
-6. Bot runs: python -m mybot.mybot_bot --group=fgroup_id
+6. Bot runs: python -m mybot.mybot_bot
 ```
 
 **Dev container requirements**:
