@@ -450,8 +450,11 @@ class IntegrationShopify:
             else:
                 var_records = [_map_variant(ws, v) for p in products for v in (p.get("variants") or [])]
                 if var_records:
-                    if err := await self._upsert("com_product_variant", ws, "pvar_external_id", var_records,
-                            fk_resolutions=[ckit_erp.ErpFKResolution("prod_external_id", "com_product", "prod_id", "pvar_prod_id")]):
+                    fk_res = ckit_erp.ErpFKResolution(
+                        resolve_by_col="prod_external_id", resolve_from_table="com_product",
+                        resolved_id_col="prod_id", resolved_id_dest_col="pvar_prod_id",
+                    )
+                    if err := await self._upsert("com_product_variant", ws, "pvar_external_id", var_records, fk_resolutions=[fk_res]):
                         errors.append(err)
 
         cutoff = (datetime.now(timezone.utc) - timedelta(days=60)).isoformat()
@@ -471,8 +474,11 @@ class IntegrationShopify:
                     contacts[email] = _map_contact(ws, o)
             if contacts:
                 await self._upsert("crm_contact", ws, "contact_email", list(contacts.values()))
-            if err := await self._upsert("com_order", ws, "order_external_id", [_map_order(ws, shop_id, o) for o in orders],
-                    fk_resolutions=[ckit_erp.ErpFKResolution("contact_email", "crm_contact", "contact_id", "order_contact_id", case_insensitive=True)]):
+            fk_res = ckit_erp.ErpFKResolution(
+                resolve_by_col="contact_email", resolve_from_table="crm_contact",
+                resolved_id_col="contact_id", resolved_id_dest_col="order_contact_id", case_insensitive=True,
+            )
+            if err := await self._upsert("com_order", ws, "order_external_id", [_map_order(ws, shop_id, o) for o in orders], fk_resolutions=[fk_res]):
                 errors.append(err)
             else:
                 items, payments, refunds = [], [], []
@@ -492,8 +498,11 @@ class IntegrationShopify:
                     ("com_refund", "refund_external_id", "refund_order_id", refunds),
                 ]:
                     if recs:
-                        if e := await self._upsert(table, ws, key, recs,
-                                fk_resolutions=[ckit_erp.ErpFKResolution("order_external_id", "com_order", "order_id", fk_to)]):
+                        fk_res = ckit_erp.ErpFKResolution(
+                            resolve_by_col="order_external_id", resolve_from_table="com_order",
+                            resolved_id_col="order_id", resolved_id_dest_col=fk_to,
+                        )
+                        if e := await self._upsert(table, ws, key, recs, fk_resolutions=[fk_res]):
                             errors.append(e)
 
         await ckit_erp.patch_erp_record(
