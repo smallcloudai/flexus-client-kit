@@ -3,6 +3,7 @@ import subprocess
 from setuptools import setup, find_packages
 from setuptools.command.build_py import build_py
 
+
 def get_git_commit():
     try:
         return subprocess.check_output(['git', 'rev-parse', 'HEAD'], stderr=subprocess.DEVNULL).decode().strip()
