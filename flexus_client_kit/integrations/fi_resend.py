@@ -185,20 +185,23 @@ class IntegrationResend:
         if not a.get("html", "") and not a.get("text", ""):
             return "Provide 'html' and/or 'text'"
         http = await self.fclient.use_http()
-        async with http as h:
-            r = await h.execute(gql.gql("""mutation ResendBotSendEmail($input: ResendEmailSendInput!) {
-                resend_email_send(input: $input)
-            }"""), variable_values={"input": {
-                "persona_id": self.rcx.persona.persona_id,
-                "email_from": frm,
-                "email_to": to,
-                "email_subject": a.get("subject", ""),
-                "email_html": a.get("html", ""),
-                "email_text": a.get("text", ""),
-                "email_cc": a.get("cc", []),
-                "email_bcc": a.get("bcc", []),
-                "email_reply_to": a.get("reply_to", ""),
-            }})
+        try:
+            async with http as h:
+                r = await h.execute(gql.gql("""mutation ResendBotSendEmail($input: ResendEmailSendInput!) {
+                    resend_email_send(input: $input)
+                }"""), variable_values={"input": {
+                    "persona_id": self.rcx.persona.persona_id,
+                    "email_from": frm,
+                    "email_to": to,
+                    "email_subject": a.get("subject", ""),
+                    "email_html": a.get("html", ""),
+                    "email_text": a.get("text", ""),
+                    "email_cc": a.get("cc", []),
+                    "email_bcc": a.get("bcc", []),
+                    "email_reply_to": a.get("reply_to", ""),
+                }})
+        except gql.transport.exceptions.TransportQueryError as e:
+            return ckit_cloudtool.gql_error_4xx_to_model_reraise_5xx(e, "email_send")
         rid = r.get("resend_email_send", "")
         logger.info("sent email %s to %s", rid, to)
         return ckit_cloudtool.ToolResult(content=f"Email sent (id: {rid})", dollars=0)
@@ -223,8 +226,11 @@ class IntegrationResend:
         if op in ("verify", "status", "delete") and not gql_input.get("domain_id"):
             return "domain_id is required for " + op
         http = await self.fclient.use_http()
-        async with http as h:
-            r = await h.execute(gql.gql("""mutation ResendBotSetupDomain($input: ResendSetupDomainInput!) {
-                resend_setup_domain(input: $input)
-            }"""), variable_values={"input": gql_input})
+        try:
+            async with http as h:
+                r = await h.execute(gql.gql("""mutation ResendBotSetupDomain($input: ResendSetupDomainInput!) {
+                    resend_setup_domain(input: $input)
+                }"""), variable_values={"input": gql_input})
+        except gql.transport.exceptions.TransportQueryError as e:
+            return ckit_cloudtool.gql_error_4xx_to_model_reraise_5xx(e, "setup_domain")
         return r.get("resend_setup_domain", "")
