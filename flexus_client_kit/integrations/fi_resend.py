@@ -31,7 +31,7 @@ RESEND_SETUP_SCHEMA = [
         "bs_description": "Your own Resend API key. Leave empty to use the managed platform key.",
     },
     {
-        "bs_name": "RESEND_SIGNING_SECRET",
+        "bs_name": "RESEND_WEBHOOK_SECRET",
         "bs_type": "string_long",
         "bs_default": "",
         "bs_group": "Email",
@@ -116,7 +116,7 @@ Receiving emails with your own Resend account (requires RESEND_API_KEY in bot se
     1. In Resend dashboard, create a webhook pointing to: https://flexus.team/v1/webhook/resend/PERSONA_ID
        (use BotPersonaId from your setup config)
     2. Subscribe to event: email.received
-    3. Recommended: copy the signing secret (whsec_...) into RESEND_SIGNING_SECRET in bot setup for security
+    3. Recommended: copy the signing secret (whsec_...) into RESEND_WEBHOOK_SECRET in bot setup for security
 """
 
 
