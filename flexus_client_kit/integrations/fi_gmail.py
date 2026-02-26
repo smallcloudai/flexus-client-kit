@@ -1,5 +1,7 @@
 # Inspired from: https://github.com/n8n-io/n8n/blob/master/packages/nodes-base/nodes/Google/Gmail/V2/GmailV2.node.ts
 
+from __future__ import annotations
+
 import base64
 import logging
 import time
@@ -8,7 +10,10 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email import message_from_string
 from email.policy import default
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional, List, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from flexus_client_kit import ckit_bot_exec
 
 import html2text
 import google.oauth2.credentials
@@ -19,6 +24,7 @@ from flexus_client_kit import ckit_cloudtool
 from flexus_client_kit import ckit_client
 from flexus_client_kit import ckit_erp
 from flexus_client_kit import erp_schema
+from flexus_client_kit.integrations.integration_registry import Integration, register
 
 logger = logging.getLogger("gmail")
 
@@ -671,3 +677,33 @@ class IntegrationGmail:
         self.service.users().threads().delete(userId="me", id=thread_id).execute()
 
         return f"✅ Thread {thread_id} deleted successfully"
+
+
+# ---------------------------------------------------------------------------
+# No-code bot integration registration
+# ---------------------------------------------------------------------------
+
+GMAIL_SCOPES = ["https://www.googleapis.com/auth/gmail.modify"]
+
+
+def _make_gmail_handler(rcx: "ckit_bot_exec.RobotContext"):
+    """Return a handler for the gmail tool, bound to the given rcx."""
+    integration = IntegrationGmail(rcx.fclient, rcx)
+
+    async def handler(toolcall: ckit_cloudtool.FCloudtoolCall, args: Dict[str, Any]) -> str:
+        return await integration.called_by_model(toolcall, args)
+
+    return handler
+
+
+GMAIL = register(Integration(
+    name="gmail",
+    display_name="Gmail",
+    auth_type="oauth",
+    provider="google",
+    scopes=GMAIL_SCOPES,
+    tools=[GMAIL_TOOL],
+    tool_handler_factories={
+        "gmail": _make_gmail_handler,
+    },
+))

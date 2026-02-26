@@ -17,5 +17,6 @@
     "preferred_model_default": "grok-4-1-fast-non-reasoning",
     "daily_budget_default": 100000,
     "default_inbox_default": 10000,
-    "tags": ["Motivation", "Reframing", "Simple"]
+    "tags": ["Motivation", "Reframing", "Simple"],
+    "integrations": ["gmail"]
 }

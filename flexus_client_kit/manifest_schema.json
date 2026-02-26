@@ -120,6 +120,13 @@
             "title": "Tags",
             "items": { "type": "string" },
             "description": "Marketplace tags for discovery and filtering. Example: ['Marketing', 'Strategy', 'Hypothesis Validation']."
+        },
+        "integrations": {
+            "type": "array",
+            "title": "Integrations",
+            "items": { "type": "string" },
+            "description": "List of integration names from INTEGRATION_REGISTRY. Each integration provides OAuth/API-key auth and tools automatically. Example: ['google_calendar', 'github'].",
+            "default": []
         }
     }
 }

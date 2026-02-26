@@ -14,6 +14,7 @@ import langchain_google_community.calendar.toolkit
 from flexus_client_kit import ckit_cloudtool
 from flexus_client_kit import ckit_client
 from flexus_client_kit.integrations import langchain_adapter
+from flexus_client_kit.integrations.integration_registry import Integration, register
 
 logger = logging.getLogger("google_calendar")
 
@@ -167,3 +168,30 @@ class IntegrationGoogleCalendar:
             r += "\n❌ Not authenticated. Please connect Google in workspace settings.\n"
 
         return r
+
+
+# ---------------------------------------------------------------------------
+# No-code bot integration registration
+# ---------------------------------------------------------------------------
+
+def _make_google_calendar_handler(rcx: "ckit_bot_exec.RobotContext"):
+    """Return a handler for the google_calendar tool, bound to the given rcx."""
+    integration = IntegrationGoogleCalendar(rcx.fclient, rcx)
+
+    async def handler(toolcall: ckit_cloudtool.FCloudtoolCall, args: Dict[str, Any]) -> str:
+        return await integration.called_by_model(toolcall, args)
+
+    return handler
+
+
+GOOGLE_CALENDAR = register(Integration(
+    name="google_calendar",
+    display_name="Google Calendar",
+    auth_type="oauth",
+    provider="google",
+    scopes=REQUIRED_SCOPES,
+    tools=[GOOGLE_CALENDAR_TOOL],
+    tool_handler_factories={
+        "google_calendar": _make_google_calendar_handler,
+    },
+))
