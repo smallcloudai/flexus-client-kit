@@ -186,6 +186,7 @@ async def call_python_function_and_save_result(
     service_name: str,
     fclient: ckit_client.FlexusClient,
 ) -> None:
+    result = None
     try:
         args = json.loads(call.fcall_arguments)
         result, prov = await the_python_function(fclient, call, args)
