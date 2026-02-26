@@ -21,15 +21,13 @@ logger = logging.getLogger("teleg")
 
 # Testing telegram with webhook on localhost:
 #
-# npm install --global smee-client
-# Visit https://smee.io/ , click Start a new channel => CHAN
+# Install ngrok: https://ngrok.com/download
+# ngrok http 8008
+# => copy the https://xxx.ngrok-free.app URL
 #
-# In parallel console (unfortunately the complete path needed):
-# smee -u https://smee.io/CHAN --target http://127.0.0.1:8008/v1/webhook/telegram/TELE_BOT_ID
-#
-# In dev console:
-# export FLEXUS_TELEGRAM_WEBHOOK_URL="https://smee.io/CHAN"
-# => start bot
+# In backend console:
+# export WEBHOOK_BASE_URL="https://xxx.ngrok-free.app"
+# => reconnect Telegram in Integrations to register the webhook
 
 
 # Capturing mechanics:
@@ -109,8 +107,6 @@ class IntegrationTelegram:
         self.problems_accumulator: List[str] = []
         if self.webhook_error:
             self.oops_a_problem(f"Telegram webhook error on connect: {self.webhook_error} — reconnect Telegram in Integrations to fix")
-        elif self.bot_token and not self.webhook_secret:
-            self.oops_a_problem("Telegram webhook_secret missing — reconnect Telegram in Integrations to fix")
 
         self.tg_app: Optional[telegram.ext.Application] = None
 

@@ -11,6 +11,18 @@ from flexus_client_kit import ckit_bot_exec, ckit_bot_query, ckit_client, ckit_c
 
 logger = logging.getLogger("resend")
 
+# Testing resend inbound emails on localhost (requires your own Resend account,
+# dev bots cannot use the system Resend key):
+#
+# Connect your Resend account via Integrations page.
+# Install ngrok: https://ngrok.com/download
+# ngrok http 8008
+# => copy the https://xxx.ngrok-free.app URL
+#
+# In backend console:
+# export WEBHOOK_BASE_URL="https://xxx.ngrok-free.app"
+# => reconnect Resend in Integrations to register the webhook
+
 RESEND_BASE = "https://api.resend.com"
 
 
