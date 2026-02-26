@@ -91,10 +91,17 @@ async def edoc_delete_batch(
                 },
             )
             deleted_cnt = r["edoc_delete_multi"]
-            assert deleted_cnt == len(batch), (
-                f"After deleting edoc_ids={edoc_ids!r}, \n"
-                f"server deleted {deleted_cnt} while we requested {len(edoc_ids)}"
-            )
+            if deleted_cnt != len(batch):
+                logger.warning(
+                    "edoc_delete_batch mismatch: requested deletion of %d documents (batch %d/%d), "
+                    "but server deleted %d. Documents may have been already deleted. "
+                    "Batch edoc_ids: %r",
+                    len(batch),
+                    i // MAX_EDOCS_PER_REQ + 1,
+                    (len(edoc_ids) + MAX_EDOCS_PER_REQ - 1) // MAX_EDOCS_PER_REQ,
+                    deleted_cnt,
+                    batch,
+                )
             sum_deleted_cnt += deleted_cnt
     logger.info("Deleted %d edocs from ws %s", sum_deleted_cnt, ws_id)
 
