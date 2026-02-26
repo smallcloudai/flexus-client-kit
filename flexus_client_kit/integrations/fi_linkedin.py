@@ -1,4 +1,5 @@
 import asyncio
+import json
 import logging
 import time
 from dataclasses import dataclass
@@ -12,6 +13,30 @@ from flexus_client_kit import ckit_bot_exec
 
 
 logger = logging.getLogger("linkedin")
+
+PROVIDER_NAME = "linkedin"
+METHOD_IDS = [
+    "linkedin.ad_analytics.get.v1",
+    "linkedin.ad_analytics.query.v1",
+    "linkedin.ad_campaign_groups.create.v1",
+    "linkedin.ad_campaigns.create.v1",
+    "linkedin.creatives.create.v1",
+    "linkedin.creatives.list.v1",
+    "linkedin.organization.followers.stats.v1",
+    "linkedin.organization.posts.list.v1",
+    "linkedin.organization.social_actions.list.v1",
+]
+
+
+class IntegrationLinkedin:
+    async def called_by_model(
+        self,
+        toolcall: ckit_cloudtool.FCloudtoolCall,
+        model_produced_args: Dict[str, Any],
+    ) -> str:
+        args = model_produced_args or {}
+        method_id = str((args.get("args") or {}).get("method_id", "")).strip()
+        return json.dumps({"ok": False, "error_code": "INTEGRATION_UNAVAILABLE", "provider": PROVIDER_NAME, "method_id": method_id, "message": "интеграции еще нет, но вы держитесь"}, indent=2, ensure_ascii=False)
 
 
 AD_ACCOUNT_ID = "513489554"
