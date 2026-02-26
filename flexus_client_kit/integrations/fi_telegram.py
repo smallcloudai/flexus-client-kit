@@ -3,7 +3,6 @@ import base64
 import io
 import json
 import logging
-import os
 import time
 from collections import deque
 from dataclasses import dataclass, field
@@ -106,9 +105,12 @@ class IntegrationTelegram:
         tg_auth = rcx.external_auth.get("telegram") or {}
         self.bot_token = tg_auth.get("api_key", "").strip()
         self.webhook_secret = tg_auth.get("webhook_secret", "")
+        self.webhook_error = tg_auth.get("webhook_error", "")
         self.problems_accumulator: List[str] = []
-        if self.bot_token and not self.webhook_secret:
-            self.oops_a_problem("Telegram webhook_secret missing — re-save Telegram credentials to generate it")
+        if self.webhook_error:
+            self.oops_a_problem(f"Telegram webhook error on connect: {self.webhook_error} — reconnect Telegram in Integrations to fix")
+        elif self.bot_token and not self.webhook_secret:
+            self.oops_a_problem("Telegram webhook_secret missing — reconnect Telegram in Integrations to fix")
 
         self.tg_app: Optional[telegram.ext.Application] = None
 
@@ -134,33 +136,15 @@ class IntegrationTelegram:
         logger.info("%s telegram problem: %s", self.rcx.persona.persona_id, text)
         self.problems_accumulator.append(text)
 
-    async def register_webhook_and_start(self) -> None:
-        if not self.tg_app:
-            return
-        bot_id = self.bot_token.split(":")[0]
-        if webhook_url := os.environ.get("TELEGRAM_WEBHOOK_URL"):
-            pass
-        elif os.environ.get("FLEXUS_ENV") == "production":
-            webhook_url = f"https://flexus.team/v1/webhook/telegram/{bot_id}"
-        elif os.environ.get("FLEXUS_ENV") == "staging":
-            webhook_url = f"https://staging.flexus.team/v1/webhook/telegram/{bot_id}"
-        else:
-            self.oops_a_problem("FLEXUS_ENV must be 'production' or 'staging', or set TELEGRAM_WEBHOOK_URL")
+    async def initialize(self) -> None:
+        if self.webhook_error or not self.tg_app:
             return
         try:
             await self.tg_app.initialize()
-            info = await self.tg_app.bot.get_webhook_info()
-            if info.url != webhook_url:
-                await self.tg_app.bot.set_webhook(webhook_url, secret_token=self.webhook_secret)
-                logger.info("%s telegram bot %s webhook changed to %s", self.rcx.persona.persona_id, bot_id, webhook_url)
-            else:
-                logger.info("%s telegram bot %s webhook stays %s", self.rcx.persona.persona_id, bot_id, webhook_url)
+            logger.info("%s telegram bot %s initialized", self.rcx.persona.persona_id, self.bot_token.split(":")[0])
         except Exception as e:
-            logger.exception("%s telegram failed to set webhook", self.rcx.persona.persona_id)
-            self.oops_a_problem(f"webhook: {type(e).__name__}: {e}")
-
-        # For some reason, even start() is not necessary, it works without it
-        # await self.tg_app.start()
+            logger.exception("%s telegram failed to initialize", self.rcx.persona.persona_id)
+            self.oops_a_problem(f"initialize: {type(e).__name__}: {e}")
 
     def on_incoming_activity(self, handler: Callable[[ActivityTelegram, bool], Awaitable[None]]):
         self._activity_callback = handler

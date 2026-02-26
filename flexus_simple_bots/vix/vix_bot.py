@@ -72,7 +72,7 @@ async def vix_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.Ro
     resend_integration = fi_resend.IntegrationResend(fclient, rcx, resend_domains, email_respond_to)
     shopify = fi_shopify.IntegrationShopify(fclient, rcx)
     telegram = fi_telegram.IntegrationTelegram(fclient, rcx)
-    await telegram.register_webhook_and_start()
+    await telegram.initialize()
 
     @rcx.on_updated_message
     async def updated_message_in_db(msg: ckit_ask_model.FThreadMessageOutput):

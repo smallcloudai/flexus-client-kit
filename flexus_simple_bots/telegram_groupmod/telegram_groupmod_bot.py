@@ -556,7 +556,7 @@ async def telegram_groupmod_main_loop(
             fexp_name="talk_in_dm",
         )
 
-    await tg.register_webhook_and_start()
+    await tg.initialize()
     last_sync = time.time()
     try:
         while not ckit_shutdown.shutdown_event.is_set():
