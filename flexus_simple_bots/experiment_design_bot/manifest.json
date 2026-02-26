@@ -1,0 +1,41 @@
+{
+    "bot_name": "experiment_design_bot",
+    "accent_color": "#475569",
+    "title1": "Experiment Design",
+    "title2": "Test-design and reliability checks",
+    "author": "Flexus",
+    "occupation": "Experiment Architect",
+    "typical_group": "GTM / Experiments",
+    "github_repo": "https://github.com/smallcloudai/flexus-client-kit.git",
+    "tools": [
+        "flexus_policy_document",
+        "print_widget",
+        "experiment_backlog_ops_api",
+        "experiment_runtime_config_api",
+        "experiment_guardrail_metrics_api",
+        "experiment_instrumentation_quality_api"
+    ],
+    "featured_actions": [
+        {
+            "feat_question": "Draft experiment card",
+            "feat_expert": "hypothesis_architect"
+        },
+        {
+            "feat_question": "Run reliability approval",
+            "feat_expert": "reliability_checker"
+        }
+    ],
+    "intro_message": "I turn key GTM risks into executable experiments with guardrails and explicit approval criteria.",
+    "preferred_model_default": "grok-4-1-fast-non-reasoning",
+    "daily_budget_default": 100000,
+    "default_inbox_default": 10000,
+    "tags": [
+        "Experiment",
+        "Hypothesis",
+        "Reliability"
+    ],
+    "schedule": [],
+    "forms": {},
+    "auth_supported": [],
+    "auth_scopes": {}
+}

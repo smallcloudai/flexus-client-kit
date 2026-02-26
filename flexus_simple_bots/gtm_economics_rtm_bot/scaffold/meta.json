@@ -1,0 +1,18 @@
+{
+    "bot_name": "gtm_economics_rtm_bot",
+    "managed_mode": "full_scaffold_managed",
+    "tools": [
+        "flexus_policy_document",
+        "print_widget",
+        "gtm_unit_economics_api",
+        "gtm_media_efficiency_api",
+        "rtm_pipeline_finance_api",
+        "rtm_territory_policy_api"
+    ],
+    "experts": [
+        "default",
+        "unit_economics_modeler",
+        "rtm_rules_architect"
+    ],
+    "skills": []
+}

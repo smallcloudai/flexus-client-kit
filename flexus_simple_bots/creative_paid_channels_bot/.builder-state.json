@@ -1,0 +1,29 @@
+{
+    "builder_mode": "full_scaffold_managed",
+    "managed_files": {
+        "manifest.json": "e81d8cc4314b5a0e04fef574e597f1457ac8976a1cff0a68e10b37e3965ddd5c",
+        "setup_schema.json": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
+        "prompts/personality.md": "5dcef831b821e1f214498d05c356a5b3c0c607c667d8b90053f2ca0b4511d8c6",
+        "README.md": "64e33c0fc2f76f0d3c6270699eb5ad3d351663dd68dbac6b63e3509c151bc833",
+        "prompts/expert_default.md": "3d9e1d729344abfc4523ee8d687a2b14ec0325d1cae195b6c3f52ea53432eef9",
+        "prompts/expert_creative_producer.md": "386ef269ff8275042dd570b10e58257f7aed92a6124f6578c12a740049f86816",
+        "prompts/expert_paid_channel_operator.md": "417dc913695382868b9513f90e928ea8b82b7afdf57bf3277d6d86b678990891",
+        "prompts/skill_skill_meta_ads_execution.md": "5f15c84a4f3faf332e58132450fa12d0164fcafac549b7c048a7fa4e8ee28ce9",
+        "prompts/skill_skill_google_ads_execution.md": "8c8524755f60078be211c5125e9f512d3224e11e254a890008578ceafda278e9",
+        "prompts/skill_skill_x_ads_execution.md": "7f68ed033f8c219aba9e0deb9d2bfba222a33ead153240befba0abff616c0c23",
+        "creative_paid_channels_bot.py": "8319c8f4771a88fd237906bc153ec4e65291d79dce1b88538e6af01e3cd8f309",
+        "creative_paid_channels_install.py": "6d704eab6e8feda9a5467c11d4b9885995cf1f9419cecd8c3c9cc17cf165a61a",
+        "creative_paid_channels_prompts.py": "288db457eedde04e60e661993b7cfef348367523a5d0250f5acf93b61ce1adea",
+        "scaffold/contract.md": "fd5288c04a8767c5c95f73d33ace9c73a5683faecd84d21fb70c1c2713a41add",
+        "scaffold/meta.json": "fa9be9d93aeed6dc75e6b72705dfb636637bffc44318bd846a1620dc4b898dcc",
+        "forms/README.md": "a6674faa04185d56f5092863fd67d590f46213c92029e40e82019ca3437cfc23",
+        "integrations/README.md": "a6179289e7dbc2bc5fc04fd0044daeda9b2d3512890b1d7df8e5095b4c0b2b24",
+        "scenarios/README.md": "b88c39e536d450240d94cf72e3ae7f3088fea73c5cefaf0162bbe92edec69323",
+        "custom/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "custom/hooks.py": "7e38eaeb3625d61cda456a8aee925cd6daa33e8e3feb5aee4fac31a185ec0366",
+        "README.builder.md": "2e88b54c58a7cedeb715bab3dbc13919288220bf4a28092ae9ec14f54ed8e877",
+        "scaffold/input_snapshot_tools.json": "4c8439857fc74519a3a3b00c5d3322d177fde1c5b2a1b64560f44224f4f6f8b2",
+        "scaffold/input_snapshot_experts.json": "223ea034a4775779ce75469ecf680551bfd689ce6ea79381130b80c99130c436",
+        "scaffold/input_snapshot_skills.json": "317c7624d2cac9abc4fe918e2084d859503c99c2078c989e03edc3a7988f31c8"
+    }
+}

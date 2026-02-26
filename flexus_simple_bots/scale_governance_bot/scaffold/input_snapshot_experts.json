@@ -1,0 +1,545 @@
+[
+    {
+        "name": "default",
+        "fexp_description": "Default route for scale governance operations",
+        "fexp_allow_tools": "flexus_policy_document,print_widget,playbook_repo_api,scale_guardrail_monitoring_api,scale_change_execution_api,scale_incident_response_api",
+        "fexp_block_tools": "",
+        "skills": [],
+        "body_md": "Route for scale governance requests when no specific expert is selected. Codify playbooks or operate scale increments with explicit guardrails."
+    },
+    {
+        "name": "playbook_codifier",
+        "fexp_description": "Convert proven operations into versioned playbooks",
+        "fexp_allow_tools": "flexus_policy_document,print_widget,playbook_repo_api,scale_change_execution_api",
+        "fexp_block_tools": "",
+        "skills": [],
+        "pdoc_output_schemas": [
+            {
+                "schema_name": "playbook_library_schema",
+                "schema": {
+                    "type": "object",
+                    "required": [
+                        "artifact_type",
+                        "version",
+                        "playbooks",
+                        "owners",
+                        "last_validation_cycle",
+                        "sources"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                        "artifact_type": {
+                            "type": "string",
+                            "enum": [
+                                "playbook_library"
+                            ]
+                        },
+                        "version": {
+                            "type": "string"
+                        },
+                        "playbooks": {
+                            "type": "array",
+                            "items": {
+                                "type": "object",
+                                "required": [
+                                    "playbook_id",
+                                    "scope",
+                                    "trigger_conditions",
+                                    "steps",
+                                    "owner",
+                                    "version",
+                                    "status",
+                                    "guardrails"
+                                ],
+                                "additionalProperties": false,
+                                "properties": {
+                                    "playbook_id": {
+                                        "type": "string"
+                                    },
+                                    "scope": {
+                                        "type": "string"
+                                    },
+                                    "trigger_conditions": {
+                                        "type": "array",
+                                        "items": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "steps": {
+                                        "type": "array",
+                                        "items": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "owner": {
+                                        "type": "string"
+                                    },
+                                    "version": {
+                                        "type": "string"
+                                    },
+                                    "status": {
+                                        "type": "string",
+                                        "enum": [
+                                            "draft",
+                                            "active",
+                                            "deprecated"
+                                        ]
+                                    },
+                                    "guardrails": {
+                                        "type": "array",
+                                        "items": {
+                                            "type": "string"
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "owners": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        },
+                        "last_validation_cycle": {
+                            "type": "string"
+                        },
+                        "sources": {
+                            "type": "array",
+                            "items": {
+                                "type": "object",
+                                "required": [
+                                    "source_type",
+                                    "source_ref"
+                                ],
+                                "additionalProperties": false,
+                                "properties": {
+                                    "source_type": {
+                                        "type": "string",
+                                        "enum": [
+                                            "api",
+                                            "artifact",
+                                            "tool_output",
+                                            "event_stream",
+                                            "expert_handoff",
+                                            "user_directive"
+                                        ]
+                                    },
+                                    "source_ref": {
+                                        "type": "string"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            {
+                "schema_name": "playbook_change_log_schema",
+                "schema": {
+                    "type": "object",
+                    "required": [
+                        "artifact_type",
+                        "version",
+                        "change_window",
+                        "changes",
+                        "approval_log",
+                        "rollback_notes"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                        "artifact_type": {
+                            "type": "string",
+                            "enum": [
+                                "playbook_change_log"
+                            ]
+                        },
+                        "version": {
+                            "type": "string"
+                        },
+                        "change_window": {
+                            "type": "object",
+                            "required": [
+                                "start_date",
+                                "end_date"
+                            ],
+                            "additionalProperties": false,
+                            "properties": {
+                                "start_date": {
+                                    "type": "string"
+                                },
+                                "end_date": {
+                                    "type": "string"
+                                }
+                            }
+                        },
+                        "changes": {
+                            "type": "array",
+                            "items": {
+                                "type": "object",
+                                "required": [
+                                    "playbook_id",
+                                    "change_type",
+                                    "changed_by",
+                                    "change_reason"
+                                ],
+                                "additionalProperties": false,
+                                "properties": {
+                                    "playbook_id": {
+                                        "type": "string"
+                                    },
+                                    "change_type": {
+                                        "type": "string",
+                                        "enum": [
+                                            "add",
+                                            "update",
+                                            "deprecate"
+                                        ]
+                                    },
+                                    "changed_by": {
+                                        "type": "string"
+                                    },
+                                    "change_reason": {
+                                        "type": "string"
+                                    }
+                                }
+                            }
+                        },
+                        "approval_log": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        },
+                        "rollback_notes": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            },
+            {
+                "schema_name": "operating_sop_compliance_schema",
+                "schema": {
+                    "type": "object",
+                    "required": [
+                        "artifact_type",
+                        "version",
+                        "compliance_window",
+                        "required_processes",
+                        "compliance_rate",
+                        "violations",
+                        "remediations"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                        "artifact_type": {
+                            "type": "string",
+                            "enum": [
+                                "operating_sop_compliance"
+                            ]
+                        },
+                        "version": {
+                            "type": "string"
+                        },
+                        "compliance_window": {
+                            "type": "object",
+                            "required": [
+                                "start_date",
+                                "end_date"
+                            ],
+                            "additionalProperties": false,
+                            "properties": {
+                                "start_date": {
+                                    "type": "string"
+                                },
+                                "end_date": {
+                                    "type": "string"
+                                }
+                            }
+                        },
+                        "required_processes": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        },
+                        "compliance_rate": {
+                            "type": "number",
+                            "minimum": 0,
+                            "maximum": 1
+                        },
+                        "violations": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        },
+                        "remediations": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        ],
+        "body_md": "Produce versioned, auditable operating playbooks and change logs; fail fast when ownership, approval chain, or guardrail mapping is incomplete."
+    },
+    {
+        "name": "scale_guardrail_controller",
+        "fexp_description": "Operate scale increments with explicit guardrail criteria",
+        "fexp_allow_tools": "flexus_policy_document,print_widget,scale_guardrail_monitoring_api,scale_change_execution_api,scale_incident_response_api",
+        "fexp_block_tools": "",
+        "skills": [],
+        "pdoc_output_schemas": [
+            {
+                "schema_name": "scale_increment_plan_schema",
+                "schema": {
+                    "type": "object",
+                    "required": [
+                        "artifact_type",
+                        "version",
+                        "increment_id",
+                        "analysis_window",
+                        "capacity_delta",
+                        "guardrails",
+                        "verification_steps",
+                        "rollback_triggers",
+                        "owner",
+                        "sources"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                        "artifact_type": {
+                            "type": "string",
+                            "enum": [
+                                "scale_increment_plan"
+                            ]
+                        },
+                        "version": {
+                            "type": "string"
+                        },
+                        "increment_id": {
+                            "type": "string"
+                        },
+                        "analysis_window": {
+                            "type": "object",
+                            "required": [
+                                "start_date",
+                                "end_date"
+                            ],
+                            "additionalProperties": false,
+                            "properties": {
+                                "start_date": {
+                                    "type": "string"
+                                },
+                                "end_date": {
+                                    "type": "string"
+                                }
+                            }
+                        },
+                        "capacity_delta": {
+                            "type": "object",
+                            "required": [
+                                "current_capacity",
+                                "target_capacity"
+                            ],
+                            "additionalProperties": false,
+                            "properties": {
+                                "current_capacity": {
+                                    "type": "number",
+                                    "minimum": 0
+                                },
+                                "target_capacity": {
+                                    "type": "number",
+                                    "minimum": 0
+                                }
+                            }
+                        },
+                        "guardrails": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        },
+                        "verification_steps": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        },
+                        "rollback_triggers": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        },
+                        "owner": {
+                            "type": "string"
+                        },
+                        "sources": {
+                            "type": "array",
+                            "items": {
+                                "type": "object",
+                                "required": [
+                                    "source_type",
+                                    "source_ref"
+                                ],
+                                "additionalProperties": false,
+                                "properties": {
+                                    "source_type": {
+                                        "type": "string",
+                                        "enum": [
+                                            "api",
+                                            "artifact",
+                                            "tool_output",
+                                            "event_stream",
+                                            "expert_handoff",
+                                            "user_directive"
+                                        ]
+                                    },
+                                    "source_ref": {
+                                        "type": "string"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            {
+                "schema_name": "scale_rollback_decision_schema",
+                "schema": {
+                    "type": "object",
+                    "required": [
+                        "artifact_type",
+                        "version",
+                        "increment_id",
+                        "decision",
+                        "decision_time",
+                        "triggering_guardrails",
+                        "evidence",
+                        "owner",
+                        "actions"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                        "artifact_type": {
+                            "type": "string",
+                            "enum": [
+                                "scale_rollback_decision"
+                            ]
+                        },
+                        "version": {
+                            "type": "string"
+                        },
+                        "increment_id": {
+                            "type": "string"
+                        },
+                        "decision": {
+                            "type": "string",
+                            "enum": [
+                                "continue",
+                                "pause",
+                                "rollback"
+                            ]
+                        },
+                        "decision_time": {
+                            "type": "string"
+                        },
+                        "triggering_guardrails": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        },
+                        "evidence": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        },
+                        "owner": {
+                            "type": "string"
+                        },
+                        "actions": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            },
+            {
+                "schema_name": "guardrail_breach_incident_schema",
+                "schema": {
+                    "type": "object",
+                    "required": [
+                        "artifact_type",
+                        "version",
+                        "incident_id",
+                        "opened_at",
+                        "breached_guardrails",
+                        "impact_assessment",
+                        "containment_actions",
+                        "resolution_state",
+                        "resolver"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                        "artifact_type": {
+                            "type": "string",
+                            "enum": [
+                                "guardrail_breach_incident"
+                            ]
+                        },
+                        "version": {
+                            "type": "string"
+                        },
+                        "incident_id": {
+                            "type": "string"
+                        },
+                        "opened_at": {
+                            "type": "string"
+                        },
+                        "breached_guardrails": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        },
+                        "impact_assessment": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        },
+                        "containment_actions": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        },
+                        "resolution_state": {
+                            "type": "string",
+                            "enum": [
+                                "open",
+                                "mitigated",
+                                "resolved",
+                                "postmortem_required"
+                            ]
+                        },
+                        "resolver": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        ],
+        "body_md": "Control scale increments with explicit monitor-trigger-action rules; fail fast when guardrail evidence, rollback triggers, or accountable decision ownership is missing."
+    }
+]

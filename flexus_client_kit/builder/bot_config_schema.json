@@ -186,6 +186,14 @@
                 }
             }
         },
+        "builder_mode": {
+            "type": "string",
+            "enum": ["no_special_code", "full_scaffold_managed", "frozen_custom"]
+        },
+        "custom_dir": {
+            "type": "string",
+            "minLength": 1
+        },
         "schedule": {
             "type": "array",
             "items": {

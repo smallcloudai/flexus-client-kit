@@ -1,0 +1,8 @@
+[
+    "flexus_policy_document",
+    "print_widget",
+    "playbook_repo_api",
+    "scale_guardrail_monitoring_api",
+    "scale_change_execution_api",
+    "scale_incident_response_api"
+]

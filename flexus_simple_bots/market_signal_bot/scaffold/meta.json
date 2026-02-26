@@ -1,0 +1,29 @@
+{
+    "bot_name": "market_signal_bot",
+    "managed_mode": "full_scaffold_managed",
+    "tools": [
+        "flexus_policy_document",
+        "print_widget",
+        "signal_search_demand_api",
+        "signal_social_trends_api",
+        "signal_news_events_api",
+        "signal_review_voice_api",
+        "signal_marketplace_demand_api",
+        "signal_web_traffic_intel_api",
+        "signal_jobs_demand_api",
+        "signal_dev_ecosystem_api",
+        "signal_public_interest_api",
+        "signal_professional_network_api"
+    ],
+    "experts": [
+        "default",
+        "market_signal_detector",
+        "signal_boundary_analyst"
+    ],
+    "skills": [
+        "skill_google_trends_signal_detection",
+        "skill_x_signal_detection",
+        "skill_reddit_signal_detection",
+        "skill_web_change_detection"
+    ]
+}

@@ -1,5 +1,6 @@
 import argparse
 import difflib
+import hashlib
 import json
 import logging
 from pathlib import Path
@@ -13,7 +14,13 @@ logger = logging.getLogger("bot_registry_engine")
 
 REGISTRY_SCHEMA = json.loads((Path(__file__).parent / "bot_registry_schema.json").read_text())
 BOT_CONFIG_SCHEMA = json.loads((Path(__file__).parent / "bot_config_schema.json").read_text())
-MANAGED_FILES = ["manifest.json", "setup_schema.json", "README.md", "prompts/personality.md"]
+CORE_MANAGED_FILES = ["manifest.json", "setup_schema.json", "README.md", "prompts/personality.md"]
+BUILDER_STATE_FILE = ".builder-state.json"
+BUILDERIGNORE_FILE = ".builderignore"
+BUILDER_MODE_NO_SPECIAL_CODE = "no_special_code"
+BUILDER_MODE_FULL_SCAFFOLD = "full_scaffold_managed"
+BUILDER_MODE_FROZEN = "frozen_custom"
+ALLOWED_BUILDER_MODES = {BUILDER_MODE_NO_SPECIAL_CODE, BUILDER_MODE_FULL_SCAFFOLD, BUILDER_MODE_FROZEN}
 
 
 def _find_repo_root(start_dir: Path) -> Path:
@@ -52,6 +59,18 @@ def _read_json(path: Path) -> Any:
         raise RuntimeError(f"Cannot read {path}: {e}") from e
 
 
+def _read_json_optional(path: Path) -> dict[str, Any]:
+    try:
+        if not path.exists():
+            return {}
+        raw = _read_json(path)
+        if not isinstance(raw, dict):
+            raise RuntimeError(f"Expected object JSON in {path}")
+        return raw
+    except RuntimeError:
+        raise
+
+
 def _write_text_atomic(path: Path, text: str) -> None:
     try:
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -74,6 +93,68 @@ def write_json_atomic(path: Path, obj: Any) -> None:
         _write_text_atomic(path, _json_text(obj))
     except RuntimeError:
         raise
+
+
+def _text_sha256(text: str) -> str:
+    try:
+        return hashlib.sha256(text.encode("utf-8")).hexdigest()
+    except (UnicodeEncodeError, ValueError) as e:
+        raise RuntimeError(f"Cannot hash text: {e}") from e
+
+
+def _normalize_path_token(raw: str) -> str:
+    return raw.replace("\\", "/").strip("/")
+
+
+def _load_builderignore(repo_root: Path) -> set[str]:
+    try:
+        p = repo_root / BUILDERIGNORE_FILE
+        if not p.exists():
+            return set()
+        out: set[str] = set()
+        for line in p.read_text().splitlines():
+            x = line.strip()
+            if not x or x.startswith("#"):
+                continue
+            out.add(_normalize_path_token(x))
+        return out
+    except OSError as e:
+        raise RuntimeError(f"Cannot read {repo_root / BUILDERIGNORE_FILE}: {e}") from e
+
+
+def _is_ignored_bot(entry: dict[str, Any], ignore_tokens: set[str]) -> bool:
+    try:
+        if not ignore_tokens:
+            return False
+        bot_id = str(entry["bot_id"]).strip()
+        output_dir = _normalize_path_token(str(entry["output_dir"]))
+        output_dir_name = Path(output_dir).name
+        bot_json_path = _normalize_path_token(str(entry["bot_json_path"]))
+        bot_json_name = Path(bot_json_path).name
+        candidates = {
+            bot_id,
+            output_dir,
+            output_dir_name,
+            bot_json_path,
+            bot_json_name,
+        }
+        return len(candidates.intersection(ignore_tokens)) > 0
+    except KeyError as e:
+        raise RuntimeError(f"Registry bot entry missing key: {e}") from e
+
+
+def _builder_mode(bot_cfg: dict[str, Any]) -> str:
+    mode = str(bot_cfg.get("builder_mode", BUILDER_MODE_NO_SPECIAL_CODE))
+    if mode not in ALLOWED_BUILDER_MODES:
+        raise RuntimeError(f"Invalid builder_mode {mode!r}, allowed: {sorted(ALLOWED_BUILDER_MODES)}")
+    return mode
+
+
+def _custom_dir(bot_cfg: dict[str, Any]) -> str:
+    x = str(bot_cfg.get("custom_dir", "custom")).strip()
+    if not x:
+        raise RuntimeError("custom_dir cannot be empty")
+    return x
 
 
 def _build_manifest(bot_cfg: dict[str, Any]) -> dict[str, Any]:
@@ -130,7 +211,7 @@ def _render_expert_md(exp: dict[str, Any]) -> str:
         raise RuntimeError(f"Missing key in expert config: {e}") from e
 
 
-def _render_managed_files(bot_cfg: dict[str, Any]) -> dict[str, str]:
+def _render_core_files(bot_cfg: dict[str, Any]) -> dict[str, str]:
     try:
         files = {
             "manifest.json": _json_text(_build_manifest(bot_cfg)),
@@ -150,6 +231,197 @@ def _render_managed_files(bot_cfg: dict[str, Any]) -> dict[str, str]:
         raise RuntimeError(f"Missing key in bot config while rendering files: {e}") from e
 
 
+def _render_full_scaffold_extras(bot_cfg: dict[str, Any]) -> dict[str, str]:
+    try:
+        bot_name = str(bot_cfg["bot_name"]).strip()
+        module_stem = bot_name[:-4] if bot_name.endswith("_bot") else bot_name
+        custom_dir = _custom_dir(bot_cfg)
+        prompt_module_name = f"{module_stem}_prompts"
+
+        tools_literal = json.dumps(bot_cfg["tools"], indent=4)
+        experts_literal = json.dumps(bot_cfg["experts"], indent=4)
+        skills_literal = json.dumps(bot_cfg.get("skills", []), indent=4)
+
+        prompt_py = (
+            "import json\n\n"
+            f"BOT_PERSONALITY_MD = {json.dumps(str(bot_cfg['personality_md']))}\n"
+            f"BOT_EXPERTS = json.loads({json.dumps(json.dumps(bot_cfg['experts']))})\n"
+            f"BOT_SKILLS = json.loads({json.dumps(json.dumps(bot_cfg.get('skills', [])))})\n"
+        )
+
+        bot_py = (
+            "import sys\n"
+            "from pathlib import Path\n"
+            "from flexus_client_kit.runtime import no_special_code_bot\n\n"
+            "def main() -> None:\n"
+            "    bot_dir = Path(__file__).resolve().parent\n"
+            "    sys.argv = [sys.argv[0], str(bot_dir)]\n"
+            "    no_special_code_bot.main()\n\n"
+            "if __name__ == \"__main__\":\n"
+            "    main()\n"
+        )
+
+        install_py = (
+            "import asyncio\n"
+            "from pathlib import Path\n"
+            "from flexus_client_kit.core import ckit_client\n"
+            "from flexus_client_kit.runtime import no_special_code_bot\n"
+            "from flexus_simple_bots.version_common import SIMPLE_BOTS_COMMON_VERSION\n\n"
+            "def main() -> None:\n"
+            "    bot_dir = Path(__file__).resolve().parent\n"
+            "    manifest = no_special_code_bot.load_manifest(bot_dir)\n"
+            "    tools = no_special_code_bot.tool_registry_lookup(manifest[\"tools\"])\n"
+            f"    client = ckit_client.FlexusClient(\"{bot_name}_install\")\n"
+            "    asyncio.run(no_special_code_bot.install_from_manifest(\n"
+            "        manifest,\n"
+            "        client,\n"
+            "        bot_name=manifest[\"bot_name\"],\n"
+            "        bot_version=SIMPLE_BOTS_COMMON_VERSION,\n"
+            "        tools=tools,\n"
+            "    ))\n\n"
+            "if __name__ == \"__main__\":\n"
+            "    main()\n"
+        )
+
+        custom_init_py = ""
+        custom_hooks_py = (
+            "from typing import Any\n\n"
+            "def register_custom_hooks(rcx: Any, setup: dict[str, Any]) -> None:\n"
+            "    _ = rcx\n"
+            "    _ = setup\n"
+            "    # Add your custom event hooks and tool handlers here.\n"
+            "    return None\n"
+        )
+
+        scaffold_readme = (
+            "# Builder-Managed Full Scaffold\n\n"
+            "This bot is generated in full scaffold mode.\n"
+            f"Custom code belongs to `{custom_dir}/` and is never overwritten by builder.\n"
+        )
+
+        scaffold_meta_json = _json_text(
+            {
+                "bot_name": bot_name,
+                "managed_mode": BUILDER_MODE_FULL_SCAFFOLD,
+                "tools": bot_cfg["tools"],
+                "experts": [x["name"] for x in bot_cfg["experts"]],
+                "skills": [x["name"] for x in bot_cfg.get("skills", [])],
+            }
+        )
+
+        scaffold_contract_md = (
+            "# Full Scaffold Contract\n\n"
+            "- Managed files are regenerated by builder.\n"
+            f"- Custom logic lives only in `{custom_dir}/`.\n"
+            "- If managed files are edited manually, build fails fast unless overwrite is explicit.\n"
+        )
+
+        return {
+            f"{module_stem}_bot.py": bot_py,
+            f"{module_stem}_install.py": install_py,
+            f"{prompt_module_name}.py": prompt_py,
+            "scaffold/contract.md": scaffold_contract_md,
+            "scaffold/meta.json": scaffold_meta_json,
+            "forms/README.md": "Place optional HTML forms here.\n",
+            "integrations/README.md": "Place bot-specific integration adapters here.\n",
+            "scenarios/README.md": "Place scenario yaml files here.\n",
+            f"{custom_dir}/__init__.py": custom_init_py,
+            f"{custom_dir}/hooks.py": custom_hooks_py,
+            "README.builder.md": scaffold_readme,
+            "scaffold/input_snapshot_tools.json": tools_literal + "\n",
+            "scaffold/input_snapshot_experts.json": experts_literal + "\n",
+            "scaffold/input_snapshot_skills.json": skills_literal + "\n",
+        }
+    except (KeyError, TypeError, ValueError) as e:
+        raise RuntimeError(f"Cannot render full scaffold files: {e}") from e
+
+
+def _render_managed_files(bot_cfg: dict[str, Any]) -> dict[str, str]:
+    mode = _builder_mode(bot_cfg)
+    if mode == BUILDER_MODE_FROZEN:
+        return {}
+    files = _render_core_files(bot_cfg)
+    if mode == BUILDER_MODE_FULL_SCAFFOLD:
+        files.update(_render_full_scaffold_extras(bot_cfg))
+    return files
+
+
+def _load_builder_state(out_dir: Path) -> dict[str, Any]:
+    try:
+        return _read_json_optional(out_dir / BUILDER_STATE_FILE)
+    except RuntimeError:
+        raise
+
+
+def _validate_managed_overwrite(
+    out_dir: Path,
+    files_new: dict[str, str],
+    state: dict[str, Any],
+    mode: str,
+) -> None:
+    try:
+        if mode != BUILDER_MODE_FULL_SCAFFOLD:
+            return
+        managed_prev = state.get("managed_files", {})
+        if not isinstance(managed_prev, dict):
+            raise RuntimeError(f"{out_dir / BUILDER_STATE_FILE}: managed_files must be an object")
+        for rel_path, new_text in files_new.items():
+            abs_path = out_dir / rel_path
+            if not abs_path.exists():
+                continue
+            old_text = abs_path.read_text()
+            new_hash = _text_sha256(new_text)
+            if rel_path in managed_prev:
+                old_hash_expected = str(managed_prev[rel_path])
+                old_hash_actual = _text_sha256(old_text)
+                if old_hash_actual != old_hash_expected and old_hash_actual != new_hash:
+                    raise RuntimeError(
+                        f"{abs_path}: managed file was edited outside builder; refuse overwrite (move changes to custom/ or reset file)"
+                    )
+            else:
+                if old_text != new_text:
+                    raise RuntimeError(
+                        f"{abs_path}: exists but not managed by builder; refuse overwrite in full_scaffold_managed mode"
+                    )
+    except OSError as e:
+        raise RuntimeError(f"Cannot validate managed overwrite in {out_dir}: {e}") from e
+
+
+def _collect_stale_managed_files(
+    out_dir: Path,
+    state: dict[str, Any],
+    files_new: dict[str, str],
+) -> list[Path]:
+    try:
+        managed_prev = state.get("managed_files", {})
+        if not isinstance(managed_prev, dict):
+            return []
+        stale: list[Path] = []
+        for rel_path in managed_prev.keys():
+            if rel_path in files_new:
+                continue
+            p = out_dir / rel_path
+            if p.exists():
+                stale.append(p)
+        return stale
+    except OSError as e:
+        raise RuntimeError(f"Cannot collect stale managed files in {out_dir}: {e}") from e
+
+
+def _write_builder_state(out_dir: Path, mode: str, files_new: dict[str, str], apply_changes: bool) -> None:
+    try:
+        if mode != BUILDER_MODE_FULL_SCAFFOLD:
+            return
+        state_obj = {
+            "builder_mode": mode,
+            "managed_files": {rel: _text_sha256(text) for rel, text in files_new.items()},
+        }
+        if apply_changes:
+            write_json_atomic(out_dir / BUILDER_STATE_FILE, state_obj)
+    except RuntimeError:
+        raise
+
+
 def _diff_text(old: str, new: str, rel_path: str) -> str:
     try:
         return "".join(difflib.unified_diff(
@@ -166,6 +438,9 @@ def _diff_text(old: str, new: str, rel_path: str) -> str:
 def _validate_bot_config(bot_cfg: dict[str, Any], bot_json_path: Path) -> None:
     try:
         jsonschema.validate(bot_cfg, BOT_CONFIG_SCHEMA)
+        mode = _builder_mode(bot_cfg)
+        if mode == BUILDER_MODE_FROZEN:
+            return
         if "default" not in {exp["name"] for exp in bot_cfg["experts"]}:
             raise ValueError(f"{bot_json_path}: experts must include 'default'")
         for t in bot_cfg["tools"]:
@@ -207,6 +482,8 @@ def load_registry(registry_path: Path) -> tuple[dict[str, Any], Path]:
         ids = [x["bot_id"] for x in reg["bots"]]
         if len(ids) != len(set(ids)):
             raise ValueError("Duplicate bot_id in registry")
+        ignored = _load_builderignore(repo_root)
+        reg["bots"] = [x for x in reg["bots"] if not _is_ignored_bot(x, ignored)]
         return reg, repo_root
     except jsonschema.ValidationError as e:
         raise RuntimeError(f"{registry_path}: schema validation failed: {e.message}") from e
@@ -222,12 +499,14 @@ def validate_registry_and_bots(registry_path: Path) -> dict[str, Any]:
             bot_json_path = _resolve_input_path(b["bot_json_path"], registry_path.parent, repo_root)
             bot_cfg = _read_json(bot_json_path)
             _validate_bot_config(bot_cfg, bot_json_path)
+            mode = _builder_mode(bot_cfg)
             out["bots"].append({
                 "bot_id": b["bot_id"],
                 "enabled": b["enabled"],
                 "bot_json_path": str(bot_json_path),
                 "output_dir": str(_resolve_input_path(b["output_dir"], registry_path.parent, repo_root)),
                 "bot_name": bot_cfg["bot_name"],
+                "builder_mode": mode,
             })
         return out
     except RuntimeError:
@@ -247,13 +526,28 @@ def build_from_registry(registry_path: Path, apply_changes: bool, bot_id: str | 
             out_dir = _resolve_input_path(b["output_dir"], registry_path.parent, repo_root)
             bot_cfg = _read_json(bot_json_path)
             _validate_bot_config(bot_cfg, bot_json_path)
+            mode = _builder_mode(bot_cfg)
             if bot_cfg["bot_name"] != b["bot_id"]:
                 raise RuntimeError(f"{bot_json_path}: bot_name {bot_cfg['bot_name']!r} must match registry bot_id {b['bot_id']!r}")
+            if mode == BUILDER_MODE_FROZEN:
+                result["bots"].append({
+                    "bot_id": b["bot_id"],
+                    "bot_json_path": str(bot_json_path),
+                    "output_dir": str(out_dir),
+                    "builder_mode": mode,
+                    "files": [],
+                    "skipped_reason": "builder_mode=frozen_custom",
+                })
+                continue
             files = _render_managed_files(bot_cfg)
+            state = _load_builder_state(out_dir)
+            _validate_managed_overwrite(out_dir, files, state, mode)
+            stale_paths = _collect_stale_managed_files(out_dir, state, files)
             bot_res = {
                 "bot_id": b["bot_id"],
                 "bot_json_path": str(bot_json_path),
                 "output_dir": str(out_dir),
+                "builder_mode": mode,
                 "files": [],
             }
             for rel_path, new_text in files.items():
@@ -271,6 +565,18 @@ def build_from_registry(registry_path: Path, apply_changes: bool, bot_id: str | 
                     "status": status,
                     "diff": diff_text,
                 })
+            for stale in stale_paths:
+                rel = str(stale.relative_to(out_dir))
+                old_text = stale.read_text()
+                diff_text = _diff_text(old_text, "", rel)
+                if apply_changes:
+                    stale.unlink()
+                bot_res["files"].append({
+                    "path": str(stale),
+                    "status": "deleted",
+                    "diff": diff_text,
+                })
+            _write_builder_state(out_dir, mode, files, apply_changes)
             result["bots"].append(bot_res)
         if bot_id and len(result["bots"]) == 0:
             raise RuntimeError(f"Enabled bot not found for bot_id={bot_id}")

@@ -1,0 +1,9 @@
+[
+    "flexus_policy_document",
+    "print_widget",
+    "segment_crm_signal_api",
+    "segment_firmographic_enrichment_api",
+    "segment_technographic_profile_api",
+    "segment_market_traction_api",
+    "segment_intent_signal_api"
+]

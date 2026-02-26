@@ -1,0 +1,386 @@
+{
+  "bot_name": "creative_paid_channels_bot",
+  "accent_color": "#BE185D",
+  "title1": "Creative and Paid Channels",
+  "title2": "Creative variants and one-platform paid tests",
+  "author": "Flexus",
+  "occupation": "Paid Growth Operator",
+  "typical_group": "GTM / Demand",
+  "github_repo": "https://github.com/smallcloudai/flexus-client-kit.git",
+  "tools": [
+    "flexus_policy_document",
+    "print_widget",
+    "creative_asset_ops_api",
+    "paid_channel_execution_api",
+    "paid_channel_measurement_api",
+    "creative_feedback_capture_api"
+  ],
+  "featured_actions": [
+    {"feat_question": "Generate creative variant pack", "feat_expert": "creative_producer"},
+    {"feat_question": "Launch one-platform paid test", "feat_expert": "paid_channel_operator"}
+  ],
+  "intro_message": "I create testable creatives and run controlled paid-channel tests.",
+  "preferred_model_default": "grok-4-1-fast-non-reasoning",
+  "daily_budget_default": 100000,
+  "default_inbox_default": 10000,
+  "tags": ["Creative", "Paid", "Acquisition"],
+  "personality_md": "You are a Creative and Paid Channels bot. You work as Paid Growth Operator. Create testable creatives and run controlled paid-channel tests with strict guardrails. Never invent evidence, never hide uncertainty, and always emit structured artifacts for downstream use.",
+  "experts": [
+    {
+      "name": "default",
+      "fexp_description": "Default route for creative and paid channel operations",
+      "fexp_allow_tools": "flexus_policy_document,print_widget,creative_asset_ops_api,paid_channel_execution_api,paid_channel_measurement_api,creative_feedback_capture_api",
+      "fexp_block_tools": "",
+      "skills": ["skill_meta_ads_execution", "skill_google_ads_execution", "skill_x_ads_execution"],
+      "body_md": "Route to creative production or paid channel execution based on user intent; emit structured artifacts with traceability."
+    },
+    {
+      "name": "creative_producer",
+      "fexp_description": "Generate and version creative variants",
+      "fexp_allow_tools": "flexus_policy_document,print_widget,creative_asset_ops_api,creative_feedback_capture_api,paid_channel_measurement_api",
+      "fexp_block_tools": "",
+      "skills": [],
+      "pdoc_output_schemas": [
+        {
+          "schema_name": "creative_variant_pack_schema",
+          "schema": {
+            "type": "object",
+            "required": ["artifact_type", "version", "hypothesis_ref", "target_segment", "variants", "format_constraints", "tone_constraints", "disallowed_claims", "sources"],
+            "additionalProperties": false,
+            "properties": {
+              "artifact_type": {"type": "string", "enum": ["creative_variant_pack"]},
+              "version": {"type": "string"},
+              "hypothesis_ref": {"type": "string"},
+              "target_segment": {"type": "string"},
+              "variants": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": ["variant_id", "concept", "hook", "primary_message", "cta", "channels", "asset_specs"],
+                  "additionalProperties": false,
+                  "properties": {
+                    "variant_id": {"type": "string"},
+                    "concept": {"type": "string"},
+                    "hook": {"type": "string"},
+                    "primary_message": {"type": "string"},
+                    "cta": {"type": "string"},
+                    "channels": {"type": "array", "items": {"type": "string"}},
+                    "asset_specs": {
+                      "type": "object",
+                      "required": ["format", "aspect_ratio"],
+                      "additionalProperties": false,
+                      "properties": {
+                        "format": {"type": "string"},
+                        "aspect_ratio": {"type": "string"},
+                        "duration_seconds": {"type": "number", "minimum": 0},
+                        "max_text_density": {"type": "string"}
+                      }
+                    }
+                  }
+                }
+              },
+              "format_constraints": {"type": "array", "items": {"type": "string"}},
+              "tone_constraints": {"type": "array", "items": {"type": "string"}},
+              "disallowed_claims": {"type": "array", "items": {"type": "string"}},
+              "sources": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": ["source_type", "source_ref"],
+                  "additionalProperties": false,
+                  "properties": {
+                    "source_type": {"type": "string", "enum": ["api", "artifact", "tool_output", "event_stream", "expert_handoff", "user_directive"]},
+                    "source_ref": {"type": "string"}
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "schema_name": "creative_asset_manifest_schema",
+          "schema": {
+            "type": "object",
+            "required": ["artifact_type", "version", "manifest_id", "assets", "qa_status", "blocking_issues"],
+            "additionalProperties": false,
+            "properties": {
+              "artifact_type": {"type": "string", "enum": ["creative_asset_manifest"]},
+              "version": {"type": "string"},
+              "manifest_id": {"type": "string"},
+              "assets": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": ["asset_id", "variant_id", "platform", "asset_ref", "status"],
+                  "additionalProperties": false,
+                  "properties": {
+                    "asset_id": {"type": "string"},
+                    "variant_id": {"type": "string"},
+                    "platform": {"type": "string"},
+                    "asset_ref": {"type": "string"},
+                    "status": {"type": "string", "enum": ["draft", "ready", "rejected"]},
+                    "qa_checks": {"type": "array", "items": {"type": "string"}}
+                  }
+                }
+              },
+              "qa_status": {"type": "string", "enum": ["pass", "warn", "fail"]},
+              "blocking_issues": {"type": "array", "items": {"type": "string"}}
+            }
+          }
+        },
+        {
+          "schema_name": "creative_claim_risk_register_schema",
+          "schema": {
+            "type": "object",
+            "required": ["artifact_type", "version", "claims", "high_risk_claims", "required_proofs"],
+            "additionalProperties": false,
+            "properties": {
+              "artifact_type": {"type": "string", "enum": ["creative_claim_risk_register"]},
+              "version": {"type": "string"},
+              "claims": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": ["claim_id", "claim_text", "risk_level", "substantiation_status"],
+                  "additionalProperties": false,
+                  "properties": {
+                    "claim_id": {"type": "string"},
+                    "claim_text": {"type": "string"},
+                    "risk_level": {"type": "string", "enum": ["low", "medium", "high"]},
+                    "substantiation_status": {"type": "string", "enum": ["verified", "partially_verified", "unverified"]}
+                  }
+                }
+              },
+              "high_risk_claims": {"type": "array", "items": {"type": "string"}},
+              "required_proofs": {"type": "array", "items": {"type": "string"}}
+            }
+          }
+        }
+      ],
+      "body_md": "Generate and QA creative variants that can be shipped to paid channels; fail fast when platform specs, claim substantiation, or asset quality gates are not satisfied."
+    },
+    {
+      "name": "paid_channel_operator",
+      "fexp_description": "Run one-platform paid tests with guardrails",
+      "fexp_allow_tools": "flexus_policy_document,print_widget,paid_channel_execution_api,paid_channel_measurement_api,creative_asset_ops_api",
+      "fexp_block_tools": "",
+      "skills": ["skill_meta_ads_execution", "skill_google_ads_execution", "skill_x_ads_execution"],
+      "pdoc_output_schemas": [
+        {
+          "schema_name": "paid_channel_test_plan_schema",
+          "schema": {
+            "type": "object",
+            "required": ["artifact_type", "version", "test_id", "platform", "campaign_structure", "targeting", "budget_guardrails", "run_window", "success_metrics", "stop_conditions"],
+            "additionalProperties": false,
+            "properties": {
+              "artifact_type": {"type": "string", "enum": ["paid_channel_test_plan"]},
+              "version": {"type": "string"},
+              "test_id": {"type": "string"},
+              "platform": {"type": "string", "enum": ["meta", "google_ads", "linkedin", "x_ads"]},
+              "campaign_structure": {
+                "type": "object",
+                "required": ["objective", "campaign_name", "adset_or_adgroup_strategy"],
+                "additionalProperties": false,
+                "properties": {
+                  "objective": {"type": "string"},
+                  "campaign_name": {"type": "string"},
+                  "adset_or_adgroup_strategy": {"type": "string"}
+                }
+              },
+              "targeting": {"type": "array", "items": {"type": "string"}},
+              "budget_guardrails": {
+                "type": "object",
+                "required": ["daily_cap", "total_cap"],
+                "additionalProperties": false,
+                "properties": {
+                  "daily_cap": {"type": "number", "minimum": 0},
+                  "total_cap": {"type": "number", "minimum": 0}
+                }
+              },
+              "run_window": {
+                "type": "object",
+                "required": ["start_date", "end_date"],
+                "additionalProperties": false,
+                "properties": {
+                  "start_date": {"type": "string"},
+                  "end_date": {"type": "string"}
+                }
+              },
+              "success_metrics": {"type": "array", "items": {"type": "string"}},
+              "stop_conditions": {"type": "array", "items": {"type": "string"}}
+            }
+          }
+        },
+        {
+          "schema_name": "paid_channel_result_schema",
+          "schema": {
+            "type": "object",
+            "required": ["artifact_type", "version", "platform", "campaign_ref", "spend", "performance_summary", "guardrail_status", "decision", "decision_reason", "next_step", "sources"],
+            "additionalProperties": false,
+            "properties": {
+              "artifact_type": {"type": "string", "enum": ["paid_channel_result"]},
+              "version": {"type": "string"},
+              "platform": {"type": "string"},
+              "campaign_ref": {"type": "string"},
+              "spend": {"type": "number", "minimum": 0},
+              "performance_summary": {
+                "type": "object",
+                "required": ["impressions", "clicks", "ctr", "cpc", "conversions", "cpa"],
+                "additionalProperties": false,
+                "properties": {
+                  "impressions": {"type": "number", "minimum": 0},
+                  "clicks": {"type": "number", "minimum": 0},
+                  "ctr": {"type": "number", "minimum": 0},
+                  "cpc": {"type": "number", "minimum": 0},
+                  "conversions": {"type": "number", "minimum": 0},
+                  "cpa": {"type": "number", "minimum": 0}
+                }
+              },
+              "guardrail_status": {"type": "string", "enum": ["safe", "warning", "breached"]},
+              "decision": {"type": "string", "enum": ["continue", "iterate", "stop"]},
+              "decision_reason": {"type": "string"},
+              "next_step": {"type": "string"},
+              "sources": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": ["source_type", "source_ref"],
+                  "additionalProperties": false,
+                  "properties": {
+                    "source_type": {"type": "string", "enum": ["api", "artifact", "tool_output", "event_stream", "expert_handoff", "user_directive"]},
+                    "source_ref": {"type": "string"}
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "schema_name": "paid_channel_budget_guardrail_schema",
+          "schema": {
+            "type": "object",
+            "required": ["artifact_type", "version", "campaign_ref", "planned_budget", "actual_spend", "breaches", "recommended_controls"],
+            "additionalProperties": false,
+            "properties": {
+              "artifact_type": {"type": "string", "enum": ["paid_channel_budget_guardrail"]},
+              "version": {"type": "string"},
+              "campaign_ref": {"type": "string"},
+              "planned_budget": {
+                "type": "object",
+                "required": ["daily_cap", "total_cap"],
+                "additionalProperties": false,
+                "properties": {
+                  "daily_cap": {"type": "number", "minimum": 0},
+                  "total_cap": {"type": "number", "minimum": 0}
+                }
+              },
+              "actual_spend": {
+                "type": "object",
+                "required": ["daily_spend", "total_spend"],
+                "additionalProperties": false,
+                "properties": {
+                  "daily_spend": {"type": "number", "minimum": 0},
+                  "total_spend": {"type": "number", "minimum": 0}
+                }
+              },
+              "breaches": {"type": "array", "items": {"type": "string"}},
+              "recommended_controls": {"type": "array", "items": {"type": "string"}}
+            }
+          }
+        }
+      ],
+      "body_md": "Execute one-platform paid tests with strict spend and performance guardrails; fail fast when budget controls, metric quality, or channel readiness checks are insufficient."
+    }
+  ],
+  "skills": [
+    {
+      "name": "skill_meta_ads_execution",
+      "description": "Meta Ads single-platform execution discipline",
+      "body_md": "Execute one-platform Meta test, honor spend cap, and emit traceable test metrics."
+    },
+    {
+      "name": "skill_google_ads_execution",
+      "description": "Google Ads single-platform execution discipline",
+      "body_md": "Execute one-platform Google Ads test with guardrails and structured result output."
+    },
+    {
+      "name": "skill_x_ads_execution",
+      "description": "X Ads single-platform execution discipline",
+      "body_md": "Execute one-platform X Ads test with controlled spend and auditable metrics."
+    }
+  ],
+  "setup_schema": [],
+  "builder_mode": "full_scaffold_managed",
+  "custom_dir": "custom",
+  "schedule": [],
+  "forms": {},
+  "auth_supported": [],
+  "auth_scopes": {},
+  "required_tool_prompt_files": [
+    "prompts/tool_creative_asset_ops_api.md",
+    "prompts/tool_paid_channel_execution_api.md",
+    "prompts/tool_paid_channel_measurement_api.md",
+    "prompts/tool_creative_feedback_capture_api.md",
+    "prompts/tool_flexus_policy_document.md",
+    "prompts/tool_print_widget.md"
+  ],
+  "tool_catalog": {
+    "creative_asset_ops_api": {
+      "integration_mode": "Request/Response",
+      "apis": ["Meta Marketing API", "Google Ads API", "LinkedIn Marketing API"],
+      "method_ids": [
+        "meta.adcreatives.create.v1",
+        "meta.adimages.create.v1",
+        "meta.adcreatives.list.v1",
+        "google_ads.ad_group_ad.create.v1",
+        "google_ads.asset.create.v1",
+        "linkedin.creatives.create.v1",
+        "linkedin.creatives.list.v1"
+      ],
+      "notes": ["Call contract: creative_asset_ops_api(op=\"<operation>\", args={...}); default op fallback is help"]
+    },
+    "paid_channel_execution_api": {
+      "integration_mode": "Request/Response",
+      "apis": ["Meta Marketing API", "Google Ads API", "LinkedIn Marketing API", "X Ads API"],
+      "method_ids": [
+        "meta.campaigns.create.v1",
+        "meta.adsets.create.v1",
+        "meta.ads_insights.get.v1",
+        "google_ads.campaigns.mutate.v1",
+        "google_ads.search_stream.query.v1",
+        "linkedin.ad_campaign_groups.create.v1",
+        "linkedin.ad_campaigns.create.v1",
+        "linkedin.ad_analytics.get.v1",
+        "x_ads.campaigns.create.v1",
+        "x_ads.line_items.create.v1",
+        "x_ads.stats.query.v1"
+      ],
+      "notes": ["Channel launch operations require account-level permissions and payment readiness; fail fast when account state is not launch-ready."]
+    },
+    "paid_channel_measurement_api": {
+      "integration_mode": "Request/Response",
+      "apis": ["Google Analytics Data API", "PostHog Insights API", "Mixpanel Query API", "Amplitude Dashboard REST API"],
+      "method_ids": [
+        "ga4.properties.run_report.v1",
+        "posthog.insights.trend.query.v1",
+        "posthog.insights.funnel.query.v1",
+        "mixpanel.funnels.query.v1",
+        "mixpanel.retention.query.v1",
+        "amplitude.dashboardrest.chart.get.v1"
+      ],
+      "notes": ["Attribution and conversion definitions differ across analytics providers; normalize metric contracts before comparing channel performance."]
+    },
+    "creative_feedback_capture_api": {
+      "integration_mode": "Request/Response",
+      "apis": ["Intercom Conversations API", "Typeform Responses API", "SurveyMonkey API"],
+      "method_ids": [
+        "intercom.conversations.list.v1",
+        "intercom.conversations.search.v1",
+        "typeform.responses.list.v1",
+        "surveymonkey.surveys.responses.list.v1"
+      ],
+      "notes": ["Feedback samples can be biased by channel mix and response timing; require minimum sample and segment balance checks before optimization decisions."]
+    }
+  },
+  "readme_md": "## Creative and Paid Channels Bot\n\nCreative and Paid Channels Bot creates testable creatives and runs controlled paid-channel tests. Generate creative variant packs and launch one-platform paid tests with strict spend and performance guardrails."
+}

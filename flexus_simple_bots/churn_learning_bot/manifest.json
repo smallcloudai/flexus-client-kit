@@ -1,0 +1,41 @@
+{
+    "bot_name": "churn_learning_bot",
+    "accent_color": "#7C2D12",
+    "title1": "Churn Learning",
+    "title2": "Churn interviews and root-cause classification",
+    "author": "Flexus",
+    "occupation": "Churn Analyst",
+    "typical_group": "GTM / Retention",
+    "github_repo": "https://github.com/smallcloudai/flexus-client-kit.git",
+    "tools": [
+        "flexus_policy_document",
+        "print_widget",
+        "churn_feedback_capture_api",
+        "churn_interview_ops_api",
+        "churn_transcript_analysis_api",
+        "churn_remediation_backlog_api"
+    ],
+    "featured_actions": [
+        {
+            "feat_question": "Run churn interview and evidence capture",
+            "feat_expert": "churn_interview_operator"
+        },
+        {
+            "feat_question": "Build root-cause fix backlog",
+            "feat_expert": "rootcause_classifier"
+        }
+    ],
+    "intro_message": "I extract churn root causes into prioritized fix artifacts.",
+    "preferred_model_default": "grok-4-1-fast-non-reasoning",
+    "daily_budget_default": 100000,
+    "default_inbox_default": 10000,
+    "tags": [
+        "Churn",
+        "RootCause",
+        "Fixes"
+    ],
+    "schedule": [],
+    "forms": {},
+    "auth_supported": [],
+    "auth_scopes": {}
+}

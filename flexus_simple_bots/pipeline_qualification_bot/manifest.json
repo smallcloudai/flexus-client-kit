@@ -1,0 +1,41 @@
+{
+    "bot_name": "pipeline_qualification_bot",
+    "accent_color": "#0369A1",
+    "title1": "Pipeline Qualification",
+    "title2": "Prospecting and qualification mapping",
+    "author": "Flexus",
+    "occupation": "Pipeline Operator",
+    "typical_group": "GTM / Pipeline",
+    "github_repo": "https://github.com/smallcloudai/flexus-client-kit.git",
+    "tools": [
+        "flexus_policy_document",
+        "print_widget",
+        "pipeline_crm_api",
+        "pipeline_prospecting_enrichment_api",
+        "pipeline_outreach_execution_api",
+        "pipeline_engagement_signal_api"
+    ],
+    "featured_actions": [
+        {
+            "feat_question": "Run prospecting batch",
+            "feat_expert": "prospect_acquisition_operator"
+        },
+        {
+            "feat_question": "Build qualification map",
+            "feat_expert": "qualification_mapper"
+        }
+    ],
+    "intro_message": "I generate qualified early pipeline and qualification artifacts.",
+    "preferred_model_default": "grok-4-1-fast-non-reasoning",
+    "daily_budget_default": 100000,
+    "default_inbox_default": 10000,
+    "tags": [
+        "Pipeline",
+        "Prospecting",
+        "Qualification"
+    ],
+    "schedule": [],
+    "forms": {},
+    "auth_supported": [],
+    "auth_scopes": {}
+}

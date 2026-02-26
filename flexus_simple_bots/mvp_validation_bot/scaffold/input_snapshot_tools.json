@@ -1,0 +1,8 @@
+[
+    "flexus_policy_document",
+    "print_widget",
+    "mvp_experiment_orchestration_api",
+    "mvp_telemetry_api",
+    "mvp_feedback_capture_api",
+    "mvp_instrumentation_health_api"
+]

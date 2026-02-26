@@ -1,0 +1,41 @@
+{
+    "bot_name": "pilot_delivery_bot",
+    "accent_color": "#15803D",
+    "title1": "Pilot Delivery",
+    "title2": "Paid pilot contracting and first value delivery",
+    "author": "Flexus",
+    "occupation": "Pilot Delivery Manager",
+    "typical_group": "GTM / Delivery",
+    "github_repo": "https://github.com/smallcloudai/flexus-client-kit.git",
+    "tools": [
+        "flexus_policy_document",
+        "print_widget",
+        "pilot_contracting_api",
+        "pilot_delivery_ops_api",
+        "pilot_usage_evidence_api",
+        "pilot_stakeholder_sync_api"
+    ],
+    "featured_actions": [
+        {
+            "feat_question": "Prepare pilot contracting packet",
+            "feat_expert": "pilot_contracting_operator"
+        },
+        {
+            "feat_question": "Execute first value delivery",
+            "feat_expert": "first_value_delivery_operator"
+        }
+    ],
+    "intro_message": "I convert qualified opportunities into paid pilot outcomes.",
+    "preferred_model_default": "grok-4-1-fast-non-reasoning",
+    "daily_budget_default": 100000,
+    "default_inbox_default": 10000,
+    "tags": [
+        "Pilot",
+        "Delivery",
+        "Activation"
+    ],
+    "schedule": [],
+    "forms": {},
+    "auth_supported": [],
+    "auth_scopes": {}
+}

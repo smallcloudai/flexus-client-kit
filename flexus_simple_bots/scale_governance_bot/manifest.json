@@ -1,0 +1,41 @@
+{
+    "bot_name": "scale_governance_bot",
+    "accent_color": "#1E293B",
+    "title1": "Scale Governance",
+    "title2": "Playbooks, guardrails, and controlled scaling",
+    "author": "Flexus",
+    "occupation": "Operations Governor",
+    "typical_group": "Ops / Governance",
+    "github_repo": "https://github.com/smallcloudai/flexus-client-kit.git",
+    "tools": [
+        "flexus_policy_document",
+        "print_widget",
+        "playbook_repo_api",
+        "scale_guardrail_monitoring_api",
+        "scale_change_execution_api",
+        "scale_incident_response_api"
+    ],
+    "featured_actions": [
+        {
+            "feat_question": "Generate and version playbook set",
+            "feat_expert": "playbook_codifier"
+        },
+        {
+            "feat_question": "Approve guarded scale increment",
+            "feat_expert": "scale_guardrail_controller"
+        }
+    ],
+    "intro_message": "I codify operating playbooks and guardrail-controlled scale increments.",
+    "preferred_model_default": "grok-4-1-fast-non-reasoning",
+    "daily_budget_default": 100000,
+    "default_inbox_default": 10000,
+    "tags": [
+        "Scale",
+        "Governance",
+        "Playbooks"
+    ],
+    "schedule": [],
+    "forms": {},
+    "auth_supported": [],
+    "auth_scopes": {}
+}

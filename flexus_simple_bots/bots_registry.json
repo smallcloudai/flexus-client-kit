@@ -1,0 +1,22 @@
+{
+  "registry_version": 1,
+  "bots": [
+    {"bot_id": "otter", "enabled": true, "bot_json_path": "flexus_simple_bots/bot_configs/otter.bot.json", "output_dir": "flexus_simple_bots/otter"},
+    {"bot_id": "market_signal_bot", "enabled": true, "bot_json_path": "flexus_simple_bots/bot_configs/market_signal_bot.bot.json", "output_dir": "flexus_simple_bots/market_signal_bot"},
+    {"bot_id": "customer_discovery_bot", "enabled": true, "bot_json_path": "flexus_simple_bots/bot_configs/customer_discovery_bot.bot.json", "output_dir": "flexus_simple_bots/customer_discovery_bot"},
+    {"bot_id": "segment_qualification_bot", "enabled": true, "bot_json_path": "flexus_simple_bots/bot_configs/segment_qualification_bot.bot.json", "output_dir": "flexus_simple_bots/segment_qualification_bot"},
+    {"bot_id": "pain_alternatives_bot", "enabled": true, "bot_json_path": "flexus_simple_bots/bot_configs/pain_alternatives_bot.bot.json", "output_dir": "flexus_simple_bots/pain_alternatives_bot"},
+    {"bot_id": "positioning_offer_bot", "enabled": true, "bot_json_path": "flexus_simple_bots/bot_configs/positioning_offer_bot.bot.json", "output_dir": "flexus_simple_bots/positioning_offer_bot"},
+    {"bot_id": "pricing_validation_bot", "enabled": true, "bot_json_path": "flexus_simple_bots/bot_configs/pricing_validation_bot.bot.json", "output_dir": "flexus_simple_bots/pricing_validation_bot"},
+    {"bot_id": "experiment_design_bot", "enabled": true, "bot_json_path": "flexus_simple_bots/bot_configs/experiment_design_bot.bot.json", "output_dir": "flexus_simple_bots/experiment_design_bot"},
+    {"bot_id": "mvp_validation_bot", "enabled": true, "bot_json_path": "flexus_simple_bots/bot_configs/mvp_validation_bot.bot.json", "output_dir": "flexus_simple_bots/mvp_validation_bot"},
+    {"bot_id": "pipeline_qualification_bot", "enabled": true, "bot_json_path": "flexus_simple_bots/bot_configs/pipeline_qualification_bot.bot.json", "output_dir": "flexus_simple_bots/pipeline_qualification_bot"},
+    {"bot_id": "creative_paid_channels_bot", "enabled": true, "bot_json_path": "flexus_simple_bots/bot_configs/creative_paid_channels_bot.bot.json", "output_dir": "flexus_simple_bots/creative_paid_channels_bot"},
+    {"bot_id": "pilot_delivery_bot", "enabled": true, "bot_json_path": "flexus_simple_bots/bot_configs/pilot_delivery_bot.bot.json", "output_dir": "flexus_simple_bots/pilot_delivery_bot"},
+    {"bot_id": "retention_intelligence_bot", "enabled": true, "bot_json_path": "flexus_simple_bots/bot_configs/retention_intelligence_bot.bot.json", "output_dir": "flexus_simple_bots/retention_intelligence_bot"},
+    {"bot_id": "churn_learning_bot", "enabled": true, "bot_json_path": "flexus_simple_bots/bot_configs/churn_learning_bot.bot.json", "output_dir": "flexus_simple_bots/churn_learning_bot"},
+    {"bot_id": "gtm_economics_rtm_bot", "enabled": true, "bot_json_path": "flexus_simple_bots/bot_configs/gtm_economics_rtm_bot.bot.json", "output_dir": "flexus_simple_bots/gtm_economics_rtm_bot"},
+    {"bot_id": "partner_ecosystem_bot", "enabled": true, "bot_json_path": "flexus_simple_bots/bot_configs/partner_ecosystem_bot.bot.json", "output_dir": "flexus_simple_bots/partner_ecosystem_bot"},
+    {"bot_id": "scale_governance_bot", "enabled": true, "bot_json_path": "flexus_simple_bots/bot_configs/scale_governance_bot.bot.json", "output_dir": "flexus_simple_bots/scale_governance_bot"}
+  ]
+}

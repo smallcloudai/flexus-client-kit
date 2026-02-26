@@ -1,0 +1,18 @@
+{
+    "bot_name": "partner_ecosystem_bot",
+    "managed_mode": "full_scaffold_managed",
+    "tools": [
+        "flexus_policy_document",
+        "print_widget",
+        "partner_program_ops_api",
+        "partner_account_mapping_api",
+        "partner_enablement_execution_api",
+        "channel_conflict_governance_api"
+    ],
+    "experts": [
+        "default",
+        "partner_activation_operator",
+        "channel_conflict_governor"
+    ],
+    "skills": []
+}

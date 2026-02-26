@@ -1,0 +1,20 @@
+[
+    {
+        "bs_name": "default_channel",
+        "bs_type": "string_short",
+        "bs_default": "search_demand",
+        "bs_group": "Signal Detection",
+        "bs_order": 1,
+        "bs_importance": 1,
+        "bs_description": "Default channel used when user does not explicitly specify one channel."
+    },
+    {
+        "bs_name": "default_time_window_days",
+        "bs_type": "int",
+        "bs_default": 30,
+        "bs_group": "Signal Detection",
+        "bs_order": 2,
+        "bs_importance": 1,
+        "bs_description": "Default lookback window in days for signal snapshots."
+    }
+]

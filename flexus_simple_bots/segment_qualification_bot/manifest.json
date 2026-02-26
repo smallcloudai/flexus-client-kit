@@ -1,0 +1,42 @@
+{
+    "bot_name": "segment_qualification_bot",
+    "accent_color": "#0284C7",
+    "title1": "Segment Qualification",
+    "title2": "Enrichment and primary segment selection",
+    "author": "Flexus",
+    "occupation": "Segment Analyst",
+    "typical_group": "GTM / Qualification",
+    "github_repo": "https://github.com/smallcloudai/flexus-client-kit.git",
+    "tools": [
+        "flexus_policy_document",
+        "print_widget",
+        "segment_crm_signal_api",
+        "segment_firmographic_enrichment_api",
+        "segment_technographic_profile_api",
+        "segment_market_traction_api",
+        "segment_intent_signal_api"
+    ],
+    "featured_actions": [
+        {
+            "feat_question": "Enrich candidate segments",
+            "feat_expert": "segment_data_enricher"
+        },
+        {
+            "feat_question": "Produce primary segment decision",
+            "feat_expert": "primary_segment_decision_analyst"
+        }
+    ],
+    "intro_message": "I enrich segment candidates and produce one explicit primary segment decision.",
+    "preferred_model_default": "grok-4-1-fast-non-reasoning",
+    "daily_budget_default": 100000,
+    "default_inbox_default": 10000,
+    "tags": [
+        "ICP",
+        "Segmentation",
+        "PrimarySegment"
+    ],
+    "schedule": [],
+    "forms": {},
+    "auth_supported": [],
+    "auth_scopes": {}
+}

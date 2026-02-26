@@ -1,0 +1,345 @@
+{
+  "bot_name": "pricing_validation_bot",
+  "accent_color": "#B45309",
+  "title1": "Pricing Validation",
+  "title2": "Price corridor and commitment evidence",
+  "author": "Flexus",
+  "occupation": "Pricing Analyst",
+  "typical_group": "GTM / Pricing",
+  "github_repo": "https://github.com/smallcloudai/flexus-client-kit.git",
+  "tools": [
+    "flexus_policy_document",
+    "print_widget",
+    "pricing_research_ops_api",
+    "pricing_commitment_events_api",
+    "pricing_sales_signal_api",
+    "pricing_catalog_benchmark_api"
+  ],
+  "featured_actions": [
+    {"feat_question": "Estimate initial price corridor", "feat_expert": "price_corridor_modeler"},
+    {"feat_question": "Verify commitment evidence", "feat_expert": "commitment_evidence_verifier"}
+  ],
+  "intro_message": "I validate pricing hypotheses with structured evidence artifacts.",
+  "preferred_model_default": "grok-4-1-fast-non-reasoning",
+  "daily_budget_default": 100000,
+  "default_inbox_default": 10000,
+  "tags": ["Pricing", "WTP", "Validation"],
+  "personality_md": "You are a pricing validation bot. You work in strict evidence-first mode. Never invent evidence, never hide uncertainty, and always emit structured artifacts for downstream use.",
+  "experts": [
+    {
+      "name": "default",
+      "fexp_description": "Default route for pricing validation",
+      "fexp_allow_tools": "flexus_policy_document,print_widget,pricing_research_ops_api,pricing_commitment_events_api,pricing_sales_signal_api,pricing_catalog_benchmark_api",
+      "fexp_block_tools": "",
+      "skills": [],
+      "body_md": "Validate pricing hypotheses with structured evidence artifacts."
+    },
+    {
+      "name": "price_corridor_modeler",
+      "fexp_description": "Estimate floor-target-ceiling pricing corridor from stated willingness-to-pay, segment fit, and benchmark context",
+      "fexp_allow_tools": "flexus_policy_document,print_widget,pricing_research_ops_api,pricing_sales_signal_api,pricing_catalog_benchmark_api",
+      "fexp_block_tools": "",
+      "skills": [],
+      "pdoc_output_schemas": [
+        {
+          "schema_name": "preliminary_price_corridor_schema",
+          "schema": {
+            "type": "object",
+            "required": ["artifact_type", "version", "currency", "corridor", "segment_corridors", "assumptions", "confidence", "sources"],
+            "additionalProperties": false,
+            "properties": {
+              "artifact_type": {"type": "string", "enum": ["preliminary_price_corridor"]},
+              "version": {"type": "string"},
+              "currency": {"type": "string"},
+              "corridor": {
+                "type": "object",
+                "required": ["floor", "target", "ceiling"],
+                "additionalProperties": false,
+                "properties": {
+                  "floor": {"type": "number", "minimum": 0},
+                  "target": {"type": "number", "minimum": 0},
+                  "ceiling": {"type": "number", "minimum": 0}
+                }
+              },
+              "segment_corridors": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": ["segment_id", "floor", "target", "ceiling", "confidence"],
+                  "additionalProperties": false,
+                  "properties": {
+                    "segment_id": {"type": "string"},
+                    "floor": {"type": "number", "minimum": 0},
+                    "target": {"type": "number", "minimum": 0},
+                    "ceiling": {"type": "number", "minimum": 0},
+                    "confidence": {"type": "number", "minimum": 0, "maximum": 1}
+                  }
+                }
+              },
+              "assumptions": {"type": "array", "items": {"type": "string"}},
+              "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+              "sources": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": ["source_type", "source_ref"],
+                  "additionalProperties": false,
+                  "properties": {
+                    "source_type": {"type": "string", "enum": ["api", "artifact", "tool_output", "event_stream", "expert_handoff", "user_directive"]},
+                    "source_ref": {"type": "string"}
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "schema_name": "price_sensitivity_curve_schema",
+          "schema": {
+            "type": "object",
+            "required": ["artifact_type", "version", "method", "sample_size", "curve_points", "interpretation", "limitations"],
+            "additionalProperties": false,
+            "properties": {
+              "artifact_type": {"type": "string", "enum": ["price_sensitivity_curve"]},
+              "version": {"type": "string"},
+              "method": {"type": "string", "enum": ["van_westendorp", "gabor_granger", "hybrid"]},
+              "sample_size": {"type": "integer", "minimum": 1},
+              "curve_points": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": ["price", "too_cheap_share", "cheap_share", "expensive_share", "too_expensive_share"],
+                  "additionalProperties": false,
+                  "properties": {
+                    "price": {"type": "number", "minimum": 0},
+                    "too_cheap_share": {"type": "number", "minimum": 0, "maximum": 1},
+                    "cheap_share": {"type": "number", "minimum": 0, "maximum": 1},
+                    "expensive_share": {"type": "number", "minimum": 0, "maximum": 1},
+                    "too_expensive_share": {"type": "number", "minimum": 0, "maximum": 1}
+                  }
+                }
+              },
+              "interpretation": {"type": "array", "items": {"type": "string"}},
+              "limitations": {"type": "array", "items": {"type": "string"}}
+            }
+          }
+        },
+        {
+          "schema_name": "pricing_assumption_register_schema",
+          "schema": {
+            "type": "object",
+            "required": ["artifact_type", "version", "assumptions", "high_risk_assumptions", "next_checks"],
+            "additionalProperties": false,
+            "properties": {
+              "artifact_type": {"type": "string", "enum": ["pricing_assumption_register"]},
+              "version": {"type": "string"},
+              "assumptions": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": ["assumption_id", "statement", "impact_level", "evidence_status"],
+                  "additionalProperties": false,
+                  "properties": {
+                    "assumption_id": {"type": "string"},
+                    "statement": {"type": "string"},
+                    "impact_level": {"type": "string", "enum": ["low", "medium", "high"]},
+                    "evidence_status": {"type": "string", "enum": ["supported", "partially_supported", "unsupported"]}
+                  }
+                }
+              },
+              "high_risk_assumptions": {"type": "array", "items": {"type": "string"}},
+              "next_checks": {"type": "array", "items": {"type": "string"}}
+            }
+          }
+        }
+      ],
+      "body_md": "Model pricing corridors from research and market signals; fail fast when sample quality is weak, corridor spread is unstable, or core assumptions are unsupported."
+    },
+    {
+      "name": "commitment_evidence_verifier",
+      "fexp_description": "Verify pricing hypotheses against observed commitment signals from billing and sales pipelines",
+      "fexp_allow_tools": "flexus_policy_document,print_widget,pricing_commitment_events_api,pricing_sales_signal_api,pricing_research_ops_api",
+      "fexp_block_tools": "",
+      "skills": [],
+      "pdoc_output_schemas": [
+        {
+          "schema_name": "pricing_commitment_evidence_schema",
+          "schema": {
+            "type": "object",
+            "required": ["artifact_type", "version", "time_window", "signals", "coverage_status", "confidence", "sources"],
+            "additionalProperties": false,
+            "properties": {
+              "artifact_type": {"type": "string", "enum": ["pricing_commitment_evidence"]},
+              "version": {"type": "string"},
+              "time_window": {
+                "type": "object",
+                "required": ["start_date", "end_date"],
+                "additionalProperties": false,
+                "properties": {
+                  "start_date": {"type": "string"},
+                  "end_date": {"type": "string"}
+                }
+              },
+              "signals": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": ["signal_id", "signal_type", "segment_id", "observed_value", "interpretation", "supporting_refs"],
+                  "additionalProperties": false,
+                  "properties": {
+                    "signal_id": {"type": "string"},
+                    "signal_type": {"type": "string", "enum": ["checkout_start_rate", "checkout_completion_rate", "trial_to_paid_rate", "discount_acceptance_rate", "quote_acceptance_rate", "payment_failure_rate", "refund_rate"]},
+                    "segment_id": {"type": "string"},
+                    "observed_value": {"type": "number"},
+                    "interpretation": {"type": "string"},
+                    "supporting_refs": {"type": "array", "items": {"type": "string"}}
+                  }
+                }
+              },
+              "coverage_status": {"type": "string", "enum": ["full", "partial", "none"]},
+              "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+              "sources": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": ["source_type", "source_ref"],
+                  "additionalProperties": false,
+                  "properties": {
+                    "source_type": {"type": "string", "enum": ["api", "artifact", "tool_output", "event_stream", "expert_handoff", "user_directive"]},
+                    "source_ref": {"type": "string"}
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "schema_name": "validated_price_hypothesis_schema",
+          "schema": {
+            "type": "object",
+            "required": ["artifact_type", "version", "hypothesis_status", "tested_price_point", "segment_id", "commitment_evidence", "counter_evidence", "recommended_next_step", "confidence"],
+            "additionalProperties": false,
+            "properties": {
+              "artifact_type": {"type": "string", "enum": ["validated_price_hypothesis"]},
+              "version": {"type": "string"},
+              "hypothesis_status": {"type": "string", "enum": ["validated", "partially_validated", "rejected"]},
+              "tested_price_point": {"type": "number", "minimum": 0},
+              "segment_id": {"type": "string"},
+              "commitment_evidence": {"type": "array", "items": {"type": "string"}},
+              "counter_evidence": {"type": "array", "items": {"type": "string"}},
+              "recommended_next_step": {"type": "string"},
+              "confidence": {"type": "number", "minimum": 0, "maximum": 1}
+            }
+          }
+        },
+        {
+          "schema_name": "pricing_go_no_go_gate_schema",
+          "schema": {
+            "type": "object",
+            "required": ["artifact_type", "version", "gate_status", "blocking_issues", "override_required", "next_checks"],
+            "additionalProperties": false,
+            "properties": {
+              "artifact_type": {"type": "string", "enum": ["pricing_go_no_go_gate"]},
+              "version": {"type": "string"},
+              "gate_status": {"type": "string", "enum": ["go", "no_go"]},
+              "blocking_issues": {"type": "array", "items": {"type": "string"}},
+              "override_required": {"type": "boolean"},
+              "next_checks": {"type": "array", "items": {"type": "string"}}
+            }
+          }
+        }
+      ],
+      "body_md": "Compare stated willingness-to-pay with observed commitment behavior and produce go/no-go outcomes; fail fast when commitment coverage is partial or evidence conflicts are unresolved."
+    }
+  ],
+  "skills": [],
+  "setup_schema": [],
+  "builder_mode": "full_scaffold_managed",
+  "custom_dir": "custom",
+  "schedule": [],
+  "forms": {},
+  "auth_supported": [],
+  "auth_scopes": {},
+  "required_tool_prompt_files": [
+    "prompts/tool_pricing_research_ops_api.md",
+    "prompts/tool_pricing_commitment_events_api.md",
+    "prompts/tool_pricing_sales_signal_api.md",
+    "prompts/tool_pricing_catalog_benchmark_api.md",
+    "prompts/tool_flexus_policy_document.md",
+    "prompts/tool_print_widget.md"
+  ],
+  "tool_catalog": {
+    "pricing_research_ops_api": {
+      "integration_mode": "Request/Response",
+      "apis": [
+        "Typeform Create/Responses API",
+        "SurveyMonkey API v3",
+        "Qualtrics Survey and Response Export APIs"
+      ],
+      "method_ids": [
+        "typeform.forms.create.v1",
+        "typeform.responses.list.v1",
+        "surveymonkey.surveys.create.v1",
+        "surveymonkey.surveys.responses.list.v1",
+        "qualtrics.surveys.create.v1",
+        "qualtrics.responseexports.start.v1",
+        "qualtrics.responseexports.progress.get.v1",
+        "qualtrics.responseexports.file.get.v1"
+      ],
+      "notes": ["Call contract: pricing_research_ops_api(op=\"<operation>\", args={...}). Default op fallback is help."]
+    },
+    "pricing_commitment_events_api": {
+      "integration_mode": "Request/Response",
+      "apis": [
+        "Stripe API",
+        "Paddle API",
+        "Chargebee API"
+      ],
+      "method_ids": [
+        "stripe.checkout.sessions.list.v1",
+        "stripe.payment_intents.list.v1",
+        "stripe.subscriptions.list.v1",
+        "stripe.invoices.list.v1",
+        "paddle.transactions.list.v1",
+        "paddle.transactions.get.v1",
+        "chargebee.subscriptions.list.v1",
+        "chargebee.invoices.list.v1"
+      ],
+      "notes": ["Revenue signals must be normalized for currency, refund state, and tax inclusion before cross-provider comparison."]
+    },
+    "pricing_sales_signal_api": {
+      "integration_mode": "Request/Response",
+      "apis": [
+        "HubSpot CRM API",
+        "Salesforce REST API",
+        "Pipedrive API"
+      ],
+      "method_ids": [
+        "hubspot.deals.search.v1",
+        "salesforce.query.soql.v1",
+        "pipedrive.deals.search.v1",
+        "pipedrive.itemsearch.search.v1"
+      ],
+      "notes": ["Deal-stage and discount fields vary by CRM customization; enforce explicit field mapping and fail fast when mandatory mappings are absent."]
+    },
+    "pricing_catalog_benchmark_api": {
+      "integration_mode": "Request/Response",
+      "apis": [
+        "Stripe API",
+        "Paddle API",
+        "SerpApi",
+        "GNews API"
+      ],
+      "method_ids": [
+        "stripe.products.list.v1",
+        "stripe.prices.list.v1",
+        "paddle.products.list.v1",
+        "paddle.prices.list.v1",
+        "serpapi.search.google.v1",
+        "gnews.search.v1"
+      ],
+      "notes": ["External pricing references can be incomplete or stale; any benchmark without timestamped source refs must be marked low confidence."]
+    }
+  },
+  "readme_md": "## Pricing Validation Bot\n\nPricing Validation Bot validates pricing hypotheses with structured evidence artifacts."
+}

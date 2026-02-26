@@ -1,0 +1,28 @@
+{
+    "bot_name": "customer_discovery_bot",
+    "managed_mode": "full_scaffold_managed",
+    "tools": [
+        "flexus_policy_document",
+        "print_widget",
+        "discovery_survey_design_api",
+        "discovery_survey_collection_api",
+        "discovery_panel_recruitment_api",
+        "discovery_customer_panel_api",
+        "discovery_test_recruitment_api",
+        "discovery_interview_scheduling_api",
+        "discovery_interview_capture_api",
+        "discovery_transcript_coding_api",
+        "discovery_context_import_api"
+    ],
+    "experts": [
+        "default",
+        "discovery_instrument_designer",
+        "participant_recruitment_operator",
+        "jtbd_interview_operator"
+    ],
+    "skills": [
+        "skill_past_behavior_questioning",
+        "skill_jtbd_outcome_formatting",
+        "skill_qualitative_coding"
+    ]
+}

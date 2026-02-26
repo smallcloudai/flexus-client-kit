@@ -1,0 +1,26 @@
+{
+    "builder_mode": "full_scaffold_managed",
+    "managed_files": {
+        "manifest.json": "2f45012ab371f58d373d451c910dfccb07a3e2365268bd3c07104fe3990ba3af",
+        "setup_schema.json": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
+        "prompts/personality.md": "4385ab20aba48635de98a24371846a11bb936ed5b94f1d21d4072c8ff5960d02",
+        "README.md": "3bc5167ae5d2ca50652d489ce5d798dfa0d8e0179d537607606d1c7c228c85dc",
+        "prompts/expert_default.md": "988be2f123baf35e45069a39f93f47ff9cbfce0ca171ab62fe211ef1f853e10c",
+        "prompts/expert_cohort_revenue_analyst.md": "91ba614a62dd2851fedfe92003621e92a8c3dc2b562f04bc8df03a83f8a69432",
+        "prompts/expert_pmf_survey_interpreter.md": "a5727225196a1a7bd2f64ca8d71377799bcb375fe1e0a04f21eb4fd37de2ea61",
+        "retention_intelligence_bot.py": "8319c8f4771a88fd237906bc153ec4e65291d79dce1b88538e6af01e3cd8f309",
+        "retention_intelligence_install.py": "57f9c29f6e812e02c19e7181df1e6d17066b19fd228e5fb5b1204ef131005366",
+        "retention_intelligence_prompts.py": "53244ffd3ecc1ad464ae09e3539d851461a4605453f560e4a21438aed02162a8",
+        "scaffold/contract.md": "fd5288c04a8767c5c95f73d33ace9c73a5683faecd84d21fb70c1c2713a41add",
+        "scaffold/meta.json": "d3462d4306ef0e681e6d803e4aa021e5b89dc2af904784118798da2397c3139d",
+        "forms/README.md": "a6674faa04185d56f5092863fd67d590f46213c92029e40e82019ca3437cfc23",
+        "integrations/README.md": "a6179289e7dbc2bc5fc04fd0044daeda9b2d3512890b1d7df8e5095b4c0b2b24",
+        "scenarios/README.md": "b88c39e536d450240d94cf72e3ae7f3088fea73c5cefaf0162bbe92edec69323",
+        "custom/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "custom/hooks.py": "7e38eaeb3625d61cda456a8aee925cd6daa33e8e3feb5aee4fac31a185ec0366",
+        "README.builder.md": "2e88b54c58a7cedeb715bab3dbc13919288220bf4a28092ae9ec14f54ed8e877",
+        "scaffold/input_snapshot_tools.json": "d60b73cac9bec132c3efd9a642fb4a3cb95504265a61b874f786a3f2ab785b64",
+        "scaffold/input_snapshot_experts.json": "e6930632d0ac3a74543cf2d96ff2ef09246ebbfbe37a304125f34b1df94f3cb7",
+        "scaffold/input_snapshot_skills.json": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+    }
+}

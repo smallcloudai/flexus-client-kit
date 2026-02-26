@@ -65,6 +65,7 @@ def _page(title: str, body: str) -> str:
     .err {{ color: #8b0000; white-space: pre-wrap; }}
     .mono {{ font-family: Consolas, monospace; white-space: pre-wrap; }}
     .line {{ margin-bottom: 6px; }}
+    .field-help {{ color: #5a6472; font-size: 12px; margin-top: 4px; }}
     a {{ text-decoration: none; }}
     .layout {{ display: grid; grid-template-columns: 260px 1fr; gap: 16px; align-items: start; }}
     .sidebar {{ border: 1px solid #ddd; border-radius: 8px; padding: 12px; position: sticky; top: 16px; background: #fff; }}
@@ -143,28 +144,40 @@ def _bot_editor_form(bot_id: str, cfg: dict, message: str = "", error: str = "")
     <form id="bot-form" method="post" action="/bot/{_escape(bot_id)}/save">
       <section class="card section-panel" data-section="core">
         <h2>Core</h2>
-        <div class="row"><label>bot_name</label><input type="text" name="bot_name" value="{_escape(str(cfg['bot_name']))}" readonly /></div>
-        <div class="row"><label>accent_color</label><input type="text" name="accent_color" value="{_escape(str(cfg['accent_color']))}" /></div>
-        <div class="row"><label>title1</label><input type="text" name="title1" value="{_escape(str(cfg['title1']))}" /></div>
-        <div class="row"><label>title2</label><input type="text" name="title2" value="{_escape(str(cfg['title2']))}" /></div>
-        <div class="row"><label>author</label><input type="text" name="author" value="{_escape(str(cfg['author']))}" /></div>
-        <div class="row"><label>occupation</label><input type="text" name="occupation" value="{_escape(str(cfg['occupation']))}" /></div>
-        <div class="row"><label>typical_group</label><input type="text" name="typical_group" value="{_escape(str(cfg['typical_group']))}" /></div>
-        <div class="row"><label>github_repo</label><input type="text" name="github_repo" value="{_escape(str(cfg['github_repo']))}" /></div>
-        <div class="row"><label>intro_message</label><textarea name="intro_message">{_escape(str(cfg['intro_message']))}</textarea></div>
-        <div class="row"><label>preferred_model_default</label><input type="text" name="preferred_model_default" value="{_escape(str(cfg['preferred_model_default']))}" /></div>
-        <div class="row"><label>daily_budget_default</label><input type="number" name="daily_budget_default" value="{_escape(str(cfg['daily_budget_default']))}" /></div>
-        <div class="row"><label>default_inbox_default</label><input type="number" name="default_inbox_default" value="{_escape(str(cfg['default_inbox_default']))}" /></div>
+        <div class="row"><label>Bot ID (`bot_name`)</label><input type="text" name="bot_name" value="{_escape(str(cfg['bot_name']))}" readonly /><div class="field-help">Stable machine id. Lowercase letters, digits, underscore. Usually not changed after creation.</div></div>
+        <div class="row">
+          <label>Build Mode (`builder_mode`)</label>
+          <select name="builder_mode">
+            <option value="no_special_code" {"selected" if cfg.get("builder_mode", "no_special_code") == "no_special_code" else ""}>no_special_code</option>
+            <option value="full_scaffold_managed" {"selected" if cfg.get("builder_mode", "no_special_code") == "full_scaffold_managed" else ""}>full_scaffold_managed</option>
+            <option value="frozen_custom" {"selected" if cfg.get("builder_mode", "no_special_code") == "frozen_custom" else ""}>frozen_custom</option>
+          </select>
+          <div class="field-help">`no_special_code`: json-driven runtime. `full_scaffold_managed`: generate full working scaffold + custom folder. `frozen_custom`: keep bot untouched by builder.</div>
+        </div>
+        <div class="row"><label>Custom Code Folder (`custom_dir`)</label><input type="text" name="custom_dir" value="{_escape(str(cfg.get('custom_dir', 'custom')))}" /><div class="field-help">Folder for hand-written logic. Builder does not overwrite its files.</div></div>
+        <div class="row"><label>Accent Color (`accent_color`)</label><input type="text" name="accent_color" value="{_escape(str(cfg['accent_color']))}" /><div class="field-help">Hex color for bot card and UI accents, example: `#2563EB`.</div></div>
+        <div class="row"><label>Title 1 (`title1`)</label><input type="text" name="title1" value="{_escape(str(cfg['title1']))}" /><div class="field-help">Short display name shown as first title line.</div></div>
+        <div class="row"><label>Title 2 (`title2`)</label><input type="text" name="title2" value="{_escape(str(cfg['title2']))}" /><div class="field-help">One-line value proposition shown under title 1.</div></div>
+        <div class="row"><label>Author (`author`)</label><input type="text" name="author" value="{_escape(str(cfg['author']))}" /><div class="field-help">Person or team name shown in marketplace card.</div></div>
+        <div class="row"><label>Occupation (`occupation`)</label><input type="text" name="occupation" value="{_escape(str(cfg['occupation']))}" /><div class="field-help">Role label for this bot, example: `Market Signal Analyst`.</div></div>
+        <div class="row"><label>Typical Group (`typical_group`)</label><input type="text" name="typical_group" value="{_escape(str(cfg['typical_group']))}" /><div class="field-help">Where this bot is typically used (team/function segment).</div></div>
+        <div class="row"><label>GitHub Repository (`github_repo`)</label><input type="text" name="github_repo" value="{_escape(str(cfg['github_repo']))}" /><div class="field-help">Source repository URL for traceability and support.</div></div>
+        <div class="row"><label>Intro Message (`intro_message`)</label><textarea name="intro_message">{_escape(str(cfg['intro_message']))}</textarea><div class="field-help">First message user sees in a fresh chat. Keep it clear and action-oriented.</div></div>
+        <div class="row"><label>Default Model (`preferred_model_default`)</label><input type="text" name="preferred_model_default" value="{_escape(str(cfg['preferred_model_default']))}" /><div class="field-help">Default LLM model id used by runtime for this bot.</div></div>
+        <div class="row"><label>Daily Budget (`daily_budget_default`)</label><input type="number" name="daily_budget_default" value="{_escape(str(cfg['daily_budget_default']))}" /><div class="field-help">Daily token budget limit for this bot.</div></div>
+        <div class="row"><label>Default Inbox Size (`default_inbox_default`)</label><input type="number" name="default_inbox_default" value="{_escape(str(cfg['default_inbox_default']))}" /><div class="field-help">Default task/message inbox capacity used by scheduler/runtime.</div></div>
       </section>
 
       <section class="card section-panel" data-section="tools">
         <h2>Tools</h2>
-        <div class="line">Available tools come from real `no_special_code_bot.TOOL_REGISTRY`.</div>
+        <div class="line">Select which runtime tools this bot can call.</div>
+        <div class="field-help">Available options come from real `no_special_code_bot.TOOL_REGISTRY`.</div>
         <div id="tools-box"></div>
       </section>
 
       <section class="card section-panel" data-section="tags">
         <h2>Tags</h2>
+        <div class="field-help">Marketplace labels for search and grouping. Add short nouns, not full sentences.</div>
         <div class="row">
           <label>Add tag</label>
           <input id="tag-input" type="text" placeholder="marketing" />
@@ -175,44 +188,48 @@ def _bot_editor_form(bot_id: str, cfg: dict, message: str = "", error: str = "")
 
       <section class="card section-panel" data-section="featured">
         <h2>Featured Actions</h2>
+        <div class="field-help">Quick-start buttons shown to user. Each action routes to selected expert.</div>
         <div id="featured-box"></div>
         <div class="row"><button id="featured-add" type="button">+ Add featured action</button></div>
       </section>
 
       <section class="card section-panel" data-section="setup">
         <h2>Setup Schema</h2>
-        <div class="line">Human-editable rows: name, type, default, group, order, importance, description.</div>
+        <div class="line">Admin-configurable fields shown in bot setup dialog.</div>
+        <div class="field-help">For each row: machine key, value type, default value, UI group/order, importance flag, and help text.</div>
         <div id="setup-box"></div>
         <div class="row"><button id="setup-add" type="button">+ Add setup field</button></div>
       </section>
 
       <section class="card section-panel" data-section="experts">
         <h2>Experts</h2>
-        <div class="line">Editable expert cards with add/remove. `default` expert is required.</div>
+        <div class="line">Editable expert cards with allow/block tools and optional output schemas.</div>
+        <div class="field-help">`default` expert is required. Other experts are addressed by name from featured actions or routing logic.</div>
         <div id="experts-box"></div>
         <div class="row"><button id="experts-add" type="button">+ Add expert</button></div>
       </section>
 
       <section class="card section-panel" data-section="skills">
         <h2>Skills</h2>
-        <div class="line">Reusable skill blocks referenced by experts via `skills`.</div>
+        <div class="line">Reusable prompt blocks referenced by experts via `skills`.</div>
+        <div class="field-help">Keep one skill focused on one narrow capability for better reuse.</div>
         <div id="skills-box"></div>
         <div class="row"><button id="skills-add" type="button">+ Add skill</button></div>
       </section>
 
       <section class="card section-panel" data-section="runtime">
         <h2>Runtime Advanced</h2>
-        <div class="line">Optional fields from code runtime: schedule, forms, auth_supported, auth_scopes.</div>
-        <div class="row"><label>auth_supported (comma-separated)</label><input id="auth-supported-csv" type="text" value="{_escape(','.join(cfg.get('auth_supported', [])))}" /></div>
-        <div class="row"><label>auth_scopes (json object)</label><textarea id="auth-scopes-json" style="min-height:120px;">{_escape(json.dumps(cfg.get("auth_scopes", {}), indent=2))}</textarea></div>
-        <div class="row"><label>schedule (json array)</label><textarea id="schedule-json" style="min-height:120px;">{_escape(json.dumps(cfg.get("schedule", []), indent=2))}</textarea></div>
-        <div class="row"><label>forms (json object)</label><textarea id="forms-json" style="min-height:120px;">{_escape(json.dumps(cfg.get("forms", {}), indent=2))}</textarea></div>
+        <div class="line">Optional runtime controls: auth, schedule, and UI forms metadata.</div>
+        <div class="row"><label>Auth Providers (`auth_supported`)</label><input id="auth-supported-csv" type="text" value="{_escape(','.join(cfg.get('auth_supported', [])))}" /><div class="field-help">Comma-separated provider ids, example: `google,facebook`.</div></div>
+        <div class="row"><label>Auth Scopes (`auth_scopes`)</label><textarea id="auth-scopes-json" style="min-height:120px;">{_escape(json.dumps(cfg.get("auth_scopes", {}), indent=2))}</textarea><div class="field-help">JSON object: provider -> list of OAuth scopes.</div></div>
+        <div class="row"><label>Schedule (`schedule`)</label><textarea id="schedule-json" style="min-height:120px;">{_escape(json.dumps(cfg.get("schedule", []), indent=2))}</textarea><div class="field-help">JSON array of scheduler entries executed by runtime.</div></div>
+        <div class="row"><label>Forms (`forms`)</label><textarea id="forms-json" style="min-height:120px;">{_escape(json.dumps(cfg.get("forms", {}), indent=2))}</textarea><div class="field-help">JSON object with form bundle metadata used by frontend widgets.</div></div>
       </section>
 
       <section class="card section-panel" data-section="prompts">
         <h2>Prompts / Readme</h2>
-        <div class="row"><label>personality_md</label><textarea name="personality_md" style="min-height:220px;">{_escape(str(cfg['personality_md']))}</textarea></div>
-        <div class="row"><label>readme_md</label><textarea name="readme_md" style="min-height:220px;">{_escape(str(cfg.get('readme_md', '')))}</textarea></div>
+        <div class="row"><label>Personality Prompt (`personality_md`)</label><textarea name="personality_md" style="min-height:220px;">{_escape(str(cfg['personality_md']))}</textarea><div class="field-help">Global bot behavior prompt prepended to all experts.</div></div>
+        <div class="row"><label>README (`readme_md`)</label><textarea name="readme_md" style="min-height:220px;">{_escape(str(cfg.get('readme_md', '')))}</textarea><div class="field-help">Marketplace description in Markdown. Explain value and usage in plain language.</div></div>
       </section>
 
       <input type="hidden" name="tools_json" />
@@ -337,10 +354,12 @@ def _bot_editor_form(bot_id: str, cfg: dict, message: str = "", error: str = "")
     const q = make("input");
     q.type = "text";
     q.name = "fa_question";
-    q.placeholder = "Question";
+    q.placeholder = "Featured question shown as quick action button";
+    q.title = "Short button text a user can click to start this flow";
     q.value = item.feat_question || "";
     const ex = make("select");
     ex.name = "fa_expert";
+    ex.title = "Expert that receives this quick-start action";
     const names = currentExpertNames();
     for (const n of names) {{
       const opt = make("option");
@@ -372,13 +391,13 @@ def _bot_editor_form(bot_id: str, cfg: dict, message: str = "", error: str = "")
 
   function addSetupRow(item = {{}}) {{
     const row = make("div", "card");
-    const n = make("input"); n.type = "text"; n.name = "ss_name"; n.placeholder = "bs_name"; n.value = item.bs_name || "";
+    const n = make("input"); n.type = "text"; n.name = "ss_name"; n.placeholder = "bs_name (machine key, e.g. default_channel)"; n.value = item.bs_name || ""; n.title = "Machine key used in setup dict";
     const t = setupTypeSelect(item.bs_type || "string_short");
-    const d = make("input"); d.type = "text"; d.name = "ss_default"; d.placeholder = "bs_default"; d.value = item.bs_default === undefined ? "" : String(item.bs_default);
-    const g = make("input"); g.type = "text"; g.name = "ss_group"; g.placeholder = "bs_group"; g.value = item.bs_group || "";
-    const o = make("input"); o.type = "number"; o.name = "ss_order"; o.placeholder = "bs_order"; o.value = item.bs_order === undefined ? "1" : String(item.bs_order);
-    const i = make("input"); i.type = "number"; i.name = "ss_importance"; i.placeholder = "bs_importance"; i.value = item.bs_importance === undefined ? "0" : String(item.bs_importance);
-    const ds = make("input"); ds.type = "text"; ds.name = "ss_desc"; ds.placeholder = "bs_description"; ds.value = item.bs_description || "";
+    const d = make("input"); d.type = "text"; d.name = "ss_default"; d.placeholder = "bs_default (default value for selected type)"; d.value = item.bs_default === undefined ? "" : String(item.bs_default); d.title = "Default value shown in setup dialog";
+    const g = make("input"); g.type = "text"; g.name = "ss_group"; g.placeholder = "bs_group (UI section name)"; g.value = item.bs_group || ""; g.title = "Setup UI group title";
+    const o = make("input"); o.type = "number"; o.name = "ss_order"; o.placeholder = "bs_order (display order)"; o.value = item.bs_order === undefined ? "1" : String(item.bs_order); o.title = "Order inside group, lower first";
+    const i = make("input"); i.type = "number"; i.name = "ss_importance"; i.placeholder = "bs_importance (0 normal, 1 important)"; i.value = item.bs_importance === undefined ? "0" : String(item.bs_importance); i.title = "Visual importance in setup UI";
+    const ds = make("input"); ds.type = "text"; ds.name = "ss_desc"; ds.placeholder = "bs_description (hint for admin)"; ds.value = item.bs_description || ""; ds.title = "Help text shown to admin";
     const del = make("button"); del.type = "button"; del.textContent = "Delete"; del.onclick = () => row.remove();
     row.append(n, t, d, g, o, i, ds, del);
     setupBox.appendChild(row);
@@ -386,12 +405,12 @@ def _bot_editor_form(bot_id: str, cfg: dict, message: str = "", error: str = "")
 
   function addExpertRow(item = {{}}) {{
     const row = make("div", "card");
-    const n = make("input"); n.type = "text"; n.name = "exp_name"; n.placeholder = "name"; n.value = item.name || "";
-    const d = make("input"); d.type = "text"; d.name = "exp_desc"; d.placeholder = "fexp_description"; d.value = item.fexp_description || "";
-    const bt = make("input"); bt.type = "text"; bt.name = "exp_block"; bt.placeholder = "fexp_block_tools"; bt.value = item.fexp_block_tools || "";
-    const at = make("input"); at.type = "text"; at.name = "exp_allow"; at.placeholder = "fexp_allow_tools"; at.value = item.fexp_allow_tools || "";
-    const sk = make("input"); sk.type = "text"; sk.name = "exp_skills"; sk.placeholder = "skills (comma-separated)"; sk.value = (item.skills || []).join(",");
-    const ps = make("textarea"); ps.name = "exp_pdoc_schemas"; ps.placeholder = "pdoc_output_schemas json array"; ps.style.minHeight = "90px"; ps.value = item.pdoc_output_schemas ? JSON.stringify(item.pdoc_output_schemas, null, 2) : "";
+    const n = make("input"); n.type = "text"; n.name = "exp_name"; n.placeholder = "name (expert id, e.g. market_signal_detector)"; n.value = item.name || ""; n.title = "Expert id used in routing";
+    const d = make("input"); d.type = "text"; d.name = "exp_desc"; d.placeholder = "fexp_description (what this expert does)"; d.value = item.fexp_description || ""; d.title = "Short role description";
+    const bt = make("input"); bt.type = "text"; bt.name = "exp_block"; bt.placeholder = "fexp_block_tools (comma list or glob)"; bt.value = item.fexp_block_tools || ""; bt.title = "Tool block list";
+    const at = make("input"); at.type = "text"; at.name = "exp_allow"; at.placeholder = "fexp_allow_tools (comma list or glob)"; at.value = item.fexp_allow_tools || ""; at.title = "Tool allow list";
+    const sk = make("input"); sk.type = "text"; sk.name = "exp_skills"; sk.placeholder = "skills (comma-separated skill ids)"; sk.value = (item.skills || []).join(","); sk.title = "Skill ids injected into this expert";
+    const ps = make("textarea"); ps.name = "exp_pdoc_schemas"; ps.placeholder = "pdoc_output_schemas JSON array"; ps.style.minHeight = "90px"; ps.value = item.pdoc_output_schemas ? JSON.stringify(item.pdoc_output_schemas, null, 2) : ""; ps.title = "Optional strict output schemas for policy documents";
     const b = make("textarea"); b.name = "exp_body"; b.style.minHeight = "180px"; b.value = item.body_md || "";
     const del = make("button"); del.type = "button"; del.textContent = "Delete"; del.onclick = () => {{ row.remove(); refreshFeaturedExpertOptions(); }};
     n.addEventListener("input", refreshFeaturedExpertOptions);
@@ -401,8 +420,8 @@ def _bot_editor_form(bot_id: str, cfg: dict, message: str = "", error: str = "")
 
   function addSkillRow(item = {{}}) {{
     const row = make("div", "card");
-    const n = make("input"); n.type = "text"; n.name = "skill_name"; n.placeholder = "name"; n.value = item.name || "";
-    const d = make("input"); d.type = "text"; d.name = "skill_desc"; d.placeholder = "description"; d.value = item.description || "";
+    const n = make("input"); n.type = "text"; n.name = "skill_name"; n.placeholder = "name (skill id, e.g. skill_reddit_signal_detection)"; n.value = item.name || ""; n.title = "Skill id referenced by experts";
+    const d = make("input"); d.type = "text"; d.name = "skill_desc"; d.placeholder = "description (one-line purpose)"; d.value = item.description || ""; d.title = "Short explanation shown in config";
     const b = make("textarea"); b.name = "skill_body"; b.style.minHeight = "160px"; b.value = item.body_md || "";
     const del = make("button"); del.type = "button"; del.textContent = "Delete"; del.onclick = () => row.remove();
     row.append(n, d, b, del);
@@ -568,6 +587,8 @@ def _parse_bot_form(post: dict) -> dict:
     try:
         cfg = {
             "bot_name": str(post["bot_name"]),
+            "builder_mode": str(post.get("builder_mode", "no_special_code")),
+            "custom_dir": str(post.get("custom_dir", "custom")),
             "accent_color": str(post["accent_color"]),
             "title1": str(post["title1"]),
             "title2": str(post["title2"]),
@@ -648,7 +669,11 @@ async def save_bot_handler(request: web.Request) -> web.Response:
         bot_id = str(request.match_info["bot_id"])
         post = await request.post()
         cfg = _parse_bot_form(dict(post))
-        _, bot_json_path, _ = _resolve_bot_entry(registry_path, bot_id)
+        _, bot_json_path, old_cfg = _resolve_bot_entry(registry_path, bot_id)
+        # Preserve advanced metadata that UI does not fully edit yet.
+        for k in ["required_tool_prompt_files", "tool_catalog"]:
+            if k in old_cfg and k not in cfg:
+                cfg[k] = old_cfg[k]
         bot_registry_engine._validate_bot_config(cfg, bot_json_path)
         bot_registry_engine.write_json_atomic(bot_json_path, cfg)
         body = _bot_editor_form(bot_id, cfg, message=f"Saved {bot_json_path}")
@@ -957,7 +982,7 @@ async def bot_detail_handler(request: web.Request) -> web.Response:
 def main() -> None:
     try:
         parser = argparse.ArgumentParser(description="Local UI for bot registry and bot configs")
-        parser.add_argument("--registry", default="flexus_simple_bots/generated/bots_registry.json", help="Path to registry json")
+        parser.add_argument("--registry", default="flexus_simple_bots/bots_registry.json", help="Path to registry json")
         parser.add_argument("--host", default="127.0.0.1", help="Host to bind")
         parser.add_argument("--port", type=int, default=8777, help="Port to bind")
         args = parser.parse_args()

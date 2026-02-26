@@ -605,7 +605,7 @@ Each bot has a `*_prompts.py` file containing system prompts as string constants
 
 ```python
 # mybot_prompts.py
-from flexus_simple_bots.shared import prompts_common
+from flexus_simple_bots import prompts_common
 
 main_prompt = f"""You are MyBot, a specialist in...
 

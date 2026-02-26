@@ -1,0 +1,347 @@
+{
+  "bot_name": "pain_alternatives_bot",
+  "accent_color": "#7C3AED",
+  "title1": "Pain and Alternatives",
+  "title2": "Pain quantification and alternative mapping",
+  "author": "Flexus",
+  "occupation": "Problem Analyst",
+  "typical_group": "GTM / Qualification",
+  "github_repo": "https://github.com/smallcloudai/flexus-client-kit.git",
+  "tools": [
+    "flexus_policy_document",
+    "print_widget",
+    "pain_voice_of_customer_api",
+    "pain_support_signal_api",
+    "alternatives_market_scan_api",
+    "alternatives_traction_benchmark_api"
+  ],
+  "featured_actions": [
+    {"feat_question": "Quantify top customer pains", "feat_expert": "pain_quantifier"},
+    {"feat_question": "Map alternative landscape", "feat_expert": "alternative_mapper"}
+  ],
+  "intro_message": "I quantify pain and map alternatives in structured artifacts.",
+  "preferred_model_default": "grok-4-1-fast-non-reasoning",
+  "daily_budget_default": 100000,
+  "default_inbox_default": 10000,
+  "tags": ["Pain", "Alternatives", "Evidence"],
+  "personality_md": "You are a pain and alternatives bot. You quantify pain from multi-channel evidence and map the alternative landscape. Work in strict evidence-first mode. Never invent evidence, never hide uncertainty, and always emit structured artifacts with source traceability.",
+  "experts": [
+    {
+      "name": "default",
+      "fexp_description": "Default route for pain quantification and alternative mapping",
+      "fexp_allow_tools": "flexus_policy_document,print_widget,pain_voice_of_customer_api,pain_support_signal_api,alternatives_market_scan_api,alternatives_traction_benchmark_api",
+      "fexp_block_tools": "",
+      "skills": [],
+      "body_md": "Route to pain_quantifier or alternative_mapper based on user intent; when unclear, quantify pain first."
+    },
+    {
+      "name": "pain_quantifier",
+      "fexp_description": "Convert multi-channel pain evidence into quantified impact ranges with confidence and source traceability",
+      "fexp_allow_tools": "flexus_policy_document,print_widget,pain_voice_of_customer_api,pain_support_signal_api,alternatives_market_scan_api",
+      "fexp_block_tools": "",
+      "skills": [],
+      "pdoc_output_schemas": [
+        {
+          "schema_name": "pain_signal_register_schema",
+          "schema": {
+            "type": "object",
+            "required": ["artifact_type", "version", "channel_window", "signals", "coverage_status", "confidence"],
+            "additionalProperties": false,
+            "properties": {
+              "artifact_type": {"type": "string", "enum": ["pain_signal_register"]},
+              "version": {"type": "string"},
+              "channel_window": {
+                "type": "object",
+                "required": ["start_date", "end_date"],
+                "additionalProperties": false,
+                "properties": {"start_date": {"type": "string"}, "end_date": {"type": "string"}}
+              },
+              "signals": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": ["pain_id", "pain_statement", "affected_segment", "frequency_signal", "severity_signal", "evidence_refs"],
+                  "additionalProperties": false,
+                  "properties": {
+                    "pain_id": {"type": "string"},
+                    "pain_statement": {"type": "string"},
+                    "affected_segment": {"type": "string"},
+                    "frequency_signal": {"type": "string", "enum": ["low", "medium", "high"]},
+                    "severity_signal": {"type": "string", "enum": ["low", "medium", "high"]},
+                    "evidence_refs": {"type": "array", "items": {"type": "string"}}
+                  }
+                }
+              },
+              "sources": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": ["source_type", "source_ref"],
+                  "additionalProperties": false,
+                  "properties": {
+                    "source_type": {"type": "string", "enum": ["api", "artifact", "tool_output", "event_stream", "expert_handoff", "user_directive"]},
+                    "source_ref": {"type": "string"}
+                  }
+                }
+              },
+              "coverage_status": {"type": "string", "enum": ["full", "partial", "none"]},
+              "limitations": {"type": "array", "items": {"type": "string"}},
+              "confidence": {"type": "number", "minimum": 0, "maximum": 1}
+            }
+          }
+        },
+        {
+          "schema_name": "pain_economics_schema",
+          "schema": {
+            "type": "object",
+            "required": ["artifact_type", "version", "model_id", "assumptions", "pain_register", "total_cost_range", "confidence"],
+            "additionalProperties": false,
+            "properties": {
+              "artifact_type": {"type": "string", "enum": ["pain_economics"]},
+              "version": {"type": "string"},
+              "model_id": {"type": "string"},
+              "assumptions": {"type": "array", "items": {"type": "string"}},
+              "pain_register": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": ["pain_id", "estimated_cost_per_period", "cost_unit", "sensitivity_level", "supporting_refs"],
+                  "additionalProperties": false,
+                  "properties": {
+                    "pain_id": {"type": "string"},
+                    "estimated_cost_per_period": {"type": "number", "minimum": 0},
+                    "cost_unit": {"type": "string", "enum": ["usd_per_month", "usd_per_quarter", "hours_per_month", "other"]},
+                    "sensitivity_level": {"type": "string", "enum": ["low", "medium", "high"]},
+                    "supporting_refs": {"type": "array", "items": {"type": "string"}}
+                  }
+                }
+              },
+              "total_cost_range": {
+                "type": "object",
+                "required": ["floor", "target", "ceiling"],
+                "additionalProperties": false,
+                "properties": {
+                  "floor": {"type": "number", "minimum": 0},
+                  "target": {"type": "number", "minimum": 0},
+                  "ceiling": {"type": "number", "minimum": 0}
+                }
+              },
+              "confidence": {"type": "number", "minimum": 0, "maximum": 1}
+            }
+          }
+        },
+        {
+          "schema_name": "pain_research_readiness_gate_schema",
+          "schema": {
+            "type": "object",
+            "required": ["artifact_type", "version", "gate_status", "blocking_issues", "next_checks"],
+            "additionalProperties": false,
+            "properties": {
+              "artifact_type": {"type": "string", "enum": ["pain_research_readiness_gate"]},
+              "version": {"type": "string"},
+              "gate_status": {"type": "string", "enum": ["go", "revise", "no_go"]},
+              "blocking_issues": {"type": "array", "items": {"type": "string"}},
+              "next_checks": {"type": "array", "items": {"type": "string"}}
+            }
+          }
+        }
+      ],
+      "body_md": "Quantify pain from review, community, and support evidence; fail fast when channel coverage is partial or cost assumptions are weakly supported."
+    },
+    {
+      "name": "alternative_mapper",
+      "fexp_description": "Map direct, indirect, and status-quo alternatives with explicit adoption/failure drivers and benchmarked traction",
+      "fexp_allow_tools": "flexus_policy_document,print_widget,alternatives_market_scan_api,alternatives_traction_benchmark_api,pain_voice_of_customer_api",
+      "fexp_block_tools": "",
+      "skills": [],
+      "pdoc_output_schemas": [
+        {
+          "schema_name": "alternative_landscape_schema",
+          "schema": {
+            "type": "object",
+            "required": ["artifact_type", "version", "target_problem", "alternatives", "coverage_status", "confidence"],
+            "additionalProperties": false,
+            "properties": {
+              "artifact_type": {"type": "string", "enum": ["alternative_landscape"]},
+              "version": {"type": "string"},
+              "target_problem": {"type": "string"},
+              "alternatives": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": ["alternative_id", "alternative_name", "alternative_type", "positioning_claim", "pricing_model", "adoption_reasons", "failure_reasons", "supporting_refs"],
+                  "additionalProperties": false,
+                  "properties": {
+                    "alternative_id": {"type": "string"},
+                    "alternative_name": {"type": "string"},
+                    "alternative_type": {"type": "string", "enum": ["direct_competitor", "adjacent_tool", "status_quo_internal", "outsourcing_service"]},
+                    "positioning_claim": {"type": "string"},
+                    "pricing_model": {"type": "string"},
+                    "adoption_reasons": {"type": "array", "items": {"type": "string"}},
+                    "failure_reasons": {"type": "array", "items": {"type": "string"}},
+                    "supporting_refs": {"type": "array", "items": {"type": "string"}}
+                  }
+                }
+              },
+              "coverage_status": {"type": "string", "enum": ["full", "partial", "none"]},
+              "confidence": {"type": "number", "minimum": 0, "maximum": 1}
+            }
+          }
+        },
+        {
+          "schema_name": "competitive_gap_matrix_schema",
+          "schema": {
+            "type": "object",
+            "required": ["artifact_type", "version", "evaluation_dimensions", "matrix", "recommended_attack_surfaces"],
+            "additionalProperties": false,
+            "properties": {
+              "artifact_type": {"type": "string", "enum": ["competitive_gap_matrix"]},
+              "version": {"type": "string"},
+              "evaluation_dimensions": {"type": "array", "items": {"type": "string"}},
+              "matrix": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": ["alternative_id", "dimension_scores", "overall_gap_score", "risk_flags"],
+                  "additionalProperties": false,
+                  "properties": {
+                    "alternative_id": {"type": "string"},
+                    "dimension_scores": {"type": "object", "additionalProperties": {"type": "number", "minimum": 0, "maximum": 1}},
+                    "overall_gap_score": {"type": "number", "minimum": 0, "maximum": 1},
+                    "risk_flags": {"type": "array", "items": {"type": "string"}}
+                  }
+                }
+              },
+              "recommended_attack_surfaces": {"type": "array", "items": {"type": "string"}}
+            }
+          }
+        },
+        {
+          "schema_name": "displacement_hypotheses_schema",
+          "schema": {
+            "type": "object",
+            "required": ["artifact_type", "version", "prioritization_rule", "hypotheses"],
+            "additionalProperties": false,
+            "properties": {
+              "artifact_type": {"type": "string", "enum": ["displacement_hypotheses"]},
+              "version": {"type": "string"},
+              "prioritization_rule": {"type": "string", "enum": ["impact_x_confidence_x_reversibility"]},
+              "hypotheses": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": ["hypothesis_id", "statement", "target_alternative", "expected_switch_trigger", "test_signal", "confidence", "supporting_refs"],
+                  "additionalProperties": false,
+                  "properties": {
+                    "hypothesis_id": {"type": "string"},
+                    "statement": {"type": "string"},
+                    "target_alternative": {"type": "string"},
+                    "expected_switch_trigger": {"type": "string"},
+                    "test_signal": {"type": "string"},
+                    "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+                    "supporting_refs": {"type": "array", "items": {"type": "string"}}
+                  }
+                }
+              }
+            }
+          }
+        }
+      ],
+      "body_md": "Map alternatives and produce displacement hypotheses; fail fast when incumbent evidence is weak or no defensible attack surface is identified."
+    }
+  ],
+  "skills": [],
+  "setup_schema": [],
+  "builder_mode": "full_scaffold_managed",
+  "custom_dir": "custom",
+  "schedule": [],
+  "forms": {},
+  "auth_supported": [],
+  "auth_scopes": {},
+  "required_tool_prompt_files": [
+    "prompts/tool_pain_voice_of_customer_api.md",
+    "prompts/tool_pain_support_signal_api.md",
+    "prompts/tool_alternatives_market_scan_api.md",
+    "prompts/tool_alternatives_traction_benchmark_api.md",
+    "prompts/tool_flexus_policy_document.md",
+    "prompts/tool_print_widget.md"
+  ],
+  "tool_catalog": {
+    "pain_voice_of_customer_api": {
+      "integration_mode": "Request/Response",
+      "apis": [
+        "Trustpilot API",
+        "G2 API",
+        "Reddit API",
+        "App Store Connect API",
+        "Google Play Developer API"
+      ],
+      "method_ids": [
+        "trustpilot.reviews.list.v1",
+        "g2.reviews.list.v1",
+        "reddit.search.posts.v1",
+        "appstoreconnect.customer_reviews.list.v1",
+        "google_play.reviews.list.v1"
+      ],
+      "notes": [
+        "Call contract: pain_voice_of_customer_api(op=\"<operation>\", args={...})",
+        "Default op fallback is help"
+      ]
+    },
+    "pain_support_signal_api": {
+      "integration_mode": "Request/Response",
+      "apis": [
+        "Intercom Conversations API",
+        "Zendesk Ticketing API",
+        "HubSpot CRM API"
+      ],
+      "method_ids": [
+        "intercom.conversations.list.v1",
+        "intercom.conversations.search.v1",
+        "zendesk.tickets.list.v1",
+        "zendesk.ticket_comments.list.v1",
+        "hubspot.tickets.search.v1"
+      ],
+      "notes": [
+        "Support channel exports can contain PII; enforce redaction policy before producing shared pdocs."
+      ]
+    },
+    "alternatives_market_scan_api": {
+      "integration_mode": "Request/Response",
+      "apis": [
+        "SerpApi",
+        "GNews API",
+        "Product Hunt GraphQL API",
+        "Crunchbase API"
+      ],
+      "method_ids": [
+        "serpapi.search.google.v1",
+        "gnews.search.v1",
+        "producthunt.graphql.posts.v1",
+        "crunchbase.organizations.search.v1",
+        "crunchbase.organizations.lookup.v1"
+      ],
+      "notes": [
+        "Product Hunt and Crunchbase coverage is biased toward software/startup ecosystems; downgrade confidence for offline-heavy categories."
+      ]
+    },
+    "alternatives_traction_benchmark_api": {
+      "integration_mode": "Request/Response",
+      "apis": [
+        "Similarweb API V5",
+        "BuiltWith Domain Live API",
+        "Wappalyzer Lookup API"
+      ],
+      "method_ids": [
+        "similarweb.website.traffic_and_engagement.get.v1",
+        "similarweb.website.marketing_channel_sources.get.v1",
+        "builtwith.domain.live.v1",
+        "wappalyzer.lookup.v2"
+      ],
+      "notes": [
+        "Traffic and stack signals are modeled estimates; treat as directional evidence, never as exact ground truth."
+      ]
+    }
+  },
+  "readme_md": "## Pain and Alternatives Bot\n\nPain and Alternatives Bot quantifies pain and maps alternatives in structured artifacts."
+}

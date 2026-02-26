@@ -1,0 +1,41 @@
+{
+    "bot_name": "gtm_economics_rtm_bot",
+    "accent_color": "#334155",
+    "title1": "GTM Economics and RTM",
+    "title2": "Unit economics and route-to-market rules",
+    "author": "Flexus",
+    "occupation": "GTM Economist",
+    "typical_group": "GTM / Economics",
+    "github_repo": "https://github.com/smallcloudai/flexus-client-kit.git",
+    "tools": [
+        "flexus_policy_document",
+        "print_widget",
+        "gtm_unit_economics_api",
+        "gtm_media_efficiency_api",
+        "rtm_pipeline_finance_api",
+        "rtm_territory_policy_api"
+    ],
+    "featured_actions": [
+        {
+            "feat_question": "Evaluate unit economics readiness",
+            "feat_expert": "unit_economics_modeler"
+        },
+        {
+            "feat_question": "Codify RTM ownership and conflict rules",
+            "feat_expert": "rtm_rules_architect"
+        }
+    ],
+    "intro_message": "I lock viable GTM economics and codify RTM rules.",
+    "preferred_model_default": "grok-4-1-fast-non-reasoning",
+    "daily_budget_default": 100000,
+    "default_inbox_default": 10000,
+    "tags": [
+        "UnitEconomics",
+        "RTM",
+        "GTM"
+    ],
+    "schedule": [],
+    "forms": {},
+    "auth_supported": [],
+    "auth_scopes": {}
+}

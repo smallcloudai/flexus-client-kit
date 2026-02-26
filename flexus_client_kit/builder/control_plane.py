@@ -65,7 +65,7 @@ def _discover_integration_files(repo_root: Path) -> list[Path]:
 
 def _discover_generated_bot_configs(repo_root: Path) -> list[Path]:
     try:
-        base = repo_root / "flexus_simple_bots" / "generated" / "bot_configs"
+        base = repo_root / "flexus_simple_bots" / "bot_configs"
         if not base.exists():
             return []
         return sorted(base.glob("*.bot.json"))

@@ -1,0 +1,30 @@
+{
+    "builder_mode": "full_scaffold_managed",
+    "managed_files": {
+        "manifest.json": "058237dd0389a227cb703a50f152be2dbfe2aeac9438f039055c624c885a293e",
+        "setup_schema.json": "308a795b1c2ccf167ee9effbb5e5645d0369b19962486164c97641a218f20c8e",
+        "prompts/personality.md": "61cd16d8dc0088abf1b867b3ad5aab96cd1c5d230c87ef6aa21d31b9ba221aa5",
+        "README.md": "4359f8ef0ecb4fc4f6619af31a3056b22df47323b2dd910bf385da1bd03ccd60",
+        "prompts/expert_default.md": "34b8b0a27d324f6f68c038b613af2b0c1c45ee930e36c545c41b74fcac481a84",
+        "prompts/expert_market_signal_detector.md": "f4ce6473716d31696a2c47bbc7054d04e81ca61455d83abfda72258b508bbe9d",
+        "prompts/expert_signal_boundary_analyst.md": "454181fedd24d4f82eb8d404571a069f0ae2f8c6eda9395f8b4d714c19ffb454",
+        "prompts/skill_skill_google_trends_signal_detection.md": "42d681588c2b8d454e78fd165e11dc5dbcb42474688166f4fe0481c8b3687b26",
+        "prompts/skill_skill_x_signal_detection.md": "bf7631b4212934fa789477181ce8be5eb60d09a10099ce125bc722ce71a2a360",
+        "prompts/skill_skill_reddit_signal_detection.md": "abbf5ee4eb7eb11798a8c26905b3c5dfe3cacb9da0b098b6c811f4b498fb92f2",
+        "prompts/skill_skill_web_change_detection.md": "d7d6b9c893df9409cf4c6ec4894fd4fbba8ff4c1085f3e46d9d44f1806fd43a6",
+        "market_signal_bot.py": "8319c8f4771a88fd237906bc153ec4e65291d79dce1b88538e6af01e3cd8f309",
+        "market_signal_install.py": "7beda768125e1400be7d539c71ed7228ed934b2bef0b62157aa63e71678bb939",
+        "market_signal_prompts.py": "38cb5740ebcf8d3076930999dc3b084126ea7571d2ae4fe3002cebde95fabf84",
+        "scaffold/contract.md": "fd5288c04a8767c5c95f73d33ace9c73a5683faecd84d21fb70c1c2713a41add",
+        "scaffold/meta.json": "ace13c34d029d392e409d6276f1303e8827b2b7359339586563181bd247e9dd2",
+        "forms/README.md": "a6674faa04185d56f5092863fd67d590f46213c92029e40e82019ca3437cfc23",
+        "integrations/README.md": "a6179289e7dbc2bc5fc04fd0044daeda9b2d3512890b1d7df8e5095b4c0b2b24",
+        "scenarios/README.md": "b88c39e536d450240d94cf72e3ae7f3088fea73c5cefaf0162bbe92edec69323",
+        "custom/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "custom/hooks.py": "7e38eaeb3625d61cda456a8aee925cd6daa33e8e3feb5aee4fac31a185ec0366",
+        "README.builder.md": "2e88b54c58a7cedeb715bab3dbc13919288220bf4a28092ae9ec14f54ed8e877",
+        "scaffold/input_snapshot_tools.json": "0f83c1bf2994c200daf65614a05333348586575383eefd32358c3b77cd30f819",
+        "scaffold/input_snapshot_experts.json": "21f5dce8971addb1428ac38df81fa03e28c5eff2f97a772cfc67ff0505fb2c0b",
+        "scaffold/input_snapshot_skills.json": "f82a555baa0675d1865bb1702bb6fcf25da7373046132461dfc82363703e5ef5"
+    }
+}

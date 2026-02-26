@@ -1,0 +1,41 @@
+{
+    "bot_name": "partner_ecosystem_bot",
+    "accent_color": "#166534",
+    "title1": "Partner Ecosystem",
+    "title2": "Partner activation and channel conflict governance",
+    "author": "Flexus",
+    "occupation": "Partner Program Operator",
+    "typical_group": "GTM / Partners",
+    "github_repo": "https://github.com/smallcloudai/flexus-client-kit.git",
+    "tools": [
+        "flexus_policy_document",
+        "print_widget",
+        "partner_program_ops_api",
+        "partner_account_mapping_api",
+        "partner_enablement_execution_api",
+        "channel_conflict_governance_api"
+    ],
+    "featured_actions": [
+        {
+            "feat_question": "Run partner activation and enablement cycle",
+            "feat_expert": "partner_activation_operator"
+        },
+        {
+            "feat_question": "Resolve channel conflict incidents",
+            "feat_expert": "channel_conflict_governor"
+        }
+    ],
+    "intro_message": "I run partner lifecycle operations and conflict governance artifacts.",
+    "preferred_model_default": "grok-4-1-fast-non-reasoning",
+    "daily_budget_default": 100000,
+    "default_inbox_default": 10000,
+    "tags": [
+        "Partners",
+        "PRM",
+        "Channel"
+    ],
+    "schedule": [],
+    "forms": {},
+    "auth_supported": [],
+    "auth_scopes": {}
+}

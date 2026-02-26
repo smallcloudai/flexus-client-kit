@@ -1,0 +1,41 @@
+{
+    "bot_name": "pricing_validation_bot",
+    "accent_color": "#B45309",
+    "title1": "Pricing Validation",
+    "title2": "Price corridor and commitment evidence",
+    "author": "Flexus",
+    "occupation": "Pricing Analyst",
+    "typical_group": "GTM / Pricing",
+    "github_repo": "https://github.com/smallcloudai/flexus-client-kit.git",
+    "tools": [
+        "flexus_policy_document",
+        "print_widget",
+        "pricing_research_ops_api",
+        "pricing_commitment_events_api",
+        "pricing_sales_signal_api",
+        "pricing_catalog_benchmark_api"
+    ],
+    "featured_actions": [
+        {
+            "feat_question": "Estimate initial price corridor",
+            "feat_expert": "price_corridor_modeler"
+        },
+        {
+            "feat_question": "Verify commitment evidence",
+            "feat_expert": "commitment_evidence_verifier"
+        }
+    ],
+    "intro_message": "I validate pricing hypotheses with structured evidence artifacts.",
+    "preferred_model_default": "grok-4-1-fast-non-reasoning",
+    "daily_budget_default": 100000,
+    "default_inbox_default": 10000,
+    "tags": [
+        "Pricing",
+        "WTP",
+        "Validation"
+    ],
+    "schedule": [],
+    "forms": {},
+    "auth_supported": [],
+    "auth_scopes": {}
+}

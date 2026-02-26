@@ -36,7 +36,7 @@ def main() -> None:
         )
         parser.add_argument(
             "--registry",
-            default="flexus_simple_bots/generated/bots_registry.json",
+            default="flexus_simple_bots/bots_registry.json",
             help="Path to bots registry json (absolute or relative to repo root)",
         )
         parser.add_argument("--host", default="127.0.0.1", help="Host to bind")

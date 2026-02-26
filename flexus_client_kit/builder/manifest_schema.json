@@ -67,7 +67,7 @@
             "title": "Tools",
             "items": {
                 "type": "string",
-                "enum": ["flexus_policy_document", "print_widget"]
+                "minLength": 1
             },
             "description": "List of built-in cloud tools the bot needs. These are registered at startup and made available as tool calls during chat."
         },

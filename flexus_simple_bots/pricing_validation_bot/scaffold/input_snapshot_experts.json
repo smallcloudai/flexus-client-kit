@@ -1,0 +1,565 @@
+[
+    {
+        "name": "default",
+        "fexp_description": "Default route for pricing validation",
+        "fexp_allow_tools": "flexus_policy_document,print_widget,pricing_research_ops_api,pricing_commitment_events_api,pricing_sales_signal_api,pricing_catalog_benchmark_api",
+        "fexp_block_tools": "",
+        "skills": [],
+        "body_md": "Validate pricing hypotheses with structured evidence artifacts."
+    },
+    {
+        "name": "price_corridor_modeler",
+        "fexp_description": "Estimate floor-target-ceiling pricing corridor from stated willingness-to-pay, segment fit, and benchmark context",
+        "fexp_allow_tools": "flexus_policy_document,print_widget,pricing_research_ops_api,pricing_sales_signal_api,pricing_catalog_benchmark_api",
+        "fexp_block_tools": "",
+        "skills": [],
+        "pdoc_output_schemas": [
+            {
+                "schema_name": "preliminary_price_corridor_schema",
+                "schema": {
+                    "type": "object",
+                    "required": [
+                        "artifact_type",
+                        "version",
+                        "currency",
+                        "corridor",
+                        "segment_corridors",
+                        "assumptions",
+                        "confidence",
+                        "sources"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                        "artifact_type": {
+                            "type": "string",
+                            "enum": [
+                                "preliminary_price_corridor"
+                            ]
+                        },
+                        "version": {
+                            "type": "string"
+                        },
+                        "currency": {
+                            "type": "string"
+                        },
+                        "corridor": {
+                            "type": "object",
+                            "required": [
+                                "floor",
+                                "target",
+                                "ceiling"
+                            ],
+                            "additionalProperties": false,
+                            "properties": {
+                                "floor": {
+                                    "type": "number",
+                                    "minimum": 0
+                                },
+                                "target": {
+                                    "type": "number",
+                                    "minimum": 0
+                                },
+                                "ceiling": {
+                                    "type": "number",
+                                    "minimum": 0
+                                }
+                            }
+                        },
+                        "segment_corridors": {
+                            "type": "array",
+                            "items": {
+                                "type": "object",
+                                "required": [
+                                    "segment_id",
+                                    "floor",
+                                    "target",
+                                    "ceiling",
+                                    "confidence"
+                                ],
+                                "additionalProperties": false,
+                                "properties": {
+                                    "segment_id": {
+                                        "type": "string"
+                                    },
+                                    "floor": {
+                                        "type": "number",
+                                        "minimum": 0
+                                    },
+                                    "target": {
+                                        "type": "number",
+                                        "minimum": 0
+                                    },
+                                    "ceiling": {
+                                        "type": "number",
+                                        "minimum": 0
+                                    },
+                                    "confidence": {
+                                        "type": "number",
+                                        "minimum": 0,
+                                        "maximum": 1
+                                    }
+                                }
+                            }
+                        },
+                        "assumptions": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        },
+                        "confidence": {
+                            "type": "number",
+                            "minimum": 0,
+                            "maximum": 1
+                        },
+                        "sources": {
+                            "type": "array",
+                            "items": {
+                                "type": "object",
+                                "required": [
+                                    "source_type",
+                                    "source_ref"
+                                ],
+                                "additionalProperties": false,
+                                "properties": {
+                                    "source_type": {
+                                        "type": "string",
+                                        "enum": [
+                                            "api",
+                                            "artifact",
+                                            "tool_output",
+                                            "event_stream",
+                                            "expert_handoff",
+                                            "user_directive"
+                                        ]
+                                    },
+                                    "source_ref": {
+                                        "type": "string"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            {
+                "schema_name": "price_sensitivity_curve_schema",
+                "schema": {
+                    "type": "object",
+                    "required": [
+                        "artifact_type",
+                        "version",
+                        "method",
+                        "sample_size",
+                        "curve_points",
+                        "interpretation",
+                        "limitations"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                        "artifact_type": {
+                            "type": "string",
+                            "enum": [
+                                "price_sensitivity_curve"
+                            ]
+                        },
+                        "version": {
+                            "type": "string"
+                        },
+                        "method": {
+                            "type": "string",
+                            "enum": [
+                                "van_westendorp",
+                                "gabor_granger",
+                                "hybrid"
+                            ]
+                        },
+                        "sample_size": {
+                            "type": "integer",
+                            "minimum": 1
+                        },
+                        "curve_points": {
+                            "type": "array",
+                            "items": {
+                                "type": "object",
+                                "required": [
+                                    "price",
+                                    "too_cheap_share",
+                                    "cheap_share",
+                                    "expensive_share",
+                                    "too_expensive_share"
+                                ],
+                                "additionalProperties": false,
+                                "properties": {
+                                    "price": {
+                                        "type": "number",
+                                        "minimum": 0
+                                    },
+                                    "too_cheap_share": {
+                                        "type": "number",
+                                        "minimum": 0,
+                                        "maximum": 1
+                                    },
+                                    "cheap_share": {
+                                        "type": "number",
+                                        "minimum": 0,
+                                        "maximum": 1
+                                    },
+                                    "expensive_share": {
+                                        "type": "number",
+                                        "minimum": 0,
+                                        "maximum": 1
+                                    },
+                                    "too_expensive_share": {
+                                        "type": "number",
+                                        "minimum": 0,
+                                        "maximum": 1
+                                    }
+                                }
+                            }
+                        },
+                        "interpretation": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        },
+                        "limitations": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            },
+            {
+                "schema_name": "pricing_assumption_register_schema",
+                "schema": {
+                    "type": "object",
+                    "required": [
+                        "artifact_type",
+                        "version",
+                        "assumptions",
+                        "high_risk_assumptions",
+                        "next_checks"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                        "artifact_type": {
+                            "type": "string",
+                            "enum": [
+                                "pricing_assumption_register"
+                            ]
+                        },
+                        "version": {
+                            "type": "string"
+                        },
+                        "assumptions": {
+                            "type": "array",
+                            "items": {
+                                "type": "object",
+                                "required": [
+                                    "assumption_id",
+                                    "statement",
+                                    "impact_level",
+                                    "evidence_status"
+                                ],
+                                "additionalProperties": false,
+                                "properties": {
+                                    "assumption_id": {
+                                        "type": "string"
+                                    },
+                                    "statement": {
+                                        "type": "string"
+                                    },
+                                    "impact_level": {
+                                        "type": "string",
+                                        "enum": [
+                                            "low",
+                                            "medium",
+                                            "high"
+                                        ]
+                                    },
+                                    "evidence_status": {
+                                        "type": "string",
+                                        "enum": [
+                                            "supported",
+                                            "partially_supported",
+                                            "unsupported"
+                                        ]
+                                    }
+                                }
+                            }
+                        },
+                        "high_risk_assumptions": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        },
+                        "next_checks": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        ],
+        "body_md": "Model pricing corridors from research and market signals; fail fast when sample quality is weak, corridor spread is unstable, or core assumptions are unsupported."
+    },
+    {
+        "name": "commitment_evidence_verifier",
+        "fexp_description": "Verify pricing hypotheses against observed commitment signals from billing and sales pipelines",
+        "fexp_allow_tools": "flexus_policy_document,print_widget,pricing_commitment_events_api,pricing_sales_signal_api,pricing_research_ops_api",
+        "fexp_block_tools": "",
+        "skills": [],
+        "pdoc_output_schemas": [
+            {
+                "schema_name": "pricing_commitment_evidence_schema",
+                "schema": {
+                    "type": "object",
+                    "required": [
+                        "artifact_type",
+                        "version",
+                        "time_window",
+                        "signals",
+                        "coverage_status",
+                        "confidence",
+                        "sources"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                        "artifact_type": {
+                            "type": "string",
+                            "enum": [
+                                "pricing_commitment_evidence"
+                            ]
+                        },
+                        "version": {
+                            "type": "string"
+                        },
+                        "time_window": {
+                            "type": "object",
+                            "required": [
+                                "start_date",
+                                "end_date"
+                            ],
+                            "additionalProperties": false,
+                            "properties": {
+                                "start_date": {
+                                    "type": "string"
+                                },
+                                "end_date": {
+                                    "type": "string"
+                                }
+                            }
+                        },
+                        "signals": {
+                            "type": "array",
+                            "items": {
+                                "type": "object",
+                                "required": [
+                                    "signal_id",
+                                    "signal_type",
+                                    "segment_id",
+                                    "observed_value",
+                                    "interpretation",
+                                    "supporting_refs"
+                                ],
+                                "additionalProperties": false,
+                                "properties": {
+                                    "signal_id": {
+                                        "type": "string"
+                                    },
+                                    "signal_type": {
+                                        "type": "string",
+                                        "enum": [
+                                            "checkout_start_rate",
+                                            "checkout_completion_rate",
+                                            "trial_to_paid_rate",
+                                            "discount_acceptance_rate",
+                                            "quote_acceptance_rate",
+                                            "payment_failure_rate",
+                                            "refund_rate"
+                                        ]
+                                    },
+                                    "segment_id": {
+                                        "type": "string"
+                                    },
+                                    "observed_value": {
+                                        "type": "number"
+                                    },
+                                    "interpretation": {
+                                        "type": "string"
+                                    },
+                                    "supporting_refs": {
+                                        "type": "array",
+                                        "items": {
+                                            "type": "string"
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "coverage_status": {
+                            "type": "string",
+                            "enum": [
+                                "full",
+                                "partial",
+                                "none"
+                            ]
+                        },
+                        "confidence": {
+                            "type": "number",
+                            "minimum": 0,
+                            "maximum": 1
+                        },
+                        "sources": {
+                            "type": "array",
+                            "items": {
+                                "type": "object",
+                                "required": [
+                                    "source_type",
+                                    "source_ref"
+                                ],
+                                "additionalProperties": false,
+                                "properties": {
+                                    "source_type": {
+                                        "type": "string",
+                                        "enum": [
+                                            "api",
+                                            "artifact",
+                                            "tool_output",
+                                            "event_stream",
+                                            "expert_handoff",
+                                            "user_directive"
+                                        ]
+                                    },
+                                    "source_ref": {
+                                        "type": "string"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            {
+                "schema_name": "validated_price_hypothesis_schema",
+                "schema": {
+                    "type": "object",
+                    "required": [
+                        "artifact_type",
+                        "version",
+                        "hypothesis_status",
+                        "tested_price_point",
+                        "segment_id",
+                        "commitment_evidence",
+                        "counter_evidence",
+                        "recommended_next_step",
+                        "confidence"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                        "artifact_type": {
+                            "type": "string",
+                            "enum": [
+                                "validated_price_hypothesis"
+                            ]
+                        },
+                        "version": {
+                            "type": "string"
+                        },
+                        "hypothesis_status": {
+                            "type": "string",
+                            "enum": [
+                                "validated",
+                                "partially_validated",
+                                "rejected"
+                            ]
+                        },
+                        "tested_price_point": {
+                            "type": "number",
+                            "minimum": 0
+                        },
+                        "segment_id": {
+                            "type": "string"
+                        },
+                        "commitment_evidence": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        },
+                        "counter_evidence": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        },
+                        "recommended_next_step": {
+                            "type": "string"
+                        },
+                        "confidence": {
+                            "type": "number",
+                            "minimum": 0,
+                            "maximum": 1
+                        }
+                    }
+                }
+            },
+            {
+                "schema_name": "pricing_go_no_go_gate_schema",
+                "schema": {
+                    "type": "object",
+                    "required": [
+                        "artifact_type",
+                        "version",
+                        "gate_status",
+                        "blocking_issues",
+                        "override_required",
+                        "next_checks"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                        "artifact_type": {
+                            "type": "string",
+                            "enum": [
+                                "pricing_go_no_go_gate"
+                            ]
+                        },
+                        "version": {
+                            "type": "string"
+                        },
+                        "gate_status": {
+                            "type": "string",
+                            "enum": [
+                                "go",
+                                "no_go"
+                            ]
+                        },
+                        "blocking_issues": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        },
+                        "override_required": {
+                            "type": "boolean"
+                        },
+                        "next_checks": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        ],
+        "body_md": "Compare stated willingness-to-pay with observed commitment behavior and produce go/no-go outcomes; fail fast when commitment coverage is partial or evidence conflicts are unresolved."
+    }
+]

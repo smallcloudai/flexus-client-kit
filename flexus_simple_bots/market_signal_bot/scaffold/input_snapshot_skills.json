@@ -1,0 +1,22 @@
+[
+    {
+        "name": "skill_google_trends_signal_detection",
+        "description": "Google Trends signal detection method",
+        "body_md": "Use Google Trends data to detect seasonality, breakout terms, region deltas, and baseline shifts."
+    },
+    {
+        "name": "skill_x_signal_detection",
+        "description": "X/Twitter signal detection method",
+        "body_md": "Detect narrative drift, velocity bursts, and noise-filtered account cluster signals."
+    },
+    {
+        "name": "skill_reddit_signal_detection",
+        "description": "Reddit signal detection method",
+        "body_md": "Score subreddit relevance, comment-depth quality, and noise-filtered discussion trends."
+    },
+    {
+        "name": "skill_web_change_detection",
+        "description": "Competitor web-change detection method",
+        "body_md": "Classify webpage diffs by pricing, positioning, CTA, and feature-claim changes."
+    }
+]

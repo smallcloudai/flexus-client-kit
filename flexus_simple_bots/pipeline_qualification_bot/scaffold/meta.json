@@ -1,0 +1,18 @@
+{
+    "bot_name": "pipeline_qualification_bot",
+    "managed_mode": "full_scaffold_managed",
+    "tools": [
+        "flexus_policy_document",
+        "print_widget",
+        "pipeline_crm_api",
+        "pipeline_prospecting_enrichment_api",
+        "pipeline_outreach_execution_api",
+        "pipeline_engagement_signal_api"
+    ],
+    "experts": [
+        "default",
+        "prospect_acquisition_operator",
+        "qualification_mapper"
+    ],
+    "skills": []
+}

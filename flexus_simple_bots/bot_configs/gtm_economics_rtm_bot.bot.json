@@ -1,0 +1,107 @@
+{
+  "bot_name": "gtm_economics_rtm_bot",
+  "accent_color": "#334155",
+  "title1": "GTM Economics and RTM",
+  "title2": "Unit economics and route-to-market rules",
+  "author": "Flexus",
+  "occupation": "GTM Economist",
+  "typical_group": "GTM / Economics",
+  "github_repo": "https://github.com/smallcloudai/flexus-client-kit.git",
+  "tools": [
+    "flexus_policy_document",
+    "print_widget",
+    "gtm_unit_economics_api",
+    "gtm_media_efficiency_api",
+    "rtm_pipeline_finance_api",
+    "rtm_territory_policy_api"
+  ],
+  "featured_actions": [
+    {"feat_question": "Evaluate unit economics readiness", "feat_expert": "unit_economics_modeler"},
+    {"feat_question": "Codify RTM ownership and conflict rules", "feat_expert": "rtm_rules_architect"}
+  ],
+  "intro_message": "I lock viable GTM economics and codify RTM rules.",
+  "preferred_model_default": "grok-4-1-fast-non-reasoning",
+  "daily_budget_default": 100000,
+  "default_inbox_default": 10000,
+  "tags": ["UnitEconomics", "RTM", "GTM"],
+  "personality_md": "You are a GTM economics and RTM bot. You work in strict evidence-first mode. Lock viable unit economics and codify route-to-market ownership and conflict rules. Never invent evidence, never hide uncertainty, and always emit structured artifacts for downstream use.",
+  "experts": [
+    {
+      "name": "default",
+      "fexp_description": "Default route for GTM economics and RTM",
+      "fexp_allow_tools": "flexus_policy_document,print_widget,gtm_unit_economics_api,gtm_media_efficiency_api,rtm_pipeline_finance_api,rtm_territory_policy_api",
+      "fexp_block_tools": "",
+      "skills": [],
+      "body_md": "Route GTM economics and RTM tasks to unit_economics_modeler or rtm_rules_architect as appropriate."
+    },
+    {
+      "name": "unit_economics_modeler",
+      "fexp_description": "Model payback and margin viability",
+      "fexp_allow_tools": "flexus_policy_document,print_widget,gtm_unit_economics_api,gtm_media_efficiency_api,rtm_pipeline_finance_api",
+      "fexp_block_tools": "",
+      "skills": [],
+      "pdoc_output_schemas": [
+        {"schema_name": "unit_economics_review_schema", "schema": {"type": "object", "required": ["artifact_type", "version", "analysis_window", "segments", "unit_economics", "payback_profile", "margin_profile", "readiness_state", "sources"], "additionalProperties": false, "properties": {"artifact_type": {"type": "string", "enum": ["unit_economics_review"]}, "version": {"type": "string"}, "analysis_window": {"type": "object", "required": ["start_date", "end_date"], "additionalProperties": false, "properties": {"start_date": {"type": "string"}, "end_date": {"type": "string"}}}, "segments": {"type": "array", "items": {"type": "string"}}, "unit_economics": {"type": "array", "items": {"type": "object", "required": ["segment", "cac", "ltv", "ltv_cac_ratio"], "additionalProperties": false, "properties": {"segment": {"type": "string"}, "cac": {"type": "number", "minimum": 0}, "ltv": {"type": "number", "minimum": 0}, "ltv_cac_ratio": {"type": "number", "minimum": 0}}}}, "payback_profile": {"type": "object", "required": ["median_months", "p75_months"], "additionalProperties": false, "properties": {"median_months": {"type": "number", "minimum": 0}, "p75_months": {"type": "number", "minimum": 0}}}, "margin_profile": {"type": "object", "required": ["gross_margin", "contribution_margin"], "additionalProperties": false, "properties": {"gross_margin": {"type": "number"}, "contribution_margin": {"type": "number"}}}, "readiness_state": {"type": "string", "enum": ["ready", "conditional", "not_ready"]}, "sources": {"type": "array", "items": {"type": "object", "required": ["source_type", "source_ref"], "additionalProperties": false, "properties": {"source_type": {"type": "string", "enum": ["api", "artifact", "tool_output", "event_stream", "expert_handoff", "user_directive"]}, "source_ref": {"type": "string"}}}}}}},
+        {"schema_name": "channel_margin_stack_schema", "schema": {"type": "object", "required": ["artifact_type", "version", "channels", "cost_layers", "margin_waterfall", "alerts"], "additionalProperties": false, "properties": {"artifact_type": {"type": "string", "enum": ["channel_margin_stack"]}, "version": {"type": "string"}, "channels": {"type": "array", "items": {"type": "string"}}, "cost_layers": {"type": "array", "items": {"type": "object", "required": ["layer_name", "cost_value"], "additionalProperties": false, "properties": {"layer_name": {"type": "string"}, "cost_value": {"type": "number"}}}}, "margin_waterfall": {"type": "array", "items": {"type": "object", "required": ["step", "value"], "additionalProperties": false, "properties": {"step": {"type": "string"}, "value": {"type": "number"}}}}, "alerts": {"type": "array", "items": {"type": "string"}}}}},
+        {"schema_name": "payback_readiness_gate_schema", "schema": {"type": "object", "required": ["artifact_type", "version", "gate_status", "blocking_issues", "required_actions", "decision_owner"], "additionalProperties": false, "properties": {"artifact_type": {"type": "string", "enum": ["payback_readiness_gate"]}, "version": {"type": "string"}, "gate_status": {"type": "string", "enum": ["go", "conditional", "no_go"]}, "blocking_issues": {"type": "array", "items": {"type": "string"}}, "required_actions": {"type": "array", "items": {"type": "string"}}, "decision_owner": {"type": "string"}}}}
+      ],
+      "body_md": "Produce auditable unit economics and payback decisions; fail fast when CAC/LTV inputs, attribution settings, or cost layer completeness are insufficient."
+    },
+    {
+      "name": "rtm_rules_architect",
+      "fexp_description": "Define enforceable RTM ownership and engagement rules",
+      "fexp_allow_tools": "flexus_policy_document,print_widget,rtm_pipeline_finance_api,rtm_territory_policy_api,gtm_unit_economics_api",
+      "fexp_block_tools": "",
+      "skills": [],
+      "pdoc_output_schemas": [
+        {"schema_name": "rtm_rules_schema", "schema": {"type": "object", "required": ["artifact_type", "version", "target_segments", "channel_roles", "ownership_rules", "deal_registration_rules", "conflict_resolution_sla", "exceptions_policy", "sources"], "additionalProperties": false, "properties": {"artifact_type": {"type": "string", "enum": ["rtm_rules"]}, "version": {"type": "string"}, "target_segments": {"type": "array", "items": {"type": "string"}}, "channel_roles": {"type": "array", "items": {"type": "object", "required": ["channel", "owner_role", "scope"], "additionalProperties": false, "properties": {"channel": {"type": "string"}, "owner_role": {"type": "string"}, "scope": {"type": "string"}}}}, "ownership_rules": {"type": "array", "items": {"type": "string"}}, "deal_registration_rules": {"type": "array", "items": {"type": "string"}}, "conflict_resolution_sla": {"type": "string"}, "exceptions_policy": {"type": "array", "items": {"type": "string"}}, "sources": {"type": "array", "items": {"type": "object", "required": ["source_type", "source_ref"], "additionalProperties": false, "properties": {"source_type": {"type": "string", "enum": ["api", "artifact", "tool_output", "event_stream", "expert_handoff", "user_directive"]}, "source_ref": {"type": "string"}}}}}}},
+        {"schema_name": "deal_ownership_matrix_schema", "schema": {"type": "object", "required": ["artifact_type", "version", "matrix_rows", "unassigned_cases", "escalation_path"], "additionalProperties": false, "properties": {"artifact_type": {"type": "string", "enum": ["deal_ownership_matrix"]}, "version": {"type": "string"}, "matrix_rows": {"type": "array", "items": {"type": "object", "required": ["segment", "territory", "owner_team", "fallback_owner"], "additionalProperties": false, "properties": {"segment": {"type": "string"}, "territory": {"type": "string"}, "owner_team": {"type": "string"}, "fallback_owner": {"type": "string"}}}}, "unassigned_cases": {"type": "array", "items": {"type": "string"}}, "escalation_path": {"type": "array", "items": {"type": "string"}}}}},
+        {"schema_name": "rtm_conflict_resolution_playbook_schema", "schema": {"type": "object", "required": ["artifact_type", "version", "incident_types", "decision_rules", "sla_targets", "audit_requirements"], "additionalProperties": false, "properties": {"artifact_type": {"type": "string", "enum": ["rtm_conflict_resolution_playbook"]}, "version": {"type": "string"}, "incident_types": {"type": "array", "items": {"type": "string"}}, "decision_rules": {"type": "array", "items": {"type": "string"}}, "sla_targets": {"type": "array", "items": {"type": "object", "required": ["incident_type", "target_hours"], "additionalProperties": false, "properties": {"incident_type": {"type": "string"}, "target_hours": {"type": "number", "minimum": 0}}}}, "audit_requirements": {"type": "array", "items": {"type": "string"}}}}}
+      ],
+      "body_md": "Produce enforceable RTM ownership and conflict resolution rules; fail fast when ownership boundaries, exception policy, or SLA enforcement paths are ambiguous."
+    }
+  ],
+  "skills": [],
+  "setup_schema": [],
+  "builder_mode": "full_scaffold_managed",
+  "custom_dir": "custom",
+  "schedule": [],
+  "forms": {},
+  "auth_supported": [],
+  "auth_scopes": {},
+  "required_tool_prompt_files": [
+    "prompts/tool_gtm_unit_economics_api.md",
+    "prompts/tool_gtm_media_efficiency_api.md",
+    "prompts/tool_rtm_pipeline_finance_api.md",
+    "prompts/tool_rtm_territory_policy_api.md",
+    "prompts/tool_flexus_policy_document.md",
+    "prompts/tool_print_widget.md"
+  ],
+  "tool_catalog": {
+    "gtm_unit_economics_api": {
+      "integration_mode": "Request/Response",
+      "apis": ["Stripe API", "Chargebee API", "Recurly API"],
+      "method_ids": ["stripe.invoices.list.v1", "stripe.subscriptions.list.v1", "chargebee.invoices.list.v1", "chargebee.subscriptions.list.v1", "recurly.subscriptions.list.v1"],
+      "notes": ["Call contract: gtm_unit_economics_api(op=\"<operation>\", args={...}); Default op fallback is help."]
+    },
+    "gtm_media_efficiency_api": {
+      "integration_mode": "Request/Response",
+      "apis": ["Meta Marketing API", "Google Ads API", "LinkedIn Marketing API"],
+      "method_ids": ["meta.insights.query.v1", "google_ads.googleads.search_stream.v1", "linkedin.ad_analytics.query.v1"],
+      "notes": ["Media efficiency metrics must be tied to explicit attribution window and conversion definition; reject unlabeled ROAS or CAC values."]
+    },
+    "rtm_pipeline_finance_api": {
+      "integration_mode": "Request/Response",
+      "apis": ["HubSpot CRM API", "Salesforce REST API", "Pipedrive API"],
+      "method_ids": ["hubspot.deals.search.v1", "hubspot.companies.search.v1", "salesforce.query.opportunity.v1", "salesforce.query.account.v1", "pipedrive.deals.search.v1", "pipedrive.deals.list.v1"],
+      "notes": ["Pipeline and finance evidence must use normalized stage mappings; reject cross-CRM comparisons without stage normalization metadata."]
+    },
+    "rtm_territory_policy_api": {
+      "integration_mode": "Request/Response",
+      "apis": ["Salesforce REST API", "HubSpot CRM API", "Notion API"],
+      "method_ids": ["salesforce.query.opportunity.v1", "salesforce.query.user.v1", "hubspot.deals.search.v1", "hubspot.owners.list.v1", "notion.pages.create.v1", "notion.pages.update.v1"],
+      "notes": ["RTM ownership policies must define owner, segment boundary, exception path, and escalation SLA; fail fast when any governance field is missing."]
+    }
+  },
+  "readme_md": "## GTM Economics and RTM Bot\n\nGTM Economics and RTM Bot locks viable unit economics and codifies route-to-market ownership and conflict rules into structured artifacts."
+}

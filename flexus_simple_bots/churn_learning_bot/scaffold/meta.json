@@ -1,0 +1,18 @@
+{
+    "bot_name": "churn_learning_bot",
+    "managed_mode": "full_scaffold_managed",
+    "tools": [
+        "flexus_policy_document",
+        "print_widget",
+        "churn_feedback_capture_api",
+        "churn_interview_ops_api",
+        "churn_transcript_analysis_api",
+        "churn_remediation_backlog_api"
+    ],
+    "experts": [
+        "default",
+        "churn_interview_operator",
+        "rootcause_classifier"
+    ],
+    "skills": []
+}

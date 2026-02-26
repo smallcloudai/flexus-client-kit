@@ -1,0 +1,30 @@
+{
+    "builder_mode": "full_scaffold_managed",
+    "managed_files": {
+        "manifest.json": "756cf1a2dd284ab6facfdbb81051a7a538f46452b1a53402e5c0cbed348f2bf9",
+        "setup_schema.json": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
+        "prompts/personality.md": "ad1f8c0b8ac6571c12172051eb03e573a3ceda3c6d54ba88b08df782b714f7f8",
+        "README.md": "adf3fc4aefa87248c96f0f44a1ecdf367ed7383ab687d289fd712ad28ccef85a",
+        "prompts/expert_default.md": "b69c8a3d055a88aa6bf0a35a030983ed493754e097838af5b2720c9536f28446",
+        "prompts/expert_discovery_instrument_designer.md": "c53de97b5764160d2407884b7b0be36d5e4789c306220e2e3d6ee3067c5617ea",
+        "prompts/expert_participant_recruitment_operator.md": "7b07ac6d1b72f0b41941244c069198facc3835dec0d0c7e4783860a52eab1f3a",
+        "prompts/expert_jtbd_interview_operator.md": "02c5a1714f583f793a3c3fd1837d2d044c9440a832f3eb53018a973ca69025a7",
+        "prompts/skill_skill_past_behavior_questioning.md": "a5fb2fad3c45fdbccdcc43f9141bbb1113b44897d54a29327af206540a187ac9",
+        "prompts/skill_skill_jtbd_outcome_formatting.md": "2d368b6d86306a12903c265f695221d44f357dd96bd01c5537c4af5c074f2208",
+        "prompts/skill_skill_qualitative_coding.md": "59403ebd8351ac5383db5ea625d06841f96ede29a4e0a7e5e9e48292e98b04f6",
+        "customer_discovery_bot.py": "8319c8f4771a88fd237906bc153ec4e65291d79dce1b88538e6af01e3cd8f309",
+        "customer_discovery_install.py": "841f27ce3da3738fb3687e5bbfb8f657d6a8ce83d04c2287b008aadd1b35127a",
+        "customer_discovery_prompts.py": "1d66c7f3604635d02578a5715cfe44c274243eafbce6f3ba581090438716ffba",
+        "scaffold/contract.md": "fd5288c04a8767c5c95f73d33ace9c73a5683faecd84d21fb70c1c2713a41add",
+        "scaffold/meta.json": "25da4337b9927468b3d8e38047274af943541c2b2af8ada288be864f36a4ad72",
+        "forms/README.md": "a6674faa04185d56f5092863fd67d590f46213c92029e40e82019ca3437cfc23",
+        "integrations/README.md": "a6179289e7dbc2bc5fc04fd0044daeda9b2d3512890b1d7df8e5095b4c0b2b24",
+        "scenarios/README.md": "b88c39e536d450240d94cf72e3ae7f3088fea73c5cefaf0162bbe92edec69323",
+        "custom/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "custom/hooks.py": "7e38eaeb3625d61cda456a8aee925cd6daa33e8e3feb5aee4fac31a185ec0366",
+        "README.builder.md": "2e88b54c58a7cedeb715bab3dbc13919288220bf4a28092ae9ec14f54ed8e877",
+        "scaffold/input_snapshot_tools.json": "72e1d9f3839136f09af31ab2f8db52dded40ffe318cd4a617f22839c511bfd90",
+        "scaffold/input_snapshot_experts.json": "5fa7a186e02f2019c7adda798ad7f7b67b3beb18f5e557985230d037985558d2",
+        "scaffold/input_snapshot_skills.json": "29d5b427563bfa728a8899930d5065f632c7401997d0d0b7c1b702944804689e"
+    }
+}

@@ -1,0 +1,41 @@
+{
+    "bot_name": "mvp_validation_bot",
+    "accent_color": "#1D4ED8",
+    "title1": "MVP Validation",
+    "title2": "MVP run operations and telemetry integrity",
+    "author": "Flexus",
+    "occupation": "MVP Operator",
+    "typical_group": "GTM / Validation",
+    "github_repo": "https://github.com/smallcloudai/flexus-client-kit.git",
+    "tools": [
+        "flexus_policy_document",
+        "print_widget",
+        "mvp_experiment_orchestration_api",
+        "mvp_telemetry_api",
+        "mvp_feedback_capture_api",
+        "mvp_instrumentation_health_api"
+    ],
+    "featured_actions": [
+        {
+            "feat_question": "Run approved MVP test",
+            "feat_expert": "mvp_flow_operator"
+        },
+        {
+            "feat_question": "Issue telemetry decision memo",
+            "feat_expert": "telemetry_integrity_analyst"
+        }
+    ],
+    "intro_message": "I run MVP tests and produce auditable decision artifacts.",
+    "preferred_model_default": "grok-4-1-fast-non-reasoning",
+    "daily_budget_default": 100000,
+    "default_inbox_default": 10000,
+    "tags": [
+        "MVP",
+        "Telemetry",
+        "Validation"
+    ],
+    "schedule": [],
+    "forms": {},
+    "auth_supported": [],
+    "auth_scopes": {}
+}

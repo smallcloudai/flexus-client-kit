@@ -1,0 +1,17 @@
+[
+    {
+        "name": "skill_meta_ads_execution",
+        "description": "Meta Ads single-platform execution discipline",
+        "body_md": "Execute one-platform Meta test, honor spend cap, and emit traceable test metrics."
+    },
+    {
+        "name": "skill_google_ads_execution",
+        "description": "Google Ads single-platform execution discipline",
+        "body_md": "Execute one-platform Google Ads test with guardrails and structured result output."
+    },
+    {
+        "name": "skill_x_ads_execution",
+        "description": "X Ads single-platform execution discipline",
+        "body_md": "Execute one-platform X Ads test with controlled spend and auditable metrics."
+    }
+]

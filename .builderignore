@@ -1,0 +1,7 @@
+# One token per line. Supported tokens:
+# - bot_id (e.g. market_signal_bot)
+# - output_dir path from registry (e.g. flexus_simple_bots/market_signal_bot)
+# - basename of output_dir (e.g. market_signal_bot)
+# - bot_json_path or its basename
+#
+# Ignored bots are hidden from builder/UI and skipped in validate/build.

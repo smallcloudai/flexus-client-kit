@@ -1,0 +1,43 @@
+{
+    "bot_name": "market_signal_bot",
+    "accent_color": "#2563EB",
+    "title1": "Market Signal",
+    "title2": "Channel-specific signal detection and normalization",
+    "author": "Flexus",
+    "occupation": "Market Signal Analyst",
+    "typical_group": "GTM / Discovery",
+    "github_repo": "https://github.com/smallcloudai/flexus-client-kit.git",
+    "tools": [
+        "flexus_policy_document",
+        "print_widget",
+        "signal_search_demand_api",
+        "signal_social_trends_api",
+        "signal_news_events_api",
+        "signal_review_voice_api",
+        "signal_marketplace_demand_api",
+        "signal_web_traffic_intel_api",
+        "signal_jobs_demand_api",
+        "signal_dev_ecosystem_api",
+        "signal_public_interest_api",
+        "signal_professional_network_api"
+    ],
+    "featured_actions": [
+        {
+            "feat_question": "Detect market signals for one channel",
+            "feat_expert": "market_signal_detector"
+        }
+    ],
+    "intro_message": "I detect and normalize market signals into structured artifacts.",
+    "preferred_model_default": "grok-4-1-fast-non-reasoning",
+    "daily_budget_default": 100000,
+    "default_inbox_default": 10000,
+    "tags": [
+        "GTM",
+        "Signals",
+        "Discovery"
+    ],
+    "schedule": [],
+    "forms": {},
+    "auth_supported": [],
+    "auth_scopes": {}
+}

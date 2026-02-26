@@ -1,0 +1,329 @@
+{
+  "bot_name": "positioning_offer_bot",
+  "accent_color": "#0F766E",
+  "title1": "Positioning and Offer",
+  "title2": "Value proposition and package architecture",
+  "author": "Flexus",
+  "occupation": "Positioning Architect",
+  "typical_group": "GTM / Messaging",
+  "github_repo": "https://github.com/smallcloudai/flexus-client-kit.git",
+  "tools": [
+    "flexus_policy_document",
+    "print_widget",
+    "positioning_message_test_api",
+    "positioning_competitor_intel_api",
+    "offer_packaging_benchmark_api",
+    "positioning_channel_probe_api"
+  ],
+  "featured_actions": [
+    {"feat_question": "Draft value proposition", "feat_expert": "value_proposition_synthesizer"},
+    {"feat_question": "Run positioning test", "feat_expert": "positioning_test_operator"}
+  ],
+  "intro_message": "I turn validated pains into positioning and offer artifacts.",
+  "preferred_model_default": "grok-4-1-fast-non-reasoning",
+  "daily_budget_default": 100000,
+  "default_inbox_default": 10000,
+  "tags": ["Positioning", "Offer", "Messaging"],
+  "personality_md": "You are a positioning and offer operations bot. You work in strict evidence-first mode. Never invent evidence, never hide uncertainty, and always emit structured artifacts for downstream use.",
+  "experts": [
+    {
+      "name": "default",
+      "fexp_description": "Default route for positioning and offer tasks",
+      "fexp_allow_tools": "flexus_policy_document,print_widget,positioning_message_test_api,positioning_competitor_intel_api,offer_packaging_benchmark_api,positioning_channel_probe_api",
+      "fexp_block_tools": "",
+      "skills": [],
+      "body_md": "Route to value proposition synthesis or positioning test operations based on user intent."
+    },
+    {
+      "name": "value_proposition_synthesizer",
+      "fexp_description": "Synthesize segment-specific value proposition and offer packaging boundaries from evidence and market context",
+      "fexp_allow_tools": "flexus_policy_document,print_widget,positioning_competitor_intel_api,offer_packaging_benchmark_api,positioning_message_test_api",
+      "fexp_block_tools": "",
+      "skills": [],
+      "pdoc_output_schemas": [
+        {
+          "schema_name": "value_prop_schema",
+          "schema": {
+            "type": "object",
+            "required": ["artifact_type", "version", "target_segment", "core_claim", "proof_points", "differentiators", "objection_handling", "confidence", "sources"],
+            "additionalProperties": false,
+            "properties": {
+              "artifact_type": {"type": "string", "enum": ["value_proposition"]},
+              "version": {"type": "string"},
+              "target_segment": {"type": "string"},
+              "core_claim": {"type": "string"},
+              "proof_points": {"type": "array", "items": {"type": "string"}},
+              "differentiators": {"type": "array", "items": {"type": "string"}},
+              "objection_handling": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": ["objection", "response"],
+                  "additionalProperties": false,
+                  "properties": {"objection": {"type": "string"}, "response": {"type": "string"}}
+                }
+              },
+              "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+              "sources": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": ["source_type", "source_ref"],
+                  "additionalProperties": false,
+                  "properties": {
+                    "source_type": {"type": "string", "enum": ["api", "artifact", "tool_output", "event_stream", "expert_handoff", "user_directive"]},
+                    "source_ref": {"type": "string"}
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "schema_name": "offer_packaging_schema",
+          "schema": {
+            "type": "object",
+            "required": ["artifact_type", "version", "pricing_model_type", "packages", "guardrails", "assumptions", "confidence"],
+            "additionalProperties": false,
+            "properties": {
+              "artifact_type": {"type": "string", "enum": ["offer_packaging"]},
+              "version": {"type": "string"},
+              "pricing_model_type": {"type": "string", "enum": ["subscription", "usage_based", "hybrid", "one_time"]},
+              "packages": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": ["package_id", "package_name", "intended_segment", "included_outcomes", "pricing_anchor", "feature_fences"],
+                  "additionalProperties": false,
+                  "properties": {
+                    "package_id": {"type": "string"},
+                    "package_name": {"type": "string"},
+                    "intended_segment": {"type": "string"},
+                    "included_outcomes": {"type": "array", "items": {"type": "string"}},
+                    "pricing_anchor": {"type": "string"},
+                    "feature_fences": {"type": "array", "items": {"type": "string"}},
+                    "optional_add_ons": {"type": "array", "items": {"type": "string"}}
+                  }
+                }
+              },
+              "guardrails": {"type": "array", "items": {"type": "string"}},
+              "assumptions": {"type": "array", "items": {"type": "string"}},
+              "confidence": {"type": "number", "minimum": 0, "maximum": 1}
+            }
+          }
+        },
+        {
+          "schema_name": "positioning_narrative_brief_schema",
+          "schema": {
+            "type": "object",
+            "required": ["artifact_type", "version", "narrative_id", "problem_statement", "old_way", "new_way", "reason_to_believe", "tone_constraints", "disallowed_claims"],
+            "additionalProperties": false,
+            "properties": {
+              "artifact_type": {"type": "string", "enum": ["positioning_narrative_brief"]},
+              "version": {"type": "string"},
+              "narrative_id": {"type": "string"},
+              "problem_statement": {"type": "string"},
+              "old_way": {"type": "string"},
+              "new_way": {"type": "string"},
+              "reason_to_believe": {"type": "array", "items": {"type": "string"}},
+              "tone_constraints": {"type": "array", "items": {"type": "string"}},
+              "disallowed_claims": {"type": "array", "items": {"type": "string"}}
+            }
+          }
+        }
+      ],
+      "body_md": "Build evidence-backed value proposition and package architecture; fail fast when differentiators are weak, claims are unprovable, or package fences are not coherent."
+    },
+    {
+      "name": "positioning_test_operator",
+      "fexp_description": "Run positioning and messaging experiments across research and paid channel probes, then select winner with confidence",
+      "fexp_allow_tools": "flexus_policy_document,print_widget,positioning_message_test_api,positioning_channel_probe_api,positioning_competitor_intel_api",
+      "fexp_block_tools": "",
+      "skills": [],
+      "pdoc_output_schemas": [
+        {
+          "schema_name": "messaging_experiment_plan_schema",
+          "schema": {
+            "type": "object",
+            "required": ["artifact_type", "version", "experiment_id", "target_segment", "variants", "channels", "success_metrics", "stop_conditions"],
+            "additionalProperties": false,
+            "properties": {
+              "artifact_type": {"type": "string", "enum": ["messaging_experiment_plan"]},
+              "version": {"type": "string"},
+              "experiment_id": {"type": "string"},
+              "target_segment": {"type": "string"},
+              "variants": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": ["variant_id", "headline", "value_claim"],
+                  "additionalProperties": false,
+                  "properties": {
+                    "variant_id": {"type": "string"},
+                    "headline": {"type": "string"},
+                    "value_claim": {"type": "string"},
+                    "cta": {"type": "string"}
+                  }
+                }
+              },
+              "channels": {"type": "array", "items": {"type": "string", "enum": ["survey_panel", "meta_ads", "linkedin_ads", "google_ads", "email_probe"]}},
+              "success_metrics": {"type": "array", "items": {"type": "string"}},
+              "stop_conditions": {"type": "array", "items": {"type": "string"}}
+            }
+          }
+        },
+        {
+          "schema_name": "positioning_test_schema",
+          "schema": {
+            "type": "object",
+            "required": ["artifact_type", "version", "experiment_id", "variants_tested", "winner_variant_id", "result_summary", "confidence", "decision_reason", "sources"],
+            "additionalProperties": false,
+            "properties": {
+              "artifact_type": {"type": "string", "enum": ["positioning_test_result"]},
+              "version": {"type": "string"},
+              "experiment_id": {"type": "string"},
+              "variants_tested": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": ["variant_id", "channel_results", "aggregate_score"],
+                  "additionalProperties": false,
+                  "properties": {
+                    "variant_id": {"type": "string"},
+                    "channel_results": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "required": ["channel", "metric", "value"],
+                        "additionalProperties": false,
+                        "properties": {"channel": {"type": "string"}, "metric": {"type": "string"}, "value": {"type": "number"}}
+                      }
+                    },
+                    "aggregate_score": {"type": "number", "minimum": 0, "maximum": 1}
+                  }
+                }
+              },
+              "winner_variant_id": {"type": "string"},
+              "result_summary": {"type": "string"},
+              "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+              "decision_reason": {"type": "string"},
+              "sources": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": ["source_type", "source_ref"],
+                  "additionalProperties": false,
+                  "properties": {
+                    "source_type": {"type": "string", "enum": ["api", "artifact", "tool_output", "event_stream", "expert_handoff", "user_directive"]},
+                    "source_ref": {"type": "string"}
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "schema_name": "positioning_claim_risk_register_schema",
+          "schema": {
+            "type": "object",
+            "required": ["artifact_type", "version", "claims", "compliance_flags", "high_risk_claims"],
+            "additionalProperties": false,
+            "properties": {
+              "artifact_type": {"type": "string", "enum": ["positioning_claim_risk_register"]},
+              "version": {"type": "string"},
+              "claims": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": ["claim_id", "claim_text", "substantiation_status", "risk_level"],
+                  "additionalProperties": false,
+                  "properties": {
+                    "claim_id": {"type": "string"},
+                    "claim_text": {"type": "string"},
+                    "substantiation_status": {"type": "string", "enum": ["verified", "partially_verified", "unverified"]},
+                    "risk_level": {"type": "string", "enum": ["low", "medium", "high"]}
+                  }
+                }
+              },
+              "compliance_flags": {"type": "array", "items": {"type": "string"}},
+              "high_risk_claims": {"type": "array", "items": {"type": "string"}}
+            }
+          }
+        }
+      ],
+      "body_md": "Run message experiments and emit winner decision artifacts; fail fast when sample quality is weak, winner separation is statistically ambiguous, or claim risks remain high."
+    }
+  ],
+  "skills": [],
+  "setup_schema": [],
+  "builder_mode": "full_scaffold_managed",
+  "custom_dir": "custom",
+  "schedule": [],
+  "forms": {},
+  "auth_supported": [],
+  "auth_scopes": {},
+  "required_tool_prompt_files": [
+    "prompts/tool_positioning_message_test_api.md",
+    "prompts/tool_positioning_competitor_intel_api.md",
+    "prompts/tool_offer_packaging_benchmark_api.md",
+    "prompts/tool_positioning_channel_probe_api.md",
+    "prompts/tool_flexus_policy_document.md",
+    "prompts/tool_print_widget.md"
+  ],
+  "tool_catalog": {
+    "positioning_message_test_api": {
+      "integration_mode": "Request/Response",
+      "apis": ["Typeform Create/Responses API", "SurveyMonkey API v3", "Qualtrics Survey and Response Export APIs"],
+      "method_ids": [
+        "typeform.forms.create.v1",
+        "typeform.responses.list.v1",
+        "surveymonkey.surveys.create.v1",
+        "surveymonkey.surveys.responses.list.v1",
+        "qualtrics.surveys.create.v1",
+        "qualtrics.responseexports.start.v1",
+        "qualtrics.responseexports.progress.get.v1",
+        "qualtrics.responseexports.file.get.v1"
+      ],
+      "notes": ["Call contract: positioning_message_test_api(op=\"<operation>\", args={...})", "Default op fallback is help"]
+    },
+    "positioning_competitor_intel_api": {
+      "integration_mode": "Request/Response",
+      "apis": ["SerpApi", "GNews API", "Crunchbase API", "Similarweb API V5"],
+      "method_ids": [
+        "serpapi.search.google.v1",
+        "serpapi.search.news.v1",
+        "gnews.search.v1",
+        "crunchbase.organizations.search.v1",
+        "crunchbase.organizations.lookup.v1",
+        "similarweb.website.traffic_and_engagement.get.v1",
+        "similarweb.website.marketing_channel_sources.get.v1"
+      ],
+      "notes": ["Search and traffic APIs provide directional intelligence, not perfect market truth; require confidence downgrade when source coverage is partial."]
+    },
+    "offer_packaging_benchmark_api": {
+      "integration_mode": "Request/Response",
+      "apis": ["Stripe API", "Paddle API"],
+      "method_ids": [
+        "stripe.products.list.v1",
+        "stripe.prices.list.v1",
+        "paddle.products.list.v1",
+        "paddle.prices.list.v1"
+      ],
+      "notes": ["Billing catalog APIs are authoritative for own offer structure only; competitor packaging evidence must come from explicit external sources."]
+    },
+    "positioning_channel_probe_api": {
+      "integration_mode": "Request/Response",
+      "apis": ["Meta Marketing API", "LinkedIn Advertising API", "Google Ads API"],
+      "method_ids": [
+        "meta.adcreatives.create.v1",
+        "meta.ads_insights.get.v1",
+        "linkedin.ad_campaigns.create.v1",
+        "linkedin.ad_analytics.get.v1",
+        "google_ads.ad_group_ad.create.v1",
+        "google_ads.search_stream.query.v1"
+      ],
+      "notes": ["Channel probes require active ad accounts, policy approvals, and controlled spend caps; fail fast when budget guardrail or account readiness is missing."]
+    }
+  },
+  "readme_md": "## Positioning and Offer Bot\n\nPositioning and Offer Bot turns validated pains into positioning and offer artifacts."
+}

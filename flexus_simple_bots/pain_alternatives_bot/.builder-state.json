@@ -1,0 +1,26 @@
+{
+    "builder_mode": "full_scaffold_managed",
+    "managed_files": {
+        "manifest.json": "bdee753af7082ed80d17e255630b401f55ba3abfe212765ddce038e88e349191",
+        "setup_schema.json": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
+        "prompts/personality.md": "0623e0fed5cfa1694bdfa788935b80b22276d6bf27e137eb5c966bc956e88e05",
+        "README.md": "9bd384afda020215445b2c00715292ce736937032da63478040c8c854058f9ab",
+        "prompts/expert_default.md": "41ab82f47f74bb28dd2e9e50cce164b4132bf2286a12d66a50ae38c88fd8fd27",
+        "prompts/expert_pain_quantifier.md": "fa8c985ec299a248da4bf6befc5ed76d9413c3fc2eeefee96e39844026b89ff9",
+        "prompts/expert_alternative_mapper.md": "98cd7e30fc258070a82e9ba15045a48dd55bc7d1d419f06a7fd8dad89b6b0682",
+        "pain_alternatives_bot.py": "8319c8f4771a88fd237906bc153ec4e65291d79dce1b88538e6af01e3cd8f309",
+        "pain_alternatives_install.py": "80ed7ababf875caf710f58537ffcc65b3cb8889279f540697393e9fdd180d9c7",
+        "pain_alternatives_prompts.py": "6f43a44d8bf2a4ac54d44a64ae9f92cdaa2531dfe9ca55a91f0facbbacdd304d",
+        "scaffold/contract.md": "fd5288c04a8767c5c95f73d33ace9c73a5683faecd84d21fb70c1c2713a41add",
+        "scaffold/meta.json": "98d4e4da6f61399c5822cdf40880e72de8c29aab1ae3092019a0fdb7c618014a",
+        "forms/README.md": "a6674faa04185d56f5092863fd67d590f46213c92029e40e82019ca3437cfc23",
+        "integrations/README.md": "a6179289e7dbc2bc5fc04fd0044daeda9b2d3512890b1d7df8e5095b4c0b2b24",
+        "scenarios/README.md": "b88c39e536d450240d94cf72e3ae7f3088fea73c5cefaf0162bbe92edec69323",
+        "custom/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "custom/hooks.py": "7e38eaeb3625d61cda456a8aee925cd6daa33e8e3feb5aee4fac31a185ec0366",
+        "README.builder.md": "2e88b54c58a7cedeb715bab3dbc13919288220bf4a28092ae9ec14f54ed8e877",
+        "scaffold/input_snapshot_tools.json": "acc6c78dbb3383cc331a58cc7eb6ce447cc3e964f84980932e21a46bb8deb52f",
+        "scaffold/input_snapshot_experts.json": "3eb634fa85001935b9e691af6551cd26b4f241f239e0bb70330271331ef7a6a8",
+        "scaffold/input_snapshot_skills.json": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+    }
+}

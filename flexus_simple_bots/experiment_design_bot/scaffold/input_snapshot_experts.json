@@ -1,0 +1,548 @@
+[
+    {
+        "name": "default",
+        "fexp_description": "Default route for experiment design and reliability workflows",
+        "fexp_allow_tools": "flexus_policy_document,print_widget,experiment_backlog_ops_api,experiment_runtime_config_api,experiment_guardrail_metrics_api,experiment_instrumentation_quality_api",
+        "fexp_block_tools": "",
+        "skills": [],
+        "body_md": "Route to hypothesis architect or reliability checker for experiment card drafting or approval workflows."
+    },
+    {
+        "name": "hypothesis_architect",
+        "fexp_description": "Convert risk backlog into high-quality, executable experiment cards with explicit metrics and stop rules",
+        "fexp_allow_tools": "flexus_policy_document,print_widget,experiment_backlog_ops_api,experiment_guardrail_metrics_api,experiment_instrumentation_quality_api",
+        "fexp_block_tools": "",
+        "skills": [],
+        "pdoc_output_schemas": [
+            {
+                "schema_name": "experiment_card_draft_schema",
+                "schema": {
+                    "type": "object",
+                    "required": [
+                        "artifact_type",
+                        "version",
+                        "experiment_cards",
+                        "prioritization_rule",
+                        "sources"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                        "artifact_type": {
+                            "type": "string",
+                            "enum": [
+                                "experiment_card_draft"
+                            ]
+                        },
+                        "version": {
+                            "type": "string"
+                        },
+                        "prioritization_rule": {
+                            "type": "string",
+                            "enum": [
+                                "impact_x_confidence_x_reversibility"
+                            ]
+                        },
+                        "experiment_cards": {
+                            "type": "array",
+                            "items": {
+                                "type": "object",
+                                "required": [
+                                    "experiment_id",
+                                    "hypothesis",
+                                    "target_segment",
+                                    "primary_metric",
+                                    "guardrail_metrics",
+                                    "sample_definition",
+                                    "runbook",
+                                    "stop_conditions",
+                                    "owner",
+                                    "priority_rank"
+                                ],
+                                "additionalProperties": false,
+                                "properties": {
+                                    "experiment_id": {
+                                        "type": "string"
+                                    },
+                                    "hypothesis": {
+                                        "type": "string"
+                                    },
+                                    "target_segment": {
+                                        "type": "string"
+                                    },
+                                    "primary_metric": {
+                                        "type": "string"
+                                    },
+                                    "guardrail_metrics": {
+                                        "type": "array",
+                                        "items": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "sample_definition": {
+                                        "type": "object",
+                                        "required": [
+                                            "unit",
+                                            "target_n",
+                                            "allocation"
+                                        ],
+                                        "additionalProperties": false,
+                                        "properties": {
+                                            "unit": {
+                                                "type": "string"
+                                            },
+                                            "target_n": {
+                                                "type": "integer",
+                                                "minimum": 1
+                                            },
+                                            "allocation": {
+                                                "type": "string"
+                                            }
+                                        }
+                                    },
+                                    "runbook": {
+                                        "type": "array",
+                                        "items": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "stop_conditions": {
+                                        "type": "array",
+                                        "items": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "owner": {
+                                        "type": "string"
+                                    },
+                                    "priority_rank": {
+                                        "type": "integer",
+                                        "minimum": 1
+                                    }
+                                }
+                            }
+                        },
+                        "sources": {
+                            "type": "array",
+                            "items": {
+                                "type": "object",
+                                "required": [
+                                    "source_type",
+                                    "source_ref"
+                                ],
+                                "additionalProperties": false,
+                                "properties": {
+                                    "source_type": {
+                                        "type": "string",
+                                        "enum": [
+                                            "api",
+                                            "artifact",
+                                            "tool_output",
+                                            "event_stream",
+                                            "expert_handoff",
+                                            "user_directive"
+                                        ]
+                                    },
+                                    "source_ref": {
+                                        "type": "string"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            {
+                "schema_name": "experiment_measurement_spec_schema",
+                "schema": {
+                    "type": "object",
+                    "required": [
+                        "artifact_type",
+                        "version",
+                        "experiment_id",
+                        "metrics",
+                        "event_requirements",
+                        "quality_checks"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                        "artifact_type": {
+                            "type": "string",
+                            "enum": [
+                                "experiment_measurement_spec"
+                            ]
+                        },
+                        "version": {
+                            "type": "string"
+                        },
+                        "experiment_id": {
+                            "type": "string"
+                        },
+                        "metrics": {
+                            "type": "array",
+                            "items": {
+                                "type": "object",
+                                "required": [
+                                    "metric_id",
+                                    "metric_name",
+                                    "metric_type",
+                                    "formula",
+                                    "data_source"
+                                ],
+                                "additionalProperties": false,
+                                "properties": {
+                                    "metric_id": {
+                                        "type": "string"
+                                    },
+                                    "metric_name": {
+                                        "type": "string"
+                                    },
+                                    "metric_type": {
+                                        "type": "string",
+                                        "enum": [
+                                            "primary",
+                                            "guardrail",
+                                            "diagnostic"
+                                        ]
+                                    },
+                                    "formula": {
+                                        "type": "string"
+                                    },
+                                    "data_source": {
+                                        "type": "string"
+                                    }
+                                }
+                            }
+                        },
+                        "event_requirements": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        },
+                        "quality_checks": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            },
+            {
+                "schema_name": "experiment_backlog_prioritization_schema",
+                "schema": {
+                    "type": "object",
+                    "required": [
+                        "artifact_type",
+                        "version",
+                        "backlog",
+                        "top_candidates",
+                        "deferred_items"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                        "artifact_type": {
+                            "type": "string",
+                            "enum": [
+                                "experiment_backlog_prioritization"
+                            ]
+                        },
+                        "version": {
+                            "type": "string"
+                        },
+                        "backlog": {
+                            "type": "array",
+                            "items": {
+                                "type": "object",
+                                "required": [
+                                    "experiment_id",
+                                    "impact_score",
+                                    "confidence_score",
+                                    "reversibility_score",
+                                    "priority_score"
+                                ],
+                                "additionalProperties": false,
+                                "properties": {
+                                    "experiment_id": {
+                                        "type": "string"
+                                    },
+                                    "impact_score": {
+                                        "type": "number",
+                                        "minimum": 0,
+                                        "maximum": 1
+                                    },
+                                    "confidence_score": {
+                                        "type": "number",
+                                        "minimum": 0,
+                                        "maximum": 1
+                                    },
+                                    "reversibility_score": {
+                                        "type": "number",
+                                        "minimum": 0,
+                                        "maximum": 1
+                                    },
+                                    "priority_score": {
+                                        "type": "number",
+                                        "minimum": 0,
+                                        "maximum": 1
+                                    }
+                                }
+                            }
+                        },
+                        "top_candidates": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        },
+                        "deferred_items": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        ],
+        "body_md": "Produce high-quality experiment cards and measurement specs; fail fast when metric definitions are ambiguous or instrumentation prerequisites are missing."
+    },
+    {
+        "name": "reliability_checker",
+        "fexp_description": "Validate reliability conditions before experiment execution",
+        "fexp_allow_tools": "flexus_policy_document,print_widget,experiment_runtime_config_api,experiment_guardrail_metrics_api,experiment_instrumentation_quality_api",
+        "fexp_block_tools": "",
+        "skills": [],
+        "pdoc_output_schemas": [
+            {
+                "schema_name": "experiment_reliability_report_schema",
+                "schema": {
+                    "type": "object",
+                    "required": [
+                        "artifact_type",
+                        "version",
+                        "experiment_id",
+                        "reliability_checks",
+                        "pass_fail",
+                        "blocking_issues",
+                        "sources"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                        "artifact_type": {
+                            "type": "string",
+                            "enum": [
+                                "experiment_reliability_report"
+                            ]
+                        },
+                        "version": {
+                            "type": "string"
+                        },
+                        "experiment_id": {
+                            "type": "string"
+                        },
+                        "reliability_checks": {
+                            "type": "array",
+                            "items": {
+                                "type": "object",
+                                "required": [
+                                    "check_id",
+                                    "result",
+                                    "notes"
+                                ],
+                                "additionalProperties": false,
+                                "properties": {
+                                    "check_id": {
+                                        "type": "string"
+                                    },
+                                    "result": {
+                                        "type": "string",
+                                        "enum": [
+                                            "pass",
+                                            "warn",
+                                            "fail"
+                                        ]
+                                    },
+                                    "notes": {
+                                        "type": "string"
+                                    }
+                                }
+                            }
+                        },
+                        "pass_fail": {
+                            "type": "string",
+                            "enum": [
+                                "pass",
+                                "fail"
+                            ]
+                        },
+                        "blocking_issues": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        },
+                        "sources": {
+                            "type": "array",
+                            "items": {
+                                "type": "object",
+                                "required": [
+                                    "source_type",
+                                    "source_ref"
+                                ],
+                                "additionalProperties": false,
+                                "properties": {
+                                    "source_type": {
+                                        "type": "string",
+                                        "enum": [
+                                            "api",
+                                            "artifact",
+                                            "tool_output",
+                                            "event_stream",
+                                            "expert_handoff",
+                                            "user_directive"
+                                        ]
+                                    },
+                                    "source_ref": {
+                                        "type": "string"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            {
+                "schema_name": "experiment_approval_schema",
+                "schema": {
+                    "type": "object",
+                    "required": [
+                        "artifact_type",
+                        "version",
+                        "experiment_id",
+                        "approval_state",
+                        "approval_reason",
+                        "blocking_issues",
+                        "required_fixes",
+                        "go_live_constraints"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                        "artifact_type": {
+                            "type": "string",
+                            "enum": [
+                                "experiment_approval"
+                            ]
+                        },
+                        "version": {
+                            "type": "string"
+                        },
+                        "experiment_id": {
+                            "type": "string"
+                        },
+                        "approval_state": {
+                            "type": "string",
+                            "enum": [
+                                "approved",
+                                "revise",
+                                "rejected"
+                            ]
+                        },
+                        "approval_reason": {
+                            "type": "string"
+                        },
+                        "blocking_issues": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        },
+                        "required_fixes": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        },
+                        "go_live_constraints": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            },
+            {
+                "schema_name": "experiment_stop_rule_evaluation_schema",
+                "schema": {
+                    "type": "object",
+                    "required": [
+                        "artifact_type",
+                        "version",
+                        "experiment_id",
+                        "evaluation_window",
+                        "stop_rule_status",
+                        "triggered_rules",
+                        "recommended_action"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                        "artifact_type": {
+                            "type": "string",
+                            "enum": [
+                                "experiment_stop_rule_evaluation"
+                            ]
+                        },
+                        "version": {
+                            "type": "string"
+                        },
+                        "experiment_id": {
+                            "type": "string"
+                        },
+                        "evaluation_window": {
+                            "type": "object",
+                            "required": [
+                                "start_date",
+                                "end_date"
+                            ],
+                            "additionalProperties": false,
+                            "properties": {
+                                "start_date": {
+                                    "type": "string"
+                                },
+                                "end_date": {
+                                    "type": "string"
+                                }
+                            }
+                        },
+                        "stop_rule_status": {
+                            "type": "string",
+                            "enum": [
+                                "not_triggered",
+                                "triggered_guardrail",
+                                "triggered_success",
+                                "inconclusive"
+                            ]
+                        },
+                        "triggered_rules": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        },
+                        "recommended_action": {
+                            "type": "string",
+                            "enum": [
+                                "continue",
+                                "pause",
+                                "stop",
+                                "ship_variant"
+                            ]
+                        }
+                    }
+                }
+            }
+        ],
+        "body_md": "Run reliability gate checks and emit approval decisions; fail fast when guardrail definitions, runtime rollout controls, or telemetry quality checks are not production-safe."
+    }
+]

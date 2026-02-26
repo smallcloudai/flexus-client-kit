@@ -1,0 +1,566 @@
+[
+    {
+        "name": "default",
+        "fexp_description": "Default route for pipeline qualification and prospecting",
+        "fexp_allow_tools": "flexus_policy_document,print_widget,pipeline_crm_api,pipeline_prospecting_enrichment_api,pipeline_outreach_execution_api,pipeline_engagement_signal_api",
+        "fexp_block_tools": "",
+        "skills": [],
+        "body_md": "Default route for pipeline qualification and prospecting; route to specialists when user requests specific actions."
+    },
+    {
+        "name": "prospect_acquisition_operator",
+        "fexp_description": "Source, enrich, and enroll ICP-aligned prospects into controlled outbound motions",
+        "fexp_allow_tools": "flexus_policy_document,print_widget,pipeline_prospecting_enrichment_api,pipeline_outreach_execution_api,pipeline_crm_api",
+        "fexp_block_tools": "",
+        "skills": [],
+        "pdoc_output_schemas": [
+            {
+                "schema_name": "prospecting_batch_schema",
+                "schema": {
+                    "type": "object",
+                    "required": [
+                        "artifact_type",
+                        "version",
+                        "batch_id",
+                        "target_segment",
+                        "source_channels",
+                        "prospects",
+                        "batch_quality",
+                        "limitations"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                        "artifact_type": {
+                            "type": "string",
+                            "enum": [
+                                "prospecting_batch"
+                            ]
+                        },
+                        "version": {
+                            "type": "string"
+                        },
+                        "batch_id": {
+                            "type": "string"
+                        },
+                        "target_segment": {
+                            "type": "string"
+                        },
+                        "source_channels": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        },
+                        "prospects": {
+                            "type": "array",
+                            "items": {
+                                "type": "object",
+                                "required": [
+                                    "prospect_id",
+                                    "full_name",
+                                    "company_name",
+                                    "role",
+                                    "fit_score",
+                                    "contactability_score",
+                                    "source_refs"
+                                ],
+                                "additionalProperties": false,
+                                "properties": {
+                                    "prospect_id": {
+                                        "type": "string"
+                                    },
+                                    "full_name": {
+                                        "type": "string"
+                                    },
+                                    "company_name": {
+                                        "type": "string"
+                                    },
+                                    "role": {
+                                        "type": "string"
+                                    },
+                                    "fit_score": {
+                                        "type": "number",
+                                        "minimum": 0,
+                                        "maximum": 1
+                                    },
+                                    "contactability_score": {
+                                        "type": "number",
+                                        "minimum": 0,
+                                        "maximum": 1
+                                    },
+                                    "source_refs": {
+                                        "type": "array",
+                                        "items": {
+                                            "type": "string"
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "batch_quality": {
+                            "type": "object",
+                            "required": [
+                                "total_candidates",
+                                "accepted_candidates",
+                                "dedupe_ratio"
+                            ],
+                            "additionalProperties": false,
+                            "properties": {
+                                "total_candidates": {
+                                    "type": "integer",
+                                    "minimum": 0
+                                },
+                                "accepted_candidates": {
+                                    "type": "integer",
+                                    "minimum": 0
+                                },
+                                "dedupe_ratio": {
+                                    "type": "number",
+                                    "minimum": 0,
+                                    "maximum": 1
+                                }
+                            }
+                        },
+                        "limitations": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            },
+            {
+                "schema_name": "outreach_execution_log_schema",
+                "schema": {
+                    "type": "object",
+                    "required": [
+                        "artifact_type",
+                        "version",
+                        "batch_id",
+                        "sequence_plan",
+                        "enrollment_events",
+                        "delivery_summary",
+                        "blocked_items"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                        "artifact_type": {
+                            "type": "string",
+                            "enum": [
+                                "outreach_execution_log"
+                            ]
+                        },
+                        "version": {
+                            "type": "string"
+                        },
+                        "batch_id": {
+                            "type": "string"
+                        },
+                        "sequence_plan": {
+                            "type": "array",
+                            "items": {
+                                "type": "object",
+                                "required": [
+                                    "provider",
+                                    "sequence_id",
+                                    "segment_target"
+                                ],
+                                "additionalProperties": false,
+                                "properties": {
+                                    "provider": {
+                                        "type": "string"
+                                    },
+                                    "sequence_id": {
+                                        "type": "string"
+                                    },
+                                    "segment_target": {
+                                        "type": "string"
+                                    }
+                                }
+                            }
+                        },
+                        "enrollment_events": {
+                            "type": "array",
+                            "items": {
+                                "type": "object",
+                                "required": [
+                                    "event_id",
+                                    "prospect_id",
+                                    "provider",
+                                    "status"
+                                ],
+                                "additionalProperties": false,
+                                "properties": {
+                                    "event_id": {
+                                        "type": "string"
+                                    },
+                                    "prospect_id": {
+                                        "type": "string"
+                                    },
+                                    "provider": {
+                                        "type": "string"
+                                    },
+                                    "status": {
+                                        "type": "string",
+                                        "enum": [
+                                            "enrolled",
+                                            "skipped",
+                                            "failed"
+                                        ]
+                                    },
+                                    "reason": {
+                                        "type": "string"
+                                    }
+                                }
+                            }
+                        },
+                        "delivery_summary": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "number"
+                            }
+                        },
+                        "blocked_items": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            },
+            {
+                "schema_name": "prospect_data_quality_schema",
+                "schema": {
+                    "type": "object",
+                    "required": [
+                        "artifact_type",
+                        "version",
+                        "batch_id",
+                        "quality_checks",
+                        "pass_fail",
+                        "blocking_issues"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                        "artifact_type": {
+                            "type": "string",
+                            "enum": [
+                                "prospect_data_quality"
+                            ]
+                        },
+                        "version": {
+                            "type": "string"
+                        },
+                        "batch_id": {
+                            "type": "string"
+                        },
+                        "quality_checks": {
+                            "type": "array",
+                            "items": {
+                                "type": "object",
+                                "required": [
+                                    "check_id",
+                                    "result",
+                                    "notes"
+                                ],
+                                "additionalProperties": false,
+                                "properties": {
+                                    "check_id": {
+                                        "type": "string"
+                                    },
+                                    "result": {
+                                        "type": "string",
+                                        "enum": [
+                                            "pass",
+                                            "warn",
+                                            "fail"
+                                        ]
+                                    },
+                                    "notes": {
+                                        "type": "string"
+                                    }
+                                }
+                            }
+                        },
+                        "pass_fail": {
+                            "type": "string",
+                            "enum": [
+                                "pass",
+                                "fail"
+                            ]
+                        },
+                        "blocking_issues": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        ],
+        "body_md": "Build prospecting batches and enrollment logs with traceability; fail fast when dedupe, contactability quality, or outreach enrollment prerequisites are not met."
+    },
+    {
+        "name": "qualification_mapper",
+        "fexp_description": "Map qualification state and buying blockers",
+        "fexp_allow_tools": "flexus_policy_document,print_widget,pipeline_crm_api,pipeline_engagement_signal_api,pipeline_outreach_execution_api",
+        "fexp_block_tools": "",
+        "skills": [],
+        "pdoc_output_schemas": [
+            {
+                "schema_name": "qualification_map_schema",
+                "schema": {
+                    "type": "object",
+                    "required": [
+                        "artifact_type",
+                        "version",
+                        "rubric",
+                        "accounts",
+                        "coverage_status",
+                        "confidence"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                        "artifact_type": {
+                            "type": "string",
+                            "enum": [
+                                "qualification_map"
+                            ]
+                        },
+                        "version": {
+                            "type": "string"
+                        },
+                        "rubric": {
+                            "type": "string",
+                            "enum": [
+                                "icp_fit_x_pain_x_authority_x_timing"
+                            ]
+                        },
+                        "accounts": {
+                            "type": "array",
+                            "items": {
+                                "type": "object",
+                                "required": [
+                                    "account_id",
+                                    "account_name",
+                                    "qualification_state",
+                                    "qualification_score",
+                                    "buying_committee",
+                                    "blockers",
+                                    "next_action"
+                                ],
+                                "additionalProperties": false,
+                                "properties": {
+                                    "account_id": {
+                                        "type": "string"
+                                    },
+                                    "account_name": {
+                                        "type": "string"
+                                    },
+                                    "qualification_state": {
+                                        "type": "string",
+                                        "enum": [
+                                            "unqualified",
+                                            "qualified",
+                                            "high_priority"
+                                        ]
+                                    },
+                                    "qualification_score": {
+                                        "type": "number",
+                                        "minimum": 0,
+                                        "maximum": 1
+                                    },
+                                    "buying_committee": {
+                                        "type": "array",
+                                        "items": {
+                                            "type": "object",
+                                            "required": [
+                                                "role",
+                                                "contact_ref",
+                                                "coverage_status"
+                                            ],
+                                            "additionalProperties": false,
+                                            "properties": {
+                                                "role": {
+                                                    "type": "string"
+                                                },
+                                                "contact_ref": {
+                                                    "type": "string"
+                                                },
+                                                "coverage_status": {
+                                                    "type": "string",
+                                                    "enum": [
+                                                        "covered",
+                                                        "partial",
+                                                        "missing"
+                                                    ]
+                                                }
+                                            }
+                                        }
+                                    },
+                                    "blockers": {
+                                        "type": "array",
+                                        "items": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "next_action": {
+                                        "type": "string"
+                                    }
+                                }
+                            }
+                        },
+                        "coverage_status": {
+                            "type": "string",
+                            "enum": [
+                                "full",
+                                "partial",
+                                "none"
+                            ]
+                        },
+                        "confidence": {
+                            "type": "number",
+                            "minimum": 0,
+                            "maximum": 1
+                        }
+                    }
+                }
+            },
+            {
+                "schema_name": "buying_committee_coverage_schema",
+                "schema": {
+                    "type": "object",
+                    "required": [
+                        "artifact_type",
+                        "version",
+                        "accounts",
+                        "coverage_gaps",
+                        "recommended_fills"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                        "artifact_type": {
+                            "type": "string",
+                            "enum": [
+                                "buying_committee_coverage"
+                            ]
+                        },
+                        "version": {
+                            "type": "string"
+                        },
+                        "accounts": {
+                            "type": "array",
+                            "items": {
+                                "type": "object",
+                                "required": [
+                                    "account_id",
+                                    "required_roles",
+                                    "covered_roles",
+                                    "missing_roles"
+                                ],
+                                "additionalProperties": false,
+                                "properties": {
+                                    "account_id": {
+                                        "type": "string"
+                                    },
+                                    "required_roles": {
+                                        "type": "array",
+                                        "items": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "covered_roles": {
+                                        "type": "array",
+                                        "items": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "missing_roles": {
+                                        "type": "array",
+                                        "items": {
+                                            "type": "string"
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "coverage_gaps": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        },
+                        "recommended_fills": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            },
+            {
+                "schema_name": "qualification_go_no_go_gate_schema",
+                "schema": {
+                    "type": "object",
+                    "required": [
+                        "artifact_type",
+                        "version",
+                        "gate_status",
+                        "in_scope_accounts",
+                        "out_of_scope_accounts",
+                        "blocking_issues",
+                        "next_checks"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                        "artifact_type": {
+                            "type": "string",
+                            "enum": [
+                                "qualification_go_no_go_gate"
+                            ]
+                        },
+                        "version": {
+                            "type": "string"
+                        },
+                        "gate_status": {
+                            "type": "string",
+                            "enum": [
+                                "go",
+                                "no_go"
+                            ]
+                        },
+                        "in_scope_accounts": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        },
+                        "out_of_scope_accounts": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        },
+                        "blocking_issues": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        },
+                        "next_checks": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        ],
+        "body_md": "Map qualification states and decision blockers into execution-ready account views; fail fast when committee coverage is missing or qualification confidence is below threshold."
+    }
+]

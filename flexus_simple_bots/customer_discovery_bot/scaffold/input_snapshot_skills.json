@@ -1,0 +1,17 @@
+[
+    {
+        "name": "skill_past_behavior_questioning",
+        "description": "Past-behavior interview design discipline",
+        "body_md": "Force past-event phrasing and block hypothetical, leading, or abstract prompts."
+    },
+    {
+        "name": "skill_jtbd_outcome_formatting",
+        "description": "JTBD outcome normalization",
+        "body_md": "Convert raw interview language into structured desired-outcome statements."
+    },
+    {
+        "name": "skill_qualitative_coding",
+        "description": "Qualitative coding and saturation control",
+        "body_md": "Apply coding consistency, theme merge rules, and saturation checks."
+    }
+]

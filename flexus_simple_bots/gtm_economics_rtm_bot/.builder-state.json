@@ -1,0 +1,26 @@
+{
+    "builder_mode": "full_scaffold_managed",
+    "managed_files": {
+        "manifest.json": "802c9f67ae6220a3879cbc8e9bfaad49db7b5636b1ad08ad62ba586871d41d13",
+        "setup_schema.json": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
+        "prompts/personality.md": "fd7f13d79c5455b09a43778c6ac4bad82514200a1802860cb830e27860e84e9d",
+        "README.md": "3801c7090926da36112724413877f5e407352adcff9c3364a182844e81240679",
+        "prompts/expert_default.md": "e2361df9c9b5c0b898be8cca8676f6c529975e33bf2514e505a450c982888a3c",
+        "prompts/expert_unit_economics_modeler.md": "fd738e9f10ea4d7ea74039c5c8be6c54ed05677f70af9c5b86478dfc24761914",
+        "prompts/expert_rtm_rules_architect.md": "10afbb68603b65d53a21c4ae83d1b26e79c8b3e1e7c595b2c18b9875ebef5c94",
+        "gtm_economics_rtm_bot.py": "8319c8f4771a88fd237906bc153ec4e65291d79dce1b88538e6af01e3cd8f309",
+        "gtm_economics_rtm_install.py": "c635b26cd7abf5f67352d267fecee8035e14b350d9cfd536b133e21b6c1dd7e4",
+        "gtm_economics_rtm_prompts.py": "d5baeb34a482bf6f53857dc9e9f4f82bc113c4480a478b82fbcbffc94a05e59e",
+        "scaffold/contract.md": "fd5288c04a8767c5c95f73d33ace9c73a5683faecd84d21fb70c1c2713a41add",
+        "scaffold/meta.json": "d1aacb3122b74c70d4d9a0d7f84daab162f1e9e9b4d8b606fdfe8fc3fc6946c4",
+        "forms/README.md": "a6674faa04185d56f5092863fd67d590f46213c92029e40e82019ca3437cfc23",
+        "integrations/README.md": "a6179289e7dbc2bc5fc04fd0044daeda9b2d3512890b1d7df8e5095b4c0b2b24",
+        "scenarios/README.md": "b88c39e536d450240d94cf72e3ae7f3088fea73c5cefaf0162bbe92edec69323",
+        "custom/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "custom/hooks.py": "7e38eaeb3625d61cda456a8aee925cd6daa33e8e3feb5aee4fac31a185ec0366",
+        "README.builder.md": "2e88b54c58a7cedeb715bab3dbc13919288220bf4a28092ae9ec14f54ed8e877",
+        "scaffold/input_snapshot_tools.json": "00fe7759df40324867dcbeb2536dfdccccd3ea9a0fd1095bbe8363bb7cd2ea66",
+        "scaffold/input_snapshot_experts.json": "e111122f408fd190598e0b1db9bcc18f727c1899b51977a4a7fd373cc8a5f489",
+        "scaffold/input_snapshot_skills.json": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+    }
+}

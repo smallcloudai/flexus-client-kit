@@ -1,0 +1,41 @@
+{
+    "bot_name": "positioning_offer_bot",
+    "accent_color": "#0F766E",
+    "title1": "Positioning and Offer",
+    "title2": "Value proposition and package architecture",
+    "author": "Flexus",
+    "occupation": "Positioning Architect",
+    "typical_group": "GTM / Messaging",
+    "github_repo": "https://github.com/smallcloudai/flexus-client-kit.git",
+    "tools": [
+        "flexus_policy_document",
+        "print_widget",
+        "positioning_message_test_api",
+        "positioning_competitor_intel_api",
+        "offer_packaging_benchmark_api",
+        "positioning_channel_probe_api"
+    ],
+    "featured_actions": [
+        {
+            "feat_question": "Draft value proposition",
+            "feat_expert": "value_proposition_synthesizer"
+        },
+        {
+            "feat_question": "Run positioning test",
+            "feat_expert": "positioning_test_operator"
+        }
+    ],
+    "intro_message": "I turn validated pains into positioning and offer artifacts.",
+    "preferred_model_default": "grok-4-1-fast-non-reasoning",
+    "daily_budget_default": 100000,
+    "default_inbox_default": 10000,
+    "tags": [
+        "Positioning",
+        "Offer",
+        "Messaging"
+    ],
+    "schedule": [],
+    "forms": {},
+    "auth_supported": [],
+    "auth_scopes": {}
+}

@@ -1,0 +1,796 @@
+{
+  "bot_name": "retention_intelligence_bot",
+  "accent_color": "#0E7490",
+  "title1": "Retention Intelligence",
+  "title2": "Cohort and PMF confidence synthesis",
+  "author": "Flexus",
+  "occupation": "Retention Analyst",
+  "typical_group": "GTM / Retention",
+  "github_repo": "https://github.com/smallcloudai/flexus-client-kit.git",
+  "tools": [
+    "flexus_policy_document",
+    "print_widget",
+    "retention_revenue_events_api",
+    "retention_product_analytics_api",
+    "retention_feedback_research_api",
+    "retention_account_context_api"
+  ],
+  "featured_actions": [
+    {
+      "feat_question": "Run cohort retention and revenue review",
+      "feat_expert": "cohort_revenue_analyst"
+    },
+    {
+      "feat_question": "Score PMF confidence from behavioral and survey evidence",
+      "feat_expert": "pmf_survey_interpreter"
+    }
+  ],
+  "intro_message": "I synthesize retention, revenue, and PMF confidence evidence.",
+  "preferred_model_default": "grok-4-1-fast-non-reasoning",
+  "daily_budget_default": 100000,
+  "default_inbox_default": 10000,
+  "tags": [
+    "Retention",
+    "PMF",
+    "Cohorts"
+  ],
+  "personality_md": "You are a retention intelligence bot. You synthesize retention, revenue, and PMF confidence evidence. Work in strict evidence-first mode. Never invent evidence, never hide uncertainty, and always emit structured artifacts for downstream use.",
+  "experts": [
+    {
+      "name": "default",
+      "fexp_description": "Default route for retention and PMF analysis",
+      "fexp_allow_tools": "flexus_policy_document,print_widget,retention_revenue_events_api,retention_product_analytics_api,retention_feedback_research_api,retention_account_context_api",
+      "fexp_block_tools": "",
+      "skills": [],
+      "body_md": "Route retention and PMF analysis requests to cohort_revenue_analyst or pmf_survey_interpreter, or synthesize retention and revenue evidence when appropriate."
+    },
+    {
+      "name": "cohort_revenue_analyst",
+      "fexp_description": "Diagnose activation-retention-revenue behavior",
+      "fexp_allow_tools": "flexus_policy_document,print_widget,retention_revenue_events_api,retention_product_analytics_api,retention_account_context_api",
+      "fexp_block_tools": "",
+      "skills": [],
+      "pdoc_output_schemas": [
+        {
+          "schema_name": "cohort_revenue_review_schema",
+          "schema": {
+            "type": "object",
+            "required": [
+              "artifact_type",
+              "version",
+              "analysis_window",
+              "segment_filters",
+              "retention_cohorts",
+              "revenue_movement",
+              "expansion_vs_churn",
+              "risk_accounts",
+              "sources"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "artifact_type": {
+                "type": "string",
+                "enum": [
+                  "cohort_revenue_review"
+                ]
+              },
+              "version": {
+                "type": "string"
+              },
+              "analysis_window": {
+                "type": "object",
+                "required": [
+                  "start_date",
+                  "end_date"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "start_date": {
+                    "type": "string"
+                  },
+                  "end_date": {
+                    "type": "string"
+                  }
+                }
+              },
+              "segment_filters": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "retention_cohorts": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "cohort_id",
+                    "period",
+                    "retention_rate"
+                  ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "cohort_id": {
+                      "type": "string"
+                    },
+                    "period": {
+                      "type": "string"
+                    },
+                    "retention_rate": {
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 1
+                    }
+                  }
+                }
+              },
+              "revenue_movement": {
+                "type": "object",
+                "required": [
+                  "new_mrr",
+                  "expansion_mrr",
+                  "contraction_mrr",
+                  "churn_mrr",
+                  "net_mrr"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "new_mrr": {
+                    "type": "number"
+                  },
+                  "expansion_mrr": {
+                    "type": "number"
+                  },
+                  "contraction_mrr": {
+                    "type": "number"
+                  },
+                  "churn_mrr": {
+                    "type": "number"
+                  },
+                  "net_mrr": {
+                    "type": "number"
+                  }
+                }
+              },
+              "expansion_vs_churn": {
+                "type": "object",
+                "required": [
+                  "expansion_ratio",
+                  "churn_ratio"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "expansion_ratio": {
+                    "type": "number",
+                    "minimum": 0
+                  },
+                  "churn_ratio": {
+                    "type": "number",
+                    "minimum": 0
+                  }
+                }
+              },
+              "risk_accounts": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "account_ref",
+                    "risk_level",
+                    "risk_reason"
+                  ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "account_ref": {
+                      "type": "string"
+                    },
+                    "risk_level": {
+                      "type": "string",
+                      "enum": [
+                        "low",
+                        "medium",
+                        "high",
+                        "critical"
+                      ]
+                    },
+                    "risk_reason": {
+                      "type": "string"
+                    }
+                  }
+                }
+              },
+              "sources": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "source_type",
+                    "source_ref"
+                  ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "source_type": {
+                      "type": "string",
+                      "enum": [
+                        "api",
+                        "artifact",
+                        "tool_output",
+                        "event_stream",
+                        "expert_handoff",
+                        "user_directive"
+                      ]
+                    },
+                    "source_ref": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "schema_name": "retention_driver_matrix_schema",
+          "schema": {
+            "type": "object",
+            "required": [
+              "artifact_type",
+              "version",
+              "driver_matrix",
+              "priority_actions",
+              "confidence_notes"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "artifact_type": {
+                "type": "string",
+                "enum": [
+                  "retention_driver_matrix"
+                ]
+              },
+              "version": {
+                "type": "string"
+              },
+              "driver_matrix": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "driver_id",
+                    "driver_type",
+                    "impact_score",
+                    "evidence_refs"
+                  ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "driver_id": {
+                      "type": "string"
+                    },
+                    "driver_type": {
+                      "type": "string",
+                      "enum": [
+                        "activation",
+                        "engagement",
+                        "value_realization",
+                        "support_friction",
+                        "commercial"
+                      ]
+                    },
+                    "impact_score": {
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 1
+                    },
+                    "evidence_refs": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              },
+              "priority_actions": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "confidence_notes": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        {
+          "schema_name": "retention_readiness_gate_schema",
+          "schema": {
+            "type": "object",
+            "required": [
+              "artifact_type",
+              "version",
+              "gate_status",
+              "blocking_issues",
+              "required_actions",
+              "decision_owner"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "artifact_type": {
+                "type": "string",
+                "enum": [
+                  "retention_readiness_gate"
+                ]
+              },
+              "version": {
+                "type": "string"
+              },
+              "gate_status": {
+                "type": "string",
+                "enum": [
+                  "go",
+                  "conditional",
+                  "no_go"
+                ]
+              },
+              "blocking_issues": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "required_actions": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "decision_owner": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      ],
+      "body_md": "Produce auditable cohort and revenue diagnostics with explicit driver priority; fail fast when cohort definitions, billing joins, or event coverage are inconsistent."
+    },
+    {
+      "name": "pmf_survey_interpreter",
+      "fexp_description": "Interpret PMF survey evidence with behavioral context",
+      "fexp_allow_tools": "flexus_policy_document,print_widget,retention_feedback_research_api,retention_product_analytics_api,retention_account_context_api",
+      "fexp_block_tools": "",
+      "skills": [],
+      "pdoc_output_schemas": [
+        {
+          "schema_name": "pmf_confidence_scorecard_schema",
+          "schema": {
+            "type": "object",
+            "required": [
+              "artifact_type",
+              "version",
+              "measurement_window",
+              "target_segment",
+              "survey_quality",
+              "pmf_core_metric",
+              "behavioral_corroboration",
+              "confidence",
+              "recommendation",
+              "sources"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "artifact_type": {
+                "type": "string",
+                "enum": [
+                  "pmf_confidence_scorecard"
+                ]
+              },
+              "version": {
+                "type": "string"
+              },
+              "measurement_window": {
+                "type": "object",
+                "required": [
+                  "start_date",
+                  "end_date"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "start_date": {
+                    "type": "string"
+                  },
+                  "end_date": {
+                    "type": "string"
+                  }
+                }
+              },
+              "target_segment": {
+                "type": "string"
+              },
+              "survey_quality": {
+                "type": "object",
+                "required": [
+                  "sample_size",
+                  "response_rate",
+                  "coverage_notes"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "sample_size": {
+                    "type": "number",
+                    "minimum": 0
+                  },
+                  "response_rate": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1
+                  },
+                  "coverage_notes": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                }
+              },
+              "pmf_core_metric": {
+                "type": "object",
+                "required": [
+                  "metric_name",
+                  "metric_value",
+                  "threshold"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "metric_name": {
+                    "type": "string"
+                  },
+                  "metric_value": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1
+                  },
+                  "threshold": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1
+                  }
+                }
+              },
+              "behavioral_corroboration": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "signal_name",
+                    "signal_direction",
+                    "source_ref"
+                  ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "signal_name": {
+                      "type": "string"
+                    },
+                    "signal_direction": {
+                      "type": "string",
+                      "enum": [
+                        "positive",
+                        "neutral",
+                        "negative"
+                      ]
+                    },
+                    "source_ref": {
+                      "type": "string"
+                    }
+                  }
+                }
+              },
+              "confidence": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              },
+              "recommendation": {
+                "type": "string",
+                "enum": [
+                  "increase_investment",
+                  "targeted_fix",
+                  "hold",
+                  "pivot"
+                ]
+              },
+              "sources": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "source_type",
+                    "source_ref"
+                  ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "source_type": {
+                      "type": "string",
+                      "enum": [
+                        "api",
+                        "artifact",
+                        "tool_output",
+                        "event_stream",
+                        "expert_handoff",
+                        "user_directive"
+                      ]
+                    },
+                    "source_ref": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "schema_name": "pmf_signal_evidence_schema",
+          "schema": {
+            "type": "object",
+            "required": [
+              "artifact_type",
+              "version",
+              "signals",
+              "negative_signals",
+              "evidence_gaps",
+              "next_research_actions"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "artifact_type": {
+                "type": "string",
+                "enum": [
+                  "pmf_signal_evidence"
+                ]
+              },
+              "version": {
+                "type": "string"
+              },
+              "signals": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "signal_id",
+                    "signal_type",
+                    "strength",
+                    "evidence_refs"
+                  ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "signal_id": {
+                      "type": "string"
+                    },
+                    "signal_type": {
+                      "type": "string",
+                      "enum": [
+                        "survey",
+                        "usage",
+                        "commercial",
+                        "support"
+                      ]
+                    },
+                    "strength": {
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 1
+                    },
+                    "evidence_refs": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              },
+              "negative_signals": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "evidence_gaps": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "next_research_actions": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        {
+          "schema_name": "pmf_research_backlog_schema",
+          "schema": {
+            "type": "object",
+            "required": [
+              "artifact_type",
+              "version",
+              "backlog_items",
+              "priority_order",
+              "owner_map"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "artifact_type": {
+                "type": "string",
+                "enum": [
+                  "pmf_research_backlog"
+                ]
+              },
+              "version": {
+                "type": "string"
+              },
+              "backlog_items": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "item_id",
+                    "hypothesis",
+                    "required_evidence",
+                    "priority"
+                  ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "item_id": {
+                      "type": "string"
+                    },
+                    "hypothesis": {
+                      "type": "string"
+                    },
+                    "required_evidence": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "priority": {
+                      "type": "string",
+                      "enum": [
+                        "p0",
+                        "p1",
+                        "p2"
+                      ]
+                    }
+                  }
+                }
+              },
+              "priority_order": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "owner_map": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "item_id",
+                    "owner"
+                  ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "item_id": {
+                      "type": "string"
+                    },
+                    "owner": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      ],
+      "body_md": "Interpret PMF evidence with strict sample-quality and behavior corroboration checks; fail fast when survey evidence is underpowered or conflicts with observed usage trends."
+    }
+  ],
+  "skills": [],
+  "setup_schema": [],
+  "builder_mode": "full_scaffold_managed",
+  "custom_dir": "custom",
+  "schedule": [],
+  "forms": {},
+  "auth_supported": [],
+  "auth_scopes": {},
+  "required_tool_prompt_files": [
+    "prompts/tool_retention_revenue_events_api.md",
+    "prompts/tool_retention_product_analytics_api.md",
+    "prompts/tool_retention_feedback_research_api.md",
+    "prompts/tool_retention_account_context_api.md",
+    "prompts/tool_flexus_policy_document.md",
+    "prompts/tool_print_widget.md"
+  ],
+  "tool_catalog": {
+    "retention_revenue_events_api": {
+      "integration_mode": "Request/Response",
+      "apis": [
+        "Stripe API",
+        "Chargebee API",
+        "Recurly API",
+        "Paddle API"
+      ],
+      "method_ids": [
+        "stripe.subscriptions.list.v1",
+        "stripe.invoices.list.v1",
+        "chargebee.subscriptions.list.v1",
+        "chargebee.invoices.list.v1",
+        "recurly.subscriptions.list.v1",
+        "paddle.subscriptions.list.v1"
+      ],
+      "notes": ["Call contract: retention_revenue_events_api(op=\"...\", args={...}). Default op fallback is help."]
+    },
+    "retention_product_analytics_api": {
+      "integration_mode": "Request/Response",
+      "apis": [
+        "PostHog Insights API",
+        "Mixpanel Query API",
+        "Google Analytics Data API",
+        "Amplitude Dashboard REST API"
+      ],
+      "method_ids": [
+        "posthog.insights.retention.query.v1",
+        "posthog.insights.funnel.query.v1",
+        "mixpanel.retention.query.v1",
+        "mixpanel.funnels.query.v1",
+        "ga4.properties.run_report.v1",
+        "amplitude.dashboardrest.chart.get.v1"
+      ],
+      "notes": ["Retention insights are valid only when cohort definition, event dictionary version, and time window are explicitly declared."]
+    },
+    "retention_feedback_research_api": {
+      "integration_mode": "Request/Response",
+      "apis": [
+        "SurveyMonkey API",
+        "Typeform Responses API",
+        "Delighted API",
+        "Intercom Conversations API",
+        "Zendesk Search API"
+      ],
+      "method_ids": [
+        "surveymonkey.responses.list.v1",
+        "typeform.responses.list.v1",
+        "delighted.metrics.get.v1",
+        "intercom.conversations.search.v1",
+        "zendesk.tickets.search.v1"
+      ],
+      "notes": ["PMF interpretation must include denominator quality (response rate and segment coverage); reject statistically weak samples."]
+    },
+    "retention_account_context_api": {
+      "integration_mode": "Request/Response",
+      "apis": [
+        "HubSpot CRM API",
+        "Pipedrive API",
+        "Intercom Conversations API",
+        "Zendesk Search API"
+      ],
+      "method_ids": [
+        "hubspot.deals.search.v1",
+        "hubspot.companies.search.v1",
+        "pipedrive.deals.search.v1",
+        "intercom.conversations.search.v1",
+        "zendesk.tickets.search.v1"
+      ],
+      "notes": ["Account risk flags must be tied to concrete entity ids and timestamps; reject narrative-only risk statements."]
+    }
+  },
+  "readme_md": "## Retention Intelligence\n\nRetention Intelligence synthesizes retention, revenue, and PMF confidence evidence for cohort and product-market-fit analysis."
+}

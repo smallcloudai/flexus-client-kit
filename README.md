@@ -188,13 +188,13 @@ python flexus_simple_bots/frog/frog_install.py --ws YOUR_WORKSPACE_ID
 ### 3. Run the bot
 
 ```bash
-python -m flexus_simple_bots.handcrafted.frog.frog_bot
+python -m flexus_simple_bots.frog.frog_bot
 ```
 
 ### 4. Run a scenario test
 
 ```bash
-python -m flexus_simple_bots.handcrafted.frog.frog_bot --scenario flexus_simple_bots/frog/frog__s1.yaml
+python -m flexus_simple_bots.frog.frog_bot --scenario flexus_simple_bots/frog/frog__s1.yaml
 ```
 
 Results appear in `scenario-dumps/` — check the `-score.yaml` file for judge feedback.
@@ -211,7 +211,7 @@ Options:
 
 ```bash
 python run_bot_registry_ui.py --host 127.0.0.1 --port 8777
-python run_bot_registry_ui.py --registry flexus_simple_bots/generated/bots_registry.json
+python run_bot_registry_ui.py --registry flexus_simple_bots/bots_registry.json
 python run_bot_registry_ui.py --no-browser
 ```
 

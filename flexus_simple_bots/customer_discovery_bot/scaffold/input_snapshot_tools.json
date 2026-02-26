@@ -1,0 +1,13 @@
+[
+    "flexus_policy_document",
+    "print_widget",
+    "discovery_survey_design_api",
+    "discovery_survey_collection_api",
+    "discovery_panel_recruitment_api",
+    "discovery_customer_panel_api",
+    "discovery_test_recruitment_api",
+    "discovery_interview_scheduling_api",
+    "discovery_interview_capture_api",
+    "discovery_transcript_coding_api",
+    "discovery_context_import_api"
+]

@@ -3,7 +3,7 @@ import json
 from pathlib import Path
 
 from flexus_client_kit.core import ckit_bot_install
-from flexus_simple_bots.shared import prompts_common
+from flexus_simple_bots import prompts_common
 
 logger = logging.getLogger("exprt")
 

@@ -20,7 +20,7 @@
             },
             "bs_default": {
                 "title": "Default Value",
-                "oneOf": [
+                "anyOf": [
                     { "type": "string" },
                     { "type": "integer" },
                     { "type": "number" },

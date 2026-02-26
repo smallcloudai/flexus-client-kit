@@ -1,0 +1,41 @@
+{
+    "bot_name": "creative_paid_channels_bot",
+    "accent_color": "#BE185D",
+    "title1": "Creative and Paid Channels",
+    "title2": "Creative variants and one-platform paid tests",
+    "author": "Flexus",
+    "occupation": "Paid Growth Operator",
+    "typical_group": "GTM / Demand",
+    "github_repo": "https://github.com/smallcloudai/flexus-client-kit.git",
+    "tools": [
+        "flexus_policy_document",
+        "print_widget",
+        "creative_asset_ops_api",
+        "paid_channel_execution_api",
+        "paid_channel_measurement_api",
+        "creative_feedback_capture_api"
+    ],
+    "featured_actions": [
+        {
+            "feat_question": "Generate creative variant pack",
+            "feat_expert": "creative_producer"
+        },
+        {
+            "feat_question": "Launch one-platform paid test",
+            "feat_expert": "paid_channel_operator"
+        }
+    ],
+    "intro_message": "I create testable creatives and run controlled paid-channel tests.",
+    "preferred_model_default": "grok-4-1-fast-non-reasoning",
+    "daily_budget_default": 100000,
+    "default_inbox_default": 10000,
+    "tags": [
+        "Creative",
+        "Paid",
+        "Acquisition"
+    ],
+    "schedule": [],
+    "forms": {},
+    "auth_supported": [],
+    "auth_scopes": {}
+}

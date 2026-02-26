@@ -1,0 +1,41 @@
+{
+    "bot_name": "retention_intelligence_bot",
+    "accent_color": "#0E7490",
+    "title1": "Retention Intelligence",
+    "title2": "Cohort and PMF confidence synthesis",
+    "author": "Flexus",
+    "occupation": "Retention Analyst",
+    "typical_group": "GTM / Retention",
+    "github_repo": "https://github.com/smallcloudai/flexus-client-kit.git",
+    "tools": [
+        "flexus_policy_document",
+        "print_widget",
+        "retention_revenue_events_api",
+        "retention_product_analytics_api",
+        "retention_feedback_research_api",
+        "retention_account_context_api"
+    ],
+    "featured_actions": [
+        {
+            "feat_question": "Run cohort retention and revenue review",
+            "feat_expert": "cohort_revenue_analyst"
+        },
+        {
+            "feat_question": "Score PMF confidence from behavioral and survey evidence",
+            "feat_expert": "pmf_survey_interpreter"
+        }
+    ],
+    "intro_message": "I synthesize retention, revenue, and PMF confidence evidence.",
+    "preferred_model_default": "grok-4-1-fast-non-reasoning",
+    "daily_budget_default": 100000,
+    "default_inbox_default": 10000,
+    "tags": [
+        "Retention",
+        "PMF",
+        "Cohorts"
+    ],
+    "schedule": [],
+    "forms": {},
+    "auth_supported": [],
+    "auth_scopes": {}
+}

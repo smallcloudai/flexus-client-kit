@@ -1,0 +1,22 @@
+{
+    "bot_name": "creative_paid_channels_bot",
+    "managed_mode": "full_scaffold_managed",
+    "tools": [
+        "flexus_policy_document",
+        "print_widget",
+        "creative_asset_ops_api",
+        "paid_channel_execution_api",
+        "paid_channel_measurement_api",
+        "creative_feedback_capture_api"
+    ],
+    "experts": [
+        "default",
+        "creative_producer",
+        "paid_channel_operator"
+    ],
+    "skills": [
+        "skill_meta_ads_execution",
+        "skill_google_ads_execution",
+        "skill_x_ads_execution"
+    ]
+}

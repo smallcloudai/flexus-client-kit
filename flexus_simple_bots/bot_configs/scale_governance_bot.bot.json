@@ -1,0 +1,286 @@
+{
+  "bot_name": "scale_governance_bot",
+  "accent_color": "#1E293B",
+  "title1": "Scale Governance",
+  "title2": "Playbooks, guardrails, and controlled scaling",
+  "author": "Flexus",
+  "occupation": "Operations Governor",
+  "typical_group": "Ops / Governance",
+  "github_repo": "https://github.com/smallcloudai/flexus-client-kit.git",
+  "tools": [
+    "flexus_policy_document",
+    "print_widget",
+    "playbook_repo_api",
+    "scale_guardrail_monitoring_api",
+    "scale_change_execution_api",
+    "scale_incident_response_api"
+  ],
+  "featured_actions": [
+    {
+      "feat_question": "Generate and version playbook set",
+      "feat_expert": "playbook_codifier"
+    },
+    {
+      "feat_question": "Approve guarded scale increment",
+      "feat_expert": "scale_guardrail_controller"
+    }
+  ],
+  "intro_message": "I codify operating playbooks and guardrail-controlled scale increments.",
+  "preferred_model_default": "grok-4-1-fast-non-reasoning",
+  "daily_budget_default": 100000,
+  "default_inbox_default": 10000,
+  "tags": ["Scale", "Governance", "Playbooks"],
+  "personality_md": "You are a scale governance bot. You codify operating playbooks and enforce guardrail-controlled scale increments. Never invent evidence, never skip approval chains, and always emit structured artifacts for downstream operations.",
+  "experts": [
+    {
+      "name": "default",
+      "fexp_description": "Default route for scale governance operations",
+      "fexp_allow_tools": "flexus_policy_document,print_widget,playbook_repo_api,scale_guardrail_monitoring_api,scale_change_execution_api,scale_incident_response_api",
+      "fexp_block_tools": "",
+      "skills": [],
+      "body_md": "Route for scale governance requests when no specific expert is selected. Codify playbooks or operate scale increments with explicit guardrails."
+    },
+    {
+      "name": "playbook_codifier",
+      "fexp_description": "Convert proven operations into versioned playbooks",
+      "fexp_allow_tools": "flexus_policy_document,print_widget,playbook_repo_api,scale_change_execution_api",
+      "fexp_block_tools": "",
+      "skills": [],
+      "pdoc_output_schemas": [
+        {
+          "schema_name": "playbook_library_schema",
+          "schema": {
+            "type": "object",
+            "required": ["artifact_type", "version", "playbooks", "owners", "last_validation_cycle", "sources"],
+            "additionalProperties": false,
+            "properties": {
+              "artifact_type": {"type": "string", "enum": ["playbook_library"]},
+              "version": {"type": "string"},
+              "playbooks": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": ["playbook_id", "scope", "trigger_conditions", "steps", "owner", "version", "status", "guardrails"],
+                  "additionalProperties": false,
+                  "properties": {
+                    "playbook_id": {"type": "string"},
+                    "scope": {"type": "string"},
+                    "trigger_conditions": {"type": "array", "items": {"type": "string"}},
+                    "steps": {"type": "array", "items": {"type": "string"}},
+                    "owner": {"type": "string"},
+                    "version": {"type": "string"},
+                    "status": {"type": "string", "enum": ["draft", "active", "deprecated"]},
+                    "guardrails": {"type": "array", "items": {"type": "string"}}
+                  }
+                }
+              },
+              "owners": {"type": "array", "items": {"type": "string"}},
+              "last_validation_cycle": {"type": "string"},
+              "sources": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": ["source_type", "source_ref"],
+                  "additionalProperties": false,
+                  "properties": {
+                    "source_type": {"type": "string", "enum": ["api", "artifact", "tool_output", "event_stream", "expert_handoff", "user_directive"]},
+                    "source_ref": {"type": "string"}
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "schema_name": "playbook_change_log_schema",
+          "schema": {
+            "type": "object",
+            "required": ["artifact_type", "version", "change_window", "changes", "approval_log", "rollback_notes"],
+            "additionalProperties": false,
+            "properties": {
+              "artifact_type": {"type": "string", "enum": ["playbook_change_log"]},
+              "version": {"type": "string"},
+              "change_window": {
+                "type": "object",
+                "required": ["start_date", "end_date"],
+                "additionalProperties": false,
+                "properties": {"start_date": {"type": "string"}, "end_date": {"type": "string"}}
+              },
+              "changes": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": ["playbook_id", "change_type", "changed_by", "change_reason"],
+                  "additionalProperties": false,
+                  "properties": {
+                    "playbook_id": {"type": "string"},
+                    "change_type": {"type": "string", "enum": ["add", "update", "deprecate"]},
+                    "changed_by": {"type": "string"},
+                    "change_reason": {"type": "string"}
+                  }
+                }
+              },
+              "approval_log": {"type": "array", "items": {"type": "string"}},
+              "rollback_notes": {"type": "array", "items": {"type": "string"}}
+            }
+          }
+        },
+        {
+          "schema_name": "operating_sop_compliance_schema",
+          "schema": {
+            "type": "object",
+            "required": ["artifact_type", "version", "compliance_window", "required_processes", "compliance_rate", "violations", "remediations"],
+            "additionalProperties": false,
+            "properties": {
+              "artifact_type": {"type": "string", "enum": ["operating_sop_compliance"]},
+              "version": {"type": "string"},
+              "compliance_window": {
+                "type": "object",
+                "required": ["start_date", "end_date"],
+                "additionalProperties": false,
+                "properties": {"start_date": {"type": "string"}, "end_date": {"type": "string"}}
+              },
+              "required_processes": {"type": "array", "items": {"type": "string"}},
+              "compliance_rate": {"type": "number", "minimum": 0, "maximum": 1},
+              "violations": {"type": "array", "items": {"type": "string"}},
+              "remediations": {"type": "array", "items": {"type": "string"}}
+            }
+          }
+        }
+      ],
+      "body_md": "Produce versioned, auditable operating playbooks and change logs; fail fast when ownership, approval chain, or guardrail mapping is incomplete."
+    },
+    {
+      "name": "scale_guardrail_controller",
+      "fexp_description": "Operate scale increments with explicit guardrail criteria",
+      "fexp_allow_tools": "flexus_policy_document,print_widget,scale_guardrail_monitoring_api,scale_change_execution_api,scale_incident_response_api",
+      "fexp_block_tools": "",
+      "skills": [],
+      "pdoc_output_schemas": [
+        {
+          "schema_name": "scale_increment_plan_schema",
+          "schema": {
+            "type": "object",
+            "required": ["artifact_type", "version", "increment_id", "analysis_window", "capacity_delta", "guardrails", "verification_steps", "rollback_triggers", "owner", "sources"],
+            "additionalProperties": false,
+            "properties": {
+              "artifact_type": {"type": "string", "enum": ["scale_increment_plan"]},
+              "version": {"type": "string"},
+              "increment_id": {"type": "string"},
+              "analysis_window": {
+                "type": "object",
+                "required": ["start_date", "end_date"],
+                "additionalProperties": false,
+                "properties": {"start_date": {"type": "string"}, "end_date": {"type": "string"}}
+              },
+              "capacity_delta": {
+                "type": "object",
+                "required": ["current_capacity", "target_capacity"],
+                "additionalProperties": false,
+                "properties": {"current_capacity": {"type": "number", "minimum": 0}, "target_capacity": {"type": "number", "minimum": 0}}
+              },
+              "guardrails": {"type": "array", "items": {"type": "string"}},
+              "verification_steps": {"type": "array", "items": {"type": "string"}},
+              "rollback_triggers": {"type": "array", "items": {"type": "string"}},
+              "owner": {"type": "string"},
+              "sources": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": ["source_type", "source_ref"],
+                  "additionalProperties": false,
+                  "properties": {
+                    "source_type": {"type": "string", "enum": ["api", "artifact", "tool_output", "event_stream", "expert_handoff", "user_directive"]},
+                    "source_ref": {"type": "string"}
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "schema_name": "scale_rollback_decision_schema",
+          "schema": {
+            "type": "object",
+            "required": ["artifact_type", "version", "increment_id", "decision", "decision_time", "triggering_guardrails", "evidence", "owner", "actions"],
+            "additionalProperties": false,
+            "properties": {
+              "artifact_type": {"type": "string", "enum": ["scale_rollback_decision"]},
+              "version": {"type": "string"},
+              "increment_id": {"type": "string"},
+              "decision": {"type": "string", "enum": ["continue", "pause", "rollback"]},
+              "decision_time": {"type": "string"},
+              "triggering_guardrails": {"type": "array", "items": {"type": "string"}},
+              "evidence": {"type": "array", "items": {"type": "string"}},
+              "owner": {"type": "string"},
+              "actions": {"type": "array", "items": {"type": "string"}}
+            }
+          }
+        },
+        {
+          "schema_name": "guardrail_breach_incident_schema",
+          "schema": {
+            "type": "object",
+            "required": ["artifact_type", "version", "incident_id", "opened_at", "breached_guardrails", "impact_assessment", "containment_actions", "resolution_state", "resolver"],
+            "additionalProperties": false,
+            "properties": {
+              "artifact_type": {"type": "string", "enum": ["guardrail_breach_incident"]},
+              "version": {"type": "string"},
+              "incident_id": {"type": "string"},
+              "opened_at": {"type": "string"},
+              "breached_guardrails": {"type": "array", "items": {"type": "string"}},
+              "impact_assessment": {"type": "array", "items": {"type": "string"}},
+              "containment_actions": {"type": "array", "items": {"type": "string"}},
+              "resolution_state": {"type": "string", "enum": ["open", "mitigated", "resolved", "postmortem_required"]},
+              "resolver": {"type": "string"}
+            }
+          }
+        }
+      ],
+      "body_md": "Control scale increments with explicit monitor-trigger-action rules; fail fast when guardrail evidence, rollback triggers, or accountable decision ownership is missing."
+    }
+  ],
+  "skills": [],
+  "setup_schema": [],
+  "builder_mode": "full_scaffold_managed",
+  "custom_dir": "custom",
+  "schedule": [],
+  "forms": {},
+  "auth_supported": [],
+  "auth_scopes": {},
+  "required_tool_prompt_files": [
+    "prompts/tool_playbook_repo_api.md",
+    "prompts/tool_scale_guardrail_monitoring_api.md",
+    "prompts/tool_scale_change_execution_api.md",
+    "prompts/tool_scale_incident_response_api.md",
+    "prompts/tool_flexus_policy_document.md",
+    "prompts/tool_print_widget.md"
+  ],
+  "tool_catalog": {
+    "playbook_repo_api": {
+      "integration_mode": "Request/Response",
+      "apis": ["Notion API", "Confluence REST API", "Google Drive API"],
+      "method_ids": ["notion.pages.create.v1", "notion.pages.update.v1", "confluence.pages.create.v1", "confluence.pages.update.v1", "gdrive.files.export.v1"],
+      "notes": ["Call contract: playbook_repo_api(op=\"<operation>\", args={...})", "Reject unknown op/provider/method_id; require owner/version for create/update"]
+    },
+    "scale_guardrail_monitoring_api": {
+      "integration_mode": "Request/Response",
+      "apis": ["Datadog API", "Grafana Alerting HTTP API", "Jira REST API"],
+      "method_ids": ["datadog.metrics.query.v1", "grafana.alerts.list.v1", "jira.issues.search.v1", "jira.issues.create.v1"],
+      "notes": ["Guardrail assessments valid only when metric query window, threshold source, and alert owner are explicit"]
+    },
+    "scale_change_execution_api": {
+      "integration_mode": "Request/Response",
+      "apis": ["Jira REST API", "Asana API", "Linear GraphQL API", "Notion API"],
+      "method_ids": ["jira.issues.create.v1", "jira.issues.transition.v1", "asana.tasks.create.v1", "linear.issues.create.v1", "notion.pages.update.v1"],
+      "notes": ["Every scale change must include change_owner, rollback_trigger, and verification step list; fail fast if any is missing"]
+    },
+    "scale_incident_response_api": {
+      "integration_mode": "Request/Response",
+      "apis": ["Jira REST API", "Notion API", "Confluence REST API"],
+      "method_ids": ["jira.issues.create.v1", "jira.issues.transition.v1", "notion.pages.update.v1", "confluence.pages.update.v1"],
+      "notes": ["Rollback and incident records must reference triggering guardrail, decision owner, and closure evidence before incident closure"]
+    }
+  },
+  "readme_md": "## Scale Governance Bot\n\nScale Governance Bot codifies operating playbooks and guardrail-controlled scale increments."
+}

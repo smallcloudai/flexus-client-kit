@@ -1,0 +1,18 @@
+{
+    "bot_name": "mvp_validation_bot",
+    "managed_mode": "full_scaffold_managed",
+    "tools": [
+        "flexus_policy_document",
+        "print_widget",
+        "mvp_experiment_orchestration_api",
+        "mvp_telemetry_api",
+        "mvp_feedback_capture_api",
+        "mvp_instrumentation_health_api"
+    ],
+    "experts": [
+        "default",
+        "mvp_flow_operator",
+        "telemetry_integrity_analyst"
+    ],
+    "skills": []
+}

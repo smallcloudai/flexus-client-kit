@@ -1,0 +1,46 @@
+{
+    "bot_name": "customer_discovery_bot",
+    "accent_color": "#0D9488",
+    "title1": "Customer Discovery",
+    "title2": "Interview and survey evidence operations",
+    "author": "Flexus",
+    "occupation": "Discovery Operator",
+    "typical_group": "GTM / Discovery",
+    "github_repo": "https://github.com/smallcloudai/flexus-client-kit.git",
+    "tools": [
+        "flexus_policy_document",
+        "print_widget",
+        "discovery_survey_design_api",
+        "discovery_survey_collection_api",
+        "discovery_panel_recruitment_api",
+        "discovery_customer_panel_api",
+        "discovery_test_recruitment_api",
+        "discovery_interview_scheduling_api",
+        "discovery_interview_capture_api",
+        "discovery_transcript_coding_api",
+        "discovery_context_import_api"
+    ],
+    "featured_actions": [
+        {
+            "feat_question": "Prepare next interview instrument",
+            "feat_expert": "discovery_instrument_designer"
+        },
+        {
+            "feat_question": "Recruit participants for interviews/tests",
+            "feat_expert": "participant_recruitment_operator"
+        }
+    ],
+    "intro_message": "I run structured discovery workflows and keep evidence quality high.",
+    "preferred_model_default": "grok-4-1-fast-non-reasoning",
+    "daily_budget_default": 100000,
+    "default_inbox_default": 10000,
+    "tags": [
+        "Discovery",
+        "JTBD",
+        "Research"
+    ],
+    "schedule": [],
+    "forms": {},
+    "auth_supported": [],
+    "auth_scopes": {}
+}

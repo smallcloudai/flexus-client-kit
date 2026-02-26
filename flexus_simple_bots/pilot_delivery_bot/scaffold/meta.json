@@ -1,0 +1,18 @@
+{
+    "bot_name": "pilot_delivery_bot",
+    "managed_mode": "full_scaffold_managed",
+    "tools": [
+        "flexus_policy_document",
+        "print_widget",
+        "pilot_contracting_api",
+        "pilot_delivery_ops_api",
+        "pilot_usage_evidence_api",
+        "pilot_stakeholder_sync_api"
+    ],
+    "experts": [
+        "default",
+        "pilot_contracting_operator",
+        "first_value_delivery_operator"
+    ],
+    "skills": []
+}

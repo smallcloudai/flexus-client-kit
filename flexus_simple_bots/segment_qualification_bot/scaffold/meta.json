@@ -1,0 +1,19 @@
+{
+    "bot_name": "segment_qualification_bot",
+    "managed_mode": "full_scaffold_managed",
+    "tools": [
+        "flexus_policy_document",
+        "print_widget",
+        "segment_crm_signal_api",
+        "segment_firmographic_enrichment_api",
+        "segment_technographic_profile_api",
+        "segment_market_traction_api",
+        "segment_intent_signal_api"
+    ],
+    "experts": [
+        "default",
+        "segment_data_enricher",
+        "primary_segment_decision_analyst"
+    ],
+    "skills": []
+}

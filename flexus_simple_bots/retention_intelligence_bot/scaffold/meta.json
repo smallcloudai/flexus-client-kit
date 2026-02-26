@@ -1,0 +1,18 @@
+{
+    "bot_name": "retention_intelligence_bot",
+    "managed_mode": "full_scaffold_managed",
+    "tools": [
+        "flexus_policy_document",
+        "print_widget",
+        "retention_revenue_events_api",
+        "retention_product_analytics_api",
+        "retention_feedback_research_api",
+        "retention_account_context_api"
+    ],
+    "experts": [
+        "default",
+        "cohort_revenue_analyst",
+        "pmf_survey_interpreter"
+    ],
+    "skills": []
+}

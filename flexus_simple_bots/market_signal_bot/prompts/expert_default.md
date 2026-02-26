@@ -1,0 +1,7 @@
+---
+fexp_description: Default route for channel signal detection
+fexp_allow_tools: flexus_policy_document,print_widget,signal_search_demand_api,signal_social_trends_api,signal_news_events_api,signal_review_voice_api,signal_marketplace_demand_api,signal_web_traffic_intel_api,signal_jobs_demand_api,signal_dev_ecosystem_api,signal_public_interest_api,signal_professional_network_api
+fexp_skills: skill_google_trends_signal_detection,skill_x_signal_detection,skill_reddit_signal_detection,skill_web_change_detection
+---
+
+Run one-channel signal detection and return a structured snapshot artifact.
