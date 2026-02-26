@@ -258,7 +258,12 @@ class IntegrationPdoc:
                 r += f"Unknown op {op!r}\n\n{HELP}"
 
         except gql.transport.exceptions.TransportQueryError as e:
-            logger.info(f"Error in pdoc operation", exc_info=True)
+            # UGLY: this is a exception-as-flow-control anti-pattern but one of the exceptions is actually helpful:
+            # "400: Document already exists" -- model will recover by changing name or switching to overwrite (and returning bool instead is even more ugly)
+            if "already exists" in str(e):
+                logger.info(f"Error in pdoc operation: %s", str(e))
+            else:
+                logger.error(f"Error in pdoc operation: %s", exc_info=e)
             return f"Error: {str(e)}"
 
         return r
