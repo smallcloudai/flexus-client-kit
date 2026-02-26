@@ -15,6 +15,10 @@ logger = logging.getLogger("google_calendar")
 
 REQUIRED_SCOPES = ["https://www.googleapis.com/auth/calendar"]
 
+METHOD_IDS = [
+    "google_calendar.events.insert.v1",
+    "google_calendar.events.list.v1",
+]
 
 GOOGLE_CALENDAR_TOOL = ckit_cloudtool.CloudTool(
     strict=False,

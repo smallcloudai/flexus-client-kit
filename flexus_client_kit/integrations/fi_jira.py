@@ -18,6 +18,13 @@ from flexus_client_kit.integrations import langchain_adapter
 
 logger = logging.getLogger("jira")
 
+PROVIDER_NAME = "jira"
+METHOD_IDS = [
+    "jira.issues.create.v1",
+    "jira.issues.search.v1",
+    "jira.issues.transition.v1",
+]
+
 REQUIRED_SCOPES = [
     "read:jira-work",
     "write:jira-work",
