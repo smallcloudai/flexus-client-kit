@@ -5,7 +5,6 @@ from dataclasses import dataclass
 from typing import Dict, Any, List, Optional
 
 import gql
-import httpx
 
 from flexus_client_kit import ckit_bot_exec, ckit_bot_query, ckit_client, ckit_cloudtool
 
@@ -128,16 +127,6 @@ def _setup_help(has_domains: bool) -> str:
     if not has_domains:
         return SETUP_HELP + f"No domains configured yet. Send from @{resend_testing_domain()} in the meantime.\n"
     return SETUP_HELP
-
-
-async def _check_dns_txt(domain: str, expected: str) -> bool:
-    try:
-        async with httpx.AsyncClient(timeout=5) as c:
-            r = await c.get(f"https://dns.google/resolve?name={domain}&type=TXT")
-            return any(expected in a.get("data", "") for a in r.json().get("Answer", []))
-    except Exception as e:
-        logger.warning("DNS TXT check failed for %s: %s", domain, e)
-        return False
 
 
 def parse_emessage(emsg: ckit_bot_query.FExternalMessageOutput) -> ActivityEmail:
