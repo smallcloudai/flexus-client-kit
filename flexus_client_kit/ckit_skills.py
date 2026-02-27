@@ -72,7 +72,7 @@ def read_name_description(bot_root_dir: Path, whitelist: List[str]) -> str:
                 })
                 break
         else:
-            logger.warning("skill %r not found in %s", name, bot_root_dir)
+            raise FileNotFoundError("skill %r not found in %s" % (name, [str(d) for d in _skill_dirs(bot_root_dir)]))
     return json.dumps(result)
 
 

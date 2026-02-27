@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 
 from flexus_client_kit import ckit_client, ckit_bot_install, ckit_cloudtool
-from flexus_client_kit import skills
+from flexus_client_kit import ckit_skills
 from flexus_simple_bots import prompts_common
 from flexus_simple_bots.frog import frog_prompts
 
@@ -30,7 +30,7 @@ if msg["role"] == "assistant":
         post_cd_instruction = "OMG dive down!!!"
 """
 
-FROG_SKILLS = ["internal-comms", "brand-guidelines", "lily-pad-feng-shui"]
+FROG_SKILLS = ["lily-pad-feng-shui"]
 
 EXPERTS = [
     ("default", ckit_bot_install.FMarketplaceExpertInput(
@@ -39,7 +39,7 @@ EXPERTS = [
         fexp_block_tools="*setup*",
         fexp_allow_tools="",
         fexp_description="Main conversational expert that handles user interactions, task management, and provides cheerful encouragement.",
-        fexp_builtin_skills=skills.read_name_description(FROG_ROOTDIR, FROG_SKILLS),
+        fexp_builtin_skills=ckit_skills.read_name_description(FROG_ROOTDIR, FROG_SKILLS),
     )),
     ("huntmode", ckit_bot_install.FMarketplaceExpertInput(
         fexp_system_prompt=frog_prompts.frog_prompt,
