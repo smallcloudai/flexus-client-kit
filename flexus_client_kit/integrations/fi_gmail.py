@@ -671,3 +671,6 @@ class IntegrationGmail:
         self.service.users().threads().delete(userId="me", id=thread_id).execute()
 
         return f"✅ Thread {thread_id} deleted successfully"
+
+
+GMAIL_SCOPES = ["https://www.googleapis.com/auth/gmail.modify"]

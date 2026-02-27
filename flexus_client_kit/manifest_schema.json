@@ -10,7 +10,7 @@
         "occupation",
         "typical_group",
         "github_repo",
-        "tools",
+        "integrations",
         "featured_actions",
         "intro_message",
         "preferred_model_default",
@@ -62,15 +62,6 @@
             "title": "GitHub Repository",
             "description": "Git repository URL where the bot's source code lives. Example: 'https://github.com/smallcloudai/flexus-client-kit.git'."
         },
-        "tools": {
-            "type": "array",
-            "title": "Tools",
-            "items": {
-                "type": "string",
-                "enum": ["flexus_policy_document", "print_widget"]
-            },
-            "description": "List of built-in cloud tools the bot needs. These are registered at startup and made available as tool calls during chat."
-        },
         "featured_actions": {
             "type": "array",
             "title": "Featured Actions",
@@ -120,6 +111,20 @@
             "title": "Tags",
             "items": { "type": "string" },
             "description": "Marketplace tags for discovery and filtering. Example: ['Marketing', 'Strategy', 'Hypothesis Validation']."
+        },
+        "integrations": {
+            "type": "array",
+            "title": "Integrations",
+            "items": {
+                "type": "string",
+                "enum": [
+                    "flexus_policy_document",
+                    "print_widget",
+                    "gmail",
+                    "google_calendar"
+                ]
+            },
+            "description": "List of integrations the bot uses. Each provides tools and optionally OAuth. Example: ['flexus_policy_document', 'gmail', 'google_calendar']."
         }
     }
 }
