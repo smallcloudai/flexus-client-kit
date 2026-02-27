@@ -75,8 +75,6 @@ async def install(
         ],
         marketable_intro_message="Ribbit! Hi there! I'm Frog, your cheerful workspace companion. I'm here to bring joy and keep your spirits high. What can I do for you today?",
         marketable_preferred_model_default="grok-4-1-fast-non-reasoning",
-        marketable_daily_budget_default=100_000,
-        marketable_default_inbox_default=10_000,
         marketable_experts=[(name, exp.provide_tools(tools)) for name, exp in EXPERTS],
         marketable_tags=["Fun", "Simple", "Motivational"],
         marketable_picture_big_b64=pic_big,

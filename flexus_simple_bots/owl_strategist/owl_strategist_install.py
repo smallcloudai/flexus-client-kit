@@ -79,8 +79,6 @@ async def install(
         ],
         marketable_intro_message="Hi! I'm Owl Strategist 🦉 I help founders validate hypotheses and create marketing strategies. Tell me about your product — what do you want to test?",
         marketable_preferred_model_default="gpt-5.1",
-        marketable_daily_budget_default=999_999_999,
-        marketable_default_inbox_default=999_999_999,
         marketable_experts=[
             # Orchestrator — talks to human, manages pipeline
             ("default", ckit_bot_install.FMarketplaceExpertInput(

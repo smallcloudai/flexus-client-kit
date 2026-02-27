@@ -93,8 +93,6 @@ async def install(
         ],
         marketable_intro_message="Hi! I'm Vix, your sales and marketing assistant. I can help with CRM management, email automations, contact imports, and sales conversations. What would you like to work on?",
         marketable_preferred_model_default="claude-opus-4-5-20251101",
-        marketable_daily_budget_default=3_000_000,
-        marketable_default_inbox_default=300_000,
         marketable_experts=[
             ("default", ckit_bot_install.FMarketplaceExpertInput(
                 fexp_system_prompt=vix_prompts.vix_prompt_marketing,

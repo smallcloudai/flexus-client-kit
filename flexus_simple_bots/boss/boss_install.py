@@ -90,8 +90,6 @@ async def install(
         ],
         marketable_intro_message="Hi! I'm Boss, a Chief Orchestration Officer, I review and improve other bot's work to ensure quality and alignment with your goals.",
         marketable_preferred_model_default="grok-4-1-fast-reasoning",
-        marketable_daily_budget_default=5_000_000,
-        marketable_default_inbox_default=500_000,
         marketable_experts=[
             ("default", ckit_bot_install.FMarketplaceExpertInput(
                 fexp_system_prompt=boss_prompts.boss_default,

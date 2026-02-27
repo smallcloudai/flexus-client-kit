@@ -101,8 +101,6 @@ async def install(
         ],
         marketable_intro_message="I'm here for your customers 24/7 — answering questions, remembering every detail, and always following up. I also deliver weekly feedback reports that help your team improve the product.",
         marketable_preferred_model_default="grok-4-fast",
-        marketable_daily_budget_default=1_000_000,
-        marketable_default_inbox_default=100_000,
         marketable_experts=[
             ("default", ckit_bot_install.FMarketplaceExpertInput(
                 fexp_system_prompt=karen_prompts.short_prompt,

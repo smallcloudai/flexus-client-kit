@@ -2,6 +2,7 @@ import asyncio
 import logging
 import json
 import time
+from pathlib import Path
 from typing import Dict, Any, Optional
 
 from pymongo import AsyncMongoClient
@@ -15,6 +16,7 @@ from flexus_client_kit import ckit_mongo
 from flexus_client_kit import ckit_kanban
 from flexus_client_kit import ckit_external_auth
 from flexus_client_kit import erp_schema
+from flexus_client_kit import skills
 from flexus_client_kit.integrations import fi_gmail
 from flexus_client_kit.integrations import fi_mongo_store
 from flexus_client_kit.integrations import fi_pdoc
@@ -113,6 +115,7 @@ async def frog_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.R
 
     @rcx.on_updated_message
     async def updated_message_in_db(msg: ckit_ask_model.FThreadMessageOutput):
+        # Those are optional if they do nothing, you can always access recent threads via rcx.latest_threads
         pass
 
     @rcx.on_updated_thread
@@ -122,6 +125,10 @@ async def frog_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.R
     @rcx.on_updated_task
     async def updated_task_in_db(t: ckit_kanban.FPersonaKanbanTaskOutput):
         pass
+
+    @rcx.on_tool_call(skills.FETCH_SKILL_TOOL.name)
+    async def toolcall_skill(toolcall, model_produced_args):
+        return await skills.called_by_model(toolcall, model_produced_args, str(Path(__file__).parent))
 
     @rcx.on_erp_change("crm_contact")
     async def on_contact_change(action: str, new_record: Optional[erp_schema.CrmContact], old_record: Optional[erp_schema.CrmContact]):

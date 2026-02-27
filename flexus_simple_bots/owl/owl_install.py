@@ -71,8 +71,6 @@ async def install(
         ],
         marketable_intro_message="I'm Owl. I turn hypotheses into experiment designs. Let me check what's available...",
         marketable_preferred_model_default="grok-4-1-fast-reasoning",
-        marketable_daily_budget_default=500_000,
-        marketable_default_inbox_default=50_000,
         marketable_experts=[
             ("default", ckit_bot_install.FMarketplaceExpertInput(
                 fexp_system_prompt=owl_prompts.DEFAULT_PROMPT,
