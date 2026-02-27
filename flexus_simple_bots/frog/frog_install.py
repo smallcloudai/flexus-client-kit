@@ -4,12 +4,14 @@ import json
 from pathlib import Path
 
 from flexus_client_kit import ckit_client, ckit_bot_install, ckit_cloudtool
+from flexus_client_kit import skills
 from flexus_simple_bots import prompts_common
 from flexus_simple_bots.frog import frog_prompts
 
 
-BOT_DESCRIPTION = (Path(__file__).parent / "README.md").read_text()
-SETUP_SCHEMA = json.loads((Path(__file__).parent / "setup_schema.json").read_text())
+FROG_ROOTDIR = Path(__file__).parent
+BOT_DESCRIPTION = (FROG_ROOTDIR / "README.md").read_text()
+SETUP_SCHEMA = json.loads((FROG_ROOTDIR / "setup_schema.json").read_text())
 
 FROG_SUBCHAT_LARK = f"""
 print("Ribbit in logs")     # will be visible in lark logs
@@ -28,6 +30,8 @@ if msg["role"] == "assistant":
         post_cd_instruction = "OMG dive down!!!"
 """
 
+FROG_SKILLS = ["internal-comms", "brand-guidelines"]
+
 EXPERTS = [
     ("default", ckit_bot_install.FMarketplaceExpertInput(
         fexp_system_prompt=frog_prompts.frog_prompt,
@@ -35,6 +39,7 @@ EXPERTS = [
         fexp_block_tools="*setup*",
         fexp_allow_tools="",
         fexp_description="Main conversational expert that handles user interactions, task management, and provides cheerful encouragement.",
+        fexp_builtin_skills=skills.read_name_description(FROG_ROOTDIR, FROG_SKILLS),
     )),
     ("huntmode", ckit_bot_install.FMarketplaceExpertInput(
         fexp_system_prompt=frog_prompts.frog_prompt,
@@ -52,8 +57,8 @@ async def install(
     bot_version: str,
     tools: list[ckit_cloudtool.CloudTool],
 ):
-    pic_big = base64.b64encode(Path(__file__).with_name("frog-1024x1536.webp").read_bytes()).decode("ascii")
-    pic_small = base64.b64encode(Path(__file__).with_name("frog-256x256.webp").read_bytes()).decode("ascii")
+    pic_big = base64.b64encode((FROG_ROOTDIR / "frog-1024x1536.webp").read_bytes()).decode("ascii")
+    pic_small = base64.b64encode((FROG_ROOTDIR / "frog-256x256.webp").read_bytes()).decode("ascii")
     await ckit_bot_install.marketplace_upsert_dev_bot(
         client,
         ws_id=client.ws_id,
