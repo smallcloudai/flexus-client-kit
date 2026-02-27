@@ -1,11 +1,7 @@
-from __future__ import annotations
 import json
 import logging
 import time
-from typing import Dict, Any, Optional, TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from flexus_client_kit import ckit_bot_exec
+from typing import Dict, Any, Optional
 
 import google.oauth2.credentials
 import googleapiclient.discovery
@@ -43,7 +39,7 @@ class IntegrationGoogleCalendar:
     def __init__(
         self,
         fclient: ckit_client.FlexusClient,
-        rcx: ckit_bot_exec.RobotContext,
+        rcx,
     ):
         self.fclient = fclient
         self.rcx = rcx
@@ -171,3 +167,5 @@ class IntegrationGoogleCalendar:
             r += "\n❌ Not authenticated. Please connect Google in workspace settings.\n"
 
         return r
+
+
