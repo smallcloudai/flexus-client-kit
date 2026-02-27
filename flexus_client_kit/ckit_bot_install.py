@@ -43,6 +43,8 @@ class FMarketplaceExpertInput:
     fexp_app_capture_tools: str = ""
     fexp_description: str = ""
     fexp_preferred_model_default: str = ""
+    fexp_subchat_only: bool = False
+    fexp_builtin_skills: str = "[]"  # [{"name", "description"}, ...]
 
     def provide_tools(self, tools: list[ckit_cloudtool.CloudTool]) -> "FMarketplaceExpertInput":
         self.fexp_app_capture_tools = json.dumps([t.openai_style_tool() for t in tools])
@@ -68,12 +70,12 @@ async def marketplace_upsert_dev_bot(
     marketable_featured_actions: List[Dict[str, Any]],
     marketable_intro_message: str,
     marketable_preferred_model_default: str,
-    marketable_daily_budget_default: int,
-    marketable_default_inbox_default: int,
     marketable_picture_big_b64: str,
     marketable_picture_small_b64: str,
     marketable_experts: List[Tuple[str, FMarketplaceExpertInput]],
     marketable_tags: List[str] = [],
+    marketable_daily_budget_default: int = 1_000_000,  # one dollar in microdollars, serves as a guardrail against overspending, user can change later
+    marketable_default_inbox_default: int = 100_000,   # limit for 1 task
     marketable_forms: Optional[Dict[str, str]] = None,
     marketable_required_policydocs: List[str] = [],
     marketable_auth_needed: List[str] = [],

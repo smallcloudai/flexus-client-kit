@@ -56,8 +56,6 @@ async def install(
         ],
         marketable_intro_message="Hi! I'm Slonik, your PostgreSQL database assistant. I can help you run queries, analyze data, and optimize database performance.",
         marketable_preferred_model_default="grok-code-fast-1",
-        marketable_daily_budget_default=50_000_000,
-        marketable_default_inbox_default=5_000_000,
         marketable_experts=[
             ("default", ckit_bot_install.FMarketplaceExpertInput(
                 fexp_system_prompt=slonik_prompts.slonik_prompt,

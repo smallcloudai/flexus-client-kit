@@ -159,8 +159,6 @@ async def install(
         ],
         marketable_intro_message="Add me as admin to your Telegram group, I'll pick it up!",
         marketable_preferred_model_default="grok-4-1-fast-non-reasoning",
-        marketable_daily_budget_default=100_000,
-        marketable_default_inbox_default=10_000,
         marketable_experts=[
             ("default", ckit_bot_install.FMarketplaceExpertInput(
                 fexp_system_prompt=telegram_groupmod_prompts.prompt_groupmod_default,

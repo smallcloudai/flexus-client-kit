@@ -195,8 +195,6 @@ async def install(
         ],
         marketable_intro_message="Hello! I'm LawyerRat, your thorough legal research assistant. I can help with legal research, document drafting, and contract analysis. What legal matter can I assist you with today? (Remember: I provide legal information, not legal advice - always consult a licensed attorney for actual legal advice.)",
         marketable_preferred_model_default="grok-4-1-fast-non-reasoning",
-        marketable_daily_budget_default=100_000,
-        marketable_default_inbox_default=10_000,
         marketable_experts=[
             ("default", ckit_bot_install.FMarketplaceExpertInput(
                 fexp_system_prompt=lawyerrat_prompts.lawyerrat_prompt,

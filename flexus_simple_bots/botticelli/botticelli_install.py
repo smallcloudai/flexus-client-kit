@@ -80,8 +80,6 @@ async def install(
         marketable_featured_actions=[],
         marketable_intro_message="Hello, I am Botticelli. I create high-converting Meta Ads creatives optimized with cognitive biases. Ready to generate stunning FB/IG ad campaigns?",
         marketable_preferred_model_default="grok-4-1-fast-non-reasoning",
-        marketable_daily_budget_default=100_000,
-        marketable_default_inbox_default=10_000,
         marketable_experts=[
             ("default", ckit_bot_install.FMarketplaceExpertInput(
                 fexp_system_prompt=botticelli_prompts.botticelli_prompt,
