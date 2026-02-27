@@ -52,12 +52,9 @@ async def install_from_manifest(m, client, bot_name, bot_version, tools):
     experts = ckit_experts_from_files.discover_experts(d / "prompts")
     featured = [fa | {"feat_depends_on_setup": []} for fa in m["featured_actions"]]
 
-    integrations = _load_integrations(m)
-    all_tools = tools
     auth_supported = list(m.get("auth_supported", []))
     auth_scopes: dict = dict(m.get("auth_scopes", {}))
-    for rec in integrations.values():
-        all_tools = all_tools + rec["integr_tools"]
+    for rec in _load_integrations(m).values():
         provider = rec.get("integr_provider")
         if provider:
             if provider not in auth_supported:
@@ -86,7 +83,7 @@ async def install_from_manifest(m, client, bot_name, bot_version, tools):
         marketable_preferred_model_default=m["preferred_model_default"],
         marketable_daily_budget_default=m["daily_budget_default"],
         marketable_default_inbox_default=m["default_inbox_default"],
-        marketable_experts=[(name, exp.provide_tools(all_tools)) for name, exp in experts],
+        marketable_experts=[(name, exp.provide_tools(tools)) for name, exp in experts],
         marketable_tags=m["tags"],
         marketable_picture_big_b64=pic_big,
         marketable_picture_small_b64=pic_small,
