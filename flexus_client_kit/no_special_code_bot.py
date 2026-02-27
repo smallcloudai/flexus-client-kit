@@ -24,7 +24,7 @@ SETUP_SCHEMA_SCHEMA = json.loads((Path(__file__).parent / "setup_schema_schema.j
 
 
 def _load_integrations(m):
-    return ckit_integrations_db.load(m["tools"] + m.get("integrations", []))
+    return ckit_integrations_db.load(m["integrations"])
 
 
 def _load_pic_b64(bot_dir: Path, bot_name: str, size: str, ext: str):
