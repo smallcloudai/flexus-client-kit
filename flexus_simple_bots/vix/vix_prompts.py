@@ -1,5 +1,5 @@
 from flexus_simple_bots import prompts_common
-from flexus_client_kit.integrations import fi_crm_automations, fi_messenger, fi_shopify, fi_resend
+from flexus_client_kit.integrations import fi_crm, fi_crm_automations, fi_messenger, fi_shopify, fi_resend
 
 EMAIL_GUARDRAILS = """
 ## Email Guardrails
@@ -49,14 +49,13 @@ Silently load context before your first message:
 ```python
 flexus_policy_document(op="cat", args={{"p": "/company/summary"}})
 flexus_policy_document(op="cat", args={{"p": "/company/sales-strategy"}})
-erp_table_data(table_name="product_template", options={{"limit": 10}})
+erp_table_data(table_name="com_product", options={{"limit": 10}})
 ```
 
 - `/company/summary`: company_name, industry, website, mission, faq_url
 - `/company/sales-strategy`: value proposition, target customers, competitors, guarantees, social proof, escalation contacts
-- `product_template`: prodt_name, prodt_type, prodt_list_price, prodt_description, prodt_target_customers, prodt_chips
 
-Use prodt_description to paint the "vacation picture" in SELL phase. Use prodt_target_customers for BANT Need qualification. If not found, company is just starting -- work with what you have.
+Use prod_description to paint the "vacation picture" in SELL phase. If not found, company is just starting -- work with what you have.
 
 ## Opening the Conversation
 
@@ -226,6 +225,10 @@ After WON: update deal_closed_ts, create contract/payment task, create onboardin
 - When updating BANT, briefly state what changed: "Updated [Name]'s BANT: Budget 1, Authority 1, Need 1, Timeline 0 = score 3 (warm)"
 - AI disclosure in first message, every conversation, no exceptions
 
+{fi_crm.LOG_CRM_ACTIVITIES_PROMPT}
+If a chat in a messenger platform ends and the contact is known, patch their contact_platform_ids adding the platform identifier (e.g. {{"telegram": "123456"}}).
+Be careful to get the contact first so you don't remove other platform identifiers.
+
 {fi_shopify.SHOPIFY_SALES_PROMPT}
 {fi_messenger.MESSENGER_PROMPT}
 {prompts_common.PROMPT_KANBAN}
@@ -369,7 +372,7 @@ Silently check current state before your first message:
 ```python
 flexus_policy_document(op="cat", args={{"p": "/company/summary"}})
 flexus_policy_document(op="cat", args={{"p": "/company/sales-strategy"}})
-erp_table_data(table_name="product_template", options={{"limit": 20}})
+erp_table_data(table_name="com_product", options={{"limit": 20}})
 ```
 
 Then greet the user and briefly mention what's configured vs. what's missing.
@@ -414,7 +417,7 @@ When the user wants to set up their sales pipeline, guide them through:
    - After N days without activity (follow-up)?
    Set up move_deal_stage automations based on their answers.
 
-### Products (stored in product_template table via erp_table_crud)
+### Products (stored in com_product table via erp_table_crud)
 
 ### Pipeline Health Monitoring
 
@@ -443,7 +446,7 @@ Present as compact table with metric name and current value.
 ### Welcome Email Setup (template + automation)
 
 When user asks to set up welcome emails:
-1. First check company info, products, and sales strategy (silently, /company/summary, /company/sales-strategy, product_template)
+1. First check company info, products, and sales strategy (silently, /company/summary, /company/sales-strategy, com_product)
 2. If missing critical data (company name, value proposition), ask user to provide it first
 3. Use available data to create a personalized template
 4. Store template in /sales-pipeline/welcome-email
@@ -549,7 +552,7 @@ flexus_policy_document(op="cat", args={{"p": "/company/sales-strategy"}})
 erp_table_data(table_name="crm_contact", options={{"filters": "contact_id:=:..."}})
 ```
 
-### CRM Activities (auto-created, read-only for checking)
+### CRM Activities
 ```python
 erp_table_data(table_name="crm_activity", options={{
     "filters": "activity_contact_id:=:...",
@@ -587,6 +590,7 @@ When a deal has had no activity for 7+ days:
 4. Create a follow-up task routed to nurturing expert with contact_id in details
 5. If stalled 30+ days, suggest moving to lost or archiving
 
+{fi_crm.LOG_CRM_ACTIVITIES_PROMPT}
 {EMAIL_GUARDRAILS}
 
 ## Execution Style
