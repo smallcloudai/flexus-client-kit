@@ -60,7 +60,7 @@ def collect_integration_tools(m) -> list[ckit_cloudtool.CloudTool]:
     for int_name in m.get("integrations", []):
         if int_name not in INTEGRATION_REGISTRY:
             raise ValueError(f"Unknown integration {int_name!r}, available: {list(INTEGRATION_REGISTRY.keys())}")
-        integration_tools.extend(INTEGRATION_REGISTRY[int_name].tools)
+        integration_tools.extend(INTEGRATION_REGISTRY[int_name]["tools"])
     return integration_tools
 
 
@@ -96,14 +96,13 @@ async def install_from_manifest(m, client, bot_name, bot_version, tools):
     for int_name in m.get("integrations", []):
         if int_name not in INTEGRATION_REGISTRY:
             raise ValueError(f"Unknown integration {int_name!r}, available: {list(INTEGRATION_REGISTRY.keys())}")
-        intg = INTEGRATION_REGISTRY[int_name]
-        integration_tools.extend(intg.tools)
-        if intg.auth_type == "oauth" and intg.provider:
-            if intg.provider not in auth_supported:
-                auth_supported.append(intg.provider)
-            existing = auth_scopes.get(intg.provider, [])
-            merged = list(dict.fromkeys(existing + intg.scopes))  # dedupe, preserve order
-            auth_scopes[intg.provider] = merged
+        rec = INTEGRATION_REGISTRY[int_name]
+        integration_tools.extend(rec["tools"])
+        if rec["provider"] not in auth_supported:
+            auth_supported.append(rec["provider"])
+        existing = auth_scopes.get(rec["provider"], [])
+        merged = list(dict.fromkeys(existing + rec["scopes"]))
+        auth_scopes[rec["provider"]] = merged
 
     await ckit_bot_install.marketplace_upsert_dev_bot(
         client,
@@ -136,25 +135,19 @@ async def install_from_manifest(m, client, bot_name, bot_version, tools):
     )
 
 
-async def bot_main_loop(m, fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.RobotContext) -> None:
-    ckit_bot_exec.official_setup_mixing_procedure(m["_setup_schema"], rcx.persona.persona_setup)
+async def bot_main_loop(manifest, fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.RobotContext) -> None:
+    ckit_bot_exec.official_setup_mixing_procedure(manifest["_setup_schema"], rcx.persona.persona_setup)
 
-    # Register handlers for manifest "tools" (existing TOOL_REGISTRY)
-    for name in m["tools"]:
+    for name in manifest["tools"]:
         tool, setup_fn = TOOL_REGISTRY[name]
         handler = setup_fn(rcx)
         rcx.on_tool_call(tool.name)(handler)
 
-    # Register handlers for "integrations" tools.
-    # Handlers are created with access to rcx so they can read live external_auth.
-    # When user connects/disconnects a provider, rcx._soft_restart_requested=True causes
-    # bot_main_loop to exit and re-enter, picking up the updated rcx.external_auth.
-    for int_name in m.get("integrations", []):
-        intg = INTEGRATION_REGISTRY[int_name]
-        for tool in intg.tools:
-            if tool.name in intg.tool_handler_factories:
-                handler = intg.tool_handler_factories[tool.name](rcx)
-                rcx.on_tool_call(tool.name)(handler)
+    for int_name in manifest.get("integrations", []):
+        rec = INTEGRATION_REGISTRY[int_name]
+        handler = rec["tool_handler_factory"](rcx)
+        for tool in rec["tools"]:
+            rcx.on_tool_call(tool.name)(handler)
 
     try:
         while not ckit_shutdown.shutdown_event.is_set():

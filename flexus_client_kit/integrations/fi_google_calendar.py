@@ -1,11 +1,7 @@
-from __future__ import annotations
 import json
 import logging
 import time
-from typing import Dict, Any, Optional, TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from flexus_client_kit import ckit_bot_exec
+from typing import Dict, Any, Optional
 
 import google.oauth2.credentials
 import googleapiclient.discovery
@@ -14,7 +10,7 @@ import langchain_google_community.calendar.toolkit
 from flexus_client_kit import ckit_cloudtool
 from flexus_client_kit import ckit_client
 from flexus_client_kit.integrations import langchain_adapter
-from flexus_client_kit.integrations.integration_registry import Integration, register
+from flexus_client_kit.integrations.integration_registry import register
 
 logger = logging.getLogger("google_calendar")
 
@@ -40,7 +36,7 @@ class IntegrationGoogleCalendar:
     def __init__(
         self,
         fclient: ckit_client.FlexusClient,
-        rcx: ckit_bot_exec.RobotContext,
+        rcx,
     ):
         self.fclient = fclient
         self.rcx = rcx
@@ -174,8 +170,7 @@ class IntegrationGoogleCalendar:
 # No-code bot integration registration
 # ---------------------------------------------------------------------------
 
-def _make_google_calendar_handler(rcx: "ckit_bot_exec.RobotContext"):
-    """Return a handler for the google_calendar tool, bound to the given rcx."""
+def _make_google_calendar_handler(rcx):
     integration = IntegrationGoogleCalendar(rcx.fclient, rcx)
 
     async def handler(toolcall: ckit_cloudtool.FCloudtoolCall, args: Dict[str, Any]) -> str:
@@ -184,14 +179,10 @@ def _make_google_calendar_handler(rcx: "ckit_bot_exec.RobotContext"):
     return handler
 
 
-GOOGLE_CALENDAR = register(Integration(
+register(
     name="google_calendar",
-    display_name="Google Calendar",
-    auth_type="oauth",
     provider="google",
     scopes=REQUIRED_SCOPES,
     tools=[GOOGLE_CALENDAR_TOOL],
-    tool_handler_factories={
-        "google_calendar": _make_google_calendar_handler,
-    },
-))
+    tool_handler_factory=_make_google_calendar_handler,
+)
