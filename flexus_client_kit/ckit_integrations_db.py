@@ -1,4 +1,4 @@
-def load(whitelist: list[str]) -> dict[str, dict]:
+def integrations_load(whitelist: list[str]) -> dict[str, dict]:
     result = {}
     for name in whitelist:
         if name == "flexus_policy_document":
