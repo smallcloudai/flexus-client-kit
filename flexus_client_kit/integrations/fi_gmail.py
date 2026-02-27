@@ -19,7 +19,6 @@ from flexus_client_kit import ckit_cloudtool
 from flexus_client_kit import ckit_client
 from flexus_client_kit import ckit_erp
 from flexus_client_kit import erp_schema
-from flexus_client_kit.integrations.integration_registry import register
 
 logger = logging.getLogger("gmail")
 
@@ -674,26 +673,4 @@ class IntegrationGmail:
         return f"✅ Thread {thread_id} deleted successfully"
 
 
-# ---------------------------------------------------------------------------
-# No-code bot integration registration
-# ---------------------------------------------------------------------------
-
 GMAIL_SCOPES = ["https://www.googleapis.com/auth/gmail.modify"]
-
-
-def _make_gmail_handler(rcx):
-    integration = IntegrationGmail(rcx.fclient, rcx)
-
-    async def handler(toolcall: ckit_cloudtool.FCloudtoolCall, args: Dict[str, Any]) -> str:
-        return await integration.called_by_model(toolcall, args)
-
-    return handler
-
-
-register(
-    name="gmail",
-    provider="google",
-    scopes=GMAIL_SCOPES,
-    tools=[GMAIL_TOOL],
-    tool_handler_factory=_make_gmail_handler,
-)
