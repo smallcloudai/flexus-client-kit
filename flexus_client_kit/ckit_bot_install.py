@@ -1,4 +1,5 @@
 import base64
+import fnmatch
 import json
 from dataclasses import dataclass
 import dataclasses
@@ -46,8 +47,19 @@ class FMarketplaceExpertInput:
     fexp_subchat_only: bool = False
     fexp_builtin_skills: str = "[]"  # [{"name", "description"}, ...]
 
-    def provide_tools(self, tools: list[ckit_cloudtool.CloudTool]) -> "FMarketplaceExpertInput":
-        self.fexp_app_capture_tools = json.dumps([t.openai_style_tool() for t in tools])
+    def _tool_allowed(self, name: str) -> bool:
+        block = [p.strip() for p in self.fexp_block_tools.split(",") if p.strip()]
+        allow = [p.strip() for p in self.fexp_allow_tools.split(",") if p.strip()]
+        if allow:
+            return any(fnmatch.fnmatch(name, p) for p in allow)
+        return not any(fnmatch.fnmatch(name, p) for p in block)
+
+    def filter_tools(self, tools: list[ckit_cloudtool.CloudTool]) -> "FMarketplaceExpertInput":
+        filtered = [t for t in tools if self._tool_allowed(t.name)]
+        self.fexp_app_capture_tools = json.dumps([t.openai_style_tool() for t in filtered])
+        has_skill_tool = any(t.name == "flexus_fetch_skill" for t in filtered)
+        has_skills = self.fexp_builtin_skills != "[]"
+        assert has_skill_tool == has_skills, "flexus_fetch_skill tool and fexp_builtin_skills must be both present or both absent"
         return self
 
 

@@ -96,7 +96,7 @@ async def install_from_manifest(m, client, bot_name, bot_version, tools):
         marketable_preferred_model_default=m["preferred_model_default"],
         marketable_daily_budget_default=m["daily_budget_default"],
         marketable_default_inbox_default=m["default_inbox_default"],
-        marketable_experts=[(name, exp.provide_tools(tools)) for name, exp in experts],
+        marketable_experts=[(name, exp.filter_tools(tools)) for name, exp in experts],
         marketable_tags=m["tags"],
         marketable_picture_big_b64=pic_big,
         marketable_picture_small_b64=pic_small,
