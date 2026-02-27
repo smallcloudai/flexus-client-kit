@@ -2,7 +2,6 @@ import asyncio
 import logging
 import json
 import time
-from pathlib import Path
 from typing import Dict, Any, Optional
 
 from pymongo import AsyncMongoClient
@@ -96,6 +95,7 @@ TOOLS = [
     fi_gmail.GMAIL_TOOL,
     fi_mongo_store.MONGO_STORE_TOOL,
     fi_pdoc.POLICY_DOCUMENT_TOOL,
+    skills.FETCH_SKILL_TOOL,
 ]
 
 
@@ -128,7 +128,7 @@ async def frog_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.R
 
     @rcx.on_tool_call(skills.FETCH_SKILL_TOOL.name)
     async def toolcall_skill(toolcall, model_produced_args):
-        return await skills.called_by_model(toolcall, model_produced_args, str(Path(__file__).parent))
+        return await skills.called_by_model(toolcall, model_produced_args, frog_install.FROG_ROOTDIR, frog_install.FROG_SKILLS)
 
     @rcx.on_erp_change("crm_contact")
     async def on_contact_change(action: str, new_record: Optional[erp_schema.CrmContact], old_record: Optional[erp_schema.CrmContact]):
