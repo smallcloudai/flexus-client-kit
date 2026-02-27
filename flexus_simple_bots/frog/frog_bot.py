@@ -15,7 +15,7 @@ from flexus_client_kit import ckit_mongo
 from flexus_client_kit import ckit_kanban
 from flexus_client_kit import ckit_external_auth
 from flexus_client_kit import erp_schema
-from flexus_client_kit import skills
+from flexus_client_kit import ckit_skills
 from flexus_client_kit.integrations import fi_gmail
 from flexus_client_kit.integrations import fi_mongo_store
 from flexus_client_kit.integrations import fi_pdoc
@@ -95,7 +95,7 @@ TOOLS = [
     fi_gmail.GMAIL_TOOL,
     fi_mongo_store.MONGO_STORE_TOOL,
     fi_pdoc.POLICY_DOCUMENT_TOOL,
-    skills.FETCH_SKILL_TOOL,
+    ckit_skills.FETCH_SKILL_TOOL,
 ]
 
 
@@ -126,9 +126,9 @@ async def frog_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.R
     async def updated_task_in_db(t: ckit_kanban.FPersonaKanbanTaskOutput):
         pass
 
-    @rcx.on_tool_call(skills.FETCH_SKILL_TOOL.name)
+    @rcx.on_tool_call(ckit_skills.FETCH_SKILL_TOOL.name)
     async def toolcall_skill(toolcall, model_produced_args):
-        return await skills.called_by_model(toolcall, model_produced_args, frog_install.FROG_ROOTDIR, frog_install.FROG_SKILLS)
+        return await ckit_skills.called_by_model(toolcall, model_produced_args, frog_install.FROG_ROOTDIR, frog_install.FROG_SKILLS)
 
     @rcx.on_erp_change("crm_contact")
     async def on_contact_change(action: str, new_record: Optional[erp_schema.CrmContact], old_record: Optional[erp_schema.CrmContact]):
