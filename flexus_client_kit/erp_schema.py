@@ -62,6 +62,7 @@ class CrmContact:
     contact_modified_ts: float = field(default=0.0, metadata={"display_name": "Modified at"})
     contact_archived_ts: float = field(default=0.0, metadata={"display_name": "Archived at"})
     contact_commerce_external: dict = field(default_factory=dict, metadata={"display_name": "Commerce External"})
+    contact_telegram_chat_id: str = field(default="", metadata={"display_name": "Telegram Chat ID", "editable": False})
 
 
 @dataclass

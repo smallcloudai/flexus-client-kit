@@ -203,7 +203,10 @@ async def vix_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.Ro
             contact_id = a.message_text[9:].strip()
             details["contact_id"] = contact_id
             title = "CRM contact opened Telegram chat, contact_id=%s chat_id=%d" % (contact_id, a.chat_id)
+            await ckit_erp.patch_erp_record(fclient, "crm_contact", rcx.persona.ws_id, contact_id, {"contact_telegram_chat_id": str(a.chat_id)})
         else:
+            if contact_id := await telegram.find_contact_by_chat_id(a.chat_id):
+                details["contact_id"] = contact_id
             title = "Telegram %s user=%r chat_id=%d\n%s" % (a.chat_type, a.message_author_name, a.chat_id, a.message_text)
             if a.attachments:
                 title += f"\n[{len(a.attachments)} file(s) attached]"

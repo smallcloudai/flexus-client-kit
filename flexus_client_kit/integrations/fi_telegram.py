@@ -13,7 +13,7 @@ from PIL import Image
 import telegram
 import telegram.ext
 
-from flexus_client_kit import ckit_ask_model, ckit_bot_exec, ckit_bot_query, ckit_client, ckit_cloudtool, ckit_erp, gql_utils
+from flexus_client_kit import ckit_ask_model, ckit_bot_exec, ckit_bot_query, ckit_client, ckit_cloudtool, ckit_erp, erp_schema, gql_utils
 from flexus_client_kit.format_utils import format_cat_output
 from flexus_client_kit.integrations import fi_messenger
 
@@ -59,8 +59,10 @@ telegram(op="capture", args={"chat_id": 123456789})
     Capture a Telegram chat. Messages will appear here and your responses will be sent back.
     You can only capture chats where the bot is a member.
 
-telegram(op="uncapture", args={"contact_id": "abc123", "conversation_summary": "Brief summary"})
-    Stop capturing. If contact_id is provided, logs a CRM activity with the summary.
+telegram(op="uncapture_and_log", args={"contact_id": "abc123", "conversation_summary": "Brief summary"})
+    Stop capturing and log a CRM activity. Both args required.
+    If no single contact applies, pass contact_id="unknown" (identity unclear) or contact_id="group" (group/channel chat).
+    These skip CRM logging but still uncapture cleanly.
 
 telegram(op="post", args={"chat_id": 123456789, "text": "Hello!"})
     Post a message to a Telegram chat. Don't use this for captured chats.
@@ -157,6 +159,13 @@ class IntegrationTelegram:
             except Exception:
                 logger.exception("%s telegram failed to close", self.rcx.persona.persona_id)
 
+    async def find_contact_by_chat_id(self, chat_id: int) -> Optional[str]:
+        contacts = await ckit_erp.query_erp_table(
+            self.fclient, "crm_contact", self.rcx.persona.ws_id, erp_schema.CrmContact,
+            filters=f"contact_telegram_chat_id:=:{chat_id}", limit=1,
+        )
+        return contacts[0].contact_id if contacts else None
+
     async def called_by_model(self, toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Optional[Dict[str, Any]]) -> str:
         if not model_produced_args:
             return HELP
@@ -229,17 +238,25 @@ class IntegrationTelegram:
             markup_help = "Reminder: after this point, telegram HTML-like markup rules are in effect, bold is <b>like this</b> etc.\n\n"
             return fi_messenger.CAPTURE_SUCCESS_MSG % identifier + fi_messenger.CAPTURE_ADVICE_MSG + markup_help
 
-        if op == "uncapture":
+        if op == "uncapture_and_log":
             contact_id = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "contact_id", None)
             summary = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "conversation_summary", None)
-            if contact_id and not summary:
+            if not contact_id:
+                return "Missing contact_id. Pass a real contact_id, or \"unknown\"/\"group\" if no single contact applies.\n"
+            if not summary:
                 return "Missing conversation_summary.\n"
+
+            tg_chat_id_str = ""
+            if ft := self.rcx.latest_threads.get(toolcall.fcall_ft_id):
+                s = ft.thread_fields.ft_app_searchable
+                if s.startswith("telegram/"):
+                    tg_chat_id_str = s[len("telegram/"):]
 
             http = await self.fclient.use_http()
             await ckit_ask_model.thread_app_capture_patch(http, toolcall.fcall_ft_id, ft_app_searchable="")
             if fthread := self.rcx.latest_threads.get(toolcall.fcall_ft_id):
                 fthread.thread_fields.ft_app_searchable = ""
-            if contact_id:
+            if contact_id not in ("unknown", "group"):
                 await ckit_erp.create_erp_record(self.fclient, "crm_activity", self.rcx.persona.ws_id, {
                     "ws_id": self.rcx.persona.ws_id,
                     "activity_title": "TELEGRAM conversation",
@@ -251,6 +268,8 @@ class IntegrationTelegram:
                     "activity_summary": summary,
                     "activity_occurred_ts": time.time(),
                 })
+                if tg_chat_id_str:
+                    await ckit_erp.patch_erp_record(self.fclient, "crm_contact", self.rcx.persona.ws_id, contact_id, {"contact_telegram_chat_id": tg_chat_id_str})
             return fi_messenger.UNCAPTURE_SUCCESS_MSG
 
         if op == "generate_chat_link":
