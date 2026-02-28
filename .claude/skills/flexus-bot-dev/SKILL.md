@@ -343,7 +343,6 @@ marketable_schedule=[
 |------|---------------|---------|
 | `SCHED_TASK_SORT` | Inbox is not empty | Prioritize inbox → move tasks to todo |
 | `SCHED_TODO` | Todo column has tasks | Pick one task and work on it |
-| `SCHED_CREATE_TASK` | On schedule | Create a new task and assign it |
 | `SCHED_ANY` | On schedule | Run unconditionally (reports, strategy rewrites) |
 
 **Timing formats** (`sched_when`): `"EVERY:1m"`, `"EVERY:2h"`, `"WEEKDAYS:MO:FR/10:30"`, `"MONTHDAY:1/12:00"`. Parsed by `ckit_schedule.parse_sched_when()`, next run computed by `calculate_next_run()` using workspace timezone.

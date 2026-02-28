@@ -125,6 +125,28 @@ class CloudTool:
                 for item in obj:
                     add_order(item)
 
+        if self.strict:
+            def _type_contains(t, name):
+                return t == name or (isinstance(t, list) and name in t)
+            def check_strict(path: str, schema: dict) -> None:
+                t = schema.get("type")
+                if _type_contains(t, "object") and "properties" in schema:
+                    if schema.get("additionalProperties") is not False:
+                        raise ValueError(f"CloudTool {self.name!r} strict mode requires additionalProperties: false at {path}")
+                    required = set(schema.get("required", []))
+                    missing = [k for k in schema["properties"] if k not in required]
+                    if missing:
+                        raise ValueError(f"CloudTool {self.name!r} strict mode requires all properties in required at {path}, missing: {missing}")
+                    for k, v in schema["properties"].items():
+                        if isinstance(v, dict):
+                            check_strict(f"{path}.{k}", v)
+                if _type_contains(t, "array") and isinstance(schema.get("items"), dict):
+                    check_strict(f"{path}[]", schema["items"])
+                for i, variant in enumerate(schema.get("anyOf", [])):
+                    if isinstance(variant, dict):
+                        check_strict(f"{path}.anyOf[{i}]", variant)
+            check_strict("parameters", self.parameters)
+
         params = self.parameters.copy()
         add_order(params)
         return {
@@ -334,14 +356,17 @@ async def cloudtool_i_am_still_alive(
         fuser_id: Optional[str],
         shared: bool,
 ) -> None:
+    for t in tool_list:
+        # for verification of strict tools, does not have side effects
+        _ = t.openai_style_tool()
     while not ckit_shutdown.shutdown_event.is_set():
         try:
             http_client = await fclient.use_http()
             async with http_client as http:
                 for t in tool_list:
                     await http.execute(
-                        gql.gql("""mutation CloudtoolConfirm($name: String!, $desc: String!, $params: String!, $fgroup_id: String, $fuser_id: String, $shared: Boolean!) {
-                            cloudtool_confirm_exists(tool_name: $name, ctool_description: $desc, ctool_parameters: $params, fgroup_id: $fgroup_id, fuser_id: $fuser_id, shared: $shared)
+                        gql.gql("""mutation CloudtoolConfirm($name: String!, $desc: String!, $params: String!, $fgroup_id: String, $fuser_id: String, $shared: Boolean!, $strict: Boolean!) {
+                            cloudtool_confirm_exists(tool_name: $name, ctool_description: $desc, ctool_parameters: $params, fgroup_id: $fgroup_id, fuser_id: $fuser_id, shared: $shared, ctool_strict: $strict)
                         }"""),
                         variable_values={
                             "name": t.name,
@@ -350,6 +375,7 @@ async def cloudtool_i_am_still_alive(
                             "fgroup_id": fgroup_id,
                             "fuser_id": fuser_id,
                             "shared": shared,
+                            "strict": t.strict,
                         },
                     )
                     # logger.info("cloudtool_i_am_still_alive %s", t.name)
