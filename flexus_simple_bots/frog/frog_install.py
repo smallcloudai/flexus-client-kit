@@ -36,7 +36,7 @@ EXPERTS = [
     ("default", ckit_bot_install.FMarketplaceExpertInput(
         fexp_system_prompt=frog_prompts.frog_prompt,
         fexp_python_kernel=FROG_DEFAULT_LARK,
-        fexp_block_tools="*setup*",
+        fexp_block_tools="",
         fexp_allow_tools="",
         fexp_description="Main conversational expert that handles user interactions, task management, and provides cheerful encouragement.",
         fexp_builtin_skills=ckit_skills.read_name_description(FROG_ROOTDIR, FROG_SKILLS),

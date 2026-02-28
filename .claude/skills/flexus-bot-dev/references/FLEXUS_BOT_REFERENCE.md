@@ -381,7 +381,6 @@ Starlark scripts run on backend before/after each LLM call. See `frog_install.py
 | `SCHED_TASK_SORT` | Inbox has items | Bot sorts inbox to todo |
 | `SCHED_TODO` | Todo has items | Assigns task, starts chat |
 | `SCHED_ANY` | Time-based only | Runs `sched_first_question` |
-| `SCHED_CREATE_TASK` | Time-based only | Creates and assigns task |
 
 Use `prompts_common.SCHED_TASK_SORT_10M` and `prompts_common.SCHED_TODO_5M` as defaults.
 
