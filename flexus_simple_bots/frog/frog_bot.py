@@ -2,6 +2,7 @@ import asyncio
 import logging
 import json
 import time
+from pathlib import Path
 from typing import Dict, Any, Optional
 
 from pymongo import AsyncMongoClient
@@ -15,18 +16,22 @@ from flexus_client_kit import ckit_mongo
 from flexus_client_kit import ckit_kanban
 from flexus_client_kit import ckit_external_auth
 from flexus_client_kit import erp_schema
-from flexus_client_kit import ckit_skills
-from flexus_client_kit.integrations import fi_gmail
+from flexus_client_kit import ckit_integrations_db
 from flexus_client_kit.integrations import fi_mongo_store
-from flexus_client_kit.integrations import fi_pdoc
 from flexus_simple_bots.frog import frog_install
 from flexus_simple_bots.version_common import SIMPLE_BOTS_COMMON_VERSION
 
 logger = logging.getLogger("bot_frog")
 
+BOT_DIR = Path(__file__).parent
 BOT_NAME = "frog"
 BOT_VERSION = SIMPLE_BOTS_COMMON_VERSION
 
+FROG_INTEGRATIONS = ckit_integrations_db.integrations_load([
+    "flexus_policy_document",
+    "gmail",
+    "skills"
+], bot_dir=BOT_DIR)
 
 RIBBIT_TOOL = ckit_cloudtool.CloudTool(
     strict=True,
@@ -92,24 +97,20 @@ TOOLS = [
     RIBBIT_TOOL,
     CATCH_INSECTS_TOOL,
     MAKE_POND_REPORT_TOOL,
-    fi_gmail.GMAIL_TOOL,
     fi_mongo_store.MONGO_STORE_TOOL,
-    fi_pdoc.POLICY_DOCUMENT_TOOL,
-    ckit_skills.FETCH_SKILL_TOOL,
+    *[t for rec in FROG_INTEGRATIONS for t in rec.integr_tools],
 ]
 
 
 async def frog_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.RobotContext) -> None:
     setup = ckit_bot_exec.official_setup_mixing_procedure(frog_install.SETUP_SCHEMA, rcx.persona.persona_setup)
+    integr_objects = await ckit_integrations_db.integrations_init_all(FROG_INTEGRATIONS, rcx)
+    pdoc_integration = integr_objects["flexus_policy_document"]
 
-
+    # Mongo store needs custom setup (bot-specific collection)
     mongo_conn_str = await ckit_mongo.mongo_fetch_creds(fclient, rcx.persona.persona_id)
     mongo = AsyncMongoClient(mongo_conn_str)
-    dbname = rcx.persona.persona_id + "_db"
-    mydb = mongo[dbname]
-    personal_mongo = mydb["personal_mongo"]
-    pdoc_integration = fi_pdoc.IntegrationPdoc(rcx, rcx.persona.ws_root_group_id)
-    gmail_integration = fi_gmail.IntegrationGmail(fclient, rcx)
+    personal_mongo = mongo[rcx.persona.persona_id + "_db"]["personal_mongo"]
 
     tongue_capacity_used = {}
 
@@ -125,10 +126,6 @@ async def frog_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.R
     @rcx.on_updated_task
     async def updated_task_in_db(t: ckit_kanban.FPersonaKanbanTaskOutput):
         pass
-
-    @rcx.on_tool_call(ckit_skills.FETCH_SKILL_TOOL.name)
-    async def toolcall_skill(toolcall, model_produced_args):
-        return await ckit_skills.called_by_model(toolcall, model_produced_args, frog_install.FROG_ROOTDIR, frog_install.FROG_SKILLS)
 
     @rcx.on_erp_change("crm_contact")
     async def on_contact_change(action: str, new_record: Optional[erp_schema.CrmContact], old_record: Optional[erp_schema.CrmContact]):
@@ -220,14 +217,6 @@ async def frog_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.R
             toolcall,
             model_produced_args,
         )
-
-    @rcx.on_tool_call(fi_pdoc.POLICY_DOCUMENT_TOOL.name)
-    async def toolcall_pdoc(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
-        return await pdoc_integration.called_by_model(toolcall, model_produced_args)
-
-    @rcx.on_tool_call(fi_gmail.GMAIL_TOOL.name)
-    async def toolcall_gmail(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
-        return await gmail_integration.called_by_model(toolcall, model_produced_args)
 
     try:
         while not ckit_shutdown.shutdown_event.is_set():
