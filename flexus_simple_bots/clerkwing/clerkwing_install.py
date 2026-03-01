@@ -2,16 +2,19 @@ import asyncio
 import json
 import base64
 from pathlib import Path
-from typing import List
 
 from flexus_client_kit import ckit_client
 from flexus_client_kit import ckit_bot_install
 from flexus_client_kit import ckit_cloudtool
-from flexus_client_kit.integrations import fi_jira
+from flexus_client_kit import ckit_skills
 
 from flexus_simple_bots import prompts_common
 from flexus_simple_bots.clerkwing import clerkwing_prompts
 
+
+CLERKWING_ROOTDIR = Path(__file__).parent
+CLERKWING_SKILLS = ckit_skills.skill_find_all(CLERKWING_ROOTDIR, shared_skills_allowlist="")
+CLERKWING_SETUP_SCHEMA = json.loads((CLERKWING_ROOTDIR / "setup_schema.json").read_text())
 
 BOT_DESCRIPTION = """
 ## Clerkwing - Your Secretary Robot
@@ -32,19 +35,32 @@ A helpful and enthusiastic assistant that manages your email, calendar, and Jira
 Clerkwing combines professional efficiency with a personable touch, keeping things organized without being pushy.
 """
 
-
-clerkwing_setup_schema = fi_jira.JIRA_SETUP_SCHEMA
+EXPERTS = [
+    ("default", ckit_bot_install.FMarketplaceExpertInput(
+        fexp_system_prompt=clerkwing_prompts.clerkwing_prompt,
+        fexp_python_kernel="",
+        fexp_block_tools="*setup*",
+        fexp_allow_tools="",
+        fexp_description="Main secretary assistant for managing email, calendar, and Jira tasks with proactive organization and helpful suggestions.",
+    )),
+    ("setup", ckit_bot_install.FMarketplaceExpertInput(
+        fexp_system_prompt=clerkwing_prompts.clerkwing_setup,
+        fexp_python_kernel="",
+        fexp_block_tools="",
+        fexp_allow_tools="",
+        fexp_description="Configuration assistant for setting up Gmail, Google Calendar, and Jira OAuth connections.",
+    )),
+]
 
 
 async def install(
     client: ckit_client.FlexusClient,
     bot_name: str,
     bot_version: str,
-    tools: List[ckit_cloudtool.CloudTool],
+    tools: list[ckit_cloudtool.CloudTool],
 ):
-    bot_internal_tools = json.dumps([t.openai_style_tool() for t in tools])
-    pic_big = base64.b64encode(open(Path(__file__).with_name("clerkwing-1024x1536.webp"), "rb").read()).decode("ascii")
-    pic_small = base64.b64encode(open(Path(__file__).with_name("clerkwing-256x256.webp"), "rb").read()).decode("ascii")
+    pic_big = base64.b64encode((CLERKWING_ROOTDIR / "clerkwing-1024x1536.webp").read_bytes()).decode("ascii")
+    pic_small = base64.b64encode((CLERKWING_ROOTDIR / "clerkwing-256x256.webp").read_bytes()).decode("ascii")
 
     await ckit_bot_install.marketplace_upsert_dev_bot(
         client,
@@ -60,7 +76,7 @@ async def install(
         marketable_typical_group="Productivity",
         marketable_github_repo="https://github.com/smallcloudai/flexus-client-kit.git",
         marketable_run_this="python -m flexus_simple_bots.clerkwing.clerkwing_bot",
-        marketable_setup_default=clerkwing_setup_schema,
+        marketable_setup_default=CLERKWING_SETUP_SCHEMA,
         marketable_featured_actions=[
             {"feat_question": "Summarize my unread emails", "feat_expert": "default", "feat_depends_on_setup": []},
             {"feat_question": "What's on my calendar today?", "feat_expert": "default", "feat_depends_on_setup": []},
@@ -68,24 +84,7 @@ async def install(
         ],
         marketable_intro_message="Hello! I'm Clerkwing, your secretary robot. I can help you manage your email, calendar, and Jira tasks. What would you like me to help with today?",
         marketable_preferred_model_default="grok-4-1-fast-non-reasoning",
-        marketable_experts=[
-            ("default", ckit_bot_install.FMarketplaceExpertInput(
-                fexp_system_prompt=clerkwing_prompts.clerkwing_prompt,
-                fexp_python_kernel="",
-                fexp_block_tools="*setup*",
-                fexp_allow_tools="",
-                fexp_app_capture_tools=bot_internal_tools,
-                fexp_description="Main secretary assistant for managing email, calendar, and Jira tasks with proactive organization and helpful suggestions.",
-            )),
-            ("setup", ckit_bot_install.FMarketplaceExpertInput(
-                fexp_system_prompt=clerkwing_prompts.clerkwing_setup,
-                fexp_python_kernel="",
-                fexp_block_tools="",
-                fexp_allow_tools="",
-                fexp_app_capture_tools=bot_internal_tools,
-                fexp_description="Configuration assistant for setting up Gmail, Google Calendar, and Jira OAuth connections.",
-            )),
-        ],
+        marketable_experts=[(name, exp.filter_tools(tools)) for name, exp in EXPERTS],
         marketable_tags=["Productivity", "Email", "Calendar", "Jira"],
         marketable_picture_big_b64=pic_big,
         marketable_picture_small_b64=pic_small,

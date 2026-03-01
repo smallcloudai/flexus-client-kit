@@ -2,37 +2,37 @@ import asyncio
 import json
 import base64
 from pathlib import Path
-from typing import List
 
 from flexus_client_kit import ckit_client
 from flexus_client_kit import ckit_bot_install
 from flexus_client_kit import ckit_cloudtool
+from flexus_client_kit import ckit_skills
 
 from flexus_simple_bots.slonik import slonik_prompts
 
 
-slonik_setup_schema = [
-    {
-        "bs_name": "confirm_read",
-        "bs_type": "bool",
-        "bs_default": False,
-        "bs_group": "Confirmations",
-        "bs_order": 1,
-        "bs_description": "Tell the robot what issues should escalate to a human engineer",
-    },
+SLONIK_ROOTDIR = Path(__file__).parent
+SLONIK_SKILLS = ckit_skills.skill_find_all(SLONIK_ROOTDIR, shared_skills_allowlist="")
+SLONIK_SETUP_SCHEMA = json.loads((SLONIK_ROOTDIR / "setup_schema.json").read_text())
+
+EXPERTS = [
+    ("default", ckit_bot_install.FMarketplaceExpertInput(
+        fexp_system_prompt=slonik_prompts.slonik_prompt,
+        fexp_python_kernel="",
+        fexp_block_tools="*setup*",
+        fexp_allow_tools="",
+        fexp_description="PostgreSQL assistant that helps run queries, analyze data, and troubleshoot database connections using psql.",
+    )),
 ]
 
 async def install(
     client: ckit_client.FlexusClient,
     bot_name: str,
     bot_version: str,
-    tools: List[ckit_cloudtool.CloudTool],
+    tools: list[ckit_cloudtool.CloudTool],
 ):
-    bot_internal_tools = json.dumps([t.openai_style_tool() for t in tools])
-    with open(Path(__file__).with_name("slonik-1024x1536.webp"), "rb") as f:
-        big = base64.b64encode(f.read()).decode("ascii")
-    with open(Path(__file__).with_name("slonik-256x256.webp"), "rb") as f:
-        small = base64.b64encode(f.read()).decode("ascii")
+    pic_big = base64.b64encode((SLONIK_ROOTDIR / "slonik-1024x1536.webp").read_bytes()).decode("ascii")
+    pic_small = base64.b64encode((SLONIK_ROOTDIR / "slonik-256x256.webp").read_bytes()).decode("ascii")
 
     await ckit_bot_install.marketplace_upsert_dev_bot(
         client,
@@ -48,7 +48,7 @@ async def install(
         marketable_typical_group="Admin Tools",
         marketable_github_repo="https://github.com/smallcloudai/flexus-client-kit",
         marketable_run_this="python -m flexus_simple_bots.slonik.slonik_bot",
-        marketable_setup_default=slonik_setup_schema,
+        marketable_setup_default=SLONIK_SETUP_SCHEMA,
         marketable_featured_actions=[
             {"feat_question": "Test whether database connection works", "feat_expert": "default", "feat_depends_on_setup": []},
             {"feat_question": "Analyze database performance", "feat_expert": "default", "feat_depends_on_setup": []},
@@ -56,19 +56,10 @@ async def install(
         ],
         marketable_intro_message="Hi! I'm Slonik, your PostgreSQL database assistant. I can help you run queries, analyze data, and optimize database performance.",
         marketable_preferred_model_default="grok-code-fast-1",
-        marketable_experts=[
-            ("default", ckit_bot_install.FMarketplaceExpertInput(
-                fexp_system_prompt=slonik_prompts.slonik_prompt,
-                fexp_python_kernel="",
-                fexp_block_tools="*setup*",
-                fexp_allow_tools="",
-                fexp_app_capture_tools=bot_internal_tools,
-                fexp_description="PostgreSQL assistant that helps run queries, analyze data, and troubleshoot database connections using psql.",
-            )),
-        ],
+        marketable_experts=[(name, exp.filter_tools(tools)) for name, exp in EXPERTS],
         marketable_tags=["database", "postgresql", "sql"],
-        marketable_picture_big_b64=big,
-        marketable_picture_small_b64=small,
+        marketable_picture_big_b64=pic_big,
+        marketable_picture_small_b64=pic_small,
         marketable_schedule=[]
     )
 

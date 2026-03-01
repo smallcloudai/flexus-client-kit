@@ -1,0 +1,10 @@
+[
+    {
+        "bs_name": "confirm_read",
+        "bs_type": "bool",
+        "bs_default": false,
+        "bs_group": "Confirmations",
+        "bs_order": 1,
+        "bs_description": "Tell the robot what issues should escalate to a human engineer"
+    }
+]

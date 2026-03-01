@@ -12,10 +12,8 @@ from flexus_client_kit import ckit_bot_exec
 from flexus_client_kit import ckit_shutdown
 from flexus_client_kit import ckit_ask_model
 from flexus_client_kit import ckit_mongo
-from flexus_client_kit import ckit_utils
+from flexus_client_kit import ckit_integrations_db
 from flexus_client_kit.integrations import fi_mongo_store
-from flexus_client_kit.integrations import fi_pdoc
-from flexus_client_kit.integrations import fi_widget
 from flexus_client_kit.integrations import fi_erp
 from flexus_simple_bots.boss import boss_install
 from flexus_simple_bots.version_common import SIMPLE_BOTS_COMMON_VERSION
@@ -124,18 +122,26 @@ MARKETPLACE_DESC_TOOL = ckit_cloudtool.CloudTool(
     },
 )
 
+BOSS_INTEGRATIONS: list[ckit_integrations_db.IntegrationRecord] = ckit_integrations_db.integrations_load(
+    boss_install.BOSS_ROOTDIR,
+    allowlist=[
+        "flexus_policy_document",
+        "print_widget",
+        "skills",
+    ],
+    builtin_skills=boss_install.BOSS_SKILLS,
+)
+
 TOOLS = [
-    # BOSS_A2A_RESOLUTION_TOOL,
     # BOSS_SETUP_COLLEAGUES_TOOL,
     # THREAD_MESSAGES_PRINTED_TOOL,
     # BOT_BUG_REPORT_TOOL,
-    fi_widget.PRINT_WIDGET_TOOL,
     fi_mongo_store.MONGO_STORE_TOOL,
-    fi_pdoc.POLICY_DOCUMENT_TOOL,
     fi_erp.ERP_TABLE_META_TOOL,
     fi_erp.ERP_TABLE_DATA_TOOL,
     MARKETPLACE_SEARCH_TOOL,
     MARKETPLACE_DESC_TOOL,
+    *[t for rec in BOSS_INTEGRATIONS for t in rec.integr_tools],
 ]
 
 
@@ -311,15 +317,13 @@ TOOLS = [
 
 
 async def boss_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.RobotContext) -> None:
-    setup = ckit_bot_exec.official_setup_mixing_procedure(boss_install.boss_setup_schema, rcx.persona.persona_setup)
+    setup = ckit_bot_exec.official_setup_mixing_procedure(boss_install.BOSS_SETUP_SCHEMA, rcx.persona.persona_setup)
+    integr_objects = await ckit_integrations_db.integrations_init_all(BOSS_INTEGRATIONS, rcx)
 
     mongo_conn_str = await ckit_mongo.mongo_fetch_creds(fclient, rcx.persona.persona_id)
     mongo = AsyncMongoClient(mongo_conn_str)
-    dbname = rcx.persona.persona_id + "_db"
-    mydb = mongo[dbname]
-    personal_mongo = mydb["personal_mongo"]
+    personal_mongo = mongo[rcx.persona.persona_id + "_db"]["personal_mongo"]
 
-    pdoc_integration = fi_pdoc.IntegrationPdoc(rcx, rcx.persona.ws_root_group_id)
     erp_integration = fi_erp.IntegrationErp(fclient, rcx.persona.ws_id, personal_mongo)
 
     @rcx.on_updated_message
@@ -342,10 +346,6 @@ async def boss_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.R
     # async def toolcall_bot_bug_report(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
     #     return await handle_bot_bug_report(fclient, rcx.persona.ws_id, model_produced_args)
 
-    @rcx.on_tool_call(fi_widget.PRINT_WIDGET_TOOL.name)
-    async def toolcall_print_widget(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
-        return await fi_widget.handle_print_widget(toolcall, model_produced_args)
-
     @rcx.on_tool_call(fi_mongo_store.MONGO_STORE_TOOL.name)
     async def toolcall_mongo_store(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
         return await fi_mongo_store.handle_mongo_store(
@@ -354,10 +354,6 @@ async def boss_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.R
             toolcall,
             model_produced_args,
         )
-
-    @rcx.on_tool_call(fi_pdoc.POLICY_DOCUMENT_TOOL.name)
-    async def toolcall_pdoc(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
-        return await pdoc_integration.called_by_model(toolcall, model_produced_args)
 
     @rcx.on_tool_call(fi_erp.ERP_TABLE_META_TOOL.name)
     async def toolcall_erp_meta(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:

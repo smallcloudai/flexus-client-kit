@@ -54,7 +54,7 @@ TOOLS = [
 
 async def vix_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.RobotContext) -> None:
     def get_setup():
-        return ckit_bot_exec.official_setup_mixing_procedure(vix_install.vix_setup_schema, rcx.persona.persona_setup)
+        return ckit_bot_exec.official_setup_mixing_procedure(vix_install.VIX_SETUP_SCHEMA, rcx.persona.persona_setup)
 
     mongo_conn_str = await ckit_mongo.mongo_fetch_creds(fclient, rcx.persona.persona_id)
     mongo = AsyncMongoClient(mongo_conn_str)

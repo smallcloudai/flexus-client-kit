@@ -1,0 +1,47 @@
+[
+    {
+        "bs_name": "legal_specialty",
+        "bs_type": "string_short",
+        "bs_default": "general",
+        "bs_group": "Legal Focus",
+        "bs_order": 1,
+        "bs_importance": 1,
+        "bs_description": "Primary legal specialty (general, corporate, contract, employment, intellectual-property, real-estate)"
+    },
+    {
+        "bs_name": "formality_level",
+        "bs_type": "string_short",
+        "bs_default": "professional",
+        "bs_group": "Communication",
+        "bs_order": 1,
+        "bs_importance": 0,
+        "bs_description": "Communication style (casual, professional, formal)"
+    },
+    {
+        "bs_name": "citation_style",
+        "bs_type": "string_short",
+        "bs_default": "bluebook",
+        "bs_group": "Legal Focus",
+        "bs_order": 2,
+        "bs_importance": 0,
+        "bs_description": "Preferred legal citation format (bluebook, alwd, universal)"
+    },
+    {
+        "bs_name": "jurisdiction",
+        "bs_type": "string_short",
+        "bs_default": "US-Federal",
+        "bs_group": "Legal Focus",
+        "bs_order": 3,
+        "bs_importance": 1,
+        "bs_description": "Primary jurisdiction for legal research (e.g., US-Federal, US-CA, UK, EU)"
+    },
+    {
+        "bs_name": "max_research_depth",
+        "bs_type": "int",
+        "bs_default": 3,
+        "bs_group": "Research Settings",
+        "bs_order": 1,
+        "bs_importance": 0,
+        "bs_description": "Maximum depth for legal research (1-5, higher means more thorough)"
+    }
+]

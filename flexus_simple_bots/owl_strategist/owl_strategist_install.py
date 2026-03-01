@@ -1,12 +1,13 @@
 import asyncio
-import json
 import base64
 from pathlib import Path
 
 from flexus_client_kit import ckit_client
 from flexus_client_kit import ckit_bot_install
+from flexus_client_kit import ckit_cloudtool
+from flexus_client_kit import ckit_skills
 
-from flexus_simple_bots.owl_strategist import owl_strategist_bot, owl_strategist_prompts
+from flexus_simple_bots.owl_strategist import owl_strategist_prompts
 from flexus_simple_bots.owl_strategist.skills import diagnostic as skill_diagnostic
 from flexus_simple_bots.owl_strategist.skills import metrics as skill_metrics
 from flexus_simple_bots.owl_strategist.skills import segment as skill_segment
@@ -15,6 +16,9 @@ from flexus_simple_bots.owl_strategist.skills import channels as skill_channels
 from flexus_simple_bots.owl_strategist.skills import tactics as skill_tactics
 from flexus_simple_bots.owl_strategist.skills import compliance as skill_compliance
 
+
+OWL_STRATEGIST_ROOTDIR = Path(__file__).parent
+OWL_STRATEGIST_SKILLS = ckit_skills.skill_find_all(OWL_STRATEGIST_ROOTDIR, shared_skills_allowlist="")
 
 BOT_DESCRIPTION = """
 ## Owl Strategist — AI Marketing Strategist
@@ -39,24 +43,77 @@ Every step is discussed with you — no automation without your understanding an
 - Marketers planning experiments
 """
 
+# Agents only need flexus_policy_document, block orchestrator tools
+AGENT_BLOCK_TOOLS = "save_input,run_agent,rerun_agent,get_pipeline_status,*setup*"
+
+EXPERTS = [
+    # Orchestrator — talks to human, manages pipeline
+    ("default", ckit_bot_install.FMarketplaceExpertInput(
+        fexp_system_prompt=owl_strategist_prompts.DEFAULT_PROMPT,
+        fexp_python_kernel="",
+        fexp_block_tools="*setup*",
+        fexp_allow_tools="",
+    )),
+    # Agent A: Diagnostic — classify hypothesis, identify unknowns
+    ("diagnostic", ckit_bot_install.FMarketplaceExpertInput(
+        fexp_system_prompt=skill_diagnostic.SYSTEM_PROMPT,
+        fexp_python_kernel=skill_diagnostic.LARK_KERNEL,
+        fexp_block_tools=AGENT_BLOCK_TOOLS,
+        fexp_allow_tools="",
+    )),
+    # Agent G: Metrics — KPI, MDE, stop/accelerate rules
+    ("metrics", ckit_bot_install.FMarketplaceExpertInput(
+        fexp_system_prompt=skill_metrics.SYSTEM_PROMPT,
+        fexp_python_kernel=skill_metrics.LARK_KERNEL,
+        fexp_block_tools=AGENT_BLOCK_TOOLS,
+        fexp_allow_tools="",
+    )),
+    # Agent B: Segment — ICP, JTBD, customer journey
+    ("segment", ckit_bot_install.FMarketplaceExpertInput(
+        fexp_system_prompt=skill_segment.SYSTEM_PROMPT,
+        fexp_python_kernel=skill_segment.LARK_KERNEL,
+        fexp_block_tools=AGENT_BLOCK_TOOLS,
+        fexp_allow_tools="",
+    )),
+    # Agent C: Messaging — value prop, angles, objections
+    ("messaging", ckit_bot_install.FMarketplaceExpertInput(
+        fexp_system_prompt=skill_messaging.SYSTEM_PROMPT,
+        fexp_python_kernel=skill_messaging.LARK_KERNEL,
+        fexp_block_tools=AGENT_BLOCK_TOOLS,
+        fexp_allow_tools="",
+    )),
+    # Agent D: Channels — channel selection, test cells, budget
+    ("channels", ckit_bot_install.FMarketplaceExpertInput(
+        fexp_system_prompt=skill_channels.SYSTEM_PROMPT,
+        fexp_python_kernel=skill_channels.LARK_KERNEL,
+        fexp_block_tools=AGENT_BLOCK_TOOLS,
+        fexp_allow_tools="",
+    )),
+    # Agent E: Tactics — campaigns, creatives, landing, tracking
+    ("tactics", ckit_bot_install.FMarketplaceExpertInput(
+        fexp_system_prompt=skill_tactics.SYSTEM_PROMPT,
+        fexp_python_kernel=skill_tactics.LARK_KERNEL,
+        fexp_block_tools=AGENT_BLOCK_TOOLS,
+        fexp_allow_tools="",
+    )),
+    # Agent F: Compliance — risks, ads policies, privacy
+    ("compliance", ckit_bot_install.FMarketplaceExpertInput(
+        fexp_system_prompt=skill_compliance.SYSTEM_PROMPT,
+        fexp_python_kernel=skill_compliance.LARK_KERNEL,
+        fexp_block_tools=AGENT_BLOCK_TOOLS,
+        fexp_allow_tools="",
+    )),
+]
+
 
 async def install(
     client: ckit_client.FlexusClient,
     bot_name: str,
     bot_version: str,
-    tools: list,
+    tools: list[ckit_cloudtool.CloudTool],
 ):
-    bot_tools_json = json.dumps([t.openai_style_tool() for t in tools])
-    agent_tools_json = json.dumps([t.openai_style_tool() for t in owl_strategist_bot.AGENT_TOOLS])
-
-    pic_big = None
-    pic_small = None
-    pic_big_path = Path(__file__).with_name("owl_strategist-1024x1536.webp")
-    pic_small_path = Path(__file__).with_name("owl_strategist-256x256.webp")
-    if pic_big_path.exists():
-        pic_big = base64.b64encode(pic_big_path.read_bytes()).decode("ascii")
-    if pic_small_path.exists():
-        pic_small = base64.b64encode(pic_small_path.read_bytes()).decode("ascii")
+    pic_big = base64.b64encode((OWL_STRATEGIST_ROOTDIR / "owl_strategist-1024x1536.webp").read_bytes()).decode("ascii")
+    pic_small = base64.b64encode((OWL_STRATEGIST_ROOTDIR / "owl_strategist-256x256.webp").read_bytes()).decode("ascii")
 
     await ckit_bot_install.marketplace_upsert_dev_bot(
         client,
@@ -79,72 +136,7 @@ async def install(
         ],
         marketable_intro_message="Hi! I'm Owl Strategist 🦉 I help founders validate hypotheses and create marketing strategies. Tell me about your product — what do you want to test?",
         marketable_preferred_model_default="gpt-5.1",
-        marketable_experts=[
-            # Orchestrator — talks to human, manages pipeline
-            ("default", ckit_bot_install.FMarketplaceExpertInput(
-                fexp_system_prompt=owl_strategist_prompts.DEFAULT_PROMPT,
-                fexp_python_kernel="",
-                fexp_block_tools="*setup*",
-                fexp_allow_tools="",
-                fexp_app_capture_tools=bot_tools_json,
-            )),
-            # Agent A: Diagnostic — classify hypothesis, identify unknowns
-            ("diagnostic", ckit_bot_install.FMarketplaceExpertInput(
-                fexp_system_prompt=skill_diagnostic.SYSTEM_PROMPT,
-                fexp_python_kernel=skill_diagnostic.LARK_KERNEL,
-                fexp_block_tools="*setup*",
-                fexp_allow_tools="",
-                fexp_app_capture_tools=agent_tools_json,
-            )),
-            # Agent G: Metrics — KPI, MDE, stop/accelerate rules
-            ("metrics", ckit_bot_install.FMarketplaceExpertInput(
-                fexp_system_prompt=skill_metrics.SYSTEM_PROMPT,
-                fexp_python_kernel=skill_metrics.LARK_KERNEL,
-                fexp_block_tools="*setup*",
-                fexp_allow_tools="",
-                fexp_app_capture_tools=agent_tools_json,
-            )),
-            # Agent B: Segment — ICP, JTBD, customer journey
-            ("segment", ckit_bot_install.FMarketplaceExpertInput(
-                fexp_system_prompt=skill_segment.SYSTEM_PROMPT,
-                fexp_python_kernel=skill_segment.LARK_KERNEL,
-                fexp_block_tools="*setup*",
-                fexp_allow_tools="",
-                fexp_app_capture_tools=agent_tools_json,
-            )),
-            # Agent C: Messaging — value prop, angles, objections
-            ("messaging", ckit_bot_install.FMarketplaceExpertInput(
-                fexp_system_prompt=skill_messaging.SYSTEM_PROMPT,
-                fexp_python_kernel=skill_messaging.LARK_KERNEL,
-                fexp_block_tools="*setup*",
-                fexp_allow_tools="",
-                fexp_app_capture_tools=agent_tools_json,
-            )),
-            # Agent D: Channels — channel selection, test cells, budget
-            ("channels", ckit_bot_install.FMarketplaceExpertInput(
-                fexp_system_prompt=skill_channels.SYSTEM_PROMPT,
-                fexp_python_kernel=skill_channels.LARK_KERNEL,
-                fexp_block_tools="*setup*",
-                fexp_allow_tools="",
-                fexp_app_capture_tools=agent_tools_json,
-            )),
-            # Agent E: Tactics — campaigns, creatives, landing, tracking
-            ("tactics", ckit_bot_install.FMarketplaceExpertInput(
-                fexp_system_prompt=skill_tactics.SYSTEM_PROMPT,
-                fexp_python_kernel=skill_tactics.LARK_KERNEL,
-                fexp_block_tools="*setup*",
-                fexp_allow_tools="",
-                fexp_app_capture_tools=agent_tools_json,
-            )),
-            # Agent F: Compliance — risks, ads policies, privacy
-            ("compliance", ckit_bot_install.FMarketplaceExpertInput(
-                fexp_system_prompt=skill_compliance.SYSTEM_PROMPT,
-                fexp_python_kernel=skill_compliance.LARK_KERNEL,
-                fexp_block_tools="*setup*",
-                fexp_allow_tools="",
-                fexp_app_capture_tools=agent_tools_json,
-            )),
-        ],
+        marketable_experts=[(name, exp.filter_tools(tools)) for name, exp in EXPERTS],
         marketable_tags=["Marketing", "Strategy", "Hypothesis Validation"],
         marketable_picture_big_b64=pic_big,
         marketable_picture_small_b64=pic_small,

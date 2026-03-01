@@ -1,14 +1,15 @@
 import asyncio
-import json
 import base64
 from pathlib import Path
 
-from flexus_client_kit import ckit_client
-from flexus_client_kit import ckit_bot_install
-
-from flexus_simple_bots.owl import owl_bot, owl_prompts
+from flexus_client_kit import ckit_client, ckit_bot_install, ckit_cloudtool
+from flexus_client_kit import ckit_skills
 from flexus_simple_bots import prompts_common
+from flexus_simple_bots.owl import owl_prompts
 
+
+OWL_ROOTDIR = Path(__file__).parent
+OWL_SKILLS = ckit_skills.skill_find_all(OWL_ROOTDIR, shared_skills_allowlist="")
 
 BOT_DESCRIPTION = """
 ## Owl — Growth Strategist
@@ -33,23 +34,28 @@ Turns validated hypotheses into clean experiment designs using strict structured
 **Requires:** Hypothesis from Productman first.
 """
 
+EXPERTS = [
+    ("default", ckit_bot_install.FMarketplaceExpertInput(
+        fexp_system_prompt=owl_prompts.DEFAULT_PROMPT,
+        fexp_python_kernel="",
+        fexp_block_tools="",
+        fexp_allow_tools="",
+        fexp_description="Guides users through a 7-step growth strategy pipeline from hypothesis to experiment design with structured tools for each phase.",
+        fexp_builtin_skills=ckit_skills.read_name_description(OWL_ROOTDIR, OWL_SKILLS),
+    )),
+]
+
 
 async def install(
     client: ckit_client.FlexusClient,
     bot_name: str,
     bot_version: str,
-    tools: list,
+    tools: list[ckit_cloudtool.CloudTool],
 ):
-    bot_tools_json = json.dumps([t.openai_style_tool() for t in tools])
-
-    pic_big = None
-    pic_small = None
-    pic_big_path = Path(__file__).parent / "owl_strategist-1024x1536.webp"
-    pic_small_path = Path(__file__).parent / "owl_strategist-256x256.webp"
-    if pic_big_path.exists():
-        pic_big = base64.b64encode(pic_big_path.read_bytes()).decode("ascii")
-    if pic_small_path.exists():
-        pic_small = base64.b64encode(pic_small_path.read_bytes()).decode("ascii")
+    pic_big_path = OWL_ROOTDIR / "owl_strategist-1024x1536.webp"
+    pic_small_path = OWL_ROOTDIR / "owl_strategist-256x256.webp"
+    pic_big = base64.b64encode(pic_big_path.read_bytes()).decode("ascii") if pic_big_path.exists() else None
+    pic_small = base64.b64encode(pic_small_path.read_bytes()).decode("ascii") if pic_small_path.exists() else None
 
     await ckit_bot_install.marketplace_upsert_dev_bot(
         client,
@@ -71,16 +77,7 @@ async def install(
         ],
         marketable_intro_message="I'm Owl. I turn hypotheses into experiment designs. Let me check what's available...",
         marketable_preferred_model_default="grok-4-1-fast-reasoning",
-        marketable_experts=[
-            ("default", ckit_bot_install.FMarketplaceExpertInput(
-                fexp_system_prompt=owl_prompts.DEFAULT_PROMPT,
-                fexp_python_kernel="",
-                fexp_block_tools="",
-                fexp_allow_tools="",
-                fexp_app_capture_tools=bot_tools_json,
-                fexp_description="Guides users through a 7-step growth strategy pipeline from hypothesis to experiment design with structured tools for each phase.",
-            )),
-        ],
+        marketable_experts=[(name, exp.filter_tools(tools)) for name, exp in EXPERTS],
         marketable_tags=["Marketing", "Strategy", "Growth"],
         marketable_picture_big_b64=pic_big,
         marketable_picture_small_b64=pic_small,

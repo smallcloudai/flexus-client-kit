@@ -1,0 +1,11 @@
+[
+    {
+        "bs_name": "additional_instructions",
+        "bs_type": "string_multiline",
+        "bs_default": "",
+        "bs_group": "Customization",
+        "bs_order": 1,
+        "bs_importance": 0,
+        "bs_description": "Additional instructions or preferences for how Productman should behave (e.g., language preference, industry focus, intensity of challenging)"
+    }
+]
