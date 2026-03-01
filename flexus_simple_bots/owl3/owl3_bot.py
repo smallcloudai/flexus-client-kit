@@ -12,6 +12,7 @@ from flexus_client_kit import ckit_bot_exec
 from flexus_client_kit import ckit_shutdown
 from flexus_client_kit import ckit_external_auth
 from flexus_client_kit import ckit_integrations_db
+from flexus_client_kit import ckit_skills
 from flexus_client_kit.integrations import fi_pdoc
 from flexus_simple_bots.version_common import SIMPLE_BOTS_COMMON_VERSION
 from flexus_simple_bots.owl3 import owl3_install
@@ -21,7 +22,8 @@ logger = logging.getLogger("bot_owl3")
 BOT_DIR = Path(__file__).parent
 BOT_NAME = "owl3"
 BOT_VERSION = SIMPLE_BOTS_COMMON_VERSION
-OWL3_INTEGRATIONS = ckit_integrations_db.integrations_load(["flexus_policy_document", "skills"], bot_dir=BOT_DIR)
+OWL3_SKILLS = ckit_skills.skill_find_all(BOT_DIR)
+OWL3_INTEGRATIONS = ckit_integrations_db.integrations_load(BOT_DIR, ["flexus_policy_document", "skills"], builtin_skills=OWL3_SKILLS)
 
 PIPELINE = [
     "section01-calibration",

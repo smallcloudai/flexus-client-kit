@@ -43,6 +43,35 @@ def _parse_frontmatter(text: str) -> Dict[str, str]:
     return result
 
 
+def _extract_json_blocks(text: str) -> List[str]:
+    return re.findall(r"```json\s*\n(.*?)```", text, re.DOTALL)
+
+
+def _validate_skill(path: Path, text: str) -> Dict[str, str]:
+    front = _parse_frontmatter(text)
+    if not front:
+        logger.warning("%s: missing YAML frontmatter (---)", path)
+        return front
+    if "name" not in front:
+        logger.warning("%s: frontmatter missing 'name'", path)
+    if "description" not in front:
+        logger.warning("%s: frontmatter missing 'description'", path)
+    body = _strip_frontmatter(text)
+    for i, raw in enumerate(_extract_json_blocks(body)):
+        raw = raw.strip()
+        print("AAAA", path, raw)
+        if not raw:
+            continue
+        try:
+            obj = json.loads(raw)
+        except json.JSONDecodeError as e:
+            raise ValueError("%s: json block #%d: %s" % (path, i + 1, e))
+        if isinstance(obj, dict) and ("type" in obj or "properties" in obj):
+            print(5555)
+            logger.info("%s: json block #%d looks like a json-schema", path, i + 1)
+    return front
+
+
 def _skill_dirs(bot_root_dir: Path) -> List[Path]:
     return [
         bot_root_dir / "skills",
@@ -51,11 +80,15 @@ def _skill_dirs(bot_root_dir: Path) -> List[Path]:
 
 
 def skill_find_all(bot_root_dir: Path) -> List[str]:
+    # Called from bot module top level, logger was not set up at this point, any logs are invisible
     found = []
     for d in _skill_dirs(bot_root_dir):
         if d.is_dir():
-            found.extend(x.parent.name for x in d.glob("*/SKILL.md"))
-    return sorted(set(found))
+            for p in d.glob("*/SKILL.md"):
+                _validate_skill(p, p.read_text())
+                found.append(p.parent.name)
+    found.sort()
+    return found
 
 
 def read_name_description(bot_root_dir: Path, whitelist: List[str]) -> str:
@@ -68,7 +101,7 @@ def read_name_description(bot_root_dir: Path, whitelist: List[str]) -> str:
                 assert name == front["name"], "Ooops name inside SKILL.md does not match parent dir name in %s" % p
                 result.append({
                     "name": name,
-                    "description": front["description"]
+                    "description": front["description"],
                 })
                 break
         else:

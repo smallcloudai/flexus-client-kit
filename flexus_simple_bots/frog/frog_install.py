@@ -10,8 +10,8 @@ from flexus_simple_bots.frog import frog_prompts
 
 
 FROG_ROOTDIR = Path(__file__).parent
-BOT_DESCRIPTION = (FROG_ROOTDIR / "README.md").read_text()
-SETUP_SCHEMA = json.loads((FROG_ROOTDIR / "setup_schema.json").read_text())
+FROG_SKILLS = ckit_skills.skill_find_all(FROG_ROOTDIR)
+FROG_SETUP_SCHEMA = json.loads((FROG_ROOTDIR / "setup_schema.json").read_text())
 
 FROG_SUBCHAT_LARK = f"""
 print("Ribbit in logs")     # will be visible in lark logs
@@ -29,8 +29,6 @@ if msg["role"] == "assistant":
     if "snake" in assistant_says1.lower() or "snake" in assistant_says2.lower():
         post_cd_instruction = "OMG dive down!!!"
 """
-
-FROG_SKILLS = ["lily-pad-feng-shui"]
 
 EXPERTS = [
     ("default", ckit_bot_install.FMarketplaceExpertInput(
@@ -69,11 +67,11 @@ async def install(
         marketable_title2="A cheerful frog bot that brings joy and positivity to your workspace.",
         marketable_author="Flexus",
         marketable_occupation="Motivational Assistant",
-        marketable_description=BOT_DESCRIPTION,
+        marketable_description=(FROG_ROOTDIR / "README.md").read_text(),
         marketable_typical_group="Fun / Testing",
         marketable_github_repo="https://github.com/smallcloudai/flexus-client-kit.git",
         marketable_run_this="python -m flexus_simple_bots.frog.frog_bot",
-        marketable_setup_default=SETUP_SCHEMA,
+        marketable_setup_default=json.loads((FROG_ROOTDIR / "setup_schema.json").read_text()),
         marketable_featured_actions=[
             {"feat_question": "Ribbit! Tell me something fun", "feat_expert": "default", "feat_depends_on_setup": []},
             {"feat_question": "Give me a motivational boost", "feat_expert": "default", "feat_depends_on_setup": []},
