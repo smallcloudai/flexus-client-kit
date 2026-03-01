@@ -2,6 +2,7 @@ import asyncio
 import datetime
 import json
 import logging
+import re
 from pathlib import Path
 from typing import Dict, Any, List
 
@@ -18,8 +19,30 @@ from flexus_simple_bots.owl3 import owl3_install
 
 logger = logging.getLogger("bot_owl3")
 
+BOT_DIR = Path(__file__).parent
 BOT_NAME = "owl3"
 BOT_VERSION = SIMPLE_BOTS_COMMON_VERSION
+
+
+def load_skill_schemas() -> Dict[str, Any]:
+    # For Schemed form editor to work on the resulting document, we need 'schema' in the json.
+    # Not to repeat it in this file, instead collect it from filling-*/SKILL.md piece by piece:
+    skills_dir = BOT_DIR / "skills"
+    schema = {}
+    for skill_dir in sorted(skills_dir.iterdir()):
+        if not skill_dir.name.startswith("filling-"):
+            continue
+        md = (skill_dir / "SKILL.md").read_text()
+        m = re.search(r"```json\s*(\{.*?\})\s*```", md, re.DOTALL)
+        assert m, "Whoops %s does not have a schema block" % skill_dir
+        section = skill_dir.name.replace("filling-", "")
+        parsed = json.loads(m.group(1))
+        parsed["title"] = section.split("-", 1)[1].capitalize()
+        schema[section] = parsed
+    return schema
+
+
+SKILL_SCHEMAS = load_skill_schemas()
 
 OWL3_INTEGRATIONS = ckit_integrations_db.integrations_load(
     owl3_install.OWL3_ROOTDIR,
@@ -117,6 +140,7 @@ async def handle_update_strategy(
         if not doc["strategy"].get(prev):
             return f"Error: must complete {prev} before {section}"
 
+    doc["strategy"]["schema"] = SKILL_SCHEMAS
     doc["strategy"][section] = data
     doc["strategy"]["meta"]["updated_at"] = datetime.datetime.now(datetime.timezone.utc).isoformat()
     sections_filled = sum(1 for s in PIPELINE if doc["strategy"].get(s))

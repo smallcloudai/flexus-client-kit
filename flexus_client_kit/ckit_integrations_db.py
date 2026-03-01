@@ -15,9 +15,9 @@ class IntegrationRecord:
     integr_scopes: list[str] = field(default_factory=list)
 
 
-def integrations_load(bot_dir: Path, whitelist: list[str], builtin_skills: list[str]) -> list[IntegrationRecord]:
+def integrations_load(bot_dir: Path, allowlist: list[str], builtin_skills: list[str]) -> list[IntegrationRecord]:
     result = []
-    for name in whitelist:
+    for name in allowlist:
         if name == "skills":
             from flexus_client_kit import ckit_skills
             async def _init_skills(rcx):
