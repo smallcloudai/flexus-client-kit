@@ -18,6 +18,7 @@ from flexus_client_kit import ckit_external_auth
 from flexus_client_kit import erp_schema
 from flexus_client_kit import ckit_integrations_db
 from flexus_client_kit.integrations import fi_mongo_store
+from flexus_client_kit.integrations import fi_pdoc
 from flexus_simple_bots.frog import frog_install
 from flexus_simple_bots.version_common import SIMPLE_BOTS_COMMON_VERSION
 
@@ -108,7 +109,7 @@ TOOLS = [
 async def frog_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.RobotContext) -> None:
     setup = ckit_bot_exec.official_setup_mixing_procedure(frog_install.FROG_SETUP_SCHEMA, rcx.persona.persona_setup)
     integr_objects = await ckit_integrations_db.integrations_init_all(FROG_INTEGRATIONS, rcx)
-    pdoc_integration = integr_objects["flexus_policy_document"]
+    pdoc_integration: fi_pdoc.IntegrationPdoc = integr_objects["flexus_policy_document"]
 
     # Mongo store needs custom setup (bot-specific collection)
     mongo_conn_str = await ckit_mongo.mongo_fetch_creds(fclient, rcx.persona.persona_id)
