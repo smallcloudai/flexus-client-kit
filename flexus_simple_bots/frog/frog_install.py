@@ -10,7 +10,7 @@ from flexus_simple_bots.frog import frog_prompts
 
 
 FROG_ROOTDIR = Path(__file__).parent
-FROG_SKILLS = ckit_skills.skill_find_all(FROG_ROOTDIR)
+FROG_SKILLS = ckit_skills.skill_find_all(FROG_ROOTDIR, shared_skills_allowlist="*")
 FROG_SETUP_SCHEMA = json.loads((FROG_ROOTDIR / "setup_schema.json").read_text())
 
 FROG_SUBCHAT_LARK = f"""

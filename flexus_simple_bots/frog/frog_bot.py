@@ -29,7 +29,7 @@ BOT_VERSION = SIMPLE_BOTS_COMMON_VERSION
 
 FROG_INTEGRATIONS: list[ckit_integrations_db.IntegrationRecord] = ckit_integrations_db.integrations_load(
     frog_install.FROG_ROOTDIR,
-    whitelist=[
+    allowlist=[
         "flexus_policy_document",
         "gmail",
         "skills"

@@ -1,3 +1,4 @@
+import fnmatch
 import json
 import logging
 import re
@@ -12,11 +13,11 @@ logger = logging.getLogger("skills")
 FETCH_SKILL_TOOL = ckit_cloudtool.CloudTool(
     strict=True,
     name="flexus_fetch_skill",
-    description="Load a skill by name. Returns the skill instructions (SKILL.md body without YAML header).",
+    description="Load a skill by name, returns the skill instructions.",
     parameters={
         "type": "object",
         "properties": {
-            "name": {"type": "string", "description": "Skill name, e.g. 'internal-comms'"},
+            "name": {"type": "string"},
         },
         "required": ["name"],
         "additionalProperties": False,
@@ -79,21 +80,36 @@ def _skill_dirs(bot_root_dir: Path) -> List[Path]:
     ]
 
 
-def skill_find_all(bot_root_dir: Path) -> List[str]:
+def _match_allowlist(name: str, allowlist: str) -> bool:
+    for pat in allowlist.split(","):
+        pat = pat.strip()
+        if pat and fnmatch.fnmatch(name, pat):
+            return True
+    return False
+
+
+def skill_find_all(bot_root_dir: Path, shared_skills_allowlist: str) -> List[str]:
     # Called from bot module top level, logger was not set up at this point, any logs are invisible
     found = []
-    for d in _skill_dirs(bot_root_dir):
-        if d.is_dir():
-            for p in d.glob("*/SKILL.md"):
-                _validate_skill(p, p.read_text())
-                found.append(p.parent.name)
+    local_dir = bot_root_dir / "skills"
+    shared_dir = bot_root_dir.parents[1] / "shared_skills"
+    for d in [local_dir, shared_dir]:
+        if not d.is_dir():
+            continue
+        is_shared = (d == shared_dir)
+        for p in d.glob("*/SKILL.md"):
+            name = p.parent.name
+            if is_shared and not _match_allowlist(name, shared_skills_allowlist):
+                continue
+            _validate_skill(p, p.read_text())
+            found.append(name)
     found.sort()
     return found
 
 
-def read_name_description(bot_root_dir: Path, whitelist: List[str]) -> str:
+def read_name_description(bot_root_dir: Path, allowlist: List[str]) -> str:
     result = []
-    for name in whitelist:
+    for name in allowlist:
         for d in _skill_dirs(bot_root_dir):
             p = d / name / "SKILL.md"
             if p.is_file():
@@ -109,9 +125,9 @@ def read_name_description(bot_root_dir: Path, whitelist: List[str]) -> str:
     return json.dumps(result)
 
 
-def fetch_skill_md(name: str, bot_root_dir: Path, whitelist: List[str]) -> str:
-    if name not in whitelist:
-        return "Skill %r not available. Available: %s" % (name, ", ".join(whitelist))
+def fetch_skill_md(name: str, bot_root_dir: Path, allowlist: List[str]) -> str:
+    if name not in allowlist:
+        return "Skill %r not available. Available: %s" % (name, ", ".join(allowlist))
     for d in _skill_dirs(bot_root_dir):
         p = d / name / "SKILL.md"
         if p.is_file():
@@ -119,11 +135,11 @@ def fetch_skill_md(name: str, bot_root_dir: Path, whitelist: List[str]) -> str:
     return "Skill %r not found on disk." % name
 
 
-async def called_by_model(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any], bot_root_dir: Path, whitelist: List[str]) -> str:
+async def called_by_model(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any], bot_root_dir: Path, allowlist: List[str]) -> str:
     name = model_produced_args.get("name", "")
     if not name:
         return "Need the `name` parameter. Nothing happened, call again with correct parameters."
-    return fetch_skill_md(name, bot_root_dir, whitelist)
+    return fetch_skill_md(name, bot_root_dir, allowlist)
 
 
 # Running scripts in skills:

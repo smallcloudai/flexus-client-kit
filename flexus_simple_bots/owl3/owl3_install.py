@@ -9,7 +9,7 @@ from flexus_simple_bots.owl import owl_prompts
 
 
 OWL3_ROOTDIR = Path(__file__).parent
-OWL3_SKILLS = ckit_skills.skill_find_all(OWL3_ROOTDIR)
+OWL3_SKILLS = ckit_skills.skill_find_all(OWL3_ROOTDIR, shared_skills_allowlist="")
 
 # Reuse owl's pictures — same bot, simplified internals
 OWL_ASSETS = Path(__file__).parents[1] / "owl"
@@ -43,7 +43,7 @@ async def install(
         marketable_name=bot_name,
         marketable_version=bot_version,
         marketable_accent_color="#8B4513",
-        marketable_title1="Owl",
+        marketable_title1="Owl3",
         marketable_title2="Growth Strategist — hypothesis to experiment design",
         marketable_author="Flexus",
         marketable_occupation="Growth Strategy",
