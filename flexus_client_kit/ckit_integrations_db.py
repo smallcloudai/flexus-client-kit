@@ -1,4 +1,5 @@
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any, Awaitable, Callable
 
 from flexus_client_kit import ckit_cloudtool
@@ -14,20 +15,18 @@ class IntegrationRecord:
     integr_scopes: list[str] = field(default_factory=list)
 
 
-def integrations_load(whitelist: list[str], bot_dir: "Path | None" = None) -> list[IntegrationRecord]:
+def integrations_load(bot_dir: Path, whitelist: list[str], builtin_skills: list[str]) -> list[IntegrationRecord]:
     result = []
     for name in whitelist:
         if name == "skills":
             from flexus_client_kit import ckit_skills
-            assert bot_dir, "skills integration requires bot_dir"
-            skill_list = ckit_skills.skill_find_all(bot_dir)
             async def _init_skills(rcx):
                 return None
             result.append(IntegrationRecord(
                 integr_name=name,
                 integr_tools=[ckit_skills.FETCH_SKILL_TOOL],
                 integr_init=_init_skills,
-                integr_setup_handlers=lambda obj, rcx, _d=bot_dir, _s=skill_list: [
+                integr_setup_handlers=lambda obj, rcx, _d=bot_dir, _s=builtin_skills: [
                     rcx.on_tool_call("flexus_fetch_skill")(lambda tc, args: ckit_skills.called_by_model(tc, args, _d, _s))
                 ],
             ))

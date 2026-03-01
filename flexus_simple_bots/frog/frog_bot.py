@@ -23,15 +23,18 @@ from flexus_simple_bots.version_common import SIMPLE_BOTS_COMMON_VERSION
 
 logger = logging.getLogger("bot_frog")
 
-BOT_DIR = Path(__file__).parent
 BOT_NAME = "frog"
 BOT_VERSION = SIMPLE_BOTS_COMMON_VERSION
 
-FROG_INTEGRATIONS = ckit_integrations_db.integrations_load([
-    "flexus_policy_document",
-    "gmail",
-    "skills"
-], bot_dir=BOT_DIR)
+FROG_INTEGRATIONS: list[ckit_integrations_db.IntegrationRecord] = ckit_integrations_db.integrations_load(
+    frog_install.FROG_ROOTDIR,
+    whitelist=[
+        "flexus_policy_document",
+        "gmail",
+        "skills"
+    ],
+    builtin_skills=frog_install.FROG_SKILLS
+)
 
 RIBBIT_TOOL = ckit_cloudtool.CloudTool(
     strict=True,
@@ -103,7 +106,7 @@ TOOLS = [
 
 
 async def frog_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.RobotContext) -> None:
-    setup = ckit_bot_exec.official_setup_mixing_procedure(frog_install.SETUP_SCHEMA, rcx.persona.persona_setup)
+    setup = ckit_bot_exec.official_setup_mixing_procedure(frog_install.FROG_SETUP_SCHEMA, rcx.persona.persona_setup)
     integr_objects = await ckit_integrations_db.integrations_init_all(FROG_INTEGRATIONS, rcx)
     pdoc_integration = integr_objects["flexus_policy_document"]
 
