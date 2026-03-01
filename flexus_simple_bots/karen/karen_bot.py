@@ -26,7 +26,7 @@ TOOLS = [fi_slack.SLACK_TOOL, fi_discord2.DISCORD_TOOL, fi_repo_reader.REPO_READ
 
 
 async def karen_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.RobotContext) -> None:
-    setup = ckit_bot_exec.official_setup_mixing_procedure(karen_install.karen_setup_default, rcx.persona.persona_setup)
+    setup = ckit_bot_exec.official_setup_mixing_procedure(karen_install.KAREN_SETUP_SCHEMA, rcx.persona.persona_setup)
     slack = fi_slack.IntegrationSlack(
         fclient,
         rcx,

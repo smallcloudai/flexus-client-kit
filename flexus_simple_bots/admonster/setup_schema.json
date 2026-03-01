@@ -1,0 +1,10 @@
+[
+    {
+        "bs_name": "ad_account_id",
+        "bs_type": "string_short",
+        "bs_default": "",
+        "bs_group": "LinkedIn",
+        "bs_importance": 1,
+        "bs_description": "LinkedIn Ads Account ID"
+    }
+]

@@ -13,6 +13,7 @@ from flexus_client_kit import ckit_shutdown
 from flexus_client_kit import ckit_ask_model
 from flexus_client_kit import ckit_scenario
 from flexus_client_kit import ckit_external_auth
+from flexus_client_kit import ckit_integrations_db
 from flexus_client_kit.integrations import fi_pdoc
 from flexus_simple_bots.productman import productman_install
 from flexus_simple_bots.productman import productman_prompts
@@ -24,6 +25,12 @@ logger = logging.getLogger("bot_productman")
 
 BOT_NAME = "productman"
 BOT_VERSION = SIMPLE_BOTS_COMMON_VERSION
+
+PRODUCTMAN_INTEGRATIONS: list[ckit_integrations_db.IntegrationRecord] = ckit_integrations_db.integrations_load(
+    productman_install.PRODUCTMAN_ROOTDIR,
+    allowlist=["flexus_policy_document"],
+    builtin_skills=[],
+)
 
 
 IDEA_TEMPLATE_TOOL = ckit_cloudtool.CloudTool(
@@ -161,32 +168,33 @@ VERIFY_IDEA_TOOL = ckit_cloudtool.CloudTool(
 )
 
 TOOLS_VERIFY_SUBCHAT = [
-    fi_pdoc.POLICY_DOCUMENT_TOOL
+    fi_pdoc.POLICY_DOCUMENT_TOOL,
 ]
 
 TOOLS_SURVEY = [
     survey_research.SURVEY_RESEARCH_TOOL,
-    fi_pdoc.POLICY_DOCUMENT_TOOL
+    fi_pdoc.POLICY_DOCUMENT_TOOL,
 ]
 
 TOOLS_DEFAULT = [
     IDEA_TEMPLATE_TOOL,
     HYPOTHESIS_TEMPLATE_TOOL,
     VERIFY_IDEA_TOOL,
-    fi_pdoc.POLICY_DOCUMENT_TOOL,
 ]
 
 TOOLS_ALL = [
     *TOOLS_DEFAULT,
-    survey_research.SURVEY_RESEARCH_TOOL
+    survey_research.SURVEY_RESEARCH_TOOL,
+    *[t for rec in PRODUCTMAN_INTEGRATIONS for t in rec.integr_tools],
 ]
 
 
 
 
 async def productman_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.RobotContext) -> None:
-    setup = ckit_bot_exec.official_setup_mixing_procedure(productman_install.productman_setup_schema, rcx.persona.persona_setup)
-    pdoc_integration = fi_pdoc.IntegrationPdoc(rcx, rcx.persona.ws_root_group_id)
+    setup = ckit_bot_exec.official_setup_mixing_procedure(productman_install.PRODUCTMAN_SETUP_SCHEMA, rcx.persona.persona_setup)
+    integr_objects = await ckit_integrations_db.integrations_init_all(PRODUCTMAN_INTEGRATIONS, rcx)
+    pdoc_integration: fi_pdoc.IntegrationPdoc = integr_objects["flexus_policy_document"]
 
     survey_research_integration = survey_research.IntegrationSurveyResearch(
         surveymonkey_token=os.getenv("SURVEYMONKEY_ACCESS_TOKEN", ""),
@@ -310,10 +318,6 @@ async def productman_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_
             fexp_name="criticize_idea",
         )
         raise ckit_cloudtool.WaitForSubchats(subchats)
-
-    @rcx.on_tool_call(fi_pdoc.POLICY_DOCUMENT_TOOL.name)
-    async def toolcall_pdoc(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
-        return await pdoc_integration.called_by_model(toolcall, model_produced_args)
 
     @rcx.on_tool_call(survey_research.SURVEY_RESEARCH_TOOL.name)
     async def toolcall_survey(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:

@@ -20,7 +20,7 @@ def integrations_load(bot_dir: Path, allowlist: list[str], builtin_skills: list[
     for name in allowlist:
         if name == "skills":
             from flexus_client_kit import ckit_skills
-            async def _init_skills(rcx):
+            async def _init_skills(rcx, setup):
                 return None
             result.append(IntegrationRecord(
                 integr_name=name,
@@ -32,7 +32,7 @@ def integrations_load(bot_dir: Path, allowlist: list[str], builtin_skills: list[
             ))
         elif name == "flexus_policy_document":
             from flexus_client_kit.integrations import fi_pdoc
-            async def _init_pdoc(rcx):
+            async def _init_pdoc(rcx, setup):
                 return fi_pdoc.IntegrationPdoc(rcx, rcx.persona.ws_root_group_id)
             result.append(IntegrationRecord(
                 integr_name=name,
@@ -42,7 +42,7 @@ def integrations_load(bot_dir: Path, allowlist: list[str], builtin_skills: list[
             ))
         elif name == "print_widget":
             from flexus_client_kit.integrations import fi_widget
-            async def _init_widget(rcx):
+            async def _init_widget(rcx, setup):
                 return None
             result.append(IntegrationRecord(
                 integr_name=name,
@@ -52,7 +52,7 @@ def integrations_load(bot_dir: Path, allowlist: list[str], builtin_skills: list[
             ))
         elif name == "gmail":
             from flexus_client_kit.integrations import fi_gmail
-            async def _init_gmail(rcx):
+            async def _init_gmail(rcx, setup):
                 return fi_gmail.IntegrationGmail(rcx.fclient, rcx)
             result.append(IntegrationRecord(
                 integr_name=name,
@@ -64,7 +64,7 @@ def integrations_load(bot_dir: Path, allowlist: list[str], builtin_skills: list[
             ))
         elif name == "google_calendar":
             from flexus_client_kit.integrations import fi_google_calendar
-            async def _init_gcal(rcx):
+            async def _init_gcal(rcx, setup):
                 return fi_google_calendar.IntegrationGoogleCalendar(rcx.fclient, rcx)
             result.append(IntegrationRecord(
                 integr_name=name,
@@ -74,15 +74,28 @@ def integrations_load(bot_dir: Path, allowlist: list[str], builtin_skills: list[
                 integr_provider="google",
                 integr_scopes=fi_google_calendar.REQUIRED_SCOPES,
             ))
+        elif name == "jira":
+            from flexus_client_kit.integrations import fi_jira
+            async def _init_jira(rcx, setup):
+                url = (setup or {}).get("jira_instance_url", "")
+                return fi_jira.IntegrationJira(rcx.fclient, rcx, jira_instance_url=url)
+            result.append(IntegrationRecord(
+                integr_name=name,
+                integr_tools=[fi_jira.JIRA_TOOL],
+                integr_init=_init_jira,
+                integr_setup_handlers=lambda obj, rcx: [rcx.on_tool_call("jira")(obj.called_by_model)],
+                integr_provider="atlassian",
+                integr_scopes=fi_jira.REQUIRED_SCOPES,
+            ))
         else:
             raise ValueError(f"Unknown integration {name!r}")
     return result
 
 
-async def integrations_init_all(records: list[IntegrationRecord], rcx) -> dict[str, Any]:
+async def integrations_init_all(records: list[IntegrationRecord], rcx, setup: dict = None) -> dict[str, Any]:
     result = {}
     for rec in records:
-        obj = await rec.integr_init(rcx)
+        obj = await rec.integr_init(rcx, setup)
         rec.integr_setup_handlers(obj, rcx)
         result[rec.integr_name] = obj
     return result

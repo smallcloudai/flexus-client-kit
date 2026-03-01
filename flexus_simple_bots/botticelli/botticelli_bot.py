@@ -20,6 +20,7 @@ from flexus_client_kit import ckit_shutdown
 from flexus_client_kit import ckit_ask_model
 from flexus_client_kit import ckit_kanban
 from flexus_client_kit import ckit_mongo
+from flexus_client_kit import ckit_integrations_db
 from flexus_client_kit.integrations import fi_pdoc
 from flexus_client_kit.integrations import fi_mongo_store
 from flexus_simple_bots.botticelli import botticelli_install
@@ -216,19 +217,28 @@ Use this tool ONCE per project. User will verify/adjust colors in the sidebar fo
     },
 )
 
+BOTTICELLI_INTEGRATIONS: list[ckit_integrations_db.IntegrationRecord] = ckit_integrations_db.integrations_load(
+    botticelli_install.BOTTICELLI_ROOTDIR,
+    allowlist=[
+        "flexus_policy_document",
+    ],
+    builtin_skills=botticelli_install.BOTTICELLI_SKILLS,
+)
+
 TOOLS = [
     STYLEGUIDE_TEMPLATE_TOOL,
     GENERATE_PICTURE_TOOL,
     CROP_IMAGE_TOOL,
     CAMPAIGN_BRIEF_TOOL,
     SCAN_BRAND_VISUALS_TOOL,
-    fi_pdoc.POLICY_DOCUMENT_TOOL,
-    fi_mongo_store.MONGO_STORE_TOOL
+    fi_mongo_store.MONGO_STORE_TOOL,
+    *[t for rec in BOTTICELLI_INTEGRATIONS for t in rec.integr_tools],
 ]
 
 async def botticelli_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.RobotContext) -> None:
-    setup = ckit_bot_exec.official_setup_mixing_procedure(botticelli_install.botticelli_setup_schema, rcx.persona.persona_setup)
-    pdoc_integration = fi_pdoc.IntegrationPdoc(rcx, rcx.persona.ws_root_group_id)
+    setup = ckit_bot_exec.official_setup_mixing_procedure(botticelli_install.BOTTICELLI_SETUP_SCHEMA, rcx.persona.persona_setup)
+    integr_objects = await ckit_integrations_db.integrations_init_all(BOTTICELLI_INTEGRATIONS, rcx, setup)
+    pdoc_integration: fi_pdoc.IntegrationPdoc = integr_objects["flexus_policy_document"]
 
     mongo_conn_str = await ckit_mongo.mongo_fetch_creds(fclient, rcx.persona.persona_id)
     mongo = AsyncMongoClient(mongo_conn_str)
@@ -315,10 +325,6 @@ async def botticelli_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_
         await pdoc_integration.pdoc_create(path, json.dumps(styleguide_doc, indent=2), toolcall.fcall_ft_id)
         logger.info(f"Created style guide at {path}")
         return f"✍️ {path}\n\n✓ Created style guide document"
-
-    @rcx.on_tool_call(fi_pdoc.POLICY_DOCUMENT_TOOL.name)
-    async def toolcall_policy_document(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
-        return await pdoc_integration.called_by_model(toolcall, model_produced_args)
 
     @rcx.on_tool_call(GENERATE_PICTURE_TOOL.name)
     async def toolcall_generate_picture(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> ckit_cloudtool.ToolResult:

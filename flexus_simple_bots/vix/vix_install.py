@@ -1,17 +1,22 @@
 import asyncio
-import json
 import base64
+import json
 from pathlib import Path
 
 from flexus_client_kit import ckit_client
 from flexus_client_kit import ckit_bot_install
 from flexus_client_kit import ckit_cloudtool
+from flexus_client_kit import ckit_skills
 from flexus_client_kit.integrations import fi_crm_automations
 from flexus_client_kit.integrations import fi_resend
 from flexus_client_kit.integrations import fi_shopify
 
 from flexus_simple_bots import prompts_common
-from flexus_simple_bots.vix import vix_bot, vix_prompts
+from flexus_simple_bots.vix import vix_prompts
+
+
+VIX_ROOTDIR = Path(__file__).parent
+VIX_SKILLS = ckit_skills.skill_find_all(VIX_ROOTDIR, shared_skills_allowlist="")
 
 
 BOT_DESCRIPTION = """
@@ -48,16 +53,37 @@ Integrated sales and marketing agent with CRM management, lead nurturing, and co
 """
 
 
-vix_setup_schema = [
-    {
-        "bs_name": "EMAIL_RESPOND_TO",
-        "bs_type": "string_long",
-        "bs_default": "",
-        "bs_group": "Email",
-        "bs_importance": 0,
-        "bs_description": "Email addresses the bot should respond to, comma-separated (e.g. sales@yourdomain.com). All other emails to your domains are logged as CRM activities only.",
-    },
-] + fi_shopify.SHOPIFY_SETUP_SCHEMA + fi_crm_automations.CRM_AUTOMATIONS_SETUP_SCHEMA + fi_resend.RESEND_SETUP_SCHEMA
+VIX_SETUP_SCHEMA = json.loads((VIX_ROOTDIR / "setup_schema.json").read_text())
+VIX_SETUP_SCHEMA += fi_shopify.SHOPIFY_SETUP_SCHEMA + fi_crm_automations.CRM_AUTOMATIONS_SETUP_SCHEMA + fi_resend.RESEND_SETUP_SCHEMA
+
+
+EXPERTS = [
+    ("default", ckit_bot_install.FMarketplaceExpertInput(
+        fexp_system_prompt=vix_prompts.vix_prompt_marketing,
+        fexp_python_kernel="",
+        fexp_block_tools="shopify_cart",
+        fexp_allow_tools="",
+        fexp_inactivity_timeout=3600,
+        fexp_description="Marketing assistant for CRM management, contact import, automated outreach, and company/product setup.",
+    )),
+    ("sales", ckit_bot_install.FMarketplaceExpertInput(
+        fexp_system_prompt=vix_prompts.vix_prompt_sales,
+        fexp_python_kernel="",
+        fexp_block_tools="crm_automation,shopify,*setup",
+        fexp_allow_tools="",
+        fexp_inactivity_timeout=3600,
+        fexp_description="Conducts sales conversations using C.L.O.S.E.R. Framework, qualifies leads with BANT, and handles objections with consultative approach.",
+    )),
+    ("nurturing", ckit_bot_install.FMarketplaceExpertInput(
+        fexp_system_prompt=vix_prompts.vix_prompt_nurturing,
+        fexp_python_kernel="",
+        fexp_block_tools="crm_automation,shopify,*setup",
+        fexp_allow_tools="",
+        fexp_inactivity_timeout=600,
+        fexp_description="Lightweight expert for automated tasks: sending templated emails, follow-ups, and simple CRM operations.",
+        fexp_preferred_model_default="grok-4-1-fast-non-reasoning",
+    )),
+]
 
 
 async def install(
@@ -66,11 +92,8 @@ async def install(
     bot_version: str,
     tools: list[ckit_cloudtool.CloudTool],
 ):
-    bot_internal_tools = json.dumps([t.openai_style_tool() for t in tools if t.name != "shopify_cart"])
-    sales_tools = json.dumps([t.openai_style_tool() for t in tools if t.name not in ("crm_automation", "shopify")])
-    nurturing_tools = json.dumps([t.openai_style_tool() for t in tools if t.name not in ("crm_automation", "shopify")])
-    pic_big = base64.b64encode(open(Path(__file__).with_name("vix-1024x1536.webp"), "rb").read()).decode("ascii")
-    pic_small = base64.b64encode(open(Path(__file__).with_name("vix-256x256.webp"), "rb").read()).decode("ascii")
+    pic_big = base64.b64encode((VIX_ROOTDIR / "vix-1024x1536.webp").read_bytes()).decode("ascii")
+    pic_small = base64.b64encode((VIX_ROOTDIR / "vix-256x256.webp").read_bytes()).decode("ascii")
     await ckit_bot_install.marketplace_upsert_dev_bot(
         client,
         ws_id=client.ws_id,
@@ -85,7 +108,7 @@ async def install(
         marketable_typical_group="Sales",
         marketable_github_repo="https://github.com/smallcloudai/flexus-client-kit.git",
         marketable_run_this="python -m flexus_simple_bots.vix.vix_bot",
-        marketable_setup_default=vix_setup_schema,
+        marketable_setup_default=VIX_SETUP_SCHEMA,
         marketable_featured_actions=[
             {"feat_question": "Help me set up my company and sales pipeline", "feat_expert": "default", "feat_depends_on_setup": []},
             {"feat_question": "Help me send contacts from my landing page to Flexus", "feat_expert": "default", "feat_depends_on_setup": []},
@@ -93,36 +116,7 @@ async def install(
         ],
         marketable_intro_message="Hi! I'm Vix, your sales and marketing assistant. I can help with CRM management, email automations, contact imports, and sales conversations. What would you like to work on?",
         marketable_preferred_model_default="claude-opus-4-5-20251101",
-        marketable_experts=[
-            ("default", ckit_bot_install.FMarketplaceExpertInput(
-                fexp_system_prompt=vix_prompts.vix_prompt_marketing,
-                fexp_python_kernel="",
-                fexp_block_tools="",
-                fexp_allow_tools="",
-                fexp_inactivity_timeout=3600,
-                fexp_app_capture_tools=bot_internal_tools,
-                fexp_description="Marketing assistant for CRM management, contact import, automated outreach, and company/product setup.",
-            )),
-            ("sales", ckit_bot_install.FMarketplaceExpertInput(
-                fexp_system_prompt=vix_prompts.vix_prompt_sales,
-                fexp_python_kernel="",
-                fexp_block_tools="*setup",
-                fexp_allow_tools="",
-                fexp_inactivity_timeout=3600,
-                fexp_app_capture_tools=sales_tools,
-                fexp_description="Conducts sales conversations using C.L.O.S.E.R. Framework, qualifies leads with BANT, and handles objections with consultative approach.",
-            )),
-            ("nurturing", ckit_bot_install.FMarketplaceExpertInput(
-                fexp_system_prompt=vix_prompts.vix_prompt_nurturing,
-                fexp_python_kernel="",
-                fexp_block_tools="*setup",
-                fexp_allow_tools="",
-                fexp_inactivity_timeout=600,
-                fexp_app_capture_tools=nurturing_tools,
-                fexp_description="Lightweight expert for automated tasks: sending templated emails, follow-ups, and simple CRM operations.",
-                fexp_preferred_model_default="grok-4-1-fast-non-reasoning",
-            )),
-        ],
+        marketable_experts=[(name, exp.filter_tools(tools)) for name, exp in EXPERTS],
         marketable_tags=["Sales", "Marketing", "CRM", "Email", "Automation", "Shopify", "E-commerce"],
         marketable_picture_big_b64=pic_big,
         marketable_picture_small_b64=pic_small,
@@ -137,5 +131,6 @@ async def install(
 
 
 if __name__ == "__main__":
+    from flexus_simple_bots.vix import vix_bot
     client = ckit_client.FlexusClient("vix_install")
     asyncio.run(install(client, bot_name=vix_bot.BOT_NAME, bot_version=vix_bot.BOT_VERSION, tools=vix_bot.TOOLS))

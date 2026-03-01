@@ -140,10 +140,6 @@ TOOLS_ALL = [
     fi_mongo_store.MONGO_STORE_TOOL,
 ]
 
-TOOLS_DM = [
-    HISTORY_TOOL,
-    fi_telegram.TELEGRAM_TOOL,
-]
 
 
 def _buffer_size_kb(buf: List[dict]) -> float:

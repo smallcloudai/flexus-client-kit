@@ -11,9 +11,8 @@ from flexus_client_kit import ckit_shutdown
 from flexus_client_kit import ckit_ask_model
 from flexus_client_kit import ckit_mongo
 from flexus_client_kit import ckit_kanban
+from flexus_client_kit import ckit_integrations_db
 from flexus_client_kit.integrations import fi_mongo_store
-from flexus_client_kit.integrations import fi_pdoc
-from flexus_client_kit.integrations import fi_widget
 from flexus_simple_bots.lawyerrat import lawyerrat_install
 from flexus_simple_bots.version_common import SIMPLE_BOTS_COMMON_VERSION
 
@@ -23,6 +22,15 @@ logger = logging.getLogger("bot_lawyerrat")
 BOT_NAME = "lawyerrat"
 BOT_VERSION = SIMPLE_BOTS_COMMON_VERSION
 
+
+LAWYERRAT_INTEGRATIONS: list[ckit_integrations_db.IntegrationRecord] = ckit_integrations_db.integrations_load(
+    lawyerrat_install.LAWYERRAT_ROOTDIR,
+    allowlist=[
+        "flexus_policy_document",
+        "print_widget",
+    ],
+    builtin_skills=[],
+)
 
 LEGAL_RESEARCH_TOOL = ckit_cloudtool.CloudTool(
     strict=False,
@@ -93,22 +101,18 @@ TOOLS = [
     DRAFT_DOCUMENT_TOOL,
     ANALYZE_CONTRACT_TOOL,
     ASSESS_RISK_TOOL,
-    fi_widget.PRINT_WIDGET_TOOL,
     fi_mongo_store.MONGO_STORE_TOOL,
-    fi_pdoc.POLICY_DOCUMENT_TOOL,
+    *[t for rec in LAWYERRAT_INTEGRATIONS for t in rec.integr_tools],
 ]
 
 
 async def lawyerrat_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.RobotContext) -> None:
-    setup = ckit_bot_exec.official_setup_mixing_procedure(lawyerrat_install.lawyerrat_setup_schema, rcx.persona.persona_setup)
+    setup = ckit_bot_exec.official_setup_mixing_procedure(lawyerrat_install.LAWYERRAT_SETUP_SCHEMA, rcx.persona.persona_setup)
+    integr_objects = await ckit_integrations_db.integrations_init_all(LAWYERRAT_INTEGRATIONS, rcx)
 
     mongo_conn_str = await ckit_mongo.mongo_fetch_creds(fclient, rcx.persona.persona_id)
     mongo = AsyncMongoClient(mongo_conn_str)
-    dbname = rcx.persona.persona_id + "_db"
-    mydb = mongo[dbname]
-    personal_mongo = mydb["personal_mongo"]
-
-    pdoc_integration = fi_pdoc.IntegrationPdoc(rcx, rcx.persona.ws_root_group_id)
+    personal_mongo = mongo[rcx.persona.persona_id + "_db"]["personal_mongo"]
 
     @rcx.on_updated_message
     async def updated_message_in_db(msg: ckit_ask_model.FThreadMessageOutput):
@@ -301,10 +305,6 @@ Provide a structured risk assessment including:
         )
         raise ckit_cloudtool.WaitForSubchats(subchats)
 
-    @rcx.on_tool_call(fi_widget.PRINT_WIDGET_TOOL.name)
-    async def toolcall_print_widget(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
-        return await fi_widget.handle_print_widget(toolcall, model_produced_args)
-
     @rcx.on_tool_call(fi_mongo_store.MONGO_STORE_TOOL.name)
     async def toolcall_mongo_store(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
         return await fi_mongo_store.handle_mongo_store(
@@ -313,10 +313,6 @@ Provide a structured risk assessment including:
             toolcall,
             model_produced_args,
         )
-
-    @rcx.on_tool_call(fi_pdoc.POLICY_DOCUMENT_TOOL.name)
-    async def toolcall_pdoc(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
-        return await pdoc_integration.called_by_model(toolcall, model_produced_args)
 
     try:
         while not ckit_shutdown.shutdown_event.is_set():

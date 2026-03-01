@@ -3,16 +3,15 @@ import datetime
 import json
 import logging
 from pathlib import Path
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, List
 
 from flexus_client_kit import ckit_client
 from flexus_client_kit import ckit_scenario
 from flexus_client_kit import ckit_cloudtool
 from flexus_client_kit import ckit_bot_exec
 from flexus_client_kit import ckit_shutdown
-from flexus_client_kit import ckit_ask_model
-from flexus_client_kit import ckit_kanban
 from flexus_client_kit import ckit_external_auth
+from flexus_client_kit import ckit_integrations_db
 from flexus_client_kit.integrations import fi_pdoc
 from flexus_simple_bots.version_common import SIMPLE_BOTS_COMMON_VERSION
 from flexus_simple_bots.owl import owl_install
@@ -616,8 +615,14 @@ async def handle_update_strategy(
 
 
 # =============================================================================
-# MAIN LOOP
+# INTEGRATIONS & TOOLS
 # =============================================================================
+
+OWL_INTEGRATIONS = ckit_integrations_db.integrations_load(
+    owl_install.OWL_ROOTDIR,
+    allowlist=["flexus_policy_document"],
+    builtin_skills=owl_install.OWL_SKILLS,
+)
 
 TOOLS = [
     UPDATE_CALIBRATION_TOOL,
@@ -627,24 +632,13 @@ TOOLS = [
     UPDATE_MESSAGING_TOOL,
     UPDATE_CHANNELS_TOOL,
     UPDATE_TACTICS_TOOL,
-    fi_pdoc.POLICY_DOCUMENT_TOOL,
+    *[t for rec in OWL_INTEGRATIONS for t in rec.integr_tools],
 ]
 
 
 async def owl_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.RobotContext) -> None:
-    pdoc_integration = fi_pdoc.IntegrationPdoc(rcx, rcx.persona.ws_root_group_id)
-
-    @rcx.on_updated_message
-    async def updated_message_in_db(msg: ckit_ask_model.FThreadMessageOutput):
-        pass
-
-    @rcx.on_updated_thread
-    async def updated_thread_in_db(th: ckit_ask_model.FThreadOutput):
-        pass
-
-    @rcx.on_updated_task
-    async def updated_task_in_db(t: ckit_kanban.FPersonaKanbanTaskOutput):
-        pass
+    integr_objects = await ckit_integrations_db.integrations_init_all(OWL_INTEGRATIONS, rcx)
+    pdoc_integration: fi_pdoc.IntegrationPdoc = integr_objects["flexus_policy_document"]
 
     @rcx.on_tool_call(UPDATE_CALIBRATION_TOOL.name)
     async def toolcall_calibration(toolcall: ckit_cloudtool.FCloudtoolCall, args: Dict[str, Any]) -> str:
@@ -673,10 +667,6 @@ async def owl_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.Ro
     @rcx.on_tool_call(UPDATE_TACTICS_TOOL.name)
     async def toolcall_tactics(toolcall: ckit_cloudtool.FCloudtoolCall, args: Dict[str, Any]) -> str:
         return await handle_update_strategy("section07-tactics", toolcall, args, rcx, pdoc_integration)
-
-    @rcx.on_tool_call(fi_pdoc.POLICY_DOCUMENT_TOOL.name)
-    async def toolcall_pdoc(toolcall: ckit_cloudtool.FCloudtoolCall, args: Dict[str, Any]) -> str:
-        return await pdoc_integration.called_by_model(toolcall, args)
 
     try:
         while not ckit_shutdown.shutdown_event.is_set():

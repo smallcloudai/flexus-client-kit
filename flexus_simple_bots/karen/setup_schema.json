@@ -1,0 +1,21 @@
+[
+    {
+        "bs_name": "escalate_policy",
+        "bs_type": "string_multiline",
+        "bs_default": "If you can't quite figure out what's going on, ping the person on slack (find them in the settings), describe the question and what you've found so far and ask for help.",
+        "bs_group": "Policy",
+        "bs_order": 1,
+        "bs_importance": 0,
+        "bs_description": "Tell the robot what issues should escalate to a human engineer"
+    },
+    {
+        "bs_name": "escalate_technical_person",
+        "bs_type": "string_short",
+        "bs_default": "",
+        "bs_group": "Policy",
+        "bs_placeholder": "tell Alice via slack",
+        "bs_order": 2,
+        "bs_importance": 0,
+        "bs_description": "Name or contact information of the technical person to escalate unresolved issues"
+    }
+]

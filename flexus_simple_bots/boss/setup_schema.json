@@ -1,0 +1,29 @@
+[
+    {
+        "bs_name": "behavior_tune",
+        "bs_type": "string_multiline",
+        "bs_default": "",
+        "bs_group": "Policy",
+        "bs_order": 1,
+        "bs_importance": 0,
+        "bs_description": "Write your personal preferences how you want Boss to behave"
+    },
+    {
+        "bs_name": "sample_rate_success",
+        "bs_type": "float",
+        "bs_default": 0.1,
+        "bs_group": "Quality Assurance",
+        "bs_order": 2,
+        "bs_importance": 0,
+        "bs_description": "Sample rate for successful tasks from all bots to be sent to boss for quality assurance"
+    },
+    {
+        "bs_name": "sample_rate_failure",
+        "bs_type": "float",
+        "bs_default": 0.2,
+        "bs_group": "Quality Assurance",
+        "bs_order": 3,
+        "bs_importance": 0,
+        "bs_description": "Sample rate for failed tasks from all bots to be sent to boss for quality assurance"
+    }
+]

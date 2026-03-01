@@ -2,14 +2,19 @@ import asyncio
 import json
 import base64
 from pathlib import Path
-from typing import List
 
 from flexus_client_kit import ckit_client
 from flexus_client_kit import ckit_bot_install
 from flexus_client_kit import ckit_cloudtool
+from flexus_client_kit import ckit_skills
 
 from flexus_simple_bots import prompts_common
 from flexus_simple_bots.botticelli import botticelli_prompts
+
+
+BOTTICELLI_ROOTDIR = Path(__file__).parent
+BOTTICELLI_SKILLS = ckit_skills.skill_find_all(BOTTICELLI_ROOTDIR, shared_skills_allowlist="")
+BOTTICELLI_SETUP_SCHEMA = json.loads((BOTTICELLI_ROOTDIR / "setup_schema.json").read_text())
 
 
 BOT_DESCRIPTION = """
@@ -38,9 +43,6 @@ AI Creative Director specializing in high-converting Facebook & Instagram ad cre
 """
 
 
-botticelli_setup_schema = []
-
-
 BOTTICELLI_DEFAULT_LARK = ""
 
 # Lark kernel for meta_ads_creative skill - returns subchat result
@@ -53,15 +55,31 @@ if msg["role"] == "assistant" and len(msg.get("tool_calls", [])) == 0:
 """
 
 
+EXPERTS = [
+    ("default", ckit_bot_install.FMarketplaceExpertInput(
+        fexp_system_prompt=botticelli_prompts.botticelli_prompt,
+        fexp_python_kernel=BOTTICELLI_DEFAULT_LARK,
+        fexp_block_tools="*setup*",
+        fexp_allow_tools="",
+        fexp_description="Creates ad campaign pictures using style guides. Manages company style guides and generates images with picturegen().",
+    )),
+    ("meta_ads_creative", ckit_bot_install.FMarketplaceExpertInput(
+        fexp_system_prompt=botticelli_prompts.meta_ads_creative_prompt,
+        fexp_python_kernel=META_ADS_LARK_KERNEL,
+        fexp_block_tools="*setup*",
+        fexp_allow_tools="",
+    )),
+]
+
+
 async def install(
     client: ckit_client.FlexusClient,
     bot_name: str,
     bot_version: str,
-    tools: List[ckit_cloudtool.CloudTool],
+    tools: list[ckit_cloudtool.CloudTool],
 ):
-    bot_internal_tools = json.dumps([t.openai_style_tool() for t in tools])
-    pic_big = base64.b64encode(open(Path(__file__).with_name("botticelli-1024x1536.webp"), "rb").read()).decode("ascii")
-    pic_small = base64.b64encode(open(Path(__file__).with_name("botticelli-256x256.webp"), "rb").read()).decode("ascii")
+    pic_big = base64.b64encode((BOTTICELLI_ROOTDIR / "botticelli-1024x1536.webp").read_bytes()).decode("ascii")
+    pic_small = base64.b64encode((BOTTICELLI_ROOTDIR / "botticelli-256x256.webp").read_bytes()).decode("ascii")
     await ckit_bot_install.marketplace_upsert_dev_bot(
         client,
         ws_id=client.ws_id,
@@ -76,27 +94,11 @@ async def install(
         marketable_typical_group="Testing",
         marketable_github_repo="https://github.com/smallcloudai/flexus-client-kit.git",
         marketable_run_this="python -m flexus_simple_bots.botticelli.botticelli_bot",
-        marketable_setup_default=botticelli_setup_schema,
+        marketable_setup_default=BOTTICELLI_SETUP_SCHEMA,
         marketable_featured_actions=[],
         marketable_intro_message="Hello, I am Botticelli. I create high-converting Meta Ads creatives optimized with cognitive biases. Ready to generate stunning FB/IG ad campaigns?",
         marketable_preferred_model_default="grok-4-1-fast-non-reasoning",
-        marketable_experts=[
-            ("default", ckit_bot_install.FMarketplaceExpertInput(
-                fexp_system_prompt=botticelli_prompts.botticelli_prompt,
-                fexp_python_kernel=BOTTICELLI_DEFAULT_LARK,
-                fexp_block_tools="*setup*",
-                fexp_allow_tools="",
-                fexp_app_capture_tools=bot_internal_tools,
-                fexp_description="Creates ad campaign pictures using style guides. Manages company style guides and generates images with picturegen().",
-            )),
-            ("meta_ads_creative", ckit_bot_install.FMarketplaceExpertInput(
-                fexp_system_prompt=botticelli_prompts.meta_ads_creative_prompt,
-                fexp_python_kernel=META_ADS_LARK_KERNEL,
-                fexp_block_tools="*setup*",
-                fexp_allow_tools="",
-                fexp_app_capture_tools=bot_internal_tools,
-            )),
-        ],
+        marketable_experts=[(name, exp.filter_tools(tools)) for name, exp in EXPERTS],
         marketable_tags=["Marketing", "Ads", "Creative", "Meta", "Facebook", "Instagram"],
         marketable_picture_big_b64=pic_big,
         marketable_picture_small_b64=pic_small,

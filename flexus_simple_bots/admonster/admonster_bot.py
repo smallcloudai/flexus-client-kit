@@ -11,6 +11,7 @@ from flexus_client_kit import ckit_bot_exec
 from flexus_client_kit import ckit_shutdown
 from flexus_client_kit import ckit_mongo
 from flexus_client_kit import ckit_kanban
+from flexus_client_kit import ckit_integrations_db
 from flexus_client_kit.integrations import fi_mongo_store
 from flexus_client_kit.integrations import fi_linkedin
 from flexus_client_kit.integrations import fi_pdoc
@@ -26,34 +27,40 @@ BOT_VERSION = SIMPLE_BOTS_COMMON_VERSION
 BOT_VERSION_INT = ckit_client.marketplace_version_as_int(BOT_VERSION)
 ACCENT_COLOR = "#0077B5"
 
+ADMONSTER_INTEGRATIONS: list[ckit_integrations_db.IntegrationRecord] = ckit_integrations_db.integrations_load(
+    admonster_install.ADMONSTER_ROOTDIR,
+    allowlist=[
+        "flexus_policy_document",
+    ],
+    builtin_skills=admonster_install.ADMONSTER_SKILLS,
+)
+
 TOOLS = [
     fi_linkedin.LINKEDIN_TOOL,
     FACEBOOK_TOOL,
     fi_mongo_store.MONGO_STORE_TOOL,
-    fi_pdoc.POLICY_DOCUMENT_TOOL,
     experiment_execution.LAUNCH_EXPERIMENT_TOOL,
+    *[t for rec in ADMONSTER_INTEGRATIONS for t in rec.integr_tools],
 ]
 
 
 async def admonster_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.RobotContext) -> None:
-    setup = ckit_bot_exec.official_setup_mixing_procedure(admonster_install.admonster_setup_schema, rcx.persona.persona_setup)
+    setup = ckit_bot_exec.official_setup_mixing_procedure(admonster_install.ADMONSTER_SETUP_SCHEMA, rcx.persona.persona_setup)
+
+    integr_objects = await ckit_integrations_db.integrations_init_all(ADMONSTER_INTEGRATIONS, rcx)
+    pdoc_integration: fi_pdoc.IntegrationPdoc = integr_objects["flexus_policy_document"]
 
     mongo_conn_str = await ckit_mongo.mongo_fetch_creds(fclient, rcx.persona.persona_id)
     mongo = AsyncMongoClient(mongo_conn_str)
-    mydb = mongo[rcx.persona.persona_id + "_db"]
-    personal_mongo = mydb["personal_mongo"]
-
-    pdoc_integration = fi_pdoc.IntegrationPdoc(rcx, rcx.persona.ws_root_group_id)
-
-    linkedin_ad_account_id = setup.get("ad_account_id", "")
+    personal_mongo = mongo[rcx.persona.persona_id + "_db"]["personal_mongo"]
 
     linkedin_integration = fi_linkedin.IntegrationLinkedIn(
         fclient=fclient,
         rcx=rcx,
-        ad_account_id=linkedin_ad_account_id,
+        ad_account_id=setup.get("ad_account_id", ""),
     )
 
-    # Facebook integration — ad_account_id read from /company/ad-ops-config at runtime
+    # Facebook integration -- ad_account_id read from /company/ad-ops-config at runtime
     facebook_integration = IntegrationFacebook(fclient=fclient, rcx=rcx, ad_account_id="", pdoc_integration=pdoc_integration)
 
     @rcx.on_tool_call(fi_linkedin.LINKEDIN_TOOL.name)
@@ -72,11 +79,6 @@ async def admonster_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_e
     async def toolcall_mongo_store(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
         return await fi_mongo_store.handle_mongo_store(rcx.workdir, personal_mongo, toolcall, model_produced_args)
 
-    @rcx.on_tool_call(fi_pdoc.POLICY_DOCUMENT_TOOL.name)
-    async def toolcall_pdoc(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
-        return await pdoc_integration.called_by_model(toolcall, model_produced_args)
-
-    # Experiment execution integration for automated campaign management
     experiment_integration = experiment_execution.IntegrationExperimentExecution(
         pdoc_integration=pdoc_integration,
         fclient=fclient,
@@ -98,15 +100,13 @@ async def admonster_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_e
         experiment_integration.track_experiment_task(t)
     logger.info(f"Initialized experiment tracking for {len(experiment_integration.tracked_experiments)} active experiments")
 
-    # Hourly polling interval for experiment monitoring (3600 seconds = 1 hour)
     last_experiment_check = 0
-    experiment_check_interval = 3600
+    experiment_check_interval = 3600  # hourly
 
     try:
         while not ckit_shutdown.shutdown_event.is_set():
             await rcx.unpark_collected_events(sleep_if_no_work=10.0)
 
-            # Hourly check for active experiments
             current_time = time.time()
             if current_time - last_experiment_check > experiment_check_interval:
                 await experiment_integration.update_active_experiments()

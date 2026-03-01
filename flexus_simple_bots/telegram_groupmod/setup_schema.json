@@ -1,0 +1,92 @@
+[
+    {
+        "bs_name": "blocklist",
+        "bs_type": "string_multiline",
+        "bs_default": "",
+        "bs_group": "Message Filtering",
+        "bs_order": 1,
+        "bs_importance": 1,
+        "bs_description": "Words and phrases to block, one per line. Messages containing any of these will be deleted."
+    },
+    {
+        "bs_name": "whitelisted_domains",
+        "bs_type": "string_multiline",
+        "bs_default": "youtube.com\nyoutu.be\ntwitter.com\nx.com\ngithub.com\nwikipedia.org",
+        "bs_group": "Message Filtering",
+        "bs_order": 2,
+        "bs_importance": 1,
+        "bs_description": "Allowed link domains, one per line. Links to other domains will be deleted."
+    },
+    {
+        "bs_name": "block_all_links",
+        "bs_type": "bool",
+        "bs_default": false,
+        "bs_group": "Message Filtering",
+        "bs_order": 3,
+        "bs_importance": 0,
+        "bs_description": "Block ALL links regardless of whitelist. Useful for strict groups."
+    },
+    {
+        "bs_name": "group_topic",
+        "bs_type": "string_multiline",
+        "bs_default": "",
+        "bs_group": "Group Rules",
+        "bs_order": 1,
+        "bs_importance": 1,
+        "bs_description": "Description of what this group is about. Used to detect offtopic messages during buffer review."
+    },
+    {
+        "bs_name": "moderation_rules",
+        "bs_type": "string_multiline",
+        "bs_default": "Be respectful. No spam. Stay on topic. No hate speech.",
+        "bs_group": "Group Rules",
+        "bs_order": 2,
+        "bs_importance": 0,
+        "bs_description": "Group rules shown to new members and used to judge violations."
+    },
+    {
+        "bs_name": "warns_before_mute",
+        "bs_type": "int",
+        "bs_default": 3,
+        "bs_group": "Escalation",
+        "bs_order": 1,
+        "bs_importance": 1,
+        "bs_description": "Number of warnings before auto-muting a user."
+    },
+    {
+        "bs_name": "mutes_before_ban",
+        "bs_type": "int",
+        "bs_default": 2,
+        "bs_group": "Escalation",
+        "bs_order": 2,
+        "bs_importance": 1,
+        "bs_description": "Number of mutes before auto-banning a user."
+    },
+    {
+        "bs_name": "captcha_enabled",
+        "bs_type": "bool",
+        "bs_default": true,
+        "bs_group": "New Members",
+        "bs_order": 1,
+        "bs_importance": 1,
+        "bs_description": "Challenge new members with a simple question before allowing them to chat."
+    },
+    {
+        "bs_name": "captcha_timeout_minutes",
+        "bs_type": "int",
+        "bs_default": 5,
+        "bs_group": "New Members",
+        "bs_order": 2,
+        "bs_importance": 0,
+        "bs_description": "Minutes to wait for captcha answer before kicking."
+    },
+    {
+        "bs_name": "welcome_message",
+        "bs_type": "string_multiline",
+        "bs_default": "Welcome to the group! Please read the rules.",
+        "bs_group": "New Members",
+        "bs_order": 3,
+        "bs_importance": 0,
+        "bs_description": "Message sent after a new member passes verification."
+    }
+]
