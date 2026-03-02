@@ -618,7 +618,7 @@ async def handle_update_strategy(
 # INTEGRATIONS & TOOLS
 # =============================================================================
 
-OWL_INTEGRATIONS = ckit_integrations_db.integrations_load(
+OWL_INTEGRATIONS = ckit_integrations_db.static_integrations_load(
     owl_install.OWL_ROOTDIR,
     allowlist=["flexus_policy_document"],
     builtin_skills=owl_install.OWL_SKILLS,
@@ -637,7 +637,7 @@ TOOLS = [
 
 
 async def owl_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.RobotContext) -> None:
-    integr_objects = await ckit_integrations_db.integrations_init_all(OWL_INTEGRATIONS, rcx)
+    integr_objects = await ckit_integrations_db.main_loop_integrations_init(OWL_INTEGRATIONS, rcx)
     pdoc_integration: fi_pdoc.IntegrationPdoc = integr_objects["flexus_policy_document"]
 
     @rcx.on_tool_call(UPDATE_CALIBRATION_TOOL.name)

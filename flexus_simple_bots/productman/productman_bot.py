@@ -26,7 +26,7 @@ logger = logging.getLogger("bot_productman")
 BOT_NAME = "productman"
 BOT_VERSION = SIMPLE_BOTS_COMMON_VERSION
 
-PRODUCTMAN_INTEGRATIONS: list[ckit_integrations_db.IntegrationRecord] = ckit_integrations_db.integrations_load(
+PRODUCTMAN_INTEGRATIONS: list[ckit_integrations_db.IntegrationRecord] = ckit_integrations_db.static_integrations_load(
     productman_install.PRODUCTMAN_ROOTDIR,
     allowlist=["flexus_policy_document"],
     builtin_skills=[],
@@ -193,7 +193,7 @@ TOOLS_ALL = [
 
 async def productman_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.RobotContext) -> None:
     setup = ckit_bot_exec.official_setup_mixing_procedure(productman_install.PRODUCTMAN_SETUP_SCHEMA, rcx.persona.persona_setup)
-    integr_objects = await ckit_integrations_db.integrations_init_all(PRODUCTMAN_INTEGRATIONS, rcx)
+    integr_objects = await ckit_integrations_db.main_loop_integrations_init(PRODUCTMAN_INTEGRATIONS, rcx)
     pdoc_integration: fi_pdoc.IntegrationPdoc = integr_objects["flexus_policy_document"]
 
     survey_research_integration = survey_research.IntegrationSurveyResearch(

@@ -47,7 +47,7 @@ async def install_from_manifest(m, setup_schema, bot_dir, client, bot_name, bot_
 
     auth_supported = list(m.get("auth_supported", []))
     auth_scopes: dict = dict(m.get("auth_scopes", {}))
-    for rec in ckit_integrations_db.integrations_load(bot_dir, m["integrations"], builtin_skills=[]):
+    for rec in ckit_integrations_db.static_integrations_load(bot_dir, m["integrations"], builtin_skills=[]):
         if rec.integr_provider:
             if rec.integr_provider not in auth_supported:
                 auth_supported.append(rec.integr_provider)
@@ -87,7 +87,7 @@ async def install_from_manifest(m, setup_schema, bot_dir, client, bot_name, bot_
 
 async def bot_main_loop(m, setup_schema, bot_dir, fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.RobotContext) -> None:
     ckit_bot_exec.official_setup_mixing_procedure(setup_schema, rcx.persona.persona_setup)
-    await ckit_integrations_db.integrations_init_all(ckit_integrations_db.integrations_load(bot_dir, m["integrations"], builtin_skills=[]), rcx)
+    await ckit_integrations_db.main_loop_integrations_init(ckit_integrations_db.static_integrations_load(bot_dir, m["integrations"], builtin_skills=[]), rcx)
 
     try:
         while not ckit_shutdown.shutdown_event.is_set():
@@ -123,7 +123,7 @@ def main():
     bot_dir = _resolve_bot_dir(sys.argv.pop(1))
     manifest, setup_schema = load_manifest_and_setup_schema(bot_dir)
     bot_name = manifest["bot_name"]
-    integrations = ckit_integrations_db.integrations_load(bot_dir, manifest["integrations"], builtin_skills=[])
+    integrations = ckit_integrations_db.static_integrations_load(bot_dir, manifest["integrations"], builtin_skills=[])
     all_tools = [t for rec in integrations for t in rec.integr_tools]   # double loop collapses list of lists into one list
     scenario_fn = ckit_bot_exec.parse_bot_args()
     fclient = ckit_client.FlexusClient(ckit_client.bot_service_name(bot_name, SIMPLE_BOTS_COMMON_VERSION), endpoint="/v1/jailed-bot")
