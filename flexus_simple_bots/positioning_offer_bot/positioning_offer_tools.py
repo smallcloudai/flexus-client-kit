@@ -72,8 +72,7 @@ TOOL_ALLOWED_METHOD_IDS: dict[str, list[str]] = {
         "similarweb.website.marketing_channel_sources.get.v1",
     ],
     "offer_packaging_benchmark_api": [
-        "stripe.products.list.v1",
-        "stripe.prices.list.v1",
+        # Stripe -> use MCP preset instead (mcp_presets/stripe.json)
         "paddle.products.list.v1",
         "paddle.prices.list.v1",
     ],

@@ -54,33 +54,29 @@ API_TOOLS = [
 
 TOOL_ALLOWED_METHOD_IDS: dict[str, list[str]] = {
     "retention_revenue_events_api": [
-        "stripe.subscriptions.list.v1",
-        "stripe.invoices.list.v1",
+        # Stripe -> use MCP preset instead (mcp_presets/stripe.json)
         "chargebee.subscriptions.list.v1",
         "chargebee.invoices.list.v1",
         "recurly.subscriptions.list.v1",
         "paddle.subscriptions.list.v1",
     ],
     "retention_product_analytics_api": [
-        "posthog.insights.retention.query.v1",
-        "posthog.insights.funnel.query.v1",
+        # PostHog -> use MCP preset instead (mcp_presets/posthog.json)
         "mixpanel.retention.query.v1",
         "mixpanel.funnels.query.v1",
         "ga4.properties.run_report.v1",
-        "amplitude.dashboardrest.chart.get.v1",
+        # Amplitude -> use MCP preset instead (mcp_presets/amplitude.json)
     ],
     "retention_feedback_research_api": [
         "surveymonkey.responses.list.v1",
         "typeform.responses.list.v1",
         "delighted.metrics.get.v1",
-        "intercom.conversations.search.v1",
+        # Intercom -> use MCP preset instead (mcp_presets/intercom.json)
         "zendesk.tickets.search.v1",
     ],
     "retention_account_context_api": [
-        "hubspot.deals.search.v1",
-        "hubspot.companies.search.v1",
+        # HubSpot -> use MCP preset instead (mcp_presets/hubspot.json)
         "pipedrive.deals.search.v1",
-        "intercom.conversations.search.v1",
         "zendesk.tickets.search.v1",
     ],
 }

@@ -98,8 +98,10 @@ async def install(
                 "semrush", "bing_webmaster", "x", "youtube", "producthunt",
                 "event_registry", "newsapi", "gnews", "newsdata", "mediastack",
                 "newscatcher", "perigon", "trustpilot", "yelp", "g2", "capterra",
-                "similarweb", "brightdata", "coresignal", "theirstack", "hasdata",
-                "github", "stackexchange",
+                "similarweb", "coresignal", "theirstack", "hasdata",
+                # brightdata → use Bright Data MCP preset (mcp_presets/brightdata.json)
+                # github → use GitHub MCP preset (mcp_presets/github.json)
+                "stackexchange",
             ],
             marketable_auth_scopes={},
         )

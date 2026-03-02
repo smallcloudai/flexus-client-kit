@@ -77,15 +77,13 @@ TOOL_ALLOWED_METHOD_IDS: dict[str, list[str]] = {
     ],
     "paid_channel_measurement_api": [
         "ga4.properties.run_report.v1",
-        "posthog.insights.trend.query.v1",
-        "posthog.insights.funnel.query.v1",
+        # PostHog -> use MCP preset instead (mcp_presets/posthog.json)
         "mixpanel.funnels.query.v1",
         "mixpanel.retention.query.v1",
-        "amplitude.dashboardrest.chart.get.v1",
+        # Amplitude -> use MCP preset instead (mcp_presets/amplitude.json)
     ],
     "creative_feedback_capture_api": [
-        "intercom.conversations.list.v1",
-        "intercom.conversations.search.v1",
+        # Intercom -> use MCP preset instead (mcp_presets/intercom.json)
         "typeform.responses.list.v1",
         "surveymonkey.surveys.responses.list.v1",
     ],

@@ -65,22 +65,16 @@ TOOL_ALLOWED_METHOD_IDS: dict[str, list[str]] = {
         "crossbeam.account_mapping.overlaps.list.v1",
         "crossbeam.exports.records.get.v1",
         "salesforce.query.account.v1",
-        "hubspot.companies.search.v1",
+        # HubSpot -> use MCP preset instead (mcp_presets/hubspot.json)
     ],
     "partner_enablement_execution_api": [
-        "asana.tasks.create.v1",
-        "asana.tasks.update.v1",
-        "notion.pages.create.v1",
-        "notion.pages.update.v1",
-        "hubspot.companies.search.v1",
-        "hubspot.deals.search.v1",
+        # Asana -> use MCP preset instead (mcp_presets/asana.json)
+        # Notion -> use MCP preset instead (mcp_presets/notion.json)
     ],
     "channel_conflict_governance_api": [
         "salesforce.query.opportunity.v1",
-        "hubspot.deals.search.v1",
         "pipedrive.deals.search.v1",
-        "jira.issues.create.v1",
-        "jira.issues.transition.v1",
+        # Atlassian Jira -> use MCP preset instead (mcp_presets/atlassian.json)
     ],
 }
 

@@ -54,12 +54,9 @@ API_TOOLS = [
 
 TOOL_ALLOWED_METHOD_IDS: dict[str, list[str]] = {
     "experiment_backlog_ops_api": [
-        "jira.issues.create.v1",
-        "jira.issues.search.v1",
-        "linear.issues.create.v1",
-        "linear.issues.list.v1",
-        "notion.pages.create.v1",
-        "notion.pages.search.v1",
+        # Atlassian Jira -> use MCP preset instead (mcp_presets/atlassian.json)
+        # Linear -> use MCP preset instead (mcp_presets/linear.json)
+        # Notion -> use MCP preset instead (mcp_presets/notion.json)
     ],
     "experiment_runtime_config_api": [
         "launchdarkly.flags.get.v1",
@@ -70,17 +67,16 @@ TOOL_ALLOWED_METHOD_IDS: dict[str, list[str]] = {
         "optimizely.experiments.get.v1",
     ],
     "experiment_guardrail_metrics_api": [
-        "posthog.insights.trend.query.v1",
-        "posthog.insights.funnel.query.v1",
+        # PostHog -> use MCP preset instead (mcp_presets/posthog.json)
         "mixpanel.retention.query.v1",
         "mixpanel.frequency.query.v1",
-        "amplitude.dashboardrest.chart.get.v1",
+        # Amplitude -> use MCP preset instead (mcp_presets/amplitude.json)
         "ga4.properties.run_report.v1",
     ],
     "experiment_instrumentation_quality_api": [
         "segment.tracking_plans.list.v1",
         "segment.tracking_plans.get.v1",
-        "sentry.organizations.issues.list.v1",
+        # Sentry -> use MCP preset instead (mcp_presets/sentry.json)
     ],
 }
 

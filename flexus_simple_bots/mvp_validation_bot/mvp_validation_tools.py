@@ -58,21 +58,18 @@ TOOL_ALLOWED_METHOD_IDS: dict[str, list[str]] = {
         "launchdarkly.flags.patch.v1",
         "statsig.experiments.create.v1",
         "statsig.experiments.update.v1",
-        "jira.issues.create.v1",
-        "jira.issues.transition.v1",
+        # Atlassian Jira -> use MCP preset instead (mcp_presets/atlassian.json)
     ],
     "mvp_telemetry_api": [
-        "posthog.insights.trend.query.v1",
-        "posthog.insights.funnel.query.v1",
+        # PostHog -> use MCP preset instead (mcp_presets/posthog.json)
         "mixpanel.funnels.query.v1",
         "mixpanel.retention.query.v1",
-        "amplitude.dashboardrest.chart.get.v1",
+        # Amplitude -> use MCP preset instead (mcp_presets/amplitude.json)
         "ga4.properties.run_report.v1",
         "datadog.metrics.timeseries.query.v1",
     ],
     "mvp_feedback_capture_api": [
-        "intercom.conversations.list.v1",
-        "intercom.conversations.search.v1",
+        # Intercom -> use MCP preset instead (mcp_presets/intercom.json)
         "typeform.responses.list.v1",
         "zendesk.tickets.search.v1",
         "zendesk.ticket_comments.list.v1",
@@ -80,7 +77,7 @@ TOOL_ALLOWED_METHOD_IDS: dict[str, list[str]] = {
     "mvp_instrumentation_health_api": [
         "segment.tracking_plans.list.v1",
         "segment.tracking_plans.get.v1",
-        "sentry.organizations.issues.list.v1",
+        # Sentry -> use MCP preset instead (mcp_presets/sentry.json)
     ],
 }
 
