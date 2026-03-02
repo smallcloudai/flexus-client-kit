@@ -18,7 +18,7 @@ from flexus_client_kit.integrations.fi_slack import (
 
 class IntegrationSlackFake:
     def __init__(self, fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.RobotContext,
-                 SLACK_BOT_TOKEN: str = "", SLACK_APP_TOKEN: str = "", should_join: str = "",
+                 should_join: str = "",
                  mongo_collection: Optional[Collection] = None):
         self.fclient = fclient
         self.rcx = rcx
@@ -34,6 +34,13 @@ class IntegrationSlackFake:
         self.captured_ft_id: Optional[str] = None
         self.reactive_running = False
         self.mongo_collection = mongo_collection
+
+    def _get_bot_token(self) -> str:
+        slack_auth = self.rcx.external_auth.get("slack") or {}
+        return (slack_auth.get("token") or {}).get("access_token", "")
+
+    def _get_app_token(self) -> str:
+        return (self.rcx.external_auth.get("slack_manual") or {}).get("api_key", "").strip()
 
     def set_activity_callback(self, cb: Callable[[ActivitySlack, bool], Awaitable[None]]):
         self.activity_callback = cb

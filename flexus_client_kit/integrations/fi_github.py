@@ -45,13 +45,16 @@ class IntegrationGitHub:
     def _is_allowed_write_command(self, args: List[str]) -> bool:
         return any(len(args) >= len(a) and args[:len(a)] == a for a in self.allowed_write_commands)
 
-    async def called_by_model(self, toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, List[str]], token: str, extra_env: Dict[str, str] = {}) -> str:
+    async def called_by_model(self, toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, List[str]]) -> str:
         if not (args := model_produced_args.get("args")):
             return "Error: no args param found!"
         if not isinstance(args, list) or not all(isinstance(arg, str) for arg in args):
             return "Error: args must be a list of str!"
 
-        if not self.is_read_only_command(args) and not self._is_allowed_write_command(args) and not toolcall.confirmed_by_human:
+        github_auth = self.rcx.external_auth.get("github") or {}
+        token = (github_auth.get("token") or {}).get("access_token", "")
+
+        if (not self.is_read_only_command(args) and not self._is_allowed_write_command(args) and not toolcall.confirmed_by_human):
             raise ckit_cloudtool.NeedsConfirmation(
                 confirm_setup_key="github_write",
                 confirm_command=f"gh {' '.join(args)}",
@@ -60,7 +63,6 @@ class IntegrationGitHub:
 
         env = os.environ.copy()
         env["GITHUB_TOKEN"] = token
-        env.update(extra_env)
         proc = await asyncio.create_subprocess_exec(
             *["gh"] + args,
             stdin=asyncio.subprocess.DEVNULL,
