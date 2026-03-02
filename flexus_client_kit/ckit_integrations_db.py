@@ -21,17 +21,18 @@ def static_integrations_load(bot_dir: Path, allowlist: list[str], builtin_skills
     result = []
     for name in allowlist:
         if name == "skills":
-            from flexus_client_kit import ckit_skills
-            async def _init_skills(rcx, setup):
-                return None
-            result.append(IntegrationRecord(
-                integr_name=name,
-                integr_tools=[ckit_skills.FETCH_SKILL_TOOL],
-                integr_init=_init_skills,
-                integr_setup_handlers=lambda obj, rcx, _d=bot_dir, _s=builtin_skills: [
-                    rcx.on_tool_call("flexus_fetch_skill")(lambda tc, args: ckit_skills.called_by_model(tc, args, _d, _s))
-                ],
-            ))
+            if len(builtin_skills) > 0:
+                from flexus_client_kit import ckit_skills
+                async def _init_skills(rcx, setup):
+                    return None
+                result.append(IntegrationRecord(
+                    integr_name=name,
+                    integr_tools=[ckit_skills.FETCH_SKILL_TOOL],
+                    integr_init=_init_skills,
+                    integr_setup_handlers=lambda obj, rcx, _d=bot_dir, _s=builtin_skills: [
+                        rcx.on_tool_call("flexus_fetch_skill")(lambda tc, args: ckit_skills.called_by_model(tc, args, _d, _s))
+                    ],
+                ))
 
         elif name == "flexus_policy_document":
             from flexus_client_kit.integrations import fi_pdoc
@@ -110,6 +111,7 @@ def static_integrations_load(bot_dir: Path, allowlist: list[str], builtin_skills
                 integr_setup_handlers=lambda obj, rcx, _t=fb_tool: [rcx.on_tool_call(_t.name)(obj.called_by_model)],
                 integr_provider="facebook",
             ))
+
         else:
             raise ValueError(f"Unknown integration {name!r}")
     return result
