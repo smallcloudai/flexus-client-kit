@@ -115,9 +115,7 @@ TOOL_ALLOWED_METHOD_IDS: dict[str, list[str]] = {
         "dataforseo.trends.demography.live.v1",
         "dataforseo.trends.merged_data.live.v1",
         # serpapi → use SerpApi MCP preset instead (mcp_presets/serpapi.json)
-        "semrush.trends.traffic_summary.v1",
-        "semrush.trends.daily_traffic.v1",
-        "semrush.analytics.keyword_reports.v1",
+        # SEMrush -> use MCP preset instead (mcp_presets/semrush.json)
         "bing_webmaster.get_page_stats.v1",
         "bing_webmaster.get_page_query_stats.v1",
         "bing_webmaster.get_rank_and_traffic_stats.v1",
@@ -181,11 +179,7 @@ TOOL_ALLOWED_METHOD_IDS: dict[str, list[str]] = {
         "google_shopping.reports.search_topic_trends.v1",
     ],
     "signal_web_traffic_intel_api": [
-        "similarweb.traffic_and_engagement.get.v1",
-        "similarweb.traffic_sources.get.v1",
-        "similarweb.traffic_geography.get.v1",
-        "similarweb.website_ranking.get.v1",
-        "similarweb.similar_sites.get.v1",
+        # Similarweb -> use MCP preset instead (mcp_presets/similarweb.json)
         "shopify.analytics.reports_list.v1",
         "shopify.analytics.reports_dates.v1",
         "shopify.analytics.reports_get.v1",

@@ -95,10 +95,12 @@ async def install(
             marketable_schedule=[prompts_common.SCHED_PICK_ONE_5M],
             marketable_forms=ckit_bot_install.load_form_bundles(__file__),
             marketable_auth_supported=[
-                "semrush", "bing_webmaster", "x", "youtube", "producthunt",
+                # semrush → use SEMrush MCP preset (mcp_presets/semrush.json)
+                "bing_webmaster", "x", "youtube", "producthunt",
                 "event_registry", "newsapi", "gnews", "newsdata", "mediastack",
                 "newscatcher", "perigon", "trustpilot", "yelp", "g2", "capterra",
-                "similarweb", "coresignal", "theirstack", "hasdata",
+                # similarweb → use Similarweb MCP preset (mcp_presets/similarweb.json)
+                "coresignal", "theirstack", "hasdata",
                 # brightdata → use Bright Data MCP preset (mcp_presets/brightdata.json)
                 # github → use GitHub MCP preset (mcp_presets/github.json)
                 "stackexchange",

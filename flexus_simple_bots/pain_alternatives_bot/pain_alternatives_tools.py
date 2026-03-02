@@ -74,8 +74,7 @@ TOOL_ALLOWED_METHOD_IDS: dict[str, list[str]] = {
         "crunchbase.organizations.lookup.v1",
     ],
     "alternatives_traction_benchmark_api": [
-        "similarweb.website.traffic_and_engagement.get.v1",
-        "similarweb.website.marketing_channel_sources.get.v1",
+        # Similarweb -> use MCP preset instead (mcp_presets/similarweb.json)
         "builtwith.domain.live.v1",
         "wappalyzer.lookup.v2",
     ],
