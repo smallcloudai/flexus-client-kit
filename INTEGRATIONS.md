@@ -203,3 +203,8 @@ Status legend:
 | `fi_surveymonkey.py` | SurveyMonkey | untested |
 | `fi_userinterviews.py` | User Interviews | untested |
 | `fi_usertesting.py` | UserTesting | untested |
+
+
+///
+
+https://coresignal.com/solutions/jobs-data-api/ -- may be act like reseller

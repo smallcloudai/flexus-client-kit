@@ -215,6 +215,249 @@ Preview your ad:
 """
 
 
+async def get_ad(client: "FacebookAdsClient", ad_id: str) -> str:
+    if not ad_id:
+        return "ERROR: ad_id is required"
+    if client.is_test_mode:
+        return f"Ad {ad_id}:\n  Name: Test Ad\n  Status: PAUSED\n  Adset ID: 234567890\n  Creative ID: 987654321\n"
+    data = await client.request(
+        "GET", ad_id,
+        params={"fields": "id,name,status,adset_id,creative,created_time,updated_time,effective_status,bid_amount"},
+    )
+    result = f"Ad {ad_id}:\n"
+    result += f"  Name: {data.get('name', 'N/A')}\n"
+    result += f"  Status: {data.get('status', 'N/A')} (effective: {data.get('effective_status', 'N/A')})\n"
+    result += f"  Adset ID: {data.get('adset_id', 'N/A')}\n"
+    creative = data.get("creative", {})
+    if creative:
+        result += f"  Creative ID: {creative.get('id', 'N/A')}\n"
+    result += f"  Created: {data.get('created_time', 'N/A')}\n"
+    return result
+
+
+async def update_ad(
+    client: "FacebookAdsClient",
+    ad_id: str,
+    name: Optional[str] = None,
+    status: Optional[str] = None,
+) -> str:
+    if not ad_id:
+        return "ERROR: ad_id is required"
+    if not any([name, status]):
+        return "ERROR: At least one field to update is required (name, status)"
+    if status and status not in ["ACTIVE", "PAUSED", "ARCHIVED", "DELETED"]:
+        return "ERROR: status must be one of: ACTIVE, PAUSED, ARCHIVED, DELETED"
+    if client.is_test_mode:
+        updates = []
+        if name:
+            updates.append(f"name -> {name}")
+        if status:
+            updates.append(f"status -> {status}")
+        return f"Ad {ad_id} updated:\n" + "\n".join(f"  - {u}" for u in updates)
+    data: Dict[str, Any] = {}
+    if name:
+        data["name"] = name
+    if status:
+        data["status"] = status
+    result = await client.request("POST", ad_id, data=data)
+    if result.get("success"):
+        return f"Ad {ad_id} updated successfully."
+    return f"Failed to update ad. Response: {result}"
+
+
+async def delete_ad(client: "FacebookAdsClient", ad_id: str) -> str:
+    if not ad_id:
+        return "ERROR: ad_id is required"
+    if client.is_test_mode:
+        return f"Ad {ad_id} deleted successfully."
+    result = await client.request("DELETE", ad_id)
+    if result.get("success"):
+        return f"Ad {ad_id} deleted successfully."
+    return f"Failed to delete ad. Response: {result}"
+
+
+async def list_ads(
+    client: "FacebookAdsClient",
+    ad_account_id: Optional[str] = None,
+    adset_id: Optional[str] = None,
+    status_filter: Optional[str] = None,
+) -> str:
+    if not ad_account_id and not adset_id:
+        return "ERROR: Either ad_account_id or adset_id is required"
+    parent = adset_id if adset_id else ad_account_id
+    endpoint = f"{parent}/ads"
+    if client.is_test_mode:
+        return f"Ads for {parent}:\n  Test Ad (ID: 111222333444555) — PAUSED\n"
+    params: Dict[str, Any] = {
+        "fields": "id,name,status,adset_id,creative{id},effective_status",
+        "limit": 100,
+    }
+    if status_filter:
+        params["effective_status"] = f'["{status_filter.upper()}"]'
+    data = await client.request("GET", endpoint, params=params)
+    ads = data.get("data", [])
+    if not ads:
+        return f"No ads found for {parent}"
+    result = f"Ads for {parent} ({len(ads)} total):\n\n"
+    for ad in ads:
+        creative_id = ad.get("creative", {}).get("id", "N/A") if ad.get("creative") else "N/A"
+        result += f"  **{ad.get('name', 'Unnamed')}** (ID: {ad['id']})\n"
+        result += f"     Status: {ad.get('status', 'N/A')} | Adset: {ad.get('adset_id', 'N/A')} | Creative: {creative_id}\n\n"
+    return result
+
+
+async def list_creatives(
+    client: "FacebookAdsClient",
+    ad_account_id: str,
+) -> str:
+    if not ad_account_id:
+        return "ERROR: ad_account_id is required"
+    if client.is_test_mode:
+        return f"Creatives for {ad_account_id}:\n  Test Creative (ID: 987654321)\n"
+    data = await client.request(
+        "GET", f"{ad_account_id}/adcreatives",
+        params={"fields": "id,name,status,object_story_spec,thumbnail_url", "limit": 100},
+    )
+    creatives = data.get("data", [])
+    if not creatives:
+        return f"No creatives found for {ad_account_id}"
+    result = f"Ad Creatives for {ad_account_id} ({len(creatives)} total):\n\n"
+    for c in creatives:
+        result += f"  **{c.get('name', 'Unnamed')}** (ID: {c['id']})\n"
+        if c.get("status"):
+            result += f"     Status: {c['status']}\n"
+        result += "\n"
+    return result
+
+
+async def get_creative(client: "FacebookAdsClient", creative_id: str) -> str:
+    if not creative_id:
+        return "ERROR: creative_id is required"
+    if client.is_test_mode:
+        return f"Creative {creative_id}:\n  Name: Test Creative\n  Status: ACTIVE\n"
+    data = await client.request(
+        "GET", creative_id,
+        params={"fields": "id,name,status,object_story_spec,call_to_action_type,thumbnail_url,image_hash,video_id"},
+    )
+    result = f"Creative {creative_id}:\n"
+    result += f"  Name: {data.get('name', 'N/A')}\n"
+    result += f"  Status: {data.get('status', 'N/A')}\n"
+    if data.get("call_to_action_type"):
+        result += f"  CTA: {data['call_to_action_type']}\n"
+    if data.get("image_hash"):
+        result += f"  Image Hash: {data['image_hash']}\n"
+    if data.get("video_id"):
+        result += f"  Video ID: {data['video_id']}\n"
+    return result
+
+
+async def update_creative(
+    client: "FacebookAdsClient",
+    creative_id: str,
+    name: Optional[str] = None,
+) -> str:
+    if not creative_id:
+        return "ERROR: creative_id is required"
+    if not name:
+        return "ERROR: name is required (only name can be updated on existing creatives)"
+    if client.is_test_mode:
+        return f"Creative {creative_id} updated: name -> {name}"
+    result = await client.request("POST", creative_id, data={"name": name})
+    if result.get("success"):
+        return f"Creative {creative_id} updated: name -> {name}"
+    return f"Failed to update creative. Response: {result}"
+
+
+async def delete_creative(client: "FacebookAdsClient", creative_id: str) -> str:
+    if not creative_id:
+        return "ERROR: creative_id is required"
+    if client.is_test_mode:
+        return f"Creative {creative_id} deleted successfully."
+    result = await client.request("DELETE", creative_id)
+    if result.get("success"):
+        return f"Creative {creative_id} deleted successfully."
+    return f"Failed to delete creative. Response: {result}"
+
+
+async def preview_creative(
+    client: "FacebookAdsClient",
+    creative_id: str,
+    ad_format: str = "DESKTOP_FEED_STANDARD",
+) -> str:
+    if not creative_id:
+        return "ERROR: creative_id is required"
+    try:
+        AdFormat(ad_format)
+    except ValueError:
+        valid = [f.value for f in AdFormat]
+        return f"ERROR: Invalid ad_format. Must be one of: {', '.join(valid)}"
+    if client.is_test_mode:
+        return f"Creative Preview for {creative_id}:\n  Format: {ad_format}\n  Preview URL: https://facebook.com/ads/preview/mock_{creative_id}\n"
+    data = await client.request("GET", f"{creative_id}/previews", params={"ad_format": ad_format})
+    previews = data.get("data", [])
+    if not previews:
+        return "No preview available for this creative"
+    body = previews[0].get("body", "")
+    if body:
+        return f"Creative Preview for {creative_id} ({ad_format}):\n{body[:500]}...\n"
+    return f"Preview available but no body content. Response: {previews[0]}"
+
+
+async def upload_video(
+    client: "FacebookAdsClient",
+    video_url: str,
+    ad_account_id: Optional[str] = None,
+    title: Optional[str] = None,
+    description: Optional[str] = None,
+) -> str:
+    if not video_url:
+        return "ERROR: video_url is required"
+    account_id = ad_account_id or client.ad_account_id
+    if not account_id:
+        return "ERROR: ad_account_id is required"
+    if client.is_test_mode:
+        return f"Video uploaded from URL:\n  Video ID: mock_video_123\n  Account: {account_id}\n  URL: {video_url}\n"
+    form_data: Dict[str, Any] = {
+        "file_url": video_url,
+        "access_token": client.access_token,
+    }
+    if title:
+        form_data["title"] = title
+    if description:
+        form_data["description"] = description
+    logger.info(f"Uploading video from URL to {account_id}/advideos")
+    result = await client.request("POST", f"{account_id}/advideos", form_data=form_data)
+    video_id = result.get("id")
+    if not video_id:
+        return f"Failed to upload video. Response: {result}"
+    return f"Video uploaded successfully!\n  Video ID: {video_id}\n  Account: {account_id}\n  Use video_id in create_creative with video_data spec.\n"
+
+
+async def list_videos(
+    client: "FacebookAdsClient",
+    ad_account_id: str,
+) -> str:
+    if not ad_account_id:
+        return "ERROR: ad_account_id is required"
+    if client.is_test_mode:
+        return f"Videos for {ad_account_id}:\n  Test Video (ID: mock_video_123) — READY\n"
+    data = await client.request(
+        "GET", f"{ad_account_id}/advideos",
+        params={"fields": "id,title,description,length,status,created_time", "limit": 50},
+    )
+    videos = data.get("data", [])
+    if not videos:
+        return f"No videos found for {ad_account_id}"
+    result = f"Ad Videos for {ad_account_id} ({len(videos)} total):\n\n"
+    for v in videos:
+        result += f"  **{v.get('title', 'Untitled')}** (ID: {v['id']})\n"
+        result += f"     Status: {v.get('status', 'N/A')} | Length: {v.get('length', 'N/A')}s\n"
+        if v.get("description"):
+            result += f"     Description: {v['description'][:80]}\n"
+        result += "\n"
+    return result
+
+
 async def preview_ad(client: "FacebookAdsClient", ad_id: str, ad_format: str = "DESKTOP_FEED_STANDARD") -> str:
     if not ad_id:
         return "ERROR: ad_id is required"
