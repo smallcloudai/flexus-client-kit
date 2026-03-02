@@ -81,8 +81,7 @@ TOOL_ALLOWED_METHOD_IDS: dict[str, list[str]] = {
     "segment_market_traction_api": [
         "crunchbase.organizations.lookup.v1",
         "crunchbase.organizations.search.v1",
-        "similarweb.website.traffic_and_engagement.get.v1",
-        "similarweb.website.similar_sites.get.v1",
+        # Similarweb -> use MCP preset instead (mcp_presets/similarweb.json)
         "google_ads.keywordplan.generate_historical_metrics.v1",
     ],
     "segment_intent_signal_api": [

@@ -68,8 +68,7 @@ TOOL_ALLOWED_METHOD_IDS: dict[str, list[str]] = {
         "gnews.search.v1",
         "crunchbase.organizations.search.v1",
         "crunchbase.organizations.lookup.v1",
-        "similarweb.website.traffic_and_engagement.get.v1",
-        "similarweb.website.marketing_channel_sources.get.v1",
+        # Similarweb -> use MCP preset instead (mcp_presets/similarweb.json)
     ],
     "offer_packaging_benchmark_api": [
         # Stripe -> use MCP preset instead (mcp_presets/stripe.json)

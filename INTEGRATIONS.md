@@ -26,7 +26,9 @@ Available in the Flexus MCP catalog. Prefer MCP over a custom integration when b
 | PostHog | official | remote | https://mcp.posthog.com/mcp |
 | PostgreSQL | flexus | local | `npx @modelcontextprotocol/server-postgres` |
 | Sentry | official | remote | https://mcp.sentry.dev/mcp |
+| SEMrush | official | remote | https://mcp.semrush.com/v1/mcp |
 | SerpApi | official | remote | https://mcp.serpapi.com/mcp |
+| Similarweb | official | remote | https://mcp.similarweb.com |
 | Slack | flexus | local | `npx @zencoderai/slack-mcp-server` |
 | Stripe | official | remote | https://mcp.stripe.com |
 | Supabase | official | remote | https://mcp.supabase.com/mcp |
@@ -56,7 +58,7 @@ Status legend:
 | `fi_newscatcher.py` | NewsCatcher | untested |
 | `fi_newsdata.py` | Newsdata.io | untested |
 | `fi_perigon.py` | Perigon | untested |
-| `fi_semrush.py` | SEMrush | untested |
+| `fi_semrush.py` | SEMrush | **mcp-preferred** → `semrush.json` |
 | `fi_wikimedia.py` | Wikimedia | untested |
 
 ### Social & Community
@@ -87,7 +89,7 @@ Status legend:
 | `fi_g2.py` | G2 | untested |
 | `fi_glassdoor.py` | Glassdoor | untested |
 | `fi_levelsfyi.py` | Levels.fyi | untested |
-| `fi_similarweb.py` | SimilarWeb | untested |
+| `fi_similarweb.py` | SimilarWeb | **mcp-preferred** → `similarweb.json` |
 | `fi_trustpilot.py` | Trustpilot | untested |
 | `fi_wappalyzer.py` | Wappalyzer | untested |
 | `fi_yelp.py` | Yelp | untested |
