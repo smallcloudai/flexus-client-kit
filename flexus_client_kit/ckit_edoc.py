@@ -40,6 +40,7 @@ class FEdocOutput:
     edoc_status_download: str
     edoc_status_graphdb: str
     edoc_status_vectordb: str
+    ft_id: Optional[str] = None
 
 async def edoc_get_existing_documents_for_eds(
     client: ckit_client.FlexusClient,
@@ -125,6 +126,7 @@ async def edoc_create(
     edoc_title: str,
     edoc_size_bytes: int,
     edoc_icon: Optional[str] = None,
+    edoc_status_download: str = "EDOC_FOUND"
 ) -> bool:
     if not edoc_icon:
         ext = edoc_title.split(".")[-1].lower() if "." in edoc_title else ""
@@ -138,7 +140,7 @@ async def edoc_create(
         "edoc_title": edoc_title,
         "edoc_mtime": 0,
         "edoc_size_bytes": edoc_size_bytes,
-        "edoc_status_download": "EDOC_FOUND",
+        "edoc_status_download": edoc_status_download,
         "edoc_status_graphdb": "",
         "edoc_status_vectordb": "",
     }
