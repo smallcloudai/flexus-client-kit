@@ -39,43 +39,43 @@ async def market_signal_bot_main_loop(fclient: ckit_client.FlexusClient, rcx: ck
 
     @rcx.on_tool_call(market_signal_tools.SIGNAL_SEARCH_DEMAND_TOOL.name)
     async def toolcall_signal_search_demand(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Optional[Dict[str, Any]]) -> str:
-        return await market_signal_tools.handle_signal_tool_call(market_signal_tools.SIGNAL_SEARCH_DEMAND_TOOL.name, toolcall, model_produced_args)
+        return await market_signal_tools.handle_signal_tool_call(market_signal_tools.SIGNAL_SEARCH_DEMAND_TOOL.name, toolcall, model_produced_args, rcx)
 
     @rcx.on_tool_call(market_signal_tools.SIGNAL_SOCIAL_TRENDS_TOOL.name)
     async def toolcall_signal_social_trends(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Optional[Dict[str, Any]]) -> str:
-        return await market_signal_tools.handle_signal_tool_call(market_signal_tools.SIGNAL_SOCIAL_TRENDS_TOOL.name, toolcall, model_produced_args)
+        return await market_signal_tools.handle_signal_tool_call(market_signal_tools.SIGNAL_SOCIAL_TRENDS_TOOL.name, toolcall, model_produced_args, rcx)
 
     @rcx.on_tool_call(market_signal_tools.SIGNAL_NEWS_EVENTS_TOOL.name)
     async def toolcall_signal_news_events(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Optional[Dict[str, Any]]) -> str:
-        return await market_signal_tools.handle_signal_tool_call(market_signal_tools.SIGNAL_NEWS_EVENTS_TOOL.name, toolcall, model_produced_args)
+        return await market_signal_tools.handle_signal_tool_call(market_signal_tools.SIGNAL_NEWS_EVENTS_TOOL.name, toolcall, model_produced_args, rcx)
 
     @rcx.on_tool_call(market_signal_tools.SIGNAL_REVIEW_VOICE_TOOL.name)
     async def toolcall_signal_review_voice(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Optional[Dict[str, Any]]) -> str:
-        return await market_signal_tools.handle_signal_tool_call(market_signal_tools.SIGNAL_REVIEW_VOICE_TOOL.name, toolcall, model_produced_args)
+        return await market_signal_tools.handle_signal_tool_call(market_signal_tools.SIGNAL_REVIEW_VOICE_TOOL.name, toolcall, model_produced_args, rcx)
 
     @rcx.on_tool_call(market_signal_tools.SIGNAL_MARKETPLACE_DEMAND_TOOL.name)
     async def toolcall_signal_marketplace_demand(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Optional[Dict[str, Any]]) -> str:
-        return await market_signal_tools.handle_signal_tool_call(market_signal_tools.SIGNAL_MARKETPLACE_DEMAND_TOOL.name, toolcall, model_produced_args)
+        return await market_signal_tools.handle_signal_tool_call(market_signal_tools.SIGNAL_MARKETPLACE_DEMAND_TOOL.name, toolcall, model_produced_args, rcx)
 
     @rcx.on_tool_call(market_signal_tools.SIGNAL_WEB_TRAFFIC_INTEL_TOOL.name)
     async def toolcall_signal_web_traffic_intel(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Optional[Dict[str, Any]]) -> str:
-        return await market_signal_tools.handle_signal_tool_call(market_signal_tools.SIGNAL_WEB_TRAFFIC_INTEL_TOOL.name, toolcall, model_produced_args)
+        return await market_signal_tools.handle_signal_tool_call(market_signal_tools.SIGNAL_WEB_TRAFFIC_INTEL_TOOL.name, toolcall, model_produced_args, rcx)
 
     @rcx.on_tool_call(market_signal_tools.SIGNAL_JOBS_DEMAND_TOOL.name)
     async def toolcall_signal_jobs_demand(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Optional[Dict[str, Any]]) -> str:
-        return await market_signal_tools.handle_signal_tool_call(market_signal_tools.SIGNAL_JOBS_DEMAND_TOOL.name, toolcall, model_produced_args)
+        return await market_signal_tools.handle_signal_tool_call(market_signal_tools.SIGNAL_JOBS_DEMAND_TOOL.name, toolcall, model_produced_args, rcx)
 
     @rcx.on_tool_call(market_signal_tools.SIGNAL_DEV_ECOSYSTEM_TOOL.name)
     async def toolcall_signal_dev_ecosystem(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Optional[Dict[str, Any]]) -> str:
-        return await market_signal_tools.handle_signal_tool_call(market_signal_tools.SIGNAL_DEV_ECOSYSTEM_TOOL.name, toolcall, model_produced_args)
+        return await market_signal_tools.handle_signal_tool_call(market_signal_tools.SIGNAL_DEV_ECOSYSTEM_TOOL.name, toolcall, model_produced_args, rcx)
 
     @rcx.on_tool_call(market_signal_tools.SIGNAL_PUBLIC_INTEREST_TOOL.name)
     async def toolcall_signal_public_interest(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Optional[Dict[str, Any]]) -> str:
-        return await market_signal_tools.handle_signal_tool_call(market_signal_tools.SIGNAL_PUBLIC_INTEREST_TOOL.name, toolcall, model_produced_args)
+        return await market_signal_tools.handle_signal_tool_call(market_signal_tools.SIGNAL_PUBLIC_INTEREST_TOOL.name, toolcall, model_produced_args, rcx)
 
     @rcx.on_tool_call(market_signal_tools.SIGNAL_PROFESSIONAL_NETWORK_TOOL.name)
     async def toolcall_signal_professional_network(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Optional[Dict[str, Any]]) -> str:
-        return await market_signal_tools.handle_signal_tool_call(market_signal_tools.SIGNAL_PROFESSIONAL_NETWORK_TOOL.name, toolcall, model_produced_args)
+        return await market_signal_tools.handle_signal_tool_call(market_signal_tools.SIGNAL_PROFESSIONAL_NETWORK_TOOL.name, toolcall, model_produced_args, rcx)
 
     @rcx.on_tool_call(market_signal_tools.WRITE_SNAPSHOT_TOOL.name)
     async def toolcall_write_snapshot(toolcall: ckit_cloudtool.FCloudtoolCall, args: Dict[str, Any]) -> str:

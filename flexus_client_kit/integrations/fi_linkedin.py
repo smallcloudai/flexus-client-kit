@@ -28,6 +28,13 @@ METHOD_IDS = [
 ]
 
 
+_SIGNAL_METHOD_IDS = [
+    "linkedin.organization.posts.list.v1",
+    "linkedin.organization.social_actions.list.v1",
+    "linkedin.organization.followers.stats.v1",
+]
+
+
 class IntegrationLinkedin:
     async def called_by_model(
         self,
@@ -35,8 +42,19 @@ class IntegrationLinkedin:
         model_produced_args: Dict[str, Any],
     ) -> str:
         args = model_produced_args or {}
-        method_id = str((args.get("args") or {}).get("method_id", "")).strip()
-        return json.dumps({"ok": False, "error_code": "INTEGRATION_UNAVAILABLE", "provider": PROVIDER_NAME, "method_id": method_id, "message": "интеграции еще нет, но вы держитесь"}, indent=2, ensure_ascii=False)
+        op = str(args.get("op", "help")).strip()
+        if op == "help":
+            return (
+                f"provider={PROVIDER_NAME}\n"
+                "op=help | status | list_methods | call\n"
+                f"methods: {', '.join(_SIGNAL_METHOD_IDS)}\n"
+                "note: LinkedIn requires OAuth. Connect your account via the integrations panel."
+            )
+        if op == "status":
+            return json.dumps({"ok": False, "error_code": "AUTH_REQUIRED", "provider": PROVIDER_NAME, "status": "requires_oauth", "message": "Connect your LinkedIn account via the integrations panel."}, indent=2, ensure_ascii=False)
+        if op == "list_methods":
+            return json.dumps({"ok": True, "provider": PROVIDER_NAME, "method_ids": _SIGNAL_METHOD_IDS}, indent=2, ensure_ascii=False)
+        return json.dumps({"ok": False, "error_code": "AUTH_REQUIRED", "provider": PROVIDER_NAME, "message": "Connect your LinkedIn account via the integrations panel."}, indent=2, ensure_ascii=False)
 
 
 AD_ACCOUNT_ID = "513489554"

@@ -1,5 +1,6 @@
 import asyncio
 import base64
+from pathlib import Path
 
 from flexus_client_kit import ckit_bot_install
 from flexus_client_kit import ckit_client
@@ -11,9 +12,8 @@ BOT_DESCRIPTION = "## Partner Ecosystem\n\nPartner Ecosystem Bot runs partner li
 
 SETUP_SCHEMA = []
 
-ONE_PIXEL_PNG_B64 = base64.b64encode(
-    bytes.fromhex("89504E470D0A1A0A0000000D4948445200000001000000010804000000B51C0C020000000B4944415478DA63FCFF1F00030302EFD79FD90000000049454E44AE426082")
-).decode("ascii")
+_PIC_BIG_B64 = base64.b64encode((Path(__file__).parent / "partner_ecosystem_bot-1024x1536.webp").read_bytes()).decode("ascii")
+_PIC_SMALL_B64 = base64.b64encode((Path(__file__).parent / "partner_ecosystem_bot-256x256.webp").read_bytes()).decode("ascii")
 
 _ACTIVATION_WRITE_TOOL_NAMES = [
     partner_ecosystem_tools.WRITE_PARTNER_ACTIVATION_SCORECARD_TOOL.name,
@@ -116,9 +116,9 @@ async def install(
             marketable_preferred_model_default="grok-4-1-fast-non-reasoning",
             marketable_daily_budget_default=100_000,
             marketable_default_inbox_default=10_000,
-            marketable_picture_big_b64=ONE_PIXEL_PNG_B64,
-            marketable_picture_small_b64=ONE_PIXEL_PNG_B64,
-            marketable_experts=[(name, exp.provide_tools(tools)) for name, exp in EXPERTS],
+            marketable_picture_big_b64=_PIC_BIG_B64,
+            marketable_picture_small_b64=_PIC_SMALL_B64,
+            marketable_experts=[(name, exp.filter_tools(tools)) for name, exp in EXPERTS],
             marketable_tags=["Partners", "PRM", "Channel"],
             marketable_schedule=[],
             marketable_forms=ckit_bot_install.load_form_bundles(__file__),

@@ -84,7 +84,7 @@ TOOL_ALLOWED_METHOD_IDS: dict[str, list[str]] = {
         "stripe.prices.list.v1",
         "paddle.products.list.v1",
         "paddle.prices.list.v1",
-        "serpapi.search.google.v1",
+        # serpapi → use SerpApi MCP preset instead (mcp_presets/serpapi.json)
         "gnews.search.v1",
     ],
 }
