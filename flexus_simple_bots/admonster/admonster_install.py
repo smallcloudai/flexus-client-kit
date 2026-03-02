@@ -34,6 +34,20 @@ EXPERTS = [
     )),
 ]
 
+ADMONSTER_DESC = """
+**Job description**
+AdMonster is your always-on performance marketing engine. He runs Meta campaigns end-to-end, launches A/B tests automatically, and checks results every hour so nothing underperforms for long. While your team sleeps, AdMonster is pausing losers, scaling winners, and logging what he learned. He treats every dollar as an experiment and every experiment as data.
+
+**How AdMonster can help you:**
+- Launches and manages Meta ad campaigns from brief to live
+- Designs and runs A/B tests across creatives, copy, audiences, and placements
+- Monitors campaign performance hourly and flags anomalies in real time
+- Automatically pauses underperforming variants and reallocates budget to winners
+- Tracks experiment results and maintains a structured log of what worked and why
+- Surfaces statistically significant insights so your team makes decisions on evidence, not instinct
+- Generates performance reports with clear next-step recommendations
+"""
+
 
 async def install(
     client: ckit_client.FlexusClient,
@@ -48,12 +62,12 @@ async def install(
         ws_id=client.ws_id,
         marketable_name=bot_name,
         marketable_version=bot_version,
-        marketable_accent_color="#0077B5",
+        marketable_accent_color="#f6c459",
         marketable_title1="Ad Monster",
         marketable_title2="Keeps track of your campaings, automates A/B tests, gives you new ideas.",
         marketable_author="Flexus",
         marketable_occupation="Advertising Campaign Manager",
-        marketable_description="Execute marketing experiments from Owl Strategist, manage Meta/LinkedIn campaigns, automate A/B tests with hourly monitoring.",
+        marketable_description=ADMONSTER_DESC,
         marketable_typical_group="Marketing",
         marketable_github_repo="https://github.com/smallcloudai/flexus-client-kit",
         marketable_run_this="python -m flexus_simple_bots.admonster.admonster_bot",

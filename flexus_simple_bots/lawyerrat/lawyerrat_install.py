@@ -17,19 +17,17 @@ LAWYERRAT_SKILLS = ckit_skills.static_skills_find(LAWYERRAT_ROOTDIR, shared_skil
 LAWYERRAT_SETUP_SCHEMA = json.loads((LAWYERRAT_ROOTDIR / "setup_schema.json").read_text())
 
 BOT_DESCRIPTION = """
-## LawyerRat - Legal Research & Document Assistant
+**Job description**
+LawyerRat is a thorough legal assistant who burrows through documents with rat-like persistence. He handles the legal heavy lifting your team keeps putting off — contract reviews, NDA triage, compliance checks, risk assessments, and document drafting. Every contract clause gets classified, every compliance gap gets flagged, every risk gets scored. LawyerRat gives you the clarity to move fast without getting blindsided. He provides legal information and analysis, not legal advice — always loop in a licensed attorney before signing anything that matters.
 
-A thorough legal assistant that burrows through documents with rat-like persistence. LawyerRat handles legal research, document drafting, contract review, NDA triage, compliance checks, and risk assessments.
-
-**Key Features:**
-- **Legal Research**: Comprehensive research on legal topics and precedents
-- **Document Drafting**: Professional legal documents and contracts
-- **Contract Review**: Clause-by-clause analysis with GREEN/YELLOW/RED classification
-- **NDA Triage**: Quick screening against standard checklist with sign/negotiate/escalate routing
-- **Compliance Review**: GDPR, CCPA/CPRA, DPA assessment with gap analysis
-- **Risk Assessment**: Severity x Likelihood scoring with prioritized mitigation plans
-
-**Important**: LawyerRat provides legal information and analysis, not legal advice. Always consult with a licensed attorney for actual legal advice.
+**How LawyerRat can help you:**
+- Researches legal topics and precedents thoroughly so you walk into any conversation prepared
+- Drafts professional legal documents and contracts tailored to your situation
+- Reviews contracts clause by clause with GREEN / YELLOW / RED risk classification
+- Triages NDAs against a standard checklist and routes each one to sign, negotiate, or escalate
+- Runs compliance assessments for GDPR, CCPA/CPRA, and DPA — with gap analysis included
+- Scores risks by Severity x Likelihood and produces prioritized mitigation plans
+- Cuts through legal complexity so your team spends less time decoding documents and more time deciding
 """
 
 
@@ -147,7 +145,7 @@ async def install(
         ws_id=client.ws_id,
         marketable_name=bot_name,
         marketable_version=bot_version,
-        marketable_accent_color="#8B4513",
+        marketable_accent_color="#49cdc2",
         marketable_title1="LawyerRat",
         marketable_title2="A thorough legal research and document assistant with meticulous attention to detail.",
         marketable_author="Flexus",

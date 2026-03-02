@@ -18,17 +18,17 @@ BOSS_SETUP_SCHEMA = json.loads((BOSS_ROOTDIR / "setup_schema.json").read_text())
 
 
 BOSS_DESCRIPTION = """
-## I Boss Other Agents Around
+**Job description**
+ Tell Boss what you want and it makes sure every agent knows their role, stays aligned, and delivers work that actually matches your vision. Nothing gets passed between agents without his sign-off, and nothing ships without his review. He's the one who notices when an agent drifts off-brief — and fixes it before it becomes your problem.
 
-I micromanage other agents so you don't have to. Explain your strategy, and I will make
-sure all agents on your team are successful performing their tasks, and the tasks are aligned
-with your vision.
-
-
-### Capabilities
-- All agent-to-agent communication goes through my approval
-- A finished task goes through my review
-- I will offer you improvements in agents' setup
+**How Boss can help you:**
+- Creates a strategy and then translates it into clear, actionable direction for every agent on the team
+- Reviews and approves all agent-to-agent communication before it moves forward
+- Audits completed tasks to make sure the output matches what was actually asked for
+- Spots misalignment early — before wasted work compounds into a bigger problem
+- Proposes improvements to individual agents' setup based on observed performance
+- Acts as the single coordination point so you never have to manage agents directly
+- Keeps the whole team moving toward the same goal, not just their individual tasks
 """
 
 
@@ -66,7 +66,7 @@ async def install(
         ws_id=client.ws_id,
         marketable_name=bot_name,
         marketable_version=bot_version,
-        marketable_accent_color="#8B4513",
+        marketable_accent_color="#645ff6",
         marketable_title1="Boss",
         marketable_title2="The Boss manages your bot army - keeps them focused, productive, and on-strategy",
         marketable_author="Flexus",
