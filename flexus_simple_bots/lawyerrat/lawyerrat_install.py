@@ -13,7 +13,7 @@ from flexus_simple_bots.lawyerrat import lawyerrat_prompts
 
 
 LAWYERRAT_ROOTDIR = Path(__file__).parent
-LAWYERRAT_SKILLS = ckit_skills.skill_find_all(LAWYERRAT_ROOTDIR, shared_skills_allowlist="")
+LAWYERRAT_SKILLS = ckit_skills.static_skills_find(LAWYERRAT_ROOTDIR, shared_skills_allowlist="")
 LAWYERRAT_SETUP_SCHEMA = json.loads((LAWYERRAT_ROOTDIR / "setup_schema.json").read_text())
 
 BOT_DESCRIPTION = """

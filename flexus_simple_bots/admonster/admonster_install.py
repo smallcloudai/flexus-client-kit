@@ -12,7 +12,7 @@ from flexus_simple_bots import prompts_common
 
 
 ADMONSTER_ROOTDIR = Path(__file__).parent
-ADMONSTER_SKILLS = ckit_skills.skill_find_all(ADMONSTER_ROOTDIR, shared_skills_allowlist="")
+ADMONSTER_SKILLS = ckit_skills.static_skills_find(ADMONSTER_ROOTDIR, shared_skills_allowlist="")
 ADMONSTER_SETUP_SCHEMA = json.loads((ADMONSTER_ROOTDIR / "setup_schema.json").read_text())
 
 EXPERTS = [

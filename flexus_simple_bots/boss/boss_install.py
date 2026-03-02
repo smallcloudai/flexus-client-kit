@@ -13,7 +13,7 @@ from flexus_simple_bots.boss import boss_prompts
 
 
 BOSS_ROOTDIR = Path(__file__).parent
-BOSS_SKILLS = ckit_skills.skill_find_all(BOSS_ROOTDIR, shared_skills_allowlist="")
+BOSS_SKILLS = ckit_skills.static_skills_find(BOSS_ROOTDIR, shared_skills_allowlist="")
 BOSS_SETUP_SCHEMA = json.loads((BOSS_ROOTDIR / "setup_schema.json").read_text())
 
 

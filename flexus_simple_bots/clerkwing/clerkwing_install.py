@@ -13,7 +13,7 @@ from flexus_simple_bots.clerkwing import clerkwing_prompts
 
 
 CLERKWING_ROOTDIR = Path(__file__).parent
-CLERKWING_SKILLS = ckit_skills.skill_find_all(CLERKWING_ROOTDIR, shared_skills_allowlist="")
+CLERKWING_SKILLS = ckit_skills.static_skills_find(CLERKWING_ROOTDIR, shared_skills_allowlist="")
 CLERKWING_SETUP_SCHEMA = json.loads((CLERKWING_ROOTDIR / "setup_schema.json").read_text())
 
 BOT_DESCRIPTION = """

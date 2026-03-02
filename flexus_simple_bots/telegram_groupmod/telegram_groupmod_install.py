@@ -9,7 +9,7 @@ from flexus_simple_bots.telegram_groupmod import telegram_groupmod_prompts
 
 
 TELEGRAM_GROUPMOD_ROOTDIR = Path(__file__).parent
-TELEGRAM_GROUPMOD_SKILLS = ckit_skills.skill_find_all(TELEGRAM_GROUPMOD_ROOTDIR, shared_skills_allowlist="")
+TELEGRAM_GROUPMOD_SKILLS = ckit_skills.static_skills_find(TELEGRAM_GROUPMOD_ROOTDIR, shared_skills_allowlist="")
 TELEGRAM_GROUPMOD_SETUP_SCHEMA = json.loads((TELEGRAM_GROUPMOD_ROOTDIR / "setup_schema.json").read_text())
 
 BOT_DESCRIPTION = """

@@ -18,7 +18,7 @@ from flexus_simple_bots.owl_strategist.skills import compliance as skill_complia
 
 
 OWL_STRATEGIST_ROOTDIR = Path(__file__).parent
-OWL_STRATEGIST_SKILLS = ckit_skills.skill_find_all(OWL_STRATEGIST_ROOTDIR, shared_skills_allowlist="")
+OWL_STRATEGIST_SKILLS = ckit_skills.static_skills_find(OWL_STRATEGIST_ROOTDIR, shared_skills_allowlist="")
 
 BOT_DESCRIPTION = """
 ## Owl Strategist — AI Marketing Strategist

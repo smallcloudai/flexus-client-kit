@@ -88,8 +88,9 @@ def _match_allowlist(name: str, allowlist: str) -> bool:
     return False
 
 
-def skill_find_all(bot_root_dir: Path, shared_skills_allowlist: str) -> List[str]:
-    # Called from bot module top level, logger was not set up at this point, any logs are invisible
+def static_skills_find(bot_root_dir: Path, shared_skills_allowlist: str) -> List[str]:
+    # static means designed to save into constant on top level of a bot file
+    # logger is not yet initilized here, no logs possible
     found = []
     local_dir = bot_root_dir / "skills"
     shared_dir = bot_root_dir.parents[1] / "shared_skills"
