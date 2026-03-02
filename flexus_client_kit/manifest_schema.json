@@ -122,7 +122,12 @@
                     "print_widget",
                     "gmail",
                     "google_calendar",
-                    "skills"
+                    "skills",
+                    "github",
+                    "jira",
+                    "facebbok",
+                    "slack",
+                    "linkedin"
                 ]
             },
             "description": "List of integrations the bot uses. Each provides tools and optionally OAuth. Example: ['flexus_policy_document', 'gmail', 'google_calendar']."

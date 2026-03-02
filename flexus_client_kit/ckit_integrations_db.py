@@ -112,6 +112,60 @@ def static_integrations_load(bot_dir: Path, allowlist: list[str], builtin_skills
                 integr_provider="facebook",
             ))
 
+        elif name == "slack":
+            from flexus_client_kit.integrations import fi_slack
+            async def _init_slack(rcx, setup):
+                should_join = (setup or {}).get("slack_should_join", "")
+                return fi_slack.IntegrationSlack(
+                    rcx.fclient, rcx, should_join=should_join
+                )
+            result.append(IntegrationRecord(
+                integr_name=name,
+                integr_tools=[fi_slack.SLACK_TOOL],
+                integr_init=_init_slack,
+                integr_setup_handlers=lambda obj, rcx: [rcx.on_tool_call("slack")(obj.called_by_model)],
+                integr_provider="slack",
+                integr_scopes=[
+                    "channels:read",
+                    "chat:write",
+                    "files:read",
+                    "users:read",
+                    "im:read",
+                ],
+            ))
+
+        elif name == "linkedin":
+            from flexus_client_kit.integrations import fi_linkedin
+            async def _init_linkedin(rcx, setup):
+                ad_account_id = (setup or {}).get("ad_account_id", "")
+                return fi_linkedin.IntegrationLinkedIn(
+                    rcx.fclient, rcx, ad_account_id=ad_account_id
+                )
+            result.append(IntegrationRecord(
+                integr_name=name,
+                integr_tools=[fi_linkedin.LINKEDIN_TOOL],
+                integr_init=_init_linkedin,
+                integr_setup_handlers=lambda obj, rcx: [rcx.on_tool_call("linkedin")(obj.called_by_model)],
+                integr_provider="linkedin",
+                integr_scopes=[
+                    "r_profile_basicinfo",
+                    "email",
+                    "w_member_social",
+                ],
+            ))
+
+        elif name == "github":
+            from flexus_client_kit.integrations import fi_github
+            async def _init_github(rcx, setup):
+                return fi_github.IntegrationGitHub(rcx.fclient, rcx)
+            result.append(IntegrationRecord(
+                integr_name=name,
+                integr_tools=[fi_github.GITHUB_TOOL],
+                integr_init=_init_github,
+                integr_setup_handlers=lambda obj, rcx: [rcx.on_tool_call("github")(obj.called_by_model)],
+                integr_provider="github",
+            ))
+
         else:
             raise ValueError(f"Unknown integration {name!r}")
     return result
