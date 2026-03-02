@@ -64,24 +64,19 @@ TOOL_ALLOWED_METHOD_IDS: dict[str, list[str]] = {
         "qualtrics.responseexports.file.get.v1",
     ],
     "pricing_commitment_events_api": [
-        "stripe.checkout.sessions.list.v1",
-        "stripe.payment_intents.list.v1",
-        "stripe.subscriptions.list.v1",
-        "stripe.invoices.list.v1",
+        # Stripe -> use MCP preset instead (mcp_presets/stripe.json)
         "paddle.transactions.list.v1",
         "paddle.transactions.get.v1",
         "chargebee.subscriptions.list.v1",
         "chargebee.invoices.list.v1",
     ],
     "pricing_sales_signal_api": [
-        "hubspot.deals.search.v1",
+        # HubSpot -> use MCP preset instead (mcp_presets/hubspot.json)
         "salesforce.query.soql.v1",
         "pipedrive.deals.search.v1",
         "pipedrive.itemsearch.search.v1",
     ],
     "pricing_catalog_benchmark_api": [
-        "stripe.products.list.v1",
-        "stripe.prices.list.v1",
         "paddle.products.list.v1",
         "paddle.prices.list.v1",
         # serpapi → use SerpApi MCP preset instead (mcp_presets/serpapi.json)

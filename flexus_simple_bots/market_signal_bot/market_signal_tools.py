@@ -193,8 +193,7 @@ TOOL_ALLOWED_METHOD_IDS: dict[str, list[str]] = {
     "signal_jobs_demand_api": [
         "adzuna.jobs.search_ads.v1",
         "adzuna.jobs.regional_data.v1",
-        "brightdata.jobs.data_feed.v1",
-        "brightdata.jobs.dataset_query.v1",
+        # Bright Data -> use MCP preset instead (mcp_presets/brightdata.json)
         "coresignal.jobs.posts.v1",
         "coresignal.companies.profile.v1",
         "theirstack.jobs.search.v1",
@@ -207,9 +206,7 @@ TOOL_ALLOWED_METHOD_IDS: dict[str, list[str]] = {
         "glassdoor.provider.search.v1",
     ],
     "signal_dev_ecosystem_api": [
-        "github.search.repositories.v1",
-        "github.search.issues.v1",
-        "github.repos.get.v1",
+        # GitHub -> use MCP preset instead (mcp_presets/github.json)
         "stackexchange.questions.list.v1",
         "stackexchange.tags.info.v1",
         "stackexchange.tags.related.v1",

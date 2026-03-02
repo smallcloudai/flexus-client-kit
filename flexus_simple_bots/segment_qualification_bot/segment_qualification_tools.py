@@ -62,8 +62,7 @@ API_TOOLS = [
 
 TOOL_ALLOWED_METHOD_IDS: dict[str, list[str]] = {
     "segment_crm_signal_api": [
-        "hubspot.companies.search.v1",
-        "hubspot.deals.search.v1",
+        # HubSpot -> use MCP preset instead (mcp_presets/hubspot.json)
         "salesforce.query.soql.v1",
         "pipedrive.organizations.search.v1",
         "pipedrive.deals.search.v1",

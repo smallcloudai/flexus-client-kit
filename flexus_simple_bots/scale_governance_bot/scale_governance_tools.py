@@ -54,30 +54,19 @@ API_TOOLS = [
 
 TOOL_ALLOWED_METHOD_IDS: dict[str, list[str]] = {
     "playbook_repo_api": [
-        "notion.pages.create.v1",
-        "notion.pages.update.v1",
-        "confluence.pages.create.v1",
-        "confluence.pages.update.v1",
+        # Notion -> use MCP preset instead (mcp_presets/notion.json)
+        # Atlassian Confluence -> use MCP preset instead (mcp_presets/atlassian.json)
         "gdrive.files.export.v1",
     ],
     "scale_guardrail_monitoring_api": [
         "datadog.metrics.query.v1",
         "grafana.alerts.list.v1",
-        "jira.issues.search.v1",
-        "jira.issues.create.v1",
     ],
     "scale_change_execution_api": [
-        "jira.issues.create.v1",
-        "jira.issues.transition.v1",
-        "asana.tasks.create.v1",
-        "linear.issues.create.v1",
-        "notion.pages.update.v1",
+        # Asana -> use MCP preset instead (mcp_presets/asana.json)
+        # Linear -> use MCP preset instead (mcp_presets/linear.json)
     ],
     "scale_incident_response_api": [
-        "jira.issues.create.v1",
-        "jira.issues.transition.v1",
-        "notion.pages.update.v1",
-        "confluence.pages.update.v1",
     ],
 }
 

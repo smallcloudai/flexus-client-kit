@@ -174,7 +174,7 @@ Status legend:
 | `fi_notion.py` | Notion | **mcp-preferred** → `notion.json` |
 | `fi_pandadoc.py` | PandaDoc | untested |
 | `fi_resend.py` | Resend | untested |
-| `fi_slack.py` | Slack | **mcp-preferred** → `slack.json` |
+| `fi_slack.py` | Slack | active — used by `karen` bot core |
 | `fi_telegram.py` | Telegram | untested |
 | `fi_typeform.py` | Typeform | untested |
 | `fi_zoom.py` | Zoom | untested |
@@ -186,7 +186,7 @@ Status legend:
 | `fi_appstoreconnect.py` | App Store Connect | untested |
 | `fi_github.py` | GitHub | **mcp-preferred** → `github.json` |
 | `fi_google_play.py` | Google Play | untested |
-| `fi_postgres.py` | PostgreSQL | **mcp-preferred** → `postgresql.json` |
+| `fi_postgres.py` | PostgreSQL | active — used by `slonik` bot core |
 
 ### Research & Surveys
 

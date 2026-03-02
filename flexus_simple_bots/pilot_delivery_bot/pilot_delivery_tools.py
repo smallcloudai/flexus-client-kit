@@ -59,31 +59,26 @@ TOOL_ALLOWED_METHOD_IDS: dict[str, list[str]] = {
         "docusign.envelopes.list_status_changes.v1",
         "pandadoc.documents.create.v1",
         "pandadoc.documents.details.get.v1",
-        "stripe.payment_links.create.v1",
-        "stripe.invoices.create.v1",
-        "hubspot.deals.update.v1",
+        # Stripe -> use MCP preset instead (mcp_presets/stripe.json)
+        # HubSpot -> use MCP preset instead (mcp_presets/hubspot.json)
     ],
     "pilot_delivery_ops_api": [
-        "jira.issues.create.v1",
-        "jira.issues.transition.v1",
-        "asana.tasks.create.v1",
-        "notion.pages.create.v1",
-        "notion.pages.update.v1",
+        # Atlassian Jira -> use MCP preset instead (mcp_presets/atlassian.json)
+        # Asana -> use MCP preset instead (mcp_presets/asana.json)
+        # Notion -> use MCP preset instead (mcp_presets/notion.json)
         "calendly.scheduled_events.list.v1",
         "google_calendar.events.insert.v1",
         "google_calendar.events.list.v1",
     ],
     "pilot_usage_evidence_api": [
-        "posthog.insights.trend.query.v1",
-        "posthog.insights.funnel.query.v1",
+        # PostHog -> use MCP preset instead (mcp_presets/posthog.json)
         "mixpanel.funnels.query.v1",
         "mixpanel.retention.query.v1",
         "ga4.properties.run_report.v1",
-        "amplitude.dashboardrest.chart.get.v1",
+        # Amplitude -> use MCP preset instead (mcp_presets/amplitude.json)
     ],
     "pilot_stakeholder_sync_api": [
-        "intercom.conversations.list.v1",
-        "intercom.conversations.search.v1",
+        # Intercom -> use MCP preset instead (mcp_presets/intercom.json)
         "zendesk.tickets.search.v1",
         "zendesk.ticket_comments.list.v1",
         "google_calendar.events.list.v1",

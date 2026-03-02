@@ -159,12 +159,10 @@ TOOL_ALLOWED_METHOD_IDS: dict[str, list[str]] = {
         "dovetail.projects.export.zip.v1",
     ],
     "discovery_context_import_api": [
-        "hubspot.contacts.search.v1",
-        "hubspot.notes.list.v1",
-        "hubspot.calls.list.v1",
+        # HubSpot -> use MCP preset instead (mcp_presets/hubspot.json)
         "zendesk.incremental.ticket_events.comment_events.list.v1",
         "zendesk.tickets.audits.list.v1",
-        "intercom.conversations.list.v1",
+        # Intercom -> use MCP preset instead (mcp_presets/intercom.json)
     ],
 }
 

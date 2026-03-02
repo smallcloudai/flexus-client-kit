@@ -54,8 +54,7 @@ API_TOOLS = [
 
 TOOL_ALLOWED_METHOD_IDS: dict[str, list[str]] = {
     "gtm_unit_economics_api": [
-        "stripe.invoices.list.v1",
-        "stripe.subscriptions.list.v1",
+        # Stripe -> use MCP preset instead (mcp_presets/stripe.json)
         "chargebee.invoices.list.v1",
         "chargebee.subscriptions.list.v1",
         "recurly.subscriptions.list.v1",
@@ -66,8 +65,7 @@ TOOL_ALLOWED_METHOD_IDS: dict[str, list[str]] = {
         "linkedin.ad_analytics.query.v1",
     ],
     "rtm_pipeline_finance_api": [
-        "hubspot.deals.search.v1",
-        "hubspot.companies.search.v1",
+        # HubSpot -> use MCP preset instead (mcp_presets/hubspot.json)
         "salesforce.query.opportunity.v1",
         "salesforce.query.account.v1",
         "pipedrive.deals.search.v1",
@@ -76,10 +74,7 @@ TOOL_ALLOWED_METHOD_IDS: dict[str, list[str]] = {
     "rtm_territory_policy_api": [
         "salesforce.query.opportunity.v1",
         "salesforce.query.user.v1",
-        "hubspot.deals.search.v1",
-        "hubspot.owners.list.v1",
-        "notion.pages.create.v1",
-        "notion.pages.update.v1",
+        # Notion -> use MCP preset instead (mcp_presets/notion.json)
     ],
 }
 

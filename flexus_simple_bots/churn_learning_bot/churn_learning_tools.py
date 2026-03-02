@@ -54,12 +54,11 @@ API_TOOLS = [
 
 TOOL_ALLOWED_METHOD_IDS: dict[str, list[str]] = {
     "churn_feedback_capture_api": [
-        "intercom.conversations.search.v1",
+        # Intercom -> use MCP preset instead (mcp_presets/intercom.json)
         "zendesk.tickets.search.v1",
-        "stripe.subscriptions.list.v1",
-        "stripe.invoices.list.v1",
+        # Stripe -> use MCP preset instead (mcp_presets/stripe.json)
         "chargebee.subscriptions.list.v1",
-        "hubspot.deals.search.v1",
+        # HubSpot -> use MCP preset instead (mcp_presets/hubspot.json)
     ],
     "churn_interview_ops_api": [
         "calendly.scheduled_events.list.v1",
@@ -74,12 +73,10 @@ TOOL_ALLOWED_METHOD_IDS: dict[str, list[str]] = {
         "zoom.meetings.recordings.get.v1",
     ],
     "churn_remediation_backlog_api": [
-        "jira.issues.create.v1",
-        "jira.issues.transition.v1",
-        "asana.tasks.create.v1",
-        "linear.issues.create.v1",
-        "notion.pages.create.v1",
-        "notion.pages.update.v1",
+        # Atlassian Jira -> use MCP preset instead (mcp_presets/atlassian.json)
+        # Asana -> use MCP preset instead (mcp_presets/asana.json)
+        # Linear -> use MCP preset instead (mcp_presets/linear.json)
+        # Notion -> use MCP preset instead (mcp_presets/notion.json)
     ],
 }
 

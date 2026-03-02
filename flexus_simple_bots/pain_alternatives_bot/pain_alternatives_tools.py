@@ -61,11 +61,10 @@ TOOL_ALLOWED_METHOD_IDS: dict[str, list[str]] = {
         "google_play.reviews.list.v1",
     ],
     "pain_support_signal_api": [
-        "intercom.conversations.list.v1",
-        "intercom.conversations.search.v1",
+        # Intercom -> use MCP preset instead (mcp_presets/intercom.json)
         "zendesk.tickets.list.v1",
         "zendesk.ticket_comments.list.v1",
-        "hubspot.tickets.search.v1",
+        # HubSpot -> use MCP preset instead (mcp_presets/hubspot.json)
     ],
     "alternatives_market_scan_api": [
         # serpapi → use SerpApi MCP preset instead (mcp_presets/serpapi.json)
