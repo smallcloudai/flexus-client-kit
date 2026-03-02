@@ -726,12 +726,12 @@ Bots set their default model via `marketable_preferred_model_default` in install
 
 ### Available Models
 
-| Model | Use Case | Example Bots |
-|-------|----------|--------------|
-| **grok-4-1-fast-reasoning** | Complex tasks requiring reasoning, multi-step planning | Boss, Owl |
+| Model                           | Use Case | Example Bots |
+|---------------------------------|----------|--------------|
+| **grok-4-1-fast-reasoning**     | Complex tasks requiring reasoning, multi-step planning | Boss, Owl |
 | **grok-4-1-fast-non-reasoning** | Quick simple tasks, straightforward responses | Frog, Botticelli |
-| **grok-code-fast-1** | Code-related tasks, technical operations | AdMonster |
-| **claude-sonnet-4-5-20250929** | Long agentic tasks, complex code generation, deep analysis | Dev containers via Claude Code |
+| **grok-code-fast-1**            | Code-related tasks, technical operations | AdMonster |
+| **claude-sonnet-4-6**           | Long agentic tasks, complex code generation, deep analysis | Dev containers via Claude Code |
 
 ### Setting Default Model in Install
 
@@ -747,7 +747,7 @@ marketable_preferred_model_default = "grok-4-1-fast-non-reasoning"  # For simple
 - **Reasoning tasks** (planning, analysis, multi-step): `grok-4-1-fast-reasoning`
 - **Simple responses** (status, lookups, quick Q&A): `grok-4-1-fast-non-reasoning`
 - **Code-heavy bots** (syntax, technical): `grok-code-fast-1`
-- **Long agentic coding** (BOB dev workflow): `claude-sonnet-4-5-20250929` via Claude Code tool
+- **Long agentic coding** (BOB dev workflow): `claude-sonnet-4-6` via Claude Code tool
 
 ## Special Widgets & UI Tools
 
