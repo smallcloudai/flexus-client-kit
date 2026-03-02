@@ -235,7 +235,6 @@ Be careful to get the contact first so you don't remove other platform identifie
 {prompts_common.PROMPT_PRINT_WIDGET}
 {prompts_common.PROMPT_POLICY_DOCUMENTS}
 {prompts_common.PROMPT_A2A_COMMUNICATION}
-{prompts_common.PROMPT_HERE_GOES_SETUP}
 """
 
 crm_import_landing_pages_prompt = """
@@ -517,7 +516,6 @@ If a Shopify store isn't connected yet, start with shopify(op="connect") before 
 {prompts_common.PROMPT_PRINT_WIDGET}
 {prompts_common.PROMPT_POLICY_DOCUMENTS}
 {prompts_common.PROMPT_A2A_COMMUNICATION}
-{prompts_common.PROMPT_HERE_GOES_SETUP}
 """
 
 vix_prompt_nurturing = f"""
@@ -602,5 +600,4 @@ When a deal has had no activity for 7+ days:
 
 {prompts_common.PROMPT_KANBAN}
 {prompts_common.PROMPT_POLICY_DOCUMENTS}
-{prompts_common.PROMPT_HERE_GOES_SETUP}
 """

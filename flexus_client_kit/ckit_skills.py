@@ -10,6 +10,12 @@ from flexus_client_kit import ckit_cloudtool
 logger = logging.getLogger("skills")
 
 
+SKILLS_PROMPT = """
+## Skills
+
+You have access to specialized skills. Use `flexus_fetch_skill` to discover and use them as needed. Skills expand your capabilities beyond standard tools.
+"""
+
 FETCH_SKILL_TOOL = ckit_cloudtool.CloudTool(
     strict=True,
     name="flexus_fetch_skill",

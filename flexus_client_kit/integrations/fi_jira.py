@@ -27,6 +27,14 @@ REQUIRED_SCOPES = [
     "offline_access",
 ]
 
+JIRA_PROMPT = """
+## Jira Integration
+
+You can manage Jira issues and projects using the `jira` tool.
+Jira is the central platform for tracking development work and progress.
+Create, update, and transition tickets to reflect the current state of tasks.
+Ensure that issue descriptions provide enough technical context for other team members.
+"""
 
 JIRA_TOOL = ckit_cloudtool.CloudTool(
     strict=False,

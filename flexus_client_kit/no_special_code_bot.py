@@ -49,7 +49,8 @@ async def install_from_manifest(m, setup_schema, bot_dir, client, bot_name, bot_
 
     auth_supported = list(m.get("auth_supported", []))
     auth_scopes: dict = dict(m.get("auth_scopes", {}))
-    for rec in ckit_integrations_db.static_integrations_load(bot_dir, m["integrations"], builtin_skills=skills):
+    integrations_records = ckit_integrations_db.static_integrations_load(bot_dir, m["integrations"], builtin_skills=skills)
+    for rec in integrations_records:
         if rec.integr_provider:
             if rec.integr_provider not in auth_supported:
                 auth_supported.append(rec.integr_provider)
@@ -84,6 +85,7 @@ async def install_from_manifest(m, setup_schema, bot_dir, client, bot_name, bot_
         marketable_forms={},
         marketable_auth_supported=auth_supported,
         marketable_auth_scopes=auth_scopes,
+        integrations_records=integrations_records,
     )
 
 

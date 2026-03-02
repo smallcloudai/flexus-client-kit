@@ -20,22 +20,13 @@ from flexus_client_kit import ckit_integrations_db
 from flexus_client_kit.integrations import fi_mongo_store
 from flexus_client_kit.integrations import fi_pdoc
 from flexus_simple_bots.frog import frog_install
+from flexus_simple_bots.frog.frog_install import FROG_INTEGRATIONS
 from flexus_simple_bots.version_common import SIMPLE_BOTS_COMMON_VERSION
 
 logger = logging.getLogger("bot_frog")
 
 BOT_NAME = "frog"
 BOT_VERSION = SIMPLE_BOTS_COMMON_VERSION
-
-FROG_INTEGRATIONS: list[ckit_integrations_db.IntegrationRecord] = ckit_integrations_db.static_integrations_load(
-    frog_install.FROG_ROOTDIR,
-    allowlist=[
-        "flexus_policy_document",
-        "gmail",
-        "skills"
-    ],
-    builtin_skills=frog_install.FROG_SKILLS
-)
 
 RIBBIT_TOOL = ckit_cloudtool.CloudTool(
     strict=True,

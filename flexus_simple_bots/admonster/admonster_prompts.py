@@ -236,7 +236,6 @@ Budget notes:
 - Minimum daily budget typically $1.00 (100 cents)
 
 {prompts_common.PROMPT_KANBAN}
-{prompts_common.PROMPT_HERE_GOES_SETUP}
 """
 
 admonster_setup = admonster_prompt + """

@@ -42,6 +42,14 @@ logger = logging.getLogger("slack")
 # Apps unsuitable for Slack Marketplace:
 # https://api.slack.com/slack-marketplace/guidelines
 
+SLACK_PROMPT = """
+## Slack Integration
+
+You can interact with Slack channels and users using the `slack` tool.
+Slack is used for real-time collaboration and quick updates.
+Post messages to channels when sharing information with the team, or use direct messages for private coordination.
+When replying to messages, maintain a helpful and collaborative tone consistent with the team's culture.
+"""
 
 SLACK_TOOL = ckit_cloudtool.CloudTool(
     strict=False,
