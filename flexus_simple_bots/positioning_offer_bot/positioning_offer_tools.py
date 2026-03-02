@@ -64,8 +64,7 @@ TOOL_ALLOWED_METHOD_IDS: dict[str, list[str]] = {
         "qualtrics.responseexports.file.get.v1",
     ],
     "positioning_competitor_intel_api": [
-        "serpapi.search.google.v1",
-        "serpapi.search.news.v1",
+        # serpapi → use SerpApi MCP preset instead (mcp_presets/serpapi.json)
         "gnews.search.v1",
         "crunchbase.organizations.search.v1",
         "crunchbase.organizations.lookup.v1",

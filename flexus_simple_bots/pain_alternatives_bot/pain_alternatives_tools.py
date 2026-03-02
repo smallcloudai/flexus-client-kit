@@ -68,7 +68,7 @@ TOOL_ALLOWED_METHOD_IDS: dict[str, list[str]] = {
         "hubspot.tickets.search.v1",
     ],
     "alternatives_market_scan_api": [
-        "serpapi.search.google.v1",
+        # serpapi → use SerpApi MCP preset instead (mcp_presets/serpapi.json)
         "gnews.search.v1",
         "producthunt.graphql.posts.v1",
         "crunchbase.organizations.search.v1",

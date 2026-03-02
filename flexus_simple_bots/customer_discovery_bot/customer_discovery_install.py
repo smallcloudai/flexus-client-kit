@@ -9,9 +9,8 @@ from flexus_simple_bots.customer_discovery_bot import customer_discovery_tools
 
 SETUP_SCHEMA = []
 
-ONE_PIXEL_PNG_B64 = base64.b64encode(
-    bytes.fromhex("89504E470D0A1A0A0000000D4948445200000001000000010804000000B51C0C020000000B4944415478DA63FCFF1F00030302EFD79FD90000000049454E44AE426082")
-).decode("ascii")
+_PIC_BIG_B64 = base64.b64encode((Path(__file__).parent / "customer_discovery_bot-1024x1536.webp").read_bytes()).decode("ascii")
+_PIC_SMALL_B64 = base64.b64encode((Path(__file__).parent / "customer_discovery_bot-256x256.webp").read_bytes()).decode("ascii")
 
 _API_TOOL_NAMES = [t.name for t in customer_discovery_tools.API_TOOLS]
 
@@ -84,7 +83,7 @@ EXPERTS = [
     ("jtbd_interview_operator", ckit_bot_install.FMarketplaceExpertInput(
         fexp_system_prompt=customer_discovery_prompts.jtbd_interview_operator_prompt(),
         fexp_python_kernel="",
-        fexp_block_tools="print_widget",
+        fexp_block_tools="",
         fexp_allow_tools=FEXP_ALLOW_TOOLS_JTBD,
         fexp_description="Operate JTBD interviews and produce coded evidence artifacts.",
     )),
@@ -129,9 +128,9 @@ async def install(
             marketable_preferred_model_default="grok-4-1-fast-non-reasoning",
             marketable_daily_budget_default=100_000,
             marketable_default_inbox_default=10_000,
-            marketable_picture_big_b64=ONE_PIXEL_PNG_B64,
-            marketable_picture_small_b64=ONE_PIXEL_PNG_B64,
-            marketable_experts=[(name, exp.provide_tools(tools)) for name, exp in EXPERTS],
+            marketable_picture_big_b64=_PIC_BIG_B64,
+            marketable_picture_small_b64=_PIC_SMALL_B64,
+            marketable_experts=[(name, exp.filter_tools(tools)) for name, exp in EXPERTS],
             marketable_tags=["Discovery", "JTBD", "Research"],
             marketable_schedule=[],
             marketable_forms=ckit_bot_install.load_form_bundles(__file__),

@@ -1,14 +1,28 @@
 import json
+import logging
 from typing import Any, Dict
 
 from flexus_client_kit import ckit_cloudtool
 
-PROVIDER_NAME = 'usertesting'
+logger = logging.getLogger("usertesting")
+
+PROVIDER_NAME = "usertesting"
 METHOD_IDS = [
-    "usertesting.results.transcript.get.v1",
     "usertesting.tests.create.v1",
     "usertesting.tests.sessions.list.v1",
+    "usertesting.results.transcript.get.v1",
 ]
+
+_ENTERPRISE_RESPONSE = json.dumps(
+    {
+        "ok": False,
+        "error_code": "INTEGRATION_ENTERPRISE",
+        "provider": PROVIDER_NAME,
+        "message": "UserTesting requires an enterprise account. Contact UserTesting sales to get API access.",
+    },
+    indent=2,
+    ensure_ascii=False,
+)
 
 
 class IntegrationUsertesting:
@@ -22,15 +36,38 @@ class IntegrationUsertesting:
         if op == "help":
             return (
                 f"provider={PROVIDER_NAME}\n"
-                "op=help\n"
-                "op=status\n"
-                "op=list_methods\n"
-                "op=call(args={method_id: ...})\n"
-                f"known_method_ids={len(METHOD_IDS)}"
+                "op=help | status | list_methods | call\n"
+                f"methods: {', '.join(METHOD_IDS)}\n"
+                "note: Enterprise-only provider. Contact UserTesting sales for API access."
             )
         if op == "status":
-            return json.dumps({"ok": True, "provider": PROVIDER_NAME, "status": "available", "method_count": len(METHOD_IDS)}, indent=2, ensure_ascii=False)
+            return json.dumps(
+                {
+                    "ok": True,
+                    "provider": PROVIDER_NAME,
+                    "status": "enterprise_only",
+                    "method_count": len(METHOD_IDS),
+                    "message": "UserTesting requires an enterprise account. Contact UserTesting sales to get API access.",
+                },
+                indent=2,
+                ensure_ascii=False,
+            )
         if op == "list_methods":
-            return json.dumps({"ok": True, "provider": PROVIDER_NAME, "method_ids": METHOD_IDS}, indent=2, ensure_ascii=False)
-        method_id = str((args.get("args") or {}).get("method_id", "")).strip()
-        return json.dumps({"ok": False, "error_code": "INTEGRATION_UNAVAILABLE", "provider": PROVIDER_NAME, "method_id": method_id, "message": "We don't have this integration, but we do have a frog and it can catch insects =)"}, indent=2, ensure_ascii=False)
+            return json.dumps(
+                {"ok": True, "provider": PROVIDER_NAME, "method_ids": METHOD_IDS},
+                indent=2,
+                ensure_ascii=False,
+            )
+        if op != "call":
+            return "Error: unknown op. Use help/status/list_methods/call."
+        call_args = args.get("args") or {}
+        method_id = str(call_args.get("method_id", "")).strip()
+        if not method_id:
+            return "Error: args.method_id required for op=call."
+        if method_id not in METHOD_IDS:
+            return json.dumps(
+                {"ok": False, "error_code": "METHOD_UNKNOWN", "method_id": method_id},
+                indent=2,
+                ensure_ascii=False,
+            )
+        return _ENTERPRISE_RESPONSE

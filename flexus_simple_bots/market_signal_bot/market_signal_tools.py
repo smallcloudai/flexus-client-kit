@@ -114,9 +114,7 @@ TOOL_ALLOWED_METHOD_IDS: dict[str, list[str]] = {
         "dataforseo.trends.subregion_interests.live.v1",
         "dataforseo.trends.demography.live.v1",
         "dataforseo.trends.merged_data.live.v1",
-        "serpapi.search.google.v1",
-        "serpapi.search.google_trends.v1",
-        "serpapi.search.google_shopping.v1",
+        # serpapi → use SerpApi MCP preset instead (mcp_presets/serpapi.json)
         "semrush.trends.traffic_summary.v1",
         "semrush.trends.daily_traffic.v1",
         "semrush.analytics.keyword_reports.v1",
@@ -278,6 +276,7 @@ async def handle_signal_tool_call(
     tool_name: str,
     toolcall: ckit_cloudtool.FCloudtoolCall,
     model_produced_args: Optional[Dict[str, Any]],
+    rcx: Optional[ckit_bot_exec.RobotContext] = None,
 ) -> str:
     """Entry point called by each signal tool handler in the bot main loop."""
     try:
@@ -351,7 +350,7 @@ async def handle_signal_tool_call(
         if integration_class is None:
             return json.dumps({"ok": False, "error_code": "INTEGRATION_UNAVAILABLE", "provider": provider, "method_id": method_id, "message": "интеграции еще нет, но вы держитесь"}, indent=2, ensure_ascii=False)
         try:
-            integration = integration_class()
+            integration = integration_class(rcx)
         except TypeError:
             return json.dumps({"ok": False, "error_code": "INTEGRATION_UNAVAILABLE", "provider": provider, "method_id": method_id, "message": "интеграции еще нет, но вы держитесь"}, indent=2, ensure_ascii=False)
         return await integration.called_by_model(toolcall, model_produced_args)

@@ -1,20 +1,9 @@
-from __future__ import annotations
-import aiohttp
 import json
 import logging
-import time
-from typing import Dict, Any, Optional, TYPE_CHECKING
+import os
+from typing import Any, Dict
 
-if TYPE_CHECKING:
-    from flexus_client_kit import ckit_bot_exec
-
-import langchain_community.agent_toolkits.jira.toolkit
-import langchain_community.utilities.jira
-from atlassian import Jira, Confluence
-
-from flexus_client_kit import ckit_cloudtool
-from flexus_client_kit import ckit_client
-from flexus_client_kit.integrations import langchain_adapter
+import httpx
 
 logger = logging.getLogger("jira")
 
@@ -25,235 +14,179 @@ METHOD_IDS = [
     "jira.issues.transition.v1",
 ]
 
-REQUIRED_SCOPES = [
-    "read:jira-work",
-    "write:jira-work",
-    "read:project:jira",
-    "write:issue:jira",
-    "read:jql:jira",
-    "offline_access",
-]
-
-
-JIRA_TOOL = ckit_cloudtool.CloudTool(
-    strict=False,
-    name="jira",
-    description="Access Jira to search issues (JQL), get projects, create issues, and other Jira API operations. Call with op=\"help\" to see all available ops.",
-    parameters={
-        "type": "object",
-        "properties": {
-            "op": {"type": "string", "description": "Operation name: help, status, or any jira op"},
-            "args": {"type": "object"},
-        },
-        "required": ["op"]
-    },
-)
-
-JIRA_SETUP_SCHEMA = [
-    {
-        "bs_name": "jira_instance_url",
-        "bs_type": "string_short",
-        "bs_default": "",
-        "bs_group": "Jira",
-        "bs_order": 1,
-        "bs_importance": 1,
-        "bs_description": "Jira instance URL (e.g., https://yourcompany.atlassian.net)",
-    },
-]
+_BASE_URL_SUFFIX = "/rest/api/3"
 
 
 class IntegrationJira:
-    def __init__(
-        self,
-        fclient: ckit_client.FlexusClient,
-        rcx: ckit_bot_exec.RobotContext,
-        jira_instance_url: str,
-    ):
-        self.fclient = fclient
-        self.rcx = rcx
-        self.jira_instance_url = jira_instance_url
-        self._last_access_token = None
-        self.tools = []
-        self.tool_map = {}
+    async def called_by_model(self, toolcall, model_produced_args):
+        args = model_produced_args or {}
+        op = str(args.get("op", "help")).strip()
+        if op == "help":
+            return (f"provider={PROVIDER_NAME}\nop=help | status | list_methods | call\nmethods: {', '.join(METHOD_IDS)}")
+        if op == "status":
+            base_url = os.environ.get("JIRA_BASE_URL", "")
+            email = os.environ.get("JIRA_EMAIL", "")
+            token = os.environ.get("JIRA_API_TOKEN", "")
+            has_creds = bool(base_url and email and token)
+            return json.dumps({"ok": True, "provider": PROVIDER_NAME, "status": "available" if has_creds else "no_credentials", "method_count": len(METHOD_IDS)}, indent=2, ensure_ascii=False)
+        if op == "list_methods":
+            return json.dumps({"ok": True, "provider": PROVIDER_NAME, "method_ids": METHOD_IDS}, indent=2, ensure_ascii=False)
+        if op != "call":
+            return "Error: unknown op. Use help/status/list_methods/call."
+        call_args = args.get("args") or {}
+        method_id = str(call_args.get("method_id", "")).strip()
+        if not method_id:
+            return "Error: args.method_id required for op=call."
+        if method_id not in METHOD_IDS:
+            return json.dumps({"ok": False, "error_code": "METHOD_UNKNOWN", "method_id": method_id}, indent=2, ensure_ascii=False)
+        return await self._dispatch(method_id, call_args)
 
-    async def _get_accessible_resources(self) -> list[dict]:
-        atlassian_auth = self.rcx.external_auth.get("atlassian") or {}
-        token_obj = atlassian_auth.get("token") or {}
-        access_token = token_obj.get("access_token", "")
-        if not access_token:
-            return []
+    def _client(self):
+        base_url = os.environ.get("JIRA_BASE_URL", "").rstrip("/")
+        email = os.environ.get("JIRA_EMAIL", "")
+        api_token = os.environ.get("JIRA_API_TOKEN", "")
+        return httpx.AsyncClient(
+            base_url=base_url + _BASE_URL_SUFFIX,
+            auth=(email, api_token),
+            headers={"Content-Type": "application/json", "Accept": "application/json"},
+            timeout=30,
+        )
+
+    async def _dispatch(self, method_id, call_args):
+        if method_id == "jira.issues.create.v1":
+            return await self._issues_create(call_args)
+        if method_id == "jira.issues.search.v1":
+            return await self._issues_search(call_args)
+        if method_id == "jira.issues.transition.v1":
+            return await self._issues_transition(call_args)
+
+    async def _issues_create(self, call_args):
+        project_key = str(call_args.get("project_key", "")).strip()
+        if not project_key:
+            return json.dumps({"ok": False, "error_code": "MISSING_ARG", "arg": "project_key"}, indent=2, ensure_ascii=False)
+        summary = str(call_args.get("summary", "")).strip()
+        if not summary:
+            return json.dumps({"ok": False, "error_code": "MISSING_ARG", "arg": "summary"}, indent=2, ensure_ascii=False)
+
+        issue_type = str(call_args.get("issue_type", "Task")).strip() or "Task"
+        description = call_args.get("description", "")
+        priority = call_args.get("priority", "")
+        labels = call_args.get("labels") or []
+        assignee_account_id = call_args.get("assignee_account_id", "")
+
+        fields: Dict[str, Any] = {
+            "project": {"key": project_key},
+            "summary": summary,
+            "issuetype": {"name": issue_type},
+        }
+        if description:
+            fields["description"] = {
+                "type": "doc",
+                "version": 1,
+                "content": [{"type": "paragraph", "content": [{"type": "text", "text": description}]}],
+            }
+        if priority:
+            fields["priority"] = {"name": priority}
+        if labels:
+            fields["labels"] = labels
+        if assignee_account_id:
+            fields["assignee"] = {"accountId": assignee_account_id}
+
+        async with self._client() as client:
+            resp = await client.post("/issue", content=json.dumps({"fields": fields}).encode())
+
+        if resp.status_code not in (200, 201):
+            logger.info("jira issues create failed: status=%d body=%s", resp.status_code, resp.text[:500])
+            return json.dumps({"ok": False, "error_code": "API_ERROR", "status": resp.status_code, "detail": resp.text[:500]}, indent=2, ensure_ascii=False)
+
+        data = resp.json()
+        base_url = os.environ.get("JIRA_BASE_URL", "").rstrip("/")
+        key = data.get("key", "")
+        return json.dumps({"ok": True, "id": data.get("id"), "key": key, "url": f"{base_url}/browse/{key}"}, indent=2, ensure_ascii=False)
+
+    async def _issues_search(self, call_args):
+        jql = str(call_args.get("jql", "")).strip()
+        if not jql:
+            return json.dumps({"ok": False, "error_code": "MISSING_ARG", "arg": "jql"}, indent=2, ensure_ascii=False)
+
+        max_results = int(call_args.get("max_results", 20))
+        fields = call_args.get("fields") or ["summary", "status", "assignee", "priority", "created"]
+
+        body = {"jql": jql, "maxResults": max_results, "fields": fields}
+
+        async with self._client() as client:
+            resp = await client.post("/search", content=json.dumps(body).encode())
+
+        if resp.status_code != 200:
+            logger.info("jira issues search failed: status=%d body=%s", resp.status_code, resp.text[:500])
+            return json.dumps({"ok": False, "error_code": "API_ERROR", "status": resp.status_code, "detail": resp.text[:500]}, indent=2, ensure_ascii=False)
+
+        data = resp.json()
+        issues = []
+        for issue in data.get("issues", []):
+            f = issue.get("fields", {})
+            assignee_field = f.get("assignee") or {}
+            issues.append({
+                "id": issue.get("id"),
+                "key": issue.get("key"),
+                "summary": f.get("summary"),
+                "status": (f.get("status") or {}).get("name"),
+                "assignee": assignee_field.get("displayName"),
+                "priority": (f.get("priority") or {}).get("name"),
+                "created": f.get("created"),
+            })
+        return json.dumps({"ok": True, "total": data.get("total", len(issues)), "issues": issues}, indent=2, ensure_ascii=False)
+
+    async def _issues_transition(self, call_args):
+        issue_key = str(call_args.get("issue_key", "")).strip()
+        if not issue_key:
+            return json.dumps({"ok": False, "error_code": "MISSING_ARG", "arg": "issue_key"}, indent=2, ensure_ascii=False)
+
+        transition_id = str(call_args.get("transition_id", "")).strip()
+        transition_name = str(call_args.get("transition_name", "")).strip()
+
+        if not transition_id and not transition_name:
+            return json.dumps({"ok": False, "error_code": "MISSING_ARG", "arg": "transition_id or transition_name required"}, indent=2, ensure_ascii=False)
 
         try:
-            async with aiohttp.ClientSession() as session:
-                async with session.get(
-                    "https://api.atlassian.com/oauth/token/accessible-resources",
-                    headers={"Authorization": f"Bearer {access_token}"}
-                ) as resp:
-                    if resp.status == 200:
-                        return await resp.json()
-                    else:
-                        logger.warning("Failed to get accessible resources: %d", resp.status)
-                        return []
-        except Exception as e:
-            logger.warning("Error getting accessible resources: %s", e)
-            return []
+            async with self._client() as client:
+                if transition_id:
+                    resp = await client.post(
+                        f"/issue/{issue_key}/transitions",
+                        content=json.dumps({"transition": {"id": transition_id}}).encode(),
+                    )
+                else:
+                    get_resp = await client.get(f"/issue/{issue_key}/transitions")
+                    if get_resp.status_code != 200:
+                        logger.info("jira transitions list failed: status=%d body=%s", get_resp.status_code, get_resp.text[:500])
+                        return json.dumps({"ok": False, "error_code": "API_ERROR", "status": get_resp.status_code, "detail": get_resp.text[:500]}, indent=2, ensure_ascii=False)
+                    data = get_resp.json()
+                    transitions = data.get("transitions", [])
+                    found = None
+                    for t in transitions:
+                        if (t.get("name") or "").strip().lower() == transition_name.lower():
+                            found = t
+                            break
+                    if not found:
+                        available = [{"id": t.get("id"), "name": t.get("name")} for t in transitions]
+                        return json.dumps({"ok": False, "error_code": "TRANSITION_NOT_FOUND", "transition_name": transition_name, "available_transitions": available}, indent=2, ensure_ascii=False)
+                    tid = found.get("id")
+                    tname = found.get("name")
+                    resp = await client.post(
+                        f"/issue/{issue_key}/transitions",
+                        content=json.dumps({"transition": {"id": tid}}).encode(),
+                    )
+                    transition_id = tid
+                    transition_name = tname
 
-    async def _ensure_tools_initialized(self) -> bool:
-        atlassian_auth = self.rcx.external_auth.get("atlassian") or {}
-        token_obj = atlassian_auth.get("token") or {}
-        access_token = token_obj.get("access_token", "")
-        if not access_token:
-            self.tools = []
-            self.tool_map = {}
-            return False
-        if access_token == self._last_access_token and self.tools:
-            return True
+            if resp.status_code != 204:
+                logger.info("jira transition failed: status=%d body=%s", resp.status_code, resp.text[:500])
+                return json.dumps({"ok": False, "error_code": "API_ERROR", "status": resp.status_code, "detail": resp.text[:500]}, indent=2, ensure_ascii=False)
 
-        accessible = await self._get_accessible_resources()
-        logger.info("Accessible Atlassian sites: %s", accessible)
-
-        cloud_id = None
-        instance_url = self.jira_instance_url
-        if accessible:
-            cloud_id = accessible[0].get('id')
-            if not instance_url:
-                instance_url = accessible[0].get('url', '')
-            logger.info("Using cloud ID: %s for OAuth API calls", cloud_id)
-
-        if cloud_id:
-            api_url = f"https://api.atlassian.com/ex/jira/{cloud_id}"
-            logger.info("Using OAuth API URL: %s", api_url)
-        else:
-            api_url = instance_url
-            logger.warning("No cloud ID found, using configured URL: %s", api_url)
-
-        jira_client = Jira(
-            url=api_url,
-            token=access_token,
-            cloud=True,
-        )
-        confluence_client = Confluence(
-            url=api_url,
-            token=access_token,
-            cloud=True,
-        )
-
-        wrapper = langchain_community.utilities.jira.JiraAPIWrapper(
-            jira_instance_url=instance_url,
-            jira_api_token="dummy",
-            jira_username="dummy",
-            jira_cloud=True,
-        )
-        wrapper.jira = jira_client
-        wrapper.confluence = confluence_client
-
-        toolkit = langchain_community.agent_toolkits.jira.toolkit.JiraToolkit.from_jira_api_wrapper(wrapper)
-        self.tools = toolkit.get_tools()
-        self.tool_map = {t.name: t for t in self.tools}
-        self._last_access_token = access_token
-
-        logger.info("Initialized %d jira tools: %s", len(self.tools), list(self.tool_map.keys()))
-        return True
-
-    async def called_by_model(
-        self,
-        toolcall: ckit_cloudtool.FCloudtoolCall,
-        model_produced_args: Optional[Dict[str, Any]]
-    ) -> str:
-        if not model_produced_args:
-            return self._all_commands_help()
-
-        op = model_produced_args.get("op", "")
-        if not op:
-            return self._all_commands_help()
-
-        args, args_error = ckit_cloudtool.sanitize_args(model_produced_args)
-        if args_error:
-            return args_error
-
-        logger.info("Jira called: op=%s, args=%s", op, args)
-        op_lower = op.lower()
-        print_help = op_lower == "help" or op_lower == "status+help"
-        print_status = op_lower == "status" or op_lower == "status+help"
-
-        authenticated = await self._ensure_tools_initialized()
-
-        if print_status:
-            status_msg = await self._status(authenticated)
-            if print_help and authenticated:
-                return status_msg + "\n\n" + self._all_commands_help()
-            return status_msg
-
-        if print_help:
-            if authenticated:
-                return self._all_commands_help()
-            return await self._status(authenticated)
-
-        if not authenticated:
-            return await self._status(authenticated)
-
-        if op not in self.tool_map:
-            return self._all_commands_help()
-
-        if op == "get_projects":
-            tool_input = ""
-        elif op == "jql_query" and "query" in args:
-            tool_input = args["query"]
-        elif op == "create_issue" and isinstance(args, dict):
-            tool_input = json.dumps(args)
-        elif op == "catch_all_jira_api" and isinstance(args, dict):
-            tool_input = json.dumps(args)
-        elif op == "create_confluence_page" and isinstance(args, dict):
-            tool_input = json.dumps(args)
-        else:
-            tool_input = json.dumps(args) if isinstance(args, dict) else str(args)
-
-        logger.info("Calling Jira tool: op=%s, tool_input=%s", op, tool_input)
-
-        if op == "get_projects":
-            try:
-                raw_projects = self.tool_map[op].api_wrapper.jira.projects()
-                logger.info("Raw projects from Jira API: %s", raw_projects)
-            except Exception as e:
-                logger.warning("Error calling raw projects API: %s", e, exc_info=True)
-
-        result, is_auth_error = await langchain_adapter.run_langchain_tool(self.tool_map[op], tool_input)
-        logger.info("Jira tool result: op=%s, result_length=%d, result_preview=%s", op, len(result), result[:500])
-        if is_auth_error:
-            self._last_access_token = None
-            return "❌ Authentication error. Please reconnect Atlassian in workspace settings.\n\nThen retry."
-        return result
-
-    def _all_commands_help(self) -> str:
-        if not self.tools:
-            return "❌ No tools loaded"
-
-        return (
-            "Jira - All Available Operations:\n" +
-            langchain_adapter.format_tools_help(self.tools) +
-            "To execute an operation:\n" +
-            '  jira({"op": "get_projects"})\n' +
-            '  jira({"op": "jql_query", "args": {"query": "project = TEST AND status = Open"}})\n' +
-            '  jira({"op": "create_issue", "args": {"summary": "Bug fix", "description": "Details", "issuetype": {"name": "Task"}, "priority": {"name": "High"}}})'
-        )
-
-    async def _status(self, authenticated: bool) -> str:
-        r = f"Jira integration status:\n"
-        r += f"  Authenticated: {'✅ Yes' if authenticated else '❌ No'}\n"
-        r += f"  User: {self.rcx.persona.owner_fuser_id}\n"
-        r += f"  Workspace: {self.rcx.persona.ws_id}\n"
-        r += f"  Configured Instance URL: {self.jira_instance_url}\n"
-
-        if authenticated and await self._ensure_tools_initialized():
-            accessible = await self._get_accessible_resources()
-            if accessible:
-                r += f"\n  Accessible Atlassian sites ({len(accessible)}):\n"
-                for site in accessible:
-                    r += f"    - {site.get('name', 'Unknown')}: {site.get('url', 'N/A')}\n"
-
-                r += f"\n  Tools loaded: {len(self.tools)}\n"
-            r += f"  Available ops: {', '.join(self.tool_map.keys())}\n"
-        elif not authenticated:
-            r += "\n❌ Not authenticated. Please connect Atlassian in workspace settings.\n"
-
-        return r
+            return json.dumps({"ok": True, "issue_key": issue_key, "transition": {"id": transition_id, "name": transition_name}}, indent=2, ensure_ascii=False)
+        except (httpx.TimeoutException, httpx.HTTPError) as e:
+            logger.info("jira transition http error: %s", e)
+            return json.dumps({"ok": False, "error_code": "HTTP_ERROR", "detail": str(e)}, indent=2, ensure_ascii=False)
+        except (KeyError, ValueError) as e:
+            logger.info("jira transition parse error: %s", e)
+            return json.dumps({"ok": False, "error_code": "PARSE_ERROR", "detail": str(e)}, indent=2, ensure_ascii=False)

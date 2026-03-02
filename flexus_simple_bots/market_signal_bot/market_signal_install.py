@@ -13,10 +13,8 @@ from flexus_simple_bots import prompts_common
 BOT_DESCRIPTION = (Path(__file__).parent / "README.md").read_text(encoding="utf-8")
 SETUP_SCHEMA = json.loads((Path(__file__).parent / "setup_schema.json").read_text(encoding="utf-8"))
 
-# 1x1 image placeholder to keep install robust even if no art assets exist.
-ONE_PIXEL_PNG_B64 = base64.b64encode(
-    bytes.fromhex("89504E470D0A1A0A0000000D4948445200000001000000010804000000B51C0C020000000B4944415478DA63FCFF1F00030302EFD79FD90000000049454E44AE426082")
-).decode("ascii")
+_PIC_BIG_B64 = base64.b64encode((Path(__file__).parent / "market_signal_bot-1024x1536.webp").read_bytes()).decode("ascii")
+_PIC_SMALL_B64 = base64.b64encode((Path(__file__).parent / "market_signal_bot-256x256.webp").read_bytes()).decode("ascii")
 
 _SIGNAL_TOOL_NAMES = [t.name for t in market_signal_tools.SIGNAL_TOOLS]
 # market_signal_detector: all signal tools + its own write tool
@@ -50,7 +48,7 @@ EXPERTS = [
     ("signal_boundary_analyst", ckit_bot_install.FMarketplaceExpertInput(
         fexp_system_prompt=market_signal_prompts.signal_boundary_analyst_prompt(),
         fexp_python_kernel="",
-        fexp_block_tools="print_widget",
+        fexp_block_tools="",
         fexp_allow_tools=FEXP_ALLOW_TOOLS_ANALYST,
         fexp_description="Aggregate channel snapshots into signal register and prioritized hypotheses.",
     )),
@@ -90,13 +88,19 @@ async def install(
             marketable_preferred_model_default="grok-4-1-fast-non-reasoning",
             marketable_daily_budget_default=100_000,
             marketable_default_inbox_default=10_000,
-            marketable_picture_big_b64=ONE_PIXEL_PNG_B64,
-            marketable_picture_small_b64=ONE_PIXEL_PNG_B64,
-            marketable_experts=[(name, exp.provide_tools(tools)) for name, exp in EXPERTS],
+            marketable_picture_big_b64=_PIC_BIG_B64,
+            marketable_picture_small_b64=_PIC_SMALL_B64,
+            marketable_experts=[(name, exp.filter_tools(tools)) for name, exp in EXPERTS],
             marketable_tags=["GTM", "Signals", "Discovery"],
             marketable_schedule=[prompts_common.SCHED_PICK_ONE_5M],
             marketable_forms=ckit_bot_install.load_form_bundles(__file__),
-            marketable_auth_supported=[],
+            marketable_auth_supported=[
+                "semrush", "bing_webmaster", "x", "youtube", "producthunt",
+                "event_registry", "newsapi", "gnews", "newsdata", "mediastack",
+                "newscatcher", "perigon", "trustpilot", "yelp", "g2", "capterra",
+                "similarweb", "brightdata", "coresignal", "theirstack", "hasdata",
+                "github", "stackexchange",
+            ],
             marketable_auth_scopes={},
         )
     except (AttributeError, KeyError, OSError, TypeError, ValueError) as e:
