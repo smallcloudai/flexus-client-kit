@@ -21,19 +21,22 @@
 
 You're the founder, the marketer, the sales rep, and the support team. Something's always falling behind.
 
-Flexus is an open-source AI Company OS. Hire specialist agents to run every function of your business — marketing, sales, support, product validation, legal, operations, and more. They share context, work as a team, and get better over time based on your feedback. You stay in control — every action waits for your approval before it goes out.
+Flexus is an open-source AI Company OS. Hire specialist agents to run every function of your business — marketing, sales, support, product validation, legal, operations, and more. They share context, work as a team, and get better over time based on your feedback.
 
 [Website](https://flexus.team/) · [Docs](https://docs.flexus.team/) · [Self-Hosted Setup](https://docs.flexus.team/quick-start/self-hosted/) · [Hire an Agent](https://flexus.team/) · [Contributing](CONTRIBUTING.md)
 
 
 ## Why this exists
 
-AI chatbots give you advice but don't take actions. Automation tools like n8n or Make are painful to configure, and every workflow lives in its own silo — no shared context, no teamwork, no learning.
+Today you're stuck stitching together disjoint tools — ChatGPT or Claude supplemented with MCP servers, skills, and external systems like a CRM or database. You end up building your own custom solution while paying for tens of subscriptions.
 
-So you end up stitching together 10+ subscriptions while operations pile up — and something is always being dropped.
+AI chatbots give you advice but don't take actions. Automation tools like n8n or Make are painful to configure, and every workflow lives in its own silo — no shared context, no teamwork, no learning. Something always falls through the cracks.
 
-Flexus is the alternative: one platform where AI agents handle every function of your business — and all of them share the same context. Because it's self-hosted and open-source, you own your data and your infrastructure. AI providers compete for your business — not the other way around.
+Flexus is the alternative. One platform where AI agents handle every function of your business — and all of them share the same context. Because it's self-hosted and open-source, you own your data and your infrastructure.
 
+And because you're not locked into any one AI provider, you flip the script on the big AI companies: let them compete for the best model and the best price. You stay in control.
+
+<img width="500" alt="Flexus team" src="https://github.com/user-attachments/assets/19527e77-6794-4754-b7c9-3d5c5a39d5ab" />
 
 ## Your team
 
