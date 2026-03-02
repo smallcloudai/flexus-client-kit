@@ -1,0 +1,221 @@
+judge_instructions: |
+  Reward the bot for:
+  - Using the legal_research tool with a compliance-related topic (triggers compliance expert routing)
+  - Referencing specific GDPR articles (Art. 6, 13, 14, 17, 25, 28, 30, 35) and CCPA/CPRA sections
+  - Identifying concrete compliance gaps in the described practices
+  - Providing actionable recommendations with priority levels
+  - Distinguishing between GDPR and CCPA requirements where they differ
+  - Including the legal disclaimer about information vs advice
+
+  Penalize the bot for:
+  - Not using the legal_research tool for compliance assessment
+  - Providing only generic compliance checklists without analyzing the specific practices described
+  - Missing obvious gaps (no DPO mentioned, no DPIA process, no cookie consent, vague retention)
+  - Failing to note the cross-border transfer issue (US company with EU customers)
+  - Not referencing specific regulation articles or sections
+  - Missing the legal disclaimer
+
+messages:
+  - role: user
+    content: |
+      We need a compliance assessment of our data processing practices. We're a US-based B2B SaaS company that recently started serving EU customers. Here's a summary of our current practices:
+
+      DATA PROCESSING PRACTICES SUMMARY - Acme Analytics Inc.
+
+      Company Profile:
+      - US-headquartered (San Francisco, CA), no EU subsidiary
+      - B2B SaaS analytics platform processing customer behavioral data
+      - ~200 employees, ~500 business customers, ~50 in EU since Q3 2025
+      - Annual revenue: $15M
+
+      Data Collection:
+      - We collect user behavioral data (page views, clicks, session duration) via JavaScript SDK embedded in customers' websites
+      - We collect end-user IP addresses, browser fingerprints, and device identifiers
+      - We set persistent tracking cookies with 13-month expiration
+      - Customers provide us employee contact data (name, email, role) for account management
+      - We collect payment information via Stripe integration
+
+      Data Storage and Processing:
+      - All data stored in AWS US-East-1 (Virginia)
+      - No data centers or processing in the EU
+      - Backups retained for 3 years
+      - We use 4 sub-processors: AWS (hosting), Stripe (payments), SendGrid (email), Snowflake (analytics)
+      - Sub-processors selected based on cost and features; no formal assessment process
+
+      Consent and Notices:
+      - Our customers' websites display their own cookie banners
+      - We rely on our customers to obtain consent from their end users
+      - Our privacy policy was last updated in 2023
+      - We provide a general "contact us" email for privacy inquiries
+
+      Data Subject Rights:
+      - We handle deletion requests manually on a case-by-case basis
+      - Average response time for access requests: 3-4 weeks
+      - No self-service portal for data subject requests
+      - We don't have a documented process for handling requests
+
+      Security Measures:
+      - SOC 2 Type I certification (obtained 2024)
+      - Data encrypted at rest (AES-256) and in transit (TLS 1.2+)
+      - Role-based access controls
+      - Annual penetration testing
+      - No dedicated DPO or privacy officer appointed
+      - No formal breach notification process documented
+
+      Data Sharing:
+      - We share aggregated analytics with customers
+      - We use anonymized data internally for product improvement
+      - No data sold to third parties
+      - We share customer contact data with our sales team's CRM (HubSpot)
+
+      Can you assess our GDPR and CCPA compliance posture and identify the most critical gaps?
+
+  - role: assistant
+    tool_calls:
+      - id: call_bench_comp_001
+        type: function
+        function:
+          name: legal_research
+          arguments: |
+            {
+              "topic": "GDPR and CCPA/CPRA compliance requirements for US-based B2B SaaS company processing EU end-user behavioral data with cross-border transfers and cookie tracking",
+              "jurisdiction": "EU/US-CA",
+              "depth": 4
+            }
+
+  - role: tool
+    content: |
+      COMPLIANCE ASSESSMENT REPORT
+
+      ## CRITICAL GAPS (Immediate Action Required)
+
+      ### 1. Cross-Border Data Transfers - NO LEGAL BASIS
+      - GDPR Art. 44-49: Transferring EU personal data to US-East-1 without adequate safeguards
+      - Post-Schrems II, Privacy Shield is invalid; EU-US Data Privacy Framework requires self-certification
+      - STATUS: No Standard Contractual Clauses (SCCs) or DPF certification mentioned
+      - RISK: Regulatory action, fines up to 4% of global turnover (~$600K)
+      - ACTION: Implement SCCs with all data importers or self-certify under EU-US DPF immediately
+
+      ### 2. No Data Protection Officer (DPO)
+      - GDPR Art. 37: Required when core activities involve regular and systematic monitoring of data subjects at scale
+      - Behavioral analytics tracking across customer websites constitutes systematic monitoring
+      - STATUS: No DPO or privacy officer appointed
+      - ACTION: Appoint a DPO (can be external) and register with relevant supervisory authorities
+
+      ### 3. No Data Protection Impact Assessment (DPIA)
+      - GDPR Art. 35: Required for systematic monitoring of publicly accessible areas and profiling
+      - Browser fingerprinting + persistent cookies + behavioral tracking triggers DPIA requirement
+      - STATUS: No DPIA process exists
+      - ACTION: Conduct DPIA for core analytics processing; document and review annually
+
+      ### 4. Cookie Compliance Gap
+      - ePrivacy Directive Art. 5(3): Persistent tracking cookies require informed, specific consent
+      - Relying on customers' cookie banners is insufficient without contractual and technical guarantees
+      - 13-month cookie duration may exceed necessity under data minimization principles
+      - STATUS: No direct consent mechanism; reliance on customer implementation
+      - ACTION: Provide customers with compliant consent integration; verify banner adequacy contractually
+
+      ## HIGH PRIORITY GAPS
+
+      ### 5. Data Subject Rights Process (GDPR Art. 15-22, CCPA 1798.100-125)
+      - GDPR requires response within 1 month (extendable to 3 months for complex requests)
+      - 3-4 week average is borderline; no documented process risks inconsistency
+      - CCPA requires response within 45 days
+      - No verifiable consumer request process for CCPA
+      - ACTION: Document formal DSR procedures; implement self-service portal; reduce response time
+
+      ### 6. Privacy Policy Outdated
+      - GDPR Art. 13-14: Must disclose legal basis, retention periods, transfer mechanisms, DPO contact, rights
+      - CCPA 1798.100(b): Must disclose categories collected, purposes, retention, sale/sharing rights
+      - Policy from 2023 predates EU expansion; likely missing required disclosures
+      - ACTION: Comprehensive privacy policy rewrite covering GDPR Art. 13/14 and CCPA requirements
+
+      ### 7. Sub-Processor Management (GDPR Art. 28)
+      - No formal assessment process for sub-processors
+      - Must have Data Processing Agreements (DPAs) with all sub-processors
+      - Must ensure sub-processors provide sufficient guarantees
+      - Must maintain and disclose sub-processor list to customers
+      - ACTION: Audit all 4 sub-processors; execute DPAs; implement assessment framework
+
+      ### 8. Data Retention Policy
+      - 3-year backup retention may violate data minimization (GDPR Art. 5(1)(e))
+      - No documented retention schedule with justification for each data category
+      - ACTION: Define retention periods per data category; implement automated deletion
+
+      ## MODERATE GAPS
+
+      ### 9. Breach Notification (GDPR Art. 33-34)
+      - Must notify supervisory authority within 72 hours of becoming aware
+      - Must notify affected data subjects if high risk
+      - No formal process documented
+      - ACTION: Create incident response plan with 72-hour notification workflow
+
+      ### 10. Records of Processing Activities (GDPR Art. 30)
+      - Required for organizations processing data not occasionally
+      - No mention of maintained records
+      - ACTION: Create and maintain Article 30 records
+
+      ### 11. CCPA "Do Not Sell or Share" (CCPA 1798.120)
+      - Browser fingerprinting may constitute "sharing" under CPRA
+      - No opt-out mechanism mentioned
+      - ACTION: Assess whether tracking constitutes sale/sharing; implement opt-out if needed
+
+      ## CCPA-SPECIFIC REQUIREMENTS
+      - Verify service provider agreements meet CCPA 1798.140(ag) requirements
+      - Implement "Do Not Sell or Share My Personal Information" link if applicable
+      - Ensure financial incentive disclosures if offering different service tiers
+
+      ## SUMMARY SCORECARD
+      - GDPR Readiness: LOW (~30%) - Critical transfer and DPO gaps
+      - CCPA/CPRA Readiness: MODERATE (~50%) - Missing formal processes
+      - Overall Risk Level: HIGH - Immediate action needed before regulatory inquiry
+    call_id: call_bench_comp_001
+
+  - role: assistant
+    tool_calls: []
+    content: |
+      I've completed a compliance assessment of Acme Analytics' data processing practices against GDPR and CCPA/CPRA. The results show significant gaps that need immediate attention.
+
+      ## Overall Assessment: HIGH RISK
+
+      Your GDPR readiness is approximately 30% and CCPA/CPRA readiness around 50%. Serving EU customers since Q3 2025 without adequate safeguards creates substantial regulatory exposure.
+
+      ## Critical Issues (Act Immediately)
+
+      **1. No Legal Basis for EU Data Transfers**
+      All your data sits in AWS US-East-1 with no Standard Contractual Clauses or EU-US Data Privacy Framework certification. Under GDPR Articles 44-49, this means every transfer of EU end-user data is potentially unlawful. Maximum fine: 4% of global turnover (~$600K). This is your top priority.
+
+      **2. No Data Protection Officer**
+      Your core business involves systematic monitoring of data subjects at scale (behavioral tracking via JavaScript SDK). GDPR Article 37 requires a DPO. This can be an external appointment.
+
+      **3. No Data Protection Impact Assessment**
+      Browser fingerprinting combined with persistent cookies and behavioral tracking clearly triggers the DPIA requirement under GDPR Article 35. You need to conduct one for your core analytics processing.
+
+      **4. Cookie Consent Gap**
+      Relying on your customers' cookie banners without contractual guarantees or technical verification is insufficient under the ePrivacy Directive. Your 13-month cookie expiration also raises data minimization questions.
+
+      ## High Priority
+
+      - **Data Subject Rights**: Your 3-4 week response time is borderline for GDPR's 1-month deadline, and you lack a documented process. CCPA requires 45-day responses with a verifiable request mechanism.
+      - **Privacy Policy**: Last updated 2023, before your EU expansion. Missing required GDPR disclosures (legal basis, transfer mechanisms, DPO contact, data subject rights).
+      - **Sub-Processor Management**: No DPAs with your 4 sub-processors (AWS, Stripe, SendGrid, Snowflake). GDPR Article 28 requires formal agreements.
+      - **Data Retention**: 3-year backup retention without documented justification per data category likely violates data minimization principles.
+
+      ## Moderate Priority
+
+      - Breach notification plan (GDPR requires 72-hour notification to authorities)
+      - Records of Processing Activities (Article 30)
+      - CCPA "Do Not Sell or Share" assessment for browser fingerprinting
+
+      ## Recommended Roadmap
+
+      1. **Week 1-2**: Engage privacy counsel; begin DPF self-certification or SCC execution
+      2. **Month 1**: Appoint DPO; start DPIA; update privacy policy
+      3. **Month 2**: Execute DPAs with sub-processors; implement DSR procedures
+      4. **Month 3**: Breach notification plan; Article 30 records; cookie consent integration
+
+      **Disclaimer**: This is a compliance information assessment, not legal advice. Given the critical gaps identified -- particularly the cross-border transfer issue -- I strongly recommend engaging a privacy attorney or qualified DPO immediately. Regulatory enforcement in this area has been active and fines are substantial.
+
+      Would you like me to research any specific area in more depth or help draft a Data Processing Agreement template?
+
+persona_marketable_name: lawyerrat

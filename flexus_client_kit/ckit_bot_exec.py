@@ -835,14 +835,14 @@ async def run_happy_trajectory(
 
             experiment_suffix = f"-{scenario.experiment}" if scenario.experiment else ""
             happy_path = os.path.join(output_dir, f"{skill__scenario}-v{bot_version}{experiment_suffix}-{model_name}-happy.yaml")
-            with open(happy_path, "w") as f:
+            with open(happy_path, "w", encoding="utf-8") as f:
                 f.write("# This is generated file don't edit!\n\n")
                 f.write(trajectory_happy_messages_only)
             logger.info(f"exported {happy_path}")
 
             trajectory_actual = ckit_scenario.fmessages_to_yaml(sorted_messages)
             actual_path = os.path.join(output_dir, f"{skill__scenario}-v{bot_version}{experiment_suffix}-{model_name}-actual.yaml")
-            with open(actual_path, "w") as f:
+            with open(actual_path, "w", encoding="utf-8") as f:
                 f.write("# This is generated file don't edit!\n\n")
                 f.write(trajectory_actual)
             logger.info(f"exported {actual_path}")
@@ -866,7 +866,7 @@ async def run_happy_trajectory(
             }
             score_yaml = ckit_scenario.yaml_dump_with_multiline(score_data)
             score_path = os.path.join(output_dir, f"{skill__scenario}-v{bot_version}{experiment_suffix}-{model_name}-score.yaml")
-            with open(score_path, "w") as f:
+            with open(score_path, "w", encoding="utf-8") as f:
                 f.write(score_yaml)
             logger.info(f"exported {score_path}")
 
