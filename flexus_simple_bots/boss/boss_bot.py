@@ -24,7 +24,15 @@ logger = logging.getLogger("bot_boss")
 BOT_NAME = "boss"
 BOT_VERSION = SIMPLE_BOTS_COMMON_VERSION
 
-ACCENT_COLOR = "#8B4513"
+BOSS_INTEGRATIONS: list[ckit_integrations_db.IntegrationRecord] = ckit_integrations_db.static_integrations_load(
+    boss_install.BOSS_ROOTDIR,
+    allowlist=[
+        "flexus_policy_document",
+        "print_widget",
+        "skills",
+    ],
+    builtin_skills=boss_install.BOSS_SKILLS,
+)
 
 
 # BOSS_SETUP_COLLEAGUES_TOOL = ckit_cloudtool.CloudTool(
@@ -120,16 +128,6 @@ MARKETPLACE_DESC_TOOL = ckit_cloudtool.CloudTool(
         },
         "required": ["marketable_names"],
     },
-)
-
-BOSS_INTEGRATIONS: list[ckit_integrations_db.IntegrationRecord] = ckit_integrations_db.static_integrations_load(
-    boss_install.BOSS_ROOTDIR,
-    allowlist=[
-        "flexus_policy_document",
-        "print_widget",
-        "skills",
-    ],
-    builtin_skills=boss_install.BOSS_SKILLS,
 )
 
 TOOLS = [
