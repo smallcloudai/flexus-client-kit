@@ -96,6 +96,8 @@ def static_integrations_load(bot_dir: Path, allowlist: list[str], builtin_skills
             ))
 
         elif name.startswith("facebook"):   # "facebook[account, adset]"
+            # In manifest.json, it's not possible to write [] brackets (according to the json schema), but in a
+            # bot defined by code, you can
             from flexus_client_kit.integrations import fi_facebook2
             fb_bunch = fi_facebook2.make_facebook_bunch(_parse_bracket_list(name))
             fb_tool = fb_bunch.make_tool()
