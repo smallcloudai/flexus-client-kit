@@ -27,7 +27,7 @@ logger = logging.getLogger("bot_frog")
 BOT_NAME = "frog"
 BOT_VERSION = SIMPLE_BOTS_COMMON_VERSION
 
-FROG_INTEGRATIONS: list[ckit_integrations_db.IntegrationRecord] = ckit_integrations_db.integrations_load(
+FROG_INTEGRATIONS: list[ckit_integrations_db.IntegrationRecord] = ckit_integrations_db.static_integrations_load(
     frog_install.FROG_ROOTDIR,
     allowlist=[
         "flexus_policy_document",
@@ -108,7 +108,7 @@ TOOLS = [
 
 async def frog_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.RobotContext) -> None:
     setup = ckit_bot_exec.official_setup_mixing_procedure(frog_install.FROG_SETUP_SCHEMA, rcx.persona.persona_setup)
-    integr_objects = await ckit_integrations_db.integrations_init_all(FROG_INTEGRATIONS, rcx)
+    integr_objects = await ckit_integrations_db.main_loop_integrations_init(FROG_INTEGRATIONS, rcx)
     pdoc_integration: fi_pdoc.IntegrationPdoc = integr_objects["flexus_policy_document"]
 
     # Mongo store needs custom setup (bot-specific collection)

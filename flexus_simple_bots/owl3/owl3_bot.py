@@ -44,7 +44,7 @@ def load_skill_schemas() -> Dict[str, Any]:
 
 SKILL_SCHEMAS = load_skill_schemas()
 
-OWL3_INTEGRATIONS = ckit_integrations_db.integrations_load(
+OWL3_INTEGRATIONS = ckit_integrations_db.static_integrations_load(
     owl3_install.OWL3_ROOTDIR,
     [
         "flexus_policy_document",
@@ -157,7 +157,7 @@ async def handle_update_strategy(
 
 
 async def owl3_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.RobotContext) -> None:
-    integr_objects = await ckit_integrations_db.integrations_init_all(OWL3_INTEGRATIONS, rcx)
+    integr_objects = await ckit_integrations_db.main_loop_integrations_init(OWL3_INTEGRATIONS, rcx)
     pdoc_integration = integr_objects["flexus_policy_document"]
 
     @rcx.on_tool_call(UPDATE_STRATEGY_TOOL.name)

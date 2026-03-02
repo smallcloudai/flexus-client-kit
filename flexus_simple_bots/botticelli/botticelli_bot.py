@@ -217,7 +217,7 @@ Use this tool ONCE per project. User will verify/adjust colors in the sidebar fo
     },
 )
 
-BOTTICELLI_INTEGRATIONS: list[ckit_integrations_db.IntegrationRecord] = ckit_integrations_db.integrations_load(
+BOTTICELLI_INTEGRATIONS: list[ckit_integrations_db.IntegrationRecord] = ckit_integrations_db.static_integrations_load(
     botticelli_install.BOTTICELLI_ROOTDIR,
     allowlist=[
         "flexus_policy_document",
@@ -237,7 +237,7 @@ TOOLS = [
 
 async def botticelli_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.RobotContext) -> None:
     setup = ckit_bot_exec.official_setup_mixing_procedure(botticelli_install.BOTTICELLI_SETUP_SCHEMA, rcx.persona.persona_setup)
-    integr_objects = await ckit_integrations_db.integrations_init_all(BOTTICELLI_INTEGRATIONS, rcx, setup)
+    integr_objects = await ckit_integrations_db.main_loop_integrations_init(BOTTICELLI_INTEGRATIONS, rcx, setup)
     pdoc_integration: fi_pdoc.IntegrationPdoc = integr_objects["flexus_policy_document"]
 
     mongo_conn_str = await ckit_mongo.mongo_fetch_creds(fclient, rcx.persona.persona_id)
@@ -340,19 +340,19 @@ async def botticelli_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_
             return ckit_cloudtool.ToolResult("Error: prompt required")
         if not filename:
             return ckit_cloudtool.ToolResult("Error: filename required")
-        
+
         # Validate quality
         if quality not in ("draft", "final"):
             return ckit_cloudtool.ToolResult("Error: quality must be 'draft' or 'final'")
-        
+
         # Validate resolution - BLOCK 4K
         if resolution not in ("1K", "2K"):
             return ckit_cloudtool.ToolResult("Error: resolution must be '1K' or '2K'. 4K is not available.")
-        
+
         # Resolution only applies to final quality
         if quality == "draft" and resolution != "1K":
             resolution = "1K"  # Draft always uses 1K
-        
+
         # Validate aspect ratio
         if size not in NANO_BANANA_SIZES:
             return ckit_cloudtool.ToolResult(f"Error: size must be one of: {', '.join(NANO_BANANA_SIZES.keys())}")
@@ -389,11 +389,11 @@ async def botticelli_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_
             nano_banana_api_key = os.getenv("NANO_BANANA_API_KEY")
             if not nano_banana_api_key:
                 return "Error: NANO_BANANA_API_KEY environment variable not set"
-            
+
             async with httpx.AsyncClient(timeout=180.0) as http_client:
                 # Build parts array - text prompt + optional reference image
                 parts = [{"text": prompt}]
-                
+
                 # Fetch and include reference image if provided
                 if reference_image_url:
                     logger.info(f"Fetching reference image from: {reference_image_url[:100]}...")
@@ -401,10 +401,10 @@ async def botticelli_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_
                         ref_response = await http_client.get(reference_image_url, timeout=30.0)
                         if ref_response.status_code != 200:
                             return f"Error: Failed to fetch reference image (HTTP {ref_response.status_code})"
-                        
+
                         ref_image_bytes = ref_response.content
                         ref_image_b64 = base64.b64encode(ref_image_bytes).decode("utf-8")
-                        
+
                         # Detect MIME type from content-type header or URL
                         content_type = ref_response.headers.get("content-type", "").lower()
                         if "png" in content_type or reference_image_url.lower().endswith(".png"):
@@ -415,7 +415,7 @@ async def botticelli_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_
                             mime_type = "image/webp"
                         else:
                             mime_type = "image/jpeg"
-                        
+
                         parts.append({
                             "inlineData": {
                                 "mimeType": mime_type,
@@ -427,12 +427,12 @@ async def botticelli_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_
                         return "Error: Timeout fetching reference image"
                     except Exception as e:
                         return f"Error: Failed to fetch reference image: {str(e)}"
-                
+
                 # Build image config
                 image_config: Dict[str, Any] = {"aspectRatio": size}
                 if quality == "final":
                     image_config["imageSize"] = resolution
-                
+
                 response = await http_client.post(
                     f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent",
                     headers={
@@ -447,29 +447,29 @@ async def botticelli_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_
                         }
                     }
                 )
-                
+
                 if response.status_code != 200:
                     error_detail = response.text[:500]
                     logger.error(f"Gemini API error: {response.status_code} - {error_detail}")
                     return f"Error: Gemini API returned {response.status_code}: {error_detail}"
-                
+
                 result_json = response.json()
-                
+
                 # Extract image from response
                 candidates = result_json.get("candidates", [])
                 if not candidates:
                     return "Error: No image generated"
-                
+
                 response_parts = candidates[0].get("content", {}).get("parts", [])
                 image_b64 = None
                 for part in response_parts:
                     if "inlineData" in part:
                         image_b64 = part["inlineData"].get("data")
                         break
-                
+
                 if not image_b64:
                     return "Error: No image data in response"
-                
+
                 png_bytes = base64.b64decode(image_b64)
                 logger.info(f"Generated image: {len(png_bytes)} bytes with {model_label}")
 
@@ -494,7 +494,7 @@ async def botticelli_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_
             logger.info(f"Saved to MongoDB: {webp_p2}")
             image_url1 = f"{fclient.base_url_http}/v1/docs/{rcx.persona.persona_id}/{webp_p1}"
             image_url2 = f"{fclient.base_url_http}/v1/docs/{rcx.persona.persona_id}/{webp_p2}"
-            
+
             quality_note = "⚡ DRAFT - for concept approval" if quality == "draft" else f"✨ FINAL ({resolution}) - production ready"
             return ckit_cloudtool.ToolResult(
                 content="",
@@ -614,24 +614,24 @@ async def botticelli_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_
             campaign_id = model_produced_args.get("campaign_id", "")
             if not campaign_id:
                 return "Error: campaign_id is required"
-            
+
             # Validate campaign_id format (kebab-case)
             if not all(c.islower() or c.isdigit() or c == "-" for c in campaign_id):
                 return "Error: campaign_id must be kebab-case (lowercase letters, numbers, hyphens only)"
-            
+
             # Validate required fields
             required_fields = ["brand_name", "campaign_objective", "target_audience", "key_benefit", "industry"]
             for field in required_fields:
                 if not model_produced_args.get(field):
                     return f"Error: {field} is required"
-            
+
             # Save campaign brief to policy document
             brief_path = f"/ad-campaigns/{campaign_id}/brief"
             brief_content = json.dumps(model_produced_args, indent=2)
-            
+
             await pdoc_integration.pdoc_create(brief_path, brief_content, toolcall.fcall_ft_id)
             logger.info(f"Created campaign brief at {brief_path}")
-            
+
             # Prepare context for subchat with campaign brief details
             brief_summary = f"""Campaign Brief: {campaign_id}
 Brand: {model_produced_args.get('brand_name')}
@@ -644,9 +644,9 @@ Visual Style: {model_produced_args.get('visual_style', 'Not specified')}
 Full brief saved to: {brief_path}
 
 """
-            
+
             context = brief_summary + json.dumps(model_produced_args, indent=2)
-            
+
             # Create subchat for creative generation with meta_ads_creative skill
             subchats = await ckit_ask_model.bot_subchat_create_multiple(
                 client=fclient,
@@ -658,10 +658,10 @@ Full brief saved to: {brief_path}
                 fcall_id=toolcall.fcall_id,
                 skill="meta_ads_creative",
             )
-            
+
             logger.info(f"Created subchat for campaign {campaign_id} with skill=meta_ads_creative")
             raise ckit_cloudtool.WaitForSubchats(subchats)
-            
+
         except ckit_cloudtool.WaitForSubchats:
             raise
         except Exception as e:
@@ -672,27 +672,27 @@ Full brief saved to: {brief_path}
     async def toolcall_scan_brand_visuals(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
         """Scan a website and extract brand visual identity using Playwright browser."""
         from playwright.async_api import async_playwright
-        
+
         url = model_produced_args.get("url", "")
         save_path = model_produced_args.get("save_path", "/style-guide")
-        
+
         if not url:
             return "Error: url is required"
-        
+
         # Validate URL
         if not url.startswith(("http://", "https://")):
             url = "https://" + url
-        
+
         try:
             parsed = urlparse(url)
             if not parsed.netloc:
                 return f"Error: Invalid URL: {url}"
         except Exception:
             return f"Error: Invalid URL: {url}"
-        
+
         try:
             logger.info(f"Scanning website for brand visuals using Playwright: {url}")
-            
+
             async with async_playwright() as p:
                 # Launch browser
                 browser = await p.chromium.launch(headless=True)
@@ -701,12 +701,12 @@ Full brief saved to: {brief_path}
                     user_agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"
                 )
                 page = await context.new_page()
-                
+
                 try:
                     # Navigate to page
                     await page.goto(url, wait_until="networkidle", timeout=30000)
                     await page.wait_for_timeout(2000)  # Wait for animations
-                    
+
                     # Extract computed styles and images using JavaScript
                     brand_data = await page.evaluate('''() => {
                         // Helper to convert rgb to hex
@@ -719,24 +719,24 @@ Full brief saved to: {brief_path}
                             const b = Math.round(parseFloat(match[3]));
                             return '#' + [r, g, b].map(x => x.toString(16).padStart(2, '0')).join('');
                         }
-                        
+
                         // Get computed style safely
                         function getStyle(el, prop) {
                             if (!el) return null;
                             return window.getComputedStyle(el).getPropertyValue(prop);
                         }
-                        
+
                         // Find elements
                         const body = document.body;
                         const buttons = document.querySelectorAll('button, .btn, [class*="button"], [class*="Button"], a[class*="cta"], a[class*="Cta"]');
                         const links = document.querySelectorAll('a:not([class*="button"]):not([class*="btn"])');
                         const headings = document.querySelectorAll('h1, h2, h3');
                         const paragraphs = document.querySelectorAll('p, .text, [class*="body"]');
-                        
+
                         // Extract colors
                         let primaryColor = null;
                         let secondaryColor = null;
-                        
+
                         // Try to find primary color from buttons
                         for (const btn of buttons) {
                             const bg = rgbToHex(getStyle(btn, 'background-color'));
@@ -746,7 +746,7 @@ Full brief saved to: {brief_path}
                                 break;
                             }
                         }
-                        
+
                         // Try links for primary/accent color
                         if (!primaryColor) {
                             for (const link of links) {
@@ -757,10 +757,10 @@ Full brief saved to: {brief_path}
                                 }
                             }
                         }
-                        
+
                         // Background color from body
                         const backgroundColor = rgbToHex(getStyle(body, 'background-color')) || '#ffffff';
-                        
+
                         // Text color from body or paragraphs
                         let textColor = rgbToHex(getStyle(body, 'color'));
                         if (!textColor || textColor === '#000000') {
@@ -770,38 +770,38 @@ Full brief saved to: {brief_path}
                             }
                         }
                         textColor = textColor || '#333333';
-                        
+
                         // Extract fonts
                         const bodyFont = getStyle(body, 'font-family')?.split(',')[0]?.trim().replace(/['"]/g, '') || 'Sans-serif';
                         let headingFont = bodyFont;
                         if (headings.length > 0) {
                             headingFont = getStyle(headings[0], 'font-family')?.split(',')[0]?.trim().replace(/['"]/g, '') || bodyFont;
                         }
-                        
+
                         // Get site info
                         const title = document.title || '';
                         const ogSiteName = document.querySelector('meta[property="og:site_name"]')?.content;
                         const ogImage = document.querySelector('meta[property="og:image"]')?.content;
                         const favicon = document.querySelector('link[rel*="icon"]')?.href;
-                        
+
                         // Extract all images for logo candidates
                         const images = [];
                         const viewportHeight = window.innerHeight;
-                        
+
                         for (const img of document.querySelectorAll('img[src]')) {
                             const rect = img.getBoundingClientRect();
                             const src = img.src;
-                            
+
                             // Filter: skip tiny images, data URLs, and images below viewport
                             if (!src || src.startsWith('data:') || rect.width < 30 || rect.height < 30) continue;
                             if (rect.top > viewportHeight * 0.5) continue;  // Only top half of page
                             if (rect.width > 500 || rect.height > 300) continue;  // Skip hero images
-                            
+
                             const isLogo = (img.alt?.toLowerCase().includes('logo') ||
                                            img.className?.toLowerCase().includes('logo') ||
                                            img.id?.toLowerCase().includes('logo') ||
                                            img.closest('a[href="/"], a[href="./"], header')?.querySelector('img') === img);
-                            
+
                             images.push({
                                 url: src,
                                 width: Math.round(rect.width),
@@ -811,14 +811,14 @@ Full brief saved to: {brief_path}
                                 is_logo_hint: isLogo
                             });
                         }
-                        
+
                         // Sort: prioritize images with logo hints, then by position (top first)
                         images.sort((a, b) => {
                             if (a.is_logo_hint && !b.is_logo_hint) return -1;
                             if (!a.is_logo_hint && b.is_logo_hint) return 1;
                             return a.top - b.top;
                         });
-                        
+
                         return {
                             site_name: ogSiteName || title.split(' - ')[0].split(' | ')[0].trim(),
                             logo_url: ogImage || favicon || null,
@@ -831,36 +831,36 @@ Full brief saved to: {brief_path}
                             logo_candidates: images.slice(0, 10)  // Max 10 candidates
                         };
                     }''')
-                    
+
                     # Take screenshot for color picking - resize viewport first for smaller file
                     await page.set_viewport_size({"width": 800, "height": 600})
                     await page.wait_for_timeout(500)  # Let page adjust
-                    
+
                     # Take JPEG instead of PNG with quality setting for smaller file (~50-150KB vs 2-5MB)
                     screenshot_bytes = await page.screenshot(type="jpeg", quality=60)
                     screenshot_base64 = base64.b64encode(screenshot_bytes).decode("utf-8")
-                    
+
                     logger.info(f"Extracted brand data: {brand_data}")
                     logger.info(f"Screenshot size: {len(screenshot_bytes) / 1024:.1f}KB, Logo candidates: {len(brand_data.get('logo_candidates', []))}")
-                    
+
                 finally:
                     await browser.close()
-            
+
             # Determine visual style based on colors
             bg_color = brand_data.get("background_color", "#ffffff").lower()
             is_dark = bg_color in ["#000000", "#000", "#111111", "#111", "#0d0d0d", "#121212", "#1a1a1a"]
             visual_style = "dark, modern" if is_dark else "light, clean"
-            
+
             # Build style-guide with color swatches for human verification
             import datetime
             today = datetime.date.today().strftime("%Y%m%d")
-            
+
             site_name = brand_data.get("site_name", "")
             logo_url = brand_data.get("logo_url", "")
-            
+
             # Get logo candidates from brand_data
             logo_candidates = brand_data.get("logo_candidates", [])
-            
+
             styleguide = {
                 "styleguide": {
                     "meta": {
@@ -883,7 +883,7 @@ Full brief saved to: {brief_path}
                             "t": "color"
                         },
                         "question02-secondary": {
-                            "q": "Secondary Brand Color", 
+                            "q": "Secondary Brand Color",
                             "a": brand_data.get("secondary_color", "#004499"),
                             "t": "color"
                         },
@@ -935,16 +935,16 @@ Full brief saved to: {brief_path}
                     }
                 }
             }
-            
+
             # Save to policy document (overwrite if exists)
             await pdoc_integration.pdoc_overwrite(
-                save_path, 
-                json.dumps(styleguide, indent=2), 
+                save_path,
+                json.dumps(styleguide, indent=2),
                 toolcall.fcall_ft_id
             )
-            
+
             logger.info(f"Saved style guide to {save_path}")
-            
+
             # Format result for user with color swatches
             primary_color = brand_data.get('primary_color', '#0066cc')
             secondary_color = brand_data.get('secondary_color', '#004499')
@@ -952,7 +952,7 @@ Full brief saved to: {brief_path}
             text_color = brand_data.get('text_color', '#333333')
             heading_font = brand_data.get('heading_font', 'Sans-serif')
             body_font = brand_data.get('body_font', 'Sans-serif')
-            
+
             result = f"""✅ Brand Style Guide extracted from {url}
 
 **Site:** {site_name}
@@ -982,7 +982,7 @@ Full brief saved to: {brief_path}
 📁 Saved to: `{save_path}`
 """
             return result
-            
+
         except Exception as e:
             logger.exception(f"Error scanning website: {e}")
             return f"Error scanning website: {str(e)}"

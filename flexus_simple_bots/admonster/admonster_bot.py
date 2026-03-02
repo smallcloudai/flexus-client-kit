@@ -27,7 +27,7 @@ BOT_VERSION = SIMPLE_BOTS_COMMON_VERSION
 BOT_VERSION_INT = ckit_client.marketplace_version_as_int(BOT_VERSION)
 ACCENT_COLOR = "#0077B5"
 
-ADMONSTER_INTEGRATIONS: list[ckit_integrations_db.IntegrationRecord] = ckit_integrations_db.integrations_load(
+ADMONSTER_INTEGRATIONS: list[ckit_integrations_db.IntegrationRecord] = ckit_integrations_db.static_integrations_load(
     admonster_install.ADMONSTER_ROOTDIR,
     allowlist=[
         "flexus_policy_document",
@@ -47,7 +47,7 @@ TOOLS = [
 async def admonster_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.RobotContext) -> None:
     setup = ckit_bot_exec.official_setup_mixing_procedure(admonster_install.ADMONSTER_SETUP_SCHEMA, rcx.persona.persona_setup)
 
-    integr_objects = await ckit_integrations_db.integrations_init_all(ADMONSTER_INTEGRATIONS, rcx)
+    integr_objects = await ckit_integrations_db.main_loop_integrations_init(ADMONSTER_INTEGRATIONS, rcx)
     pdoc_integration: fi_pdoc.IntegrationPdoc = integr_objects["flexus_policy_document"]
 
     mongo_conn_str = await ckit_mongo.mongo_fetch_creds(fclient, rcx.persona.persona_id)

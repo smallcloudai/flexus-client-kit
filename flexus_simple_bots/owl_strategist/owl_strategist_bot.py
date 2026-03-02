@@ -49,7 +49,7 @@ STEP_DESCRIPTIONS = {
     **AGENT_DESCRIPTIONS,
 }
 
-OWL_STRATEGIST_INTEGRATIONS: list[ckit_integrations_db.IntegrationRecord] = ckit_integrations_db.integrations_load(
+OWL_STRATEGIST_INTEGRATIONS: list[ckit_integrations_db.IntegrationRecord] = ckit_integrations_db.static_integrations_load(
     owl_strategist_install.OWL_STRATEGIST_ROOTDIR,
     allowlist=[
         "flexus_policy_document",
@@ -149,7 +149,7 @@ AGENT_REQUIRED_DOCS = {
 
 
 async def owl_strategist_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.RobotContext) -> None:
-    integr_objects = await ckit_integrations_db.integrations_init_all(OWL_STRATEGIST_INTEGRATIONS, rcx)
+    integr_objects = await ckit_integrations_db.main_loop_integrations_init(OWL_STRATEGIST_INTEGRATIONS, rcx)
     pdoc_integration: fi_pdoc.IntegrationPdoc = integr_objects["flexus_policy_document"]
     # owner_fuser_id — ID of the human who hired this bot, used for pdoc access checks
     owner_fuser_id = rcx.persona.owner_fuser_id

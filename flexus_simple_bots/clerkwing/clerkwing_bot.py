@@ -15,7 +15,7 @@ logger = logging.getLogger("clerk")
 BOT_NAME = "clerkwing"
 BOT_VERSION = SIMPLE_BOTS_COMMON_VERSION
 
-CLERKWING_INTEGRATIONS = ckit_integrations_db.integrations_load(
+CLERKWING_INTEGRATIONS = ckit_integrations_db.static_integrations_load(
     clerkwing_install.CLERKWING_ROOTDIR,
     allowlist=[
         "gmail",
@@ -30,7 +30,7 @@ TOOLS = [*[t for rec in CLERKWING_INTEGRATIONS for t in rec.integr_tools]]
 
 async def clerkwing_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.RobotContext) -> None:
     setup = ckit_bot_exec.official_setup_mixing_procedure(clerkwing_install.CLERKWING_SETUP_SCHEMA, rcx.persona.persona_setup)
-    await ckit_integrations_db.integrations_init_all(CLERKWING_INTEGRATIONS, rcx, setup=setup)
+    await ckit_integrations_db.main_loop_integrations_init(CLERKWING_INTEGRATIONS, rcx, setup=setup)
 
     @rcx.on_updated_message
     async def updated_message_in_db(msg: ckit_ask_model.FThreadMessageOutput):

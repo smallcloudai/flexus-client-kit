@@ -23,7 +23,7 @@ BOT_NAME = "lawyerrat"
 BOT_VERSION = SIMPLE_BOTS_COMMON_VERSION
 
 
-LAWYERRAT_INTEGRATIONS: list[ckit_integrations_db.IntegrationRecord] = ckit_integrations_db.integrations_load(
+LAWYERRAT_INTEGRATIONS: list[ckit_integrations_db.IntegrationRecord] = ckit_integrations_db.static_integrations_load(
     lawyerrat_install.LAWYERRAT_ROOTDIR,
     allowlist=[
         "flexus_policy_document",
@@ -108,7 +108,7 @@ TOOLS = [
 
 async def lawyerrat_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.RobotContext) -> None:
     setup = ckit_bot_exec.official_setup_mixing_procedure(lawyerrat_install.LAWYERRAT_SETUP_SCHEMA, rcx.persona.persona_setup)
-    integr_objects = await ckit_integrations_db.integrations_init_all(LAWYERRAT_INTEGRATIONS, rcx)
+    integr_objects = await ckit_integrations_db.main_loop_integrations_init(LAWYERRAT_INTEGRATIONS, rcx)
 
     mongo_conn_str = await ckit_mongo.mongo_fetch_creds(fclient, rcx.persona.persona_id)
     mongo = AsyncMongoClient(mongo_conn_str)
