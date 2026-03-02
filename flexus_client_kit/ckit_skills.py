@@ -24,6 +24,12 @@ FETCH_SKILL_TOOL = ckit_cloudtool.CloudTool(
     },
 )
 
+# Authoritative sources about skills:
+# https://resources.anthropic.com/hubfs/The-Complete-Guide-to-Building-Skill-for-Claude.pdf
+# https://github.com/anthropics/skills/tree/main/skills/pdf
+# https://platform.claude.com/cookbook/skills-notebooks-01-skills-introduction
+# https://platform.claude.com/docs/en/agents-and-tools/agent-skills/overview
+
 
 def _strip_frontmatter(text: str) -> str:
     m = re.match(r"^---\s*\n.*?\n---\s*\n", text, re.DOTALL)
