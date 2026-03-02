@@ -6,6 +6,10 @@ Available in the Flexus MCP catalog. Prefer MCP over a custom integration when b
 
 | Preset | Source | Type | Command / URL |
 |--------|--------|------|---------------|
+| Amplitude | official | remote | https://mcp.amplitude.com/mcp |
+| Asana | official | remote | https://mcp.asana.com/v2/mcp |
+| Atlassian (Jira & Confluence) | official | remote | https://mcp.atlassian.com/v1/mcp |
+| Bright Data | official | remote | https://mcp.brightdata.com/mcp |
 | Chroma | flexus | local | `uvx chroma-mcp` |
 | Context7 | flexus | remote | https://mcp.context7.com/mcp |
 | Discord | flexus | local | `npx mcp-discord` |
@@ -14,9 +18,14 @@ Available in the Flexus MCP catalog. Prefer MCP over a custom integration when b
 | Fibery | flexus | local | `uvx fibery-mcp-server` |
 | GitHub | official | remote | https://api.githubcopilot.com/mcp/ |
 | Google Sheets | flexus | local | `uvx mcp-google-sheets` |
+| HubSpot | official | remote | https://mcp.hubspot.com |
+| Intercom | official | remote | https://mcp.intercom.com/mcp |
+| Linear | official | remote | https://mcp.linear.app/mcp |
 | n8n | flexus | local | `npx mcp-n8n` |
 | Notion | official | local | `npx @notionhq/notion-mcp-server` |
+| PostHog | official | remote | https://mcp.posthog.com/mcp |
 | PostgreSQL | flexus | local | `npx @modelcontextprotocol/server-postgres` |
+| Sentry | official | remote | https://mcp.sentry.dev/mcp |
 | SerpApi | official | remote | https://mcp.serpapi.com/mcp |
 | Slack | flexus | local | `npx @zencoderai/slack-mcp-server` |
 | Stripe | official | remote | https://mcp.stripe.com |
@@ -89,7 +98,7 @@ Status legend:
 |------|----------|--------|
 | `fi_adzuna.py` | Adzuna | **multi-cred** (APP_ID + APP_KEY) |
 | `fi_bombora.py` | Bombora | untested |
-| `fi_brightdata.py` | Bright Data | untested |
+| `fi_brightdata.py` | Bright Data | **mcp-preferred** → `brightdata.json` |
 | `fi_clearbit.py` | Clearbit | untested |
 | `fi_coresignal.py` | CoreSignal | untested |
 | `fi_crunchbase.py` | Crunchbase | untested |
@@ -107,8 +116,8 @@ Status legend:
 | `fi_apollo.py` | Apollo.io | untested |
 | `fi_crossbeam.py` | Crossbeam | untested |
 | `fi_gong.py` | Gong | untested |
-| `fi_hubspot.py` | HubSpot | untested |
-| `fi_intercom.py` | Intercom | untested |
+| `fi_hubspot.py` | HubSpot | **mcp-preferred** → `hubspot.json` |
+| `fi_intercom.py` | Intercom | **mcp-preferred** → `intercom.json` |
 | `fi_outreach.py` | Outreach | untested |
 | `fi_partnerstack.py` | PartnerStack | untested |
 | `fi_pipedrive.py` | Pipedrive | untested |
@@ -121,7 +130,7 @@ Status legend:
 
 | File | Provider | Status |
 |------|----------|--------|
-| `fi_amplitude.py` | Amplitude | untested |
+| `fi_amplitude.py` | Amplitude | **mcp-preferred** → `amplitude.json` |
 | `fi_datadog.py` | Datadog | untested |
 | `fi_ga4.py` | Google Analytics 4 | untested |
 | `fi_google_analytics.py` | Google Analytics (UA) | untested |
@@ -129,9 +138,9 @@ Status legend:
 | `fi_launchdarkly.py` | LaunchDarkly | untested |
 | `fi_mixpanel.py` | Mixpanel | untested |
 | `fi_optimizely.py` | Optimizely | untested |
-| `fi_posthog.py` | PostHog | untested |
+| `fi_posthog.py` | PostHog | **mcp-preferred** → `posthog.json` |
 | `fi_segment.py` | Segment | untested |
-| `fi_sentry.py` | Sentry | untested |
+| `fi_sentry.py` | Sentry | **mcp-preferred** → `sentry.json` |
 | `fi_statsig.py` | Statsig | untested |
 
 ### Payments & Commerce
@@ -150,9 +159,9 @@ Status legend:
 
 | File | Provider | Status |
 |------|----------|--------|
-| `fi_asana.py` | Asana | untested |
+| `fi_asana.py` | Asana | **mcp-preferred** → `asana.json` |
 | `fi_calendly.py` | Calendly | untested |
-| `fi_confluence.py` | Confluence | untested |
+| `fi_confluence.py` | Confluence | **mcp-preferred** → `atlassian.json` |
 | `fi_discord2.py` | Discord | untested |
 | `fi_docusign.py` | DocuSign | untested |
 | `fi_fireflies.py` | Fireflies.ai | untested |
@@ -160,8 +169,8 @@ Status legend:
 | `fi_gmail.py` | Gmail | untested |
 | `fi_google_calendar.py` | Google Calendar | untested |
 | `fi_google_sheets.py` | Google Sheets | **mcp-preferred** → `google_sheets.json` |
-| `fi_jira.py` | Jira | untested |
-| `fi_linear.py` | Linear | untested |
+| `fi_jira.py` | Jira | **mcp-preferred** → `atlassian.json` |
+| `fi_linear.py` | Linear | **mcp-preferred** → `linear.json` |
 | `fi_notion.py` | Notion | **mcp-preferred** → `notion.json` |
 | `fi_pandadoc.py` | PandaDoc | untested |
 | `fi_resend.py` | Resend | untested |
