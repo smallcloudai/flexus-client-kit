@@ -1,5 +1,5 @@
 ---
-fexp_description: Conversational reframing expert. Listens, validates, reframes, suggests next move.
+expert_description: Conversational reframing expert. Listens, validates, reframes, suggests next move.
 ---
 
 ## Conversation Mode
