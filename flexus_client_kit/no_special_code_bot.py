@@ -13,6 +13,7 @@ from flexus_client_kit import ckit_shutdown
 from flexus_client_kit import ckit_kanban   # TODO add default reactions to messengers (post to inbox)
 from flexus_client_kit import ckit_experts_from_files
 from flexus_client_kit import ckit_integrations_db
+from flexus_client_kit import ckit_skills
 from flexus_simple_bots.version_common import SIMPLE_BOTS_COMMON_VERSION
 from flexus_simple_bots import prompts_common
 import jsonschema
@@ -42,12 +43,13 @@ async def install_from_manifest(m, setup_schema, bot_dir, client, bot_name, bot_
     pic_small = _load_pic_b64(bot_dir, bot_name, "256x256", ".webp") or _load_pic_b64(bot_dir, bot_name, "256x256", ".png")
     readme_path = bot_dir / "README.md"
     description = readme_path.read_text() if readme_path.exists() else m["title2"]
-    experts = ckit_experts_from_files.discover_experts(bot_dir / "prompts")
+    skills = ckit_skills.static_skills_find(bot_dir, m.get("shared_skills_allowlist", ""))
+    experts = ckit_experts_from_files.discover_experts(bot_dir, skills)
     featured = [fa | {"feat_depends_on_setup": []} for fa in m["featured_actions"]]
 
     auth_supported = list(m.get("auth_supported", []))
     auth_scopes: dict = dict(m.get("auth_scopes", {}))
-    for rec in ckit_integrations_db.static_integrations_load(bot_dir, m["integrations"], builtin_skills=[]):
+    for rec in ckit_integrations_db.static_integrations_load(bot_dir, m["integrations"], builtin_skills=skills):
         if rec.integr_provider:
             if rec.integr_provider not in auth_supported:
                 auth_supported.append(rec.integr_provider)
@@ -87,7 +89,8 @@ async def install_from_manifest(m, setup_schema, bot_dir, client, bot_name, bot_
 
 async def bot_main_loop(m, setup_schema, bot_dir, fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.RobotContext) -> None:
     ckit_bot_exec.official_setup_mixing_procedure(setup_schema, rcx.persona.persona_setup)
-    await ckit_integrations_db.main_loop_integrations_init(ckit_integrations_db.static_integrations_load(bot_dir, m["integrations"], builtin_skills=[]), rcx)
+    skills = ckit_skills.static_skills_find(bot_dir, m.get("shared_skills_allowlist", ""))
+    await ckit_integrations_db.main_loop_integrations_init(ckit_integrations_db.static_integrations_load(bot_dir, m["integrations"], builtin_skills=skills), rcx)
 
     try:
         while not ckit_shutdown.shutdown_event.is_set():
@@ -123,7 +126,8 @@ def main():
     bot_dir = _resolve_bot_dir(sys.argv.pop(1))
     manifest, setup_schema = load_manifest_and_setup_schema(bot_dir)
     bot_name = manifest["bot_name"]
-    integrations = ckit_integrations_db.static_integrations_load(bot_dir, manifest["integrations"], builtin_skills=[])
+    skills = ckit_skills.static_skills_find(bot_dir, manifest.get("shared_skills_allowlist", ""))
+    integrations = ckit_integrations_db.static_integrations_load(bot_dir, manifest["integrations"], builtin_skills=skills)
     all_tools = [t for rec in integrations for t in rec.integr_tools]   # double loop collapses list of lists into one list
     scenario_fn = ckit_bot_exec.parse_bot_args()
     fclient = ckit_client.FlexusClient(ckit_client.bot_service_name(bot_name, SIMPLE_BOTS_COMMON_VERSION), endpoint="/v1/jailed-bot")

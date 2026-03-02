@@ -121,10 +121,17 @@
                     "flexus_policy_document",
                     "print_widget",
                     "gmail",
-                    "google_calendar"
+                    "google_calendar",
+                    "skills"
                 ]
             },
             "description": "List of integrations the bot uses. Each provides tools and optionally OAuth. Example: ['flexus_policy_document', 'gmail', 'google_calendar']."
+        },
+        "shared_skills_allowlist": {
+            "type": "string",
+            "title": "Allow These Shared Skills",
+            "default": "",
+            "description": "Take skills in shared_skills/ that match any of the patterns in this comma-separated list, example: 'strategy-*,report-*'. Empty string means none, '*' means all."
         }
     }
 }

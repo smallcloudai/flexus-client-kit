@@ -8,7 +8,7 @@ from typing import Dict, Union, Optional, List, Any, Tuple
 import argparse
 import gql
 
-from flexus_client_kit import ckit_client, ckit_cloudtool, gql_utils
+from flexus_client_kit import ckit_client, ckit_cloudtool, ckit_skills, gql_utils
 
 
 def load_form_bundles_from_dir(forms_dir: Path) -> Dict[str, str]:
@@ -56,10 +56,10 @@ class FMarketplaceExpertInput:
 
     def filter_tools(self, tools: list[ckit_cloudtool.CloudTool]) -> "FMarketplaceExpertInput":
         filtered = [t for t in tools if self._tool_allowed(t.name)]
+        if self.fexp_builtin_skills != "[]":
+            if not any(t.name == "flexus_fetch_skill" for t in filtered):
+                filtered.append(ckit_skills.FETCH_SKILL_TOOL)
         self.fexp_app_capture_tools = json.dumps([t.openai_style_tool() for t in filtered])
-        has_skill_tool = any(t.name == "flexus_fetch_skill" for t in filtered)
-        has_skills = self.fexp_builtin_skills != "[]"
-        assert has_skill_tool == has_skills, "flexus_fetch_skill tool and fexp_builtin_skills must be both present or both absent"
         return self
 
 

@@ -1,7 +1,10 @@
+import fnmatch
 import logging
 from pathlib import Path
+from typing import List
 
 from flexus_client_kit import ckit_bot_install
+from flexus_client_kit import ckit_skills
 from flexus_simple_bots import prompts_common
 
 logger = logging.getLogger("exprt")
@@ -33,13 +36,24 @@ def build_expert_prompt(prompts_dir: Path, expert_name: str) -> str:
     )
 
 
-def discover_experts(prompts_dir: Path) -> list[tuple[str, ckit_bot_install.FMarketplaceExpertInput]]:
+def _filter_skills(all_skills: List[str], header: dict) -> List[str]:
+    block = [p.strip() for p in header.get("expert_block_skills", "").split(",") if p.strip()]
+    allow = [p.strip() for p in header.get("expert_allow_skills", "").split(",") if p.strip()]
+    if allow:
+        return [s for s in all_skills if any(fnmatch.fnmatch(s, p) for p in allow)]
+    if block:
+        return [s for s in all_skills if not any(fnmatch.fnmatch(s, p) for p in block)]
+    return all_skills
+
+
+def discover_experts(bot_dir: Path, all_possible_skills: List[str]) -> list[tuple[str, ckit_bot_install.FMarketplaceExpertInput]]:
+    prompts_dir = bot_dir / "prompts"
     experts = []
     for f in sorted(prompts_dir.glob("expert_*.md")):
         name = f.stem.removeprefix("expert_")
         header, _ = parse_expert_md(f.read_text())
-        recognized = {"fexp_description", "fexp_block_tools", "fexp_allow_tools"}
-        required = {"fexp_description"}
+        recognized = {"expert_description", "expert_block_tools", "expert_allow_tools", "expert_block_skills", "expert_allow_skills"}
+        required = {"expert_description"}
         unknown = set(header.keys()) - recognized
         missing = required - set(header.keys())
         errors = []
@@ -51,18 +65,22 @@ def discover_experts(prompts_dir: Path) -> list[tuple[str, ckit_bot_install.FMar
             logger.error(
                 f"  Expected format of expert_*.md file header:\n\n"
                 f"  ---\n"
-                f"  fexp_description: A short description of what this expert does\n"
-                f"  fexp_block_tools: (optional) tool glob patterns to block\n"
-                f"  fexp_allow_tools: (optional) tool glob patterns to allow\n"
+                f"  expert_description: A short description of what this expert does\n"
+                f"  expert_block_tools: (optional) tool glob patterns to block\n"
+                f"  expert_allow_tools: (optional) tool glob patterns to allow\n"
+                f"  expert_block_skills: (optional) skill glob patterns to block\n"
+                f"  expert_allow_skills: (optional) skill glob patterns to allow\n"
                 f"  ---\n\n"
             )
             logger.error(f"{f}: {'; '.join(errors)}")
             raise KeyError(f"{f}: {'; '.join(errors)}\n")
+        exp_skills = _filter_skills(all_possible_skills, header)
         experts.append((name, ckit_bot_install.FMarketplaceExpertInput(
             fexp_system_prompt=build_expert_prompt(prompts_dir, name),
             fexp_python_kernel="",
-            fexp_block_tools=header.get("fexp_block_tools", ""),
-            fexp_allow_tools=header.get("fexp_allow_tools", ""),
-            fexp_description=header["fexp_description"],
+            fexp_block_tools=header.get("expert_block_tools", ""),
+            fexp_allow_tools=header.get("expert_allow_tools", ""),
+            fexp_description=header["expert_description"],
+            fexp_builtin_skills=ckit_skills.read_name_description(bot_dir, exp_skills) if exp_skills else "[]",
         )))
     return experts

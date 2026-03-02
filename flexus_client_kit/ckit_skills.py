@@ -108,9 +108,9 @@ def static_skills_find(bot_root_dir: Path, shared_skills_allowlist: str) -> List
     return found
 
 
-def read_name_description(bot_root_dir: Path, allowlist: List[str]) -> str:
+def read_name_description(bot_root_dir: Path, skills: List[str]) -> str:
     result = []
-    for name in allowlist:
+    for name in skills:
         for d in _skill_dirs(bot_root_dir):
             p = d / name / "SKILL.md"
             if p.is_file():
