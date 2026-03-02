@@ -15,6 +15,16 @@ from flexus_client_kit import gql_utils
 logger = logging.getLogger("pdocs")
 
 
+POLICY_DOCUMENT_PROMPT = """
+## Policy Docs
+
+Policy documents control how robots (and sometimes humans) behave. It's a storage for practical lessons learned so far,
+summary of external documents, customer interviews, user instructions, as well as a place for staging documents to update the policy.
+Documents have json structure, organized by path into folders. Last element of the path is the document name, similar to a
+filesystem, folders exist only as a shorthand for shared paths. The convention for names is kebab lower case.
+Call flexus_policy_document() without parameters for details on how to list, read and write those documents.
+"""
+
 POLICY_DOCUMENT_TOOL = ckit_cloudtool.CloudTool(
     strict=False,
     name="flexus_policy_document",

@@ -8,7 +8,19 @@ from typing import Dict, Union, Optional, List, Any, Tuple
 import argparse
 import gql
 
+from flexus_client_kit import ckit_integrations_db
+from flexus_simple_bots import prompts_common
 from flexus_client_kit import ckit_client, ckit_cloudtool, ckit_skills, gql_utils
+
+
+def _build_expert_prompt(base_prompt: str, integrations_records: Optional[List]) -> str:
+    result = base_prompt.rstrip()
+    if integrations_records:
+        integrations_prompts = "\n".join(r.integr_prompt for r in integrations_records if r.integr_prompt)
+        if integrations_prompts:
+            result += "\n\n" + integrations_prompts
+    result += "\n\n" + prompts_common.PROMPT_HERE_GOES_SETUP
+    return result
 
 
 def load_form_bundles_from_dir(forms_dir: Path) -> Dict[str, str]:
@@ -93,6 +105,7 @@ async def marketplace_upsert_dev_bot(
     marketable_auth_needed: List[str] = [],
     marketable_auth_supported: List[str] = [],
     marketable_auth_scopes: Optional[Dict[str, List[str]]] = None,
+    integrations_records: Optional[List] = None,
 ) -> FBotInstallOutput:
     assert ws_id, "Set FLEXUS_WORKSPACE environment variable to your workspace ID"
     assert not ws_id.startswith("fx-"), "You can find workspace id in the browser address bar, when visiting for example the statistics page"
@@ -100,7 +113,11 @@ async def marketplace_upsert_dev_bot(
     async with http as h:
         experts_input = []
         for expert_type, expert in marketable_experts:
-            expert_dict = dataclasses.asdict(expert)
+            prepared = dataclasses.replace(
+                expert,
+                fexp_system_prompt=_build_expert_prompt(expert.fexp_system_prompt, integrations_records),
+            )
+            expert_dict = dataclasses.asdict(prepared)
             expert_dict["fexp_name"] = f"{marketable_name}_{expert_type}"
             experts_input.append(expert_dict)
         # NOTE: marketable_stage removed from mutation for staging API compatibility
@@ -215,4 +232,3 @@ async def bot_install_from_marketplace(
             },
         )
         return gql_utils.dataclass_from_dict(r["bot_install_from_marketplace"], InstallationResult)
-

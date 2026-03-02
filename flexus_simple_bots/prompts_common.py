@@ -25,23 +25,6 @@ Maintain a todo checklist for every conversation using flexus_task_todo:
 Status values: pending (default), in_progress, completed.
 """
 
-# XXX remove print_chat_restart_widget()
-PROMPT_PRINT_WIDGET = """
-## Printing Widgets
-
-You are talking to the user inside a UI. Here are some simple widgets you can show to the user:
-
-print_widget(t="upload-files")
-print_widget(t="open-bot-setup-dialog")
-
-Your toolset in this chat is fixed, after setting up a new tool (such as an MCP server) to test it
-you'll need a restart, print a widget to test, parameter `q` will become the first user
-message when clicked:
-
-print_widget(t="restart-chat", q="Test this new XXX tool in this way, in user's language")
-"""
-
-
 PROMPT_ASKING_QUESTIONS = """
 ## Asking Questions
 
@@ -82,16 +65,6 @@ Good usage:
 # The widget is not intrusive and you can call this function multiple times (after another setup field was filled)
 # and up to 3 in parallel (offer to test several different things).
 # """
-
-PROMPT_POLICY_DOCUMENTS = """
-## Policy Docs
-
-Policy documents control how robots (and sometimes humans) behave. It's a storage for practical lessons learned so far,
-summary of external documents, customer interviews, user instructions, as well as a place for staging documents to update the policy.
-Documents have json structure, organized by path into folders. Last element of the path is the document name, similar to a
-filesystem, folders exist only as a shorthand for shared paths. The convention for names is kebab lower case.
-Call flexus_policy_document() without parameters for details on how to list, read and write those documents.
-"""
 
 PROMPT_A2A_COMMUNICATION = """
 ## A2A Communication

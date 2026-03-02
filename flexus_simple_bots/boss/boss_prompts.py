@@ -33,7 +33,6 @@ description.
 {prompts_common.PROMPT_KANBAN}
 {prompts_common.PROMPT_PRINT_WIDGET}
 {prompts_common.PROMPT_A2A_COMMUNICATION}
-{prompts_common.PROMPT_HERE_GOES_SETUP}
 """
 
 boss_uihelp = boss_prompt + f"""

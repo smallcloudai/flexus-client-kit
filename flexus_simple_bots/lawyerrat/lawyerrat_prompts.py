@@ -25,7 +25,6 @@ In your first message, briefly introduce yourself and your capabilities. Don't c
 {prompts_common.PROMPT_PRINT_WIDGET}
 {prompts_common.PROMPT_POLICY_DOCUMENTS}
 {prompts_common.PROMPT_A2A_COMMUNICATION}
-{prompts_common.PROMPT_HERE_GOES_SETUP}
 """
 
 lawyerrat_setup = lawyerrat_prompt + """

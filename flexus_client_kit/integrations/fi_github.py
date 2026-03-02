@@ -10,6 +10,15 @@ logger = logging.getLogger("fi_github")
 
 TIMEOUT_S = 15.0
 
+GITHUB_PROMPT = """
+## GitHub Integration
+
+You can read and interact with GitHub repositories using the `github` tool.
+GitHub is the primary source of truth for code and project tracking.
+You can list files, read code, and manage issues or pull requests to coordinate development tasks.
+Always provide clear and concise comments when interacting with GitHub to help maintain code quality and project clarity.
+"""
+
 GITHUB_TOOL = ckit_cloudtool.CloudTool(
     strict=False,
     name="github",

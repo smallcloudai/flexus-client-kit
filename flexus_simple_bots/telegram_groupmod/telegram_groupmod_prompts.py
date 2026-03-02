@@ -49,7 +49,6 @@ You have more tools to help admin.
 
 {fi_messenger.MESSENGER_PROMPT}
 {prompts_common.PROMPT_KANBAN}
-{prompts_common.PROMPT_HERE_GOES_SETUP}
 """
 
 prompt_groupmod_review_messages = f"""{PERSONALITY}
@@ -67,8 +66,6 @@ Step 4: Resolve the task with a summary (or "no violations found").
 
 The buffer returns JSON with message_id, author_name, author_id, text, has_attachment per message.
 Use message_id to target telegram_mod_delete() and author_id for telegram_mod_action() calls.
-
-{prompts_common.PROMPT_HERE_GOES_SETUP}
 """
 
 prompt_groupmod_talk_in_dm = f"""{PERSONALITY}
@@ -80,6 +77,4 @@ prompt_groupmod_talk_in_dm = f"""{PERSONALITY}
 
 You talk to people in Telegram DMs. First, capture the chat, only after that say your response.
 Be happy to explain the rules, answer questions about the group, and help resolve issues. You are friendly but concise.
-
-{prompts_common.PROMPT_HERE_GOES_SETUP}
 """

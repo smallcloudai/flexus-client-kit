@@ -13,6 +13,7 @@ class IntegrationRecord:
     integr_setup_handlers: Callable
     integr_provider: str = ""
     integr_scopes: list[str] = field(default_factory=list)
+    integr_prompt: str = ""
 
 
 def static_integrations_load(bot_dir: Path, allowlist: list[str], builtin_skills: list[str]) -> list[IntegrationRecord]:
@@ -32,6 +33,7 @@ def static_integrations_load(bot_dir: Path, allowlist: list[str], builtin_skills
                     integr_setup_handlers=lambda obj, rcx, _d=bot_dir, _s=builtin_skills: [
                         rcx.on_tool_call("flexus_fetch_skill")(lambda tc, args: ckit_skills.called_by_model(tc, args, _d, _s))
                     ],
+                    integr_prompt=ckit_skills.SKILLS_PROMPT,
                 ))
 
         elif name == "flexus_policy_document":
@@ -43,6 +45,7 @@ def static_integrations_load(bot_dir: Path, allowlist: list[str], builtin_skills
                 integr_tools=[fi_pdoc.POLICY_DOCUMENT_TOOL],
                 integr_init=_init_pdoc,
                 integr_setup_handlers=lambda obj, rcx: [rcx.on_tool_call("flexus_policy_document")(obj.called_by_model)],
+                integr_prompt=fi_pdoc.POLICY_DOCUMENT_PROMPT,
             ))
 
         elif name == "print_widget":
@@ -54,6 +57,7 @@ def static_integrations_load(bot_dir: Path, allowlist: list[str], builtin_skills
                 integr_tools=[fi_widget.PRINT_WIDGET_TOOL],
                 integr_init=_init_widget,
                 integr_setup_handlers=lambda obj, rcx: [rcx.on_tool_call("print_widget")(fi_widget.handle_print_widget)],
+                integr_prompt=fi_widget.PRINT_WIDGET_PROMPT,
             ))
 
         elif name == "gmail":
@@ -67,6 +71,7 @@ def static_integrations_load(bot_dir: Path, allowlist: list[str], builtin_skills
                 integr_setup_handlers=lambda obj, rcx: [rcx.on_tool_call("gmail")(obj.called_by_model)],
                 integr_provider="google",
                 integr_scopes=fi_gmail.GMAIL_SCOPES,
+                integr_prompt=fi_gmail.GMAIL_PROMPT,
             ))
 
         elif name == "google_calendar":
@@ -80,6 +85,7 @@ def static_integrations_load(bot_dir: Path, allowlist: list[str], builtin_skills
                 integr_setup_handlers=lambda obj, rcx: [rcx.on_tool_call("google_calendar")(obj.called_by_model)],
                 integr_provider="google",
                 integr_scopes=fi_google_calendar.REQUIRED_SCOPES,
+                integr_prompt=fi_google_calendar.GOOGLE_CALENDAR_PROMPT,
             ))
 
         elif name == "jira":
@@ -94,6 +100,7 @@ def static_integrations_load(bot_dir: Path, allowlist: list[str], builtin_skills
                 integr_setup_handlers=lambda obj, rcx: [rcx.on_tool_call("jira")(obj.called_by_model)],
                 integr_provider="atlassian",
                 integr_scopes=fi_jira.REQUIRED_SCOPES,
+                integr_prompt=fi_jira.JIRA_PROMPT,
             ))
 
         elif name.startswith("facebook"):   # "facebook[account, adset]"
@@ -110,6 +117,7 @@ def static_integrations_load(bot_dir: Path, allowlist: list[str], builtin_skills
                 integr_init=_init_facebook,
                 integr_setup_handlers=lambda obj, rcx, _t=fb_tool: [rcx.on_tool_call(_t.name)(obj.called_by_model)],
                 integr_provider="facebook",
+                integr_prompt=fi_facebook2.FACEBOOK_PROMPT,
             ))
 
         elif name == "slack":
@@ -132,6 +140,7 @@ def static_integrations_load(bot_dir: Path, allowlist: list[str], builtin_skills
                     "users:read",
                     "im:read",
                 ],
+                integr_prompt=fi_slack.SLACK_PROMPT,
             ))
 
         elif name == "linkedin":
@@ -152,6 +161,7 @@ def static_integrations_load(bot_dir: Path, allowlist: list[str], builtin_skills
                     "email",
                     "w_member_social",
                 ],
+                integr_prompt=fi_linkedin.LINKEDIN_PROMPT,
             ))
 
         elif name == "github":
@@ -164,6 +174,7 @@ def static_integrations_load(bot_dir: Path, allowlist: list[str], builtin_skills
                 integr_init=_init_github,
                 integr_setup_handlers=lambda obj, rcx: [rcx.on_tool_call("github")(obj.called_by_model)],
                 integr_provider="github",
+                integr_prompt=fi_github.GITHUB_PROMPT,
             ))
 
         else:

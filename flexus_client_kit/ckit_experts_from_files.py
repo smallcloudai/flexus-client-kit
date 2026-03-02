@@ -29,10 +29,7 @@ def build_expert_prompt(prompts_dir: Path, expert_name: str) -> str:
         + body
         + "\n"
         + prompts_common.PROMPT_KANBAN
-        + prompts_common.PROMPT_PRINT_WIDGET
-        + prompts_common.PROMPT_POLICY_DOCUMENTS
         + prompts_common.PROMPT_A2A_COMMUNICATION
-        + prompts_common.PROMPT_HERE_GOES_SETUP
     )
 
 

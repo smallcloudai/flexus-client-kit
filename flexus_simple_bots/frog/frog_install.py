@@ -5,6 +5,7 @@ from pathlib import Path
 
 from flexus_client_kit import ckit_client, ckit_bot_install, ckit_cloudtool
 from flexus_client_kit import ckit_skills
+from flexus_client_kit import ckit_integrations_db
 from flexus_simple_bots import prompts_common
 from flexus_simple_bots.frog import frog_prompts
 
@@ -12,6 +13,17 @@ from flexus_simple_bots.frog import frog_prompts
 FROG_ROOTDIR = Path(__file__).parent
 FROG_SKILLS = ckit_skills.static_skills_find(FROG_ROOTDIR, shared_skills_allowlist="*")
 FROG_SETUP_SCHEMA = json.loads((FROG_ROOTDIR / "setup_schema.json").read_text())
+
+FROG_INTEGRATIONS: list[ckit_integrations_db.IntegrationRecord] = ckit_integrations_db.static_integrations_load(
+    FROG_ROOTDIR,
+    allowlist=[
+        "flexus_policy_document",
+        "print_widget",
+        "gmail",
+        "skills"
+    ],
+    builtin_skills=FROG_SKILLS
+)
 
 FROG_SUBCHAT_LARK = f"""
 print("Ribbit in logs")     # will be visible in lark logs
@@ -97,6 +109,7 @@ async def install(
                 "https://www.googleapis.com/auth/gmail.labels",
             ]
         },
+        integrations_records=FROG_INTEGRATIONS,
     )
 
 

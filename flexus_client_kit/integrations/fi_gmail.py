@@ -22,6 +22,16 @@ from flexus_client_kit import erp_schema
 
 logger = logging.getLogger("gmail")
 
+GMAIL_PROMPT = """
+## Gmail Integration
+
+You have access to the `gmail` tool for reading and sending emails.
+When working with emails, ensure you have the necessary context from the user.
+Communication should be professional yet helpful.
+Use `gmail_search()` to find relevant history and `gmail_create_draft()` for sensitive or external messages.
+Confirm with the user before actually sending an outgoing email unless specified otherwise in setup.
+"""
+
 GMAIL_TOOL = ckit_cloudtool.CloudTool(
     strict=False,
     name="gmail",
