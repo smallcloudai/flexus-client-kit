@@ -80,7 +80,7 @@ async def install(
         ws_id=client.ws_id,
         marketable_name=bot_name,
         marketable_version=bot_version,
-        marketable_accent_color="#DC143C",
+        marketable_accent_color="#ff66ae",
         marketable_title1="Telegram Group Mod",
         marketable_title2="Moderate Telegram groups: filter messages, manage members, enforce rules.",
         marketable_author="Flexus",

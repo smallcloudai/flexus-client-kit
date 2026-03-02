@@ -99,7 +99,7 @@ async def install(
         ws_id=client.ws_id,
         marketable_name=bot_name,
         marketable_version=bot_version,
-        marketable_accent_color="#dedad0",
+        marketable_accent_color="#645ff6",
         marketable_title1="Vix",
         marketable_title2="Sales & Marketing Agent - CRM, automations, and consultative selling with C.L.O.S.E.R. Framework.",
         marketable_author="Flexus",

@@ -147,7 +147,7 @@ async def install(
         ws_id=client.ws_id,
         marketable_name=bot_name,
         marketable_version=bot_version,
-        marketable_accent_color="#8B4513",
+        marketable_accent_color="#49cdc2",
         marketable_title1="LawyerRat",
         marketable_title2="A thorough legal research and document assistant with meticulous attention to detail.",
         marketable_author="Flexus",

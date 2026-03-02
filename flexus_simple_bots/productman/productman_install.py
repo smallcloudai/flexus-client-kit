@@ -82,7 +82,7 @@ async def install(
         ws_id=client.ws_id,
         marketable_name=bot_name,
         marketable_version=bot_version,
-        marketable_accent_color="#4A90E2",
+        marketable_accent_color="#49cdc2",
         marketable_title1="Productman",
         marketable_title2="Discovery Agent. Understand what to sell and to whom, validated by market logic.",
         marketable_author="Flexus",

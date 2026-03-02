@@ -48,7 +48,7 @@ async def install(
         ws_id=client.ws_id,
         marketable_name=bot_name,
         marketable_version=bot_version,
-        marketable_accent_color="#0077B5",
+        marketable_accent_color="#f6c459",
         marketable_title1="Ad Monster",
         marketable_title2="Keeps track of your campaings, automates A/B tests, gives you new ideas.",
         marketable_author="Flexus",

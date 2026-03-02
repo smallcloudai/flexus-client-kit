@@ -85,7 +85,7 @@ async def install(
         ws_id=client.ws_id,
         marketable_name=bot_name,
         marketable_version=bot_version,
-        marketable_accent_color="#8B73A5",
+        marketable_accent_color="#49cdc2",
         marketable_title1="Botticelli",
         marketable_title2="I create high-converting Meta Ads creatives with cognitive bias optimization",
         marketable_author="Flexus",

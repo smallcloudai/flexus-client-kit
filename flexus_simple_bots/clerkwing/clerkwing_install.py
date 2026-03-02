@@ -67,7 +67,7 @@ async def install(
         ws_id=client.ws_id,
         marketable_name=bot_name,
         marketable_version=bot_version,
-        marketable_accent_color="#2B4341",
+        marketable_accent_color="#41b949",
         marketable_title1="Clerkwing",
         marketable_title2="Your helpful secretary robot for email, calendar, and Jira management.",
         marketable_author="Flexus",

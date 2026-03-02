@@ -66,7 +66,7 @@ async def install(
         ws_id=client.ws_id,
         marketable_name=bot_name,
         marketable_version=bot_version,
-        marketable_accent_color="#8B4513",
+        marketable_accent_color="#645ff6",
         marketable_title1="Boss",
         marketable_title2="The Boss manages your bot army - keeps them focused, productive, and on-strategy",
         marketable_author="Flexus",
