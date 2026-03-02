@@ -78,7 +78,7 @@ Status legend:
 | `fi_tiktok.py` | TikTok | **multi-cred** (CLIENT_KEY + CLIENT_SECRET) |
 | `fi_x.py` | X (Twitter) | **paid plan required** — needs Bearer Token from [developer.x.com](https://developer.x.com); search/counts endpoints require Basic ($200/mo) at minimum. 31 methods implemented. Not implemented: streaming (`/2/tweets/sample/stream`, `/2/tweets/search/stream`) — SSE, not REST; bookmarks — requires OAuth 2.0 PKCE user context, Bearer Token not sufficient. |
 | `fi_x_ads.py` | X Ads | untested |
-| `fi_youtube.py` | YouTube Data API | untested |
+| `fi_youtube.py` | YouTube Data API v3 | 49 methods (44 REST + 5 binary-upload stubs). Read endpoints use API key (free, 10k units/day via [Google Cloud Console](https://console.developers.google.com/)). Write endpoints and private data (members, ratings, captions.download) require OAuth 2.0 token (`oauth_token` in auth). Not executable: `videos.insert`, `captions.insert`, `channel_banners.insert`, `thumbnails.set`, `watermarks.set` — multipart binary upload not feasible via JSON integration (returns `BINARY_UPLOAD_REQUIRED`). |
 
 ### Reviews & Competitive Intel
 
