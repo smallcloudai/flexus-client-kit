@@ -76,7 +76,7 @@ Status legend:
 | `fi_reddit.py` | Reddit | **multi-cred** (CLIENT_ID + CLIENT_SECRET) |
 | `fi_stackexchange.py` | Stack Exchange | untested |
 | `fi_tiktok.py` | TikTok | **multi-cred** (CLIENT_KEY + CLIENT_SECRET) |
-| `fi_x.py` | X (Twitter) | untested |
+| `fi_x.py` | X (Twitter) | **paid plan required** — needs Bearer Token from [developer.x.com](https://developer.x.com); search/counts endpoints require Basic ($200/mo) at minimum. 31 methods implemented. Not implemented: streaming (`/2/tweets/sample/stream`, `/2/tweets/search/stream`) — SSE, not REST; bookmarks — requires OAuth 2.0 PKCE user context, Bearer Token not sufficient. |
 | `fi_x_ads.py` | X Ads | untested |
 | `fi_youtube.py` | YouTube Data API | untested |
 
@@ -125,7 +125,7 @@ Status legend:
 | `fi_pipedrive.py` | Pipedrive | untested |
 | `fi_salesforce.py` | Salesforce | untested |
 | `fi_salesloft.py` | Salesloft | untested |
-| `fi_zendesk.py` | Zendesk Support | untested |
+| `fi_zendesk.py` | Zendesk Support | untested | need to create app in marketplace
 | `fi_zendesk_sell.py` | Zendesk Sell | untested |
 
 ### Analytics & Monitoring
