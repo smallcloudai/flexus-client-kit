@@ -9,7 +9,7 @@ from flexus_simple_bots.productman import productman_prompts, productman_skill_s
 
 
 PRODUCTMAN_ROOTDIR = Path(__file__).parent
-PRODUCTMAN_SKILLS = ckit_skills.skill_find_all(PRODUCTMAN_ROOTDIR, shared_skills_allowlist="")
+PRODUCTMAN_SKILLS = ckit_skills.static_skills_find(PRODUCTMAN_ROOTDIR, shared_skills_allowlist="")
 PRODUCTMAN_SETUP_SCHEMA = json.loads((PRODUCTMAN_ROOTDIR / "setup_schema.json").read_text())
 
 BOT_DESCRIPTION = """

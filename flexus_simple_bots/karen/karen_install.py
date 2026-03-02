@@ -15,7 +15,7 @@ from flexus_simple_bots.karen import karen_prompts
 
 
 KAREN_ROOTDIR = Path(__file__).parent
-KAREN_SKILLS = ckit_skills.skill_find_all(KAREN_ROOTDIR, shared_skills_allowlist="")
+KAREN_SKILLS = ckit_skills.static_skills_find(KAREN_ROOTDIR, shared_skills_allowlist="")
 KAREN_SETUP_SCHEMA = json.loads((KAREN_ROOTDIR / "setup_schema.json").read_text())
 KAREN_SETUP_SCHEMA += fi_slack.SLACK_SETUP_SCHEMA
 KAREN_SETUP_SCHEMA += fi_discord2.DISCORD_SETUP_SCHEMA

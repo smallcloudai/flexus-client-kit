@@ -13,7 +13,7 @@ from flexus_simple_bots.botticelli import botticelli_prompts
 
 
 BOTTICELLI_ROOTDIR = Path(__file__).parent
-BOTTICELLI_SKILLS = ckit_skills.skill_find_all(BOTTICELLI_ROOTDIR, shared_skills_allowlist="")
+BOTTICELLI_SKILLS = ckit_skills.static_skills_find(BOTTICELLI_ROOTDIR, shared_skills_allowlist="")
 BOTTICELLI_SETUP_SCHEMA = json.loads((BOTTICELLI_ROOTDIR / "setup_schema.json").read_text())
 
 

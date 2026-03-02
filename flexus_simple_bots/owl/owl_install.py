@@ -9,7 +9,7 @@ from flexus_simple_bots.owl import owl_prompts
 
 
 OWL_ROOTDIR = Path(__file__).parent
-OWL_SKILLS = ckit_skills.skill_find_all(OWL_ROOTDIR, shared_skills_allowlist="")
+OWL_SKILLS = ckit_skills.static_skills_find(OWL_ROOTDIR, shared_skills_allowlist="")
 
 BOT_DESCRIPTION = """
 ## Owl — Growth Strategist

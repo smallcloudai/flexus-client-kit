@@ -9,7 +9,7 @@ from flexus_simple_bots.owl import owl_prompts
 
 
 OWL3_ROOTDIR = Path(__file__).parent
-OWL3_SKILLS = ckit_skills.skill_find_all(OWL3_ROOTDIR, shared_skills_allowlist="")
+OWL3_SKILLS = ckit_skills.static_skills_find(OWL3_ROOTDIR, shared_skills_allowlist="")
 
 # Reuse owl's pictures — same bot, simplified internals
 OWL_ASSETS = Path(__file__).parents[1] / "owl"

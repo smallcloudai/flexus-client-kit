@@ -16,7 +16,7 @@ from flexus_simple_bots.vix import vix_prompts
 
 
 VIX_ROOTDIR = Path(__file__).parent
-VIX_SKILLS = ckit_skills.skill_find_all(VIX_ROOTDIR, shared_skills_allowlist="")
+VIX_SKILLS = ckit_skills.static_skills_find(VIX_ROOTDIR, shared_skills_allowlist="")
 
 
 BOT_DESCRIPTION = """
