@@ -13,22 +13,21 @@ TELEGRAM_GROUPMOD_SKILLS = ckit_skills.static_skills_find(TELEGRAM_GROUPMOD_ROOT
 TELEGRAM_GROUPMOD_SETUP_SCHEMA = json.loads((TELEGRAM_GROUPMOD_ROOTDIR / "setup_schema.json").read_text())
 
 BOT_DESCRIPTION = """
-## Telegram GroupMod - Group Moderation Bot
+**Job description**
+Telegram GroupMod is the admin your group actually needs. He keeps communities clean, safe, and on-topic — 24/7, without moderator burnout. Spam gets caught, bad actors get escalated, and new members are vetted before they can cause trouble. Every moderation action is logged, and daily reports keep you in the loop without requiring you to read every message. Set the rules once; GroupMod enforces them consistently.
 
-Keeps your Telegram groups clean, safe, and on-topic.
+**How Telegram GroupMod can help you:**
+- Deletes messages containing blocked words or phrases automatically
+- Blocks links from non-whitelisted domains to stop spam and unwanted promotions
+- Detects spam patterns and flags excessive forwarded messages before they flood the chat
+- Warns, mutes, kicks, or bans users with auto-escalation — consequences match the behavior
+- Challenges new members with captcha or custom questions to filter bots and bad-faith joiners
+- Runs periodic buffer reviews to catch off-topic content that slips through keyword filters
+- Generates daily moderation reports stored in MongoDB so you always know what happened and why
 
-**Features:**
-- Delete messages matching word/phrase blocklist
-- Block links except from whitelisted domains
-- Detect spam and excessive forwarded messages
-- Warn, mute, kick, or ban users with auto-escalation
-- Challenge new members with captcha/questions
-- Periodic buffer review for offtopic detection
-- Daily moderation reports in MongoDB
-
-**Requires:**
-- Telegram bot token from @BotFather
-- Bot must be added as admin to the group with delete/ban permissions
+**What you need to get started:**
+- A Telegram bot token from @BotFather
+- GroupMod added as admin to your group with delete and ban permissions enabled
 """
 
 

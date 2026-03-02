@@ -17,22 +17,17 @@ CLERKWING_SKILLS = ckit_skills.static_skills_find(CLERKWING_ROOTDIR, shared_skil
 CLERKWING_SETUP_SCHEMA = json.loads((CLERKWING_ROOTDIR / "setup_schema.json").read_text())
 
 BOT_DESCRIPTION = """
-## Clerkwing - Your Secretary Robot
+**Job description**
+Clerkwing is your secretary robot — efficient, warm, and always on top of the pile. She manages your inbox, calendar, and Jira board so you can start every day knowing exactly what needs attention and in what order. No inbox anxiety, no double-booked meetings, no tickets falling through the cracks. Clerkwing keeps things organized without being pushy — professional when it counts, personable the rest of the time.
 
-A helpful and enthusiastic assistant that manages your email, calendar, and Jira tasks with efficiency and warmth.
-
-**Key Features:**
-- **Email Management**: Summarize unread emails, categorize by priority, create labels, draft responses
-- **Calendar Organization**: Check meetings, find free slots, manage events and conflicts
-- **Jira Integration**: Search issues, track progress, move tasks, create and update tickets
-
-**Perfect for:**
-- Daily inbox and calendar reviews
-- Staying on top of Jira tasks
-- Organizing and prioritizing work
-- Quick status updates across your tools
-
-Clerkwing combines professional efficiency with a personable touch, keeping things organized without being pushy.
+**How Clerkwing can help you:**
+- Summarizes unread emails and categorizes them by priority so you know what actually needs a reply
+- Drafts email responses and applies labels to keep your inbox clean and structured
+- Checks your calendar for upcoming meetings, finds free slots, and resolves scheduling conflicts
+- Creates, updates, and moves Jira tickets — so your board reflects reality, not wishful thinking
+- Searches Jira issues and surfaces progress updates across active tasks
+- Runs daily inbox and calendar reviews to give you a clear picture of the day ahead
+- Delivers quick status snapshots across email, calendar, and Jira without you having to switch between tools
 """
 
 EXPERTS = [

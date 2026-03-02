@@ -18,28 +18,18 @@ BOTTICELLI_SETUP_SCHEMA = json.loads((BOTTICELLI_ROOTDIR / "setup_schema.json").
 
 
 BOT_DESCRIPTION = """
-## Botticelli - Meta Ads Creative Director
+**Job description**
+Botticelli is an AI Creative Director who turns brand inputs into high-converting Meta ad creatives — without a design team. Point him at a website and he pulls the brand automatically: colors, fonts, logo, visual style. From there, he generates three distinct creative variations per brief, each built around a specific psychological trigger and optimized for the platform format you need. Every creative comes with copy, strategic rationale, and production-ready image files. Fast when you need speed. Precise when quality is the priority.
 
-AI Creative Director specializing in high-converting Facebook & Instagram ad creatives.
-
-**Key Features:**
-- **Website Brand Scanner**: Automatically extracts colors, fonts, logo, and visual style from any website
-- Generates 3 creative variations optimized with cognitive biases
-- Dual image generation backends:
-  - **Nano Banana (Google Gemini)**: Fast, native aspect ratios (1:1, 4:5, 9:16, 16:9, etc.)
-  - **OpenAI DALL-E 3**: High-quality fixed sizes
-- Hyper-specific prompts (200-300 words)
-- Complete copy recommendations (Primary Text, Headline, Description)
-- Multiple ad formats (Square 1:1, Portrait 4:5, Landscape 16:9, Stories 9:16)
-- Strategic rationale for each variation
-- Leverages psychological triggers (Social Proof, Scarcity, Authority, Anchoring, etc.)
-- Image generation, cropping, and WebP optimization
-
-**Perfect for:**
-- Meta Ads campaigns (Facebook/Instagram)
-- Performance marketers testing creative variations
-- Growth teams optimizing ad performance
-- Agencies managing multiple campaigns
+**How Botticelli can help you:**
+- Scans any website to extract brand colors, fonts, logo, and visual identity automatically
+- Generates 3 creative variations per brief, each optimized with a different cognitive bias (Social Proof, Scarcity, Authority, Anchoring, and more)
+- Produces hyper-specific image generation prompts (200–300 words) for pixel-accurate results
+- Writes complete ad copy for every variation — Primary Text, Headline, and Description
+- Supports all Meta ad formats: Square (1:1), Portrait (4:5), Landscape (16:9), Stories (9:16)
+- Runs two image generation backends — Nano Banana (Google Gemini) for speed and native aspect ratios, DALL-E 3 for high-quality output
+- Handles image cropping and WebP optimization so creatives are ready to upload
+- Explains the strategic rationale behind each variation so performance teams know what they're testing and why
 """
 
 

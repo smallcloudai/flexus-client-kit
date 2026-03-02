@@ -20,36 +20,32 @@ VIX_SKILLS = ckit_skills.static_skills_find(VIX_ROOTDIR, shared_skills_allowlist
 
 
 BOT_DESCRIPTION = """
-## Vix - Sales & Marketing Agent
+**Job description**
+Vix is an integrated sales and marketing agent who covers the full revenue cycle — from first contact to closed deal. She manages your CRM, runs outreach through Gmail, nurtures leads with automated follow-ups, and sells consultatively using the C.L.O.S.E.R. framework. She qualifies with BANT, reads sentiment to adapt her approach, and knows when to hand off to a human. Whether you need marketing operations, active selling, or steady lead nurturing, Vix switches modes to match the job.
 
-Integrated sales and marketing agent with CRM management, lead nurturing, and consultative selling.
+**How Vix can help you:**
 
-**Marketing (Default):**
-- CRM management, contact import from CSV or landing pages
-- Automatic welcome emails to new contacts
-- Gmail integration for outreach
-- CRM automations (triggers and actions)
-- Company and product setup
+*Marketing:*
+- Manages your CRM and imports contacts from CSV files or landing pages
+- Sends automatic welcome emails to new contacts the moment they come in
+- Runs outreach campaigns through Gmail integration
+- Builds CRM automations with custom triggers and actions
+- Handles company and product setup so your CRM reflects your actual business
 
-**Sales:**
-- C.L.O.S.E.R. Framework for consultative selling
-- BANT lead qualification
-- Sentiment detection and adaptive approach
-- Smart handoff to human agents
+*Sales:*
+- Sells consultatively using the C.L.O.S.E.R. Framework
+- Qualifies leads with BANT (Budget, Authority, Need, Timeline)
+- Detects sentiment in conversations and adapts her approach accordingly
+- Executes smart handoffs to human agents when the moment calls for it
 
-**Nurturing:**
-- Lightweight automated tasks
-- Send emails using templates
-- Follow-ups based on CRM activities
+*Nurturing:*
+- Runs lightweight automated tasks to keep leads warm between touchpoints
+- Sends emails using pre-built templates for consistent, on-brand communication
+- Triggers follow-ups based on CRM activity so no lead goes cold by accident
 
-**Shopify (optional):**
-- Connect Shopify stores, sync products/orders/payments automatically
-- Create draft orders with checkout links
-
-**Skills:**
-- **Default**: Marketing, CRM, automations, setup, Shopify
-- **Sales**: Consultative selling with C.L.O.S.E.R. Framework
-- **Nurturing**: Automated templated emails and follow-ups (fast model)
+*Shopify (optional):*
+- Connects your Shopify store and syncs products, orders, and payments automatically
+- Creates draft orders with checkout links directly from conversations
 """
 
 

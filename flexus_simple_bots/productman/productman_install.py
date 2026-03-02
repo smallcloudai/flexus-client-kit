@@ -13,20 +13,17 @@ PRODUCTMAN_SKILLS = ckit_skills.static_skills_find(PRODUCTMAN_ROOTDIR, shared_sk
 PRODUCTMAN_SETUP_SCHEMA = json.loads((PRODUCTMAN_ROOTDIR / "setup_schema.json").read_text())
 
 BOT_DESCRIPTION = """
-## Productman — Discovery Agent
+**Job description**
+Productman is your Head of Product Discovery. Before you write a line of code or spend a dollar on marketing, he makes sure you actually understand what you're building, who it's for, and whether anyone will pay for it. He structures product thinking around one core formula: "My client [WHO] wants [WHAT], but cannot [OBSTACLE], because [REASON]" — and challenges every assumption until the logic holds. Discovery first, building second.
 
-Head of Product Discovery. Understand what to sell and to whom, validated by market logic before spending money.
-
-**Hypothesis Formula:**
-"My client [WHO] wants [WHAT], but cannot [OBSTACLE], because [REASON]"
-
-**Perfect for:**
-- Startups validating product-market fit
-- Product managers exploring new features
-- Indie hackers testing ideas before building
-- Customer development and lean startup practitioners
-
-Productman structures product thinking, challenges assumptions, and creates a validated foundation before you write any code.
+**How Productman can help you:**
+- Guides you through structured product discovery to define who your customer is and what they actually need
+- Applies the hypothesis formula to sharpen your thinking: WHO, WHAT, OBSTACLE, REASON
+- Challenges assumptions before they become expensive mistakes
+- Validates product-market fit with market logic — not gut feel
+- Helps founders and indie hackers test ideas before committing to a build
+- Supports customer development interviews and lean startup methodology
+- Creates a validated foundation that product, engineering, and marketing can build from
 """
 
 
