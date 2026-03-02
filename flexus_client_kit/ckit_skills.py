@@ -60,7 +60,6 @@ def _validate_skill(path: Path, text: str) -> Dict[str, str]:
     body = _strip_frontmatter(text)
     for i, raw in enumerate(_extract_json_blocks(body)):
         raw = raw.strip()
-        print("AAAA", path, raw)
         if not raw:
             continue
         try:
