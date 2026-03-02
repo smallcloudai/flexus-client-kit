@@ -112,6 +112,8 @@ async def install(
         ],
         marketable_intro_message="Hi! I'm Vix, your sales and marketing assistant. I can help with CRM management, email automations, contact imports, and sales conversations. What would you like to work on?",
         marketable_preferred_model_default="claude-opus-4-5-20251101",
+        marketable_daily_budget_default=10_000_000,
+        marketable_default_inbox_default=1_000_000,
         marketable_experts=[(name, exp.filter_tools(tools)) for name, exp in EXPERTS],
         marketable_tags=["Sales", "Marketing", "CRM", "Email", "Automation", "Shopify", "E-commerce"],
         marketable_picture_big_b64=pic_big,
@@ -121,7 +123,7 @@ async def install(
             prompts_common.SCHED_TODO_5M | {"sched_when": "EVERY:1m"},
         ],
         marketable_forms={},
-        marketable_auth_supported=["telegram", "shopify"],
+        marketable_auth_supported=["telegram", "shopify", "resend"],
         marketable_required_policydocs=["/company/summary", "/company/sales-strategy"],
     )
 

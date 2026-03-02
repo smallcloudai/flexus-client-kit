@@ -21,7 +21,7 @@ class CrmActivity:
     ]})
     activity_contact_id: str = field(metadata={"importance": 1, "display_name": "Contact"})
     activity_id: str = field(default="", metadata={"pkey": True, "display_name": "Activity ID"})
-    activity_platform: str = field(default="", metadata={"importance": 1, "display_name": "Channel"})
+    activity_platform: str = field(default="", metadata={"importance": 1, "display_name": "Channel", "description": "e.g. TELEGRAM, WHATSAPP, EMAIL, SLACK, DISCORD, PHONE, WEB"})
     activity_ft_id: Optional[str] = field(default=None, metadata={"importance": 1, "display_name": "Thread"})
     activity_summary: str = field(default="", metadata={"importance": 1, "display": "string_multiline", "display_name": "Summary"})
     activity_details: dict = field(default_factory=dict, metadata={"display_name": "Details"})
@@ -62,6 +62,7 @@ class CrmContact:
     contact_modified_ts: float = field(default=0.0, metadata={"display_name": "Modified at"})
     contact_archived_ts: float = field(default=0.0, metadata={"display_name": "Archived at"})
     contact_commerce_external: dict = field(default_factory=dict, metadata={"display_name": "Commerce External"})
+    contact_platform_ids: dict = field(default_factory=dict, metadata={"display_name": "Platform IDs", "editable": False, "description": "Map of platform name to user/chat ID, e.g. {\"telegram\": \"123456\"}"})
 
 
 @dataclass

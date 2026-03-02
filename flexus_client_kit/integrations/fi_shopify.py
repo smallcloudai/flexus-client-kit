@@ -19,6 +19,20 @@ from flexus_client_kit import erp_schema
 
 logger = logging.getLogger("shopify")
 
+# Testing Shopify OAuth and webhooks on localhost:
+#
+# In backend console:
+# export SHOPIFY_CLIENT_ID="..."   # from your Shopify app settings
+# export SHOPIFY_CLIENT_SECRET="..."
+# Set redirect URL in your Shopify app to: http://localhost:8008/v1/tool-oauth/shopify/callback
+#
+# Install ngrok: https://ngrok.com/download
+# ngrok http 8008
+# => copy the https://xxx.ngrok-free.app URL
+#
+# In bot console:
+# export WEBHOOK_BASE_URL="https://xxx.ngrok-free.app"
+
 API_VER = "2026-01"
 
 SHOPIFY_SCOPES = [
@@ -475,14 +489,14 @@ class IntegrationShopify:
     async def _register_webhooks(self) -> str:
         if not (token := self._get_token()):
             return "No access token for webhook registration"
-        if override := os.environ.get("SHOPIFY_WEBHOOK_URL"):
-            address_base = override.rstrip("/")
-        elif os.environ.get("FLEXUS_ENV") == "production":
-            address_base = f"https://flexus.team/v1/webhook/shopify/{self.shop.shop_id}"
-        elif os.environ.get("FLEXUS_ENV") == "staging":
-            address_base = f"https://staging.flexus.team/v1/webhook/shopify/{self.shop.shop_id}"
-        else:
-            return "Webhook URL not configured: set FLEXUS_ENV or SHOPIFY_WEBHOOK_URL"
+        flexus_env = os.environ.get("FLEXUS_ENV", "")
+        base = os.environ.get("WEBHOOK_BASE_URL", "").rstrip("/") or (
+            "https://flexus.team" if flexus_env == "production" else
+            "https://staging.flexus.team" if flexus_env == "staging" else ""
+        )
+        if not base:
+            return "Webhook URL not configured: set FLEXUS_ENV or WEBHOOK_BASE_URL"
+        address_base = f"{base}/v1/webhook/shopify/{self.shop.shop_id}"
         existing = await _paginate(self.shop.shop_domain, token, "webhooks.json", "webhooks")
         ours = {w["topic"]: w for w in existing if w["topic"] in WEBHOOK_TOPICS}
         async with httpx.AsyncClient(timeout=30) as c:
@@ -612,7 +626,7 @@ class IntegrationShopify:
         if err:
             return err
         if not op or "help" in op:
-            return HELP
+            return await self._op_status() + "\n\n" + HELP
         if op == "connect":
             return await self._op_connect(args, model_produced_args)
         if op == "status":

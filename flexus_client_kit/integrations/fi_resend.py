@@ -5,11 +5,22 @@ from dataclasses import dataclass
 from typing import Dict, Any, List, Optional
 
 import gql
-import httpx
 
 from flexus_client_kit import ckit_bot_exec, ckit_bot_query, ckit_client, ckit_cloudtool
 
 logger = logging.getLogger("resend")
+
+# Testing resend inbound emails on localhost (requires your own Resend account,
+# dev bots cannot use the system Resend key):
+#
+# Connect your Resend account via Integrations page.
+# Install ngrok: https://ngrok.com/download
+# ngrok http 8008
+# => copy the https://xxx.ngrok-free.app URL
+#
+# In backend console:
+# export WEBHOOK_BASE_URL="https://xxx.ngrok-free.app"
+# => reconnect Resend in Integrations to register the webhook
 
 RESEND_BASE = "https://api.resend.com"
 
@@ -22,22 +33,6 @@ def resend_testing_domain() -> str:
     return "flexus-email.bot"
 
 RESEND_SETUP_SCHEMA = [
-    {
-        "bs_name": "RESEND_API_KEY",
-        "bs_type": "string_long",
-        "bs_default": "",
-        "bs_group": "Email",
-        "bs_importance": 0,
-        "bs_description": "Your own Resend API key. Leave empty to use the managed platform key.",
-    },
-    {
-        "bs_name": "RESEND_WEBHOOK_SECRET",
-        "bs_type": "string_long",
-        "bs_default": "",
-        "bs_group": "Email",
-        "bs_importance": 0,
-        "bs_description": "Webhook signing secret from your Resend account (whsec_...). Recommended for verifying incoming webhook signatures.",
-    },
     {
         "bs_name": "DOMAINS",
         "bs_type": "string_multiline",
@@ -55,7 +50,7 @@ Users can configure EMAIL_RESPOND_TO addresses — emails to those addresses are
 Strongly recommend using a subdomain (e.g. mail.example.com) instead of the main domain, especially for inbound emails.
 If no domain is configured, send from *@{resend_testing_domain()} for testing.
 Never use flexus_my_setup() for email domains — they are saved automatically via email_setup_domain() tool.
-If user has their own RESEND_API_KEY and wants to receive inbound emails, call email_setup_domain(op="help") for webhook setup instructions."""
+If user wants to use their own Resend account, they should connect it via the Integrations page — the webhook is created automatically on connect."""
 
 RESEND_SEND_TOOL = ckit_cloudtool.CloudTool(
     strict=True,
@@ -112,12 +107,7 @@ email_setup_domain(op="list")
 email_setup_domain(op="delete", args={"domain_id": "..."})
     Remove a domain.
 
-Receiving emails with your own Resend account (requires RESEND_API_KEY in bot setup):
-    1. In Resend dashboard, create a webhook pointing to: https://flexus.team/v1/webhook/resend/PERSONA_ID
-       (use BotPersonaId from your setup config)
-    2. Subscribe to event: email.received
-    3. Recommended: copy the signing secret (whsec_...) into RESEND_WEBHOOK_SECRET in bot setup for security
-"""
+To send and receive emails with your own Resend account connect Resend via the Integrations page."""
 
 
 @dataclass
@@ -137,16 +127,6 @@ def _setup_help(has_domains: bool) -> str:
     if not has_domains:
         return SETUP_HELP + f"No domains configured yet. Send from @{resend_testing_domain()} in the meantime.\n"
     return SETUP_HELP
-
-
-async def _check_dns_txt(domain: str, expected: str) -> bool:
-    try:
-        async with httpx.AsyncClient(timeout=5) as c:
-            r = await c.get(f"https://dns.google/resolve?name={domain}&type=TXT")
-            return any(expected in a.get("data", "") for a in r.json().get("Answer", []))
-    except Exception as e:
-        logger.warning("DNS TXT check failed for %s: %s", domain, e)
-        return False
 
 
 def parse_emessage(emsg: ckit_bot_query.FExternalMessageOutput) -> ActivityEmail:

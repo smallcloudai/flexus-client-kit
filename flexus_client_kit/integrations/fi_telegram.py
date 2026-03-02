@@ -3,8 +3,6 @@ import base64
 import io
 import json
 import logging
-import os
-import time
 from collections import deque
 from dataclasses import dataclass, field
 from typing import Any, Awaitable, Callable, Dict, List, Optional
@@ -14,7 +12,7 @@ from PIL import Image
 import telegram
 import telegram.ext
 
-from flexus_client_kit import ckit_ask_model, ckit_bot_exec, ckit_bot_query, ckit_client, ckit_cloudtool, ckit_erp, gql_utils
+from flexus_client_kit import ckit_ask_model, ckit_bot_exec, ckit_bot_query, ckit_client, ckit_cloudtool, gql_utils
 from flexus_client_kit.format_utils import format_cat_output
 from flexus_client_kit.integrations import fi_messenger
 
@@ -22,15 +20,13 @@ logger = logging.getLogger("teleg")
 
 # Testing telegram with webhook on localhost:
 #
-# npm install --global smee-client
-# Visit https://smee.io/ , click Start a new channel => CHAN
+# Install ngrok: https://ngrok.com/download
+# ngrok http 8008
+# => copy the https://xxx.ngrok-free.app URL
 #
-# In parallel console (unfortunately the complete path needed):
-# smee -u https://smee.io/CHAN --target http://127.0.0.1:8008/v1/webhook/telegram/TELE_BOT_ID
-#
-# In dev console:
-# export FLEXUS_TELEGRAM_WEBHOOK_URL="https://smee.io/CHAN"
-# => start bot
+# In backend console:
+# export WEBHOOK_BASE_URL="https://xxx.ngrok-free.app"
+# => reconnect Telegram in Integrations to register the webhook
 
 
 # Capturing mechanics:
@@ -62,8 +58,8 @@ telegram(op="capture", args={"chat_id": 123456789})
     Capture a Telegram chat. Messages will appear here and your responses will be sent back.
     You can only capture chats where the bot is a member.
 
-telegram(op="uncapture", args={"contact_id": "abc123", "conversation_summary": "Brief summary"})
-    Stop capturing. If contact_id is provided, logs a CRM activity with the summary.
+telegram(op="uncapture")
+    Stop capturing this Telegram chat. Do this at the end when you're done talking.
 
 telegram(op="post", args={"chat_id": 123456789, "text": "Hello!"})
     Post a message to a Telegram chat. Don't use this for captured chats.
@@ -103,8 +99,13 @@ class IntegrationTelegram:
     ):
         self.fclient = fclient
         self.rcx = rcx
-        self.bot_token = (rcx.external_auth.get("telegram") or {}).get("api_key", "").strip()
+        tg_auth = rcx.external_auth.get("telegram") or {}
+        self.bot_token = tg_auth.get("api_key", "").strip()
+        self.webhook_secret = tg_auth.get("webhook_secret", "")
+        self.webhook_error = tg_auth.get("webhook_error", "")
         self.problems_accumulator: List[str] = []
+        if self.webhook_error:
+            self.oops_a_problem(f"Telegram webhook error on connect: {self.webhook_error} — reconnect Telegram in Integrations to fix")
 
         self.tg_app: Optional[telegram.ext.Application] = None
 
@@ -130,33 +131,15 @@ class IntegrationTelegram:
         logger.info("%s telegram problem: %s", self.rcx.persona.persona_id, text)
         self.problems_accumulator.append(text)
 
-    async def register_webhook_and_start(self) -> None:
-        if not self.tg_app:
-            return
-        bot_id = self.bot_token.split(":")[0]
-        if webhook_url := os.environ.get("TELEGRAM_WEBHOOK_URL"):
-            pass
-        elif os.environ.get("FLEXUS_ENV") == "production":
-            webhook_url = f"https://flexus.team/v1/webhook/telegram/{bot_id}"
-        elif os.environ.get("FLEXUS_ENV") == "staging":
-            webhook_url = f"https://staging.flexus.team/v1/webhook/telegram/{bot_id}"
-        else:
-            self.oops_a_problem("FLEXUS_ENV must be 'production' or 'staging', or set TELEGRAM_WEBHOOK_URL")
+    async def initialize(self) -> None:
+        if self.webhook_error or not self.tg_app:
             return
         try:
             await self.tg_app.initialize()
-            info = await self.tg_app.bot.get_webhook_info()
-            if info.url != webhook_url:
-                await self.tg_app.bot.set_webhook(webhook_url)
-                logger.info("%s telegram bot %s webhook changed to %s", self.rcx.persona.persona_id, bot_id, webhook_url)
-            else:
-                logger.info("%s telegram bot %s webhook stays %s", self.rcx.persona.persona_id, bot_id, webhook_url)
+            logger.info("%s telegram bot %s initialized", self.rcx.persona.persona_id, self.bot_token.split(":")[0])
         except Exception as e:
-            logger.exception("%s telegram failed to set webhook", self.rcx.persona.persona_id)
-            self.oops_a_problem(f"webhook: {type(e).__name__}: {e}")
-
-        # For some reason, even start() is not necessary, it works without it
-        # await self.tg_app.start()
+            logger.exception("%s telegram failed to initialize", self.rcx.persona.persona_id)
+            self.oops_a_problem(f"initialize: {type(e).__name__}: {e}")
 
     def on_incoming_activity(self, handler: Callable[[ActivityTelegram, bool], Awaitable[None]]):
         self._activity_callback = handler
@@ -246,27 +229,10 @@ class IntegrationTelegram:
             return fi_messenger.CAPTURE_SUCCESS_MSG % identifier + fi_messenger.CAPTURE_ADVICE_MSG + markup_help
 
         if op == "uncapture":
-            contact_id = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "contact_id", None)
-            summary = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "conversation_summary", None)
-            if contact_id and not summary:
-                return "Missing conversation_summary.\n"
-
             http = await self.fclient.use_http()
             await ckit_ask_model.thread_app_capture_patch(http, toolcall.fcall_ft_id, ft_app_searchable="")
             if fthread := self.rcx.latest_threads.get(toolcall.fcall_ft_id):
                 fthread.thread_fields.ft_app_searchable = ""
-            if contact_id:
-                await ckit_erp.create_erp_record(self.fclient, "crm_activity", self.rcx.persona.ws_id, {
-                    "ws_id": self.rcx.persona.ws_id,
-                    "activity_title": "TELEGRAM conversation",
-                    "activity_type": "MESSENGER_CHAT",
-                    "activity_platform": "TELEGRAM",
-                    "activity_direction": "INBOUND",
-                    "activity_contact_id": contact_id,
-                    "activity_ft_id": toolcall.fcall_ft_id,
-                    "activity_summary": summary,
-                    "activity_occurred_ts": time.time(),
-                })
             return fi_messenger.UNCAPTURE_SUCCESS_MSG
 
         if op == "generate_chat_link":

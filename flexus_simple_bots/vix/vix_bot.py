@@ -24,6 +24,7 @@ from flexus_client_kit.integrations import fi_crm_automations
 from flexus_client_kit.integrations import fi_resend
 from flexus_client_kit.integrations import fi_shopify
 from flexus_client_kit.integrations import fi_telegram
+from flexus_client_kit.integrations import fi_crm
 from flexus_client_kit.integrations import fi_widget
 from flexus_simple_bots.vix import vix_install
 from flexus_simple_bots.version_common import SIMPLE_BOTS_COMMON_VERSION
@@ -42,6 +43,7 @@ TOOLS = [
     fi_erp.ERP_TABLE_DATA_TOOL,
     fi_erp.ERP_TABLE_CRUD_TOOL,
     fi_erp.ERP_CSV_IMPORT_TOOL,
+    fi_crm.LOG_CRM_ACTIVITY_TOOL,
     fi_crm_automations.CRM_AUTOMATION_TOOL,
     fi_resend.RESEND_SEND_TOOL,
     fi_resend.RESEND_SETUP_TOOL,
@@ -64,6 +66,7 @@ async def vix_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.Ro
 
     pdoc_integration = fi_pdoc.IntegrationPdoc(rcx, rcx.persona.ws_root_group_id)
     erp_integration = fi_erp.IntegrationErp(fclient, rcx.persona.ws_id, personal_mongo)
+    crm_integration = fi_crm.IntegrationCrm(fclient, rcx.persona.ws_id)
     automations_integration = fi_crm_automations.IntegrationCrmAutomations(
         fclient, rcx, get_setup, available_erp_tables=ERP_TABLES,
     )
@@ -72,7 +75,7 @@ async def vix_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.Ro
     resend_integration = fi_resend.IntegrationResend(fclient, rcx, resend_domains, email_respond_to)
     shopify = fi_shopify.IntegrationShopify(fclient, rcx)
     telegram = fi_telegram.IntegrationTelegram(fclient, rcx)
-    await telegram.register_webhook_and_start()
+    await telegram.initialize()
 
     @rcx.on_updated_message
     async def updated_message_in_db(msg: ckit_ask_model.FThreadMessageOutput):
@@ -171,6 +174,10 @@ async def vix_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.Ro
     async def toolcall_email_setup(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
         return await resend_integration.setup_called_by_model(toolcall, model_produced_args)
 
+    @rcx.on_tool_call(fi_crm.LOG_CRM_ACTIVITY_TOOL.name)
+    async def toolcall_log_crm_activity(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
+        return await crm_integration.handle_log_crm_activity(toolcall, model_produced_args)
+
     @rcx.on_tool_call(fi_crm_automations.CRM_AUTOMATION_TOOL.name)
     async def toolcall_crm_automation(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
         return await automations_integration.handle_crm_automation(toolcall, model_produced_args)
@@ -203,7 +210,10 @@ async def vix_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.Ro
             contact_id = a.message_text[9:].strip()
             details["contact_id"] = contact_id
             title = "CRM contact opened Telegram chat, contact_id=%s chat_id=%d" % (contact_id, a.chat_id)
+            await ckit_erp.patch_erp_record(fclient, "crm_contact", rcx.persona.ws_id, contact_id, {"contact_platform_ids": {"telegram": str(a.chat_id)}})
         else:
+            if contact_id := await fi_crm.find_contact_by_platform_id(fclient, rcx.persona.ws_id, "telegram", str(a.chat_id)):
+                details["contact_id"] = contact_id
             title = "Telegram %s user=%r chat_id=%d\n%s" % (a.chat_type, a.message_author_name, a.chat_id, a.message_text)
             if a.attachments:
                 title += f"\n[{len(a.attachments)} file(s) attached]"
