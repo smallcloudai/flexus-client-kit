@@ -959,7 +959,7 @@ async def run_bots_in_this_group(
     inprocess_tools: List[ckit_cloudtool.CloudTool],
     bot_main_loop: Callable[[ckit_client.FlexusClient, RobotContext], Awaitable[None]],
     scenario_fn: str,
-    install_func: Callable[[ckit_client.FlexusClient, str], Awaitable[None]],
+    install_func: Optional[Callable[[ckit_client.FlexusClient, str, str, list], Awaitable[None]]] = None,
     subscribe_to_erp_tables: List[str] = [],
 ) -> None:
     marketable_version = ckit_client.marketplace_version_as_int(marketable_version_str)
@@ -982,7 +982,10 @@ async def run_bots_in_this_group(
             return
         if fclient.ws_id:
             logger.info("Installing %s:%s into workspace %s", marketable_name, marketable_version_str, fclient.ws_id)
-            await install_func(fclient, marketable_name, marketable_version_str, inprocess_tools)
+            if install_func is not None:
+                await install_func(fclient, marketable_name, marketable_version_str, inprocess_tools)
+            else:
+                logger.warning("No install_func provided — skipping marketplace registration")
         ws_id_prefix = fclient.ws_id  # None if using group_id
 
     elif fclient.inside_radix_process:
