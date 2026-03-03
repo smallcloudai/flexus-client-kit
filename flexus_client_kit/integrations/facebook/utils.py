@@ -54,7 +54,7 @@ def validate_targeting_spec(spec: Dict[str, Any]) -> Tuple[bool, str]:
             if spec["age_min"] > spec["age_max"]:
                 return False, "age_min cannot be greater than age_max"
         return True, ""
-    except Exception as e:
+    except (KeyError, TypeError, ValueError) as e:
         return False, f"Validation error: {str(e)}"
 
 
@@ -126,8 +126,8 @@ def normalize_insights_data(raw_data: Dict[str, Any]) -> Insights:
             date_start=raw_data.get("date_start"),
             date_stop=raw_data.get("date_stop"),
         )
-    except Exception as e:
-        logger.warning(f"Error normalizing insights data: {e}", exc_info=e)
+    except (KeyError, TypeError, ValueError) as e:
+        logger.warning("Error normalizing insights data", exc_info=e)
         return Insights()
 
 

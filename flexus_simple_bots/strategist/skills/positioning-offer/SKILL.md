@@ -19,20 +19,43 @@ Route to positioning_architect or messaging_experimenter based on user intent.
 
 ## Recording Artifacts
 
-- `write_value_proposition(path=/positioning/{segment}-value-prop-{YYYY-MM-DD}, value_proposition={...})`
-- `write_offer_packaging(path=/positioning/{segment}-offer-packaging-{YYYY-MM-DD}, offer_packaging={...})`
-- `write_positioning_narrative_brief(path=/positioning/narrative-brief-{narrative_id}, positioning_narrative_brief={...})`
-- `write_messaging_experiment_plan(path=/positioning/experiment-plan-{experiment_id}, messaging_experiment_plan={...})`
-- `write_positioning_test_result(path=/positioning/test-result-{experiment_id}, positioning_test_result={...})`
-- `write_positioning_claim_risk_register(path=/positioning/claim-risk-register-{YYYY-MM-DD}, positioning_claim_risk_register={...})`
+- `write_value_proposition(path=/positioning/{segment}-value-prop-{YYYY-MM-DD}, data={...})`
+- `write_offer_packaging(path=/positioning/{segment}-offer-packaging-{YYYY-MM-DD}, data={...})`
+- `write_positioning_narrative_brief(path=/positioning/narrative-brief-{narrative_id}, data={...})`
+- `write_messaging_experiment_plan(path=/positioning/experiment-plan-{experiment_id}, data={...})`
+- `write_positioning_test_result(path=/positioning/test-result-{experiment_id}, data={...})`
+- `write_positioning_claim_risk_register(path=/positioning/claim-risk-register-{YYYY-MM-DD}, data={...})`
 
 Do not output raw JSON in chat.
 
-## Available API Tools
+## Available Integration Tools
 
-- `positioning_message_test_api` — message testing and variant analysis platforms
-- `positioning_competitor_intel_api` — competitor positioning intelligence
-- `offer_packaging_benchmark_api` — pricing and packaging benchmark data
-- `positioning_channel_probe_api` — channel-specific positioning resonance probing
+Call each tool with `op="help"` to see available methods, `op="call", args={"method_id": "...", ...}` to execute.
 
-Use op="help" on any tool to see available providers and methods.
+**Message testing:** `google_ads`, `meta`, `typeform`, `surveymonkey`, `qualtrics`
+
+**Competitor intelligence:** `crunchbase`, `gnews`
+## Artifact Schemas
+
+```json
+{
+  "write_messaging_experiment_plan": {
+    "type": "object"
+  },
+  "write_offer_packaging": {
+    "type": "object"
+  },
+  "write_positioning_claim_risk_register": {
+    "type": "object"
+  },
+  "write_positioning_narrative_brief": {
+    "type": "object"
+  },
+  "write_positioning_test_result": {
+    "type": "object"
+  },
+  "write_value_proposition": {
+    "type": "object"
+  }
+}
+```

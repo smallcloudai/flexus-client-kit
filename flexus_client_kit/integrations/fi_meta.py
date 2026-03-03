@@ -387,7 +387,6 @@ class IntegrationMeta:
     # ── meta.insights.query.v1 ──────────────────────────────────────────────
 
     async def _insights_query(self, method_id: str, args: Dict[str, Any]) -> str:
-        """Flexible insights query: supports object_id override (campaign/adset/ad) and breakdowns."""
         token = self._token()
         account = self._ad_account()
         if not token or not account:

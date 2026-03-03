@@ -162,7 +162,6 @@ class IntegrationX:
     # ─── helpers ───────────────────────────────────────────────────────────────
 
     async def _get(self, headers: Dict, url: str, params: Dict) -> str:
-        """Generic GET with standard error handling. Returns raw JSON string or error JSON."""
         try:
             async with httpx.AsyncClient(timeout=20.0) as client:
                 r = await client.get(url, params=params, headers=headers)
@@ -171,7 +170,7 @@ class IntegrationX:
                 body = {}
                 try:
                     body = r.json()
-                except Exception:
+                except (json.JSONDecodeError, TypeError, ValueError):
                     pass
                 detail = body.get("detail") or r.text[:300]
                 if "pro" in detail.lower() or "subscription" in detail.lower() or "access" in detail.lower():
@@ -203,7 +202,7 @@ class IntegrationX:
         raw = await self._get(headers, _BASE_URL + "/tweets/counts/recent", params)
         try:
             data = json.loads(raw)
-        except Exception:
+        except (json.JSONDecodeError, TypeError, ValueError):
             return raw
         if not data.get("ok", True):
             return raw
@@ -222,7 +221,7 @@ class IntegrationX:
         raw = await self._get(headers, _BASE_URL + "/tweets/search/recent", params)
         try:
             data = json.loads(raw)
-        except Exception:
+        except (json.JSONDecodeError, TypeError, ValueError):
             return raw
         if not data.get("ok", True):
             return raw
@@ -243,7 +242,7 @@ class IntegrationX:
         raw = await self._get(headers, _BASE_URL + "/tweets", params)
         try:
             data = json.loads(raw)
-        except Exception:
+        except (json.JSONDecodeError, TypeError, ValueError):
             return raw
         if not data.get("ok", True):
             return raw
@@ -260,7 +259,7 @@ class IntegrationX:
         raw = await self._get(headers, f"{_BASE_URL}/tweets/{tweet_id}", params)
         try:
             data = json.loads(raw)
-        except Exception:
+        except (json.JSONDecodeError, TypeError, ValueError):
             return raw
         if not data.get("ok", True):
             return raw
@@ -278,7 +277,7 @@ class IntegrationX:
         raw = await self._get(headers, _BASE_URL + "/users", params)
         try:
             data = json.loads(raw)
-        except Exception:
+        except (json.JSONDecodeError, TypeError, ValueError):
             return raw
         if not data.get("ok", True):
             return raw
@@ -295,7 +294,7 @@ class IntegrationX:
         raw = await self._get(headers, _BASE_URL + "/users/by", params)
         try:
             data = json.loads(raw)
-        except Exception:
+        except (json.JSONDecodeError, TypeError, ValueError):
             return raw
         if not data.get("ok", True):
             return raw
@@ -312,7 +311,7 @@ class IntegrationX:
         raw = await self._get(headers, f"{_BASE_URL}/users/{user_id}", params)
         try:
             data = json.loads(raw)
-        except Exception:
+        except (json.JSONDecodeError, TypeError, ValueError):
             return raw
         if not data.get("ok", True):
             return raw
@@ -328,7 +327,7 @@ class IntegrationX:
         raw = await self._get(headers, f"{_BASE_URL}/users/by/username/{username}", params)
         try:
             data = json.loads(raw)
-        except Exception:
+        except (json.JSONDecodeError, TypeError, ValueError):
             return raw
         if not data.get("ok", True):
             return raw
@@ -352,7 +351,7 @@ class IntegrationX:
         raw = await self._get(headers, f"{_BASE_URL}/users/{user_id}/tweets", params)
         try:
             data = json.loads(raw)
-        except Exception:
+        except (json.JSONDecodeError, TypeError, ValueError):
             return raw
         if not data.get("ok", True):
             return raw
@@ -376,7 +375,7 @@ class IntegrationX:
         raw = await self._get(headers, f"{_BASE_URL}/users/{user_id}/mentions", params)
         try:
             data = json.loads(raw)
-        except Exception:
+        except (json.JSONDecodeError, TypeError, ValueError):
             return raw
         if not data.get("ok", True):
             return raw
@@ -393,7 +392,7 @@ class IntegrationX:
         raw = await self._get(headers, f"{_BASE_URL}/lists/{list_id}", {})
         try:
             data = json.loads(raw)
-        except Exception:
+        except (json.JSONDecodeError, TypeError, ValueError):
             return raw
         if not data.get("ok", True):
             return raw
@@ -411,7 +410,7 @@ class IntegrationX:
         raw = await self._get(headers, f"{_BASE_URL}/lists/{list_id}/tweets", params)
         try:
             data = json.loads(raw)
-        except Exception:
+        except (json.JSONDecodeError, TypeError, ValueError):
             return raw
         if not data.get("ok", True):
             return raw
@@ -433,7 +432,7 @@ class IntegrationX:
         raw = await self._get(headers, f"{_BASE_URL}/tweets/{tweet_id}/quote_tweets", params)
         try:
             data = json.loads(raw)
-        except Exception:
+        except (json.JSONDecodeError, TypeError, ValueError):
             return raw
         if not data.get("ok", True):
             return raw
@@ -451,7 +450,7 @@ class IntegrationX:
         raw = await self._get(headers, f"{_BASE_URL}/tweets/{tweet_id}/liking_users", params)
         try:
             data = json.loads(raw)
-        except Exception:
+        except (json.JSONDecodeError, TypeError, ValueError):
             return raw
         if not data.get("ok", True):
             return raw
@@ -469,7 +468,7 @@ class IntegrationX:
         raw = await self._get(headers, f"{_BASE_URL}/tweets/{tweet_id}/retweeted_by", params)
         try:
             data = json.loads(raw)
-        except Exception:
+        except (json.JSONDecodeError, TypeError, ValueError):
             return raw
         if not data.get("ok", True):
             return raw
@@ -491,7 +490,7 @@ class IntegrationX:
         raw = await self._get(headers, f"{_BASE_URL}/users/{user_id}/liked_tweets", params)
         try:
             data = json.loads(raw)
-        except Exception:
+        except (json.JSONDecodeError, TypeError, ValueError):
             return raw
         if not data.get("ok", True):
             return raw
@@ -510,7 +509,7 @@ class IntegrationX:
         raw = await self._get(headers, f"{_BASE_URL}/users/{user_id}/followers", params)
         try:
             data = json.loads(raw)
-        except Exception:
+        except (json.JSONDecodeError, TypeError, ValueError):
             return raw
         if not data.get("ok", True):
             return raw
@@ -529,7 +528,7 @@ class IntegrationX:
         raw = await self._get(headers, f"{_BASE_URL}/users/{user_id}/following", params)
         try:
             data = json.loads(raw)
-        except Exception:
+        except (json.JSONDecodeError, TypeError, ValueError):
             return raw
         if not data.get("ok", True):
             return raw
@@ -548,7 +547,7 @@ class IntegrationX:
         raw = await self._get(headers, f"{_BASE_URL}/users/{user_id}/owned_lists", params)
         try:
             data = json.loads(raw)
-        except Exception:
+        except (json.JSONDecodeError, TypeError, ValueError):
             return raw
         if not data.get("ok", True):
             return raw
@@ -565,7 +564,7 @@ class IntegrationX:
         raw = await self._get(headers, f"{_BASE_URL}/users/{user_id}/list_memberships", params)
         try:
             data = json.loads(raw)
-        except Exception:
+        except (json.JSONDecodeError, TypeError, ValueError):
             return raw
         if not data.get("ok", True):
             return raw
@@ -580,7 +579,7 @@ class IntegrationX:
         raw = await self._get(headers, f"{_BASE_URL}/users/{user_id}/pinned_lists", {})
         try:
             data = json.loads(raw)
-        except Exception:
+        except (json.JSONDecodeError, TypeError, ValueError):
             return raw
         if not data.get("ok", True):
             return raw
@@ -600,7 +599,7 @@ class IntegrationX:
         raw = await self._get(headers, f"{_BASE_URL}/lists/{list_id}/members", params)
         try:
             data = json.loads(raw)
-        except Exception:
+        except (json.JSONDecodeError, TypeError, ValueError):
             return raw
         if not data.get("ok", True):
             return raw
@@ -619,7 +618,7 @@ class IntegrationX:
         raw = await self._get(headers, f"{_BASE_URL}/lists/{list_id}/followers", params)
         try:
             data = json.loads(raw)
-        except Exception:
+        except (json.JSONDecodeError, TypeError, ValueError):
             return raw
         if not data.get("ok", True):
             return raw
@@ -639,7 +638,7 @@ class IntegrationX:
         raw = await self._get(headers, _BASE_URL + "/spaces", params)
         try:
             data = json.loads(raw)
-        except Exception:
+        except (json.JSONDecodeError, TypeError, ValueError):
             return raw
         if not data.get("ok", True):
             return raw
@@ -656,7 +655,7 @@ class IntegrationX:
         raw = await self._get(headers, f"{_BASE_URL}/spaces/{space_id}", params)
         try:
             data = json.loads(raw)
-        except Exception:
+        except (json.JSONDecodeError, TypeError, ValueError):
             return raw
         if not data.get("ok", True):
             return raw
@@ -672,7 +671,7 @@ class IntegrationX:
         raw = await self._get(headers, _BASE_URL + "/spaces/by/creator_ids", params)
         try:
             data = json.loads(raw)
-        except Exception:
+        except (json.JSONDecodeError, TypeError, ValueError):
             return raw
         if not data.get("ok", True):
             return raw
@@ -692,7 +691,7 @@ class IntegrationX:
         raw = await self._get(headers, _BASE_URL + "/spaces/search", params)
         try:
             data = json.loads(raw)
-        except Exception:
+        except (json.JSONDecodeError, TypeError, ValueError):
             return raw
         if not data.get("ok", True):
             return raw
@@ -718,7 +717,7 @@ class IntegrationX:
         raw = await self._get(headers, _BASE_URL + "/tweets/search/all", params)
         try:
             data = json.loads(raw)
-        except Exception:
+        except (json.JSONDecodeError, TypeError, ValueError):
             return raw
         if not data.get("ok", True):
             return raw
@@ -741,7 +740,7 @@ class IntegrationX:
         raw = await self._get(headers, _BASE_URL + "/tweets/counts/all", params)
         try:
             data = json.loads(raw)
-        except Exception:
+        except (json.JSONDecodeError, TypeError, ValueError):
             return raw
         if not data.get("ok", True):
             return raw
@@ -764,7 +763,7 @@ class IntegrationX:
         raw = await self._get(headers, _BASE_URL + "/users/search", params)
         try:
             data = json.loads(raw)
-        except Exception:
+        except (json.JSONDecodeError, TypeError, ValueError):
             return raw
         if not data.get("ok", True):
             return raw
@@ -778,7 +777,7 @@ class IntegrationX:
         raw = await self._get(headers, f"{_BASE_URL}/trends/by/woeid/{woeid}", {})
         try:
             data = json.loads(raw)
-        except Exception:
+        except (json.JSONDecodeError, TypeError, ValueError):
             return raw
         if not data.get("ok", True):
             return raw

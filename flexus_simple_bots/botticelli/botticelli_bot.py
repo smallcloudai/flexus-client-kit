@@ -363,7 +363,7 @@ async def setup_handlers(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.R
                         logger.info(f"Added reference image: {len(ref_image_bytes)} bytes, {mime_type}")
                     except httpx.TimeoutException:
                         return "Error: Timeout fetching reference image"
-                    except Exception as e:
+                    except (httpx.HTTPError, OSError, ValueError) as e:
                         return f"Error: Failed to fetch reference image: {str(e)}"
 
                 # Build image config
@@ -443,7 +443,7 @@ async def setup_handlers(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.R
             )
 
         except Exception as e:
-            logger.error(f"Error generating image: {e}", exc_info=True)
+            logger.error("Error generating image", exc_info=e)
             return ckit_cloudtool.ToolResult(f"Error generating image: {str(e)}")
 
     @rcx.on_tool_call(CROP_IMAGE_TOOL.name)
@@ -603,7 +603,7 @@ Full brief saved to: {brief_path}
         except ckit_cloudtool.WaitForSubchats:
             raise
         except Exception as e:
-            logger.exception(f"Error in campaign_brief handler: {e}")
+            logger.error("Error in campaign_brief handler", exc_info=e)
             return f"Error: {str(e)}"
 
     @rcx.on_tool_call(fi_mongo_store.MONGO_STORE_TOOL.name)

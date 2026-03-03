@@ -1,5 +1,6 @@
 import json
 import logging
+import re
 import time
 from dataclasses import dataclass, field
 from typing import Dict, Any, List, Optional
@@ -10,9 +11,9 @@ from flexus_client_kit import ckit_ask_model
 from flexus_client_kit import ckit_client
 from flexus_client_kit import ckit_kanban
 from flexus_client_kit.integrations import fi_pdoc
-from flexus_client_kit.integrations.facebook.fi_facebook import IntegrationFacebook
 from flexus_client_kit.integrations.facebook import campaigns as fb_campaigns
 from flexus_client_kit.integrations.facebook import adsets as fb_adsets
+from flexus_client_kit.integrations.facebook.exceptions import FacebookError
 
 
 logger = logging.getLogger("experiment_execution")
@@ -54,7 +55,6 @@ launch_experiment(experiment_id="dental-samples/private-practice/experiments/met
 
 @dataclass
 class ExperimentTracking:
-    """In-memory tracking for active experiment."""
     experiment_id: str
     task_id: str
     thread_id: str
@@ -64,18 +64,11 @@ class ExperimentTracking:
 
 
 class IntegrationExperimentExecution:
-    """
-    Handles marketing experiment execution lifecycle:
-    - Launching campaigns from Owl Strategist tactics
-    - Hourly monitoring and optimization based on metrics rules
-    - Notifying user about actions taken
-    """
-
     def __init__(
         self,
         pdoc_integration: fi_pdoc.IntegrationPdoc,
         fclient: ckit_client.FlexusClient,
-        facebook_integration: Optional[IntegrationFacebook],
+        facebook_integration,
     ):
         self.pdoc_integration = pdoc_integration
         self.fclient = fclient
@@ -84,10 +77,6 @@ class IntegrationExperimentExecution:
         self.tracked_experiments: Dict[str, ExperimentTracking] = {}
 
     def track_experiment_task(self, task: ckit_kanban.FPersonaKanbanTaskOutput) -> None:
-        """
-        Called from on_updated_task to track experiments.
-        Extracts experiment_id from ktask_details and adds to tracking.
-        """
         if not task.ktask_details:
             return
         details = task.ktask_details if isinstance(task.ktask_details, dict) else json.loads(task.ktask_details or "{}")
@@ -116,10 +105,6 @@ class IntegrationExperimentExecution:
         toolcall: ckit_cloudtool.FCloudtoolCall,
         args: Dict[str, Any],
     ) -> str:
-        """
-        Launch Meta campaigns from tactics document.
-        Creates campaigns and adsets in Facebook, saves runtime state to pdoc.
-        """
         experiment_id = args.get("experiment_id", "")
         activate_immediately = args.get("activate_immediately", False)
         if not experiment_id:
@@ -132,7 +117,7 @@ class IntegrationExperimentExecution:
         try:
             config_doc = await self.pdoc_integration.pdoc_cat("/company/ad-ops-config", fuser_id)
             ad_account_id = config_doc.pdoc_content.get("facebook_ad_account_id", "")
-        except Exception as e:
+        except (AttributeError, KeyError, ValueError) as e:
             return f"ERROR: Could not read /company/ad-ops-config: {e}"
         if not ad_account_id:
             return "ERROR: facebook_ad_account_id not set in /company/ad-ops-config"
@@ -143,9 +128,8 @@ class IntegrationExperimentExecution:
         try:
             tactics_doc = await self.pdoc_integration.pdoc_cat(tactics_path, fuser_id)
             tactics_raw = tactics_doc.pdoc_content
-            # Extract from wrapper: {"tactics_campaigns": {"meta": {...}, "campaigns": [...]}}
             tactics = tactics_raw.get("tactics_campaigns", tactics_raw) if isinstance(tactics_raw, dict) else {}
-        except Exception as e:
+        except (AttributeError, KeyError, ValueError) as e:
             return f"ERROR: Could not read tactics at {tactics_path}: {e}"
         if not tactics:
             return f"ERROR: Empty tactics document at {tactics_path}"
@@ -183,7 +167,6 @@ class IntegrationExperimentExecution:
                     status=initial_status,
                     daily_budget=daily_budget_cents,
                 )
-                # Parse campaign ID from result
                 fb_campaign_id = self._extract_id_from_result(campaign_result, "Campaign")
                 if fb_campaign_id:
                     created_campaigns.append({
@@ -196,7 +179,7 @@ class IntegrationExperimentExecution:
                 else:
                     errors.append(f"Campaign {campaign_id_local}: {campaign_result}")
                     continue
-            except Exception as e:
+            except FacebookError as e:
                 errors.append(f"Campaign {campaign_id_local}: {e}")
                 continue
 
@@ -228,7 +211,7 @@ class IntegrationExperimentExecution:
                         })
                     else:
                         errors.append(f"Adset {adset_id_local}: {adset_result}")
-                except Exception as e:
+                except FacebookError as e:
                     errors.append(f"Adset {adset_id_local}: {e}")
 
         # 5. Save runtime state to pdoc
@@ -257,7 +240,7 @@ class IntegrationExperimentExecution:
         runtime_doc = {"meta_runtime": runtime_inner}
         try:
             await self.pdoc_integration.pdoc_overwrite(runtime_path, json.dumps(runtime_doc, indent=2), fuser_id)
-        except Exception as e:
+        except (OSError, ValueError) as e:
             errors.append(f"Failed to save runtime: {e}")
 
         # 6. Update task details with experiment tracking info
@@ -272,8 +255,8 @@ class IntegrationExperimentExecution:
                     task_details["facebook_adset_ids"] = [a["facebook_id"] for a in created_adsets]
                     await ckit_kanban.bot_kanban_update_details(self.fclient, task.ktask_id, task_details)
                     logger.info(f"Updated task {task.ktask_id} with experiment {experiment_id}")
-            except Exception as e:
-                logger.warning(f"Failed to update task details: {e}")
+            except (AttributeError, KeyError, ValueError) as e:
+                logger.warning("Failed to update task details", exc_info=e)
 
         # 7. Format result
         result = f"Experiment {experiment_id} launched!\n\n"
@@ -297,14 +280,6 @@ class IntegrationExperimentExecution:
         return result
 
     async def update_active_experiments(self) -> None:
-        """
-        Called hourly from main loop.
-        For each tracked experiment:
-        - Fetches metrics from Facebook
-        - Applies stop/accelerate rules from metrics doc
-        - Executes actions (pause/unpause/budget changes)
-        - Updates runtime doc and notifies user
-        """
         if not self.tracked_experiments:
             return
         if not self.facebook_integration:
@@ -317,8 +292,6 @@ class IntegrationExperimentExecution:
                 logger.error(f"Error checking experiment {experiment_id}: {e}", exc_info=e)
 
     async def _check_single_experiment(self, experiment_id: str, tracking: ExperimentTracking) -> None:
-        """Check and optimize a single experiment."""
-        # Use bot's fuser_id for pdoc access
         fuser_id = self.pdoc_integration.rcx.persona.persona_id
 
         # 1. Load runtime doc (wrapped in meta-runtime key)
@@ -326,10 +299,9 @@ class IntegrationExperimentExecution:
         try:
             runtime_doc = await self.pdoc_integration.pdoc_cat(runtime_path, fuser_id)
             raw_content = runtime_doc.pdoc_content
-            # Extract inner runtime from meta-runtime wrapper
             runtime = raw_content.get("meta_runtime", raw_content) if isinstance(raw_content, dict) else {}
-        except Exception as e:
-            logger.warning(f"Could not load runtime for {experiment_id}: {e}")
+        except (AttributeError, KeyError, ValueError) as e:
+            logger.warning("Could not load runtime for %s", experiment_id, exc_info=e)
             return
         if not runtime or runtime.get("experiment_status") == "completed":
             return
@@ -340,18 +312,16 @@ class IntegrationExperimentExecution:
         try:
             metrics_doc = await self.pdoc_integration.pdoc_cat(metrics_path, fuser_id)
             metrics = metrics_doc.pdoc_content
-        except Exception:
+        except (AttributeError, KeyError, ValueError):
             pass
 
-        # 3. Load tactics-tracking doc (for iteration_guide)
         tactics_tracking_path = f"/gtm/discovery/{experiment_id}/tactics-tracking"
         tactics_tracking = None
         try:
             tactics_doc = await self.pdoc_integration.pdoc_cat(tactics_tracking_path, fuser_id)
             tactics_raw = tactics_doc.pdoc_content
-            # Extract from wrapper: {"tactics_tracking": {"meta": {...}, "iteration_guide": {...}}}
             tactics_tracking = tactics_raw.get("tactics_tracking", tactics_raw) if isinstance(tactics_raw, dict) else {}
-        except Exception:
+        except (AttributeError, KeyError, ValueError):
             pass
 
         # 4. Calculate current day
@@ -377,8 +347,8 @@ class IntegrationExperimentExecution:
                 camp_metrics = self._parse_insights(insights_result)
                 metrics_summary[local_id] = camp_metrics
                 camp_info["latest_metrics"] = camp_metrics
-            except Exception as e:
-                logger.warning(f"Could not get insights for campaign {fb_id}: {e}")
+            except FacebookError as e:
+                logger.warning("Could not get insights for campaign %s", fb_id, exc_info=e)
                 continue
 
             # 6. Apply rules
@@ -424,8 +394,8 @@ class IntegrationExperimentExecution:
         runtime_wrapped = {"meta_runtime": runtime}
         try:
             await self.pdoc_integration.pdoc_overwrite(runtime_path, json.dumps(runtime_wrapped, indent=2), fuser_id)
-        except Exception as e:
-            logger.warning(f"Failed to update runtime for {experiment_id}: {e}")
+        except (OSError, ValueError) as e:
+            logger.warning("Failed to update runtime for %s", experiment_id, exc_info=e)
 
         # 9. Notify user in thread
         if tracking.thread_id and (actions_taken or current_day % 7 == 0):
@@ -439,7 +409,6 @@ class IntegrationExperimentExecution:
         accelerate_rules: List[Dict[str, Any]],
         current_day: int,
     ) -> List[Dict[str, Any]]:
-        """Apply stop and accelerate rules, execute actions, return list of actions taken."""
         actions = []
         fb_campaign_id = camp_info.get("facebook_id")
         if not fb_campaign_id:
@@ -483,8 +452,8 @@ class IntegrationExperimentExecution:
                             "reason": f"{metric_name} {operator} {threshold} (value: {metric_value:.4f})",
                         })
                         logger.info(f"Paused campaign {fb_campaign_id} due to {metric_name} {operator} {threshold}")
-                    except Exception as e:
-                        logger.warning(f"Failed to pause campaign {fb_campaign_id}: {e}")
+                    except FacebookError as e:
+                        logger.warning("Failed to pause campaign %s", fb_campaign_id, exc_info=e)
 
         # Apply accelerate rules
         for rule in accelerate_rules:
@@ -523,8 +492,8 @@ class IntegrationExperimentExecution:
                             "budget_change": f"${current_budget/100:.2f} -> ${new_budget/100:.2f}",
                         })
                         logger.info(f"Doubled budget for {fb_campaign_id}: ${current_budget/100:.2f} -> ${new_budget/100:.2f}")
-                    except Exception as e:
-                        logger.warning(f"Failed to update budget for {fb_campaign_id}: {e}")
+                    except FacebookError as e:
+                        logger.warning("Failed to update budget for %s", fb_campaign_id, exc_info=e)
         return actions
 
     async def _notify_user(
@@ -534,7 +503,6 @@ class IntegrationExperimentExecution:
         metrics_summary: Dict[str, Dict[str, float]],
         actions: List[Dict[str, Any]],
     ) -> None:
-        """Send notification to the task thread about experiment status."""
         message = f"Experiment {tracking.experiment_id} - Day {current_day} check\n\n"
         # Metrics summary
         if metrics_summary:
@@ -567,12 +535,10 @@ class IntegrationExperimentExecution:
                 who_is_asking="experiment_monitor",
                 ftm_alt=100,
             )
-            logger.info(f"Sent notification for experiment {tracking.experiment_id}")
-        except Exception as e:
-            logger.warning(f"Failed to send notification for {tracking.experiment_id}: {e}")
+        except (OSError, ValueError) as e:
+            logger.warning("Failed to send notification for %s", tracking.experiment_id, exc_info=e)
 
     def _map_objective(self, tactics_objective: str) -> str:
-        """Map tactics objective to Facebook objective."""
         mapping = {
             "traffic": "OUTCOME_TRAFFIC",
             "engagement": "OUTCOME_ENGAGEMENT",
@@ -585,7 +551,6 @@ class IntegrationExperimentExecution:
         return mapping.get(tactics_objective.lower(), "OUTCOME_TRAFFIC")
 
     def _map_optimization_goal(self, tactics_goal: str) -> str:
-        """Map tactics optimization goal to Facebook optimization goal."""
         mapping = {
             "landing_page_views": "LANDING_PAGE_VIEWS",
             "link_clicks": "LINK_CLICKS",
@@ -604,11 +569,9 @@ class IntegrationExperimentExecution:
     }
 
     def _normalize_country_codes(self, countries: List[str]) -> List[str]:
-        """Convert country names/codes to ISO 3166-1 alpha-2 codes."""
         return [self.COUNTRY_CODE_MAP.get(c, c) for c in countries]
 
     def _build_targeting(self, audience: Dict[str, Any]) -> Dict[str, Any]:
-        """Build Facebook targeting spec from tactics audience."""
         targeting: Dict[str, Any] = {}
         # Geo locations — normalize country codes
         countries = audience.get("countries", [])
@@ -629,20 +592,14 @@ class IntegrationExperimentExecution:
         return targeting
 
     def _extract_id_from_result(self, result: str, entity_type: str) -> Optional[str]:
-        """Extract ID from Facebook API result string."""
-        # Results look like "Campaign created: Name (ID: 123456789)"
-        # or "Ad Set created successfully!\nID: 123456789"
         if "ERROR" in result:
             return None
-        import re
-        # Try "ID: xxx" pattern
         match = re.search(r'ID:\s*(\d+|mock_\w+)', result)
         if match:
             return match.group(1)
         return None
 
     def _parse_insights(self, insights_result: str) -> Dict[str, float]:
-        """Parse Facebook insights result string into metrics dict."""
         metrics = {
             "impressions": 0,
             "clicks": 0,
@@ -652,8 +609,6 @@ class IntegrationExperimentExecution:
         }
         if "No insights" in insights_result or "ERROR" in insights_result:
             return metrics
-        import re
-        # Parse "Impressions: 125,000" format
         imp_match = re.search(r'Impressions:\s*([\d,]+)', insights_result)
         if imp_match:
             metrics["impressions"] = float(imp_match.group(1).replace(",", ""))
@@ -672,7 +627,6 @@ class IntegrationExperimentExecution:
         return metrics
 
     def _get_day_key(self, current_day: int) -> str:
-        """Get iteration_guide key for current day."""
         if current_day <= 3:
             return "day_1_3"
         elif current_day <= 7:

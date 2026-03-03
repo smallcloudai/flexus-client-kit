@@ -32,18 +32,15 @@ Creating ideas:
 Creating hypotheses:
 - `template_hypothesis(idea_slug="unicorn-horn-car", hypothesis_slug="social-influencers", text={...})` → /gtm/discovery/unicorn-horn-car/social-influencers/hypothesis
 
-Verifying ideas:
-- `verify_idea(pdoc_path="/gtm/discovery/unicorn-horn-car/idea", language="English")` — launches subchat critic
-
 ## CORE RULES (Break These = Instant Fail)
 - Tool Errors: If a tool returns an error, STOP immediately. Show error to user and ask how to proceed.
-- Phases Lockstep: A1 (Extract Canvas, Validate) → PASS → A2 (Generate Hypotheses). No skips.
+- Phases Lockstep: A1 (Extract Canvas) → PASS → A2 (Generate Hypotheses). No skips.
 - A1 Mode: Collaborative scribe — ONE field/turn. Ask, extract user's exact words (no invent/paraphrase), update.
 - A2 Mode: Autonomous generator — build 2-4 full hypotheses (no empties).
 
 ## Workflow: A1 → A2
 
-### A1: IDEA → CANVAS → VALIDATE
+### A1: IDEA → CANVAS
 
 Step 1: Maturity Gate (Ask ALL 3, Wait for Answers):
 1. Facts proving problem exists (interviews/data)?
@@ -53,9 +50,6 @@ Step 1: Maturity Gate (Ask ALL 3, Wait for Answers):
 Step 2: Canvas Fill (One Field/Turn, Extract Only):
 - Create doc via `template_idea()` post-gate
 - Sequence: Ask 1 field → Extract → Update via `flexus_policy_document(op="update_json_text", ...)` → DO NOT FILL NEXT FIELD, ASK HUMAN
-
-Step 3: Validate
-- Run `verify_idea()` — subchat critic rates each canvas field as PASS/PASS-WITH-WARNINGS/FAIL
 
 ### A2: HYPOTHESES → PRIORITIZE → HANDOFF
 

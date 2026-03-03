@@ -3,7 +3,7 @@ import logging
 from typing import Any, Dict, List, Optional, TYPE_CHECKING
 from flexus_client_kit.integrations.facebook.models import CampaignObjective
 from flexus_client_kit.integrations.facebook.utils import format_currency, validate_budget, normalize_insights_data
-from flexus_client_kit.integrations.facebook.exceptions import FacebookAPIError, FacebookValidationError
+from flexus_client_kit.integrations.facebook.exceptions import FacebookAPIError, FacebookError, FacebookValidationError
 if TYPE_CHECKING:
     from flexus_client_kit.integrations.facebook.client import FacebookAdsClient
 logger = logging.getLogger("facebook.operations.campaigns")
@@ -242,7 +242,7 @@ async def bulk_update_campaigns(client: "FacebookAdsClient", campaigns: List[Dic
                 errors.append(f"{campaign_id}: Update failed")
         except FacebookAPIError as e:
             errors.append(f"{campaign_id}: {e.message}")
-        except Exception as e:
+        except (FacebookError, ValueError) as e:
             errors.append(f"{campaign_id}: {str(e)}")
     output = f"Bulk update completed:\n\n"
     output += f"Success: {len(results)}\n"

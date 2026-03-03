@@ -22,23 +22,48 @@ Core mode:
 
 ## Recording MVP Artifacts
 
-- `write_mvp_run_log(path=/mvp/run-log-{run_id}, run_log={...})` — full run lifecycle log
-- `write_mvp_rollout_incident(path=/mvp/incident-{run_id}, incident={...})` — guardrail breach or critical issue
-- `write_mvp_feedback_digest(path=/mvp/feedback-{run_id}, digest={...})` — after feedback synthesis window
+- `write_mvp_run_log(path=/mvp/run-log-{run_id}, data={...})` — full run lifecycle log
+- `write_mvp_rollout_incident(path=/mvp/incident-{run_id}, data={...})` — guardrail breach or critical issue
+- `write_mvp_feedback_digest(path=/mvp/feedback-{run_id}, data={...})` — after feedback synthesis window
 
 ## Recording Telemetry Artifacts
 
-- `write_telemetry_quality_report(path=/mvp/telemetry-quality-{run_id}, report={...})` — audit results with confidence
-- `write_telemetry_decision_memo(path=/mvp/decision-memo-{run_id}, memo={...})` — final scale/iterate/stop decision
-- `write_mvp_scale_readiness_gate(path=/mvp/scale-gate-{run_id}, gate={...})` — go/no_go verdict before scaling
+- `write_telemetry_quality_report(path=/mvp/telemetry-quality-{run_id}, data={...})` — audit results with confidence
+- `write_telemetry_decision_memo(path=/mvp/decision-memo-{run_id}, data={...})` — final scale/iterate/stop decision
+- `write_mvp_scale_readiness_gate(path=/mvp/scale-gate-{run_id}, data={...})` — go/no_go verdict before scaling
 
 Do not output raw JSON in chat.
 
-## Available API Tools
+## Available Integration Tools
 
-- `mvp_experiment_orchestration_api` — experiment platform and feature flag orchestration
-- `mvp_telemetry_api` — analytics and telemetry platforms (Segment, PostHog, Mixpanel, Amplitude, GA4, Datadog)
-- `mvp_feedback_capture_api` — user feedback platforms (Intercom, Typeform, Zendesk)
-- `mvp_instrumentation_health_api` — instrumentation quality and event tracking health (Sentry, Segment Protocols)
+Call each tool with `op="help"` to see available methods, `op="call", args={"method_id": "...", ...}` to execute.
 
-Use op="help" on any tool to see available providers and methods.
+**Feature flags / experiment platforms:** `launchdarkly`, `statsig`, `optimizely`
+
+**Analytics & telemetry:** `mixpanel`, `ga4`, `segment`
+
+**Feedback capture:** `typeform`, `surveymonkey`, `zendesk`
+## Artifact Schemas
+
+```json
+{
+  "write_mvp_feedback_digest": {
+    "type": "object"
+  },
+  "write_mvp_rollout_incident": {
+    "type": "object"
+  },
+  "write_mvp_run_log": {
+    "type": "object"
+  },
+  "write_mvp_scale_readiness_gate": {
+    "type": "object"
+  },
+  "write_telemetry_decision_memo": {
+    "type": "object"
+  },
+  "write_telemetry_quality_report": {
+    "type": "object"
+  }
+}
+```

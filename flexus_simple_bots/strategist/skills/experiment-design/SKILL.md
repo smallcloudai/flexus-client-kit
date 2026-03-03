@@ -25,18 +25,43 @@ Core mode:
 
 ## Recording Artifacts
 
-- `write_experiment_card_draft(path=/experiments/cards/{experiment_id}-{YYYY-MM-DD}, card={...})`
-- `write_experiment_measurement_spec(path=/experiments/specs/{experiment_id}-{YYYY-MM-DD}, spec={...})`
-- `write_experiment_backlog_prioritization(path=/experiments/backlog-{YYYY-MM-DD}, prioritization={...})`
-- `write_experiment_reliability_report(path=/experiments/reliability/{experiment_id}-{YYYY-MM-DD}, report={...})`
-- `write_experiment_approval(path=/experiments/approval/{experiment_id}-{YYYY-MM-DD}, approval={...})`
-- `write_experiment_stop_rule_evaluation(path=/experiments/stop-rule/{experiment_id}-{YYYY-MM-DD}, evaluation={...})`
+- `write_experiment_card_draft(path=/experiments/cards/{experiment_id}-{YYYY-MM-DD}, data={...})`
+- `write_experiment_measurement_spec(path=/experiments/specs/{experiment_id}-{YYYY-MM-DD}, data={...})`
+- `write_experiment_backlog_prioritization(path=/experiments/backlog-{YYYY-MM-DD}, data={...})`
+- `write_experiment_reliability_report(path=/experiments/reliability/{experiment_id}-{YYYY-MM-DD}, data={...})`
+- `write_experiment_approval(path=/experiments/approval/{experiment_id}-{YYYY-MM-DD}, data={...})`
+- `write_experiment_stop_rule_evaluation(path=/experiments/stop-rule/{experiment_id}-{YYYY-MM-DD}, data={...})`
 
-## Available API Tools
+## Available Integration Tools
 
-- `experiment_backlog_ops_api` — feature flag systems, experiment platform operations
-- `experiment_runtime_config_api` — runtime configuration and feature flag management
-- `experiment_guardrail_metrics_api` — monitoring and alerting platforms
-- `experiment_instrumentation_quality_api` — tracking plan and event quality checks
+Call each tool with `op="help"` to see available methods, `op="call", args={"method_id": "...", ...}` to execute.
 
-Use op="help" on any tool to see available providers and methods.
+**Experiment platforms:** `launchdarkly`, `statsig`, `optimizely`
+
+**Guardrail metrics:** `mixpanel`, `ga4`
+
+**Instrumentation quality:** `segment`
+## Artifact Schemas
+
+```json
+{
+  "write_experiment_approval": {
+    "type": "object"
+  },
+  "write_experiment_backlog_prioritization": {
+    "type": "object"
+  },
+  "write_experiment_card_draft": {
+    "type": "object"
+  },
+  "write_experiment_measurement_spec": {
+    "type": "object"
+  },
+  "write_experiment_reliability_report": {
+    "type": "object"
+  },
+  "write_experiment_stop_rule_evaluation": {
+    "type": "object"
+  }
+}
+```

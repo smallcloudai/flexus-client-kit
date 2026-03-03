@@ -3,6 +3,7 @@ import logging
 from typing import Any, Dict, Optional, TYPE_CHECKING
 
 from flexus_client_kit import ckit_cloudtool
+from flexus_client_kit import ckit_external_auth
 from flexus_client_kit.integrations.facebook.client import FacebookAdsClient
 from flexus_client_kit.integrations.facebook.exceptions import (
     FacebookAPIError,
@@ -303,19 +304,16 @@ class IntegrationFacebook:
         self.pdoc_integration = pdoc_integration
 
     async def _ensure_ad_account_id(self, toolcall: ckit_cloudtool.FCloudtoolCall) -> None:
-        """Load ad_account_id from /company/ad-ops-config if not set."""
         if self.client.ad_account_id or not self.pdoc_integration:
             return
         try:
-            from flexus_client_kit import ckit_external_auth
             fuser_id = ckit_external_auth.get_fuser_id_from_rcx(self.rcx, toolcall.fcall_ft_id)
             config = await self.pdoc_integration.pdoc_cat("/company/ad-ops-config", fuser_id)
             ad_account_id = config.pdoc_content.get("facebook_ad_account_id", "")
             if ad_account_id:
                 self.client.ad_account_id = ad_account_id
-                logger.info(f"Loaded ad_account_id from pdoc: {ad_account_id}")
-        except Exception as e:
-            logger.debug(f"Could not load ad_account_id from pdoc: {e}")
+        except (AttributeError, KeyError, ValueError) as e:
+            logger.debug("Could not load ad_account_id from pdoc", exc_info=e)
 
     async def called_by_model(
         self,
@@ -351,7 +349,7 @@ class IntegrationFacebook:
         except FacebookValidationError as e:
             return f"ERROR: {e.message}"
         except Exception as e:
-            logger.warning(f"Unexpected error in {op}: {e}", exc_info=e)
+            logger.error("Unexpected error in %s", op, exc_info=e)
             return f"ERROR: {str(e)}"
 
     async def _handle_connect(self) -> str:

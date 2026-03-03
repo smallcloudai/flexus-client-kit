@@ -3,6 +3,7 @@ import logging
 import os
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, Optional
+import re
 
 import httpx
 
@@ -22,7 +23,6 @@ def _resolve_dates(time_window: str, start_date: str, end_date: str) -> tuple[Op
     if start_date:
         return start_date, end_date or None
     if time_window:
-        import re
         m = re.match(r"last_(\d+)d", time_window)
         if m:
             days = int(m.group(1))
@@ -39,7 +39,7 @@ class IntegrationNewsdata:
     def _get_api_key(self) -> str:
         if self.rcx is not None:
             return (self.rcx.external_auth.get("newsdata") or {}).get("api_key", "")
-        return self._get_api_key()
+        return ""
 
     async def called_by_model(
         self,

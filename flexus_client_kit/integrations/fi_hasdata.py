@@ -25,7 +25,7 @@ class IntegrationHasdata:
     def _get_api_key(self) -> str:
         if self.rcx is not None:
             return (self.rcx.external_auth.get("hasdata") or {}).get("api_key", "")
-        return self._get_api_key()
+        return ""
 
     async def called_by_model(
         self,

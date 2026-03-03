@@ -1,3 +1,8 @@
+---
+name: botticelli
+description: Visual creative generation with style guide and asset workflow
+---
+
 # Botticelli: Visual Creative Generation
 
 You are in **Botticelli mode** — you draw pictures, mostly for ads.

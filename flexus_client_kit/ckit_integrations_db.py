@@ -1,3 +1,5 @@
+import importlib
+import inspect
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Awaitable, Callable
@@ -71,29 +73,63 @@ def static_integrations_load(bot_dir: Path, allowlist: list[str], builtin_skills
 
         elif name == "google_calendar":
             from flexus_client_kit.integrations import fi_google_calendar
+
+            has_legacy_api = (
+                hasattr(fi_google_calendar, "GOOGLE_CALENDAR_TOOL")
+                and hasattr(fi_google_calendar, "REQUIRED_SCOPES")
+            )
+
+            if has_legacy_api:
+                gcal_tool = getattr(fi_google_calendar, "GOOGLE_CALENDAR_TOOL")
+                gcal_scopes = getattr(fi_google_calendar, "REQUIRED_SCOPES")
+            else:
+                gcal_tool = ckit_cloudtool.CloudTool(
+                    strict=True,
+                    name=getattr(fi_google_calendar, "PROVIDER_NAME", "google_calendar"),
+                    description="google_calendar: calendar provider. op=help|status|list_methods|call",
+                    parameters={
+                        "type": "object",
+                        "properties": {
+                            "op": {"type": "string", "enum": ["help", "status", "list_methods", "call"]},
+                            "args": {"type": ["object", "null"]},
+                        },
+                        "required": ["op", "args"],
+                        "additionalProperties": False,
+                    },
+                )
+                gcal_scopes = []
+
+            integration_cls = getattr(fi_google_calendar, "IntegrationGoogleCalendar")
             async def _init_gcal(rcx, setup):
-                return fi_google_calendar.IntegrationGoogleCalendar(rcx.fclient, rcx)
+                try:
+                    return integration_cls(rcx.fclient, rcx)
+                except TypeError:
+                    try:
+                        return integration_cls(rcx)
+                    except TypeError:
+                        return integration_cls()
+
             result.append(IntegrationRecord(
                 integr_name=name,
-                integr_tools=[fi_google_calendar.GOOGLE_CALENDAR_TOOL],
+                integr_tools=[gcal_tool],
                 integr_init=_init_gcal,
-                integr_setup_handlers=lambda obj, rcx: [rcx.on_tool_call("google_calendar")(obj.called_by_model)],
+                integr_setup_handlers=lambda obj, rcx, _t=gcal_tool: [rcx.on_tool_call(_t.name)(obj.called_by_model)],
                 integr_provider="google",
-                integr_scopes=fi_google_calendar.REQUIRED_SCOPES,
+                integr_scopes=gcal_scopes,
             ))
 
         elif name == "jira":
-            from flexus_client_kit.integrations import fi_jira
+            fi_jira = importlib.import_module("flexus_client_kit.integrations.fi_jira")
             async def _init_jira(rcx, setup):
                 url = (setup or {}).get("jira_instance_url", "")
-                return fi_jira.IntegrationJira(rcx.fclient, rcx, jira_instance_url=url)
+                return getattr(fi_jira, "IntegrationJira")(rcx.fclient, rcx, jira_instance_url=url)
             result.append(IntegrationRecord(
                 integr_name=name,
-                integr_tools=[fi_jira.JIRA_TOOL],
+                integr_tools=[getattr(fi_jira, "JIRA_TOOL")],
                 integr_init=_init_jira,
                 integr_setup_handlers=lambda obj, rcx: [rcx.on_tool_call("jira")(obj.called_by_model)],
                 integr_provider="atlassian",
-                integr_scopes=fi_jira.REQUIRED_SCOPES,
+                integr_scopes=getattr(fi_jira, "REQUIRED_SCOPES"),
             ))
 
         elif name.startswith("facebook"):   # "facebook[account, adset]"
@@ -155,19 +191,82 @@ def static_integrations_load(bot_dir: Path, allowlist: list[str], builtin_skills
             ))
 
         elif name == "github":
-            from flexus_client_kit.integrations import fi_github
+            fi_github = importlib.import_module("flexus_client_kit.integrations.fi_github")
             async def _init_github(rcx, setup):
-                return fi_github.IntegrationGitHub(rcx.fclient, rcx)
+                return getattr(fi_github, "IntegrationGitHub")(rcx.fclient, rcx)
             result.append(IntegrationRecord(
                 integr_name=name,
-                integr_tools=[fi_github.GITHUB_TOOL],
+                integr_tools=[getattr(fi_github, "GITHUB_TOOL")],
                 integr_init=_init_github,
                 integr_setup_handlers=lambda obj, rcx: [rcx.on_tool_call("github")(obj.called_by_model)],
                 integr_provider="github",
             ))
 
         else:
-            raise ValueError(f"Unknown integration {name!r}")
+            # Generic handler for any fi_{name}.py integration that follows the standard pattern.
+            # Avoids writing an explicit elif branch for every one of the 70+ API providers.
+
+            # Import fi_{name}.py at runtime by name (e.g. "reddit" → fi_reddit.py).
+            # We can't do this at the top of the file because the name is only known at call time.
+            mod = importlib.import_module(f"flexus_client_kit.integrations.fi_{name}")
+
+            # Each fi_*.py defines exactly one class named Integration* (e.g. IntegrationReddit).
+            # inspect.getmembers lists all class objects in the module.
+            # The c.__module__ == mod.__name__ guard skips classes that were *imported into* the
+            # module from elsewhere (e.g. base classes), keeping only the one defined there.
+            integration_class = next(
+                (c for _, c in inspect.getmembers(mod, inspect.isclass)
+                 if c.__name__.startswith("Integration") and c.__module__ == mod.__name__),
+                None,
+            )
+            if integration_class is None:
+                raise ValueError(f"No Integration* class found in fi_{name}.py")
+
+            # fi_*.py defines PROVIDER_NAME = "reddit" (may differ from the file name fi_x.py → "x").
+            provider_name = getattr(mod, "PROVIDER_NAME", name)
+
+            # All fi_*.py integrations speak the same op=help|status|list_methods|call protocol,
+            # so one tool schema covers all of them.
+            generic_tool = ckit_cloudtool.CloudTool(
+                strict=True,
+                name=provider_name,
+                description=f"{provider_name}: data provider. op=help|status|list_methods|call",
+                parameters={
+                    "type": "object",
+                    "properties": {
+                        "op": {"type": "string", "enum": ["help", "status", "list_methods", "call"]},
+                        "args": {"type": ["object", "null"]},
+                    },
+                    "required": ["op", "args"],
+                    "additionalProperties": False,
+                },
+            )
+
+            # XXX: _make_generic_init is a factory function, not a plain closure, to avoid a
+            # classic Python loop-capture bug. If we wrote `async def _init(rcx, setup): cls(rcx)`
+            # directly in the loop body, every _init would close over the *same* `integration_class`
+            # variable and all end up calling the last provider's class after the loop finishes.
+            # Passing `klass` as a function argument freezes its value for each iteration.
+            def _make_generic_init(klass):
+                async def _init(rcx, setup, _cls=klass):
+                    # XXX: fi_*.py constructors are inconsistent: some accept (rcx), some accept
+                    # nothing. Try the more common (rcx) first; fall back to () on TypeError.
+                    try:
+                        return _cls(rcx)
+                    except TypeError:
+                        return _cls()
+                return _init
+
+            result.append(IntegrationRecord(
+                integr_name=provider_name,
+                integr_tools=[generic_tool],
+                integr_init=_make_generic_init(integration_class),
+                # _t=generic_tool captures the current tool into the lambda for the same reason
+                # as _make_generic_init above: without it all lambdas would share the last tool.
+                integr_setup_handlers=lambda obj, rcx, _t=generic_tool: [
+                    rcx.on_tool_call(_t.name)(obj.called_by_model)
+                ],
+            ))
     return result
 
 
@@ -177,7 +276,7 @@ def _parse_bracket_list(name: str) -> list[str] | None:
     return [g.strip() for g in name.split("[", 1)[1].rstrip("]").split(",")]
 
 
-async def main_loop_integrations_init(records: list[IntegrationRecord], rcx, setup: dict = None) -> dict[str, Any]:
+async def main_loop_integrations_init(records: list[IntegrationRecord], rcx, setup: dict | None = None) -> dict[str, Any]:
     result = {}
     for rec in records:
         obj = await rec.integr_init(rcx, setup)

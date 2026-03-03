@@ -303,7 +303,7 @@ def parse_ts(s: Optional[str]) -> float:
         return 0.0
     try:
         return datetime.fromisoformat(s.replace("Z", "+00:00")).timestamp()
-    except Exception:
+    except (TypeError, ValueError):
         return 0.0
 
 
@@ -507,7 +507,7 @@ class IntegrationShopify:
                     except httpx.HTTPStatusError as e:
                         if e.response.status_code != 404:
                             logger.warning("failed to delete webhook %s: %s", w['id'], e)
-                    except Exception as e:
+                    except (httpx.HTTPError, KeyError, TypeError, ValueError) as e:
                         logger.warning("failed to delete webhook %s: %s", w['id'], e)
                     del ours[topic]
         failed = []
@@ -523,7 +523,7 @@ class IntegrationShopify:
                     body = e.response.text[:200] if e.response else ""
                     logger.warning("webhook %s failed for %s: %s %s", topic, self.shop.shop_domain, e.response.status_code, body)
                     failed.append(f"{topic} ({body})" if body else topic)
-                except Exception as e:
+                except (httpx.HTTPError, KeyError, TypeError, ValueError) as e:
                     logger.warning("webhook %s failed for %s: %s", topic, self.shop.shop_domain, e)
                     failed.append(topic)
         if failed:
@@ -612,7 +612,7 @@ class IntegrationShopify:
             if isinstance(res, dict) and res.get("errors"):
                 return f"{table}: {res['failed']} failed — {res['errors']}"
             return ""
-        except Exception as e:
+        except (TypeError, ValueError, KeyError, RuntimeError) as e:
             return f"{table} upsert failed: {e}"
 
 
@@ -723,7 +723,7 @@ class IntegrationShopify:
         try:
             r = await _shop_req(domain, token, "GET", "shop.json")
             info = r.json()["shop"]
-        except Exception as e:
+        except (httpx.HTTPError, ValueError, KeyError, TypeError) as e:
             return f"Failed to verify shop connection: {e}"
         ws = self.rcx.persona.ws_id
         await ckit_erp.create_erp_record(self.fclient, "com_shop", ws, {
@@ -1072,7 +1072,7 @@ class IntegrationShopify:
                             await _shop_req(self.shop.shop_domain, token, "DELETE", f"webhooks/{w['id']}.json", c=c)
             if auth:
                 await ckit_external_auth.external_auth_disconnect(self.fclient, self.rcx.persona.ws_id, self.rcx.persona.persona_id, "shopify")
-        except Exception as e:
+        except (httpx.HTTPError, ValueError, KeyError, TypeError, RuntimeError) as e:
             cleanup_err = str(e)
             logger.warning("failed to clean up shop %s: %s", self.shop.shop_id, e)
         await ckit_erp.patch_erp_record(

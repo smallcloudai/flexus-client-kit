@@ -23,23 +23,51 @@ Core mode:
 
 ## Recording Prospecting Artifacts
 
-- `write_prospecting_batch(path=/pipeline/prospecting-batch-{date}, batch={...})` — ICP-filtered prospect list
-- `write_outreach_execution_log(path=/pipeline/outreach-log-{date}, log={...})` — enrollment events and delivery summary
-- `write_prospect_data_quality(path=/pipeline/data-quality-{date}, quality={...})` — quality gate pass/fail
+- `write_prospecting_batch(path=/pipeline/prospecting-batch-{date}, data={...})` — ICP-filtered prospect list
+- `write_outreach_execution_log(path=/pipeline/outreach-log-{date}, data={...})` — enrollment events and delivery summary
+- `write_prospect_data_quality(path=/pipeline/data-quality-{date}, data={...})` — quality gate pass/fail
 
 ## Recording Qualification Artifacts
 
-- `write_qualification_map(path=/pipeline/qualification-map-{date}, qualification_map={...})` — account qualification states
-- `write_buying_committee_coverage(path=/pipeline/committee-coverage-{date}, coverage={...})` — committee gaps
-- `write_qualification_go_no_go_gate(path=/pipeline/go-no-go-gate-{date}, gate={...})` — go/no-go decision gate
+- `write_qualification_map(path=/pipeline/qualification-map-{date}, data={...})` — account qualification states
+- `write_buying_committee_coverage(path=/pipeline/committee-coverage-{date}, data={...})` — committee gaps
+- `write_qualification_go_no_go_gate(path=/pipeline/go-no-go-gate-{date}, data={...})` — go/no-go decision gate
 
 Do not output raw JSON in chat.
 
-## Available API Tools
+## Available Integration Tools
 
-- `pipeline_crm_api` — CRM data access and prospect filtering
-- `pipeline_prospecting_enrichment_api` — prospect enrichment (Apollo, PDL, Clearbit)
-- `pipeline_outreach_execution_api` — outbound sequence enrollment (Outreach, Salesloft, HubSpot Sequences)
-- `pipeline_engagement_signal_api` — engagement signal reading from CRM and sequences
+Call each tool with `op="help"` to see available methods, `op="call", args={"method_id": "...", ...}` to execute.
 
-Use op="help" on any tool to see available providers and methods.
+**CRM:** `salesforce`, `pipedrive`, `zendesk_sell`
+
+**Prospect enrichment:** `apollo`, `clearbit`, `pdl`
+
+**Outbound sequences:** `outreach`, `salesloft`
+
+**Engagement capture:** `gong`
+
+## Artifact Schemas
+
+```json
+{
+  "write_buying_committee_coverage": {
+    "type": "object"
+  },
+  "write_outreach_execution_log": {
+    "type": "object"
+  },
+  "write_prospecting_batch": {
+    "type": "object"
+  },
+  "write_prospect_data_quality": {
+    "type": "object"
+  },
+  "write_qualification_go_no_go_gate": {
+    "type": "object"
+  },
+  "write_qualification_map": {
+    "type": "object"
+  }
+}
+```

@@ -24,20 +24,45 @@ Core mode:
 
 ## Recording Artifacts
 
-- `write_segment_enrichment(path=/segments/enrichment-{segment_id}-{YYYY-MM-DD}, segment_enrichment={...})` — enriched candidate with firmographic, technographic, intent data
-- `write_segment_data_quality(path=/segments/quality-{segment_id}-{YYYY-MM-DD}, data_quality={...})` — data quality gate per dimension
-- `write_segment_priority_matrix(path=/segments/matrix-{YYYY-MM-DD}, priority_matrix={...})` — weighted scoring across candidate segments
-- `write_primary_segment_decision(path=/segments/decision-{YYYY-MM-DD}, decision={...})` — primary segment selection with rationale
-- `write_primary_segment_go_no_go_gate(path=/segments/gate-{YYYY-MM-DD}, gate={...})` — go/no_go with blocking issues and next checks
+- `write_segment_enrichment(path=/segments/enrichment-{segment_id}-{YYYY-MM-DD}, data={...})` — enriched candidate with firmographic, technographic, intent data
+- `write_segment_data_quality(path=/segments/quality-{segment_id}-{YYYY-MM-DD}, data={...})` — data quality gate per dimension
+- `write_segment_priority_matrix(path=/segments/matrix-{YYYY-MM-DD}, data={...})` — weighted scoring across candidate segments
+- `write_primary_segment_decision(path=/segments/decision-{YYYY-MM-DD}, data={...})` — primary segment selection with rationale
+- `write_primary_segment_go_no_go_gate(path=/segments/gate-{YYYY-MM-DD}, data={...})` — go/no_go with blocking issues and next checks
 
 Do not output raw JSON in chat.
 
-## Available API Tools
+## Available Integration Tools
 
-- `segment_crm_signal_api` — CRM pipeline and deal history signals
-- `segment_firmographic_enrichment_api` — firmographic data (Clearbit, Apollo, PDL)
-- `segment_technographic_profile_api` — technology stack profiling (BuiltWith, Wappalyzer)
-- `segment_market_traction_api` — market traction and growth benchmarks
-- `segment_intent_signal_api` — B2B intent signals (Bombora, 6sense, G2)
+Call each tool with `op="help"` to see available methods, `op="call", args={"method_id": "...", ...}` to execute.
 
-Use op="help" on any tool to see available providers and methods.
+**Company data & firmographics:** `coresignal`, `theirstack`, `hasdata`, `oxylabs`, `pdl`, `clearbit`, `crunchbase`
+
+**Technographics:** `wappalyzer`, `builtwith`
+
+**App stores:** `appstoreconnect`, `google_play`
+
+**Intent data:** `sixsense`, `bombora`
+
+**Validation panels:** `cint`, `mturk`, `usertesting`, `userinterviews`
+## Artifact Schemas
+
+```json
+{
+  "write_primary_segment_decision": {
+    "type": "object"
+  },
+  "write_primary_segment_go_no_go_gate": {
+    "type": "object"
+  },
+  "write_segment_data_quality": {
+    "type": "object"
+  },
+  "write_segment_enrichment": {
+    "type": "object"
+  },
+  "write_segment_priority_matrix": {
+    "type": "object"
+  }
+}
+```

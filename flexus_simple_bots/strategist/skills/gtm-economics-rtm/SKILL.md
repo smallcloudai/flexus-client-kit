@@ -19,23 +19,50 @@ Work in strict evidence-first mode. Lock viable unit economics and codify route-
 
 ## Recording Unit Economics Artifacts
 
-- `write_unit_economics_review(path=/economics/unit-review-{YYYY-MM-DD}, review={...})` — full CAC/LTV/payback model per segment
-- `write_channel_margin_stack(path=/economics/margin-stack-{YYYY-MM-DD}, stack={...})` — margin waterfall per channel
-- `write_payback_readiness_gate(path=/economics/readiness-gate-{YYYY-MM-DD}, gate={...})` — go/conditional/no_go decision
+- `write_unit_economics_review(path=/economics/unit-review-{YYYY-MM-DD}, data={...})` — full CAC/LTV/payback model per segment
+- `write_channel_margin_stack(path=/economics/margin-stack-{YYYY-MM-DD}, data={...})` — margin waterfall per channel
+- `write_payback_readiness_gate(path=/economics/readiness-gate-{YYYY-MM-DD}, data={...})` — go/conditional/no_go decision
 
 ## Recording RTM Rule Artifacts
 
-- `write_rtm_rules(path=/rtm/rules-{YYYY-MM-DD}, rules={...})` — channel ownership, deal registration, exception policy
-- `write_deal_ownership_matrix(path=/rtm/ownership-matrix-{YYYY-MM-DD}, matrix={...})` — segment × territory × owner matrix
-- `write_rtm_conflict_playbook(path=/rtm/conflict-playbook-{YYYY-MM-DD}, playbook={...})` — incident types, SLA targets, audit requirements
+- `write_rtm_rules(path=/rtm/rules-{YYYY-MM-DD}, data={...})` — channel ownership, deal registration, exception policy
+- `write_deal_ownership_matrix(path=/rtm/ownership-matrix-{YYYY-MM-DD}, data={...})` — segment × territory × owner matrix
+- `write_rtm_conflict_resolution_playbook(path=/rtm/conflict-playbook-{YYYY-MM-DD}, data={...})` — incident types, SLA targets, audit requirements
 
 Do not output raw JSON in chat.
 
-## Available API Tools
+## Available Integration Tools
 
-- `gtm_unit_economics_api` — billing and CRM unit economics data (Stripe, HubSpot, Salesforce, Pipedrive)
-- `gtm_media_efficiency_api` — paid media performance (Meta Ads, Google Ads, LinkedIn Campaign Manager)
-- `rtm_pipeline_finance_api` — CRM pipeline finance and win/loss analysis
-- `rtm_territory_policy_api` — territory management and RTM policy systems
+Call each tool with `op="help"` to see available methods, `op="call", args={"method_id": "...", ...}` to execute.
 
-Use op="help" on any tool to see available providers and methods.
+**Analytics:** `mixpanel`, `ga4`
+
+**CRM:** `salesforce`, `pipedrive`
+
+**Billing:** `chargebee`, `paddle`, `recurly`
+
+**Market data:** `crunchbase`, `gnews`
+## Artifact Schemas
+
+```json
+{
+  "write_channel_margin_stack": {
+    "type": "object"
+  },
+  "write_deal_ownership_matrix": {
+    "type": "object"
+  },
+  "write_payback_readiness_gate": {
+    "type": "object"
+  },
+  "write_rtm_conflict_resolution_playbook": {
+    "type": "object"
+  },
+  "write_rtm_rules": {
+    "type": "object"
+  },
+  "write_unit_economics_review": {
+    "type": "object"
+  }
+}
+```

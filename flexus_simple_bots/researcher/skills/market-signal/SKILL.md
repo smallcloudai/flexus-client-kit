@@ -27,31 +27,54 @@ Detect pricing changes, positioning rewrites, CTA shifts, feature claim changes.
 
 ## Recording Snapshots
 
-After gathering all evidence for a channel, call `write_market_signal_snapshot()`:
+After gathering all evidence for a channel, call `write_market_signal_snapshot(path=/signals/{channel}-{YYYY-MM-DD}, data={...})`:
 - path: /signals/{channel}-{YYYY-MM-DD} (e.g. /signals/search-demand-2024-01-15)
-- snapshot: all required fields filled; set failure_code/failure_message to null if not applicable.
+- data: all required fields filled; set failure_code/failure_message to null if not applicable.
 
 One call per channel per run. Do not output raw JSON in chat.
 
 ## Recording Register and Backlog
 
 After aggregating snapshots, call:
-- `write_signal_register(path=/signals/register-{date}, register={...})` — deduplicated signal register
-- `write_hypothesis_backlog(path=/signals/hypotheses-{date}, backlog={...})` — risk-ranked hypothesis backlog
+- `write_signal_register(path=/signals/register-{date}, data={...})` — deduplicated signal register
+- `write_hypothesis_backlog(path=/signals/hypotheses-{date}, data={...})` — risk-ranked hypothesis backlog
 
 Do not output raw JSON in chat.
 
-## Available API Tools
+## Available Integration Tools
 
-- `signal_search_demand_api` — Google Search Console, Google Ads, DataForSEO, Bing Webmaster
-- `signal_social_trends_api` — Reddit, X, YouTube, TikTok, Instagram, Pinterest, ProductHunt
-- `signal_news_events_api` — GDELT, EventRegistry, NewsAPI, GNews, Newsdata, Mediastack, Newscatcher, Perigon
-- `signal_review_voice_api` — Trustpilot, Yelp, G2, Capterra
-- `signal_marketplace_demand_api` — Amazon, eBay, Google Shopping
-- `signal_web_traffic_intel_api` — Shopify Analytics, Similarweb MCP
-- `signal_jobs_demand_api` — Adzuna, CoreSignal, TheirStack, LinkedIn Jobs, Glassdoor
-- `signal_dev_ecosystem_api` — StackExchange
-- `signal_public_interest_api` — Wikimedia Pageviews
-- `signal_professional_network_api` — LinkedIn Organization
+Call each tool with `op="help"` to see available methods. Call with `op="call", args={"method_id": "...", ...}` to execute.
 
-Use op="help" on any tool to see available providers and methods.
+**Search demand:** `google_search_console`, `google_ads`, `dataforseo`, `bing_webmaster`
+
+**Social trends:** `reddit`, `x`, `youtube`, `tiktok`, `instagram`, `pinterest`, `producthunt`
+
+**News & events:** `gdelt`, `event_registry`, `newsapi`, `gnews`, `newsdata`, `mediastack`, `newscatcher`, `perigon`
+
+**Reviews & voice:** `trustpilot`, `yelp`, `g2`, `capterra`
+
+**Marketplace:** `amazon`, `ebay`, `google_shopping`
+
+**Jobs & talent demand:** `adzuna`, `coresignal`, `theirstack`, `oxylabs`, `hasdata`, `levelsfyi`, `linkedin_jobs`, `glassdoor`
+
+**Developer ecosystem:** `stackexchange`
+
+**Public interest:** `wikimedia`
+
+**Professional network:** `linkedin` (op="call", args={"method_id": "linkedin.organization.posts.list.v1", ...})
+
+## Artifact Schemas
+
+```json
+{
+  "write_hypothesis_backlog": {
+    "type": "object"
+  },
+  "write_signal_register": {
+    "type": "object"
+  },
+  "write_market_signal_snapshot": {
+    "type": "object"
+  }
+}
+```

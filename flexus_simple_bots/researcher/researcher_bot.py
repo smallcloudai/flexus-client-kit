@@ -1,14 +1,14 @@
 import asyncio
+import json
 import logging
-import time
+from typing import Dict, Any
 
 from flexus_client_kit import ckit_bot_exec
 from flexus_client_kit import ckit_client
+from flexus_client_kit import ckit_cloudtool
+from flexus_client_kit import ckit_external_auth
 from flexus_client_kit import ckit_integrations_db
-from flexus_client_kit import ckit_kanban
 from flexus_client_kit import ckit_shutdown
-from flexus_simple_bots.productman import productman_bot
-from flexus_simple_bots.productman.integrations import survey_research as productman_survey
 from flexus_simple_bots.researcher import customer_discovery_tools
 from flexus_simple_bots.researcher import market_signal_tools
 from flexus_simple_bots.researcher import pain_alternatives_tools
@@ -22,40 +22,83 @@ logger = logging.getLogger("bot_researcher")
 BOT_NAME = "researcher"
 BOT_VERSION = SIMPLE_BOTS_COMMON_VERSION
 
+TEMPLATE_IDEA_TOOL = ckit_cloudtool.CloudTool(
+    strict=False,
+    name="template_idea",
+    description="Create idea document at /gtm/discovery/{idea_slug}/idea",
+    parameters={
+        "type": "object",
+        "properties": {
+            "idea_slug": {"type": "string"},
+            "text": {"type": "string"},
+        },
+        "required": ["idea_slug", "text"],
+        "additionalProperties": False,
+    },
+)
+
+TEMPLATE_HYPOTHESIS_TOOL = ckit_cloudtool.CloudTool(
+    strict=False,
+    name="template_hypothesis",
+    description="Create hypothesis document at /gtm/discovery/{idea_slug}/{hypothesis_slug}/hypothesis",
+    parameters={
+        "type": "object",
+        "properties": {
+            "idea_slug": {"type": "string"},
+            "hypothesis_slug": {"type": "string"},
+            "hypothesis": {"type": "object"},
+            "text": {"type": "string"},
+        },
+        "required": ["idea_slug", "hypothesis_slug"],
+        "additionalProperties": False,
+    },
+)
+
+
+def validate_path_kebab(path: str) -> str:
+    for segment in path.strip("/").split("/"):
+        if segment and not all(c.islower() or c.isdigit() or c == "-" for c in segment):
+            return f"Path segment '{segment}' must be kebab-case (lowercase, numbers, hyphens)"
+    return ""
+
 RESEARCHER_INTEGRATIONS: list[ckit_integrations_db.IntegrationRecord] = ckit_integrations_db.static_integrations_load(
     researcher_install.RESEARCHER_ROOTDIR,
-    ["flexus_policy_document", "skills", "print_widget"],
+    [
+        "flexus_policy_document", "skills", "print_widget",
+        "linkedin",
+        "amazon", "apollo", "appstoreconnect", "bing_webmaster",
+        "bombora", "builtwith", "calendly", "capterra", "cint", "clearbit",
+        "coresignal", "crunchbase", "dataforseo", "dovetail", "ebay",
+        "event_registry", "fireflies", "g2", "gdelt", "glassdoor",
+        "gnews", "gong", "google_ads", "google_calendar", "google_play",
+        "google_search_console", "google_shopping", "hasdata", "instagram",
+        "levelsfyi", "linkedin_jobs", "mediastack", "newsapi",
+        "newscatcher", "newsdata", "outreach", "oxylabs", "pdl", "perigon",
+        "pinterest", "pipedrive", "producthunt", "prolific", "qualtrics",
+        "reddit", "salesforce", "salesloft", "sixsense",
+        "stackexchange", "surveymonkey", "theirstack", "tiktok", "trustpilot",
+        "typeform", "userinterviews", "usertesting", "wappalyzer", "wikimedia",
+        "x", "yelp", "youtube", "zendesk", "zendesk_sell", "zoom",
+    ],
     builtin_skills=researcher_install.RESEARCHER_SKILLS,
 )
 
 TOOLS = [
-    *market_signal_tools.SIGNAL_TOOLS,
     *market_signal_tools.WRITE_TOOLS,
-    *customer_discovery_tools.API_TOOLS,
     *customer_discovery_tools.WRITE_TOOLS,
-    *pain_alternatives_tools.API_TOOLS,
     *pain_alternatives_tools.WRITE_TOOLS,
-    *segment_qualification_tools.API_TOOLS,
     *segment_qualification_tools.WRITE_TOOLS,
-    *pipeline_qualification_tools.API_TOOLS,
     *pipeline_qualification_tools.WRITE_TOOLS,
-    productman_bot.IDEA_TEMPLATE_TOOL,
-    productman_bot.HYPOTHESIS_TEMPLATE_TOOL,
-    productman_bot.VERIFY_IDEA_TOOL,
-    productman_survey.SURVEY_RESEARCH_TOOL,
+    TEMPLATE_IDEA_TOOL,
+    TEMPLATE_HYPOTHESIS_TOOL,
     *[t for rec in RESEARCHER_INTEGRATIONS for t in rec.integr_tools],
 ]
 
 
 async def researcher_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.RobotContext) -> None:
-    integr_objects = await ckit_integrations_db.main_loop_integrations_init(RESEARCHER_INTEGRATIONS, rcx)
+    setup = ckit_bot_exec.official_setup_mixing_procedure(researcher_install.RESEARCHER_SETUP_SCHEMA, rcx.persona.persona_setup)
+    integr_objects = await ckit_integrations_db.main_loop_integrations_init(RESEARCHER_INTEGRATIONS, rcx, setup)
     pdoc_integration = integr_objects["flexus_policy_document"]
-
-    for tool in market_signal_tools.SIGNAL_TOOLS:
-        n = tool.name
-        @rcx.on_tool_call(n)
-        async def _h(toolcall, args, _n=n):
-            return await market_signal_tools.handle_signal_tool_call(_n, toolcall, args, rcx)
 
     for tool, fn in [
         (market_signal_tools.WRITE_SNAPSHOT_TOOL, market_signal_tools.handle_write_snapshot),
@@ -65,12 +108,6 @@ async def researcher_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_
         @rcx.on_tool_call(tool.name)
         async def _hw(toolcall, args, _f=fn):
             return await _f(toolcall, args, pdoc_integration, rcx)
-
-    for tool in customer_discovery_tools.API_TOOLS:
-        n = tool.name
-        @rcx.on_tool_call(n)
-        async def _h(toolcall, args, _n=n):
-            return await customer_discovery_tools.handle_api_tool_call(_n, toolcall, args)
 
     for tool, fn in [
         (customer_discovery_tools.WRITE_INTERVIEW_INSTRUMENT_TOOL, customer_discovery_tools.handle_write_interview_instrument),
@@ -87,12 +124,6 @@ async def researcher_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_
         async def _hw(toolcall, args, _f=fn):
             return await _f(toolcall, args, pdoc_integration, rcx)
 
-    for tool in pain_alternatives_tools.API_TOOLS:
-        n = tool.name
-        @rcx.on_tool_call(n)
-        async def _h(toolcall, args, _n=n):
-            return await pain_alternatives_tools.handle_api_tool_call(_n, toolcall, args)
-
     for tool, fn in [
         (pain_alternatives_tools.WRITE_PAIN_SIGNAL_REGISTER_TOOL, pain_alternatives_tools.handle_write_pain_signal_register),
         (pain_alternatives_tools.WRITE_PAIN_ECONOMICS_TOOL, pain_alternatives_tools.handle_write_pain_economics),
@@ -105,12 +136,6 @@ async def researcher_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_
         async def _hw(toolcall, args, _f=fn):
             return await _f(toolcall, args, pdoc_integration, rcx)
 
-    for tool in segment_qualification_tools.API_TOOLS:
-        n = tool.name
-        @rcx.on_tool_call(n)
-        async def _h(toolcall, args, _n=n):
-            return await segment_qualification_tools.handle_api_tool_call(_n, toolcall, args)
-
     for tool, fn in [
         (segment_qualification_tools.WRITE_SEGMENT_ENRICHMENT_TOOL, segment_qualification_tools.handle_write_segment_enrichment),
         (segment_qualification_tools.WRITE_SEGMENT_DATA_QUALITY_TOOL, segment_qualification_tools.handle_write_segment_data_quality),
@@ -121,12 +146,6 @@ async def researcher_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_
         @rcx.on_tool_call(tool.name)
         async def _hw(toolcall, args, _f=fn):
             return await _f(toolcall, args, pdoc_integration, rcx)
-
-    for tool in pipeline_qualification_tools.API_TOOLS:
-        n = tool.name
-        @rcx.on_tool_call(n)
-        async def _h(toolcall, args, _n=n):
-            return await pipeline_qualification_tools.handle_api_tool_call(_n, toolcall, args)
 
     for tool, fn in [
         (pipeline_qualification_tools.WRITE_PROSPECTING_BATCH_TOOL, pipeline_qualification_tools.handle_write_prospecting_batch),
@@ -140,29 +159,62 @@ async def researcher_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_
         async def _hw(toolcall, args, _f=fn):
             return await _f(toolcall, args, pdoc_integration, rcx)
 
-    survey_integration = productman_bot.setup_handlers(fclient, rcx, pdoc_integration)
+    @rcx.on_tool_call(TEMPLATE_IDEA_TOOL.name)
+    async def _h_template_idea(toolcall, args):
+        idea_slug = str(args.get("idea_slug", "")).strip()
+        text = str(args.get("text", "")).strip()
+        if not idea_slug:
+            return "Error: idea_slug required."
+        if not text:
+            return "Error: text required."
+        if err := validate_path_kebab(idea_slug):
+            return f"Error: {err}"
+        try:
+            idea_doc = json.loads(text)
+        except json.JSONDecodeError as e:
+            return f"Error: Invalid JSON: {e}"
+        fuser_id = ckit_external_auth.get_fuser_id_from_rcx(rcx, toolcall.fcall_ft_id)
+        path = f"/gtm/discovery/{idea_slug}/idea"
+        await pdoc_integration.pdoc_create(path, json.dumps(idea_doc, indent=2, ensure_ascii=False), fuser_id)
+        return f"✍️ {path}\n\n✓ Created idea document"
 
-    @rcx.on_updated_task
-    async def _on_updated_task(t: ckit_kanban.FPersonaKanbanTaskOutput):
-        survey_integration.track_survey_task(t)
+    @rcx.on_tool_call(TEMPLATE_HYPOTHESIS_TOOL.name)
+    async def _h_template_hypothesis(toolcall, args):
+        idea_slug = str(args.get("idea_slug", "")).strip()
+        hypothesis_slug = str(args.get("hypothesis_slug", "")).strip()
+        if not idea_slug:
+            return "Error: idea_slug required."
+        if not hypothesis_slug:
+            return "Error: hypothesis_slug required."
+        if err := validate_path_kebab(idea_slug):
+            return f"Error: {err}"
+        if err := validate_path_kebab(hypothesis_slug):
+            return f"Error: {err}"
 
-    initial_tasks = await ckit_kanban.bot_get_all_tasks(fclient, rcx.persona.persona_id)
-    for t in [x for x in initial_tasks if x.ktask_done_ts == 0]:
-        survey_integration.track_survey_task(t)
+        hypothesis_data = args.get("hypothesis")
+        if hypothesis_data is None:
+            text = str(args.get("text", "")).strip()
+            if not text:
+                return "Error: either hypothesis or text must be provided."
+            try:
+                hypothesis_data = json.loads(text)
+            except json.JSONDecodeError as e:
+                return f"Error: Invalid JSON: {e}"
+        if not isinstance(hypothesis_data, dict):
+            return "Error: hypothesis must be an object."
 
-    last_survey_update = 0.0
-    survey_update_interval = 60
+        fuser_id = ckit_external_auth.get_fuser_id_from_rcx(rcx, toolcall.fcall_ft_id)
+        path = f"/gtm/discovery/{idea_slug}/{hypothesis_slug}/hypothesis"
+        await pdoc_integration.pdoc_create(
+            path,
+            json.dumps({"hypothesis": hypothesis_data}, indent=2, ensure_ascii=False),
+            fuser_id,
+        )
+        return f"✍️ {path}\n\n✓ Created hypothesis document"
 
     try:
         while not ckit_shutdown.shutdown_event.is_set():
             await rcx.unpark_collected_events(sleep_if_no_work=10.0)
-
-            if time.time() - last_survey_update > survey_update_interval:
-                await survey_integration.update_active_surveys(
-                    fclient,
-                    survey_integration.update_task_survey_status,
-                )
-                last_survey_update = time.time()
     finally:
         logger.info("%s exit", rcx.persona.persona_id)
 

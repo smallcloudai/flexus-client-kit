@@ -65,13 +65,6 @@ class IntegrationBombora:
         return json.dumps({"ok": False, "error_code": "METHOD_UNIMPLEMENTED", "method_id": method_id}, indent=2, ensure_ascii=False)
 
     async def _get_token(self, client: httpx.AsyncClient) -> str:
-        """Return Basic auth token (base64 of client_id:client_secret).
-
-        Bombora Surge API uses HTTP Basic auth — this helper encodes the
-        credentials and returns the token string ready for the Authorization
-        header.  The client param is accepted for interface consistency with
-        OAuth2-style helpers used in other integrations.
-        """
         client_id = os.environ.get("BOMBORA_CLIENT_ID", "")
         client_secret = os.environ.get("BOMBORA_CLIENT_SECRET", "")
         raw = f"{client_id}:{client_secret}".encode()

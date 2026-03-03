@@ -23,23 +23,50 @@ Core mode:
 
 ## Recording Corridor Artifacts
 
-- `write_preliminary_price_corridor(path=/pricing/corridor-{YYYY-MM-DD}, corridor={...})` — floor/target/ceiling per segment
-- `write_price_sensitivity_curve(path=/pricing/sensitivity-{YYYY-MM-DD}, curve={...})` — WTP curve points
-- `write_pricing_assumption_register(path=/pricing/assumptions-{YYYY-MM-DD}, register={...})` — assumption risk register
+- `write_preliminary_price_corridor(path=/pricing/corridor-{YYYY-MM-DD}, data={...})` — floor/target/ceiling per segment
+- `write_price_sensitivity_curve(path=/pricing/sensitivity-{YYYY-MM-DD}, data={...})` — WTP curve points
+- `write_pricing_assumption_register(path=/pricing/assumptions-{YYYY-MM-DD}, data={...})` — assumption risk register
 
 ## Recording Commitment Artifacts
 
-- `write_pricing_commitment_evidence(path=/pricing/commitment-{YYYY-MM-DD}, evidence={...})` — observed signals
-- `write_validated_price_hypothesis(path=/pricing/hypothesis-{YYYY-MM-DD}, hypothesis={...})` — per tested price point
-- `write_pricing_go_no_go_gate(path=/pricing/gate-{YYYY-MM-DD}, gate={...})` — final go/no-go decision
+- `write_pricing_commitment_evidence(path=/pricing/commitment-{YYYY-MM-DD}, data={...})` — observed signals
+- `write_validated_price_hypothesis(path=/pricing/hypothesis-{YYYY-MM-DD}, data={...})` — per tested price point
+- `write_pricing_go_no_go_gate(path=/pricing/gate-{YYYY-MM-DD}, data={...})` — final go/no-go decision
 
 Do not output raw JSON in chat.
 
-## Available API Tools
+## Available Integration Tools
 
-- `pricing_research_ops_api` — WTP survey platforms (Typeform, SurveyMonkey, Qualtrics)
-- `pricing_commitment_events_api` — billing commitment signals (Stripe, Paddle, Chargebee)
-- `pricing_sales_signal_api` — CRM pricing signals (HubSpot, Salesforce, Pipedrive)
-- `pricing_catalog_benchmark_api` — competitor pricing benchmarks
+Call each tool with `op="help"` to see available methods, `op="call", args={"method_id": "...", ...}` to execute.
 
-Use op="help" on any tool to see available providers and methods.
+**WTP research:** `typeform`, `surveymonkey`, `qualtrics`
+
+**Billing commitment signals:** `chargebee`, `paddle`, `recurly`
+
+**CRM pricing signals:** `salesforce`, `pipedrive`
+
+**Catalog benchmarks:** `google_ads`, `crunchbase`
+## Artifact Schemas
+
+```json
+{
+  "write_preliminary_price_corridor": {
+    "type": "object"
+  },
+  "write_price_sensitivity_curve": {
+    "type": "object"
+  },
+  "write_pricing_assumption_register": {
+    "type": "object"
+  },
+  "write_pricing_commitment_evidence": {
+    "type": "object"
+  },
+  "write_pricing_go_no_go_gate": {
+    "type": "object"
+  },
+  "write_validated_price_hypothesis": {
+    "type": "object"
+  }
+}
+```

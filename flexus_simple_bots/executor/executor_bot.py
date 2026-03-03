@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import time
+from typing import Dict
 
 from pymongo import AsyncMongoClient
 
@@ -11,15 +12,6 @@ from flexus_client_kit import ckit_kanban
 from flexus_client_kit import ckit_mongo
 from flexus_client_kit import ckit_shutdown
 from flexus_client_kit.integrations import fi_mongo_store
-from flexus_client_kit.integrations import fi_linkedin
-from flexus_client_kit.integrations.facebook.fi_facebook import IntegrationFacebook, FACEBOOK_TOOL
-from flexus_simple_bots.botticelli import botticelli_bot
-from flexus_simple_bots.botticelli.botticelli_bot import (
-    STYLEGUIDE_TEMPLATE_TOOL,
-    GENERATE_PICTURE_TOOL,
-    CROP_IMAGE_TOOL,
-    CAMPAIGN_BRIEF_TOOL,
-)
 from flexus_simple_bots.executor import churn_learning_tools
 from flexus_simple_bots.executor import creative_paid_channels_tools
 from flexus_simple_bots.executor import executor_install
@@ -36,61 +28,44 @@ BOT_VERSION = SIMPLE_BOTS_COMMON_VERSION
 
 EXECUTOR_INTEGRATIONS: list[ckit_integrations_db.IntegrationRecord] = ckit_integrations_db.static_integrations_load(
     executor_install.EXECUTOR_ROOTDIR,
-    ["flexus_policy_document", "skills", "print_widget"],
+    [
+        "flexus_policy_document", "skills", "print_widget",
+        "linkedin", "facebook[campaign, adset, ad, account]",
+        "calendly", "chargebee", "crossbeam", "delighted", "docusign",
+        "fireflies", "ga4", "gong", "google_ads", "google_calendar",
+        "meta", "mixpanel", "paddle", "pandadoc", "partnerstack",
+        "pipedrive", "recurly", "salesforce", "surveymonkey", "typeform",
+        "x_ads", "zendesk", "zoom",
+    ],
     builtin_skills=executor_install.EXECUTOR_SKILLS,
 )
 
 TOOLS = [
-    fi_linkedin.LINKEDIN_TOOL,
-    FACEBOOK_TOOL,
     fi_mongo_store.MONGO_STORE_TOOL,
     experiment_execution.LAUNCH_EXPERIMENT_TOOL,
-    STYLEGUIDE_TEMPLATE_TOOL,
-    GENERATE_PICTURE_TOOL,
-    CROP_IMAGE_TOOL,
-    CAMPAIGN_BRIEF_TOOL,
-    *creative_paid_channels_tools.API_TOOLS,
     *creative_paid_channels_tools.WRITE_TOOLS,
-    *pilot_delivery_tools.API_TOOLS,
     *pilot_delivery_tools.WRITE_TOOLS,
-    *partner_ecosystem_tools.API_TOOLS,
     *partner_ecosystem_tools.WRITE_TOOLS,
-    *retention_intelligence_tools.API_TOOLS,
     *retention_intelligence_tools.WRITE_TOOLS,
-    *churn_learning_tools.API_TOOLS,
     *churn_learning_tools.WRITE_TOOLS,
     *[t for rec in EXECUTOR_INTEGRATIONS for t in rec.integr_tools],
 ]
 
 
 async def executor_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.RobotContext) -> None:
-    integr_objects = await ckit_integrations_db.main_loop_integrations_init(EXECUTOR_INTEGRATIONS, rcx)
+    setup = ckit_bot_exec.official_setup_mixing_procedure(executor_install.EXECUTOR_SETUP_SCHEMA, rcx.persona.persona_setup)
+    integr_objects = await ckit_integrations_db.main_loop_integrations_init(EXECUTOR_INTEGRATIONS, rcx, setup)
     pdoc_integration = integr_objects["flexus_policy_document"]
 
-    setup = ckit_bot_exec.official_setup_mixing_procedure(executor_install.EXECUTOR_SETUP_SCHEMA, rcx.persona.persona_setup)
     mongo_conn_str = await ckit_mongo.mongo_fetch_creds(fclient, rcx.persona.persona_id)
     mongo = AsyncMongoClient(mongo_conn_str)
     personal_mongo = mongo[rcx.persona.persona_id + "_db"]["personal_mongo"]
 
-    linkedin_integration = fi_linkedin.IntegrationLinkedIn(
-        fclient=fclient,
-        rcx=rcx,
-        ad_account_id=setup.get("ad_account_id", ""),
-    )
-    facebook_integration = IntegrationFacebook(fclient=fclient, rcx=rcx, ad_account_id="", pdoc_integration=pdoc_integration)
     experiment_integr = experiment_execution.IntegrationExperimentExecution(
         pdoc_integration=pdoc_integration,
         fclient=fclient,
-        facebook_integration=facebook_integration,
+        facebook_integration=integr_objects["facebook"],
     )
-
-    @rcx.on_tool_call(fi_linkedin.LINKEDIN_TOOL.name)
-    async def _h_linkedin(toolcall, args):
-        return await linkedin_integration.called_by_model(toolcall, args)
-
-    @rcx.on_tool_call(FACEBOOK_TOOL.name)
-    async def _h_facebook(toolcall, args):
-        return await facebook_integration.called_by_model(toolcall, args)
 
     @rcx.on_tool_call(fi_mongo_store.MONGO_STORE_TOOL.name)
     async def _h_mongo(toolcall, args):
@@ -99,14 +74,6 @@ async def executor_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_ex
     @rcx.on_tool_call(experiment_execution.LAUNCH_EXPERIMENT_TOOL.name)
     async def _h_launch(toolcall, args):
         return await experiment_integr.launch_experiment(toolcall, args)
-
-    await botticelli_bot.setup_handlers(fclient, rcx, pdoc_integration)
-
-    for tool in creative_paid_channels_tools.API_TOOLS:
-        n = tool.name
-        @rcx.on_tool_call(n)
-        async def _h(toolcall, args, _n=n):
-            return await creative_paid_channels_tools.handle_api_tool_call(_n, toolcall, args)
 
     for tool, fn in [
         (creative_paid_channels_tools.WRITE_CREATIVE_VARIANT_PACK_TOOL, creative_paid_channels_tools.handle_write_creative_variant_pack),
@@ -120,12 +87,6 @@ async def executor_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_ex
         async def _hw(toolcall, args, _f=fn):
             return await _f(toolcall, args, pdoc_integration, rcx)
 
-    for tool in pilot_delivery_tools.API_TOOLS:
-        n = tool.name
-        @rcx.on_tool_call(n)
-        async def _h(toolcall, args, _n=n):
-            return await pilot_delivery_tools.handle_api_tool_call(_n, toolcall, args)
-
     for tool, fn in [
         (pilot_delivery_tools.WRITE_PILOT_CONTRACT_PACKET_TOOL, pilot_delivery_tools.handle_write_pilot_contract_packet),
         (pilot_delivery_tools.WRITE_PILOT_RISK_CLAUSE_REGISTER_TOOL, pilot_delivery_tools.handle_write_pilot_risk_clause_register),
@@ -137,12 +98,6 @@ async def executor_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_ex
         @rcx.on_tool_call(tool.name)
         async def _hw(toolcall, args, _f=fn):
             return await _f(toolcall, args, pdoc_integration, rcx)
-
-    for tool in partner_ecosystem_tools.API_TOOLS:
-        n = tool.name
-        @rcx.on_tool_call(n)
-        async def _h(toolcall, args, _n=n):
-            return await partner_ecosystem_tools.handle_api_tool_call(_n, toolcall, args)
 
     for tool, fn in [
         (partner_ecosystem_tools.WRITE_PARTNER_ACTIVATION_SCORECARD_TOOL, partner_ecosystem_tools.handle_write_partner_activation_scorecard),
@@ -156,12 +111,6 @@ async def executor_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_ex
         async def _hw(toolcall, args, _f=fn):
             return await _f(toolcall, args, pdoc_integration, rcx)
 
-    for tool in retention_intelligence_tools.API_TOOLS:
-        n = tool.name
-        @rcx.on_tool_call(n)
-        async def _h(toolcall, args, _n=n):
-            return await retention_intelligence_tools.handle_retention_tool_call(_n, toolcall, args)
-
     for tool, fn in [
         (retention_intelligence_tools.WRITE_COHORT_REVENUE_REVIEW_TOOL, retention_intelligence_tools.handle_write_cohort_revenue_review),
         (retention_intelligence_tools.WRITE_RETENTION_DRIVER_MATRIX_TOOL, retention_intelligence_tools.handle_write_retention_driver_matrix),
@@ -173,12 +122,6 @@ async def executor_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_ex
         @rcx.on_tool_call(tool.name)
         async def _hw(toolcall, args, _f=fn):
             return await _f(toolcall, args, pdoc_integration, rcx)
-
-    for tool in churn_learning_tools.API_TOOLS:
-        n = tool.name
-        @rcx.on_tool_call(n)
-        async def _h(toolcall, args, _n=n):
-            return await churn_learning_tools.handle_api_tool_call(_n, toolcall, args)
 
     for tool, fn in [
         (churn_learning_tools.WRITE_INTERVIEW_CORPUS_TOOL, churn_learning_tools.handle_write_interview_corpus),

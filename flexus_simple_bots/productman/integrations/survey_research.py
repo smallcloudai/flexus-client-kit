@@ -577,8 +577,8 @@ class IntegrationSurveyResearch:
 
                         await ckit_kanban.bot_kanban_update_details(self.fclient, task.ktask_id, task_details)
                         logger.info(f"Updated task {task.ktask_id} with survey tracking info")
-                except Exception as e:
-                    logger.error(f"Failed to update task with survey info: {e}")
+                except (AttributeError, KeyError, ValueError) as e:
+                    logger.error("Failed to update task with survey info", exc_info=e)
 
             if "error" in publish_result:
                 result = f"⚠️ Survey campaign created but not published!\n\n"
@@ -773,8 +773,8 @@ class IntegrationSurveyResearch:
                         self._sm_headers(),
                         params={"per_page": 1}
                     )
-                except Exception as e:
-                    logger.warn(f"Could not fetch survey {survey_id} status: {e}")
+                except (OSError, ValueError, KeyError) as e:
+                    logger.warning("Could not fetch survey %s status", survey_id, exc_info=e)
                     continue
 
                 if not response_data:

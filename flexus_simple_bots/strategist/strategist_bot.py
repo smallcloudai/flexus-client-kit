@@ -1,11 +1,17 @@
 import asyncio
+import datetime
+import json
 import logging
+import re
+from pathlib import Path
+from typing import Any, Dict, List
 
 from flexus_client_kit import ckit_bot_exec
 from flexus_client_kit import ckit_client
+from flexus_client_kit import ckit_cloudtool
+from flexus_client_kit import ckit_external_auth
 from flexus_client_kit import ckit_integrations_db
 from flexus_client_kit import ckit_shutdown
-from flexus_simple_bots.owl3 import owl3_bot
 from flexus_simple_bots.strategist import experiment_design_tools
 from flexus_simple_bots.strategist import gtm_economics_rtm_tools
 from flexus_simple_bots.strategist import mvp_validation_tools
@@ -16,42 +22,167 @@ from flexus_simple_bots.version_common import SIMPLE_BOTS_COMMON_VERSION
 
 logger = logging.getLogger("bot_strategist")
 
+BOT_DIR = Path(__file__).parent
 BOT_NAME = "strategist"
 BOT_VERSION = SIMPLE_BOTS_COMMON_VERSION
 
+
+def load_strategy_skill_schemas() -> Dict[str, Any]:
+    skills_dir = BOT_DIR / "skills"
+    schema = {}
+    for skill_dir in sorted(skills_dir.iterdir()):
+        if not skill_dir.name.startswith("filling-"):
+            continue
+        md = (skill_dir / "SKILL.md").read_text(encoding="utf-8")
+        m = re.search(r"```json\s*(\{.*?\})\s*```", md, re.DOTALL)
+        if not m:
+            continue
+        section = skill_dir.name.replace("filling-", "")
+        parsed = json.loads(m.group(1))
+        parsed["title"] = section.split("-", 1)[1].capitalize()
+        schema[section] = parsed
+    return schema
+
+
+STRATEGY_SKILL_SCHEMAS = load_strategy_skill_schemas()
+
+PIPELINE = [
+    "section01-calibration",
+    "section02-diagnostic",
+    "section03-metrics",
+    "section04-segment",
+    "section05-messaging",
+    "section06-channels",
+    "section07-tactics",
+]
+
+UPDATE_STRATEGY_TOOL = ckit_cloudtool.CloudTool(
+    strict=False,
+    name="update_strategy_section",
+    description="Update a section of the marketing strategy document. Sections must be filled in order: calibration -> diagnostic -> metrics -> segment -> messaging -> channels -> tactics.",
+    parameters={
+        "type": "object",
+        "properties": {
+            "idea_slug": {
+                "type": "string",
+                "description": "Idea slug from discovery path",
+            },
+            "hyp_slug": {
+                "type": "string",
+                "description": "Hypothesis slug from discovery path",
+            },
+            "section": {
+                "type": "string",
+                "enum": PIPELINE,
+            },
+            "data": {
+                "type": "object",
+                "description": "Section content, freeform",
+            },
+        },
+    },
+)
+
+
+def make_tool_response(path: str, step: str, score: int, filled: List[str], unfilled: List[str]) -> str:
+    filled_str = ", ".join(filled) if filled else "none"
+    unfilled_str = ", ".join(unfilled) if unfilled else "none"
+    return f"""✍️ {path}
+
+✓ Updated step: {step}
+
+Score: {score}/100
+Filled: {filled_str}
+Unfilled: {unfilled_str}
+"""
+
+
+async def handle_update_strategy(toolcall, args: Dict[str, Any], rcx, pdoc_integration) -> str:
+    idea_slug = args.get("idea_slug")
+    hyp_slug = args.get("hyp_slug")
+    section = args.get("section")
+    data = args.get("data")
+    if not idea_slug or not hyp_slug or not section or not data:
+        return "Error: idea_slug, hyp_slug, section, and data are all required."
+
+    if section not in PIPELINE:
+        return f"Error: unknown section {section!r}, must be one of: {', '.join(PIPELINE)}"
+
+    caller_fuser_id = ckit_external_auth.get_fuser_id_from_rcx(rcx, toolcall.fcall_ft_id)
+    path = f"/gtm/strategy/{idea_slug}--{hyp_slug}/strategy"
+
+    existing = await pdoc_integration.pdoc_cat(path, caller_fuser_id)
+    if existing is None:
+        doc = {
+            "strategy": {
+                "meta": {
+                    "created_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+                },
+                "progress": {
+                    "score": 0,
+                    "step": "section01-calibration",
+                },
+            },
+        }
+    else:
+        doc = existing.pdoc_content
+
+    step_idx = PIPELINE.index(section)
+    if step_idx > 0:
+        prev = PIPELINE[step_idx - 1]
+        if not doc["strategy"].get(prev):
+            return f"Error: must complete {prev} before {section}"
+
+    doc["strategy"]["schema"] = STRATEGY_SKILL_SCHEMAS
+    doc["strategy"][section] = data
+    doc["strategy"]["meta"]["updated_at"] = datetime.datetime.now(datetime.timezone.utc).isoformat()
+    sections_filled = sum(1 for s in PIPELINE if doc["strategy"].get(s))
+    score = min(100 * sections_filled // len(PIPELINE), 100)
+
+    doc["strategy"]["progress"]["score"] = score
+    if step_idx + 1 < len(PIPELINE):
+        doc["strategy"]["progress"]["step"] = PIPELINE[step_idx + 1]
+    else:
+        doc["strategy"]["progress"]["step"] = "complete"
+
+    await pdoc_integration.pdoc_overwrite(path, json.dumps(doc, ensure_ascii=False), caller_fuser_id)
+
+    filled = [s for s in PIPELINE if doc["strategy"].get(s)]
+    unfilled = [s for s in PIPELINE if not doc["strategy"].get(s)]
+    return make_tool_response(path, section, score, filled, unfilled)
+
+
 STRATEGIST_INTEGRATIONS: list[ckit_integrations_db.IntegrationRecord] = ckit_integrations_db.static_integrations_load(
     strategist_install.STRATEGIST_ROOTDIR,
-    ["flexus_policy_document", "skills", "print_widget"],
+    [
+        "flexus_policy_document", "skills", "print_widget",
+        "chargebee", "crunchbase", "datadog", "ga4", "gnews", "google_ads",
+        "launchdarkly", "linkedin", "meta", "mixpanel", "optimizely", "paddle",
+        "pipedrive", "qualtrics", "recurly", "salesforce", "segment", "statsig",
+        "surveymonkey", "typeform", "zendesk",
+    ],
     builtin_skills=strategist_install.STRATEGIST_SKILLS,
 )
 
 TOOLS = [
-    owl3_bot.UPDATE_STRATEGY_TOOL,
-    *experiment_design_tools.API_TOOLS,
+    UPDATE_STRATEGY_TOOL,
     *experiment_design_tools.WRITE_TOOLS,
-    *mvp_validation_tools.API_TOOLS,
     *mvp_validation_tools.WRITE_TOOLS,
-    *positioning_offer_tools.API_TOOLS,
     *positioning_offer_tools.WRITE_TOOLS,
-    *pricing_validation_tools.API_TOOLS,
     *pricing_validation_tools.WRITE_TOOLS,
-    *gtm_economics_rtm_tools.API_TOOLS,
     *gtm_economics_rtm_tools.WRITE_TOOLS,
     *[t for rec in STRATEGIST_INTEGRATIONS for t in rec.integr_tools],
 ]
 
 
 async def strategist_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.RobotContext) -> None:
-    integr_objects = await ckit_integrations_db.main_loop_integrations_init(STRATEGIST_INTEGRATIONS, rcx)
+    setup = ckit_bot_exec.official_setup_mixing_procedure(strategist_install.STRATEGIST_SETUP_SCHEMA, rcx.persona.persona_setup)
+    integr_objects = await ckit_integrations_db.main_loop_integrations_init(STRATEGIST_INTEGRATIONS, rcx, setup)
     pdoc_integration = integr_objects["flexus_policy_document"]
 
-    owl3_bot.setup_handlers(rcx, pdoc_integration)
-
-    for tool in experiment_design_tools.API_TOOLS:
-        n = tool.name
-        @rcx.on_tool_call(n)
-        async def _h(toolcall, args, _n=n):
-            return await experiment_design_tools.handle_api_tool_call(_n, toolcall, args)
+    @rcx.on_tool_call(UPDATE_STRATEGY_TOOL.name)
+    async def _h_update_strategy(toolcall, args):
+        return await handle_update_strategy(toolcall, args, rcx, pdoc_integration)
 
     for tool, fn in [
         (experiment_design_tools.WRITE_EXPERIMENT_CARD_DRAFT_TOOL, experiment_design_tools.handle_write_experiment_card_draft),
@@ -65,12 +196,6 @@ async def strategist_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_
         async def _hw(toolcall, args, _f=fn):
             return await _f(toolcall, args, pdoc_integration, rcx)
 
-    for tool in mvp_validation_tools.API_TOOLS:
-        n = tool.name
-        @rcx.on_tool_call(n)
-        async def _h(toolcall, args, _n=n):
-            return await mvp_validation_tools.handle_api_tool_call(_n, toolcall, args)
-
     for tool, fn in [
         (mvp_validation_tools.WRITE_MVP_RUN_LOG_TOOL, mvp_validation_tools.handle_write_mvp_run_log),
         (mvp_validation_tools.WRITE_MVP_ROLLOUT_INCIDENT_TOOL, mvp_validation_tools.handle_write_mvp_rollout_incident),
@@ -82,12 +207,6 @@ async def strategist_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_
         @rcx.on_tool_call(tool.name)
         async def _hw(toolcall, args, _f=fn):
             return await _f(toolcall, args, pdoc_integration, rcx)
-
-    for tool in positioning_offer_tools.API_TOOLS:
-        n = tool.name
-        @rcx.on_tool_call(n)
-        async def _h(toolcall, args, _n=n):
-            return await positioning_offer_tools.handle_api_tool_call(_n, toolcall, args)
 
     for tool, fn in [
         (positioning_offer_tools.WRITE_VALUE_PROPOSITION_TOOL, positioning_offer_tools.handle_write_value_proposition),
@@ -101,12 +220,6 @@ async def strategist_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_
         async def _hw(toolcall, args, _f=fn):
             return await _f(toolcall, args, pdoc_integration, rcx)
 
-    for tool in pricing_validation_tools.API_TOOLS:
-        n = tool.name
-        @rcx.on_tool_call(n)
-        async def _h(toolcall, args, _n=n):
-            return await pricing_validation_tools.handle_api_tool_call(_n, toolcall, args)
-
     for tool, fn in [
         (pricing_validation_tools.WRITE_PRICE_CORRIDOR_TOOL, pricing_validation_tools.handle_write_price_corridor),
         (pricing_validation_tools.WRITE_PRICE_SENSITIVITY_CURVE_TOOL, pricing_validation_tools.handle_write_price_sensitivity_curve),
@@ -118,12 +231,6 @@ async def strategist_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_
         @rcx.on_tool_call(tool.name)
         async def _hw(toolcall, args, _f=fn):
             return await _f(toolcall, args, pdoc_integration, rcx)
-
-    for tool in gtm_economics_rtm_tools.API_TOOLS:
-        n = tool.name
-        @rcx.on_tool_call(n)
-        async def _h(toolcall, args, _n=n):
-            return await gtm_economics_rtm_tools.handle_api_tool_call(_n, toolcall, args)
 
     for tool, fn in [
         (gtm_economics_rtm_tools.WRITE_UNIT_ECONOMICS_REVIEW_TOOL, gtm_economics_rtm_tools.handle_write_unit_economics_review),

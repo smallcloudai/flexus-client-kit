@@ -72,8 +72,8 @@ class FacebookAdsClient:
                 "Content-Type": "application/json",
             }
             return None
-        except Exception as e:
-            logger.info(f"Failed to get Facebook token: {e}")
+        except (AttributeError, KeyError, ValueError) as e:
+            logger.info("Failed to get Facebook token", exc_info=e)
             return await self._prompt_oauth_connection()
 
     async def request(

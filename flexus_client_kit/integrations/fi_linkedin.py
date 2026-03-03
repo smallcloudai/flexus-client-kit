@@ -3,6 +3,7 @@ import json
 import logging
 import time
 from dataclasses import dataclass
+from datetime import datetime, timedelta
 from typing import Dict, Any, Optional, List
 
 import httpx
@@ -26,35 +27,6 @@ METHOD_IDS = [
     "linkedin.organization.posts.list.v1",
     "linkedin.organization.social_actions.list.v1",
 ]
-
-
-_SIGNAL_METHOD_IDS = [
-    "linkedin.organization.posts.list.v1",
-    "linkedin.organization.social_actions.list.v1",
-    "linkedin.organization.followers.stats.v1",
-]
-
-
-class IntegrationLinkedin:
-    async def called_by_model(
-        self,
-        toolcall: ckit_cloudtool.FCloudtoolCall,
-        model_produced_args: Dict[str, Any],
-    ) -> str:
-        args = model_produced_args or {}
-        op = str(args.get("op", "help")).strip()
-        if op == "help":
-            return (
-                f"provider={PROVIDER_NAME}\n"
-                "op=help | status | list_methods | call\n"
-                f"methods: {', '.join(_SIGNAL_METHOD_IDS)}\n"
-                "note: LinkedIn requires OAuth. Connect your account via the integrations panel."
-            )
-        if op == "status":
-            return json.dumps({"ok": False, "error_code": "AUTH_REQUIRED", "provider": PROVIDER_NAME, "status": "requires_oauth", "message": "Connect your LinkedIn account via the integrations panel."}, indent=2, ensure_ascii=False)
-        if op == "list_methods":
-            return json.dumps({"ok": True, "provider": PROVIDER_NAME, "method_ids": _SIGNAL_METHOD_IDS}, indent=2, ensure_ascii=False)
-        return json.dumps({"ok": False, "error_code": "AUTH_REQUIRED", "provider": PROVIDER_NAME, "message": "Connect your LinkedIn account via the integrations panel."}, indent=2, ensure_ascii=False)
 
 
 AD_ACCOUNT_ID = "513489554"
@@ -350,7 +322,6 @@ class IntegrationLinkedIn:
         return r
 
     async def _refresh_cache(self):
-        """Refresh campaign groups and campaigns cache"""
         self._campaign_groups_cache = await self._list_campaign_groups()
         self._campaigns_cache = await self._list_campaigns()
 
@@ -380,8 +351,8 @@ class IntegrationLinkedIn:
                     logger.error(f"Failed to list campaign groups: {response.status_code} - {response.text}")
                     self.problems.append(f"Failed to list campaign groups: {response.status_code}")
                     return None
-        except Exception as e:
-            logger.exception("Exception listing campaign groups")
+        except (httpx.HTTPError, KeyError, ValueError) as e:
+            logger.error("Exception listing campaign groups", exc_info=e)
             self.problems.append(f"Exception listing campaign groups: {e}")
             return None
 
@@ -418,8 +389,8 @@ class IntegrationLinkedIn:
                     logger.error(f"Failed to list campaigns: {response.status_code} - {response.text}")
                     self.problems.append(f"Failed to list campaigns: {response.status_code}")
                     return None
-        except Exception as e:
-            logger.exception("Exception listing campaigns")
+        except (httpx.HTTPError, KeyError, ValueError) as e:
+            logger.error("Exception listing campaigns", exc_info=e)
             self.problems.append(f"Exception listing campaigns: {e}")
             return None
 
@@ -466,8 +437,8 @@ class IntegrationLinkedIn:
                     logger.error(f"Failed to create campaign group: {response.status_code} - {response.text}")
                     self.problems.append(f"Failed to create campaign group: {response.status_code}")
                     return None
-        except Exception as e:
-            logger.exception("Exception creating campaign group")
+        except (httpx.HTTPError, KeyError, ValueError) as e:
+            logger.error("Exception creating campaign group", exc_info=e)
             self.problems.append(f"Exception creating campaign group: {e}")
             return None
 
@@ -534,8 +505,8 @@ class IntegrationLinkedIn:
                     logger.error(f"Failed to create campaign: {response.status_code} - {response.text}")
                     self.problems.append(f"Failed to create campaign: {response.status_code}")
                     return None
-        except Exception as e:
-            logger.exception("Exception creating campaign")
+        except (httpx.HTTPError, KeyError, ValueError) as e:
+            logger.error("Exception creating campaign", exc_info=e)
             self.problems.append(f"Exception creating campaign: {e}")
             return None
 
@@ -565,8 +536,8 @@ class IntegrationLinkedIn:
                     logger.error(f"Failed to get campaign: {response.status_code} - {response.text}")
                     self.problems.append(f"Failed to get campaign: {response.status_code}")
                     return None
-        except Exception as e:
-            logger.exception("Exception fetching campaign")
+        except (httpx.HTTPError, KeyError, ValueError) as e:
+            logger.error("Exception fetching campaign", exc_info=e)
             self.problems.append(f"Exception fetching campaign: {e}")
             return None
 
@@ -575,8 +546,6 @@ class IntegrationLinkedIn:
         campaign_id: str,
         days: int = 30,
     ) -> Optional[Analytics]:
-        from datetime import datetime, timedelta
-
         end_date = datetime.utcnow()
         start_date = end_date - timedelta(days=days)
         date_range = (
@@ -620,7 +589,7 @@ class IntegrationLinkedIn:
                     logger.error(f"Failed to get analytics: {response.status_code} - {response.text}")
                     self.problems.append(f"Failed to get analytics: {response.status_code}")
                     return None
-        except Exception as e:
-            logger.exception("Exception fetching analytics")
+        except (httpx.HTTPError, KeyError, ValueError) as e:
+            logger.error("Exception fetching analytics", exc_info=e)
             self.problems.append(f"Exception fetching analytics: {e}")
             return None

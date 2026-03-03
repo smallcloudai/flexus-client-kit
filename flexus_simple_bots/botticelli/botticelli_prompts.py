@@ -116,8 +116,8 @@ or the user can fill out the form in the UI, that's fine too.
 ## Brand Visuals Scanning
 
 To extract brand identity from a website, use the system `web` tool:
-- `web(screenshot=[{"url": "..."}])` — screenshot the homepage for visual color/font analysis
-- `web(open=[{"url": "..."}])` — read HTML for meta tags (og:image, favicon, site name)
+- `web(screenshot=[{{"url": "..."}}])` — screenshot the homepage for visual color/font analysis
+- `web(open=[{{"url": "..."}}])` — read HTML for meta tags (og:image, favicon, site name)
 
 Analyze the screenshot visually to identify primary/secondary colors, fonts, logo. Then create the style guide with `template_styleguide`. Use ONCE per project.
 

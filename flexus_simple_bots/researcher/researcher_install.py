@@ -1,5 +1,6 @@
 import asyncio
 import base64
+import json
 from pathlib import Path
 
 from flexus_client_kit import ckit_bot_install
@@ -11,6 +12,7 @@ from flexus_simple_bots.researcher import researcher_prompts
 
 RESEARCHER_ROOTDIR = Path(__file__).parent
 RESEARCHER_SKILLS = ckit_skills.static_skills_find(RESEARCHER_ROOTDIR, shared_skills_allowlist="")
+RESEARCHER_SETUP_SCHEMA = json.loads((RESEARCHER_ROOTDIR / "setup_schema.json").read_text())
 
 EXPERTS = [
     ("default", ckit_bot_install.FMarketplaceExpertInput(
@@ -23,17 +25,6 @@ EXPERTS = [
     )),
 ]
 
-# Also need criticize_idea expert for productman verify_idea subchat
-EXPERTS += [
-    ("criticize_idea", ckit_bot_install.FMarketplaceExpertInput(
-        fexp_system_prompt=researcher_prompts.CRITICIZE_IDEA_PROMPT,
-        fexp_python_kernel="",
-        fexp_block_tools="",
-        fexp_allow_tools="flexus_policy_document",
-        fexp_description="Rates idea canvas fields as PASS/PASS-WITH-WARNINGS/FAIL. Used in verify_idea subchat.",
-    )),
-]
-
 
 async def install(
     client: ckit_client.FlexusClient,
@@ -41,6 +32,8 @@ async def install(
     bot_version: str,
     tools: list[ckit_cloudtool.CloudTool],
 ) -> None:
+    pic_big = base64.b64encode((RESEARCHER_ROOTDIR / "researcher-1024x1536.webp").read_bytes()).decode("ascii")
+    pic_small = base64.b64encode((RESEARCHER_ROOTDIR / "researcher-256x256.webp").read_bytes()).decode("ascii")
     await ckit_bot_install.marketplace_upsert_dev_bot(
         client,
         ws_id=client.ws_id,
@@ -59,7 +52,7 @@ async def install(
         marketable_typical_group="GTM / Research",
         marketable_github_repo="https://github.com/smallcloudai/flexus-client-kit.git",
         marketable_run_this="python -m flexus_simple_bots.researcher.researcher_bot",
-        marketable_setup_default=[],
+        marketable_setup_default=RESEARCHER_SETUP_SCHEMA,
         marketable_featured_actions=[
             {"feat_question": "Detect market signals for one channel", "feat_expert": "default", "feat_depends_on_setup": []},
             {"feat_question": "Design a JTBD discovery interview instrument", "feat_expert": "default", "feat_depends_on_setup": []},
@@ -72,14 +65,14 @@ async def install(
         marketable_experts=[(name, exp.filter_tools(tools)) for name, exp in EXPERTS],
         marketable_tags=["GTM", "Research", "Discovery", "Signals"],
         marketable_schedule=[prompts_common.SCHED_PICK_ONE_5M],
+        marketable_picture_big_b64=pic_big,
+        marketable_picture_small_b64=pic_small,
         marketable_forms={},
-        marketable_auth_supported=[
-            "bing_webmaster", "x", "youtube", "producthunt",
-            "event_registry", "newsapi", "gnews", "newsdata", "mediastack",
-            "newscatcher", "perigon", "trustpilot", "yelp", "g2", "capterra",
-            "coresignal", "theirstack", "hasdata", "stackexchange",
-        ],
-        marketable_auth_scopes={},
+        marketable_auth_supported=["linkedin", "google"],
+        marketable_auth_scopes={
+            "linkedin": ["r_profile_basicinfo", "email", "w_member_social"],
+            "google": [],
+        },
     )
 
 
