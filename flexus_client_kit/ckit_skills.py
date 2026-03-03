@@ -29,6 +29,7 @@ FETCH_SKILL_TOOL = ckit_cloudtool.CloudTool(
 # https://github.com/anthropics/skills/tree/main/skills/pdf
 # https://platform.claude.com/cookbook/skills-notebooks-01-skills-introduction
 # https://platform.claude.com/docs/en/agents-and-tools/agent-skills/overview
+# https://platform.claude.com/docs/en/agents-and-tools/agent-skills/best-practices
 
 
 def _strip_frontmatter(text: str) -> str:
