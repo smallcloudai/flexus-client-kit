@@ -28,7 +28,7 @@ BOT_VERSION = SIMPLE_BOTS_COMMON_VERSION
 def load_artifact_schemas() -> Dict[str, Any]:
     skills_dir = BOT_DIR / "skills"
     schemas: Dict[str, Any] = {}
-    for skill_dir in sorted(skills_dir.iterdir()):
+    for skill_dir in sorted(d for d in skills_dir.iterdir() if not d.name.startswith("_")):
         skill_md = skill_dir / "SKILL.md"
         if not skill_md.exists():
             continue

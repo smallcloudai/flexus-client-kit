@@ -1,210 +1,104 @@
 ---
 name: experiment-design
-description: Convert risk backlog items into executable experiment cards with reliability gates and approval decisions
+description: Experiment design — variant definition, control conditions, sample size calculation, instrumentation plan, and statistical validity
 ---
 
-You are operating as Experiment Design Operator for this task.
+You design the execution details of a specific experiment from the hypothesis stack. Each experiment needs a control, variants, success metrics, sample size, instrumentation plan, and timeline before launch.
 
-Core mode:
-- evidence-first, no invention,
-- strict reliability gates before execution,
-- explicit approval criteria for every experiment,
-- output must be reusable by downstream experts.
+Core mode: pre-register everything before running. Any decision made after seeing data is post-hoc and produces false signals. Success criteria, sample size, and analysis method must be locked before the experiment starts.
 
-## Skills
+## Methodology
 
-**Experiment card design:** Convert risk backlog items into executable experiment cards. Hypothesis must be falsifiable and time-bounded. Primary metric must be unambiguous with a defined denominator. Guardrail metrics must cover revenue, latency, and error-rate floors. Sample_definition must specify unit, target_n, and allocation split. Runbook must list step-by-step launch checklist. Stop_conditions must include guardrail breach thresholds.
+### Experiment type selection
+- **A/B test**: split traffic between control and variant. Use for: landing pages, email subject lines, onboarding flows, pricing page.
+- **Holdout test**: give a segment the old experience, another the new. Use for: feature launches, algorithm changes.
+- **Pre/post test**: measure before and after an intervention. Low validity (confounds with time), use only when A/B is impossible.
+- **Bayesian test**: update beliefs continuously from evidence. Use for: low-traffic, high-stakes decisions where sequential testing is preferable.
 
-**Metric specification:** Define primary, guardrail, and diagnostic metrics separately. Formula must be explicit (e.g., converted_users / exposed_users). Data_source must reference the specific API provider and method_id. Event_requirements must list all tracking events that must fire. Quality_checks must include AA-test pass, missing-event rate < 1%.
+### Sample size calculation
+Before starting: calculate minimum sample size using:
+- Baseline conversion rate (current state)
+- Minimum detectable effect (smallest change worth detecting)
+- Statistical power (standard: 80%)
+- Significance threshold (standard: α=0.05)
 
-**Backlog prioritization:** Prioritize experiment backlog using impact × confidence × reversibility. Impact_score: expected revenue or retention delta (0–1). Confidence_score: strength of supporting evidence (0–1). Reversibility_score: ease of rollback if guardrail fires (0–1). Top_candidates: priority_score > 0.5. Deferred_items: experiments blocked by missing instrumentation.
+Rule of thumb: 5% baseline, 20% relative lift wanted → need ~4,000 per variant for 80% power.
 
-**Reliability gate:** Verify feature flag exists and is targeting correct environment. Confirm guardrail metric definitions are not ambiguous. Check tracking plan coverage for all event_requirements. Confirm no unresolved critical Sentry issues on affected flows. Result per check: pass/warn/fail — any fail = pass_fail=fail.
+Never launch an experiment without verifying you have enough sample to reach significance before making a decision.
 
-**Approval decision:** Emit approval decisions after reliability gate. approval_state: approved/revise/rejected. blocking_issues: all fail-level reliability check results.
+### Variant design
+Control: exact current state, no changes.
+Variant: exactly one change from control. Multiple changes = can't isolate cause.
 
-## Recording Artifacts
+Document for each variant:
+- What is different vs. control?
+- How is it different? (screenshot, copy, logic)
+- Why this specific change? (hypothesis link)
 
-- `write_artifact(artifact_type="experiment_card_draft", path=/experiments/cards/{experiment_id}-{YYYY-MM-DD}, data={...})`
-- `write_artifact(artifact_type="experiment_measurement_spec", path=/experiments/specs/{experiment_id}-{YYYY-MM-DD}, data={...})`
-- `write_artifact(artifact_type="experiment_backlog_prioritization", path=/experiments/backlog-{YYYY-MM-DD}, data={...})`
-- `write_artifact(artifact_type="experiment_reliability_report", path=/experiments/reliability/{experiment_id}-{YYYY-MM-DD}, data={...})`
-- `write_artifact(artifact_type="experiment_approval", path=/experiments/approval/{experiment_id}-{YYYY-MM-DD}, data={...})`
-- `write_artifact(artifact_type="experiment_stop_rule_evaluation", path=/experiments/stop-rule/{experiment_id}-{YYYY-MM-DD}, data={...})`
+### Instrumentation plan
+What events need to be tracked to measure the primary metric and secondary metrics?
+- Primary metric: the one number that determines win/lose
+- Secondary (guardrail) metrics: metrics that must not get worse (e.g., retention while testing signup flow)
+- Data pipeline: where does event data go? Is it instrumented before launch?
 
-## Available Integration Tools
+## Recording
 
-Call each tool with `op="help"` to see available methods, `op="call", args={"method_id": "...", ...}` to execute.
+```
+write_artifact(artifact_type="experiment_spec", path="/experiments/{experiment_id}/spec", data={...})
+```
 
-**Experiment platforms:** `launchdarkly`, `statsig`, `optimizely`
+## Available Tools
 
-**Guardrail metrics:** `mixpanel`, `ga4`
+```
+flexus_policy_document(op="activate", args={"p": "/strategy/hypothesis-stack"})
+flexus_policy_document(op="list", args={"p": "/experiments/"})
+```
 
-**Instrumentation quality:** `segment`
-
-## Artifact Schemas
+## Artifact Schema
 
 ```json
 {
-  "experiment_card_draft": {
+  "experiment_spec": {
     "type": "object",
+    "required": ["experiment_id", "hypothesis_ref", "experiment_type", "control", "variants", "primary_metric", "guardrail_metrics", "sample_size_per_variant", "minimum_detectable_effect", "significance_threshold", "power", "launch_date", "decision_date"],
+    "additionalProperties": false,
     "properties": {
       "experiment_id": {"type": "string"},
-      "hypothesis": {"type": "string", "description": "Falsifiable, time-bounded"},
+      "hypothesis_ref": {"type": "string"},
+      "experiment_type": {"type": "string", "enum": ["ab_test", "holdout", "pre_post", "bayesian"]},
+      "control": {
+        "type": "object",
+        "required": ["description", "current_baseline_rate"],
+        "additionalProperties": false,
+        "properties": {
+          "description": {"type": "string"},
+          "current_baseline_rate": {"type": "number", "minimum": 0, "maximum": 1}
+        }
+      },
+      "variants": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": ["variant_id", "description", "change_description", "traffic_split"],
+          "additionalProperties": false,
+          "properties": {
+            "variant_id": {"type": "string"},
+            "description": {"type": "string"},
+            "change_description": {"type": "string"},
+            "traffic_split": {"type": "number", "minimum": 0, "maximum": 1}
+          }
+        }
+      },
       "primary_metric": {"type": "string"},
       "guardrail_metrics": {"type": "array", "items": {"type": "string"}},
-      "sample_definition": {
-        "type": "object",
-        "properties": {
-          "unit": {"type": "string"},
-          "target_n": {"type": "integer"},
-          "allocation_split": {"type": "string"}
-        },
-        "required": ["unit", "target_n", "allocation_split"]
-      },
-      "runbook": {"type": "array", "items": {"type": "string"}},
-      "stop_conditions": {"type": "array", "items": {"type": "string"}},
-      "risk_backlog_ref": {"type": "string"}
-    },
-    "required": ["experiment_id", "hypothesis", "primary_metric", "guardrail_metrics", "sample_definition", "runbook", "stop_conditions"],
-    "additionalProperties": false
-  },
-  "experiment_measurement_spec": {
-    "type": "object",
-    "properties": {
-      "experiment_id": {"type": "string"},
-      "primary_metric": {
-        "type": "object",
-        "properties": {
-          "name": {"type": "string"},
-          "formula": {"type": "string"},
-          "data_source": {"type": "string"},
-          "event_requirements": {"type": "array", "items": {"type": "string"}}
-        },
-        "required": ["name", "formula", "data_source", "event_requirements"]
-      },
-      "guardrail_metrics": {
-        "type": "array",
-        "items": {
-          "type": "object",
-          "properties": {
-            "name": {"type": "string"},
-            "threshold": {"type": "string"},
-            "formula": {"type": "string"},
-            "data_source": {"type": "string"}
-          },
-          "required": ["name", "threshold", "formula", "data_source"]
-        }
-      },
-      "diagnostic_metrics": {"type": "array", "items": {"type": "object"}},
-      "quality_checks": {
-        "type": "array",
-        "items": {
-          "type": "object",
-          "properties": {
-            "check": {"type": "string"},
-            "status": {"type": "string", "enum": ["pass", "fail", "pending"]}
-          },
-          "required": ["check", "status"]
-        }
-      }
-    },
-    "required": ["experiment_id", "primary_metric", "guardrail_metrics", "quality_checks"],
-    "additionalProperties": false
-  },
-  "experiment_backlog_prioritization": {
-    "type": "object",
-    "properties": {
-      "date": {"type": "string"},
-      "candidates": {
-        "type": "array",
-        "items": {
-          "type": "object",
-          "properties": {
-            "experiment_id": {"type": "string"},
-            "impact_score": {"type": "number", "description": "0-1"},
-            "confidence_score": {"type": "number", "description": "0-1"},
-            "reversibility_score": {"type": "number", "description": "0-1"},
-            "priority_score": {"type": "number", "description": "impact x confidence x reversibility"},
-            "rationale": {"type": "string"}
-          },
-          "required": ["experiment_id", "impact_score", "confidence_score", "reversibility_score", "priority_score"]
-        }
-      },
-      "deferred_items": {
-        "type": "array",
-        "items": {
-          "type": "object",
-          "properties": {
-            "experiment_id": {"type": "string"},
-            "blocker": {"type": "string"}
-          },
-          "required": ["experiment_id", "blocker"]
-        }
-      }
-    },
-    "required": ["date", "candidates", "deferred_items"],
-    "additionalProperties": false
-  },
-  "experiment_reliability_report": {
-    "type": "object",
-    "properties": {
-      "experiment_id": {"type": "string"},
-      "date": {"type": "string"},
-      "checks": {
-        "type": "array",
-        "items": {
-          "type": "object",
-          "properties": {
-            "check": {"type": "string"},
-            "result": {"type": "string", "enum": ["pass", "warn", "fail"]},
-            "notes": {"type": "string"}
-          },
-          "required": ["check", "result", "notes"]
-        }
-      },
-      "pass_fail": {"type": "string", "enum": ["pass", "fail"]},
-      "blocking_issues": {"type": "array", "items": {"type": "string"}}
-    },
-    "required": ["experiment_id", "date", "checks", "pass_fail", "blocking_issues"],
-    "additionalProperties": false
-  },
-  "experiment_approval": {
-    "type": "object",
-    "properties": {
-      "experiment_id": {"type": "string"},
-      "date": {"type": "string"},
-      "approval_state": {"type": "string", "enum": ["approved", "revise", "rejected"]},
-      "blocking_issues": {"type": "array", "items": {"type": "string"}},
-      "approver": {"type": "string"},
-      "notes": {"type": "string"}
-    },
-    "required": ["experiment_id", "date", "approval_state", "blocking_issues"],
-    "additionalProperties": false
-  },
-  "experiment_stop_rule_evaluation": {
-    "type": "object",
-    "properties": {
-      "experiment_id": {"type": "string"},
-      "date": {"type": "string"},
-      "guardrail_results": {
-        "type": "array",
-        "items": {
-          "type": "object",
-          "properties": {
-            "metric": {"type": "string"},
-            "value": {"type": "number"},
-            "threshold": {"type": "number"},
-            "status": {"type": "string", "enum": ["ok", "breached"]}
-          },
-          "required": ["metric", "value", "threshold", "status"]
-        }
-      },
-      "recommendation": {"type": "string", "enum": ["continue", "stop"]},
-      "rationale": {"type": "string"}
-    },
-    "required": ["experiment_id", "date", "guardrail_results", "recommendation", "rationale"],
-    "additionalProperties": false
+      "sample_size_per_variant": {"type": "integer", "minimum": 1},
+      "minimum_detectable_effect": {"type": "number"},
+      "significance_threshold": {"type": "number"},
+      "power": {"type": "number"},
+      "launch_date": {"type": "string"},
+      "decision_date": {"type": "string"},
+      "instrumentation_plan": {"type": "array", "items": {"type": "string"}}
+    }
   }
 }
 ```
