@@ -115,14 +115,11 @@ or the user can fill out the form in the UI, that's fine too.
 
 ## Brand Visuals Scanning
 
-scan_brand_visuals(url="https://example.com") scans a website and extracts:
-- Colors (hex codes from CSS, meta tags)
-- Fonts (from CSS, Google Fonts)
-- Logo URL
-- Visual style description
+To extract brand identity from a website, use the system `web` tool:
+- `web(screenshot=[{{"url": "..."}}])` — screenshot the homepage for visual color/font analysis
+- `web(open=[{{"url": "..."}}])` — read HTML for meta tags (og:image, favicon, site name)
 
-Results are saved to policy document (default: /brand-visuals).
-Use this ONCE per project to establish brand consistency.
+Analyze the screenshot visually to identify primary/secondary colors, fonts, logo. Then create the style guide with `template_styleguide`. Use ONCE per project.
 
 
 ## Generating Images

@@ -6,19 +6,15 @@ import base64
 import os
 import io
 import httpx
-from typing import Dict, Any, List, Union, Set
+from typing import Dict, Any
 from pymongo import AsyncMongoClient
-import openai
 from PIL import Image
-from bs4 import BeautifulSoup
-from urllib.parse import urljoin, urlparse
 
 from flexus_client_kit import ckit_client
 from flexus_client_kit import ckit_cloudtool
 from flexus_client_kit import ckit_bot_exec
 from flexus_client_kit import ckit_shutdown
 from flexus_client_kit import ckit_ask_model
-from flexus_client_kit import ckit_kanban
 from flexus_client_kit import ckit_mongo
 from flexus_client_kit import ckit_integrations_db
 from flexus_client_kit.integrations import fi_pdoc
@@ -193,29 +189,30 @@ CAMPAIGN_BRIEF_TOOL = ckit_cloudtool.CloudTool(
     },
 )
 
-SCAN_BRAND_VISUALS_TOOL = ckit_cloudtool.CloudTool(
-    strict=False,
-    name="scan_brand_visuals",
-    description="""Scan a website to extract brand visual identity using Playwright browser.
-Extracts REAL computed CSS styles (colors, fonts) from the rendered page.
-Saves to /style-guide with color swatches for human verification.
 
-Use this tool ONCE per project. User will verify/adjust colors in the sidebar form.""",
-    parameters={
-        "type": "object",
-        "properties": {
-            "url": {
-                "type": "string",
-                "description": "Website URL to scan (e.g. 'https://example.com')"
-            },
-            "save_path": {
-                "type": "string",
-                "description": "Policy document path to save results (default: /style-guide)"
-            }
-        },
-        "required": ["url"],
-    },
-)
+def validate_styleguide_structure(provided: dict, expected: dict, path: str = "root") -> str:
+    if type(provided) != type(expected):
+        return f"Type mismatch at {path}: expected {type(expected).__name__}, got {type(provided).__name__}"
+    if isinstance(expected, dict):
+        expected_keys = set(expected.keys())
+        provided_keys = set(provided.keys())
+        if expected_keys != provided_keys:
+            missing = expected_keys - provided_keys
+            extra = provided_keys - expected_keys
+            errors = []
+            if missing:
+                errors.append(f"missing keys: {missing}")
+            if extra:
+                errors.append(f"unexpected keys: {extra}")
+            return f"Key mismatch at {path}: {', '.join(errors)}"
+        for key in expected_keys:
+            if key in ("q", "a", "t", "title"):
+                continue
+            err = validate_styleguide_structure(provided[key], expected[key], f"{path}.{key}")
+            if err:
+                return err
+    return ""
+
 
 BOTTICELLI_INTEGRATIONS: list[ckit_integrations_db.IntegrationRecord] = ckit_integrations_db.static_integrations_load(
     botticelli_install.BOTTICELLI_ROOTDIR,
@@ -230,73 +227,14 @@ TOOLS = [
     GENERATE_PICTURE_TOOL,
     CROP_IMAGE_TOOL,
     CAMPAIGN_BRIEF_TOOL,
-    SCAN_BRAND_VISUALS_TOOL,
     fi_mongo_store.MONGO_STORE_TOOL,
     *[t for rec in BOTTICELLI_INTEGRATIONS for t in rec.integr_tools],
 ]
 
-async def botticelli_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.RobotContext) -> None:
-    setup = ckit_bot_exec.official_setup_mixing_procedure(botticelli_install.BOTTICELLI_SETUP_SCHEMA, rcx.persona.persona_setup)
-    integr_objects = await ckit_integrations_db.main_loop_integrations_init(BOTTICELLI_INTEGRATIONS, rcx, setup)
-    pdoc_integration: fi_pdoc.IntegrationPdoc = integr_objects["flexus_policy_document"]
-
+async def setup_handlers(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.RobotContext, pdoc_integration: fi_pdoc.IntegrationPdoc) -> None:
     mongo_conn_str = await ckit_mongo.mongo_fetch_creds(fclient, rcx.persona.persona_id)
     mongo = AsyncMongoClient(mongo_conn_str)
-    dbname = rcx.persona.persona_id + "_db"
-    mydb = mongo[dbname]
-    personal_mongo = mydb["personal_mongo"]
-
-    # Lazy initialization of OpenAI client - only create when needed
-    openai_client = None
-    def get_openai_client():
-        nonlocal openai_client
-        if openai_client is None:
-            api_key = os.getenv("OPENAI_API_KEY")
-            if not api_key:
-                raise ValueError("OPENAI_API_KEY environment variable not set")
-            openai_client = openai.AsyncOpenAI(api_key=api_key)
-        return openai_client
-
-    def validate_styleguide_structure(provided: Dict, expected: Dict, path: str = "root") -> str:
-        if type(provided) != type(expected):
-            return f"Type mismatch at {path}: expected {type(expected).__name__}, got {type(provided).__name__}"
-        if isinstance(expected, dict):
-            expected_keys = set(expected.keys())
-            provided_keys = set(provided.keys())
-            if expected_keys != provided_keys:
-                missing = expected_keys - provided_keys
-                extra = provided_keys - expected_keys
-                errors = []
-                if missing:
-                    errors.append(f"missing keys: {missing}")
-                if extra:
-                    errors.append(f"unexpected keys: {extra}")
-                return f"Key mismatch at {path}: {', '.join(errors)}"
-            for key in expected_keys:
-                if key == "q":
-                    continue
-                if key == "a":
-                    continue
-                if key == "t":
-                    continue
-                if key == "title":
-                    continue
-                error = validate_styleguide_structure(provided[key], expected[key], f"{path}.{key}")
-                if error:
-                    return error
-        return ""
-
-    @rcx.on_updated_message
-    async def updated_message_in_db(msg: ckit_ask_model.FThreadMessageOutput):
-        pass
-
-    @rcx.on_updated_thread
-    async def updated_thread_in_db(th: ckit_ask_model.FThreadOutput):
-        pass
-
-    @rcx.on_updated_task
-    async def updated_task_in_db(t: ckit_kanban.FPersonaKanbanTaskOutput):
-        pass
+    personal_mongo = mongo[rcx.persona.persona_id + "_db"]["personal_mongo"]
 
     @rcx.on_tool_call(STYLEGUIDE_TEMPLATE_TOOL.name)
     async def toolcall_styleguide_template(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
@@ -425,7 +363,7 @@ async def botticelli_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_
                         logger.info(f"Added reference image: {len(ref_image_bytes)} bytes, {mime_type}")
                     except httpx.TimeoutException:
                         return "Error: Timeout fetching reference image"
-                    except Exception as e:
+                    except (httpx.HTTPError, OSError, ValueError) as e:
                         return f"Error: Failed to fetch reference image: {str(e)}"
 
                 # Build image config
@@ -505,7 +443,7 @@ async def botticelli_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_
             )
 
         except Exception as e:
-            logger.error(f"Error generating image: {e}", exc_info=True)
+            logger.error("Error generating image", exc_info=e)
             return ckit_cloudtool.ToolResult(f"Error generating image: {str(e)}")
 
     @rcx.on_tool_call(CROP_IMAGE_TOOL.name)
@@ -665,336 +603,22 @@ Full brief saved to: {brief_path}
         except ckit_cloudtool.WaitForSubchats:
             raise
         except Exception as e:
-            logger.exception(f"Error in campaign_brief handler: {e}")
+            logger.error("Error in campaign_brief handler", exc_info=e)
             return f"Error: {str(e)}"
-
-    @rcx.on_tool_call(SCAN_BRAND_VISUALS_TOOL.name)
-    async def toolcall_scan_brand_visuals(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
-        """Scan a website and extract brand visual identity using Playwright browser."""
-        from playwright.async_api import async_playwright
-
-        url = model_produced_args.get("url", "")
-        save_path = model_produced_args.get("save_path", "/style-guide")
-
-        if not url:
-            return "Error: url is required"
-
-        # Validate URL
-        if not url.startswith(("http://", "https://")):
-            url = "https://" + url
-
-        try:
-            parsed = urlparse(url)
-            if not parsed.netloc:
-                return f"Error: Invalid URL: {url}"
-        except Exception:
-            return f"Error: Invalid URL: {url}"
-
-        try:
-            logger.info(f"Scanning website for brand visuals using Playwright: {url}")
-
-            async with async_playwright() as p:
-                # Launch browser
-                browser = await p.chromium.launch(headless=True)
-                context = await browser.new_context(
-                    viewport={"width": 1920, "height": 1080},
-                    user_agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"
-                )
-                page = await context.new_page()
-
-                try:
-                    # Navigate to page
-                    await page.goto(url, wait_until="networkidle", timeout=30000)
-                    await page.wait_for_timeout(2000)  # Wait for animations
-
-                    # Extract computed styles and images using JavaScript
-                    brand_data = await page.evaluate('''() => {
-                        // Helper to convert rgb to hex
-                        function rgbToHex(rgb) {
-                            if (!rgb || rgb === 'transparent' || rgb === 'rgba(0, 0, 0, 0)') return null;
-                            const match = rgb.match(/rgba?\\(([\\d.]+),\\s*([\\d.]+),\\s*([\\d.]+)/);
-                            if (!match) return rgb.startsWith('#') ? rgb : null;
-                            const r = Math.round(parseFloat(match[1]));
-                            const g = Math.round(parseFloat(match[2]));
-                            const b = Math.round(parseFloat(match[3]));
-                            return '#' + [r, g, b].map(x => x.toString(16).padStart(2, '0')).join('');
-                        }
-
-                        // Get computed style safely
-                        function getStyle(el, prop) {
-                            if (!el) return null;
-                            return window.getComputedStyle(el).getPropertyValue(prop);
-                        }
-
-                        // Find elements
-                        const body = document.body;
-                        const buttons = document.querySelectorAll('button, .btn, [class*="button"], [class*="Button"], a[class*="cta"], a[class*="Cta"]');
-                        const links = document.querySelectorAll('a:not([class*="button"]):not([class*="btn"])');
-                        const headings = document.querySelectorAll('h1, h2, h3');
-                        const paragraphs = document.querySelectorAll('p, .text, [class*="body"]');
-
-                        // Extract colors
-                        let primaryColor = null;
-                        let secondaryColor = null;
-
-                        // Try to find primary color from buttons
-                        for (const btn of buttons) {
-                            const bg = rgbToHex(getStyle(btn, 'background-color'));
-                            if (bg && bg !== '#ffffff' && bg !== '#000000' && bg !== '#transparent') {
-                                if (!primaryColor) primaryColor = bg;
-                                else if (!secondaryColor && bg !== primaryColor) secondaryColor = bg;
-                                break;
-                            }
-                        }
-
-                        // Try links for primary/accent color
-                        if (!primaryColor) {
-                            for (const link of links) {
-                                const color = rgbToHex(getStyle(link, 'color'));
-                                if (color && color !== '#000000' && !color.startsWith('#0000') && !color.startsWith('#333')) {
-                                    primaryColor = color;
-                                    break;
-                                }
-                            }
-                        }
-
-                        // Background color from body
-                        const backgroundColor = rgbToHex(getStyle(body, 'background-color')) || '#ffffff';
-
-                        // Text color from body or paragraphs
-                        let textColor = rgbToHex(getStyle(body, 'color'));
-                        if (!textColor || textColor === '#000000') {
-                            for (const p of paragraphs) {
-                                const c = rgbToHex(getStyle(p, 'color'));
-                                if (c) { textColor = c; break; }
-                            }
-                        }
-                        textColor = textColor || '#333333';
-
-                        // Extract fonts
-                        const bodyFont = getStyle(body, 'font-family')?.split(',')[0]?.trim().replace(/['"]/g, '') || 'Sans-serif';
-                        let headingFont = bodyFont;
-                        if (headings.length > 0) {
-                            headingFont = getStyle(headings[0], 'font-family')?.split(',')[0]?.trim().replace(/['"]/g, '') || bodyFont;
-                        }
-
-                        // Get site info
-                        const title = document.title || '';
-                        const ogSiteName = document.querySelector('meta[property="og:site_name"]')?.content;
-                        const ogImage = document.querySelector('meta[property="og:image"]')?.content;
-                        const favicon = document.querySelector('link[rel*="icon"]')?.href;
-
-                        // Extract all images for logo candidates
-                        const images = [];
-                        const viewportHeight = window.innerHeight;
-
-                        for (const img of document.querySelectorAll('img[src]')) {
-                            const rect = img.getBoundingClientRect();
-                            const src = img.src;
-
-                            // Filter: skip tiny images, data URLs, and images below viewport
-                            if (!src || src.startsWith('data:') || rect.width < 30 || rect.height < 30) continue;
-                            if (rect.top > viewportHeight * 0.5) continue;  // Only top half of page
-                            if (rect.width > 500 || rect.height > 300) continue;  // Skip hero images
-
-                            const isLogo = (img.alt?.toLowerCase().includes('logo') ||
-                                           img.className?.toLowerCase().includes('logo') ||
-                                           img.id?.toLowerCase().includes('logo') ||
-                                           img.closest('a[href="/"], a[href="./"], header')?.querySelector('img') === img);
-
-                            images.push({
-                                url: src,
-                                width: Math.round(rect.width),
-                                height: Math.round(rect.height),
-                                top: Math.round(rect.top),
-                                alt: img.alt || '',
-                                is_logo_hint: isLogo
-                            });
-                        }
-
-                        // Sort: prioritize images with logo hints, then by position (top first)
-                        images.sort((a, b) => {
-                            if (a.is_logo_hint && !b.is_logo_hint) return -1;
-                            if (!a.is_logo_hint && b.is_logo_hint) return 1;
-                            return a.top - b.top;
-                        });
-
-                        return {
-                            site_name: ogSiteName || title.split(' - ')[0].split(' | ')[0].trim(),
-                            logo_url: ogImage || favicon || null,
-                            primary_color: primaryColor || '#0066cc',
-                            secondary_color: secondaryColor || primaryColor || '#004499',
-                            background_color: backgroundColor,
-                            text_color: textColor,
-                            heading_font: headingFont,
-                            body_font: bodyFont,
-                            logo_candidates: images.slice(0, 10)  // Max 10 candidates
-                        };
-                    }''')
-
-                    # Take screenshot for color picking - resize viewport first for smaller file
-                    await page.set_viewport_size({"width": 800, "height": 600})
-                    await page.wait_for_timeout(500)  # Let page adjust
-
-                    # Take JPEG instead of PNG with quality setting for smaller file (~50-150KB vs 2-5MB)
-                    screenshot_bytes = await page.screenshot(type="jpeg", quality=60)
-                    screenshot_base64 = base64.b64encode(screenshot_bytes).decode("utf-8")
-
-                    logger.info(f"Extracted brand data: {brand_data}")
-                    logger.info(f"Screenshot size: {len(screenshot_bytes) / 1024:.1f}KB, Logo candidates: {len(brand_data.get('logo_candidates', []))}")
-
-                finally:
-                    await browser.close()
-
-            # Determine visual style based on colors
-            bg_color = brand_data.get("background_color", "#ffffff").lower()
-            is_dark = bg_color in ["#000000", "#000", "#111111", "#111", "#0d0d0d", "#121212", "#1a1a1a"]
-            visual_style = "dark, modern" if is_dark else "light, clean"
-
-            # Build style-guide with color swatches for human verification
-            import datetime
-            today = datetime.date.today().strftime("%Y%m%d")
-
-            site_name = brand_data.get("site_name", "")
-            logo_url = brand_data.get("logo_url", "")
-
-            # Get logo candidates from brand_data
-            logo_candidates = brand_data.get("logo_candidates", [])
-
-            styleguide = {
-                "styleguide": {
-                    "meta": {
-                        "microfrontend": "botticelli",
-                        "author": "Botticelli (auto-detected)",
-                        "date": today,
-                        "source_url": url,
-                        "status": "pending_verification",
-                        "screenshot_base64": screenshot_base64  # JPEG ~50-150KB for color picking
-                    },
-                    "section00-raw": {
-                        "title": "Raw Data",
-                        "logo_candidates": logo_candidates  # Array of image URLs for selection
-                    },
-                    "section01-colors": {
-                        "title": "🎨 Brand Colors (please verify)",
-                        "question01-primary": {
-                            "q": "Primary Brand Color",
-                            "a": brand_data.get("primary_color", "#0066cc"),
-                            "t": "color"
-                        },
-                        "question02-secondary": {
-                            "q": "Secondary Brand Color",
-                            "a": brand_data.get("secondary_color", "#004499"),
-                            "t": "color"
-                        },
-                        "question03-background": {
-                            "q": "Background Color",
-                            "a": brand_data.get("background_color", "#ffffff"),
-                            "t": "color"
-                        },
-                        "question04-text": {
-                            "q": "Text Color",
-                            "a": brand_data.get("text_color", "#333333"),
-                            "t": "color"
-                        }
-                    },
-                    "section02-typography": {
-                        "title": "📝 Typography",
-                        "question01-heading-font": {
-                            "q": "Heading Font",
-                            "a": brand_data.get("heading_font", "Sans-serif")
-                        },
-                        "question02-body-font": {
-                            "q": "Body Font",
-                            "a": brand_data.get("body_font", "Sans-serif")
-                        }
-                    },
-                    "section03-brand": {
-                        "title": "🏢 Brand Info",
-                        "question01-site-name": {
-                            "q": "Brand/Site Name",
-                            "a": site_name
-                        },
-                        "question02-logo": {
-                            "q": "Logo URL",
-                            "a": logo_url or ""
-                        },
-                        "question03-style": {
-                            "q": "Visual Style",
-                            "a": visual_style
-                        }
-                    },
-                    "section04-verification": {
-                        "title": "✅ Verification",
-                        "question01-verified": {
-                            "q": "Colors verified by human?",
-                            "a": "no",
-                            "t": "select",
-                            "options": ["no", "yes"]
-                        }
-                    }
-                }
-            }
-
-            # Save to policy document (overwrite if exists)
-            await pdoc_integration.pdoc_overwrite(
-                save_path,
-                json.dumps(styleguide, indent=2),
-                toolcall.fcall_ft_id
-            )
-
-            logger.info(f"Saved style guide to {save_path}")
-
-            # Format result for user with color swatches
-            primary_color = brand_data.get('primary_color', '#0066cc')
-            secondary_color = brand_data.get('secondary_color', '#004499')
-            background_color = brand_data.get('background_color', '#ffffff')
-            text_color = brand_data.get('text_color', '#333333')
-            heading_font = brand_data.get('heading_font', 'Sans-serif')
-            body_font = brand_data.get('body_font', 'Sans-serif')
-
-            result = f"""✅ Brand Style Guide extracted from {url}
-
-**Site:** {site_name}
-
----
-
-## 🎨 Detected Colors (please verify in sidebar)
-
-| Role | Color | Hex |
-|------|-------|-----|
-| Primary | 🟦 | `{primary_color}` |
-| Secondary | 🟦 | `{secondary_color}` |
-| Background | ⬜ | `{background_color}` |
-| Text | ⬛ | `{text_color}` |
-
-## 📝 Fonts
-- **Headings:** {heading_font}
-- **Body:** {body_font}
-
-## 🖼️ Logo
-{logo_url or 'Not found'}
-
----
-
-⚠️ **Action Required:** Please check the **Forms** tab in the sidebar and verify the colors are correct. Click on any color swatch to adjust if needed.
-
-📁 Saved to: `{save_path}`
-"""
-            return result
-
-        except Exception as e:
-            logger.exception(f"Error scanning website: {e}")
-            return f"Error scanning website: {str(e)}"
 
     @rcx.on_tool_call(fi_mongo_store.MONGO_STORE_TOOL.name)
     async def toolcall_mongo_store(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
         return await fi_mongo_store.handle_mongo_store(rcx.workdir, personal_mongo, toolcall, model_produced_args)
 
+
+async def botticelli_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.RobotContext) -> None:
+    setup = ckit_bot_exec.official_setup_mixing_procedure(botticelli_install.BOTTICELLI_SETUP_SCHEMA, rcx.persona.persona_setup)
+    integr_objects = await ckit_integrations_db.main_loop_integrations_init(BOTTICELLI_INTEGRATIONS, rcx, setup)
+    pdoc_integration: fi_pdoc.IntegrationPdoc = integr_objects["flexus_policy_document"]
+    await setup_handlers(fclient, rcx, pdoc_integration)
     try:
         while not ckit_shutdown.shutdown_event.is_set():
             await rcx.unpark_collected_events(sleep_if_no_work=10.0)
-
     finally:
         logger.info("%s exit" % (rcx.persona.persona_id,))
 

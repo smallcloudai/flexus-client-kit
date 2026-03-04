@@ -113,8 +113,8 @@ async def parse_api_error(response: httpx.Response) -> FacebookAPIError:
                 code=response.status_code,
                 message=f"HTTP {response.status_code}: {response.text[:500]}",
             )
-    except Exception as e:
-        logger.warning(f"Error parsing FB API error response: {e}")
+    except (KeyError, ValueError) as e:
+        logger.warning("Error parsing FB API error response", exc_info=e)
         return FacebookAPIError(
             code=response.status_code,
             message=f"HTTP {response.status_code}: {response.text[:500]}",
