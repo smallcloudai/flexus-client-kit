@@ -1,0 +1,322 @@
+judge_instructions: |
+  Reward the bot for:
+  - Asking clarifying questions before drafting OR gathering enough from the user's detailed message
+  - Using the draft_document tool with comprehensive parameters matching user's specifications
+  - Including all user-requested terms (parties, scope, payment, IP, termination)
+  - Producing a well-structured legal document with proper sections and formatting
+  - Addressing IP ownership clearly given the sensitive nature of the consulting work
+  - Including standard protective provisions (confidentiality, indemnification, dispute resolution)
+  - Including the legal disclaimer
+
+  Penalize the bot for:
+  - Drafting without using the draft_document tool
+  - Missing key terms the user explicitly requested (IP ownership, milestone payments, termination for convenience)
+  - Producing a generic template that ignores the specific details provided
+  - Omitting important standard clauses (governing law, entire agreement, severability)
+  - Not addressing the independent contractor vs employee distinction
+  - Missing the legal disclaimer
+
+messages:
+  - role: user
+    content: |
+      I need you to draft a consulting services agreement. Here are the details:
+
+      Parties:
+      - Our company: Meridian Health Technologies Inc., a Delaware corporation
+      - Consultant: Dr. Sarah Chen, an individual doing business as Chen Data Consulting
+
+      Scope of Work:
+      - Development of predictive analytics models for patient readmission risk
+      - Integration of models into our existing healthcare platform
+      - Training sessions for our engineering team (up to 10 hours)
+      - Monthly performance reporting for 6 months post-delivery
+
+      Payment Terms:
+      - Total project fee: $120,000
+      - Milestone-based payments:
+        - $30,000 upon execution (advance)
+        - $40,000 upon delivery of validated models
+        - $30,000 upon successful platform integration
+        - $20,000 upon completion of training and first monthly report
+      - Net 15 payment terms on invoices
+      - Expenses reimbursable up to $5,000 with pre-approval
+
+      Timeline:
+      - Project duration: 8 months from effective date
+      - Model delivery: within 4 months
+      - Integration: within 6 months
+      - Training and reporting: months 6-8
+
+      IP Ownership:
+      - All work product and deliverables become our exclusive property
+      - Consultant retains rights to pre-existing IP and general knowledge/skills
+      - Consultant grants us a perpetual license to any pre-existing IP incorporated into deliverables
+
+      Termination:
+      - Either party can terminate for convenience with 30 days written notice
+      - Immediate termination for material breach
+      - If we terminate for convenience, we pay for completed milestones plus pro-rata work in progress
+      - If consultant terminates for convenience, consultant must complete transition and deliver all work-in-progress
+
+      Additional:
+      - New York law should govern
+      - We need strong confidentiality provisions given healthcare data sensitivity
+      - HIPAA compliance requirements since she'll access patient data
+
+  - role: assistant
+    tool_calls:
+      - id: call_bench_draft_001
+        type: function
+        function:
+          name: draft_document
+          arguments: |
+            {
+              "document_type": "consulting-services-agreement",
+              "parties": ["Meridian Health Technologies Inc., a Delaware corporation", "Dr. Sarah Chen, d/b/a Chen Data Consulting"],
+              "key_terms": {
+                "scope": "Predictive analytics model development for patient readmission risk, platform integration, team training (10 hours), 6-month post-delivery reporting",
+                "total_fee": "$120,000 milestone-based",
+                "milestone_1": "$30,000 upon execution (advance)",
+                "milestone_2": "$40,000 upon delivery of validated models",
+                "milestone_3": "$30,000 upon successful platform integration",
+                "milestone_4": "$20,000 upon completion of training and first monthly report",
+                "payment_terms": "Net 15",
+                "expense_cap": "$5,000 with pre-approval",
+                "duration": "8 months",
+                "ip_ownership": "All work product exclusive property of Company; Consultant retains pre-existing IP with perpetual license grant to Company",
+                "termination_for_convenience": "30 days notice by either party",
+                "governing_law": "New York",
+                "relationship": "Independent contractor"
+              },
+              "special_provisions": [
+                "HIPAA Business Associate Agreement required",
+                "Strong confidentiality provisions for healthcare data",
+                "Milestone-based payment with pro-rata for early termination",
+                "Independent contractor status with explicit disclaimers",
+                "Training delivery requirement (up to 10 hours)",
+                "Monthly performance reporting for 6 months post-delivery",
+                "Transition obligations upon consultant-initiated termination",
+                "Pre-existing IP license grant to Company"
+              ]
+            }
+
+  - role: tool
+    content: |
+      CONSULTING SERVICES AGREEMENT
+
+      This Consulting Services Agreement ("Agreement") is entered into as of [EFFECTIVE DATE] ("Effective Date") by and between:
+
+      COMPANY: Meridian Health Technologies Inc., a Delaware corporation, with principal offices at [ADDRESS] ("Company")
+
+      CONSULTANT: Dr. Sarah Chen, an individual doing business as Chen Data Consulting, with address at [ADDRESS] ("Consultant")
+
+      (collectively, the "Parties")
+
+      RECITALS
+
+      WHEREAS, Company develops healthcare technology solutions and requires specialized expertise in predictive analytics; and
+
+      WHEREAS, Consultant possesses expertise in data science and predictive modeling for healthcare applications; and
+
+      WHEREAS, Company desires to engage Consultant, and Consultant desires to be engaged, on the terms set forth herein.
+
+      NOW, THEREFORE, in consideration of the mutual covenants herein, the Parties agree as follows:
+
+      1. ENGAGEMENT AND SCOPE OF SERVICES
+
+      1.1 Company engages Consultant to perform the following services ("Services"):
+      (a) Development of predictive analytics models for patient readmission risk assessment;
+      (b) Integration of validated models into Company's existing healthcare platform;
+      (c) Training sessions for Company's engineering team, not to exceed ten (10) hours; and
+      (d) Monthly performance reporting for six (6) months following model delivery.
+
+      1.2 Consultant shall perform Services in accordance with the milestones and timeline set forth in Section 3.
+
+      1.3 Consultant shall perform all Services in a professional and workmanlike manner consistent with industry standards for healthcare data science consulting.
+
+      2. INDEPENDENT CONTRACTOR STATUS
+
+      2.1 Consultant is an independent contractor and not an employee, agent, partner, or joint venturer of Company. Consultant shall have no authority to bind Company.
+
+      2.2 Consultant is solely responsible for all taxes, insurance, and benefits. Company shall not withhold taxes or provide employee benefits.
+
+      2.3 Consultant retains the right to determine the method, manner, and means of performing the Services, subject to the requirements of this Agreement and applicable regulations.
+
+      3. TERM AND MILESTONES
+
+      3.1 This Agreement commences on the Effective Date and continues for eight (8) months unless earlier terminated pursuant to Section 7 ("Term").
+
+      3.2 Milestones:
+      (a) Milestone 1 - Model Delivery: Validated predictive analytics models delivered within four (4) months of the Effective Date;
+      (b) Milestone 2 - Platform Integration: Successful integration into Company's healthcare platform within six (6) months of the Effective Date;
+      (c) Milestone 3 - Training and Reporting: Completion of training sessions and delivery of first monthly performance report within eight (8) months of the Effective Date.
+
+      4. COMPENSATION
+
+      4.1 Total project fee: One Hundred Twenty Thousand Dollars ($120,000), payable as follows:
+      (a) $30,000 upon execution of this Agreement (advance payment);
+      (b) $40,000 upon Company's acceptance of validated models (Milestone 1);
+      (c) $30,000 upon successful platform integration (Milestone 2);
+      (d) $20,000 upon completion of training and delivery of first monthly report (Milestone 3).
+
+      4.2 Invoices are due and payable within fifteen (15) days of receipt ("Net 15").
+
+      4.3 Company shall reimburse Consultant for reasonable, pre-approved expenses up to Five Thousand Dollars ($5,000) in the aggregate. Expenses exceeding $250 individually require prior written approval.
+
+      4.4 Milestone acceptance: Company shall have ten (10) business days after delivery to accept or provide written notice of deficiencies. If no notice is given, the milestone shall be deemed accepted.
+
+      5. INTELLECTUAL PROPERTY
+
+      5.1 Work Product Ownership: All work product, deliverables, models, code, documentation, and materials created by Consultant in the performance of Services ("Work Product") shall be the sole and exclusive property of Company. Consultant hereby assigns to Company all right, title, and interest in and to the Work Product, including all intellectual property rights.
+
+      5.2 Pre-Existing IP: Consultant retains all right, title, and interest in intellectual property owned by Consultant prior to the Effective Date or developed outside the scope of this Agreement ("Pre-Existing IP").
+
+      5.3 License Grant: To the extent any Pre-Existing IP is incorporated into the Work Product, Consultant grants Company a perpetual, irrevocable, worldwide, royalty-free, non-exclusive license to use, modify, and sublicense such Pre-Existing IP as part of or in connection with the Work Product.
+
+      5.4 General Knowledge: Nothing in this Agreement restricts Consultant's right to use general knowledge, skills, and experience, including concepts and techniques, gained during performance of Services.
+
+      6. CONFIDENTIALITY
+
+      6.1 "Confidential Information" means all non-public information disclosed by either Party, including without limitation: patient data, health records, algorithms, models, business plans, customer lists, financial information, and technical specifications.
+
+      6.2 Each Party agrees to: (a) maintain Confidential Information in strict confidence; (b) use Confidential Information solely for purposes of this Agreement; (c) not disclose Confidential Information to third parties without prior written consent; and (d) protect Confidential Information with no less care than it uses for its own confidential information, and in no event less than reasonable care.
+
+      6.3 Confidentiality obligations survive termination for five (5) years, except for trade secrets which are protected indefinitely.
+
+      6.4 Standard exclusions apply: public information, prior knowledge, independent development, third-party disclosure without restriction, and legally compelled disclosure (with prompt notice).
+
+      7. TERMINATION
+
+      7.1 Termination for Convenience: Either Party may terminate this Agreement for any reason upon thirty (30) days prior written notice.
+
+      7.2 Termination for Cause: Either Party may terminate immediately upon written notice if the other Party materially breaches this Agreement and fails to cure within fifteen (15) days of written notice of breach.
+
+      7.3 Effect of Termination by Company for Convenience: Company shall pay for all completed milestones plus pro-rata compensation for documented work-in-progress toward the next milestone.
+
+      7.4 Effect of Termination by Consultant for Convenience: Consultant shall (a) complete a reasonable transition period not to exceed thirty (30) days; (b) deliver all Work Product and work-in-progress to Company; and (c) cooperate with knowledge transfer.
+
+      7.5 Sections 5, 6, 8, 9, 10, and 11 survive termination.
+
+      8. HIPAA COMPLIANCE
+
+      8.1 Consultant acknowledges that performance of Services may involve access to Protected Health Information ("PHI") as defined under HIPAA.
+
+      8.2 The Parties shall execute a Business Associate Agreement ("BAA") substantially in the form attached as Exhibit A prior to Consultant's access to any PHI.
+
+      8.3 Consultant shall comply with all applicable provisions of HIPAA, HITECH, and implementing regulations, and shall implement appropriate administrative, physical, and technical safeguards.
+
+      9. REPRESENTATIONS AND WARRANTIES
+
+      9.1 Consultant represents and warrants that: (a) Consultant has the right and authority to enter into this Agreement; (b) the Services will be performed in a professional manner; (c) the Work Product will not infringe any third-party intellectual property rights; and (d) Consultant has disclosed any potential conflicts of interest.
+
+      9.2 EXCEPT AS EXPRESSLY SET FORTH HEREIN, NEITHER PARTY MAKES ANY OTHER WARRANTIES, EXPRESS OR IMPLIED.
+
+      10. INDEMNIFICATION
+
+      10.1 Consultant shall indemnify Company from claims arising from: (a) Consultant's breach of this Agreement; (b) Consultant's negligence or willful misconduct; (c) any claim that the Work Product infringes third-party IP; and (d) Consultant's failure to comply with HIPAA requirements.
+
+      10.2 Company shall indemnify Consultant from claims arising from: (a) Company's breach of this Agreement; (b) Company's use of Work Product beyond the scope contemplated herein; and (c) Company's failure to comply with applicable law in deploying the models.
+
+      11. LIMITATION OF LIABILITY
+
+      11.1 NEITHER PARTY SHALL BE LIABLE FOR INDIRECT, INCIDENTAL, SPECIAL, OR CONSEQUENTIAL DAMAGES.
+
+      11.2 Each Party's total aggregate liability shall not exceed the total fees paid or payable under this Agreement, except for breaches of Sections 5, 6, or 8.
+
+      12. GOVERNING LAW AND DISPUTE RESOLUTION
+
+      12.1 This Agreement shall be governed by the laws of the State of New York without regard to conflict of laws principles.
+
+      12.2 Any dispute arising under this Agreement shall first be submitted to good faith mediation. If mediation fails within thirty (30) days, either Party may pursue litigation in the state or federal courts located in New York County, New York.
+
+      13. GENERAL PROVISIONS
+
+      13.1 Entire Agreement: This Agreement, including any exhibits, constitutes the entire agreement between the Parties.
+
+      13.2 Amendments: This Agreement may be amended only in writing signed by both Parties.
+
+      13.3 Severability: If any provision is held invalid, the remaining provisions continue in full force.
+
+      13.4 Notices: All notices shall be in writing and delivered to the addresses set forth above.
+
+      13.5 Assignment: Neither Party may assign this Agreement without prior written consent, except Company may assign to a successor in connection with a merger or acquisition.
+
+      IN WITNESS WHEREOF, the Parties have executed this Agreement as of the Effective Date.
+
+      MERIDIAN HEALTH TECHNOLOGIES INC.        DR. SARAH CHEN, d/b/a CHEN DATA CONSULTING
+      By: _____________________________        By: _____________________________
+      Name:                                    Name: Dr. Sarah Chen
+      Title:                                   Title:
+      Date:                                    Date:
+
+      EXHIBIT A: Business Associate Agreement [To be attached]
+
+      ---
+      Key Points Summary:
+      - Independent contractor engagement for predictive analytics development
+      - $120,000 total, paid across 4 milestones with Net 15 terms
+      - All work product owned by Company; pre-existing IP licensed
+      - HIPAA BAA required before PHI access
+      - New York law governs
+      - 30-day termination for convenience with pro-rata payment for work-in-progress
+    call_id: call_bench_draft_001
+
+  - role: assistant
+    tool_calls: []
+    content: |
+      I've drafted a comprehensive consulting services agreement based on your specifications. Here's a summary of the key provisions:
+
+      ## Document Overview
+
+      **Parties**: Meridian Health Technologies Inc. and Dr. Sarah Chen (d/b/a Chen Data Consulting)
+      **Structure**: Independent contractor engagement with milestone-based compensation
+      **Governing Law**: New York
+
+      ## Key Provisions
+
+      **Scope and Milestones**
+      - Model development, platform integration, training (10 hours), and 6-month reporting
+      - Clear timeline: models by month 4, integration by month 6, training and reporting months 6-8
+
+      **Compensation ($120,000 total)**
+      - $30K advance on execution
+      - $40K on model delivery and acceptance
+      - $30K on integration completion
+      - $20K on training and first report
+      - Net 15 payment, $5K expense cap with pre-approval
+      - 10 business day acceptance period per milestone
+
+      **IP Ownership**
+      - Full assignment of all work product to Meridian
+      - Consultant retains pre-existing IP with perpetual license grant to you
+      - General knowledge/skills carveout for Consultant
+
+      **HIPAA Compliance**
+      - Business Associate Agreement required as Exhibit A before any PHI access
+      - Consultant must implement appropriate safeguards
+
+      **Termination**
+      - Either party: 30 days notice for convenience
+      - Immediate for material breach (15-day cure period)
+      - You pay completed milestones + pro-rata WIP if you terminate
+      - Consultant must complete transition and deliver WIP if she terminates
+
+      **Protections**
+      - 5-year confidentiality survival (indefinite for trade secrets)
+      - Mutual indemnification with IP infringement coverage
+      - Liability capped at total fees (except for IP, confidentiality, HIPAA breaches)
+      - Mediation before litigation
+
+      ## Items to Address Before Execution
+
+      1. **Exhibit A (BAA)**: The HIPAA Business Associate Agreement needs to be drafted and attached. This is a legal requirement before any PHI access.
+      2. **Company Address**: Fill in Meridian's principal office address
+      3. **Consultant Address**: Fill in Dr. Chen's business address
+      4. **Effective Date**: Specify the start date
+      5. **Acceptance Criteria**: Consider adding specific acceptance criteria for each milestone in an additional exhibit
+
+      **Disclaimer**: This is a draft document providing legal information, not legal advice. Before execution, I recommend having a New York-licensed attorney review this agreement, particularly the HIPAA provisions and IP assignment clauses, to ensure compliance with current healthcare regulations and New York law.
+
+      Would you like me to modify any provisions, add an exhibit with detailed acceptance criteria, or draft the Business Associate Agreement?
+
+persona_marketable_name: lawyerrat

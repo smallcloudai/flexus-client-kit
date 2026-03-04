@@ -1,0 +1,203 @@
+judge_instructions: |
+  Reward the bot for:
+  - Using the analyze_contract tool with the full contract text
+  - Specifying party_perspective as buyer/subscriber
+  - Identifying specific high-risk clauses (auto-renewal, unlimited liability, unilateral amendment)
+  - Providing structured analysis with severity classification (RED/YELLOW/GREEN)
+  - Referencing specific clause numbers in the analysis
+  - Including disclaimer about legal information vs legal advice
+  - Suggesting concrete negotiation points or redline language
+
+  Penalize the bot for:
+  - Not using the analyze_contract tool when given a full contract
+  - Missing obvious one-sided clauses (Section 8 unilateral amendment, Section 12 liability waiver)
+  - Providing only generic advice without referencing specific clauses
+  - Failing to note missing provisions (SLA, data protection, escrow)
+  - Missing the legal disclaimer
+  - Being superficial or rushing through the analysis
+
+messages:
+  - role: user
+    content: |
+      I need you to review this SaaS subscription agreement from our perspective as the buyer. We're considering signing it with CloudVault Inc.
+
+      SAAS SUBSCRIPTION AGREEMENT
+
+      This SaaS Subscription Agreement ("Agreement") is entered into as of the Effective Date by and between CloudVault Inc., a Delaware corporation ("Provider"), and the entity identified on the Order Form ("Subscriber").
+
+      1. DEFINITIONS
+      "Services" means the cloud-based data management platform and related services described in the applicable Order Form. "Subscriber Data" means any data uploaded, stored, or processed by Subscriber through the Services. "Confidential Information" means any non-public information disclosed by either party.
+
+      2. GRANT OF LICENSE
+      Provider grants Subscriber a non-exclusive, non-transferable, revocable license to access and use the Services during the Subscription Term solely for Subscriber's internal business purposes, subject to the usage limits in the Order Form.
+
+      3. SUBSCRIPTION TERM AND RENEWAL
+      The initial Subscription Term is twelve (12) months from the Effective Date. This Agreement shall automatically renew for successive twelve-month periods unless either party provides written notice of non-renewal at least ninety (90) days prior to the end of the then-current term. Provider may increase fees upon renewal by up to 15% with thirty (30) days written notice.
+
+      4. FEES AND PAYMENT
+      Subscriber shall pay all fees specified in the Order Form. All fees are non-refundable. Payment is due within thirty (30) days of invoice. Late payments accrue interest at 1.5% per month or the maximum rate permitted by law, whichever is less. Subscriber is responsible for all taxes.
+
+      5. SUBSCRIBER OBLIGATIONS
+      Subscriber shall: (a) maintain the security of login credentials; (b) comply with all applicable laws in using the Services; (c) not reverse engineer, decompile, or disassemble the Services; (d) not use the Services to store or transmit malicious code; (e) ensure that its use does not exceed the usage limits specified in the Order Form.
+
+      6. DATA OWNERSHIP AND PROCESSING
+      Subscriber retains ownership of Subscriber Data. Provider shall process Subscriber Data solely to provide the Services. Provider may collect and use aggregated, anonymized usage data for any purpose, including product improvement and benchmarking, provided such data cannot reasonably identify Subscriber.
+
+      7. CONFIDENTIALITY
+      Each party agrees to maintain the confidentiality of the other party's Confidential Information using at least the same degree of care it uses for its own confidential information. Confidentiality obligations survive for three (3) years after disclosure.
+
+      8. MODIFICATIONS TO SERVICES
+      Provider reserves the right to modify, update, or discontinue any feature of the Services at any time. Provider will use commercially reasonable efforts to notify Subscriber of material changes. Continued use of the Services after modification constitutes acceptance of the changes.
+
+      9. WARRANTIES
+      Provider warrants that the Services will perform substantially in accordance with the documentation during the Subscription Term. EXCEPT AS EXPRESSLY SET FORTH HEREIN, THE SERVICES ARE PROVIDED "AS IS" AND PROVIDER MAKES NO OTHER WARRANTIES, EXPRESS OR IMPLIED, INCLUDING WARRANTIES OF MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE.
+
+      10. INTELLECTUAL PROPERTY
+      Provider retains all right, title, and interest in and to the Services, including all intellectual property rights. Any feedback, suggestions, or improvements provided by Subscriber regarding the Services shall become the exclusive property of Provider.
+
+      11. INDEMNIFICATION
+      Subscriber shall indemnify and hold harmless Provider from any claims arising from: (a) Subscriber's use of the Services; (b) Subscriber's breach of this Agreement; (c) Subscriber Data. Provider shall indemnify Subscriber from claims alleging that the Services infringe a third-party US patent or copyright.
+
+      12. LIMITATION OF LIABILITY
+      IN NO EVENT SHALL PROVIDER BE LIABLE FOR ANY INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL, OR PUNITIVE DAMAGES. PROVIDER'S TOTAL AGGREGATE LIABILITY SHALL NOT EXCEED THE FEES PAID BY SUBSCRIBER IN THE TWELVE (12) MONTHS PRECEDING THE CLAIM. This limitation applies regardless of the theory of liability.
+
+      13. TERMINATION
+      Either party may terminate this Agreement for material breach if the breach remains uncured thirty (30) days after written notice. Provider may immediately suspend or terminate access if Subscriber violates Section 5. Upon termination, Subscriber's access to the Services ceases immediately.
+
+      14. DATA PORTABILITY AND DELETION
+      Upon termination, Provider will make Subscriber Data available for export for thirty (30) days. After such period, Provider may delete all Subscriber Data without liability.
+
+      15. FORCE MAJEURE
+      Neither party shall be liable for failure to perform due to causes beyond reasonable control.
+
+      16. GOVERNING LAW AND DISPUTE RESOLUTION
+      This Agreement is governed by the laws of the State of Delaware. Any disputes shall be resolved exclusively in the state or federal courts located in Wilmington, Delaware.
+
+      17. ENTIRE AGREEMENT
+      This Agreement, together with any Order Forms, constitutes the entire agreement between the parties. This Agreement may only be amended in writing signed by both parties.
+
+  - role: assistant
+    tool_calls:
+      - id: call_bench_cr_001
+        type: function
+        function:
+          name: analyze_contract
+          arguments: |
+            {
+              "contract_text": "SAAS SUBSCRIPTION AGREEMENT\n\nThis SaaS Subscription Agreement (\"Agreement\") is entered into as of the Effective Date by and between CloudVault Inc., a Delaware corporation (\"Provider\"), and the entity identified on the Order Form (\"Subscriber\").\n\n1. DEFINITIONS\n\"Services\" means the cloud-based data management platform and related services described in the applicable Order Form. \"Subscriber Data\" means any data uploaded, stored, or processed by Subscriber through the Services. \"Confidential Information\" means any non-public information disclosed by either party.\n\n2. GRANT OF LICENSE\nProvider grants Subscriber a non-exclusive, non-transferable, revocable license to access and use the Services during the Subscription Term solely for Subscriber's internal business purposes, subject to the usage limits in the Order Form.\n\n3. SUBSCRIPTION TERM AND RENEWAL\nThe initial Subscription Term is twelve (12) months from the Effective Date. This Agreement shall automatically renew for successive twelve-month periods unless either party provides written notice of non-renewal at least ninety (90) days prior to the end of the then-current term. Provider may increase fees upon renewal by up to 15% with thirty (30) days written notice.\n\n4. FEES AND PAYMENT\nSubscriber shall pay all fees specified in the Order Form. All fees are non-refundable. Payment is due within thirty (30) days of invoice. Late payments accrue interest at 1.5% per month or the maximum rate permitted by law, whichever is less. Subscriber is responsible for all taxes.\n\n5. SUBSCRIBER OBLIGATIONS\nSubscriber shall: (a) maintain the security of login credentials; (b) comply with all applicable laws in using the Services; (c) not reverse engineer, decompile, or disassemble the Services; (d) not use the Services to store or transmit malicious code; (e) ensure that its use does not exceed the usage limits specified in the Order Form.\n\n6. DATA OWNERSHIP AND PROCESSING\nSubscriber retains ownership of Subscriber Data. Provider may collect and use aggregated, anonymized usage data for any purpose, including product improvement and benchmarking, provided such data cannot reasonably identify Subscriber.\n\n7. CONFIDENTIALITY\nEach party agrees to maintain the confidentiality of the other party's Confidential Information using at least the same degree of care it uses for its own confidential information. Confidentiality obligations survive for three (3) years after disclosure.\n\n8. MODIFICATIONS TO SERVICES\nProvider reserves the right to modify, update, or discontinue any feature of the Services at any time. Continued use of the Services after modification constitutes acceptance of the changes.\n\n9. WARRANTIES\nProvider warrants that the Services will perform substantially in accordance with the documentation. EXCEPT AS EXPRESSLY SET FORTH HEREIN, THE SERVICES ARE PROVIDED \"AS IS\".\n\n10. INTELLECTUAL PROPERTY\nProvider retains all rights in the Services. Any feedback or suggestions provided by Subscriber shall become the exclusive property of Provider.\n\n11. INDEMNIFICATION\nSubscriber shall indemnify Provider from claims arising from Subscriber's use, breach, or data. Provider shall indemnify Subscriber from IP infringement claims.\n\n12. LIMITATION OF LIABILITY\nIN NO EVENT SHALL PROVIDER BE LIABLE FOR ANY INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL, OR PUNITIVE DAMAGES. PROVIDER'S TOTAL AGGREGATE LIABILITY SHALL NOT EXCEED THE FEES PAID IN THE TWELVE MONTHS PRECEDING THE CLAIM.\n\n13. TERMINATION\nEither party may terminate for material breach with 30 days notice. Provider may immediately suspend for Section 5 violations.\n\n14. DATA PORTABILITY AND DELETION\nUpon termination, Provider will make data available for 30 days. After that, Provider may delete all data.\n\n15. FORCE MAJEURE\nNeither party liable for failure due to causes beyond reasonable control.\n\n16. GOVERNING LAW\nDelaware law. Exclusive jurisdiction in Wilmington, Delaware.\n\n17. ENTIRE AGREEMENT\nThis Agreement constitutes the entire agreement. Amendments require written consent of both parties.",
+              "focus_areas": ["liability", "termination", "data-protection", "auto-renewal", "indemnification", "intellectual-property"],
+              "party_perspective": "Subscriber"
+            }
+
+  - role: tool
+    content: |
+      CONTRACT ANALYSIS RESULTS
+      Perspective: Subscriber (Buyer)
+
+      ## RED FLAGS - HIGH RISK
+
+      1. **Unilateral Service Modification (Section 8)**
+         - RISK: Provider can modify or discontinue ANY feature at any time
+         - ISSUE: "Continued use constitutes acceptance" is a constructive amendment clause
+         - No obligation to maintain core functionality subscriber relies on
+         - RECOMMENDATION: Require mutual consent for material changes; add service level commitments
+
+      2. **One-Sided Indemnification (Section 11)**
+         - RISK: Subscriber indemnifies Provider broadly, but Provider only indemnifies for US IP infringement
+         - ISSUE: No Provider indemnification for data breaches, negligence, or confidentiality violations
+         - RECOMMENDATION: Add Provider indemnification for data breaches and negligence
+
+      3. **Feedback IP Assignment (Section 10)**
+         - RISK: Any feedback or suggestions automatically become Provider's exclusive property
+         - ISSUE: Could inadvertently transfer Subscriber's pre-existing IP if mentioned as a "suggestion"
+         - RECOMMENDATION: Narrow to feedback specifically solicited by Provider; exclude pre-existing IP
+
+      4. **Revocable License (Section 2)**
+         - RISK: License is explicitly "revocable" which undermines the subscription commitment
+         - ISSUE: Provider could theoretically revoke access even during paid term
+         - RECOMMENDATION: Remove "revocable" or clarify it is irrevocable during the paid Subscription Term
+
+      ## YELLOW FLAGS - MODERATE RISK
+
+      5. **Auto-Renewal with 15% Price Increase (Section 3)**
+         - RISK: 90-day non-renewal notice is long; 15% uncapped compounding increases
+         - ISSUE: Over 3 years, fees could increase ~52% without meaningful negotiation
+         - RECOMMENDATION: Cap annual increases at CPI + 3%; reduce notice to 60 days
+
+      6. **Non-Refundable Fees (Section 4)**
+         - RISK: All fees are non-refundable regardless of circumstances
+         - ISSUE: No pro-rata refund even if Provider terminates or materially degrades services
+         - RECOMMENDATION: Add pro-rata refund for Provider-caused termination
+
+      7. **Aggregated Data Usage (Section 6)**
+         - RISK: Provider can use anonymized data for "any purpose" including benchmarking
+         - ISSUE: Competitive intelligence risk if benchmarking data is insufficiently anonymized
+         - RECOMMENDATION: Restrict to product improvement; remove benchmarking right
+
+      8. **30-Day Data Export Window (Section 14)**
+         - RISK: Only 30 days to export all data after termination
+         - ISSUE: May be insufficient for large datasets or complex migrations
+         - RECOMMENDATION: Extend to 90 days; require Provider to assist with migration
+
+      9. **Liability Cap (Section 12)**
+         - RISK: Cap at 12-month fees excludes all consequential damages
+         - ISSUE: No carve-outs for data breach, confidentiality breach, or gross negligence
+         - RECOMMENDATION: Add carve-outs; consider 2x annual fees as cap
+
+      ## MISSING PROVISIONS
+
+      - Service Level Agreement (uptime guarantees, performance metrics, remedies for downtime)
+      - Data Processing Agreement / DPA for regulatory compliance
+      - Data breach notification obligations and timeline
+      - Insurance requirements for Provider
+      - Escrow provisions for source code
+      - Transition assistance upon termination
+      - Audit rights for security and compliance
+      - Sub-processor disclosure and approval rights
+    call_id: call_bench_cr_001
+
+  - role: assistant
+    tool_calls: []
+    content: |
+      I've completed a thorough review of the CloudVault SaaS Subscription Agreement from your perspective as the Subscriber. Here are my findings:
+
+      ## High Risk Issues (RED)
+
+      **1. Unilateral Service Modification (Section 8)**
+      This is the most concerning clause. Provider can modify or discontinue any feature at any time, and your continued use counts as acceptance. This effectively lets them change what you're paying for without your consent. You should negotiate for mutual consent on material changes and add a service level commitment.
+
+      **2. One-Sided Indemnification (Section 11)**
+      You indemnify the Provider broadly (your use, your data, your breaches), but they only cover US IP infringement claims. There's no Provider indemnification for data breaches or negligence on their end. Push for symmetry here.
+
+      **3. Feedback IP Grab (Section 10)**
+      Any "feedback or suggestions" you provide become Provider's exclusive property. This is dangerously broad -- mentioning a feature idea in a support ticket could transfer your IP. Narrow this to explicitly solicited feedback only.
+
+      **4. Revocable License (Section 2)**
+      The license is explicitly "revocable," which undermines the 12-month subscription commitment. This should be irrevocable during the paid term.
+
+      ## Moderate Concerns (YELLOW)
+
+      - **Auto-Renewal (Section 3)**: 90-day notice period with up to 15% fee increases compounds aggressively. Negotiate a CPI-based cap.
+      - **Non-Refundable Fees (Section 4)**: No pro-rata refund even if Provider terminates. Unfair.
+      - **Aggregated Data (Section 6)**: "Benchmarking" use of your anonymized data creates competitive intelligence risk.
+      - **30-Day Export Window (Section 14)**: Too short for complex data migrations. Push for 90 days.
+      - **Liability Cap (Section 12)**: No carve-outs for data breach or gross negligence.
+
+      ## Critical Missing Provisions
+
+      - Service Level Agreement (uptime guarantees, performance remedies)
+      - Data Processing Agreement for GDPR/CCPA compliance
+      - Data breach notification timeline
+      - Security audit rights
+      - Source code escrow
+      - Transition assistance on termination
+
+      ## Recommendation
+
+      This agreement is heavily Provider-favorable. I would prioritize negotiating Sections 8, 10, 11, and 2 as deal-breakers, and address the missing SLA and DPA before signing.
+
+      **Disclaimer**: This is legal information and analysis, not legal advice. I strongly recommend having a licensed attorney review and negotiate this agreement, particularly given the significant risk items identified.
+
+      Would you like me to draft specific redline language for any of these sections?
+
+persona_marketable_name: lawyerrat
