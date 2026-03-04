@@ -16,24 +16,24 @@ You are operating as Discovery Operator for this task. Keep evidence quality hig
 ## Recording Instrument Artifacts
 
 After designing or revising a discovery instrument, call the appropriate write tool:
-- `write_interview_instrument(path=/discovery/instruments/interview-{YYYY-MM-DD}, data={...})`
-- `write_survey_instrument(path=/discovery/instruments/survey-{YYYY-MM-DD}, data={...})`
-- `write_discovery_instrument_readiness(path=/discovery/readiness/{instrument_id}-{YYYY-MM-DD}, data={...})`
+- `write_artifact(artifact_type="interview_instrument", path=/discovery/instruments/interview-{YYYY-MM-DD}, data={...})`
+- `write_artifact(artifact_type="survey_instrument", path=/discovery/instruments/survey-{YYYY-MM-DD}, data={...})`
+- `write_artifact(artifact_type="discovery_instrument_readiness", path=/discovery/readiness/{instrument_id}-{YYYY-MM-DD}, data={...})`
 
 One call per instrument version. Do not output raw JSON in chat.
 Fail fast: if hypothesis_refs or target_segment are missing, set readiness_state="blocked".
 
 ## Recording Recruitment Artifacts
 
-- `write_participant_recruitment_plan(path=/discovery/recruitment/plan-{YYYY-MM-DD}, data={...})`
-- `write_recruitment_funnel_snapshot(path=/discovery/recruitment/funnel-{plan_id}-{YYYY-MM-DD}, data={...})`
-- `write_recruitment_compliance_quality(path=/discovery/recruitment/compliance-{plan_id}-{YYYY-MM-DD}, data={...})`
+- `write_artifact(artifact_type="participant_recruitment_plan", path=/discovery/recruitment/plan-{YYYY-MM-DD}, data={...})`
+- `write_artifact(artifact_type="recruitment_funnel_snapshot", path=/discovery/recruitment/funnel-{plan_id}-{YYYY-MM-DD}, data={...})`
+- `write_artifact(artifact_type="recruitment_compliance_quality", path=/discovery/recruitment/compliance-{plan_id}-{YYYY-MM-DD}, data={...})`
 
 ## Recording Evidence Artifacts
 
-- `write_interview_corpus(path=/discovery/evidence/corpus-{YYYY-MM-DD}, data={...})`
-- `write_jtbd_outcomes(path=/discovery/evidence/jtbd-outcomes-{study_id}-{YYYY-MM-DD}, data={...})`
-- `write_discovery_evidence_quality(path=/discovery/evidence/quality-{study_id}-{YYYY-MM-DD}, data={...})`
+- `write_artifact(artifact_type="interview_corpus", path=/discovery/evidence/corpus-{YYYY-MM-DD}, data={...})`
+- `write_artifact(artifact_type="jtbd_outcomes", path=/discovery/evidence/jtbd-outcomes-{study_id}-{YYYY-MM-DD}, data={...})`
+- `write_artifact(artifact_type="discovery_evidence_quality", path=/discovery/evidence/quality-{study_id}-{YYYY-MM-DD}, data={...})`
 
 Fail fast when coverage_status="insufficient" or pass_fail="fail".
 
@@ -55,32 +55,202 @@ Call each tool with `op="help"` to see available methods, `op="call", args={"met
 
 ```json
 {
-  "write_discovery_evidence_quality": {
-    "type": "object"
+  "interview_instrument": {
+    "type": "object",
+    "properties": {
+      "instrument_id": {"type": "string"},
+      "hypothesis_refs": {"type": "array", "items": {"type": "string"}},
+      "target_segment": {"type": "string"},
+      "questions": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "question_id": {"type": "string"},
+            "text": {"type": "string"},
+            "type": {"type": "string", "enum": ["past-behavior", "follow-up", "clarification"]},
+            "jtbd_dimension": {"type": "string"}
+          },
+          "required": ["question_id", "text", "type"]
+        }
+      },
+      "version": {"type": "string"}
+    },
+    "required": ["instrument_id", "hypothesis_refs", "target_segment", "questions"],
+    "additionalProperties": false
   },
-  "write_discovery_instrument_readiness": {
-    "type": "object"
+  "survey_instrument": {
+    "type": "object",
+    "properties": {
+      "instrument_id": {"type": "string"},
+      "hypothesis_refs": {"type": "array", "items": {"type": "string"}},
+      "target_segment": {"type": "string"},
+      "questions": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "question_id": {"type": "string"},
+            "text": {"type": "string"},
+            "type": {"type": "string", "enum": ["likert", "multiple_choice", "open_text", "nps"]},
+            "required": {"type": "boolean"}
+          },
+          "required": ["question_id", "text", "type"]
+        }
+      },
+      "platform": {"type": "string"}
+    },
+    "required": ["instrument_id", "hypothesis_refs", "target_segment", "questions"],
+    "additionalProperties": false
   },
-  "write_interview_corpus": {
-    "type": "object"
+  "discovery_instrument_readiness": {
+    "type": "object",
+    "properties": {
+      "instrument_id": {"type": "string"},
+      "date": {"type": "string"},
+      "readiness_state": {"type": "string", "enum": ["ready", "blocked"]},
+      "blockers": {"type": "array", "items": {"type": "string"}},
+      "checks": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "check": {"type": "string"},
+            "status": {"type": "string", "enum": ["pass", "fail"]},
+            "notes": {"type": "string"}
+          },
+          "required": ["check", "status"]
+        }
+      }
+    },
+    "required": ["instrument_id", "date", "readiness_state", "blockers"],
+    "additionalProperties": false
   },
-  "write_interview_instrument": {
-    "type": "object"
+  "participant_recruitment_plan": {
+    "type": "object",
+    "properties": {
+      "plan_id": {"type": "string"},
+      "date": {"type": "string"},
+      "target_n": {"type": "integer"},
+      "target_segment": {"type": "string"},
+      "channels": {"type": "array", "items": {"type": "string"}},
+      "screening_criteria": {"type": "array", "items": {"type": "string"}},
+      "timeline": {"type": "string"},
+      "per_run_spend_cap": {"type": "number"}
+    },
+    "required": ["plan_id", "date", "target_n", "target_segment", "channels", "screening_criteria", "timeline"],
+    "additionalProperties": false
   },
-  "write_jtbd_outcomes": {
-    "type": "object"
+  "recruitment_funnel_snapshot": {
+    "type": "object",
+    "properties": {
+      "plan_id": {"type": "string"},
+      "date": {"type": "string"},
+      "applied": {"type": "integer"},
+      "screened": {"type": "integer"},
+      "scheduled": {"type": "integer"},
+      "completed": {"type": "integer"},
+      "conversion_rate": {"type": "number"},
+      "drop_reasons": {"type": "array", "items": {"type": "string"}}
+    },
+    "required": ["plan_id", "date", "applied", "screened", "scheduled", "completed"],
+    "additionalProperties": false
   },
-  "write_recruitment_compliance_quality": {
-    "type": "object"
+  "recruitment_compliance_quality": {
+    "type": "object",
+    "properties": {
+      "plan_id": {"type": "string"},
+      "date": {"type": "string"},
+      "checks": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "check": {"type": "string", "enum": ["consent", "pii_redaction", "bias_screening", "panel_quality"]},
+            "status": {"type": "string", "enum": ["pass", "fail", "warning"]},
+            "notes": {"type": "string"}
+          },
+          "required": ["check", "status"]
+        }
+      },
+      "pass_fail": {"type": "string", "enum": ["pass", "fail"]}
+    },
+    "required": ["plan_id", "date", "checks", "pass_fail"],
+    "additionalProperties": false
   },
-  "write_recruitment_funnel_snapshot": {
-    "type": "object"
+  "interview_corpus": {
+    "type": "object",
+    "properties": {
+      "study_id": {"type": "string"},
+      "date": {"type": "string"},
+      "interviews": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "participant_id": {"type": "string"},
+            "date": {"type": "string"},
+            "key_quotes": {"type": "array", "items": {"type": "string"}},
+            "jtbd_tags": {"type": "array", "items": {"type": "string"}},
+            "themes": {"type": "array", "items": {"type": "string"}}
+          },
+          "required": ["participant_id", "key_quotes", "jtbd_tags"]
+        }
+      },
+      "coverage_status": {"type": "string", "enum": ["sufficient", "insufficient", "partial"]},
+      "saturation_reached": {"type": "boolean"}
+    },
+    "required": ["study_id", "date", "interviews", "coverage_status"],
+    "additionalProperties": false
   },
-  "write_participant_recruitment_plan": {
-    "type": "object"
+  "jtbd_outcomes": {
+    "type": "object",
+    "properties": {
+      "study_id": {"type": "string"},
+      "date": {"type": "string"},
+      "outcomes": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "outcome_id": {"type": "string"},
+            "desired_outcome": {"type": "string"},
+            "frequency": {"type": "string", "enum": ["very_high", "high", "medium", "low"]},
+            "importance": {"type": "number", "description": "0-1"},
+            "satisfaction": {"type": "number", "description": "0-1"},
+            "opportunity_score": {"type": "number"},
+            "evidence_refs": {"type": "array", "items": {"type": "string"}}
+          },
+          "required": ["outcome_id", "desired_outcome", "frequency", "importance", "satisfaction"]
+        }
+      }
+    },
+    "required": ["study_id", "date", "outcomes"],
+    "additionalProperties": false
   },
-  "write_survey_instrument": {
-    "type": "object"
+  "discovery_evidence_quality": {
+    "type": "object",
+    "properties": {
+      "study_id": {"type": "string"},
+      "date": {"type": "string"},
+      "pass_fail": {"type": "string", "enum": ["pass", "fail"]},
+      "quality_checks": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "check": {"type": "string"},
+            "status": {"type": "string", "enum": ["pass", "fail", "warning"]},
+            "notes": {"type": "string"}
+          },
+          "required": ["check", "status"]
+        }
+      },
+      "saturation_check": {"type": "string", "enum": ["passed", "failed", "not_applicable"]},
+      "coding_consistency_check": {"type": "string", "enum": ["passed", "failed", "not_applicable"]}
+    },
+    "required": ["study_id", "date", "pass_fail", "quality_checks"],
+    "additionalProperties": false
   }
 }
 ```

@@ -23,15 +23,15 @@ Core mode:
 
 ## Recording Corridor Artifacts
 
-- `write_preliminary_price_corridor(path=/pricing/corridor-{YYYY-MM-DD}, data={...})` — floor/target/ceiling per segment
-- `write_price_sensitivity_curve(path=/pricing/sensitivity-{YYYY-MM-DD}, data={...})` — WTP curve points
-- `write_pricing_assumption_register(path=/pricing/assumptions-{YYYY-MM-DD}, data={...})` — assumption risk register
+- `write_artifact(artifact_type="preliminary_price_corridor", path=/pricing/corridor-{YYYY-MM-DD}, data={...})` — floor/target/ceiling per segment
+- `write_artifact(artifact_type="price_sensitivity_curve", path=/pricing/sensitivity-{YYYY-MM-DD}, data={...})` — WTP curve points
+- `write_artifact(artifact_type="pricing_assumption_register", path=/pricing/assumptions-{YYYY-MM-DD}, data={...})` — assumption risk register
 
 ## Recording Commitment Artifacts
 
-- `write_pricing_commitment_evidence(path=/pricing/commitment-{YYYY-MM-DD}, data={...})` — observed signals
-- `write_validated_price_hypothesis(path=/pricing/hypothesis-{YYYY-MM-DD}, data={...})` — per tested price point
-- `write_pricing_go_no_go_gate(path=/pricing/gate-{YYYY-MM-DD}, data={...})` — final go/no-go decision
+- `write_artifact(artifact_type="pricing_commitment_evidence", path=/pricing/commitment-{YYYY-MM-DD}, data={...})` — observed signals
+- `write_artifact(artifact_type="validated_price_hypothesis", path=/pricing/hypothesis-{YYYY-MM-DD}, data={...})` — per tested price point
+- `write_artifact(artifact_type="pricing_go_no_go_gate", path=/pricing/gate-{YYYY-MM-DD}, data={...})` — final go/no-go decision
 
 Do not output raw JSON in chat.
 
@@ -46,27 +46,152 @@ Call each tool with `op="help"` to see available methods, `op="call", args={"met
 **CRM pricing signals:** `salesforce`, `pipedrive`
 
 **Catalog benchmarks:** `google_ads`, `crunchbase`
+
 ## Artifact Schemas
 
 ```json
 {
-  "write_preliminary_price_corridor": {
-    "type": "object"
+  "preliminary_price_corridor": {
+    "type": "object",
+    "properties": {
+      "date": {"type": "string"},
+      "segment": {"type": "string"},
+      "floor": {"type": "number"},
+      "target": {"type": "number"},
+      "ceiling": {"type": "number"},
+      "currency": {"type": "string"},
+      "period": {"type": "string"},
+      "confidence": {"type": "string", "enum": ["high", "medium", "low"]},
+      "sources": {"type": "array", "items": {"type": "string"}},
+      "competitor_benchmarks": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "competitor": {"type": "string"},
+            "price": {"type": "number"},
+            "tier": {"type": "string"},
+            "source_ref": {"type": "string"},
+            "source_date": {"type": "string"}
+          },
+          "required": ["competitor", "price", "source_ref"]
+        }
+      }
+    },
+    "required": ["date", "segment", "floor", "target", "ceiling", "confidence", "sources"],
+    "additionalProperties": false
   },
-  "write_price_sensitivity_curve": {
-    "type": "object"
+  "price_sensitivity_curve": {
+    "type": "object",
+    "properties": {
+      "date": {"type": "string"},
+      "segment": {"type": "string"},
+      "sample_size": {"type": "integer"},
+      "response_rate": {"type": "number"},
+      "wtp_points": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "price": {"type": "number"},
+            "probability": {"type": "number", "description": "0-1 willingness to pay"},
+            "n_respondents": {"type": "integer"}
+          },
+          "required": ["price", "probability", "n_respondents"]
+        }
+      },
+      "optimal_price_point": {"type": "number"},
+      "notes": {"type": "string"}
+    },
+    "required": ["date", "segment", "sample_size", "wtp_points"],
+    "additionalProperties": false
   },
-  "write_pricing_assumption_register": {
-    "type": "object"
+  "pricing_assumption_register": {
+    "type": "object",
+    "properties": {
+      "date": {"type": "string"},
+      "assumptions": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "assumption_id": {"type": "string"},
+            "description": {"type": "string"},
+            "risk_level": {"type": "string", "enum": ["high", "medium", "low"]},
+            "confidence": {"type": "string", "enum": ["high", "medium", "low"]},
+            "evidence_refs": {"type": "array", "items": {"type": "string"}},
+            "mitigation": {"type": "string"}
+          },
+          "required": ["assumption_id", "description", "risk_level", "confidence"]
+        }
+      }
+    },
+    "required": ["date", "assumptions"],
+    "additionalProperties": false
   },
-  "write_pricing_commitment_evidence": {
-    "type": "object"
+  "pricing_commitment_evidence": {
+    "type": "object",
+    "properties": {
+      "date": {"type": "string"},
+      "segment": {"type": "string"},
+      "signals": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "metric": {"type": "string"},
+            "value": {"type": "number"},
+            "provider": {"type": "string"},
+            "confidence": {"type": "string", "enum": ["high", "medium", "low"]},
+            "normalization_notes": {"type": "string"}
+          },
+          "required": ["metric", "value", "provider", "confidence"]
+        }
+      },
+      "crm_signals": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "metric": {"type": "string"},
+            "value": {"type": "string"},
+            "segment": {"type": "string"},
+            "source": {"type": "string"}
+          },
+          "required": ["metric", "value", "source"]
+        }
+      }
+    },
+    "required": ["date", "segment", "signals"],
+    "additionalProperties": false
   },
-  "write_pricing_go_no_go_gate": {
-    "type": "object"
+  "validated_price_hypothesis": {
+    "type": "object",
+    "properties": {
+      "date": {"type": "string"},
+      "segment": {"type": "string"},
+      "price_point": {"type": "number"},
+      "hypothesis": {"type": "string"},
+      "test_result": {"type": "string", "enum": ["confirmed", "refuted", "inconclusive"]},
+      "confidence": {"type": "string", "enum": ["high", "medium", "low"]},
+      "evidence_refs": {"type": "array", "items": {"type": "string"}},
+      "next_steps": {"type": "array", "items": {"type": "string"}}
+    },
+    "required": ["date", "segment", "price_point", "hypothesis", "test_result", "confidence"],
+    "additionalProperties": false
   },
-  "write_validated_price_hypothesis": {
-    "type": "object"
+  "pricing_go_no_go_gate": {
+    "type": "object",
+    "properties": {
+      "date": {"type": "string"},
+      "gate_status": {"type": "string", "enum": ["go", "no_go", "conditional"]},
+      "blocking_issues": {"type": "array", "items": {"type": "string"}},
+      "conditions": {"type": "array", "items": {"type": "string"}},
+      "next_steps": {"type": "array", "items": {"type": "string"}},
+      "decision_owner": {"type": "string"}
+    },
+    "required": ["date", "gate_status", "blocking_issues"],
+    "additionalProperties": false
   }
 }
 ```

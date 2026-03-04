@@ -12,11 +12,6 @@ from flexus_client_kit import ckit_cloudtool
 from flexus_client_kit import ckit_external_auth
 from flexus_client_kit import ckit_integrations_db
 from flexus_client_kit import ckit_shutdown
-from flexus_simple_bots.strategist import experiment_design_tools
-from flexus_simple_bots.strategist import gtm_economics_rtm_tools
-from flexus_simple_bots.strategist import mvp_validation_tools
-from flexus_simple_bots.strategist import positioning_offer_tools
-from flexus_simple_bots.strategist import pricing_validation_tools
 from flexus_simple_bots.strategist import strategist_install
 from flexus_simple_bots.version_common import SIMPLE_BOTS_COMMON_VERSION
 
@@ -44,7 +39,27 @@ def load_strategy_skill_schemas() -> Dict[str, Any]:
     return schema
 
 
+def load_artifact_schemas() -> Dict[str, Any]:
+    skills_dir = BOT_DIR / "skills"
+    schemas: Dict[str, Any] = {}
+    for skill_dir in sorted(skills_dir.iterdir()):
+        if skill_dir.name.startswith("filling-"):
+            continue
+        skill_md = skill_dir / "SKILL.md"
+        if not skill_md.exists():
+            continue
+        md = skill_md.read_text(encoding="utf-8")
+        m = re.search(r"```json\s*(\{.*?\})\s*```", md, re.DOTALL)
+        if not m:
+            continue
+        parsed = json.loads(m.group(1))
+        schemas.update(parsed)
+    return schemas
+
+
 STRATEGY_SKILL_SCHEMAS = load_strategy_skill_schemas()
+ARTIFACT_SCHEMAS = load_artifact_schemas()
+ARTIFACT_TYPES = sorted(ARTIFACT_SCHEMAS.keys())
 
 PIPELINE = [
     "section01-calibration",
@@ -83,6 +98,32 @@ UPDATE_STRATEGY_TOOL = ckit_cloudtool.CloudTool(
     },
 )
 
+WRITE_ARTIFACT_TOOL = ckit_cloudtool.CloudTool(
+    strict=False,
+    name="write_artifact",
+    description="Write a structured artifact to the document store. Artifact type and schema are defined by the active skill.",
+    parameters={
+        "type": "object",
+        "properties": {
+            "artifact_type": {
+                "type": "string",
+                "enum": ARTIFACT_TYPES,
+                "description": "Artifact type as specified by the active skill",
+            },
+            "path": {
+                "type": "string",
+                "description": "Document path, e.g. /experiments/cards/exp001-2024-01-15",
+            },
+            "data": {
+                "type": "object",
+                "description": "Artifact content matching the schema for this artifact_type",
+            },
+        },
+        "required": ["artifact_type", "path", "data"],
+        "additionalProperties": False,
+    },
+)
+
 
 def make_tool_response(path: str, step: str, score: int, filled: List[str], unfilled: List[str]) -> str:
     filled_str = ", ".join(filled) if filled else "none"
@@ -95,61 +136,6 @@ Score: {score}/100
 Filled: {filled_str}
 Unfilled: {unfilled_str}
 """
-
-
-async def handle_update_strategy(toolcall, args: Dict[str, Any], rcx, pdoc_integration) -> str:
-    idea_slug = args.get("idea_slug")
-    hyp_slug = args.get("hyp_slug")
-    section = args.get("section")
-    data = args.get("data")
-    if not idea_slug or not hyp_slug or not section or not data:
-        return "Error: idea_slug, hyp_slug, section, and data are all required."
-
-    if section not in PIPELINE:
-        return f"Error: unknown section {section!r}, must be one of: {', '.join(PIPELINE)}"
-
-    caller_fuser_id = ckit_external_auth.get_fuser_id_from_rcx(rcx, toolcall.fcall_ft_id)
-    path = f"/gtm/strategy/{idea_slug}--{hyp_slug}/strategy"
-
-    existing = await pdoc_integration.pdoc_cat(path, caller_fuser_id)
-    if existing is None:
-        doc = {
-            "strategy": {
-                "meta": {
-                    "created_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
-                },
-                "progress": {
-                    "score": 0,
-                    "step": "section01-calibration",
-                },
-            },
-        }
-    else:
-        doc = existing.pdoc_content
-
-    step_idx = PIPELINE.index(section)
-    if step_idx > 0:
-        prev = PIPELINE[step_idx - 1]
-        if not doc["strategy"].get(prev):
-            return f"Error: must complete {prev} before {section}"
-
-    doc["strategy"]["schema"] = STRATEGY_SKILL_SCHEMAS
-    doc["strategy"][section] = data
-    doc["strategy"]["meta"]["updated_at"] = datetime.datetime.now(datetime.timezone.utc).isoformat()
-    sections_filled = sum(1 for s in PIPELINE if doc["strategy"].get(s))
-    score = min(100 * sections_filled // len(PIPELINE), 100)
-
-    doc["strategy"]["progress"]["score"] = score
-    if step_idx + 1 < len(PIPELINE):
-        doc["strategy"]["progress"]["step"] = PIPELINE[step_idx + 1]
-    else:
-        doc["strategy"]["progress"]["step"] = "complete"
-
-    await pdoc_integration.pdoc_overwrite(path, json.dumps(doc, ensure_ascii=False), caller_fuser_id)
-
-    filled = [s for s in PIPELINE if doc["strategy"].get(s)]
-    unfilled = [s for s in PIPELINE if not doc["strategy"].get(s)]
-    return make_tool_response(path, section, score, filled, unfilled)
 
 
 STRATEGIST_INTEGRATIONS: list[ckit_integrations_db.IntegrationRecord] = ckit_integrations_db.static_integrations_load(
@@ -166,11 +152,7 @@ STRATEGIST_INTEGRATIONS: list[ckit_integrations_db.IntegrationRecord] = ckit_int
 
 TOOLS = [
     UPDATE_STRATEGY_TOOL,
-    *experiment_design_tools.WRITE_TOOLS,
-    *mvp_validation_tools.WRITE_TOOLS,
-    *positioning_offer_tools.WRITE_TOOLS,
-    *pricing_validation_tools.WRITE_TOOLS,
-    *gtm_economics_rtm_tools.WRITE_TOOLS,
+    WRITE_ARTIFACT_TOOL,
     *[t for rec in STRATEGIST_INTEGRATIONS for t in rec.integr_tools],
 ]
 
@@ -181,68 +163,66 @@ async def strategist_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_
     pdoc_integration = integr_objects["flexus_policy_document"]
 
     @rcx.on_tool_call(UPDATE_STRATEGY_TOOL.name)
-    async def _h_update_strategy(toolcall, args):
-        return await handle_update_strategy(toolcall, args, rcx, pdoc_integration)
+    async def _h_update_strategy(toolcall, args: Dict[str, Any]) -> str:
+        idea_slug = args.get("idea_slug")
+        hyp_slug = args.get("hyp_slug")
+        section = args.get("section")
+        data = args.get("data")
+        if not idea_slug or not hyp_slug or not section or not data:
+            return "Error: idea_slug, hyp_slug, section, and data are all required."
+        if section not in PIPELINE:
+            return f"Error: unknown section {section!r}, must be one of: {', '.join(PIPELINE)}"
+        caller_fuser_id = ckit_external_auth.get_fuser_id_from_rcx(rcx, toolcall.fcall_ft_id)
+        path = f"/gtm/strategy/{idea_slug}--{hyp_slug}/strategy"
+        existing = await pdoc_integration.pdoc_cat(path, caller_fuser_id)
+        if existing is None:
+            doc = {
+                "strategy": {
+                    "meta": {
+                        "created_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+                    },
+                    "progress": {
+                        "score": 0,
+                        "step": "section01-calibration",
+                    },
+                },
+            }
+        else:
+            doc = existing.pdoc_content
+        step_idx = PIPELINE.index(section)
+        if step_idx > 0:
+            prev = PIPELINE[step_idx - 1]
+            if not doc["strategy"].get(prev):
+                return f"Error: must complete {prev} before {section}"
+        doc["strategy"]["schema"] = STRATEGY_SKILL_SCHEMAS
+        doc["strategy"][section] = data
+        doc["strategy"]["meta"]["updated_at"] = datetime.datetime.now(datetime.timezone.utc).isoformat()
+        sections_filled = sum(1 for s in PIPELINE if doc["strategy"].get(s))
+        score = min(100 * sections_filled // len(PIPELINE), 100)
+        doc["strategy"]["progress"]["score"] = score
+        if step_idx + 1 < len(PIPELINE):
+            doc["strategy"]["progress"]["step"] = PIPELINE[step_idx + 1]
+        else:
+            doc["strategy"]["progress"]["step"] = "complete"
+        await pdoc_integration.pdoc_overwrite(path, json.dumps(doc, ensure_ascii=False), caller_fuser_id)
+        filled = [s for s in PIPELINE if doc["strategy"].get(s)]
+        unfilled = [s for s in PIPELINE if not doc["strategy"].get(s)]
+        return make_tool_response(path, section, score, filled, unfilled)
 
-    for tool, fn in [
-        (experiment_design_tools.WRITE_EXPERIMENT_CARD_DRAFT_TOOL, experiment_design_tools.handle_write_experiment_card_draft),
-        (experiment_design_tools.WRITE_EXPERIMENT_MEASUREMENT_SPEC_TOOL, experiment_design_tools.handle_write_experiment_measurement_spec),
-        (experiment_design_tools.WRITE_EXPERIMENT_BACKLOG_PRIORITIZATION_TOOL, experiment_design_tools.handle_write_experiment_backlog_prioritization),
-        (experiment_design_tools.WRITE_EXPERIMENT_RELIABILITY_REPORT_TOOL, experiment_design_tools.handle_write_experiment_reliability_report),
-        (experiment_design_tools.WRITE_EXPERIMENT_APPROVAL_TOOL, experiment_design_tools.handle_write_experiment_approval),
-        (experiment_design_tools.WRITE_EXPERIMENT_STOP_RULE_EVALUATION_TOOL, experiment_design_tools.handle_write_experiment_stop_rule_evaluation),
-    ]:
-        @rcx.on_tool_call(tool.name)
-        async def _hw(toolcall, args, _f=fn):
-            return await _f(toolcall, args, pdoc_integration, rcx)
-
-    for tool, fn in [
-        (mvp_validation_tools.WRITE_MVP_RUN_LOG_TOOL, mvp_validation_tools.handle_write_mvp_run_log),
-        (mvp_validation_tools.WRITE_MVP_ROLLOUT_INCIDENT_TOOL, mvp_validation_tools.handle_write_mvp_rollout_incident),
-        (mvp_validation_tools.WRITE_MVP_FEEDBACK_DIGEST_TOOL, mvp_validation_tools.handle_write_mvp_feedback_digest),
-        (mvp_validation_tools.WRITE_TELEMETRY_QUALITY_REPORT_TOOL, mvp_validation_tools.handle_write_telemetry_quality_report),
-        (mvp_validation_tools.WRITE_TELEMETRY_DECISION_MEMO_TOOL, mvp_validation_tools.handle_write_telemetry_decision_memo),
-        (mvp_validation_tools.WRITE_MVP_SCALE_READINESS_GATE_TOOL, mvp_validation_tools.handle_write_mvp_scale_readiness_gate),
-    ]:
-        @rcx.on_tool_call(tool.name)
-        async def _hw(toolcall, args, _f=fn):
-            return await _f(toolcall, args, pdoc_integration, rcx)
-
-    for tool, fn in [
-        (positioning_offer_tools.WRITE_VALUE_PROPOSITION_TOOL, positioning_offer_tools.handle_write_value_proposition),
-        (positioning_offer_tools.WRITE_OFFER_PACKAGING_TOOL, positioning_offer_tools.handle_write_offer_packaging),
-        (positioning_offer_tools.WRITE_POSITIONING_NARRATIVE_BRIEF_TOOL, positioning_offer_tools.handle_write_positioning_narrative_brief),
-        (positioning_offer_tools.WRITE_MESSAGING_EXPERIMENT_PLAN_TOOL, positioning_offer_tools.handle_write_messaging_experiment_plan),
-        (positioning_offer_tools.WRITE_POSITIONING_TEST_RESULT_TOOL, positioning_offer_tools.handle_write_positioning_test_result),
-        (positioning_offer_tools.WRITE_POSITIONING_CLAIM_RISK_REGISTER_TOOL, positioning_offer_tools.handle_write_positioning_claim_risk_register),
-    ]:
-        @rcx.on_tool_call(tool.name)
-        async def _hw(toolcall, args, _f=fn):
-            return await _f(toolcall, args, pdoc_integration, rcx)
-
-    for tool, fn in [
-        (pricing_validation_tools.WRITE_PRICE_CORRIDOR_TOOL, pricing_validation_tools.handle_write_price_corridor),
-        (pricing_validation_tools.WRITE_PRICE_SENSITIVITY_CURVE_TOOL, pricing_validation_tools.handle_write_price_sensitivity_curve),
-        (pricing_validation_tools.WRITE_PRICING_ASSUMPTION_REGISTER_TOOL, pricing_validation_tools.handle_write_pricing_assumption_register),
-        (pricing_validation_tools.WRITE_PRICING_COMMITMENT_EVIDENCE_TOOL, pricing_validation_tools.handle_write_pricing_commitment_evidence),
-        (pricing_validation_tools.WRITE_VALIDATED_PRICE_HYPOTHESIS_TOOL, pricing_validation_tools.handle_write_validated_price_hypothesis),
-        (pricing_validation_tools.WRITE_PRICING_GO_NO_GO_GATE_TOOL, pricing_validation_tools.handle_write_pricing_go_no_go_gate),
-    ]:
-        @rcx.on_tool_call(tool.name)
-        async def _hw(toolcall, args, _f=fn):
-            return await _f(toolcall, args, pdoc_integration, rcx)
-
-    for tool, fn in [
-        (gtm_economics_rtm_tools.WRITE_UNIT_ECONOMICS_REVIEW_TOOL, gtm_economics_rtm_tools.handle_write_unit_economics_review),
-        (gtm_economics_rtm_tools.WRITE_CHANNEL_MARGIN_STACK_TOOL, gtm_economics_rtm_tools.handle_write_channel_margin_stack),
-        (gtm_economics_rtm_tools.WRITE_PAYBACK_READINESS_GATE_TOOL, gtm_economics_rtm_tools.handle_write_payback_readiness_gate),
-        (gtm_economics_rtm_tools.WRITE_RTM_RULES_TOOL, gtm_economics_rtm_tools.handle_write_rtm_rules),
-        (gtm_economics_rtm_tools.WRITE_DEAL_OWNERSHIP_MATRIX_TOOL, gtm_economics_rtm_tools.handle_write_deal_ownership_matrix),
-        (gtm_economics_rtm_tools.WRITE_RTM_CONFLICT_PLAYBOOK_TOOL, gtm_economics_rtm_tools.handle_write_rtm_conflict_playbook),
-    ]:
-        @rcx.on_tool_call(tool.name)
-        async def _hw(toolcall, args, _f=fn):
-            return await _f(toolcall, args, pdoc_integration, rcx)
+    @rcx.on_tool_call(WRITE_ARTIFACT_TOOL.name)
+    async def _h_write_artifact(toolcall: ckit_cloudtool.FCloudtoolCall, args: Dict[str, Any]) -> str:
+        artifact_type = str(args.get("artifact_type", "")).strip()
+        path = str(args.get("path", "")).strip()
+        data = args.get("data")
+        if not artifact_type or not path or data is None:
+            return "Error: artifact_type, path, and data are required."
+        if artifact_type not in ARTIFACT_SCHEMAS:
+            return f"Error: unknown artifact_type {artifact_type!r}. Must be one of: {', '.join(ARTIFACT_TYPES)}"
+        fuser_id = ckit_external_auth.get_fuser_id_from_rcx(rcx, toolcall.fcall_ft_id)
+        doc = dict(data)
+        doc["schema"] = ARTIFACT_SCHEMAS[artifact_type]
+        await pdoc_integration.pdoc_overwrite(path, json.dumps(doc, ensure_ascii=False), fuser_id)
+        return f"Written: {path}\n\nArtifact {artifact_type} saved."
 
     try:
         while not ckit_shutdown.shutdown_event.is_set():

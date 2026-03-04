@@ -25,13 +25,13 @@ You are in **Pilot Delivery mode** — convert qualified opportunities into paid
 
 After all contracting work for a pilot is complete:
 
-- `write_pilot_contract_packet(path=/pilots/contract-{pilot_id}-{YYYY-MM-DD}, data={...})`
+- `write_artifact(artifact_type="pilot_contract_packet", path=/pilots/contract-{pilot_id}-{YYYY-MM-DD}, data={...})`
   — once scope, commercial terms, stakeholders, signature status, and payment commitment are finalized.
 
-- `write_pilot_risk_clause_register(path=/pilots/risk-clauses-{pilot_id}-{YYYY-MM-DD}, data={...})`
+- `write_artifact(artifact_type="pilot_risk_clause_register", path=/pilots/risk-clauses-{pilot_id}-{YYYY-MM-DD}, data={...})`
   — after reviewing all contract terms for risk exposure.
 
-- `write_pilot_go_live_readiness(path=/pilots/go-live-{pilot_id}-{YYYY-MM-DD}, data={...})`
+- `write_artifact(artifact_type="pilot_go_live_readiness", path=/pilots/go-live-{pilot_id}-{YYYY-MM-DD}, data={...})`
   — when all pre-launch checks are complete; gate_status must be "go" or "no_go" based on evidence.
 
 Do not output raw JSON in chat. One write per artifact per pilot per run.
@@ -40,13 +40,13 @@ Do not output raw JSON in chat. One write per artifact per pilot per run.
 
 After delivery milestones are reached:
 
-- `write_first_value_delivery_plan(path=/pilots/delivery-plan-{pilot_id}-{YYYY-MM-DD}, data={...})`
+- `write_artifact(artifact_type="first_value_delivery_plan", path=/pilots/delivery-plan-{pilot_id}-{YYYY-MM-DD}, data={...})`
   — once delivery steps, owners, timeline and risk controls are agreed.
 
-- `write_first_value_evidence(path=/pilots/evidence-{pilot_id}-{YYYY-MM-DD}, data={...})`
+- `write_artifact(artifact_type="first_value_evidence", path=/pilots/evidence-{pilot_id}-{YYYY-MM-DD}, data={...})`
   — after stakeholder confirmation; confidence must reflect actual evidence quality.
 
-- `write_pilot_expansion_readiness(path=/pilots/expansion-readiness-{pilot_id}-{YYYY-MM-DD}, data={...})`
+- `write_artifact(artifact_type="pilot_expansion_readiness", path=/pilots/expansion-readiness-{pilot_id}-{YYYY-MM-DD}, data={...})`
   — when expansion decision is due; recommended_action must be "expand", "stabilize", or "stop".
 
 Fail fast when evidence cannot be tied to agreed success criteria.
@@ -55,23 +55,140 @@ Fail fast when evidence cannot be tied to agreed success criteria.
 
 ```json
 {
-  "write_first_value_delivery_plan": {
-    "type": "object"
+  "pilot_contract_packet": {
+    "type": "object",
+    "properties": {
+      "pilot_id": {"type": "string"},
+      "account_ref": {"type": "string"},
+      "scope": {"type": "string"},
+      "commercial_terms": {
+        "type": "object",
+        "properties": {
+          "value": {"type": "number"},
+          "currency": {"type": "string"},
+          "payment_terms": {"type": "string"}
+        },
+        "required": ["value", "currency", "payment_terms"]
+      },
+      "stakeholders": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "name": {"type": "string"},
+            "role": {"type": "string"},
+            "email": {"type": "string"}
+          },
+          "required": ["name", "role"]
+        }
+      },
+      "signature_status": {"type": "string", "enum": ["pending", "completed", "voided"]},
+      "payment_commitment": {"type": "string", "enum": ["confirmed", "pending", "rejected"]}
+    },
+    "required": ["pilot_id", "account_ref", "scope", "commercial_terms", "stakeholders", "signature_status", "payment_commitment"],
+    "additionalProperties": false
   },
-  "write_first_value_evidence": {
-    "type": "object"
+  "pilot_risk_clause_register": {
+    "type": "object",
+    "properties": {
+      "pilot_id": {"type": "string"},
+      "risk_clauses": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "clause_ref": {"type": "string"},
+            "description": {"type": "string"},
+            "risk_level": {"type": "string", "enum": ["high", "medium", "low"]},
+            "mitigation": {"type": "string"}
+          },
+          "required": ["clause_ref", "description", "risk_level", "mitigation"]
+        }
+      }
+    },
+    "required": ["pilot_id", "risk_clauses"],
+    "additionalProperties": false
   },
-  "write_pilot_contract_packet": {
-    "type": "object"
+  "pilot_go_live_readiness": {
+    "type": "object",
+    "properties": {
+      "pilot_id": {"type": "string"},
+      "gate_status": {"type": "string", "enum": ["go", "no_go"]},
+      "checks": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "check": {"type": "string"},
+            "status": {"type": "string", "enum": ["pass", "fail"]},
+            "notes": {"type": "string"}
+          },
+          "required": ["check", "status"]
+        }
+      },
+      "blockers": {"type": "array", "items": {"type": "string"}}
+    },
+    "required": ["pilot_id", "gate_status", "checks", "blockers"],
+    "additionalProperties": false
   },
-  "write_pilot_expansion_readiness": {
-    "type": "object"
+  "first_value_delivery_plan": {
+    "type": "object",
+    "properties": {
+      "pilot_id": {"type": "string"},
+      "steps": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "step": {"type": "string"},
+            "owner": {"type": "string"},
+            "due_date": {"type": "string"},
+            "success_criteria": {"type": "string"}
+          },
+          "required": ["step", "owner", "due_date", "success_criteria"]
+        }
+      },
+      "timeline": {"type": "string"},
+      "risk_controls": {"type": "array", "items": {"type": "string"}}
+    },
+    "required": ["pilot_id", "steps", "timeline", "risk_controls"],
+    "additionalProperties": false
   },
-  "write_pilot_go_live_readiness": {
-    "type": "object"
+  "first_value_evidence": {
+    "type": "object",
+    "properties": {
+      "pilot_id": {"type": "string"},
+      "evidence": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "metric": {"type": "string"},
+            "value": {"type": "string"},
+            "source": {"type": "string"},
+            "timestamp": {"type": "string"}
+          },
+          "required": ["metric", "value", "source"]
+        }
+      },
+      "confidence": {"type": "string", "enum": ["high", "medium", "low"]},
+      "stakeholder_confirmation": {"type": "boolean"}
+    },
+    "required": ["pilot_id", "evidence", "confidence", "stakeholder_confirmation"],
+    "additionalProperties": false
   },
-  "write_pilot_risk_clause_register": {
-    "type": "object"
+  "pilot_expansion_readiness": {
+    "type": "object",
+    "properties": {
+      "pilot_id": {"type": "string"},
+      "recommended_action": {"type": "string", "enum": ["expand", "stabilize", "stop"]},
+      "rationale": {"type": "string"},
+      "evidence_refs": {"type": "array", "items": {"type": "string"}},
+      "risks": {"type": "array", "items": {"type": "string"}},
+      "next_steps": {"type": "array", "items": {"type": "string"}}
+    },
+    "required": ["pilot_id", "recommended_action", "rationale", "evidence_refs"],
+    "additionalProperties": false
   }
 }
 ```

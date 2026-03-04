@@ -20,18 +20,18 @@ You are in **Partner Ecosystem mode** — evidence-first partner lifecycle opera
 ## Recording Activation Artifacts
 
 After gathering activation evidence, call the appropriate write tool:
-- `write_partner_activation_scorecard(path=/partners/activation-scorecard-{YYYY-MM-DD}, data={...})`
-- `write_partner_enablement_plan(path=/partners/enablement-plan-{program_id}, data={...})`
-- `write_partner_pipeline_quality(path=/partners/pipeline-quality-{YYYY-MM-DD}, data={...})`
+- `write_artifact(artifact_type="partner_activation_scorecard", path=/partners/activation-scorecard-{YYYY-MM-DD}, data={...})`
+- `write_artifact(artifact_type="partner_enablement_plan", path=/partners/enablement-plan-{program_id}, data={...})`
+- `write_artifact(artifact_type="partner_pipeline_quality", path=/partners/pipeline-quality-{YYYY-MM-DD}, data={...})`
 
 One call per artifact per run. Do not output raw JSON in chat.
 
 ## Recording Conflict Governance Artifacts
 
 After gathering conflict evidence, call the appropriate write tool:
-- `write_channel_conflict_incident(path=/conflicts/incident-{YYYY-MM-DD}, data={...})`
-- `write_deal_registration_policy(path=/conflicts/deal-registration-policy, data={...})`
-- `write_conflict_resolution_audit(path=/conflicts/resolution-audit-{YYYY-MM-DD}, data={...})`
+- `write_artifact(artifact_type="channel_conflict_incident", path=/conflicts/incident-{YYYY-MM-DD}, data={...})`
+- `write_artifact(artifact_type="deal_registration_policy", path=/conflicts/deal-registration-policy, data={...})`
+- `write_artifact(artifact_type="conflict_resolution_audit", path=/conflicts/resolution-audit-{YYYY-MM-DD}, data={...})`
 
 One call per artifact per run. Do not output raw JSON in chat.
 
@@ -39,23 +39,139 @@ One call per artifact per run. Do not output raw JSON in chat.
 
 ```json
 {
-  "write_channel_conflict_incident": {
-    "type": "object"
+  "partner_activation_scorecard": {
+    "type": "object",
+    "properties": {
+      "partners": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "partner_id": {"type": "string"},
+            "name": {"type": "string"},
+            "tier": {"type": "string"},
+            "activation_score": {"type": "number"},
+            "status": {"type": "string"},
+            "gaps": {"type": "array", "items": {"type": "string"}}
+          },
+          "required": ["partner_id", "name", "tier", "activation_score", "status"]
+        }
+      }
+    },
+    "required": ["partners"],
+    "additionalProperties": false
   },
-  "write_conflict_resolution_audit": {
-    "type": "object"
+  "partner_enablement_plan": {
+    "type": "object",
+    "properties": {
+      "program_id": {"type": "string"},
+      "tasks": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "task": {"type": "string"},
+            "owner": {"type": "string"},
+            "due_date": {"type": "string"},
+            "completion_criteria": {"type": "string"},
+            "tier": {"type": "string"}
+          },
+          "required": ["task", "owner", "due_date", "completion_criteria", "tier"]
+        }
+      }
+    },
+    "required": ["program_id", "tasks"],
+    "additionalProperties": false
   },
-  "write_deal_registration_policy": {
-    "type": "object"
+  "partner_pipeline_quality": {
+    "type": "object",
+    "properties": {
+      "pipeline": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "opportunity_id": {"type": "string"},
+            "partner_id": {"type": "string"},
+            "stage": {"type": "string"},
+            "value": {"type": "number"},
+            "sourced_by": {"type": "string", "enum": ["partner-sourced", "partner-influenced", "direct"]},
+            "quality_flags": {"type": "array", "items": {"type": "string"}}
+          },
+          "required": ["opportunity_id", "partner_id", "stage", "value", "sourced_by"]
+        }
+      },
+      "quality_metrics": {
+        "type": "object",
+        "properties": {
+          "total_opportunities": {"type": "integer"},
+          "flagged_opportunities": {"type": "integer"},
+          "average_quality_score": {"type": "number"}
+        }
+      }
+    },
+    "required": ["pipeline", "quality_metrics"],
+    "additionalProperties": false
   },
-  "write_partner_activation_scorecard": {
-    "type": "object"
+  "channel_conflict_incident": {
+    "type": "object",
+    "properties": {
+      "incident_id": {"type": "string"},
+      "conflict_type": {"type": "string", "enum": ["deal_registration", "pricing", "territory", "ownership"]},
+      "parties": {"type": "array", "items": {"type": "string"}},
+      "opportunity_id": {"type": "string"},
+      "description": {"type": "string"},
+      "severity": {"type": "string", "enum": ["high", "medium", "low"]},
+      "status": {"type": "string", "enum": ["open", "escalated", "resolved"]},
+      "escalation_ref": {"type": "string"},
+      "resolution": {"type": "string"}
+    },
+    "required": ["incident_id", "conflict_type", "parties", "description", "severity", "status"],
+    "additionalProperties": false
   },
-  "write_partner_enablement_plan": {
-    "type": "object"
+  "deal_registration_policy": {
+    "type": "object",
+    "properties": {
+      "version": {"type": "string"},
+      "rules": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "rule_id": {"type": "string"},
+            "condition": {"type": "string"},
+            "action": {"type": "string"},
+            "owner": {"type": "string"}
+          },
+          "required": ["rule_id", "condition", "action", "owner"]
+        }
+      },
+      "sla_days": {"type": "integer"},
+      "effective_date": {"type": "string"}
+    },
+    "required": ["version", "rules", "sla_days", "effective_date"],
+    "additionalProperties": false
   },
-  "write_partner_pipeline_quality": {
-    "type": "object"
+  "conflict_resolution_audit": {
+    "type": "object",
+    "properties": {
+      "resolutions": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "incident_id": {"type": "string"},
+            "resolution": {"type": "string"},
+            "accountable_owner": {"type": "string"},
+            "sla_ref": {"type": "string"},
+            "resolved_at": {"type": "string"}
+          },
+          "required": ["incident_id", "resolution", "accountable_owner", "resolved_at"]
+        }
+      }
+    },
+    "required": ["resolutions"],
+    "additionalProperties": false
   }
 }
 ```

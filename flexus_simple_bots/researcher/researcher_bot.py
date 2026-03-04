@@ -1,7 +1,9 @@
 import asyncio
 import json
 import logging
-from typing import Dict, Any
+import re
+from pathlib import Path
+from typing import Any, Dict
 
 from flexus_client_kit import ckit_bot_exec
 from flexus_client_kit import ckit_client
@@ -9,18 +11,34 @@ from flexus_client_kit import ckit_cloudtool
 from flexus_client_kit import ckit_external_auth
 from flexus_client_kit import ckit_integrations_db
 from flexus_client_kit import ckit_shutdown
-from flexus_simple_bots.researcher import customer_discovery_tools
-from flexus_simple_bots.researcher import market_signal_tools
-from flexus_simple_bots.researcher import pain_alternatives_tools
-from flexus_simple_bots.researcher import pipeline_qualification_tools
 from flexus_simple_bots.researcher import researcher_install
-from flexus_simple_bots.researcher import segment_qualification_tools
 from flexus_simple_bots.version_common import SIMPLE_BOTS_COMMON_VERSION
 
 logger = logging.getLogger("bot_researcher")
 
+BOT_DIR = Path(__file__).parent
 BOT_NAME = "researcher"
 BOT_VERSION = SIMPLE_BOTS_COMMON_VERSION
+
+
+def load_artifact_schemas() -> Dict[str, Any]:
+    skills_dir = BOT_DIR / "skills"
+    schemas: Dict[str, Any] = {}
+    for skill_dir in sorted(skills_dir.iterdir()):
+        skill_md = skill_dir / "SKILL.md"
+        if not skill_md.exists():
+            continue
+        md = skill_md.read_text(encoding="utf-8")
+        m = re.search(r"```json\s*(\{.*?\})\s*```", md, re.DOTALL)
+        if not m:
+            continue
+        parsed = json.loads(m.group(1))
+        schemas.update(parsed)
+    return schemas
+
+
+ARTIFACT_SCHEMAS = load_artifact_schemas()
+ARTIFACT_TYPES = sorted(ARTIFACT_SCHEMAS.keys())
 
 TEMPLATE_IDEA_TOOL = ckit_cloudtool.CloudTool(
     strict=False,
@@ -54,12 +72,39 @@ TEMPLATE_HYPOTHESIS_TOOL = ckit_cloudtool.CloudTool(
     },
 )
 
+WRITE_ARTIFACT_TOOL = ckit_cloudtool.CloudTool(
+    strict=False,
+    name="write_artifact",
+    description="Write a structured artifact to the document store. Artifact type and schema are defined by the active skill.",
+    parameters={
+        "type": "object",
+        "properties": {
+            "artifact_type": {
+                "type": "string",
+                "enum": ARTIFACT_TYPES,
+                "description": "Artifact type as specified by the active skill",
+            },
+            "path": {
+                "type": "string",
+                "description": "Document path, e.g. /signals/search-demand-2024-01-15",
+            },
+            "data": {
+                "type": "object",
+                "description": "Artifact content matching the schema for this artifact_type",
+            },
+        },
+        "required": ["artifact_type", "path", "data"],
+        "additionalProperties": False,
+    },
+)
+
 
 def validate_path_kebab(path: str) -> str:
     for segment in path.strip("/").split("/"):
         if segment and not all(c.islower() or c.isdigit() or c == "-" for c in segment):
             return f"Path segment '{segment}' must be kebab-case (lowercase, numbers, hyphens)"
     return ""
+
 
 RESEARCHER_INTEGRATIONS: list[ckit_integrations_db.IntegrationRecord] = ckit_integrations_db.static_integrations_load(
     researcher_install.RESEARCHER_ROOTDIR,
@@ -84,11 +129,7 @@ RESEARCHER_INTEGRATIONS: list[ckit_integrations_db.IntegrationRecord] = ckit_int
 )
 
 TOOLS = [
-    *market_signal_tools.WRITE_TOOLS,
-    *customer_discovery_tools.WRITE_TOOLS,
-    *pain_alternatives_tools.WRITE_TOOLS,
-    *segment_qualification_tools.WRITE_TOOLS,
-    *pipeline_qualification_tools.WRITE_TOOLS,
+    WRITE_ARTIFACT_TOOL,
     TEMPLATE_IDEA_TOOL,
     TEMPLATE_HYPOTHESIS_TOOL,
     *[t for rec in RESEARCHER_INTEGRATIONS for t in rec.integr_tools],
@@ -100,64 +141,20 @@ async def researcher_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_
     integr_objects = await ckit_integrations_db.main_loop_integrations_init(RESEARCHER_INTEGRATIONS, rcx, setup)
     pdoc_integration = integr_objects["flexus_policy_document"]
 
-    for tool, fn in [
-        (market_signal_tools.WRITE_SNAPSHOT_TOOL, market_signal_tools.handle_write_snapshot),
-        (market_signal_tools.WRITE_SIGNAL_REGISTER_TOOL, market_signal_tools.handle_write_signal_register),
-        (market_signal_tools.WRITE_HYPOTHESIS_BACKLOG_TOOL, market_signal_tools.handle_write_hypothesis_backlog),
-    ]:
-        @rcx.on_tool_call(tool.name)
-        async def _hw(toolcall, args, _f=fn):
-            return await _f(toolcall, args, pdoc_integration, rcx)
-
-    for tool, fn in [
-        (customer_discovery_tools.WRITE_INTERVIEW_INSTRUMENT_TOOL, customer_discovery_tools.handle_write_interview_instrument),
-        (customer_discovery_tools.WRITE_SURVEY_INSTRUMENT_TOOL, customer_discovery_tools.handle_write_survey_instrument),
-        (customer_discovery_tools.WRITE_INSTRUMENT_READINESS_TOOL, customer_discovery_tools.handle_write_instrument_readiness),
-        (customer_discovery_tools.WRITE_RECRUITMENT_PLAN_TOOL, customer_discovery_tools.handle_write_recruitment_plan),
-        (customer_discovery_tools.WRITE_RECRUITMENT_FUNNEL_TOOL, customer_discovery_tools.handle_write_recruitment_funnel),
-        (customer_discovery_tools.WRITE_RECRUITMENT_COMPLIANCE_TOOL, customer_discovery_tools.handle_write_recruitment_compliance),
-        (customer_discovery_tools.WRITE_INTERVIEW_CORPUS_TOOL, customer_discovery_tools.handle_write_interview_corpus),
-        (customer_discovery_tools.WRITE_JTBD_OUTCOMES_TOOL, customer_discovery_tools.handle_write_jtbd_outcomes),
-        (customer_discovery_tools.WRITE_EVIDENCE_QUALITY_TOOL, customer_discovery_tools.handle_write_evidence_quality),
-    ]:
-        @rcx.on_tool_call(tool.name)
-        async def _hw(toolcall, args, _f=fn):
-            return await _f(toolcall, args, pdoc_integration, rcx)
-
-    for tool, fn in [
-        (pain_alternatives_tools.WRITE_PAIN_SIGNAL_REGISTER_TOOL, pain_alternatives_tools.handle_write_pain_signal_register),
-        (pain_alternatives_tools.WRITE_PAIN_ECONOMICS_TOOL, pain_alternatives_tools.handle_write_pain_economics),
-        (pain_alternatives_tools.WRITE_PAIN_RESEARCH_READINESS_GATE_TOOL, pain_alternatives_tools.handle_write_pain_research_readiness_gate),
-        (pain_alternatives_tools.WRITE_ALTERNATIVE_LANDSCAPE_TOOL, pain_alternatives_tools.handle_write_alternative_landscape),
-        (pain_alternatives_tools.WRITE_COMPETITIVE_GAP_MATRIX_TOOL, pain_alternatives_tools.handle_write_competitive_gap_matrix),
-        (pain_alternatives_tools.WRITE_DISPLACEMENT_HYPOTHESES_TOOL, pain_alternatives_tools.handle_write_displacement_hypotheses),
-    ]:
-        @rcx.on_tool_call(tool.name)
-        async def _hw(toolcall, args, _f=fn):
-            return await _f(toolcall, args, pdoc_integration, rcx)
-
-    for tool, fn in [
-        (segment_qualification_tools.WRITE_SEGMENT_ENRICHMENT_TOOL, segment_qualification_tools.handle_write_segment_enrichment),
-        (segment_qualification_tools.WRITE_SEGMENT_DATA_QUALITY_TOOL, segment_qualification_tools.handle_write_segment_data_quality),
-        (segment_qualification_tools.WRITE_SEGMENT_PRIORITY_MATRIX_TOOL, segment_qualification_tools.handle_write_segment_priority_matrix),
-        (segment_qualification_tools.WRITE_PRIMARY_SEGMENT_DECISION_TOOL, segment_qualification_tools.handle_write_primary_segment_decision),
-        (segment_qualification_tools.WRITE_PRIMARY_SEGMENT_GO_NO_GO_GATE_TOOL, segment_qualification_tools.handle_write_primary_segment_go_no_go_gate),
-    ]:
-        @rcx.on_tool_call(tool.name)
-        async def _hw(toolcall, args, _f=fn):
-            return await _f(toolcall, args, pdoc_integration, rcx)
-
-    for tool, fn in [
-        (pipeline_qualification_tools.WRITE_PROSPECTING_BATCH_TOOL, pipeline_qualification_tools.handle_write_prospecting_batch),
-        (pipeline_qualification_tools.WRITE_OUTREACH_EXECUTION_LOG_TOOL, pipeline_qualification_tools.handle_write_outreach_execution_log),
-        (pipeline_qualification_tools.WRITE_PROSPECT_DATA_QUALITY_TOOL, pipeline_qualification_tools.handle_write_prospect_data_quality),
-        (pipeline_qualification_tools.WRITE_QUALIFICATION_MAP_TOOL, pipeline_qualification_tools.handle_write_qualification_map),
-        (pipeline_qualification_tools.WRITE_BUYING_COMMITTEE_COVERAGE_TOOL, pipeline_qualification_tools.handle_write_buying_committee_coverage),
-        (pipeline_qualification_tools.WRITE_QUALIFICATION_GO_NO_GO_GATE_TOOL, pipeline_qualification_tools.handle_write_qualification_go_no_go_gate),
-    ]:
-        @rcx.on_tool_call(tool.name)
-        async def _hw(toolcall, args, _f=fn):
-            return await _f(toolcall, args, pdoc_integration, rcx)
+    @rcx.on_tool_call(WRITE_ARTIFACT_TOOL.name)
+    async def _h_write_artifact(toolcall: ckit_cloudtool.FCloudtoolCall, args: Dict[str, Any]) -> str:
+        artifact_type = str(args.get("artifact_type", "")).strip()
+        path = str(args.get("path", "")).strip()
+        data = args.get("data")
+        if not artifact_type or not path or data is None:
+            return "Error: artifact_type, path, and data are required."
+        if artifact_type not in ARTIFACT_SCHEMAS:
+            return f"Error: unknown artifact_type {artifact_type!r}. Must be one of: {', '.join(ARTIFACT_TYPES)}"
+        fuser_id = ckit_external_auth.get_fuser_id_from_rcx(rcx, toolcall.fcall_ft_id)
+        doc = dict(data)
+        doc["schema"] = ARTIFACT_SCHEMAS[artifact_type]
+        await pdoc_integration.pdoc_overwrite(path, json.dumps(doc, ensure_ascii=False), fuser_id)
+        return f"Written: {path}\n\nArtifact {artifact_type} saved."
 
     @rcx.on_tool_call(TEMPLATE_IDEA_TOOL.name)
     async def _h_template_idea(toolcall, args):
@@ -190,7 +187,6 @@ async def researcher_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_
             return f"Error: {err}"
         if err := validate_path_kebab(hypothesis_slug):
             return f"Error: {err}"
-
         hypothesis_data = args.get("hypothesis")
         if hypothesis_data is None:
             text = str(args.get("text", "")).strip()
@@ -202,7 +198,6 @@ async def researcher_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_
                 return f"Error: Invalid JSON: {e}"
         if not isinstance(hypothesis_data, dict):
             return "Error: hypothesis must be an object."
-
         fuser_id = ckit_external_auth.get_fuser_id_from_rcx(rcx, toolcall.fcall_ft_id)
         path = f"/gtm/discovery/{idea_slug}/{hypothesis_slug}/hypothesis"
         await pdoc_integration.pdoc_create(

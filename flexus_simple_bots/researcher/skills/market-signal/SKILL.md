@@ -27,7 +27,7 @@ Detect pricing changes, positioning rewrites, CTA shifts, feature claim changes.
 
 ## Recording Snapshots
 
-After gathering all evidence for a channel, call `write_market_signal_snapshot(path=/signals/{channel}-{YYYY-MM-DD}, data={...})`:
+After gathering all evidence for a channel, call `write_artifact(artifact_type="market_signal_snapshot", path=/signals/{channel}-{YYYY-MM-DD}, data={...})`:
 - path: /signals/{channel}-{YYYY-MM-DD} (e.g. /signals/search-demand-2024-01-15)
 - data: all required fields filled; set failure_code/failure_message to null if not applicable.
 
@@ -36,8 +36,8 @@ One call per channel per run. Do not output raw JSON in chat.
 ## Recording Register and Backlog
 
 After aggregating snapshots, call:
-- `write_signal_register(path=/signals/register-{date}, data={...})` — deduplicated signal register
-- `write_hypothesis_backlog(path=/signals/hypotheses-{date}, data={...})` — risk-ranked hypothesis backlog
+- `write_artifact(artifact_type="signal_register", path=/signals/register-{date}, data={...})` — deduplicated signal register
+- `write_artifact(artifact_type="hypothesis_backlog", path=/signals/hypotheses-{date}, data={...})` — risk-ranked hypothesis backlog
 
 Do not output raw JSON in chat.
 
@@ -67,14 +67,76 @@ Call each tool with `op="help"` to see available methods. Call with `op="call", 
 
 ```json
 {
-  "write_hypothesis_backlog": {
-    "type": "object"
+  "market_signal_snapshot": {
+    "type": "object",
+    "properties": {
+      "channel": {"type": "string", "description": "e.g. search-demand, reddit, x, news"},
+      "date": {"type": "string"},
+      "signals": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "signal_type": {"type": "string"},
+            "description": {"type": "string"},
+            "strength": {"type": "string", "enum": ["strong", "moderate", "weak"]},
+            "evidence_ref": {"type": "string"},
+            "timestamp": {"type": "string"}
+          },
+          "required": ["signal_type", "description", "strength", "evidence_ref"]
+        }
+      },
+      "failure_code": {"type": ["string", "null"]},
+      "failure_message": {"type": ["string", "null"]}
+    },
+    "required": ["channel", "date", "signals", "failure_code", "failure_message"],
+    "additionalProperties": false
   },
-  "write_signal_register": {
-    "type": "object"
+  "signal_register": {
+    "type": "object",
+    "properties": {
+      "date": {"type": "string"},
+      "signals": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "signal_id": {"type": "string"},
+            "signal_type": {"type": "string"},
+            "description": {"type": "string"},
+            "channels": {"type": "array", "items": {"type": "string"}},
+            "strength": {"type": "string", "enum": ["strong", "moderate", "weak"]},
+            "source_refs": {"type": "array", "items": {"type": "string"}}
+          },
+          "required": ["signal_id", "signal_type", "description", "channels", "strength", "source_refs"]
+        }
+      }
+    },
+    "required": ["date", "signals"],
+    "additionalProperties": false
   },
-  "write_market_signal_snapshot": {
-    "type": "object"
+  "hypothesis_backlog": {
+    "type": "object",
+    "properties": {
+      "date": {"type": "string"},
+      "hypotheses": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "hypothesis_id": {"type": "string"},
+            "hypothesis": {"type": "string"},
+            "risk_level": {"type": "string", "enum": ["high", "medium", "low"]},
+            "confidence": {"type": "string", "enum": ["high", "medium", "low"]},
+            "signal_refs": {"type": "array", "items": {"type": "string"}},
+            "next_validation_step": {"type": "string"}
+          },
+          "required": ["hypothesis_id", "hypothesis", "risk_level", "confidence", "signal_refs"]
+        }
+      }
+    },
+    "required": ["date", "hypotheses"],
+    "additionalProperties": false
   }
 }
 ```
