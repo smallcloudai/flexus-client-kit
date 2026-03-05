@@ -20,7 +20,7 @@ EXPERTS = [
         fexp_python_kernel="",
         fexp_block_tools="",
         fexp_allow_tools="",
-        fexp_description="GTM Research operator — market signals, customer discovery, idea validation, pain & alternatives, segment and pipeline qualification.",
+        fexp_description="GTM Research operator - market signals, customer discovery, idea validation, pain & alternatives, segment and pipeline qualification.",
         fexp_builtin_skills=ckit_skills.read_name_description(RESEARCHER_ROOTDIR, RESEARCHER_SKILLS),
     )),
 ]
@@ -41,7 +41,7 @@ async def install(
         marketable_version=bot_version,
         marketable_accent_color="#0F766E",
         marketable_title1="Researcher",
-        marketable_title2="GTM Research — signals, discovery, validation",
+        marketable_title2="GTM Research - signals, discovery, validation",
         marketable_author="Flexus",
         marketable_occupation="GTM Research Operator",
         marketable_description=(
