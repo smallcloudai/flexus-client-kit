@@ -151,7 +151,7 @@ class IntegrationSched:
             await h.execute(
                 gql.gql("""
                     mutation SchedDelete($sched_id: String!) {
-                        persona_schedule_delete(sched_id: $sched_id)
+                        persona_schedule_delete(sched_id: $sched_id) { sched_id }
                     }"""),
                 variable_values={"sched_id": sched_id},
             )
