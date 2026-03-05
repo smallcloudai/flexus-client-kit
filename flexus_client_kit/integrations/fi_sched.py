@@ -1,6 +1,7 @@
 import logging
-import time
+from datetime import datetime
 from typing import Any, Dict, Optional
+from zoneinfo import ZoneInfo
 
 import gql
 import gql.transport.exceptions
@@ -42,16 +43,6 @@ flexus_schedule(op="delete", args={"sched_id": "..."})
 """
 
 
-def _gql_error(e: Exception) -> str:
-    if isinstance(e, gql.transport.exceptions.TransportQueryError):
-        return f"Error: {e}"
-    raise e
-
-
-def _fmt_ts(ts: Any) -> str:
-    if not ts:
-        return "never"
-    return time.strftime("%Y-%m-%d %H:%M", time.localtime(float(ts)))
 
 
 class IntegrationSched:
@@ -75,8 +66,8 @@ class IntegrationSched:
             if op == "delete":
                 return await self._delete(args, model_produced_args)
             return f"Unknown op '{op}'\n\n{HELP}"
-        except Exception as e:
-            return _gql_error(e)
+        except gql.transport.exceptions.TransportQueryError as e:
+            return ckit_cloudtool.gql_error_4xx_to_model_reraise_5xx(e, "sched")
 
     async def _list(self) -> str:
         http = await self.rcx.fclient.use_http()
@@ -102,7 +93,7 @@ class IntegrationSched:
             enabled = "on" if r.get("sched_enable") else "off"
             lines.append(
                 f"• {r['sched_id']}{builtin}: {r['sched_type']} {r['sched_when']}"
-                f" fexp={r.get('sched_fexp_name')} {enabled} last_run={_fmt_ts(r.get('sched_last_run_ts'))}\n"
+                f" fexp={r.get('sched_fexp_name')} {enabled} last_run={(datetime.fromtimestamp(float(ts), ZoneInfo(self.rcx.persona.ws_timezone)).strftime('%Y-%m-%d %H:%M') if (ts := r.get('sched_last_run_ts')) else 'never')}\n"
                 f"  {r['sched_first_question']}"
             )
         return "\n".join(lines)
