@@ -55,10 +55,9 @@ class FMarketplaceExpertInput:
         return not any(fnmatch.fnmatch(name, p) for p in block)
 
     def filter_tools(self, tools: list[ckit_cloudtool.CloudTool]) -> "FMarketplaceExpertInput":
-        filtered = [t for t in tools if self._tool_allowed(t.name)]
+        filtered = [t for t in tools if self._tool_allowed(t.name) and t.name != "flexus_fetch_skill"]
         if self.fexp_builtin_skills != "[]":
-            if not any(t.name == "flexus_fetch_skill" for t in filtered):
-                filtered.append(ckit_skills.FETCH_SKILL_TOOL)
+            filtered.append(ckit_skills.FETCH_SKILL_TOOL)
         self.fexp_app_capture_tools = json.dumps([t.openai_style_tool() for t in filtered])
         return self
 
