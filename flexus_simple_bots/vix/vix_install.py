@@ -17,6 +17,7 @@ from flexus_simple_bots.vix import vix_prompts
 
 VIX_ROOTDIR = Path(__file__).parent
 VIX_SKILLS = ckit_skills.static_skills_find(VIX_ROOTDIR, shared_skills_allowlist="")
+VIX_SKILLS_DEFAULT = ["stall-deals"]
 
 
 BOT_DESCRIPTION = """
@@ -61,6 +62,7 @@ EXPERTS = [
         fexp_allow_tools="",
         fexp_inactivity_timeout=3600,
         fexp_description="Marketing assistant for CRM management, contact import, automated outreach, and company/product setup.",
+        fexp_builtin_skills=ckit_skills.read_name_description(VIX_ROOTDIR, VIX_SKILLS_DEFAULT),
     )),
     ("sales", ckit_bot_install.FMarketplaceExpertInput(
         fexp_system_prompt=vix_prompts.vix_prompt_sales,
@@ -109,6 +111,7 @@ async def install(
             {"feat_question": "Help me set up my company and sales pipeline", "feat_expert": "default", "feat_depends_on_setup": []},
             {"feat_question": "Help me send contacts from my landing page to Flexus", "feat_expert": "default", "feat_depends_on_setup": []},
             {"feat_question": "Help me set up welcome emails to new contacts", "feat_expert": "default", "feat_depends_on_setup": []},
+            {"feat_question": "Help me design a stalled-deal strategy", "feat_expert": "default", "feat_depends_on_setup": []},
         ],
         marketable_intro_message="Hi! I'm Vix, your sales and marketing assistant. I can help with CRM management, email automations, contact imports, and sales conversations. What would you like to work on?",
         marketable_preferred_model_default="claude-opus-4-6",
