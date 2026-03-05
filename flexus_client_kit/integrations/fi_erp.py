@@ -62,7 +62,8 @@ ERP_TABLE_DATA_TOOL = ckit_cloudtool.CloudTool(
                     "sort_by": {"type": "array", "items": {"type": "string"}, "description": 'Sort expressions ["column:ASC", "another:DESC"]', "order": 1003},
                     "filters": {"oneOf": [{"type": "string"}, {"type": "object"}], "description": 'String or object with AND/OR key, e.g. {"AND": ["col:op:val"]} or {"OR": [...]}', "order": 1004},
                     "include": {"type": "array", "items": {"type": "string"}, "description": 'Relation names to include ["prodt", "pcat"]', "order": 1005},
-                    "safety_valve": {"type": "string", "description": 'Output character limit "5k" or "10000" (default 5k)', "order": 1006},
+                    "include_limit": {"type": "integer", "description": "Max items per included relation total across all rows (defaults to limit).", "order": 1006},
+                    "safety_valve": {"type": "string", "description": 'Output character limit "5k" or "10000" (default 5k)', "order": 1007},
                 },
             },
         },
@@ -272,6 +273,7 @@ class IntegrationErp:
         sort_by = options.get("sort_by", [])
         filters = options.get("filters", {})
         include = options.get("include", [])
+        include_limit = options.get("include_limit", limit)
         safety_valve = options.get("safety_valve", "5k")
 
         if not isinstance(sort_by, list):
@@ -301,6 +303,7 @@ class IntegrationErp:
                 sort_by=sort_by,
                 filters=filters,
                 include=include,
+                include_limit=include_limit,
             )
         except (gql.transport.exceptions.TransportQueryError, AssertionError) as e:
             logger.info(f"ERP query validation fail: {e}")

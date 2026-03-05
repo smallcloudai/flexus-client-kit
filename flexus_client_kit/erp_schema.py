@@ -41,6 +41,11 @@ class CrmContact:
     contact_last_inbound_ts: float = field(default=0.0, metadata={"importance": 1, "display_name": "Last Inbound", "editable": False, "description": "Auto-updated to the most recent inbound activity time for this contact"})
     contact_last_outbound_ts: float = field(default=0.0, metadata={"importance": 1, "display_name": "Last Outbound", "editable": False, "description": "Auto-updated to the most recent outbound activity time for this contact"})
 
+    activities: Optional[List[CrmActivity]] = field(default=None, metadata={"inbound_fk_table": "crm_activity", "inbound_fk_col": "activity_contact_id"})
+    deals: Optional[List[CrmDeal]] = field(default=None, metadata={"inbound_fk_table": "crm_deal", "inbound_fk_col": "deal_contact_id"})
+    orders: Optional[List[ComOrder]] = field(default=None, metadata={"inbound_fk_table": "com_order", "inbound_fk_col": "order_contact_id"})
+
+
 @dataclass
 class CrmActivity:
     ws_id: str
@@ -91,6 +96,7 @@ class CrmDeal:
     deal_archived_ts: float = field(default=0.0, metadata={"display_name": "Archived at"})
 
     contact: Optional[CrmContact] = field(default=None, metadata={"fk_field": "deal_contact_id", "description": "included via include=['contact']"})
+    stage: Optional[CrmPipelineStage] = field(default=None, metadata={"fk_field": "deal_stage_id", "description": "included via include=['stage']"})
 
 
 @dataclass
@@ -102,6 +108,8 @@ class CrmPipeline:
     pipeline_created_ts: float = field(default=0.0, metadata={"display_name": "Created at"})
     pipeline_modified_ts: float = field(default=0.0, metadata={"display_name": "Modified at"})
     pipeline_archived_ts: float = field(default=0.0, metadata={"display_name": "Archived at"})
+
+    stages: Optional[List[CrmPipelineStage]] = field(default=None, metadata={"inbound_fk_table": "crm_pipeline_stage", "inbound_fk_col": "stage_pipeline_id"})
 
 
 @dataclass
@@ -116,6 +124,8 @@ class CrmPipelineStage:
     stage_created_ts: float = field(default=0.0, metadata={"display_name": "Created at"})
     stage_modified_ts: float = field(default=0.0, metadata={"display_name": "Modified at"})
     stage_archived_ts: float = field(default=0.0, metadata={"display_name": "Archived at"})
+
+    pipeline: Optional[CrmPipeline] = field(default=None, metadata={"fk_field": "stage_pipeline_id", "description": "included via include=['pipeline']"})
 
 
 @dataclass
@@ -155,6 +165,8 @@ class ComProduct:
     prod_created_ts: float = field(default=0.0, metadata={"display_name": "Created at"})
     prod_modified_ts: float = field(default=0.0, metadata={"display_name": "Modified at"})
     prod_archived_ts: float = field(default=0.0, metadata={"display_name": "Archived at"})
+
+    variants: Optional[List[ComProductVariant]] = field(default=None, metadata={"inbound_fk_table": "com_product_variant", "inbound_fk_col": "pvar_prod_id"})
 
 
 @dataclass
@@ -228,6 +240,9 @@ class ComOrder:
     order_archived_ts: float = field(default=0.0, metadata={"display_name": "Archived at"})
 
     contact: Optional[CrmContact] = field(default=None, metadata={"fk_field": "order_contact_id", "description": "included via include=['contact']"})
+    items: Optional[List[ComOrderItem]] = field(default=None, metadata={"inbound_fk_table": "com_order_item", "inbound_fk_col": "oitem_order_id"})
+    payments: Optional[List[ComPayment]] = field(default=None, metadata={"inbound_fk_table": "com_payment", "inbound_fk_col": "pay_order_id"})
+    refunds: Optional[List[ComRefund]] = field(default=None, metadata={"inbound_fk_table": "com_refund", "inbound_fk_col": "refund_order_id"})
 
 
 @dataclass
@@ -387,3 +402,7 @@ def get_field_editable(cls: Type, field_name: str) -> bool:
 
 def get_relation_to_fk_map(cls: Type) -> Dict[str, str]:
     return {name: f.metadata["fk_field"] for name, f in cls.__dataclass_fields__.items() if f.metadata.get("fk_field")}
+
+
+def get_inbound_relation_map(cls: Type) -> Dict[str, tuple]:
+    return {name: (f.metadata["inbound_fk_table"], f.metadata["inbound_fk_col"]) for name, f in cls.__dataclass_fields__.items() if f.metadata.get("inbound_fk_table")}
