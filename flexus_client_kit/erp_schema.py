@@ -63,6 +63,8 @@ class CrmContact:
     contact_archived_ts: float = field(default=0.0, metadata={"display_name": "Archived at"})
     contact_commerce_external: dict = field(default_factory=dict, metadata={"display_name": "Commerce External"})
     contact_platform_ids: dict = field(default_factory=dict, metadata={"display_name": "Platform IDs", "editable": False, "description": "Map of platform name to user/chat ID, e.g. {\"telegram\": \"123456\"}"})
+    contact_last_inbound_ts: float = field(default=0.0, metadata={"importance": 1, "display_name": "Last Inbound", "editable": False, "description": "Auto-updated to the most recent inbound activity time for this contact"})
+    contact_last_outbound_ts: float = field(default=0.0, metadata={"importance": 1, "display_name": "Last Outbound", "editable": False, "description": "Auto-updated to the most recent outbound activity time for this contact"})
 
 
 @dataclass

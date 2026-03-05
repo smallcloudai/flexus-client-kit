@@ -34,8 +34,7 @@ flexus_schedule(op="list")
 flexus_schedule(op="upsert", args={"sched_type": "SCHED_TODO", "sched_when": "EVERY:5m", "sched_first_question": "Work on the assigned task.", "sched_fexp_name": "default", "sched_enable": true})
     Create or update a schedule. Pass sched_id in args to update existing.
     sched_type: SCHED_TODO (run when todo has tasks), SCHED_TASK_SORT (run when inbox has tasks),
-                SCHED_PICK_ONE (pick one inbox task), SCHED_ANY (time-based, always runs),
-                SCHED_CREATE_TASK (time-based, creates a task)
+                SCHED_PICK_ONE (pick one inbox task), SCHED_ANY (time-based, always runs)
     sched_when: EVERY:5m, EVERY:2h, WEEKDAYS:MO:TU:WE:TH:FR/09:00, MONTHDAY:1/09:00, MONTHDAY:-1/09:00
 
 flexus_schedule(op="delete", args={"sched_id": "..."})
@@ -86,13 +85,15 @@ class IntegrationSched:
                 gql.gql("""
                     query SchedList($persona_id: String!) {
                         persona_schedule_list(persona_id: $persona_id) {
-                            sched_id sched_type sched_when sched_fexp_name sched_enable
-                            sched_marketplace sched_last_run_ts sched_first_question
+                            scheds {
+                                sched_id sched_type sched_when sched_fexp_name sched_enable
+                                sched_marketplace sched_last_run_ts sched_first_question
+                            }
                         }
                     }"""),
                 variable_values={"persona_id": self.rcx.persona.persona_id},
             )
-        records = result.get("persona_schedule_list", [])
+        records = (result.get("persona_schedule_list") or {}).get("scheds", [])
         if not records:
             return "No schedules."
         lines = []
@@ -113,12 +114,13 @@ class IntegrationSched:
         if missing := [k for k, v in required.items() if not v]:
             return f"Error: missing required fields: {', '.join(missing)}"
 
-        _VALID_TYPES = {"SCHED_TODO", "SCHED_TASK_SORT", "SCHED_PICK_ONE", "SCHED_ANY", "SCHED_CREATE_TASK"}
+        _VALID_TYPES = {"SCHED_TODO", "SCHED_TASK_SORT", "SCHED_PICK_ONE", "SCHED_ANY"}
         if required["sched_type"] not in _VALID_TYPES:
             return f"Error: sched_type must be one of {', '.join(sorted(_VALID_TYPES))}"
 
         inp = {
             **required,
+            "sched_persona_id": self.rcx.persona.persona_id,
             "sched_fexp_name": get("sched_fexp_name") or "",
             "sched_enable": get("sched_enable") if get("sched_enable") is not None else True,
             "sched_marketplace": False,
@@ -130,12 +132,12 @@ class IntegrationSched:
         async with http as h:
             result = await h.execute(
                 gql.gql("""
-                    mutation SchedUpsert($persona_id: String!, $input: PersonaScheduleInput!) {
-                        persona_schedule_upsert(persona_id: $persona_id, input: $input) {
+                    mutation SchedUpsert($input: FPersonaScheduleUpsertInput!) {
+                        persona_schedule_upsert(input: $input) {
                             sched_id
                         }
                     }"""),
-                variable_values={"persona_id": self.rcx.persona.persona_id, "input": inp},
+                variable_values={"input": inp},
             )
         sched_id = result.get("persona_schedule_upsert", {}).get("sched_id", "")
         return f"✅ Schedule {sched_id}"
