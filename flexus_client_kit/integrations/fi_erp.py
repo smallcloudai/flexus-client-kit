@@ -41,6 +41,8 @@ ERP_TABLE_DATA_TOOL = ckit_cloudtool.CloudTool(
         "Operators: =, !=, >, >=, <, <=, LIKE, ILIKE, CIEQL, IN, NOT_IN, IS_NULL, IS_NOT_NULL. "
         "LIKE/ILIKE use SQL wildcards: % matches any chars. CIEQL: Case Insensitive Equal. "
         "JSON path: details->subtype:=:welcome. "
+        "Relation dot-notation in filters: use relation.field to filter on included relations, "
+        'e.g. filters="contact.contact_last_inbound_ts:<:1234567890" to filter deals by contact\'s last inbound ts. '
         "Examples: "
         'filters="status:=:active" for single filter, '
         'filters={"AND": ["status:=:active", "type:=:lead"]} for multiple AND, '

@@ -1,33 +1,8 @@
+from __future__ import annotations
 import dataclasses
 from dataclasses import dataclass, field
 from decimal import Decimal
 from typing import Optional, Dict, Type, List
-
-
-@dataclass
-class CrmActivity:
-    ws_id: str
-    activity_title: str = field(metadata={"importance": 1, "display_name": "Title"})
-    activity_type: str = field(metadata={"importance": 1, "display_name": "Type", "enum": [
-        {"value": "WEB_CHAT", "label": "Web Chat"},
-        {"value": "MESSENGER_CHAT", "label": "Messenger Chat"},
-        {"value": "EMAIL", "label": "Email"},
-        {"value": "CALL", "label": "Call"},
-        {"value": "MEETING", "label": "Meeting"},
-    ]})
-    activity_direction: str = field(metadata={"importance": 1, "display_name": "Direction", "enum": [
-        {"value": "INBOUND", "label": "Inbound"},
-        {"value": "OUTBOUND", "label": "Outbound"},
-    ]})
-    activity_contact_id: str = field(metadata={"importance": 1, "display_name": "Contact"})
-    activity_id: str = field(default="", metadata={"pkey": True, "display_name": "Activity ID"})
-    activity_platform: str = field(default="", metadata={"importance": 1, "display_name": "Channel", "description": "e.g. TELEGRAM, WHATSAPP, EMAIL, SLACK, DISCORD, PHONE, WEB"})
-    activity_ft_id: Optional[str] = field(default=None, metadata={"importance": 1, "display_name": "Thread"})
-    activity_summary: str = field(default="", metadata={"importance": 1, "display": "string_multiline", "display_name": "Summary"})
-    activity_details: dict = field(default_factory=dict, metadata={"display_name": "Details"})
-    activity_occurred_ts: float = field(default=0.0, metadata={"importance": 1, "display_name": "Occurred at"})
-    activity_created_ts: float = field(default=0.0, metadata={"display_name": "Created at"})
-    activity_modified_ts: float = field(default=0.0, metadata={"display_name": "Modified at"})
 
 
 @dataclass
@@ -66,6 +41,33 @@ class CrmContact:
     contact_last_inbound_ts: float = field(default=0.0, metadata={"importance": 1, "display_name": "Last Inbound", "editable": False, "description": "Auto-updated to the most recent inbound activity time for this contact"})
     contact_last_outbound_ts: float = field(default=0.0, metadata={"importance": 1, "display_name": "Last Outbound", "editable": False, "description": "Auto-updated to the most recent outbound activity time for this contact"})
 
+@dataclass
+class CrmActivity:
+    ws_id: str
+    activity_title: str = field(metadata={"importance": 1, "display_name": "Title"})
+    activity_type: str = field(metadata={"importance": 1, "display_name": "Type", "enum": [
+        {"value": "WEB_CHAT", "label": "Web Chat"},
+        {"value": "MESSENGER_CHAT", "label": "Messenger Chat"},
+        {"value": "EMAIL", "label": "Email"},
+        {"value": "CALL", "label": "Call"},
+        {"value": "MEETING", "label": "Meeting"},
+    ]})
+    activity_direction: str = field(metadata={"importance": 1, "display_name": "Direction", "enum": [
+        {"value": "INBOUND", "label": "Inbound"},
+        {"value": "OUTBOUND", "label": "Outbound"},
+    ]})
+    activity_contact_id: str = field(metadata={"importance": 1, "display_name": "Contact"})
+    activity_id: str = field(default="", metadata={"pkey": True, "display_name": "Activity ID"})
+    activity_platform: str = field(default="", metadata={"importance": 1, "display_name": "Channel", "description": "e.g. TELEGRAM, WHATSAPP, EMAIL, SLACK, DISCORD, PHONE, WEB"})
+    activity_ft_id: Optional[str] = field(default=None, metadata={"importance": 1, "display_name": "Thread"})
+    activity_summary: str = field(default="", metadata={"importance": 1, "display": "string_multiline", "display_name": "Summary"})
+    activity_details: dict = field(default_factory=dict, metadata={"display_name": "Details"})
+    activity_occurred_ts: float = field(default=0.0, metadata={"importance": 1, "display_name": "Occurred at"})
+    activity_created_ts: float = field(default=0.0, metadata={"display_name": "Created at"})
+    activity_modified_ts: float = field(default=0.0, metadata={"display_name": "Modified at"})
+
+    contact: Optional[CrmContact] = field(default=None, metadata={"fk_field": "activity_contact_id", "description": "included via include=['contact']"})
+
 
 @dataclass
 class CrmDeal:
@@ -87,6 +89,8 @@ class CrmDeal:
     deal_created_ts: float = field(default=0.0, metadata={"importance": 1, "display_name": "Created at"})
     deal_modified_ts: float = field(default=0.0, metadata={"display_name": "Modified at"})
     deal_archived_ts: float = field(default=0.0, metadata={"display_name": "Archived at"})
+
+    contact: Optional[CrmContact] = field(default=None, metadata={"fk_field": "deal_contact_id", "description": "included via include=['contact']"})
 
 
 @dataclass
@@ -115,82 +119,20 @@ class CrmPipelineStage:
 
 
 @dataclass
-class ComOrder:
+class ComShop:
     ws_id: str
-    order_shop_id: str = field(metadata={"importance": 1, "display_name": "Shop"})
-    order_id: str = field(default="", metadata={"pkey": True, "display_name": "Order ID"})
-    order_external_id: str = field(default="", metadata={"display_name": "External ID", "editable": False})
-    order_number: str = field(default="", metadata={"importance": 1, "display_name": "Order Number"})
-    order_contact_id: Optional[str] = field(default=None, metadata={"importance": 1, "display_name": "Contact"})
-    order_email: str = field(default="", metadata={"importance": 1, "display_name": "Email"})
-    order_financial_status: str = field(default="PENDING", metadata={"importance": 1, "display_name": "Financial Status", "enum": [
-        {"value": "PENDING", "label": "Pending"},
-        {"value": "PAID", "label": "Paid"},
-        {"value": "PARTIALLY_PAID", "label": "Partially Paid"},
-        {"value": "REFUNDED", "label": "Refunded"},
-        {"value": "PARTIALLY_REFUNDED", "label": "Partially Refunded"},
-        {"value": "VOIDED", "label": "Voided"},
-    ]})
-    order_fulfillment_status: str = field(default="UNFULFILLED", metadata={"importance": 1, "display_name": "Fulfillment Status", "enum": [
-        {"value": "UNFULFILLED", "label": "Unfulfilled"},
-        {"value": "PARTIAL", "label": "Partial"},
-        {"value": "FULFILLED", "label": "Fulfilled"},
-    ]})
-    order_currency: str = field(default="", metadata={"importance": 1, "display_name": "Currency"})
-    order_subtotal: Decimal = field(default=Decimal(0), metadata={"importance": 1, "display_name": "Subtotal"})
-    order_total_tax: Decimal = field(default=Decimal(0), metadata={"display_name": "Total Tax"})
-    order_total_shipping: Decimal = field(default=Decimal(0), metadata={"display_name": "Total Shipping"})
-    order_total_discount: Decimal = field(default=Decimal(0), metadata={"display_name": "Total Discount"})
-    order_total: Decimal = field(default=Decimal(0), metadata={"importance": 1, "display_name": "Total"})
-    order_total_refunded: Decimal = field(default=Decimal(0), metadata={"display_name": "Total Refunded"})
-    order_notes: str = field(default="", metadata={"display": "string_multiline", "display_name": "Notes"})
-    order_tags: List[str] = field(default_factory=list, metadata={"importance": 1, "display_name": "Tags"})
-    order_tax_lines: list = field(default_factory=list, metadata={"display_name": "Tax Lines"})
-    order_shipping_charges: list = field(default_factory=list, metadata={"display_name": "Shipping Charges", "examples": '[{"id":"5632653459649","title":"Standard","price":"0.00","code":"Standard"}]'})
-    order_shipments: list = field(default_factory=list, metadata={"display_name": "Shipments", "description": "Fulfillments/shipments. Status: PENDING, IN_TRANSIT, SHIPPED, DELIVERED, FAILED.", "examples": '[{"id":"6237394370753","carrier":"Amazon Logistics","tracking_number":"1234","tracking_url":"https://track.amazon.com/tracking/1234","status":"SHIPPED","line_items":[{"id":"17452631130305","quantity":1}],"created_ts":1771449051.0,"modified_ts":1771449051.0}]'})
-    order_details: dict = field(default_factory=dict, metadata={"display_name": "Details"})
-    order_created_ts: float = field(default=0.0, metadata={"importance": 1, "display_name": "Created at"})
-    order_modified_ts: float = field(default=0.0, metadata={"display_name": "Modified at"})
-    order_cancelled_ts: float = field(default=0.0, metadata={"display_name": "Cancelled at"})
-    order_archived_ts: float = field(default=0.0, metadata={"display_name": "Archived at"})
-
-
-@dataclass
-class ComOrderItem:
-    ws_id: str
-    oitem_order_id: str = field(metadata={"importance": 1, "display_name": "Order"})
-    oitem_name: str = field(metadata={"importance": 1, "display_name": "Name"})
-    oitem_id: str = field(default="", metadata={"pkey": True, "display_name": "Item ID"})
-    oitem_pvar_id: Optional[str] = field(default=None, metadata={"display_name": "Variant"})
-    oitem_external_id: str = field(default="", metadata={"display_name": "External ID", "editable": False})
-    oitem_sku: str = field(default="", metadata={"importance": 1, "display_name": "SKU"})
-    oitem_quantity: int = field(default=1, metadata={"importance": 1, "display_name": "Quantity"})
-    oitem_unit_price: Decimal = field(default=Decimal(0), metadata={"importance": 1, "display_name": "Unit Price"})
-    oitem_total_discount: Decimal = field(default=Decimal(0), metadata={"display_name": "Total Discount"})
-    oitem_total: Decimal = field(default=Decimal(0), metadata={"importance": 1, "display_name": "Total"})
-    oitem_details: dict = field(default_factory=dict, metadata={"display_name": "Details"})
-    oitem_created_ts: float = field(default=0.0, metadata={"display_name": "Created at"})
-    oitem_modified_ts: float = field(default=0.0, metadata={"display_name": "Modified at"})
-
-
-@dataclass
-class ComPayment:
-    ws_id: str
-    pay_order_id: str = field(metadata={"importance": 1, "display_name": "Order"})
-    pay_id: str = field(default="", metadata={"pkey": True, "display_name": "Payment ID"})
-    pay_external_id: str = field(default="", metadata={"display_name": "External ID", "editable": False})
-    pay_amount: Decimal = field(default=Decimal(0), metadata={"importance": 1, "display_name": "Amount"})
-    pay_currency: str = field(default="", metadata={"importance": 1, "display_name": "Currency"})
-    pay_status: str = field(default="PENDING", metadata={"importance": 1, "display_name": "Status", "enum": [
-        {"value": "PENDING", "label": "Pending"},
-        {"value": "COMPLETED", "label": "Completed"},
-        {"value": "FAILED", "label": "Failed"},
-        {"value": "REFUNDED", "label": "Refunded"},
-    ]})
-    pay_provider: str = field(default="", metadata={"importance": 1, "display_name": "Provider"})
-    pay_details: dict = field(default_factory=dict, metadata={"display_name": "Details"})
-    pay_created_ts: float = field(default=0.0, metadata={"display_name": "Created at"})
-    pay_modified_ts: float = field(default=0.0, metadata={"display_name": "Modified at"})
+    shop_name: str = field(metadata={"importance": 1, "display_name": "Name"})
+    shop_type: str = field(metadata={"importance": 1, "display_name": "Type"})
+    shop_id: str = field(default="", metadata={"pkey": True, "display_name": "Shop ID"})
+    shop_domain: str = field(default="", metadata={"importance": 1, "display_name": "Domain"})
+    shop_currency: str = field(default="USD", metadata={"importance": 1, "display_name": "Currency"})
+    shop_auth_id: str = field(default="", metadata={"display_name": "Auth ID", "editable": False})
+    shop_webhook_secret: str = field(default="", metadata={"display_name": "Webhook Secret"})
+    shop_sync_cursor: str = field(default="", metadata={"display_name": "Sync Cursor"})
+    shop_details: dict = field(default_factory=dict, metadata={"display_name": "Details"})
+    shop_created_ts: float = field(default=0.0, metadata={"display_name": "Created at"})
+    shop_modified_ts: float = field(default=0.0, metadata={"display_name": "Modified at"})
+    shop_archived_ts: float = field(default=0.0, metadata={"display_name": "Archived at"})
 
 
 @dataclass
@@ -242,6 +184,94 @@ class ComProductVariant:
     pvar_created_ts: float = field(default=0.0, metadata={"display_name": "Created at"})
     pvar_modified_ts: float = field(default=0.0, metadata={"display_name": "Modified at"})
 
+    product: Optional[ComProduct] = field(default=None, metadata={"fk_field": "pvar_prod_id", "description": "included via include=['product']"})
+
+
+@dataclass
+class ComOrder:
+    ws_id: str
+    order_shop_id: str = field(metadata={"importance": 1, "display_name": "Shop"})
+    order_id: str = field(default="", metadata={"pkey": True, "display_name": "Order ID"})
+    order_external_id: str = field(default="", metadata={"display_name": "External ID", "editable": False})
+    order_number: str = field(default="", metadata={"importance": 1, "display_name": "Order Number"})
+    order_contact_id: Optional[str] = field(default=None, metadata={"importance": 1, "display_name": "Contact"})
+    order_email: str = field(default="", metadata={"importance": 1, "display_name": "Email"})
+    order_financial_status: str = field(default="PENDING", metadata={"importance": 1, "display_name": "Financial Status", "enum": [
+        {"value": "PENDING", "label": "Pending"},
+        {"value": "PAID", "label": "Paid"},
+        {"value": "PARTIALLY_PAID", "label": "Partially Paid"},
+        {"value": "REFUNDED", "label": "Refunded"},
+        {"value": "PARTIALLY_REFUNDED", "label": "Partially Refunded"},
+        {"value": "VOIDED", "label": "Voided"},
+    ]})
+    order_fulfillment_status: str = field(default="UNFULFILLED", metadata={"importance": 1, "display_name": "Fulfillment Status", "enum": [
+        {"value": "UNFULFILLED", "label": "Unfulfilled"},
+        {"value": "PARTIAL", "label": "Partial"},
+        {"value": "FULFILLED", "label": "Fulfilled"},
+    ]})
+    order_currency: str = field(default="", metadata={"importance": 1, "display_name": "Currency"})
+    order_subtotal: Decimal = field(default=Decimal(0), metadata={"importance": 1, "display_name": "Subtotal"})
+    order_total_tax: Decimal = field(default=Decimal(0), metadata={"display_name": "Total Tax"})
+    order_total_shipping: Decimal = field(default=Decimal(0), metadata={"display_name": "Total Shipping"})
+    order_total_discount: Decimal = field(default=Decimal(0), metadata={"display_name": "Total Discount"})
+    order_total: Decimal = field(default=Decimal(0), metadata={"importance": 1, "display_name": "Total"})
+    order_total_refunded: Decimal = field(default=Decimal(0), metadata={"display_name": "Total Refunded"})
+    order_notes: str = field(default="", metadata={"display": "string_multiline", "display_name": "Notes"})
+    order_tags: List[str] = field(default_factory=list, metadata={"importance": 1, "display_name": "Tags"})
+    order_tax_lines: list = field(default_factory=list, metadata={"display_name": "Tax Lines"})
+    order_shipping_charges: list = field(default_factory=list, metadata={"display_name": "Shipping Charges", "examples": '[{"id":"5632653459649","title":"Standard","price":"0.00","code":"Standard"}]'})
+    order_shipments: list = field(default_factory=list, metadata={"display_name": "Shipments", "description": "Fulfillments/shipments. Status: PENDING, IN_TRANSIT, SHIPPED, DELIVERED, FAILED.", "examples": '[{"id":"6237394370753","carrier":"Amazon Logistics","tracking_number":"1234","tracking_url":"https://track.amazon.com/tracking/1234","status":"SHIPPED","line_items":[{"id":"17452631130305","quantity":1}],"created_ts":1771449051.0,"modified_ts":1771449051.0}]'})
+    order_details: dict = field(default_factory=dict, metadata={"display_name": "Details"})
+    order_created_ts: float = field(default=0.0, metadata={"importance": 1, "display_name": "Created at"})
+    order_modified_ts: float = field(default=0.0, metadata={"display_name": "Modified at"})
+    order_cancelled_ts: float = field(default=0.0, metadata={"display_name": "Cancelled at"})
+    order_archived_ts: float = field(default=0.0, metadata={"display_name": "Archived at"})
+
+    contact: Optional[CrmContact] = field(default=None, metadata={"fk_field": "order_contact_id", "description": "included via include=['contact']"})
+
+
+@dataclass
+class ComOrderItem:
+    ws_id: str
+    oitem_order_id: str = field(metadata={"importance": 1, "display_name": "Order"})
+    oitem_name: str = field(metadata={"importance": 1, "display_name": "Name"})
+    oitem_id: str = field(default="", metadata={"pkey": True, "display_name": "Item ID"})
+    oitem_pvar_id: Optional[str] = field(default=None, metadata={"display_name": "Variant"})
+    oitem_external_id: str = field(default="", metadata={"display_name": "External ID", "editable": False})
+    oitem_sku: str = field(default="", metadata={"importance": 1, "display_name": "SKU"})
+    oitem_quantity: int = field(default=1, metadata={"importance": 1, "display_name": "Quantity"})
+    oitem_unit_price: Decimal = field(default=Decimal(0), metadata={"importance": 1, "display_name": "Unit Price"})
+    oitem_total_discount: Decimal = field(default=Decimal(0), metadata={"display_name": "Total Discount"})
+    oitem_total: Decimal = field(default=Decimal(0), metadata={"importance": 1, "display_name": "Total"})
+    oitem_details: dict = field(default_factory=dict, metadata={"display_name": "Details"})
+    oitem_created_ts: float = field(default=0.0, metadata={"display_name": "Created at"})
+    oitem_modified_ts: float = field(default=0.0, metadata={"display_name": "Modified at"})
+
+    order: Optional[ComOrder] = field(default=None, metadata={"fk_field": "oitem_order_id", "description": "included via include=['order']"})
+    variant: Optional[ComProductVariant] = field(default=None, metadata={"fk_field": "oitem_pvar_id", "description": "included via include=['variant']"})
+
+
+@dataclass
+class ComPayment:
+    ws_id: str
+    pay_order_id: str = field(metadata={"importance": 1, "display_name": "Order"})
+    pay_id: str = field(default="", metadata={"pkey": True, "display_name": "Payment ID"})
+    pay_external_id: str = field(default="", metadata={"display_name": "External ID", "editable": False})
+    pay_amount: Decimal = field(default=Decimal(0), metadata={"importance": 1, "display_name": "Amount"})
+    pay_currency: str = field(default="", metadata={"importance": 1, "display_name": "Currency"})
+    pay_status: str = field(default="PENDING", metadata={"importance": 1, "display_name": "Status", "enum": [
+        {"value": "PENDING", "label": "Pending"},
+        {"value": "COMPLETED", "label": "Completed"},
+        {"value": "FAILED", "label": "Failed"},
+        {"value": "REFUNDED", "label": "Refunded"},
+    ]})
+    pay_provider: str = field(default="", metadata={"importance": 1, "display_name": "Provider"})
+    pay_details: dict = field(default_factory=dict, metadata={"display_name": "Details"})
+    pay_created_ts: float = field(default=0.0, metadata={"display_name": "Created at"})
+    pay_modified_ts: float = field(default=0.0, metadata={"display_name": "Modified at"})
+
+    order: Optional[ComOrder] = field(default=None, metadata={"fk_field": "pay_order_id", "description": "included via include=['order']"})
+
 
 @dataclass
 class ComRefund:
@@ -262,23 +292,7 @@ class ComRefund:
     refund_created_ts: float = field(default=0.0, metadata={"display_name": "Created at"})
     refund_modified_ts: float = field(default=0.0, metadata={"display_name": "Modified at"})
 
-
-
-@dataclass
-class ComShop:
-    ws_id: str
-    shop_name: str = field(metadata={"importance": 1, "display_name": "Name"})
-    shop_type: str = field(metadata={"importance": 1, "display_name": "Type"})
-    shop_id: str = field(default="", metadata={"pkey": True, "display_name": "Shop ID"})
-    shop_domain: str = field(default="", metadata={"importance": 1, "display_name": "Domain"})
-    shop_currency: str = field(default="USD", metadata={"importance": 1, "display_name": "Currency"})
-    shop_auth_id: str = field(default="", metadata={"display_name": "Auth ID", "editable": False})
-    shop_webhook_secret: str = field(default="", metadata={"display_name": "Webhook Secret"})
-    shop_sync_cursor: str = field(default="", metadata={"display_name": "Sync Cursor"})
-    shop_details: dict = field(default_factory=dict, metadata={"display_name": "Details"})
-    shop_created_ts: float = field(default=0.0, metadata={"display_name": "Created at"})
-    shop_modified_ts: float = field(default=0.0, metadata={"display_name": "Modified at"})
-    shop_archived_ts: float = field(default=0.0, metadata={"display_name": "Archived at"})
+    order: Optional[ComOrder] = field(default=None, metadata={"fk_field": "refund_order_id", "description": "included via include=['order']"})
 
 
 ERP_TABLE_TO_SCHEMA: Dict[str, Type] = {
@@ -369,3 +383,7 @@ def get_field_fk_scope(cls: Type, field_name: str) -> Optional[Dict[str, str]]:
 def get_field_editable(cls: Type, field_name: str) -> bool:
     f = cls.__dataclass_fields__.get(field_name)
     return f.metadata.get("editable", True) if f else True
+
+
+def get_relation_to_fk_map(cls: Type) -> Dict[str, str]:
+    return {name: f.metadata["fk_field"] for name, f in cls.__dataclass_fields__.items() if f.metadata.get("fk_field")}
