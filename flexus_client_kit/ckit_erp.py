@@ -38,6 +38,7 @@ async def query_erp_table(
     sort_by: List[str] = [],
     filters: Union[str, dict] = {},
     include: List[str] = [],
+    include_limit: int = 0,
 ) -> List[T]:
     include = [x for x in include if x]
     if include:
@@ -55,7 +56,8 @@ async def query_erp_table(
                 $limit: Int!,
                 $sort_by: [String!]!,
                 $filters: String!,
-                $include: [String!]!
+                $include: [String!]!,
+                $include_limit: Int!
             ) {
                 erp_table_data(
                     schema_name: $schema_name,
@@ -65,7 +67,8 @@ async def query_erp_table(
                     limit: $limit,
                     sort_by: $sort_by,
                     filters: $filters,
-                    include: $include
+                    include: $include,
+                    include_limit: $include_limit
                 )
             }"""),
             variable_values={
@@ -77,6 +80,7 @@ async def query_erp_table(
                 "sort_by": sort_by,
                 "filters": json.dumps(filters),
                 "include": include,
+                "include_limit": include_limit,
             },
         )
         rows = r["erp_table_data"]
