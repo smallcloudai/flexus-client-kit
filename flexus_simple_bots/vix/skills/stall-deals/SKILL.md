@@ -32,6 +32,8 @@ Ask the user what time they'd like the daily stall check to run. Suggest 11:00 o
 
 Use `flexus_schedule()` for the periodic stall check — never CRM automations (those are for event-driven reactions, not time-based sweeps).
 
+Create schedule with first question exactly like the one below:
+
 ```python
 flexus_policy_document(op="write", args={
     "p": "/sales-pipeline/stall-deals-policy",
@@ -51,7 +53,7 @@ flexus_policy_document(op="write", args={
 flexus_schedule(op="upsert", args={
     "sched_type": "SCHED_ANY",
     "sched_when": "WEEKDAYS:MO:TU:WE:TH:FR/11:00",  # use time confirmed with user
-    "sched_first_question": "Stall deal check: (1) Read /sales-pipeline/stall-deals-policy. (2) Find stalled contacts: query crm_contact filtering contact_last_outbound_ts>0 and contact_last_inbound_ts older than stall_days. (3) For each stalled contact, get their open deals not in WON/LOST. (4) Per deal stage action in policy: send email or create checkin task. (5) If inactivity >= archive_days, set deal_lost_reason and move to Lost stage. (6) If >5 stalled deals total, batch into groups of 5 as kanban tasks for nurturing expert.",
+    "sched_first_question": "Run stall deal check per /sales-pipeline/stall-deals-policy.",
     "sched_fexp_name": "nurturing",
     "sched_enable": True
 })

@@ -585,23 +585,24 @@ Don't move deals backward unless explicitly told to.
 
 ## Stall Recovery
 
-To find stalled deals, query contacts using `contact_last_inbound_ts` and `contact_last_outbound_ts` — these are auto-updated timestamps, no need to scan crm_activity:
+When triggered for stall deal check:
+
+1. Read `/sales-pipeline/stall-deals-policy` — get stall_days, archive_days, outreach_cutoff_stage_id, stage_actions.
+2. Compute stall_ts = now − stall_days × 86400. Query **only stalled deals** — never fetch all open deals:
 ```python
-erp_table_data(table_name="crm_contact", options={{
-    "filters": "contact_last_outbound_ts:>:0 AND contact_last_inbound_ts:<:TIMESTAMP",
+erp_table_data(table_name="crm_deal", options={{
+    "filters": {{"AND": [
+        "contact.contact_last_outbound_ts:>:0",
+        "contact.contact_last_inbound_ts:<:STALL_TS",
+    ]}},
+    "include": ["contact"],
 }})
 ```
-A contact is stalled when we reached out (last_outbound_ts > 0) but haven't heard back (last_inbound_ts hasn't updated since).
-
-When handling a stalled deal:
-
-1. Check deal stage and the stall policy
-2. Choose approach based on deal stage:
-   - Early stages: offer new value angle or relevant content
-   - Mid stages: create urgency with limited availability or competitive context
-   - Late stages: direct check-in, ask if anything changed
-3. If stalled past archive_days, set deal_lost_reason (e.g. "No response after X days") and move deal to Lost stage
-4. Otherwise send follow-up email per policy tone
+3. Exclude WON/LOST stages. Per deal, look up its stage in stage_actions:
+   - **skip**: stage is below outreach cutoff — do nothing
+   - **email**: send follow-up only if the contact has prior engagement (stage ≥ cutoff) AND this stage's follow-up hasn't been sent yet (check `deal_details.last_followup_stage`). After sending, record `last_followup_stage` in deal_details to prevent duplicates.
+4. If inactivity ≥ archive_days (contact_last_outbound_ts < now − archive_days × 86400): set deal_lost_reason and move deal to Lost stage.
+5. Summarize: how many emailed, tasks created, closed as Lost, skipped — and why skipped.
 
 {fi_crm.LOG_CRM_ACTIVITIES_PROMPT}
 {EMAIL_GUARDRAILS}
