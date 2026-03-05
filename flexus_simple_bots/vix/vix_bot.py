@@ -16,16 +16,16 @@ from flexus_client_kit import ckit_ask_model
 from flexus_client_kit import ckit_mongo
 from flexus_client_kit import ckit_erp
 from flexus_client_kit import ckit_kanban
+from flexus_client_kit import ckit_integrations_db
 from flexus_client_kit import erp_schema
 from flexus_client_kit.integrations import fi_mongo_store
-from flexus_client_kit.integrations import fi_pdoc
 from flexus_client_kit.integrations import fi_erp
 from flexus_client_kit.integrations import fi_crm_automations
 from flexus_client_kit.integrations import fi_resend
 from flexus_client_kit.integrations import fi_shopify
 from flexus_client_kit.integrations import fi_telegram
 from flexus_client_kit.integrations import fi_crm
-from flexus_client_kit.integrations import fi_widget
+from flexus_client_kit.integrations import fi_sched
 from flexus_simple_bots.vix import vix_install
 from flexus_simple_bots.version_common import SIMPLE_BOTS_COMMON_VERSION
 
@@ -35,10 +35,18 @@ BOT_NAME = "vix"
 BOT_VERSION = SIMPLE_BOTS_COMMON_VERSION
 
 ERP_TABLES = ["crm_contact", "crm_activity", "crm_deal", "com_shop", "com_product", "com_product_variant", "com_order", "com_order_item", "com_refund"]
+VIX_INTEGRATIONS: list[ckit_integrations_db.IntegrationRecord] = ckit_integrations_db.static_integrations_load(
+    vix_install.VIX_ROOTDIR,
+    allowlist=[
+        "skills",
+        "flexus_policy_document",
+        "print_widget",
+    ],
+    builtin_skills=vix_install.VIX_SKILLS,
+)
 
 TOOLS = [
     fi_mongo_store.MONGO_STORE_TOOL,
-    fi_pdoc.POLICY_DOCUMENT_TOOL,
     fi_erp.ERP_TABLE_META_TOOL,
     fi_erp.ERP_TABLE_DATA_TOOL,
     fi_erp.ERP_TABLE_CRUD_TOOL,
@@ -50,7 +58,8 @@ TOOLS = [
     fi_shopify.SHOPIFY_TOOL,
     fi_shopify.SHOPIFY_CART_TOOL,
     fi_telegram.TELEGRAM_TOOL,
-    fi_widget.PRINT_WIDGET_TOOL,
+    fi_sched.SCHED_TOOL,
+    *[t for rec in VIX_INTEGRATIONS for t in rec.integr_tools],
 ]
 
 
@@ -64,7 +73,7 @@ async def vix_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.Ro
     mydb = mongo[dbname]
     personal_mongo = mydb["personal_mongo"]
 
-    pdoc_integration = fi_pdoc.IntegrationPdoc(rcx, rcx.persona.ws_root_group_id)
+    await ckit_integrations_db.main_loop_integrations_init(VIX_INTEGRATIONS, rcx)
     erp_integration = fi_erp.IntegrationErp(fclient, rcx.persona.ws_id, personal_mongo)
     crm_integration = fi_crm.IntegrationCrm(fclient, rcx.persona.ws_id)
     automations_integration = fi_crm_automations.IntegrationCrmAutomations(
@@ -74,6 +83,7 @@ async def vix_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.Ro
     email_respond_to = set(a.strip().lower() for a in get_setup().get("EMAIL_RESPOND_TO", "").split(",") if a.strip())
     resend_integration = fi_resend.IntegrationResend(fclient, rcx, resend_domains, email_respond_to)
     shopify = fi_shopify.IntegrationShopify(fclient, rcx)
+    sched = fi_sched.IntegrationSched(rcx)
     telegram = fi_telegram.IntegrationTelegram(fclient, rcx)
     await telegram.initialize()
 
@@ -146,10 +156,6 @@ async def vix_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.Ro
             model_produced_args,
         )
 
-    @rcx.on_tool_call(fi_pdoc.POLICY_DOCUMENT_TOOL.name)
-    async def toolcall_pdoc(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
-        return await pdoc_integration.called_by_model(toolcall, model_produced_args)
-
     @rcx.on_tool_call(fi_erp.ERP_TABLE_META_TOOL.name)
     async def toolcall_erp_meta(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
         return await erp_integration.handle_erp_meta(toolcall, model_produced_args)
@@ -194,9 +200,9 @@ async def vix_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.Ro
     async def toolcall_telegram(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
         return await telegram.called_by_model(toolcall, model_produced_args)
 
-    @rcx.on_tool_call(fi_widget.PRINT_WIDGET_TOOL.name)
-    async def toolcall_print_widget(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
-        return await fi_widget.handle_print_widget(toolcall, model_produced_args)
+    @rcx.on_tool_call(fi_sched.SCHED_TOOL.name)
+    async def toolcall_sched(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
+        return await sched.called_by_model(toolcall, model_produced_args)
 
     @telegram.on_incoming_activity
     async def telegram_activity_callback(a: fi_telegram.ActivityTelegram, already_posted: bool):

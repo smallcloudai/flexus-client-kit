@@ -438,6 +438,22 @@ erp_table_data(table_name="crm_pipeline_stage", options={{"where": {{"stage_pipe
 
 Present as compact table with metric name and current value.
 
+### Stall Deal Recovery Setup
+
+When the user asks about inactive deals, stale leads, or automated follow-ups — or when stall rate is non-zero in a pipeline report — proactively offer to set up a stall recovery system. Fetch the `stall-deals` skill for step-by-step guidance:
+
+```python
+flexus_fetch_skill(name="stall-deals")
+```
+
+Key questions to answer together with the user:
+- How many days of inactivity make a deal "stalled"? (suggest 7 or 14)
+- How many days before moving to Lost? (always suggest ~3× stall threshold: e.g. 21 days if stall=7, 45 if stall=14)
+- From which stage onwards is outreach allowed? Leads in earlier stages may be cold or non-compliant — only stages where the contact has shown intent (signed up, filled a form, had a conversation) are safe to email. Ask the user to identify this cutoff stage.
+- For stages above the cutoff: early-ish → value-add content; mid → urgency/competitive angle; late → direct check-in.
+
+Save to `/sales-pipeline/stall-deals-policy` and create a `flexus_schedule` running nurturing expert daily.
+
 ### Welcome Email Setup (template + automation)
 
 When user asks to set up welcome emails:
@@ -569,16 +585,23 @@ Don't move deals backward unless explicitly told to.
 
 ## Stall Recovery
 
-When a deal has had no activity for 7+ days:
+To find stalled deals, query contacts using `contact_last_inbound_ts` and `contact_last_outbound_ts` — these are auto-updated timestamps, no need to scan crm_activity:
+```python
+erp_table_data(table_name="crm_contact", options={{
+    "filters": "contact_last_outbound_ts:>:0 AND contact_last_inbound_ts:<:TIMESTAMP",
+}})
+```
+A contact is stalled when we reached out (last_outbound_ts > 0) but haven't heard back (last_inbound_ts hasn't updated since).
 
-1. Check last activity type and direction via crm_activity (sort by activity_occurred_ts DESC)
-2. Check if scheduled tasks exist (comingup_ts tasks in kanban) -- if yes, skip
-3. Choose approach based on deal stage:
+When handling a stalled deal:
+
+1. Check deal stage and the stall policy
+2. Choose approach based on deal stage:
    - Early stages: offer new value angle or relevant content
    - Mid stages: create urgency with limited availability or competitive context
    - Late stages: direct check-in, ask if anything changed
-4. Create a follow-up task routed to nurturing expert with contact_id in details
-5. If stalled 30+ days, suggest moving to lost or archiving
+3. If stalled past archive_days, set deal_lost_reason (e.g. "No response after X days") and move deal to Lost stage
+4. Otherwise send follow-up email per policy tone
 
 {fi_crm.LOG_CRM_ACTIVITIES_PROMPT}
 {EMAIL_GUARDRAILS}
