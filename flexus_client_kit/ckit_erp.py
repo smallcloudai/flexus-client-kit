@@ -39,6 +39,7 @@ async def query_erp_table(
     filters: Union[str, dict] = {},
     include: List[str] = [],
 ) -> List[T]:
+    include = [x for x in include if x]
     if include:
         for inc_field in include:
             assert inc_field in result_class.__annotations__, f"Field {inc_field!r} not in {result_class.__name__}"
