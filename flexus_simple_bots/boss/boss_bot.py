@@ -371,7 +371,7 @@ async def boss_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.R
             r = await h.execute(gql.gql("""
                 query BossMarketplaceSearch($q: String!, $ws_id: String!) {
                     marketplace_boss_search(q: $q, ws_id: $ws_id) {
-                        marketable_name marketable_title1 marketable_title2 marketable_tags already_hired
+                        marketable_name marketable_title1 marketable_title2 marketable_tags already_hired_persona_names
                     }
                 }"""),
                 variable_values={"q": q, "ws_id": rcx.persona.ws_id},
