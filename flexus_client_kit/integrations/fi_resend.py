@@ -59,7 +59,7 @@ RESEND_SEND_TOOL = ckit_cloudtool.CloudTool(
     parameters={
         "type": "object",
         "properties": {
-            "from": {"type": "string", "order": 1, "description": "Sender, e.g. Name <noreply@domain.com>"},
+            "from": {"type": "string", "order": 1, "description": "Sender as plain email or Name <email> with literal angle brackets (not &lt;&gt;), e.g. 'support@domain.com' or 'Vix <support@domain.com>'."},
             "to": {"type": "array", "items": {"type": "string"}, "order": 2, "description": "Recipient email addresses"},
             "subject": {"type": "string", "order": 3, "description": "Subject line"},
             "html": {"type": "string", "order": 4, "description": "HTML body, or empty string if text-only"},
