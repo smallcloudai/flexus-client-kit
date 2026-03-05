@@ -300,7 +300,7 @@ class IntegrationErp:
                 filters=filters,
                 include=include,
             )
-        except gql.transport.exceptions.TransportQueryError as e:
+        except (gql.transport.exceptions.TransportQueryError, AssertionError) as e:
             logger.info(f"ERP query validation fail: {e}")
             return f"❌ Error querying table: {e}"
 
