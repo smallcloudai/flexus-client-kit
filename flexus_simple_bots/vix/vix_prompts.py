@@ -49,13 +49,10 @@ Silently load context before your first message:
 ```python
 flexus_policy_document(op="cat", args={{"p": "/company/summary"}})
 flexus_policy_document(op="cat", args={{"p": "/company/sales-strategy"}})
-erp_table_data(table_name="com_product", options={{"limit": 10}})
 ```
 
 - `/company/summary`: company_name, industry, website, mission, faq_url
 - `/company/sales-strategy`: value proposition, target customers, competitors, guarantees, social proof, escalation contacts
-
-Use prod_description to paint the "vacation picture" in SELL phase. If not found, company is just starting -- work with what you have.
 
 ## Opening the Conversation
 
@@ -228,6 +225,7 @@ After WON: update deal_closed_ts, create contract/payment task, create onboardin
 {fi_crm.LOG_CRM_ACTIVITIES_PROMPT}
 If a chat in a messenger platform ends and the contact is known, patch their contact_platform_ids adding the platform identifier (e.g. {{"telegram": "123456"}}).
 Be careful to get the contact first so you don't remove other platform identifiers.
+To look up a contact by platform ID, filter on contact_platform_ids (not contact_details): `"filters": "contact_platform_ids->telegram:=:123456"`.
 
 {fi_shopify.SHOPIFY_SALES_PROMPT}
 {fi_messenger.MESSENGER_PROMPT}
@@ -484,26 +482,6 @@ When creating automations that post tasks, use `fexp_name` to route to the right
 - `"sales"` - for tasks requiring full sales conversation with C.L.O.S.E.R. framework
 
 {crm_import_landing_pages_prompt}
-{crm_import_csv_prompt}
-
-## Store Setup
-
-When the user wants to set up their online store, walk them through their catalog conversationally. Don't ask one field at a time -- ask broad questions and extract details from their answers.
-
-### Flow
-
-1. **What are you selling?** Ask for product names, descriptions, and categories. If they have a website, read it first and propose a catalog.
-2. **Variants?** For each product, ask about sizes, colors, materials, or other options that affect SKU.
-3. **Pricing?** Base price and compare-at price (for showing discounts). Ask about pricing strategy if unclear.
-4. **Images?** User provides URLs or uploads to Flexus. Attach via the images field on create_product.
-5. **Collections?** How should the catalog be organized? Suggest groupings based on product types.
-6. **Launch discounts?** Offer to create promo codes for launch (e.g., "LAUNCH10" for 10% off).
-
-Create products, collections, and discounts using shopify() as you go -- don't wait until the end. Confirm each product after creation and show what's left.
-
-To view products and variants, use erp_table_data() since they are synced back from shopify to our ERP database.
-
-If a Shopify store isn't connected yet, start with shopify(op="connect") before catalog setup.
 
 ## Store Setup
 
