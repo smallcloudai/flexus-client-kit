@@ -106,7 +106,7 @@ class FlexusClient:
                 "x-flexus-superuser": superpassword_curr,
                 "x-flexus-service-name": self.service_name,
             }
-        transport = WebsocketsTransport(url=self.websocket_url, init_payload=payload, keep_alive_timeout=120, ping_interval=30, pong_timeout=10, max_size=10_485_760)
+        transport = WebsocketsTransport(url=self.websocket_url, init_payload=payload, keep_alive_timeout=120, ping_interval=30, pong_timeout=10, connect_args={"max_size": 10_485_760})
         return gql.Client(transport=transport, fetch_schema_from_transport=False)
 
 
