@@ -6,9 +6,9 @@ from dataclasses import dataclass
 from typing import Any, Callable, Awaitable, List, Set, Optional, Tuple
 
 import gql
+import gql.transport.exceptions
 import websockets
 import websockets.exceptions
-from gql.transport.exceptions import TransportQueryError
 
 from flexus_client_kit import ckit_client
 from flexus_client_kit import ckit_shutdown
@@ -19,7 +19,7 @@ from flexus_client_kit import gql_utils
 logger = logging.getLogger("ctool")
 
 
-def gql_error_4xx_to_model_reraise_5xx(e: TransportQueryError, label: str) -> str:
+def gql_error_4xx_to_model_reraise_5xx(e: gql.transport.exceptions.TransportQueryError, label: str) -> str:
     msg = (e.errors[0].get("message", "") if e.errors else "") or str(e)
     logger.info("%s: %s", label, msg)
     if msg[:1] != "4":
@@ -232,7 +232,7 @@ async def call_python_function_and_save_result(
                 e.confirm_command,
                 e.confirm_explanation,
             )
-        except TransportQueryError as gql_err:
+        except gql.transport.exceptions.TransportQueryError as gql_err:
             if "confirmation already requested" in str(gql_err).lower():
                 logger.info("Confirmation already requested for %s, ignoring", call.fcall_id)
             else:
