@@ -6,7 +6,6 @@ import random
 from typing import Callable
 
 import gql.transport.exceptions
-import websockets
 
 from flexus_client_kit import ckit_client, ckit_shutdown
 logger = logging.getLogger("stexe")
@@ -32,9 +31,7 @@ async def run_typical_single_subscription_with_restart_on_network_errors(fclient
                 ckit_shutdown.take_away_ws_client(fclient.service_name)
 
         except (
-            websockets.exceptions.ConnectionClosedError,
             gql.transport.exceptions.TransportError,
-            OSError,
             asyncio.exceptions.TimeoutError,
         ) as e:
             if ckit_shutdown.shutdown_event.is_set():

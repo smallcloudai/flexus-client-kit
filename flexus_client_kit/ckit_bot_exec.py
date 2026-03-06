@@ -340,8 +340,7 @@ async def i_am_still_alive(
 
         except (
             gql.transport.exceptions.TransportError,
-            OSError,
-            asyncio.exceptions.TimeoutError
+            asyncio.exceptions.TimeoutError,
         ) as e:
             if "403:" in str(e):
                 # It's gql.transport.exceptions.TransportQueryError with {'message': "403: Whoops your key didn't work (1).", ...}

@@ -386,8 +386,7 @@ async def cloudtool_i_am_still_alive(
 
         except (
             gql.transport.exceptions.TransportError,
-            OSError,
-            asyncio.exceptions.TimeoutError
+            asyncio.exceptions.TimeoutError,
         ) as e:
             if "403:" in str(e):
                 # It's gql.transport.exceptions.TransportQueryError with {'message': "403: Whoops your key didn't work (1).", ...}
@@ -511,7 +510,7 @@ async def run_cloudtool_service(
                 shared,
             )
 
-        except (websockets.exceptions.ConnectionClosedError, gql.transport.exceptions.TransportError, OSError):
+        except gql.transport.exceptions.TransportError:
             if ckit_shutdown.shutdown_event.is_set():
                 break
             retry_sec = 5 if ckit_passwords.it_might_be_a_devbox else 60
