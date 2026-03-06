@@ -78,6 +78,7 @@ async def install_from_manifest(m, setup_schema, bot_dir, client, bot_name, bot_
         marketable_daily_budget_default=m["daily_budget_default"],
         marketable_default_inbox_default=m["default_inbox_default"],
         marketable_experts=[(name, exp.filter_tools(tools)) for name, exp in experts],
+        add_integrations_into_expert_system_prompt=integrations_records,
         marketable_tags=m["tags"],
         marketable_picture_big_b64=pic_big,
         marketable_picture_small_b64=pic_small,
@@ -85,7 +86,6 @@ async def install_from_manifest(m, setup_schema, bot_dir, client, bot_name, bot_
         marketable_forms={},
         marketable_auth_supported=auth_supported,
         marketable_auth_scopes=auth_scopes,
-        integrations_records=integrations_records,
     )
 
 

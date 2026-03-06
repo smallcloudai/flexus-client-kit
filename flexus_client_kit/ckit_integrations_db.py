@@ -33,7 +33,6 @@ def static_integrations_load(bot_dir: Path, allowlist: list[str], builtin_skills
                     integr_setup_handlers=lambda obj, rcx, _d=bot_dir, _s=builtin_skills: [
                         rcx.on_tool_call("flexus_fetch_skill")(lambda tc, args: ckit_skills.called_by_model(tc, args, _d, _s))
                     ],
-                    integr_prompt=ckit_skills.SKILLS_PROMPT,
                 ))
 
         elif name == "flexus_policy_document":

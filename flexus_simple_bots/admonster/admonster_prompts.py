@@ -1,4 +1,3 @@
-from flexus_simple_bots import prompts_common
 from flexus_client_kit.integrations import fi_pdoc
 
 admonster_prompt = f"""
@@ -235,7 +234,6 @@ Budget notes:
 - All budgets in cents (e.g., 5000 = $50.00)
 - Minimum daily budget typically $1.00 (100 cents)
 
-{prompts_common.PROMPT_KANBAN}
 """
 
 admonster_setup = admonster_prompt + """

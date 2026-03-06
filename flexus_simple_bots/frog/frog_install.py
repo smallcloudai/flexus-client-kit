@@ -54,7 +54,7 @@ EXPERTS = [
     ("huntmode", ckit_bot_install.FMarketplaceExpertInput(
         fexp_system_prompt=frog_prompts.frog_prompt,
         fexp_python_kernel=FROG_SUBCHAT_LARK,
-        fexp_block_tools="*setup*,frog_catch_insects,flexus_fetch_skill",
+        fexp_block_tools="*setup*,frog_catch_insects,flexus_fetch_skill,print_widget",
         fexp_allow_tools="",
         fexp_description="Subchat expert for catching insects, respecting tongue_capacity limit.",
     )),
@@ -91,6 +91,7 @@ async def install(
         marketable_intro_message="Ribbit! Hi there! I'm Frog, your cheerful workspace companion. I'm here to bring joy and keep your spirits high. What can I do for you today?",
         marketable_preferred_model_default="grok-4-1-fast-non-reasoning",
         marketable_experts=[(name, exp.filter_tools(tools)) for name, exp in EXPERTS],
+        add_integrations_into_expert_system_prompt=FROG_INTEGRATIONS,
         marketable_tags=["Fun", "Simple", "Motivational"],
         marketable_picture_big_b64=pic_big,
         marketable_picture_small_b64=pic_small,
@@ -109,7 +110,6 @@ async def install(
                 "https://www.googleapis.com/auth/gmail.labels",
             ]
         },
-        integrations_records=FROG_INTEGRATIONS,
     )
 
 

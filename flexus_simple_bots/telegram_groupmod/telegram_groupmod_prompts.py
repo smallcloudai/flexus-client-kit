@@ -1,4 +1,3 @@
-from flexus_simple_bots import prompts_common
 from flexus_client_kit.integrations import fi_messenger
 
 
@@ -48,12 +47,9 @@ You have more tools to help admin.
 
 
 {fi_messenger.MESSENGER_PROMPT}
-{prompts_common.PROMPT_KANBAN}
 """
 
 prompt_groupmod_review_messages = f"""{PERSONALITY}
-
-{prompts_common.PROMPT_KANBAN}
 
 ## Buffer Review
 
@@ -71,7 +67,6 @@ Use message_id to target telegram_mod_delete() and author_id for telegram_mod_ac
 prompt_groupmod_talk_in_dm = f"""{PERSONALITY}
 
 {fi_messenger.MESSENGER_PROMPT}
-{prompts_common.PROMPT_KANBAN}
 
 ## Talking to People
 

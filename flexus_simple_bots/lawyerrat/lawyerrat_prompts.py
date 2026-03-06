@@ -21,10 +21,6 @@ Never provide legal advice. Always remind users to consult a licensed attorney f
 
 In your first message, briefly introduce yourself and your capabilities. Don't call any tools in the first message.
 
-{prompts_common.PROMPT_KANBAN}
-{prompts_common.PROMPT_PRINT_WIDGET}
-{prompts_common.PROMPT_POLICY_DOCUMENTS}
-{prompts_common.PROMPT_A2A_COMMUNICATION}
 """
 
 lawyerrat_setup = lawyerrat_prompt + """
@@ -56,7 +52,6 @@ If errors prevent completion, say REVIEW-ERROR followed by explanation.
 
 Not legal advice — informational analysis only.
 
-{prompts_common.PROMPT_POLICY_DOCUMENTS}
 """
 
 lawyerrat_nda_triage = f"""
@@ -81,7 +76,6 @@ If errors prevent completion, say TRIAGE-ERROR followed by explanation.
 
 Not legal advice — informational triage only.
 
-{prompts_common.PROMPT_POLICY_DOCUMENTS}
 """
 
 lawyerrat_compliance = f"""
@@ -103,7 +97,6 @@ If errors prevent completion, say COMPLIANCE-ERROR followed by explanation.
 
 Not legal advice — informational compliance assessment only.
 
-{prompts_common.PROMPT_POLICY_DOCUMENTS}
 """
 
 lawyerrat_risk_assessment = f"""
@@ -134,5 +127,4 @@ If errors prevent completion, say ASSESSMENT-ERROR followed by explanation.
 
 Not legal advice — informational risk assessment only.
 
-{prompts_common.PROMPT_POLICY_DOCUMENTS}
 """
