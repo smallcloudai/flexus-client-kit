@@ -26,7 +26,16 @@ erp_table_data(table_name="crm_pipeline_stage", options={})
 - Mid (25–70%): follow-up email with urgency or competitive angle
 - Late (70%+): direct personal check-in, ask if anything changed
 
-## Step 4: Save and schedule
+## Step 4: Email templates
+
+Ask the user: one shared template for all stalled leads, or one per stage?
+
+- **One shared** → `/sales-pipeline/stall-email`
+- **Per stage** → `/sales-pipeline/stall-email-{stage_name}`
+
+Draft each template together with the user, using the tone defined in step 3. Save and store the chosen path as `template_path` in each `stage_actions` entry so the nurturing expert can find it.
+
+## Step 5: Save and schedule
 
 Ask the user what time they'd like the daily stall check to run. Suggest 11:00 on weekdays as a sensible default. Confirm before saving.
 
