@@ -19,14 +19,6 @@ AD_ACCOUNT_ID = "513489554"
 API_BASE = "https://api.linkedin.com"
 API_VERSION = "202509"
 
-LINKEDIN_PROMPT = """
-## LinkedIn Integration
-
-You can manage LinkedIn advertising campaigns using the `linkedin` tool.
-LinkedIn Ads allows you to create and manage campaigns, ad accounts, and audience targeting.
-Use this integration to manage ad spending, track campaign performance, and create targeted campaigns for professional audiences.
-Always verify targeting options before campaign launch.
-"""
 
 LINKEDIN_TOOL = ckit_cloudtool.CloudTool(
     strict=False,

@@ -84,7 +84,7 @@ def static_integrations_load(bot_dir: Path, allowlist: list[str], builtin_skills
                 integr_setup_handlers=lambda obj, rcx: [rcx.on_tool_call("google_calendar")(obj.called_by_model)],
                 integr_provider="google",
                 integr_scopes=fi_google_calendar.REQUIRED_SCOPES,
-                integr_prompt=fi_google_calendar.GOOGLE_CALENDAR_PROMPT,
+                integr_prompt="",
             ))
 
         elif name == "jira":
@@ -99,7 +99,7 @@ def static_integrations_load(bot_dir: Path, allowlist: list[str], builtin_skills
                 integr_setup_handlers=lambda obj, rcx: [rcx.on_tool_call("jira")(obj.called_by_model)],
                 integr_provider="atlassian",
                 integr_scopes=fi_jira.REQUIRED_SCOPES,
-                integr_prompt=fi_jira.JIRA_PROMPT,
+                integr_prompt="",
             ))
 
         elif name.startswith("facebook"):   # "facebook[account, adset]"
@@ -116,7 +116,7 @@ def static_integrations_load(bot_dir: Path, allowlist: list[str], builtin_skills
                 integr_init=_init_facebook,
                 integr_setup_handlers=lambda obj, rcx, _t=fb_tool: [rcx.on_tool_call(_t.name)(obj.called_by_model)],
                 integr_provider="facebook",
-                integr_prompt=fi_facebook2.FACEBOOK_PROMPT,
+                integr_prompt="",
             ))
 
         elif name == "slack":
@@ -139,7 +139,7 @@ def static_integrations_load(bot_dir: Path, allowlist: list[str], builtin_skills
                     "users:read",
                     "im:read",
                 ],
-                integr_prompt=fi_slack.SLACK_PROMPT,
+                integr_prompt="",
             ))
 
         elif name == "linkedin":
@@ -160,7 +160,7 @@ def static_integrations_load(bot_dir: Path, allowlist: list[str], builtin_skills
                     "email",
                     "w_member_social",
                 ],
-                integr_prompt=fi_linkedin.LINKEDIN_PROMPT,
+                integr_prompt="",
             ))
 
         elif name == "github":
@@ -173,7 +173,7 @@ def static_integrations_load(bot_dir: Path, allowlist: list[str], builtin_skills
                 integr_init=_init_github,
                 integr_setup_handlers=lambda obj, rcx: [rcx.on_tool_call("github")(obj.called_by_model)],
                 integr_provider="github",
-                integr_prompt=fi_github.GITHUB_PROMPT,
+                integr_prompt="",
             ))
 
         else:

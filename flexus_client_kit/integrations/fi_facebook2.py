@@ -11,15 +11,6 @@ logger = logging.getLogger("fb")
 
 ALL_FACEBOOK_GROUPS = ["account", "campaign", "adset", "ad"]
 
-FACEBOOK_PROMPT = """
-## Facebook Integration
-
-You can manage Facebook and Instagram advertising campaigns using the `facebook` tool.
-Facebook integration allows you to manage ad accounts, campaigns, ad sets, and ads.
-Use account functions to manage spending limits, campaigns for strategy and budgeting, ad sets for targeting, and ads for creative management.
-Always verify campaign performance with insights before making major changes.
-"""
-
 
 def make_facebook_bunch(groups: list[str] | None = None) -> BunchOfPythonFunctions:
     b = BunchOfPythonFunctions("facebook", "Facebook/Instagram Marketing API.", ContextType=FacebookAdsClient)

@@ -15,14 +15,6 @@ logger = logging.getLogger("google_calendar")
 
 REQUIRED_SCOPES = ["https://www.googleapis.com/auth/calendar"]
 
-GOOGLE_CALENDAR_PROMPT = """
-## Google Calendar Integration
-
-You can manage events and schedules using the `google_calendar` tool.
-Google Calendar helps coordinate time and resources.
-Before scheduling new meetings, check for conflicts and propose times that work for all participants.
-Ensure event titles and descriptions are clear and include meeting links or locations as needed.
-"""
 
 GOOGLE_CALENDAR_TOOL = ckit_cloudtool.CloudTool(
     strict=False,
