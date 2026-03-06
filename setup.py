@@ -31,9 +31,9 @@ setup(
         "": ["*.json", "*.lark", "*.webp", "*.png", "*.jpg", "*.html"],
     },
     install_requires=[
-        "gql",
+        "gql>=4.0.0,<5",
         "httpx",
-        "websockets",
+        "websockets>=16,<17",
         "pydantic",
         "aiohttp",
         "pymongo",
