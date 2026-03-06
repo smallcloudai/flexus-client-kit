@@ -38,6 +38,7 @@ ERP_TABLE_DATA_TOOL = ckit_cloudtool.CloudTool(
     name="erp_table_data",
     description=(
         "Query ERP table data with filtering. "
+        "Ensure erp_table_meta() has already been called for the table before querying it."
         "Operators: =, !=, >, >=, <, <=, LIKE, ILIKE, CIEQL, IN, NOT_IN, IS_NULL, IS_NOT_NULL. "
         "LIKE/ILIKE use SQL wildcards: % matches any chars. CIEQL: Case Insensitive Equal. "
         "JSON path: details->subtype:=:welcome. "
