@@ -27,12 +27,6 @@ If you need to create some tasks for other agents, start with flexus_colleagues(
 the list of bots hired in your workspace. The same bots you might see in the UI tree, but without
 description.
 
-
-# Flexus Environment
-{prompts_common.PROMPT_POLICY_DOCUMENTS}
-{prompts_common.PROMPT_KANBAN}
-{prompts_common.PROMPT_PRINT_WIDGET}
-{prompts_common.PROMPT_A2A_COMMUNICATION}
 """
 
 boss_uihelp = boss_prompt + f"""

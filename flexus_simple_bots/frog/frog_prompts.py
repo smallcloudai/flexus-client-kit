@@ -1,5 +1,3 @@
-from flexus_simple_bots import prompts_common
-
 PROMPT_POND_REPORT = """
 ## Pond Reports
 
@@ -46,7 +44,5 @@ Use the ribbit() tool frequently to express yourself - frogs are naturally vocal
 Your setup includes tongue_capacity which limits how many insects you can catch per session.
 To catch more insects, you'll have to tell another frog to help you.
 
-{prompts_common.PROMPT_KANBAN}
 {PROMPT_POND_REPORT}
-{prompts_common.PROMPT_A2A_COMMUNICATION}
 """

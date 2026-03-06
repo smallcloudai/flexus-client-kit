@@ -8,7 +8,7 @@ from typing import Dict, Union, Optional, List, Any, Tuple
 import gql
 
 from flexus_simple_bots import prompts_common
-from flexus_client_kit import ckit_client, ckit_cloudtool, ckit_skills, gql_utils
+from flexus_client_kit import ckit_client, ckit_cloudtool, ckit_integrations_db, ckit_skills, gql_utils
 
 
 def load_form_bundles_from_dir(forms_dir: Path) -> Dict[str, str]:
@@ -93,25 +93,49 @@ async def marketplace_upsert_dev_bot(
     marketable_auth_needed: List[str] = [],
     marketable_auth_supported: List[str] = [],
     marketable_auth_scopes: Optional[Dict[str, List[str]]] = None,
-    integrations_records: Optional[List] = None,
+    add_integrations_into_expert_system_prompt: Optional[List[ckit_integrations_db.IntegrationRecord]] = None,
 ) -> FBotInstallOutput:
     assert ws_id, "Set FLEXUS_WORKSPACE environment variable to your workspace ID"
     assert not ws_id.startswith("fx-"), "You can find workspace id in the browser address bar, when visiting for example the statistics page"
+
+    experts_input = []
+    for expert_name, expert in marketable_experts:
+        has_a2a = expert._tool_allowed("flexus_hand_over_task")
+        sections = [expert.fexp_system_prompt]
+        sections.append("# Flexus Environment")
+        sections.append(prompts_common.PROMPT_KANBAN)
+        if has_a2a:
+            sections.append(prompts_common.PROMPT_A2A_COMMUNICATION)
+        included_integr = []
+        if add_integrations_into_expert_system_prompt:
+            for r in add_integrations_into_expert_system_prompt:
+                if r.integr_prompt and any(expert._tool_allowed(t.name) for t in r.integr_tools):
+                    sections.append(r.integr_prompt)
+                    included_integr.append(r.integr_name)
+        sections.append(prompts_common.PROMPT_HERE_GOES_SETUP)
+        sections = [s.strip() for s in sections]
+        prompt = "\n\n\n".join(sections) + "\n"
+        skill_names = [s["name"] for s in json.loads(expert.fexp_builtin_skills)]
+        tool_names = [t["function"]["name"] for t in json.loads(expert.fexp_app_capture_tools)] if expert.fexp_app_capture_tools else []
+        summary = (
+            f"  {marketable_name} expert {expert_name!r}\n"
+            f"    allow={expert.fexp_allow_tools!r} block={expert.fexp_block_tools!r} has_a2a={has_a2a}\n"
+            f"    built-in-tools={tool_names}\n"
+            f"    built-in-skills={skill_names}\n"
+            f"    prompt sections from integrations: {', '.join(included_integr)}\n"
+            f"    len(prompt)={len(prompt)}"
+        )
+        print(summary)
+        # Good debugging opportunity:
+        # print(prompt)
+        # exit(0)
+        prepared = dataclasses.replace(expert, fexp_system_prompt=prompt)
+        expert_dict = dataclasses.asdict(prepared)
+        expert_dict["fexp_name"] = f"{marketable_name}_{expert_name}"
+        experts_input.append(expert_dict)
+
     http = await client.use_http()
     async with http as h:
-        experts_input = []
-        for expert_type, expert in marketable_experts:
-            prompt = expert.fexp_system_prompt.rstrip()
-            if integrations_records:
-                integrations_prompts = "\n".join(r.integr_prompt for r in integrations_records if r.integr_prompt)
-                if integrations_prompts:
-                    prompt += "\n\n" + integrations_prompts
-            prompt += "\n\n" + prompts_common.PROMPT_HERE_GOES_SETUP
-            prepared = dataclasses.replace(expert, fexp_system_prompt=prompt)
-            expert_dict = dataclasses.asdict(prepared)
-            expert_dict["fexp_name"] = f"{marketable_name}_{expert_type}"
-            experts_input.append(expert_dict)
-        # NOTE: marketable_stage removed from mutation for staging API compatibility
         r = await h.execute(
             gql.gql(f"""mutation InstallBot($ws: String!, $name: String!, $ver: String!, $title1: String!, $title2: String!, $author: String!, $accent_color: String!, $occupation: String!, $desc: String!, $typical_group: String!, $repo: String!, $run: String!, $setup: String!, $featured: [FFeaturedActionInput!]!, $intro: String!, $model: String!, $daily: Int!, $inbox: Int!, $experts: [FMarketplaceExpertInput!]!, $schedule: String!, $big: String!, $small: String!, $tags: [String!]!, $forms: String, $required_policydocs: [String!]!, $auth_needed: [String!]!, $auth_supported: [String!]!, $auth_scopes: String) {{
                 marketplace_upsert_dev_bot(

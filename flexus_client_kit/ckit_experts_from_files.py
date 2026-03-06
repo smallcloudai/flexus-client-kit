@@ -5,25 +5,11 @@ from typing import List
 
 from flexus_client_kit import ckit_bot_install
 from flexus_client_kit import ckit_skills
-from flexus_simple_bots import prompts_common
-
 logger = logging.getLogger("exprt")
 
 
-def build_expert_prompt(prompts_dir: Path, body: str, has_a2a: bool = True) -> str:
-    result = (
-        (prompts_dir / "personality.md").read_text() +
-        "\n" +
-        body +
-        "\n" +
-        prompts_common.PROMPT_KANBAN
-    )
-    if has_a2a:
-        result += prompts_common.PROMPT_A2A_COMMUNICATION
-    # What happens next:
-    # marketplace_upsert_dev_bot() places prompts from integrations_records
-    # marketplace_upsert_dev_bot() adds prompts_common.PROMPT_HERE_GOES_SETUP
-    return result
+def build_expert_prompt(prompts_dir: Path, body: str) -> str:
+    return (prompts_dir / "personality.md").read_text() + "\n" + body
 
 
 def _matches_globs(name: str, block: str, allow: str) -> bool:
@@ -82,13 +68,8 @@ def discover_experts(bot_dir: Path, all_possible_skills: List[str]) -> list[tupl
             logger.error(f"{f}: {'; '.join(errors)}")
             raise KeyError(f"{f}: {'; '.join(errors)}\n")
         exp_skills = _filter_skills(all_possible_skills, header)
-        has_a2a = _matches_globs(
-            "flexus_hand_over_task",
-            header.get("expert_block_tools", ""),
-            header.get("expert_allow_tools", "")
-        )
         experts.append((name, ckit_bot_install.FMarketplaceExpertInput(
-            fexp_system_prompt=build_expert_prompt(prompts_dir, body, has_a2a),
+            fexp_system_prompt=build_expert_prompt(prompts_dir, body),
             fexp_python_kernel="",
             fexp_block_tools=header.get("expert_block_tools", ""),
             fexp_allow_tools=header.get("expert_allow_tools", ""),

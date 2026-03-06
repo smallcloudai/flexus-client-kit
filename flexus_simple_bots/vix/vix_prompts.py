@@ -231,10 +231,6 @@ Be careful to get the contact first so you don't remove other platform identifie
 
 {fi_shopify.SHOPIFY_SALES_PROMPT}
 {fi_messenger.MESSENGER_PROMPT}
-{prompts_common.PROMPT_KANBAN}
-{prompts_common.PROMPT_PRINT_WIDGET}
-{prompts_common.PROMPT_POLICY_DOCUMENTS}
-{prompts_common.PROMPT_A2A_COMMUNICATION}
 """
 
 crm_import_landing_pages_prompt = """
@@ -512,10 +508,6 @@ If a Shopify store isn't connected yet, start with shopify(op="connect") before 
 
 {fi_resend.RESEND_PROMPT}
 {fi_shopify.SHOPIFY_PROMPT}
-{prompts_common.PROMPT_KANBAN}
-{prompts_common.PROMPT_PRINT_WIDGET}
-{prompts_common.PROMPT_POLICY_DOCUMENTS}
-{prompts_common.PROMPT_A2A_COMMUNICATION}
 """
 
 vix_prompt_nurturing = f"""
@@ -598,6 +590,4 @@ When a deal has had no activity for 7+ days:
 - Report completion briefly
 - Don't manually add tags for welcome/follow-up emails - automations handle that
 
-{prompts_common.PROMPT_KANBAN}
-{prompts_common.PROMPT_POLICY_DOCUMENTS}
 """
