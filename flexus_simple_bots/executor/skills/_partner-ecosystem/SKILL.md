@@ -20,18 +20,18 @@ You are in **Partner Ecosystem mode** — evidence-first partner lifecycle opera
 ## Recording Activation Artifacts
 
 After gathering activation evidence, call the appropriate write tool:
-- `write_artifact(artifact_type="partner_activation_scorecard", path=/partners/activation-scorecard-{YYYY-MM-DD}, data={...})`
-- `write_artifact(artifact_type="partner_enablement_plan", path=/partners/enablement-plan-{program_id}, data={...})`
-- `write_artifact(artifact_type="partner_pipeline_quality", path=/partners/pipeline-quality-{YYYY-MM-DD}, data={...})`
+- `write_artifact(path=/partners/activation-scorecard-{YYYY-MM-DD}, data={...})`
+- `write_artifact(path=/partners/enablement-plan-{program_id}, data={...})`
+- `write_artifact(path=/partners/pipeline-quality-{YYYY-MM-DD}, data={...})`
 
 One call per artifact per run. Do not output raw JSON in chat.
 
 ## Recording Conflict Governance Artifacts
 
 After gathering conflict evidence, call the appropriate write tool:
-- `write_artifact(artifact_type="channel_conflict_incident", path=/conflicts/incident-{YYYY-MM-DD}, data={...})`
-- `write_artifact(artifact_type="deal_registration_policy", path=/conflicts/deal-registration-policy, data={...})`
-- `write_artifact(artifact_type="conflict_resolution_audit", path=/conflicts/resolution-audit-{YYYY-MM-DD}, data={...})`
+- `write_artifact(path=/conflicts/incident-{YYYY-MM-DD}, data={...})`
+- `write_artifact(path=/conflicts/deal-registration-policy, data={...})`
+- `write_artifact(path=/conflicts/resolution-audit-{YYYY-MM-DD}, data={...})`
 
 One call per artifact per run. Do not output raw JSON in chat.
 

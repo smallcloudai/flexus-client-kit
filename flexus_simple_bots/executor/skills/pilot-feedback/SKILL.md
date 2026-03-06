@@ -42,7 +42,7 @@ Score each request by:
 ## Recording
 
 ```
-write_artifact(artifact_type="pilot_feedback_synthesis", path="/pilots/feedback-synthesis-{date}", data={...})
+write_artifact(path="/pilots/feedback-synthesis-{date}", data={...})
 ```
 
 ## Available Tools
@@ -57,61 +57,4 @@ typeform(op="call", args={"method_id": "typeform.forms.create.v1", "title": "Mid
 typeform(op="call", args={"method_id": "typeform.responses.list.v1", "uid": "form_id", "page_size": 100})
 
 delighted(op="call", args={"method_id": "delighted.survey.create.v1", "email": "customer@company.com", "send": true, "properties": {"name": "Customer Name", "company": "Company Name"}})
-```
-
-## Artifact Schema
-
-```json
-{
-  "pilot_feedback_synthesis": {
-    "type": "object",
-    "required": ["synthesis_date", "pilot_count", "cross_pilot_themes", "feature_requests", "nps_summary", "segment_specific_findings"],
-    "additionalProperties": false,
-    "properties": {
-      "synthesis_date": {"type": "string"},
-      "pilot_count": {"type": "integer", "minimum": 0},
-      "cross_pilot_themes": {
-        "type": "array",
-        "items": {
-          "type": "object",
-          "required": ["theme", "frequency", "severity", "representative_quotes"],
-          "additionalProperties": false,
-          "properties": {
-            "theme": {"type": "string"},
-            "frequency": {"type": "integer", "minimum": 0},
-            "severity": {"type": "string", "enum": ["blocking", "painful", "minor"]},
-            "representative_quotes": {"type": "array", "items": {"type": "string"}}
-          }
-        }
-      },
-      "feature_requests": {
-        "type": "array",
-        "items": {
-          "type": "object",
-          "required": ["request", "frequency", "severity", "alignment", "priority"],
-          "additionalProperties": false,
-          "properties": {
-            "request": {"type": "string"},
-            "frequency": {"type": "integer", "minimum": 0},
-            "severity": {"type": "string", "enum": ["blocking", "painful", "nice_to_have"]},
-            "alignment": {"type": "string", "enum": ["core_job", "adjacent", "scope_creep"]},
-            "priority": {"type": "string", "enum": ["high", "medium", "low"]}
-          }
-        }
-      },
-      "nps_summary": {
-        "type": "object",
-        "required": ["avg_nps", "promoters_pct", "passives_pct", "detractors_pct"],
-        "additionalProperties": false,
-        "properties": {
-          "avg_nps": {"type": "number"},
-          "promoters_pct": {"type": "number"},
-          "passives_pct": {"type": "number"},
-          "detractors_pct": {"type": "number"}
-        }
-      },
-      "segment_specific_findings": {"type": "array", "items": {"type": "string"}}
-    }
-  }
-}
 ```

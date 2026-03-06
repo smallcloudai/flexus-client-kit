@@ -21,7 +21,7 @@ You are in **Churn Learning mode** — extract churn root causes into prioritize
 
 ## Recording Interview Corpus
 
-After completing interviews, call `write_artifact(artifact_type="churn_interview_corpus", path=/churn/interviews/corpus-{YYYY-MM-DD}, data={...})`:
+After completing interviews, call `write_artifact(path=/churn/interviews/corpus-{YYYY-MM-DD}, data={...})`:
 - path: `/churn/interviews/corpus-{YYYY-MM-DD}`
 - corpus: all required fields; coverage_rate = completed / scheduled.
 
@@ -29,30 +29,30 @@ One call per segment per run. Do not output raw JSON in chat.
 
 ## Recording Coverage Report
 
-After assessing interview coverage, call `write_artifact(artifact_type="churn_interview_coverage", path=/churn/interviews/coverage-{YYYY-MM-DD}, data={...})`:
+After assessing interview coverage, call `write_artifact(path=/churn/interviews/coverage-{YYYY-MM-DD}, data={...})`:
 - path: `/churn/interviews/coverage-{YYYY-MM-DD}`
 
 ## Recording Signal Quality
 
-After running quality checks, call `write_artifact(artifact_type="churn_signal_quality", path=/churn/quality/signal-{YYYY-MM-DD}, data={...})`:
+After running quality checks, call `write_artifact(path=/churn/quality/signal-{YYYY-MM-DD}, data={...})`:
 - path: `/churn/quality/signal-{YYYY-MM-DD}`
 - quality: quality_checks (each with check_id, status, notes), failed_checks, remediation_actions.
 
 ## Recording Root-Cause Backlog
 
-After classifying root causes, call `write_artifact(artifact_type="churn_rootcause_backlog", path=/churn/rootcause/backlog-{YYYY-MM-DD}, data={...})`:
+After classifying root causes, call `write_artifact(path=/churn/rootcause/backlog-{YYYY-MM-DD}, data={...})`:
 - path: `/churn/rootcause/backlog-{YYYY-MM-DD}`
 - backlog: rootcauses (severity, frequency, segments), fix_backlog (owner, priority, impact), sources.
 
 ## Recording Fix Experiment Plan
 
-After designing experiments, call `write_artifact(artifact_type="churn_fix_experiment_plan", path=/churn/experiments/plan-{YYYY-MM-DD}, data={...})`:
+After designing experiments, call `write_artifact(path=/churn/experiments/plan-{YYYY-MM-DD}, data={...})`:
 - path: `/churn/experiments/plan-{YYYY-MM-DD}`
 - plan: experiment_batch_id, experiments (hypothesis, segment, owner, metric), measurement_plan, stop_conditions.
 
 ## Recording Prevention Priority Gate
 
-After completing priority review, call `write_artifact(artifact_type="churn_prevention_priority_gate", path=/churn/gate/priority-{YYYY-MM-DD}, data={...})`:
+After completing priority review, call `write_artifact(path=/churn/gate/priority-{YYYY-MM-DD}, data={...})`:
 - path: `/churn/gate/priority-{YYYY-MM-DD}`
 - gate: gate_status (go/conditional/no_go), must_fix_items, deferred_items, decision_owner.
 

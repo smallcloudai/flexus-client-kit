@@ -38,7 +38,7 @@ Not every company is a good partner. Define partner ICP:
 ## Recording
 
 ```
-write_artifact(artifact_type="partner_channel_strategy", path="/strategy/rtm-partner-channel", data={...})
+write_artifact(path="/strategy/rtm-partner-channel", data={...})
 ```
 
 ## Available Tools
@@ -47,68 +47,4 @@ write_artifact(artifact_type="partner_channel_strategy", path="/strategy/rtm-par
 flexus_policy_document(op="activate", args={"p": "/strategy/gtm-channel-strategy"})
 flexus_policy_document(op="activate", args={"p": "/segments/{segment_id}/icp-scorecard"})
 crunchbase(op="call", args={"method_id": "crunchbase.searches.organizations.post.v1", "field_ids": ["name", "categories", "funding_total"], "query": []})
-```
-
-## Artifact Schema
-
-```json
-{
-  "partner_channel_strategy": {
-    "type": "object",
-    "required": ["created_at", "partner_types", "partner_economics", "partner_icp", "prioritized_targets"],
-    "additionalProperties": false,
-    "properties": {
-      "created_at": {"type": "string"},
-      "partner_types": {
-        "type": "array",
-        "items": {
-          "type": "object",
-          "required": ["type", "rationale", "priority", "value_prop_to_partner"],
-          "additionalProperties": false,
-          "properties": {
-            "type": {"type": "string", "enum": ["technology_integration", "reseller_var", "referral_affiliate", "oem_whitelabel"]},
-            "rationale": {"type": "string"},
-            "priority": {"type": "string", "enum": ["high", "medium", "low"]},
-            "value_prop_to_partner": {"type": "string"}
-          }
-        }
-      },
-      "partner_economics": {
-        "type": "object",
-        "required": ["revenue_share_pct", "deal_registration_policy", "minimum_deal_size"],
-        "additionalProperties": false,
-        "properties": {
-          "revenue_share_pct": {"type": "number", "minimum": 0, "maximum": 1},
-          "recurring_vs_onetime": {"type": "string"},
-          "deal_registration_policy": {"type": "string"},
-          "minimum_deal_size": {"type": "number"}
-        }
-      },
-      "partner_icp": {
-        "type": "object",
-        "required": ["market_overlap_min", "competitive_exclusion", "capacity_requirements"],
-        "additionalProperties": false,
-        "properties": {
-          "market_overlap_min": {"type": "number", "minimum": 0, "maximum": 1},
-          "competitive_exclusion": {"type": "string"},
-          "capacity_requirements": {"type": "string"}
-        }
-      },
-      "prioritized_targets": {
-        "type": "array",
-        "items": {
-          "type": "object",
-          "required": ["company_name", "partner_type", "overlap_evidence", "status"],
-          "additionalProperties": false,
-          "properties": {
-            "company_name": {"type": "string"},
-            "partner_type": {"type": "string"},
-            "overlap_evidence": {"type": "string"},
-            "status": {"type": "string", "enum": ["identified", "approached", "in_discussion", "signed", "inactive"]}
-          }
-        }
-      }
-    }
-  }
-}
 ```

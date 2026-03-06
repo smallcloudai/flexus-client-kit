@@ -43,7 +43,7 @@ Recalculate scores weekly. Trigger immediate recalculation on: support ticket sp
 ## Recording
 
 ```
-write_artifact(artifact_type="customer_health_snapshot", path="/retention/health-snapshot-{date}", data={...})
+write_artifact(path="/retention/health-snapshot-{date}", data={...})
 ```
 
 ## Available Tools
@@ -56,54 +56,4 @@ ga4(op="call", args={"method_id": "ga4.data.run_report.v1", "property": "propert
 zendesk(op="call", args={"method_id": "zendesk.tickets.list.v1", "requester_id": "customer_zendesk_id", "status": "open"})
 
 delighted(op="call", args={"method_id": "delighted.survey.responses.v1", "since": 1704067200, "per_page": 100})
-```
-
-## Artifact Schema
-
-```json
-{
-  "customer_health_snapshot": {
-    "type": "object",
-    "required": ["snapshot_date", "health_model", "customers"],
-    "additionalProperties": false,
-    "properties": {
-      "snapshot_date": {"type": "string"},
-      "health_model": {
-        "type": "object",
-        "required": ["dimensions"],
-        "additionalProperties": false,
-        "properties": {
-          "dimensions": {
-            "type": "array",
-            "items": {
-              "type": "object",
-              "required": ["name", "weight"],
-              "additionalProperties": false,
-              "properties": {
-                "name": {"type": "string"},
-                "weight": {"type": "number", "minimum": 0, "maximum": 1}
-              }
-            }
-          }
-        }
-      },
-      "customers": {
-        "type": "array",
-        "items": {
-          "type": "object",
-          "required": ["account_id", "health_score", "health_tier", "dimension_scores", "risk_flags", "recommended_action"],
-          "additionalProperties": false,
-          "properties": {
-            "account_id": {"type": "string"},
-            "health_score": {"type": "integer", "minimum": 0, "maximum": 100},
-            "health_tier": {"type": "string", "enum": ["green", "yellow", "red"]},
-            "dimension_scores": {"type": "object"},
-            "risk_flags": {"type": "array", "items": {"type": "string"}},
-            "recommended_action": {"type": "string"}
-          }
-        }
-      }
-    }
-  }
-}
 ```

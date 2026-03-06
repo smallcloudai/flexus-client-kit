@@ -40,7 +40,7 @@ Use this skill BEFORE designing instruments (`discovery-survey`) — context imp
 ## Recording
 
 ```
-write_artifact(artifact_type="discovery_context_summary", path="/discovery/{study_id}/context", data={...})
+write_artifact(path="/discovery/{study_id}/context", data={...})
 ```
 
 ## Available Tools
@@ -59,48 +59,4 @@ zendesk(op="call", args={"method_id": "zendesk.tickets.audits.list.v1", "ticket_
 intercom(op="call", args={"method_id": "intercom.conversations.list.v1", "per_page": 50, "starting_after": null})
 
 dovetail(op="call", args={"method_id": "dovetail.insights.export.markdown.v1", "projectId": "project_id"})
-```
-
-## Artifact Schema
-
-```json
-{
-  "discovery_context_summary": {
-    "type": "object",
-    "required": ["study_id", "sources_used", "pain_themes", "objection_themes", "hypothesis_seeds", "limitations"],
-    "additionalProperties": false,
-    "properties": {
-      "study_id": {"type": "string"},
-      "sources_used": {
-        "type": "array",
-        "items": {
-          "type": "object",
-          "required": ["source_type", "record_count", "date_range"],
-          "additionalProperties": false,
-          "properties": {
-            "source_type": {"type": "string", "enum": ["hubspot", "salesforce", "pipedrive", "zendesk", "intercom", "dovetail"]},
-            "record_count": {"type": "integer", "minimum": 0},
-            "date_range": {"type": "string"}
-          }
-        }
-      },
-      "pain_themes": {
-        "type": "array",
-        "items": {
-          "type": "object",
-          "required": ["theme", "frequency_signal", "representative_quotes"],
-          "additionalProperties": false,
-          "properties": {
-            "theme": {"type": "string"},
-            "frequency_signal": {"type": "string", "enum": ["high", "medium", "low"]},
-            "representative_quotes": {"type": "array", "items": {"type": "string"}}
-          }
-        }
-      },
-      "objection_themes": {"type": "array", "items": {"type": "string"}},
-      "hypothesis_seeds": {"type": "array", "items": {"type": "string"}},
-      "limitations": {"type": "array", "items": {"type": "string"}}
-    }
-  }
-}
 ```

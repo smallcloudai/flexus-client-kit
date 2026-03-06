@@ -38,7 +38,7 @@ Every campaign needs:
 ## Recording
 
 ```
-write_artifact(artifact_type="lifecycle_campaign_plan", path="/retention/lifecycle-campaigns", data={...})
+write_artifact(path="/retention/lifecycle-campaigns", data={...})
 ```
 
 ## Available Tools
@@ -47,51 +47,4 @@ write_artifact(artifact_type="lifecycle_campaign_plan", path="/retention/lifecyc
 mixpanel(op="call", args={"method_id": "mixpanel.query.insights.v1", "project_id": "proj_id", "event": "user_inactive_7d"})
 
 surveymonkey(op="call", args={"method_id": "surveymonkey.surveys.create.v1", "title": "Engagement Check-in"})
-```
-
-## Artifact Schema
-
-```json
-{
-  "lifecycle_campaign_plan": {
-    "type": "object",
-    "required": ["created_at", "campaigns"],
-    "additionalProperties": false,
-    "properties": {
-      "created_at": {"type": "string"},
-      "campaigns": {
-        "type": "array",
-        "items": {
-          "type": "object",
-          "required": ["campaign_id", "campaign_type", "trigger", "audience", "steps", "success_metric"],
-          "additionalProperties": false,
-          "properties": {
-            "campaign_id": {"type": "string"},
-            "campaign_type": {"type": "string", "enum": ["activation", "engagement", "milestone", "renewal", "expansion"]},
-            "trigger": {"type": "string"},
-            "audience": {"type": "string"},
-            "steps": {
-              "type": "array",
-              "items": {
-                "type": "object",
-                "required": ["step", "day_offset", "channel", "subject", "body", "cta"],
-                "additionalProperties": false,
-                "properties": {
-                  "step": {"type": "integer", "minimum": 1},
-                  "day_offset": {"type": "integer", "minimum": 0},
-                  "channel": {"type": "string", "enum": ["email", "in_app", "sms"]},
-                  "subject": {"type": "string"},
-                  "body": {"type": "string"},
-                  "cta": {"type": "string"},
-                  "exit_condition": {"type": "string"}
-                }
-              }
-            },
-            "success_metric": {"type": "string"}
-          }
-        }
-      }
-    }
-  }
-}
 ```

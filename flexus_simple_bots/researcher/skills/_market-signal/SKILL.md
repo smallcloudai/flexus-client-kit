@@ -27,7 +27,7 @@ Detect pricing changes, positioning rewrites, CTA shifts, feature claim changes.
 
 ## Recording Snapshots
 
-After gathering all evidence for a channel, call `write_artifact(artifact_type="market_signal_snapshot", path=/signals/{channel}-{YYYY-MM-DD}, data={...})`:
+After gathering all evidence for a channel, call `write_artifact(path=/signals/{channel}-{YYYY-MM-DD}, data={...})`:
 - path: /signals/{channel}-{YYYY-MM-DD} (e.g. /signals/search-demand-2024-01-15)
 - data: all required fields filled; set failure_code/failure_message to null if not applicable.
 
@@ -36,8 +36,8 @@ One call per channel per run. Do not output raw JSON in chat.
 ## Recording Register and Backlog
 
 After aggregating snapshots, call:
-- `write_artifact(artifact_type="signal_register", path=/signals/register-{date}, data={...})` — deduplicated signal register
-- `write_artifact(artifact_type="hypothesis_backlog", path=/signals/hypotheses-{date}, data={...})` — risk-ranked hypothesis backlog
+- `write_artifact(path=/signals/register-{date}, data={...})` — deduplicated signal register
+- `write_artifact(path=/signals/hypotheses-{date}, data={...})` — risk-ranked hypothesis backlog
 
 Do not output raw JSON in chat.
 

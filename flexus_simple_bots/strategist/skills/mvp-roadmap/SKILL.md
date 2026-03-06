@@ -50,7 +50,7 @@ Sequence features by:
 ## Recording
 
 ```
-write_artifact(artifact_type="product_roadmap", path="/strategy/roadmap", data={...})
+write_artifact(path="/strategy/roadmap", data={...})
 ```
 
 ## Available Tools

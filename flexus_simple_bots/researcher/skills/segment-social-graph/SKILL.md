@@ -30,7 +30,7 @@ People who have worked at a company in the past are often still influential in b
 ## Recording
 
 ```
-write_artifact(artifact_type="segment_social_graph_profile", path="/segments/{segment_id}/social-graph", data={...})
+write_artifact(path="/segments/{segment_id}/social-graph", data={...})
 ```
 
 ## Available Tools
@@ -47,46 +47,4 @@ pdl(op="call", args={"method_id": "pdl.person.search.v1", "query": {"bool": {"mu
 apollo(op="call", args={"method_id": "apollo.people.search.v1", "q_organization_domains": ["company.com"], "person_titles": ["CTO", "VP Engineering", "Head of Product"], "per_page": 25})
 
 clearbit(op="call", args={"method_id": "clearbit.person.enrichment.v1", "email": "contact@company.com"})
-```
-
-## Artifact Schema
-
-```json
-{
-  "segment_social_graph_profile": {
-    "type": "object",
-    "required": ["segment_id", "profiled_at", "accounts"],
-    "additionalProperties": false,
-    "properties": {
-      "segment_id": {"type": "string"},
-      "profiled_at": {"type": "string"},
-      "accounts": {
-        "type": "array",
-        "items": {
-          "type": "object",
-          "required": ["domain", "decision_makers", "influence_paths"],
-          "additionalProperties": false,
-          "properties": {
-            "domain": {"type": "string"},
-            "decision_makers": {
-              "type": "array",
-              "items": {
-                "type": "object",
-                "required": ["contact_ref", "buyer_role", "seniority"],
-                "additionalProperties": false,
-                "properties": {
-                  "contact_ref": {"type": "string", "description": "Anonymized ID referencing CRM or source system"},
-                  "buyer_role": {"type": "string", "enum": ["economic_buyer", "technical_buyer", "champion", "influencer", "gatekeeper"]},
-                  "seniority": {"type": "string", "enum": ["c_level", "vp", "director", "manager", "ic"]}
-                }
-              }
-            },
-            "influence_paths": {"type": "array", "items": {"type": "string"}},
-            "org_topics": {"type": "array", "items": {"type": "string"}}
-          }
-        }
-      }
-    }
-  }
-}
 ```

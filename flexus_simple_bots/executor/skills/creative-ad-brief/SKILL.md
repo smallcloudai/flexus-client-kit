@@ -45,7 +45,7 @@ For video: first 3 seconds must stop the scroll. Options:
 ## Recording
 
 ```
-write_artifact(artifact_type="ad_creative_brief", path="/campaigns/{campaign_id}/creative-brief", data={...})
+write_artifact(path="/campaigns/{campaign_id}/creative-brief", data={...})
 ```
 
 ## Available Tools
@@ -54,62 +54,4 @@ write_artifact(artifact_type="ad_creative_brief", path="/campaigns/{campaign_id}
 flexus_policy_document(op="activate", args={"p": "/strategy/messaging"})
 flexus_policy_document(op="activate", args={"p": "/segments/{segment_id}/icp-scorecard"})
 flexus_policy_document(op="activate", args={"p": "/strategy/gtm-channel-strategy"})
-```
-
-## Artifact Schema
-
-```json
-{
-  "ad_creative_brief": {
-    "type": "object",
-    "required": ["campaign_id", "created_at", "audience", "campaign_objective", "primary_message", "proof_point", "formats", "hook_options"],
-    "additionalProperties": false,
-    "properties": {
-      "campaign_id": {"type": "string"},
-      "created_at": {"type": "string"},
-      "audience": {
-        "type": "object",
-        "required": ["persona", "awareness_level", "pain_state", "platform"],
-        "additionalProperties": false,
-        "properties": {
-          "persona": {"type": "string"},
-          "awareness_level": {"type": "string", "enum": ["problem_unaware", "problem_aware", "solution_aware", "product_aware", "most_aware"]},
-          "pain_state": {"type": "string"},
-          "platform": {"type": "string", "enum": ["meta", "google", "linkedin", "tiktok", "x"]}
-        }
-      },
-      "campaign_objective": {"type": "string", "enum": ["awareness", "lead_gen", "conversion", "retargeting"]},
-      "primary_message": {"type": "string"},
-      "proof_point": {"type": "string"},
-      "formats": {
-        "type": "array",
-        "items": {
-          "type": "object",
-          "required": ["format_type", "aspect_ratio", "duration_seconds"],
-          "additionalProperties": false,
-          "properties": {
-            "format_type": {"type": "string", "enum": ["video", "static_image", "carousel", "lead_gen_form", "text_search"]},
-            "aspect_ratio": {"type": "string"},
-            "duration_seconds": {"type": ["integer", "null"]},
-            "copy_limits": {"type": "object"}
-          }
-        }
-      },
-      "hook_options": {
-        "type": "array",
-        "items": {
-          "type": "object",
-          "required": ["hook_text", "hook_type"],
-          "additionalProperties": false,
-          "properties": {
-            "hook_text": {"type": "string"},
-            "hook_type": {"type": "string", "enum": ["shocking_stat", "pain_mirror", "disruption", "pattern_interrupt", "social_proof"]}
-          }
-        }
-      },
-      "do_list": {"type": "array", "items": {"type": "string"}},
-      "dont_list": {"type": "array", "items": {"type": "string"}}
-    }
-  }
-}
 ```

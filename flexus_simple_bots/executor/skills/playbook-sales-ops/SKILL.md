@@ -46,7 +46,7 @@ Compare bottom-up forecast to top-down target → variance analysis.
 ## Recording
 
 ```
-write_artifact(artifact_type="sales_ops_playbook", path="/ops/sales-ops-playbook", data={...})
+write_artifact(path="/ops/sales-ops-playbook", data={...})
 ```
 
 ## Available Tools
@@ -59,69 +59,4 @@ hubspot(op="call", args={"method_id": "hubspot.deals.pipeline.get.v1", "pipeline
 gong(op="call", args={"method_id": "gong.calls.list.v1", "fromDateTime": "2024-01-01T00:00:00Z", "toDateTime": "2024-01-31T00:00:00Z"})
 
 pipedrive(op="call", args={"method_id": "pipedrive.deals.list.v1", "status": "open", "sort": "update_time DESC"})
-```
-
-## Artifact Schema
-
-```json
-{
-  "sales_ops_playbook": {
-    "type": "object",
-    "required": ["created_at", "crm_hygiene_standards", "review_cadence", "forecast_methodology", "quota_design"],
-    "additionalProperties": false,
-    "properties": {
-      "created_at": {"type": "string"},
-      "crm_hygiene_standards": {
-        "type": "array",
-        "items": {
-          "type": "object",
-          "required": ["deal_stage", "required_fields", "staleness_threshold_days"],
-          "additionalProperties": false,
-          "properties": {
-            "deal_stage": {"type": "string"},
-            "required_fields": {"type": "array", "items": {"type": "string"}},
-            "staleness_threshold_days": {"type": "integer", "minimum": 0}
-          }
-        }
-      },
-      "review_cadence": {
-        "type": "array",
-        "items": {
-          "type": "object",
-          "required": ["review_type", "frequency", "agenda", "participants"],
-          "additionalProperties": false,
-          "properties": {
-            "review_type": {"type": "string"},
-            "frequency": {"type": "string"},
-            "agenda": {"type": "array", "items": {"type": "string"}},
-            "participants": {"type": "array", "items": {"type": "string"}}
-          }
-        }
-      },
-      "forecast_methodology": {
-        "type": "object",
-        "required": ["method", "stage_probabilities"],
-        "additionalProperties": false,
-        "properties": {
-          "method": {"type": "string"},
-          "stage_probabilities": {"type": "object"}
-        }
-      },
-      "quota_design": {
-        "type": "array",
-        "items": {
-          "type": "object",
-          "required": ["role", "quota_type", "quota_period", "target_attainment"],
-          "additionalProperties": false,
-          "properties": {
-            "role": {"type": "string"},
-            "quota_type": {"type": "string"},
-            "quota_period": {"type": "string", "enum": ["monthly", "quarterly", "annually"]},
-            "target_attainment": {"type": "string"}
-          }
-        }
-      }
-    }
-  }
-}
 ```

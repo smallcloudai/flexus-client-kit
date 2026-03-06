@@ -38,7 +38,7 @@ If churned customer re-engages:
 ## Recording
 
 ```
-write_artifact(artifact_type="win_back_campaign_report", path="/churn/win-back-{date}", data={...})
+write_artifact(path="/churn/win-back-{date}", data={...})
 ```
 
 ## Available Tools
@@ -51,40 +51,4 @@ mixpanel(op="call", args={"method_id": "mixpanel.query.insights.v1", "project_id
 chargebee(op="call", args={"method_id": "chargebee.subscriptions.list.v1", "status[is]": "cancelled", "cancelled_at[after]": "1704067200"})
 
 salesforce(op="call", args={"method_id": "salesforce.query.v1", "query": "SELECT AccountId, Name, CloseDate, Reason__c FROM Opportunity WHERE StageName = 'Closed Lost' AND CloseDate = LAST_N_DAYS:180"})
-```
-
-## Artifact Schema
-
-```json
-{
-  "win_back_campaign_report": {
-    "type": "object",
-    "required": ["campaign_id", "period", "target_segment", "eligibility_criteria", "accounts_targeted", "results"],
-    "additionalProperties": false,
-    "properties": {
-      "campaign_id": {"type": "string"},
-      "period": {
-        "type": "object",
-        "required": ["start_date", "end_date"],
-        "additionalProperties": false,
-        "properties": {"start_date": {"type": "string"}, "end_date": {"type": "string"}}
-      },
-      "target_segment": {"type": "string"},
-      "eligibility_criteria": {"type": "array", "items": {"type": "string"}},
-      "product_change_referenced": {"type": "string"},
-      "accounts_targeted": {"type": "integer", "minimum": 0},
-      "results": {
-        "type": "object",
-        "required": ["responded", "booked_call", "reactivated", "reactivation_arr"],
-        "additionalProperties": false,
-        "properties": {
-          "responded": {"type": "integer", "minimum": 0},
-          "booked_call": {"type": "integer", "minimum": 0},
-          "reactivated": {"type": "integer", "minimum": 0},
-          "reactivation_arr": {"type": "number", "minimum": 0}
-        }
-      }
-    }
-  }
-}
 ```

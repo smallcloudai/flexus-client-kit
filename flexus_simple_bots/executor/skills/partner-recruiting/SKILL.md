@@ -43,7 +43,7 @@ A partner who says "just send us your deck and we'll share it" is not a real par
 ## Recording
 
 ```
-write_artifact(artifact_type="partner_pipeline", path="/partners/recruiting-pipeline-{date}", data={...})
+write_artifact(path="/partners/recruiting-pipeline-{date}", data={...})
 ```
 
 ## Available Tools
@@ -58,37 +58,4 @@ partnerstack(op="call", args={"method_id": "partnerstack.partners.create.v1", "e
 salesforce(op="call", args={"method_id": "salesforce.sobjects.account.create.v1", "Name": "Partner Company", "Type": "Partner", "Industry": "Technology"})
 
 pandadoc(op="call", args={"method_id": "pandadoc.documents.create.v1", "name": "Partner Agreement - [Company]", "template_uuid": "partner_agreement_template"})
-```
-
-## Artifact Schema
-
-```json
-{
-  "partner_pipeline": {
-    "type": "object",
-    "required": ["report_date", "partners"],
-    "additionalProperties": false,
-    "properties": {
-      "report_date": {"type": "string"},
-      "partners": {
-        "type": "array",
-        "items": {
-          "type": "object",
-          "required": ["company_name", "partner_type", "status", "icp_overlap_score", "contact_ref"],
-          "additionalProperties": false,
-          "properties": {
-            "company_name": {"type": "string"},
-            "partner_type": {"type": "string", "enum": ["technology_integration", "reseller_var", "referral_affiliate", "community"]},
-            "status": {"type": "string", "enum": ["identified", "approached", "qualified", "in_negotiation", "signed", "active", "inactive"]},
-            "icp_overlap_score": {"type": "number", "minimum": 0, "maximum": 10},
-            "contact_ref": {"type": "string"},
-            "last_action": {"type": "string"},
-            "next_action": {"type": "string"},
-            "next_action_date": {"type": "string"}
-          }
-        }
-      }
-    }
-  }
-}
 ```

@@ -39,7 +39,7 @@ Core mode: save plays are triage, not operations. If you're running save plays o
 ## Recording
 
 ```
-write_artifact(artifact_type="churn_save_play_log", path="/churn/save-play-{account_id}-{date}", data={...})
+write_artifact(path="/churn/save-play-{account_id}-{date}", data={...})
 ```
 
 ## Available Tools
@@ -52,39 +52,4 @@ google_calendar(op="call", args={"method_id": "google_calendar.events.insert.v1"
 chargebee(op="call", args={"method_id": "chargebee.subscriptions.update.v1", "subscription_id": "sub_id", "coupon_ids": ["retention_discount_20pct"]})
 
 zendesk(op="call", args={"method_id": "zendesk.tickets.create.v1", "ticket": {"subject": "Save Play - [Company]", "type": "task", "priority": "urgent"}})
-```
-
-## Artifact Schema
-
-```json
-{
-  "churn_save_play_log": {
-    "type": "object",
-    "required": ["account_id", "initiated_at", "risk_type", "save_play_type", "interventions", "outcome"],
-    "additionalProperties": false,
-    "properties": {
-      "account_id": {"type": "string"},
-      "initiated_at": {"type": "string"},
-      "risk_type": {"type": "string", "enum": ["behavioral_disengagement", "relationship_breakdown", "product_failure", "price_sensitivity"]},
-      "save_play_type": {"type": "string", "enum": ["value_evidence_outreach", "stakeholder_replacement", "technical_escalation", "executive_escalation", "commercial_concession"]},
-      "interventions": {
-        "type": "array",
-        "items": {
-          "type": "object",
-          "required": ["date", "action", "owner", "response"],
-          "additionalProperties": false,
-          "properties": {
-            "date": {"type": "string"},
-            "action": {"type": "string"},
-            "owner": {"type": "string"},
-            "response": {"type": "string", "enum": ["no_response", "positive", "negative", "neutral", "pending"]}
-          }
-        }
-      },
-      "outcome": {"type": "string", "enum": ["saved", "churned", "in_progress", "extended"]},
-      "concession_offered": {"type": ["string", "null"]},
-      "lessons_learned": {"type": "array", "items": {"type": "string"}}
-    }
-  }
-}
 ```

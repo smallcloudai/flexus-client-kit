@@ -41,7 +41,7 @@ The price signal must be consistent with positioning:
 ## Recording
 
 ```
-write_artifact(artifact_type="pricing_competitive_benchmark", path="/strategy/pricing-benchmark", data={...})
+write_artifact(path="/strategy/pricing-benchmark", data={...})
 ```
 
 ## Available Tools
@@ -54,70 +54,4 @@ g2(op="call", args={"method_id": "g2.products.list.v1", "filter[name]": "competi
 similarweb(op="call", args={"method_id": "similarweb.traffic_and_engagement.get.v1", "domain": "competitor.com"})
 
 flexus_policy_document(op="activate", args={"p": "/strategy/positioning-map"})
-```
-
-## Artifact Schema
-
-```json
-{
-  "pricing_competitive_benchmark": {
-    "type": "object",
-    "required": ["benchmarked_at", "category", "competitors", "category_norms", "positioning_alignment"],
-    "additionalProperties": false,
-    "properties": {
-      "benchmarked_at": {"type": "string"},
-      "category": {"type": "string"},
-      "competitors": {
-        "type": "array",
-        "items": {
-          "type": "object",
-          "required": ["name", "pricing_model", "tiers", "data_freshness"],
-          "additionalProperties": false,
-          "properties": {
-            "name": {"type": "string"},
-            "pricing_model": {"type": "string"},
-            "tiers": {
-              "type": "array",
-              "items": {
-                "type": "object",
-                "required": ["tier_name", "price", "price_unit"],
-                "additionalProperties": false,
-                "properties": {
-                  "tier_name": {"type": "string"},
-                  "price": {"type": ["number", "string"]},
-                  "price_unit": {"type": "string"},
-                  "key_inclusions": {"type": "array", "items": {"type": "string"}}
-                }
-              }
-            },
-            "annual_discount": {"type": ["number", "null"]},
-            "data_freshness": {"type": "string"}
-          }
-        }
-      },
-      "category_norms": {
-        "type": "object",
-        "required": ["median_entry_price", "median_pro_price", "dominant_model", "dominant_value_metric"],
-        "additionalProperties": false,
-        "properties": {
-          "median_entry_price": {"type": "number"},
-          "median_pro_price": {"type": "number"},
-          "dominant_model": {"type": "string"},
-          "dominant_value_metric": {"type": "string"}
-        }
-      },
-      "positioning_alignment": {
-        "type": "object",
-        "required": ["expected_position", "actual_position", "is_aligned", "misalignment_notes"],
-        "additionalProperties": false,
-        "properties": {
-          "expected_position": {"type": "string"},
-          "actual_position": {"type": "string"},
-          "is_aligned": {"type": "boolean"},
-          "misalignment_notes": {"type": "string"}
-        }
-      }
-    }
-  }
-}
 ```

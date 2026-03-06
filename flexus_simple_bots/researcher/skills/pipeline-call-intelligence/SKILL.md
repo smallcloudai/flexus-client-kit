@@ -41,7 +41,7 @@ Log extracted data back to deal record: note with call summary + next steps + ke
 ## Recording
 
 ```
-write_artifact(artifact_type="call_intelligence_report", path="/pipeline/{campaign_id}/call-intelligence-{date}", data={...})
+write_artifact(path="/pipeline/{campaign_id}/call-intelligence-{date}", data={...})
 ```
 
 ## Available Tools
@@ -58,65 +58,4 @@ zoom(op="call", args={"method_id": "zoom.recordings.transcript.download.v1", "me
 fireflies(op="call", args={"method_id": "fireflies.transcript.get.v1", "transcriptId": "transcript_id"})
 
 hubspot(op="call", args={"method_id": "hubspot.notes.create.v1", "properties": {"hs_note_body": "Call summary...", "hs_timestamp": "1704067200000"}, "associations": [{"to": {"id": "deal_id"}, "types": [{"associationCategory": "HUBSPOT_DEFINED", "associationTypeId": 214}]}]})
-```
-
-## Artifact Schema
-
-```json
-{
-  "call_intelligence_report": {
-    "type": "object",
-    "required": ["campaign_id", "analysis_period", "calls_analyzed", "objection_patterns", "buying_signal_patterns", "competitor_mentions"],
-    "additionalProperties": false,
-    "properties": {
-      "campaign_id": {"type": "string"},
-      "analysis_period": {
-        "type": "object",
-        "required": ["start_date", "end_date"],
-        "additionalProperties": false,
-        "properties": {"start_date": {"type": "string"}, "end_date": {"type": "string"}}
-      },
-      "calls_analyzed": {"type": "integer", "minimum": 0},
-      "objection_patterns": {
-        "type": "array",
-        "items": {
-          "type": "object",
-          "required": ["objection_type", "frequency", "representative_quote", "correlation_with_loss"],
-          "additionalProperties": false,
-          "properties": {
-            "objection_type": {"type": "string", "enum": ["price", "timing", "authority", "need", "trust", "other"]},
-            "frequency": {"type": "integer", "minimum": 0},
-            "representative_quote": {"type": "string"},
-            "correlation_with_loss": {"type": "string", "enum": ["high", "medium", "low", "unknown"]}
-          }
-        }
-      },
-      "buying_signal_patterns": {
-        "type": "array",
-        "items": {
-          "type": "object",
-          "required": ["signal", "frequency"],
-          "additionalProperties": false,
-          "properties": {
-            "signal": {"type": "string"},
-            "frequency": {"type": "integer", "minimum": 0}
-          }
-        }
-      },
-      "competitor_mentions": {
-        "type": "array",
-        "items": {
-          "type": "object",
-          "required": ["competitor", "mention_count", "context"],
-          "additionalProperties": false,
-          "properties": {
-            "competitor": {"type": "string"},
-            "mention_count": {"type": "integer", "minimum": 0},
-            "context": {"type": "string"}
-          }
-        }
-      }
-    }
-  }
-}
 ```

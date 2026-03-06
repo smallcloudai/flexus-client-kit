@@ -39,25 +39,7 @@ def load_strategy_skill_schemas() -> Dict[str, Any]:
     return schema
 
 
-def load_artifact_schemas() -> Dict[str, Any]:
-    skills_dir = BOT_DIR / "skills"
-    schemas: Dict[str, Any] = {}
-    for skill_dir in sorted(d for d in skills_dir.iterdir() if not d.name.startswith("_")):
-        skill_md = skill_dir / "SKILL.md"
-        if not skill_md.exists():
-            continue
-        md = skill_md.read_text(encoding="utf-8")
-        m = re.search(r"```json\s*(\{.*?\})\s*```", md, re.DOTALL)
-        if not m:
-            continue
-        parsed = json.loads(m.group(1))
-        schemas.update(parsed)
-    return schemas
-
-
 STRATEGY_SKILL_SCHEMAS = load_strategy_skill_schemas()
-ARTIFACT_SCHEMAS = load_artifact_schemas()
-ARTIFACT_TYPES = sorted(ARTIFACT_SCHEMAS.keys())
 
 PIPELINE = [
     "section01-calibration",
@@ -99,25 +81,20 @@ UPDATE_STRATEGY_TOOL = ckit_cloudtool.CloudTool(
 WRITE_ARTIFACT_TOOL = ckit_cloudtool.CloudTool(
     strict=False,
     name="write_artifact",
-    description="Write a structured artifact to the document store. Artifact type and schema are defined by the active skill.",
+    description="Write a structured artifact to the document store. Path and data shape are defined by the active skill.",
     parameters={
         "type": "object",
         "properties": {
-            "artifact_type": {
-                "type": "string",
-                "enum": ARTIFACT_TYPES,
-                "description": "Artifact type as specified by the active skill",
-            },
             "path": {
                 "type": "string",
-                "description": "Document path, e.g. /experiments/cards/exp001-2024-01-15",
+                "description": "Document path as specified by the active skill",
             },
             "data": {
                 "type": "object",
-                "description": "Artifact content matching the schema for this artifact_type",
+                "description": "Artifact content as specified by the active skill",
             },
         },
-        "required": ["artifact_type", "path", "data"],
+        "required": ["path", "data"],
         "additionalProperties": False,
     },
 )
@@ -209,18 +186,13 @@ async def strategist_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_
 
     @rcx.on_tool_call(WRITE_ARTIFACT_TOOL.name)
     async def _h_write_artifact(toolcall: ckit_cloudtool.FCloudtoolCall, args: Dict[str, Any]) -> str:
-        artifact_type = str(args.get("artifact_type", "")).strip()
         path = str(args.get("path", "")).strip()
         data = args.get("data")
-        if not artifact_type or not path or data is None:
-            return "Error: artifact_type, path, and data are required."
-        if artifact_type not in ARTIFACT_SCHEMAS:
-            return f"Error: unknown artifact_type {artifact_type!r}. Must be one of: {', '.join(ARTIFACT_TYPES)}"
+        if not path or data is None:
+            return "Error: path and data are required."
         fuser_id = ckit_external_auth.get_fuser_id_from_rcx(rcx, toolcall.fcall_ft_id)
-        doc = dict(data)
-        doc["schema"] = ARTIFACT_SCHEMAS[artifact_type]
-        await pdoc_integration.pdoc_overwrite(path, json.dumps(doc, ensure_ascii=False), fuser_id)
-        return f"Written: {path}\n\nArtifact {artifact_type} saved."
+        await pdoc_integration.pdoc_overwrite(path, json.dumps(data, ensure_ascii=False), fuser_id)
+        return f"Written: {path}"
 
     try:
         while not ckit_shutdown.shutdown_event.is_set():

@@ -52,7 +52,7 @@ Below 60%: unit economics may never turn positive at scale — structural fix ne
 ## Recording
 
 ```
-write_artifact(artifact_type="unit_economics_analysis", path="/growth/unit-economics-{date}", data={...})
+write_artifact(path="/growth/unit-economics-{date}", data={...})
 ```
 
 ## Available Tools
@@ -63,52 +63,4 @@ chargebee(op="call", args={"method_id": "chargebee.subscriptions.list.v1", "stat
 chargebee(op="call", args={"method_id": "chargebee.mrr.v1", "from_date": "2024-01-01"})
 
 salesforce(op="call", args={"method_id": "salesforce.query.v1", "query": "SELECT LeadSource, SUM(Amount), COUNT(Id) FROM Opportunity WHERE StageName = 'Closed Won' AND CloseDate = LAST_N_MONTHS:6 GROUP BY LeadSource"})
-```
-
-## Artifact Schema
-
-```json
-{
-  "unit_economics_analysis": {
-    "type": "object",
-    "required": ["analysis_date", "overall_metrics", "segment_breakdown", "health_assessment"],
-    "additionalProperties": false,
-    "properties": {
-      "analysis_date": {"type": "string"},
-      "overall_metrics": {
-        "type": "object",
-        "required": ["arpa", "gross_margin_pct", "monthly_churn_rate", "ltv", "cac", "ltv_cac_ratio", "payback_months"],
-        "additionalProperties": false,
-        "properties": {
-          "arpa": {"type": "number"},
-          "gross_margin_pct": {"type": "number", "minimum": 0, "maximum": 1},
-          "monthly_churn_rate": {"type": "number", "minimum": 0, "maximum": 1},
-          "ltv": {"type": "number"},
-          "cac": {"type": "number"},
-          "ltv_cac_ratio": {"type": "number"},
-          "payback_months": {"type": "number"}
-        }
-      },
-      "segment_breakdown": {
-        "type": "array",
-        "items": {
-          "type": "object",
-          "required": ["segment", "arpa", "monthly_churn_rate", "ltv", "cac", "ltv_cac_ratio", "payback_months", "recommendation"],
-          "additionalProperties": false,
-          "properties": {
-            "segment": {"type": "string"},
-            "arpa": {"type": "number"},
-            "monthly_churn_rate": {"type": "number"},
-            "ltv": {"type": "number"},
-            "cac": {"type": "number"},
-            "ltv_cac_ratio": {"type": "number"},
-            "payback_months": {"type": "number"},
-            "recommendation": {"type": "string", "enum": ["scale", "maintain", "pause", "stop"]}
-          }
-        }
-      },
-      "health_assessment": {"type": "string", "enum": ["excellent", "good", "fair", "poor", "critical"]}
-    }
-  }
-}
 ```

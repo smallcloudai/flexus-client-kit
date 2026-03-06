@@ -45,7 +45,7 @@ A partner with 0 registered deals after 60 days = needs a rescue call.
 ## Recording
 
 ```
-write_artifact(artifact_type="partner_enablement_status", path="/partners/enablement-status-{date}", data={...})
+write_artifact(path="/partners/enablement-status-{date}", data={...})
 ```
 
 ## Available Tools
@@ -58,46 +58,4 @@ partnerstack(op="call", args={"method_id": "partnerstack.deals.update.v1", "deal
 partnerstack(op="call", args={"method_id": "partnerstack.partners.activity.v1", "partner_key": "partner_key"})
 
 google_calendar(op="call", args={"method_id": "google_calendar.events.insert.v1", "calendarId": "primary", "summary": "Partner Enablement - [Partner Name]", "start": {"dateTime": "2024-03-01T10:00:00-05:00"}})
-```
-
-## Artifact Schema
-
-```json
-{
-  "partner_enablement_status": {
-    "type": "object",
-    "required": ["report_date", "partner_performance"],
-    "additionalProperties": false,
-    "properties": {
-      "report_date": {"type": "string"},
-      "partner_performance": {
-        "type": "array",
-        "items": {
-          "type": "object",
-          "required": ["partner_name", "onboarded_date", "enablement_status", "deals_registered", "deals_closed", "arr_generated", "health"],
-          "additionalProperties": false,
-          "properties": {
-            "partner_name": {"type": "string"},
-            "onboarded_date": {"type": "string"},
-            "enablement_status": {
-              "type": "object",
-              "required": ["training_completed", "demo_env_set_up", "first_deal_registered"],
-              "additionalProperties": false,
-              "properties": {
-                "training_completed": {"type": "boolean"},
-                "demo_env_set_up": {"type": "boolean"},
-                "first_deal_registered": {"type": "boolean"}
-              }
-            },
-            "deals_registered": {"type": "integer", "minimum": 0},
-            "deals_closed": {"type": "integer", "minimum": 0},
-            "arr_generated": {"type": "number", "minimum": 0},
-            "health": {"type": "string", "enum": ["active", "needs_attention", "inactive"]},
-            "next_action": {"type": "string"}
-          }
-        }
-      }
-    }
-  }
-}
 ```

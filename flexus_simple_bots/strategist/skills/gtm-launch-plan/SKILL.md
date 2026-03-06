@@ -51,7 +51,7 @@ Must be complete before any outreach:
 ## Recording
 
 ```
-write_artifact(artifact_type="gtm_launch_plan", path="/strategy/gtm-launch-plan", data={...})
+write_artifact(path="/strategy/gtm-launch-plan", data={...})
 ```
 
 ## Available Tools
@@ -61,75 +61,4 @@ flexus_policy_document(op="activate", args={"p": "/strategy/gtm-channel-strategy
 flexus_policy_document(op="activate", args={"p": "/strategy/pricing-pilot-packaging"})
 flexus_policy_document(op="activate", args={"p": "/strategy/mvp-validation-criteria"})
 google_calendar(op="call", args={"method_id": "google_calendar.events.insert.v1", "calendarId": "primary", "summary": "GTM Launch Day", "start": {"date": "2024-03-01"}})
-```
-
-## Artifact Schema
-
-```json
-{
-  "gtm_launch_plan": {
-    "type": "object",
-    "required": ["created_at", "launch_date", "pre_launch_checklist", "phases", "success_metrics"],
-    "additionalProperties": false,
-    "properties": {
-      "created_at": {"type": "string"},
-      "launch_date": {"type": "string"},
-      "pre_launch_checklist": {
-        "type": "array",
-        "items": {
-          "type": "object",
-          "required": ["item", "owner", "due_date", "status"],
-          "additionalProperties": false,
-          "properties": {
-            "item": {"type": "string"},
-            "owner": {"type": "string"},
-            "due_date": {"type": "string"},
-            "status": {"type": "string", "enum": ["done", "in_progress", "blocked", "not_started"]}
-          }
-        }
-      },
-      "phases": {
-        "type": "array",
-        "items": {
-          "type": "object",
-          "required": ["phase_name", "start_day", "end_day", "milestones"],
-          "additionalProperties": false,
-          "properties": {
-            "phase_name": {"type": "string"},
-            "start_day": {"type": "integer"},
-            "end_day": {"type": "integer"},
-            "milestones": {
-              "type": "array",
-              "items": {
-                "type": "object",
-                "required": ["milestone", "owner", "due_day", "success_metric"],
-                "additionalProperties": false,
-                "properties": {
-                  "milestone": {"type": "string"},
-                  "owner": {"type": "string"},
-                  "due_day": {"type": "integer"},
-                  "success_metric": {"type": "string"}
-                }
-              }
-            }
-          }
-        }
-      },
-      "success_metrics": {
-        "type": "array",
-        "items": {
-          "type": "object",
-          "required": ["metric", "target_30d", "target_60d", "target_90d"],
-          "additionalProperties": false,
-          "properties": {
-            "metric": {"type": "string"},
-            "target_30d": {"type": "string"},
-            "target_60d": {"type": "string"},
-            "target_90d": {"type": "string"}
-          }
-        }
-      }
-    }
-  }
-}
 ```

@@ -43,7 +43,7 @@ Detractor follow-up template:
 ## Recording
 
 ```
-write_artifact(artifact_type="nps_program_report", path="/retention/nps-report-{date}", data={...})
+write_artifact(path="/retention/nps-report-{date}", data={...})
 ```
 
 ## Available Tools
@@ -58,61 +58,4 @@ surveymonkey(op="call", args={"method_id": "surveymonkey.surveys.create.v1", "ti
 surveymonkey(op="call", args={"method_id": "surveymonkey.surveys.responses.list.v1", "survey_id": "survey_id"})
 
 typeform(op="call", args={"method_id": "typeform.forms.create.v1", "title": "NPS Survey"})
-```
-
-## Artifact Schema
-
-```json
-{
-  "nps_program_report": {
-    "type": "object",
-    "required": ["period", "survey_type", "response_count", "nps_score", "distribution", "themes", "follow_up_actions"],
-    "additionalProperties": false,
-    "properties": {
-      "period": {
-        "type": "object",
-        "required": ["start_date", "end_date"],
-        "additionalProperties": false,
-        "properties": {"start_date": {"type": "string"}, "end_date": {"type": "string"}}
-      },
-      "survey_type": {"type": "string", "enum": ["relationship", "transactional"]},
-      "response_count": {"type": "integer", "minimum": 0},
-      "response_rate": {"type": "number", "minimum": 0, "maximum": 1},
-      "nps_score": {"type": "number", "minimum": -100, "maximum": 100},
-      "distribution": {
-        "type": "object",
-        "required": ["promoters_pct", "passives_pct", "detractors_pct"],
-        "additionalProperties": false,
-        "properties": {
-          "promoters_pct": {"type": "number"},
-          "passives_pct": {"type": "number"},
-          "detractors_pct": {"type": "number"}
-        }
-      },
-      "themes": {
-        "type": "object",
-        "required": ["promoter_themes", "detractor_themes"],
-        "additionalProperties": false,
-        "properties": {
-          "promoter_themes": {"type": "array", "items": {"type": "string"}},
-          "detractor_themes": {"type": "array", "items": {"type": "string"}}
-        }
-      },
-      "follow_up_actions": {
-        "type": "array",
-        "items": {
-          "type": "object",
-          "required": ["account_ref", "score", "action_type", "status"],
-          "additionalProperties": false,
-          "properties": {
-            "account_ref": {"type": "string"},
-            "score": {"type": "integer", "minimum": 0, "maximum": 10},
-            "action_type": {"type": "string", "enum": ["detractor_outreach", "passive_check_in", "promoter_referral_ask"]},
-            "status": {"type": "string", "enum": ["pending", "contacted", "resolved", "no_response"]}
-          }
-        }
-      }
-    }
-  }
-}
 ```

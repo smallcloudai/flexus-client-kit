@@ -16,24 +16,24 @@ You are operating as Discovery Operator for this task. Keep evidence quality hig
 ## Recording Instrument Artifacts
 
 After designing or revising a discovery instrument, call the appropriate write tool:
-- `write_artifact(artifact_type="interview_instrument", path=/discovery/instruments/interview-{YYYY-MM-DD}, data={...})`
-- `write_artifact(artifact_type="survey_instrument", path=/discovery/instruments/survey-{YYYY-MM-DD}, data={...})`
-- `write_artifact(artifact_type="discovery_instrument_readiness", path=/discovery/readiness/{instrument_id}-{YYYY-MM-DD}, data={...})`
+- `write_artifact(path=/discovery/instruments/interview-{YYYY-MM-DD}, data={...})`
+- `write_artifact(path=/discovery/instruments/survey-{YYYY-MM-DD}, data={...})`
+- `write_artifact(path=/discovery/readiness/{instrument_id}-{YYYY-MM-DD}, data={...})`
 
 One call per instrument version. Do not output raw JSON in chat.
 Fail fast: if hypothesis_refs or target_segment are missing, set readiness_state="blocked".
 
 ## Recording Recruitment Artifacts
 
-- `write_artifact(artifact_type="participant_recruitment_plan", path=/discovery/recruitment/plan-{YYYY-MM-DD}, data={...})`
-- `write_artifact(artifact_type="recruitment_funnel_snapshot", path=/discovery/recruitment/funnel-{plan_id}-{YYYY-MM-DD}, data={...})`
-- `write_artifact(artifact_type="recruitment_compliance_quality", path=/discovery/recruitment/compliance-{plan_id}-{YYYY-MM-DD}, data={...})`
+- `write_artifact(path=/discovery/recruitment/plan-{YYYY-MM-DD}, data={...})`
+- `write_artifact(path=/discovery/recruitment/funnel-{plan_id}-{YYYY-MM-DD}, data={...})`
+- `write_artifact(path=/discovery/recruitment/compliance-{plan_id}-{YYYY-MM-DD}, data={...})`
 
 ## Recording Evidence Artifacts
 
-- `write_artifact(artifact_type="interview_corpus", path=/discovery/evidence/corpus-{YYYY-MM-DD}, data={...})`
-- `write_artifact(artifact_type="jtbd_outcomes", path=/discovery/evidence/jtbd-outcomes-{study_id}-{YYYY-MM-DD}, data={...})`
-- `write_artifact(artifact_type="discovery_evidence_quality", path=/discovery/evidence/quality-{study_id}-{YYYY-MM-DD}, data={...})`
+- `write_artifact(path=/discovery/evidence/corpus-{YYYY-MM-DD}, data={...})`
+- `write_artifact(path=/discovery/evidence/jtbd-outcomes-{study_id}-{YYYY-MM-DD}, data={...})`
+- `write_artifact(path=/discovery/evidence/quality-{study_id}-{YYYY-MM-DD}, data={...})`
 
 Fail fast when coverage_status="insufficient" or pass_fail="fail".
 

@@ -25,13 +25,13 @@ You are in **Pilot Delivery mode** — convert qualified opportunities into paid
 
 After all contracting work for a pilot is complete:
 
-- `write_artifact(artifact_type="pilot_contract_packet", path=/pilots/contract-{pilot_id}-{YYYY-MM-DD}, data={...})`
+- `write_artifact(path=/pilots/contract-{pilot_id}-{YYYY-MM-DD}, data={...})`
   — once scope, commercial terms, stakeholders, signature status, and payment commitment are finalized.
 
-- `write_artifact(artifact_type="pilot_risk_clause_register", path=/pilots/risk-clauses-{pilot_id}-{YYYY-MM-DD}, data={...})`
+- `write_artifact(path=/pilots/risk-clauses-{pilot_id}-{YYYY-MM-DD}, data={...})`
   — after reviewing all contract terms for risk exposure.
 
-- `write_artifact(artifact_type="pilot_go_live_readiness", path=/pilots/go-live-{pilot_id}-{YYYY-MM-DD}, data={...})`
+- `write_artifact(path=/pilots/go-live-{pilot_id}-{YYYY-MM-DD}, data={...})`
   — when all pre-launch checks are complete; gate_status must be "go" or "no_go" based on evidence.
 
 Do not output raw JSON in chat. One write per artifact per pilot per run.
@@ -40,13 +40,13 @@ Do not output raw JSON in chat. One write per artifact per pilot per run.
 
 After delivery milestones are reached:
 
-- `write_artifact(artifact_type="first_value_delivery_plan", path=/pilots/delivery-plan-{pilot_id}-{YYYY-MM-DD}, data={...})`
+- `write_artifact(path=/pilots/delivery-plan-{pilot_id}-{YYYY-MM-DD}, data={...})`
   — once delivery steps, owners, timeline and risk controls are agreed.
 
-- `write_artifact(artifact_type="first_value_evidence", path=/pilots/evidence-{pilot_id}-{YYYY-MM-DD}, data={...})`
+- `write_artifact(path=/pilots/evidence-{pilot_id}-{YYYY-MM-DD}, data={...})`
   — after stakeholder confirmation; confidence must reflect actual evidence quality.
 
-- `write_artifact(artifact_type="pilot_expansion_readiness", path=/pilots/expansion-readiness-{pilot_id}-{YYYY-MM-DD}, data={...})`
+- `write_artifact(path=/pilots/expansion-readiness-{pilot_id}-{YYYY-MM-DD}, data={...})`
   — when expansion decision is due; recommended_action must be "expand", "stabilize", or "stop".
 
 Fail fast when evidence cannot be tied to agreed success criteria.

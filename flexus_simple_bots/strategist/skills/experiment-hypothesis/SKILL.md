@@ -50,7 +50,7 @@ Which hypotheses, if false, are fatal to the business?
 ## Recording
 
 ```
-write_artifact(artifact_type="experiment_hypothesis_stack", path="/strategy/hypothesis-stack", data={...})
+write_artifact(path="/strategy/hypothesis-stack", data={...})
 ```
 
 ## Available Tools
@@ -60,41 +60,4 @@ flexus_policy_document(op="list", args={"p": "/strategy/"})
 flexus_policy_document(op="activate", args={"p": "/strategy/positioning-map"})
 flexus_policy_document(op="activate", args={"p": "/strategy/offer-validation-{date}"})
 flexus_policy_document(op="activate", args={"p": "/discovery/{study_id}/jtbd-outcomes"})
-```
-
-## Artifact Schema
-
-```json
-{
-  "experiment_hypothesis_stack": {
-    "type": "object",
-    "required": ["created_at", "product_name", "hypotheses"],
-    "additionalProperties": false,
-    "properties": {
-      "created_at": {"type": "string"},
-      "product_name": {"type": "string"},
-      "hypotheses": {
-        "type": "array",
-        "items": {
-          "type": "object",
-          "required": ["hypothesis_id", "category", "statement", "validation_method", "success_condition", "rejection_condition", "priority", "risk_level", "current_confidence", "status"],
-          "additionalProperties": false,
-          "properties": {
-            "hypothesis_id": {"type": "string"},
-            "category": {"type": "string", "enum": ["market", "product", "channel", "pricing"]},
-            "statement": {"type": "string"},
-            "validation_method": {"type": "string"},
-            "success_condition": {"type": "string"},
-            "rejection_condition": {"type": "string"},
-            "priority": {"type": "string", "enum": ["p0", "p1", "p2", "p3"]},
-            "risk_level": {"type": "string", "enum": ["fatal", "high", "medium", "low"]},
-            "current_confidence": {"type": "string", "enum": ["low", "medium", "high"]},
-            "status": {"type": "string", "enum": ["queued", "in_progress", "validated", "rejected", "invalidated_by_prior"]},
-            "evidence_refs": {"type": "array", "items": {"type": "string"}}
-          }
-        }
-      }
-    }
-  }
-}
 ```

@@ -39,8 +39,8 @@ For quantitative data: use Likert scales, forced choice, and numeric ranges. Avo
 ## Recording
 
 ```
-write_artifact(artifact_type="interview_instrument", path="/discovery/{study_id}/instrument", data={...})
-write_artifact(artifact_type="survey_instrument", path="/discovery/{study_id}/survey", data={...})
+write_artifact(path="/discovery/{study_id}/instrument", data={...})
+write_artifact(path="/discovery/{study_id}/survey", data={...})
 ```
 
 ## Available Tools
@@ -63,87 +63,4 @@ qualtrics(op="call", args={"method_id": "qualtrics.responseexports.start.v1", "s
 qualtrics(op="call", args={"method_id": "qualtrics.responseexports.progress.get.v1", "surveyId": "SV_xxx", "exportProgressId": "ES_xxx"})
 
 qualtrics(op="call", args={"method_id": "qualtrics.responseexports.file.get.v1", "surveyId": "SV_xxx", "fileId": "xxx"})
-```
-
-## Artifact Schema
-
-```json
-{
-  "interview_instrument": {
-    "type": "object",
-    "required": ["study_id", "research_goal", "target_segment", "hypothesis_refs", "interview_mode", "question_blocks", "bias_controls", "completion_criteria"],
-    "additionalProperties": false,
-    "properties": {
-      "study_id": {"type": "string"},
-      "research_goal": {"type": "string"},
-      "target_segment": {"type": "string"},
-      "hypothesis_refs": {"type": "array", "items": {"type": "string"}},
-      "interview_mode": {"type": "string", "enum": ["live_video", "live_audio", "async_text"]},
-      "question_blocks": {
-        "type": "array",
-        "items": {
-          "type": "object",
-          "required": ["question_id", "question_text", "evidence_objective", "question_type", "forbidden_patterns"],
-          "additionalProperties": false,
-          "properties": {
-            "question_id": {"type": "string"},
-            "question_text": {"type": "string"},
-            "evidence_objective": {"type": "string"},
-            "question_type": {"type": "string", "enum": ["past_behavior", "timeline", "switch_trigger", "decision_criteria", "objection_probe"]},
-            "forbidden_patterns": {"type": "array", "items": {"type": "string"}}
-          }
-        }
-      },
-      "probe_bank": {"type": "array", "items": {"type": "string"}},
-      "bias_controls": {"type": "array", "items": {"type": "string"}},
-      "consent_protocol": {
-        "type": "object",
-        "required": ["consent_required", "recording_policy"],
-        "additionalProperties": false,
-        "properties": {
-          "consent_required": {"type": "boolean"},
-          "recording_policy": {"type": "string"}
-        }
-      },
-      "completion_criteria": {"type": "array", "items": {"type": "string"}}
-    }
-  },
-  "survey_instrument": {
-    "type": "object",
-    "required": ["study_id", "survey_goal", "target_segment", "hypothesis_refs", "sample_plan", "questions", "quality_controls"],
-    "additionalProperties": false,
-    "properties": {
-      "study_id": {"type": "string"},
-      "survey_goal": {"type": "string"},
-      "target_segment": {"type": "string"},
-      "hypothesis_refs": {"type": "array", "items": {"type": "string"}},
-      "sample_plan": {
-        "type": "object",
-        "required": ["target_n", "min_n_per_segment"],
-        "additionalProperties": false,
-        "properties": {
-          "target_n": {"type": "integer", "minimum": 1},
-          "min_n_per_segment": {"type": "integer", "minimum": 1}
-        }
-      },
-      "questions": {
-        "type": "array",
-        "items": {
-          "type": "object",
-          "required": ["question_id", "question_text", "response_type"],
-          "additionalProperties": false,
-          "properties": {
-            "question_id": {"type": "string"},
-            "question_text": {"type": "string"},
-            "response_type": {"type": "string", "enum": ["single_select", "multi_select", "likert", "numeric", "free_text"]},
-            "answer_scale": {"type": "string"}
-          }
-        }
-      },
-      "branching_rules": {"type": "array", "items": {"type": "string"}},
-      "quality_controls": {"type": "array", "items": {"type": "string"}},
-      "analysis_plan": {"type": "array", "items": {"type": "string"}}
-    }
-  }
-}
 ```

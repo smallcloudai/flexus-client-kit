@@ -45,7 +45,7 @@ GA4 tracks traffic and landing page conversions. CRM tracks pipeline. Reconcile 
 ## Recording
 
 ```
-write_artifact(artifact_type="channel_performance_report", path="/growth/channel-performance-{date}", data={...})
+write_artifact(path="/growth/channel-performance-{date}", data={...})
 ```
 
 ## Available Tools
@@ -58,46 +58,4 @@ mixpanel(op="call", args={"method_id": "mixpanel.query.insights.v1", "project_id
 salesforce(op="call", args={"method_id": "salesforce.query.v1", "query": "SELECT LeadSource, COUNT(Id) total, SUM(Amount) arr FROM Opportunity WHERE StageName = 'Closed Won' AND CloseDate = THIS_YEAR GROUP BY LeadSource"})
 
 hubspot(op="call", args={"method_id": "hubspot.analytics.sessions.v1", "breakdown": "source", "period": "month", "start": "2024-01-01", "end": "2024-12-31"})
-```
-
-## Artifact Schema
-
-```json
-{
-  "channel_performance_report": {
-    "type": "object",
-    "required": ["period", "attribution_model", "channels", "recommendations"],
-    "additionalProperties": false,
-    "properties": {
-      "period": {
-        "type": "object",
-        "required": ["start_date", "end_date"],
-        "additionalProperties": false,
-        "properties": {"start_date": {"type": "string"}, "end_date": {"type": "string"}}
-      },
-      "attribution_model": {"type": "string", "enum": ["last_touch", "first_touch", "linear_multi_touch"]},
-      "channels": {
-        "type": "array",
-        "items": {
-          "type": "object",
-          "required": ["channel", "leads", "qualified", "closed", "spend", "cac", "payback_months", "vs_cac_target"],
-          "additionalProperties": false,
-          "properties": {
-            "channel": {"type": "string"},
-            "leads": {"type": "integer", "minimum": 0},
-            "qualified": {"type": "integer", "minimum": 0},
-            "closed": {"type": "integer", "minimum": 0},
-            "qualified_rate": {"type": "number", "minimum": 0, "maximum": 1},
-            "close_rate": {"type": "number", "minimum": 0, "maximum": 1},
-            "spend": {"type": "number", "minimum": 0},
-            "cac": {"type": "number", "minimum": 0},
-            "payback_months": {"type": "number"},
-            "vs_cac_target": {"type": "string", "enum": ["on_target", "over_target", "under_target"]}
-          }
-        }
-      },
-      "recommendations": {"type": "array", "items": {"type": "string"}}
-    }
-  }
-}
 ```

@@ -32,7 +32,7 @@ Review spikes after update releases reveal what changes users care about most (p
 ## Recording
 
 ```
-write_artifact(artifact_type="segment_voice_of_market", path="/segments/{segment_id}/voice-of-market", data={...})
+write_artifact(path="/segments/{segment_id}/voice-of-market", data={...})
 ```
 
 ## Available Tools
@@ -47,49 +47,4 @@ google_play(op="call", args={"method_id": "google_play.reviews.list.v1", "packag
 google_play(op="call", args={"method_id": "google_play.reviews.get.v1", "packageName": "com.example.app", "reviewId": "review_id"})
 
 google_play(op="call", args={"method_id": "google_play.edits.details.get.v1", "packageName": "com.example.app", "editId": "edit_id"})
-```
-
-## Artifact Schema
-
-```json
-{
-  "segment_voice_of_market": {
-    "type": "object",
-    "required": ["target", "time_window", "result_state", "app_snapshots", "competitive_summary", "limitations"],
-    "additionalProperties": false,
-    "properties": {
-      "target": {"type": "string"},
-      "time_window": {
-        "type": "object",
-        "required": ["start_date", "end_date"],
-        "additionalProperties": false,
-        "properties": {"start_date": {"type": "string"}, "end_date": {"type": "string"}}
-      },
-      "result_state": {
-        "type": "string",
-        "enum": ["ok", "zero_results", "insufficient_data", "technical_failure"]
-      },
-      "app_snapshots": {
-        "type": "array",
-        "items": {
-          "type": "object",
-          "required": ["app_name", "platform", "avg_rating", "review_count", "pain_themes", "value_themes"],
-          "additionalProperties": false,
-          "properties": {
-            "app_name": {"type": "string"},
-            "platform": {"type": "string", "enum": ["ios", "android", "both"]},
-            "avg_rating": {"type": "number", "minimum": 1, "maximum": 5},
-            "review_count": {"type": "integer", "minimum": 0},
-            "rating_trend": {"type": "string", "enum": ["improving", "stable", "declining", "unknown"]},
-            "pain_themes": {"type": "array", "items": {"type": "string"}},
-            "value_themes": {"type": "array", "items": {"type": "string"}},
-            "representative_quotes": {"type": "array", "items": {"type": "string"}}
-          }
-        }
-      },
-      "competitive_summary": {"type": "string"},
-      "limitations": {"type": "array", "items": {"type": "string"}}
-    }
-  }
-}
 ```

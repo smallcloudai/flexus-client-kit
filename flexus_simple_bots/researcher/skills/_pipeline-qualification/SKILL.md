@@ -23,15 +23,15 @@ Core mode:
 
 ## Recording Prospecting Artifacts
 
-- `write_artifact(artifact_type="prospecting_batch", path=/pipeline/prospecting-batch-{date}, data={...})` — ICP-filtered prospect list
-- `write_artifact(artifact_type="outreach_execution_log", path=/pipeline/outreach-log-{date}, data={...})` — enrollment events and delivery summary
-- `write_artifact(artifact_type="prospect_data_quality", path=/pipeline/data-quality-{date}, data={...})` — quality gate pass/fail
+- `write_artifact(path=/pipeline/prospecting-batch-{date}, data={...})` — ICP-filtered prospect list
+- `write_artifact(path=/pipeline/outreach-log-{date}, data={...})` — enrollment events and delivery summary
+- `write_artifact(path=/pipeline/data-quality-{date}, data={...})` — quality gate pass/fail
 
 ## Recording Qualification Artifacts
 
-- `write_artifact(artifact_type="qualification_map", path=/pipeline/qualification-map-{date}, data={...})` — account qualification states
-- `write_artifact(artifact_type="buying_committee_coverage", path=/pipeline/committee-coverage-{date}, data={...})` — committee gaps
-- `write_artifact(artifact_type="qualification_go_no_go_gate", path=/pipeline/go-no-go-gate-{date}, data={...})` — go/no-go decision gate
+- `write_artifact(path=/pipeline/qualification-map-{date}, data={...})` — account qualification states
+- `write_artifact(path=/pipeline/committee-coverage-{date}, data={...})` — committee gaps
+- `write_artifact(path=/pipeline/go-no-go-gate-{date}, data={...})` — go/no-go decision gate
 
 Do not output raw JSON in chat.
 

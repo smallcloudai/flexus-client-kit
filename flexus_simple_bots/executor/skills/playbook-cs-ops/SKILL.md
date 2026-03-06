@@ -49,7 +49,7 @@ Automate reminder calendar events at each milestone.
 ## Recording
 
 ```
-write_artifact(artifact_type="cs_ops_playbook", path="/ops/cs-ops-playbook", data={...})
+write_artifact(path="/ops/cs-ops-playbook", data={...})
 ```
 
 ## Available Tools
@@ -62,67 +62,4 @@ salesforce(op="call", args={"method_id": "salesforce.query.v1", "query": "SELECT
 chargebee(op="call", args={"method_id": "chargebee.subscriptions.list.v1", "cancel_at[after]": "2024-01-01", "limit": 50})
 
 zendesk(op="call", args={"method_id": "zendesk.tickets.list.v1", "priority": "high", "status": "open"})
-```
-
-## Artifact Schema
-
-```json
-{
-  "cs_ops_playbook": {
-    "type": "object",
-    "required": ["created_at", "segmentation_model", "coverage_model", "qbr_process", "renewal_process"],
-    "additionalProperties": false,
-    "properties": {
-      "created_at": {"type": "string"},
-      "segmentation_model": {
-        "type": "array",
-        "items": {
-          "type": "object",
-          "required": ["tier_name", "acv_threshold", "coverage_type", "csm_ratio", "touch_cadence"],
-          "additionalProperties": false,
-          "properties": {
-            "tier_name": {"type": "string"},
-            "acv_threshold": {"type": "string"},
-            "coverage_type": {"type": "string", "enum": ["high_touch_named", "mid_touch_named", "scaled_pooled", "fully_automated"]},
-            "csm_ratio": {"type": "string"},
-            "touch_cadence": {"type": "string"}
-          }
-        }
-      },
-      "coverage_model": {
-        "type": "object",
-        "required": ["current_csm_headcount", "account_distribution", "capacity_headroom"],
-        "additionalProperties": false,
-        "properties": {
-          "current_csm_headcount": {"type": "integer", "minimum": 0},
-          "account_distribution": {"type": "object"},
-          "capacity_headroom": {"type": "string"}
-        }
-      },
-      "qbr_process": {
-        "type": "object",
-        "required": ["eligible_tiers", "agenda_template", "preparation_checklist"],
-        "additionalProperties": false,
-        "properties": {
-          "eligible_tiers": {"type": "array", "items": {"type": "string"}},
-          "agenda_template": {"type": "array", "items": {"type": "string"}},
-          "preparation_checklist": {"type": "array", "items": {"type": "string"}}
-        }
-      },
-      "renewal_process": {
-        "type": "array",
-        "items": {
-          "type": "object",
-          "required": ["days_before_renewal", "action", "owner"],
-          "additionalProperties": false,
-          "properties": {
-            "days_before_renewal": {"type": "integer"},
-            "action": {"type": "string"},
-            "owner": {"type": "string"}
-          }
-        }
-      }
-    }
-  }
-}
 ```

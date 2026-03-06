@@ -43,7 +43,7 @@ For non-respondents, send an async survey via Delighted or TypeForm:
 ## Recording
 
 ```
-write_artifact(artifact_type="churn_exit_intelligence", path="/churn/exit-intelligence-{date}", data={...})
+write_artifact(path="/churn/exit-intelligence-{date}", data={...})
 ```
 
 ## Available Tools
@@ -56,66 +56,4 @@ typeform(op="call", args={"method_id": "typeform.forms.create.v1", "title": "Exi
 zoom(op="call", args={"method_id": "zoom.meetings.create.v1", "topic": "Exit Interview", "type": 2, "duration": 30, "settings": {"auto_recording": "cloud"}})
 
 fireflies(op="call", args={"method_id": "fireflies.transcript.get.v1", "transcriptId": "transcript_id"})
-```
-
-## Artifact Schema
-
-```json
-{
-  "churn_exit_intelligence": {
-    "type": "object",
-    "required": ["period", "interviews_conducted", "survey_responses", "exit_reason_distribution", "competitive_intelligence", "product_feedback", "pattern_summary"],
-    "additionalProperties": false,
-    "properties": {
-      "period": {
-        "type": "object",
-        "required": ["start_date", "end_date"],
-        "additionalProperties": false,
-        "properties": {"start_date": {"type": "string"}, "end_date": {"type": "string"}}
-      },
-      "interviews_conducted": {"type": "integer", "minimum": 0},
-      "survey_responses": {"type": "integer", "minimum": 0},
-      "exit_reason_distribution": {
-        "type": "array",
-        "items": {
-          "type": "object",
-          "required": ["reason", "count", "pct"],
-          "additionalProperties": false,
-          "properties": {
-            "reason": {"type": "string", "enum": ["product_gap", "pricing", "competition", "icp_mismatch", "relationship_failure", "external"]},
-            "count": {"type": "integer", "minimum": 0},
-            "pct": {"type": "number", "minimum": 0, "maximum": 1}
-          }
-        }
-      },
-      "competitive_intelligence": {
-        "type": "array",
-        "items": {
-          "type": "object",
-          "required": ["competitor", "mention_count", "primary_reason_for_switching"],
-          "additionalProperties": false,
-          "properties": {
-            "competitor": {"type": "string"},
-            "mention_count": {"type": "integer", "minimum": 0},
-            "primary_reason_for_switching": {"type": "string"}
-          }
-        }
-      },
-      "product_feedback": {
-        "type": "array",
-        "items": {
-          "type": "object",
-          "required": ["theme", "frequency", "representative_quote"],
-          "additionalProperties": false,
-          "properties": {
-            "theme": {"type": "string"},
-            "frequency": {"type": "integer", "minimum": 0},
-            "representative_quote": {"type": "string"}
-          }
-        }
-      },
-      "pattern_summary": {"type": "string"}
-    }
-  }
-}
 ```

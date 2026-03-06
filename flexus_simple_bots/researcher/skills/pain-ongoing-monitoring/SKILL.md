@@ -40,7 +40,7 @@ Flag to human review if:
 ## Recording
 
 ```
-write_artifact(artifact_type="pain_monitoring_snapshot", path="/pain/{period}/monitoring-snapshot", data={...})
+write_artifact(path="/pain/{period}/monitoring-snapshot", data={...})
 ```
 
 ## Available Tools
@@ -57,53 +57,4 @@ intercom(op="call", args={"method_id": "intercom.conversations.list.v1", "per_pa
 intercom(op="call", args={"method_id": "intercom.conversations.get.v1", "id": "conversation_id"})
 
 dovetail(op="call", args={"method_id": "dovetail.insights.export.markdown.v1", "projectId": "project_id"})
-```
-
-## Artifact Schema
-
-```json
-{
-  "pain_monitoring_snapshot": {
-    "type": "object",
-    "required": ["period", "data_sources", "pain_themes", "trend_summary", "alerts", "limitations"],
-    "additionalProperties": false,
-    "properties": {
-      "period": {
-        "type": "object",
-        "required": ["start_date", "end_date"],
-        "additionalProperties": false,
-        "properties": {"start_date": {"type": "string"}, "end_date": {"type": "string"}}
-      },
-      "data_sources": {
-        "type": "array",
-        "items": {
-          "type": "object",
-          "required": ["source", "record_count"],
-          "additionalProperties": false,
-          "properties": {
-            "source": {"type": "string"},
-            "record_count": {"type": "integer", "minimum": 0}
-          }
-        }
-      },
-      "pain_themes": {
-        "type": "array",
-        "items": {
-          "type": "object",
-          "required": ["theme", "ticket_count", "trend", "representative_quotes"],
-          "additionalProperties": false,
-          "properties": {
-            "theme": {"type": "string"},
-            "ticket_count": {"type": "integer", "minimum": 0},
-            "trend": {"type": "string", "enum": ["increasing", "stable", "decreasing", "new"]},
-            "representative_quotes": {"type": "array", "items": {"type": "string"}}
-          }
-        }
-      },
-      "trend_summary": {"type": "string"},
-      "alerts": {"type": "array", "items": {"type": "string"}},
-      "limitations": {"type": "array", "items": {"type": "string"}}
-    }
-  }
-}
 ```

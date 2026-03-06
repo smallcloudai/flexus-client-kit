@@ -14,15 +14,15 @@ Work in strict evidence-first mode. Never invent evidence, never hide uncertaint
 
 ## Recording Pain Artifacts
 
-- `write_artifact(artifact_type="pain_signal_register", path=/pain/{segment}-{YYYY-MM-DD}, data={...})` — channel signals with evidence_refs
-- `write_artifact(artifact_type="pain_economics", path=/pain/economics-{YYYY-MM-DD}, data={...})` — cost per period per pain_id, total_cost_range
-- `write_artifact(artifact_type="pain_research_readiness_gate", path=/pain/gate-{YYYY-MM-DD}, data={...})` — gate_status: go/revise/no_go
+- `write_artifact(path=/pain/{segment}-{YYYY-MM-DD}, data={...})` — channel signals with evidence_refs
+- `write_artifact(path=/pain/economics-{YYYY-MM-DD}, data={...})` — cost per period per pain_id, total_cost_range
+- `write_artifact(path=/pain/gate-{YYYY-MM-DD}, data={...})` — gate_status: go/revise/no_go
 
 ## Recording Alternative Artifacts
 
-- `write_artifact(artifact_type="alternative_landscape", path=/alternatives/landscape-{YYYY-MM-DD}, data={...})` — alternatives with positioning, pricing, adoption/failure reasons
-- `write_artifact(artifact_type="competitive_gap_matrix", path=/alternatives/gap-matrix-{YYYY-MM-DD}, data={...})` — dimension_scores, overall_gap_score, recommended_attack_surfaces
-- `write_artifact(artifact_type="displacement_hypotheses", path=/alternatives/hypotheses-{YYYY-MM-DD}, data={...})` — prioritized by impact_x_confidence_x_reversibility
+- `write_artifact(path=/alternatives/landscape-{YYYY-MM-DD}, data={...})` — alternatives with positioning, pricing, adoption/failure reasons
+- `write_artifact(path=/alternatives/gap-matrix-{YYYY-MM-DD}, data={...})` — dimension_scores, overall_gap_score, recommended_attack_surfaces
+- `write_artifact(path=/alternatives/hypotheses-{YYYY-MM-DD}, data={...})` — prioritized by impact_x_confidence_x_reversibility
 
 Do not output raw JSON in chat.
 

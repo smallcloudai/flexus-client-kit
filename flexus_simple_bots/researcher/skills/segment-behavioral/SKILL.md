@@ -40,7 +40,7 @@ Total ≥70 = high priority. 40-69 = medium. <40 = low / not yet.
 ## Recording
 
 ```
-write_artifact(artifact_type="segment_behavioral_intent", path="/segments/{segment_id}/behavioral-intent", data={...})
+write_artifact(path="/segments/{segment_id}/behavioral-intent", data={...})
 ```
 
 ## Available Tools
@@ -55,55 +55,4 @@ sixsense(op="call", args={"method_id": "sixsense.accounts.details.v1", "account_
 sixsense(op="call", args={"method_id": "sixsense.accounts.segment.v1", "segment_id": "seg_id", "limit": 100})
 
 wappalyzer(op="call", args={"method_id": "wappalyzer.bulk_lookup.v1", "urls": ["https://company1.com", "https://company2.com"]})
-```
-
-## Artifact Schema
-
-```json
-{
-  "segment_behavioral_intent": {
-    "type": "object",
-    "required": ["segment_id", "evaluated_at", "intent_model", "account_scores"],
-    "additionalProperties": false,
-    "properties": {
-      "segment_id": {"type": "string"},
-      "evaluated_at": {"type": "string"},
-      "intent_model": {
-        "type": "object",
-        "required": ["topics_monitored", "scoring_dimensions"],
-        "additionalProperties": false,
-        "properties": {
-          "topics_monitored": {"type": "array", "items": {"type": "string"}},
-          "scoring_dimensions": {
-            "type": "array",
-            "items": {
-              "type": "object",
-              "required": ["dimension", "max_points"],
-              "additionalProperties": false,
-              "properties": {
-                "dimension": {"type": "string"},
-                "max_points": {"type": "integer", "minimum": 0}
-              }
-            }
-          }
-        }
-      },
-      "account_scores": {
-        "type": "array",
-        "items": {
-          "type": "object",
-          "required": ["domain", "total_score", "intent_tier", "dimension_scores", "signals"],
-          "additionalProperties": false,
-          "properties": {
-            "domain": {"type": "string"},
-            "total_score": {"type": "integer", "minimum": 0, "maximum": 100},
-            "intent_tier": {"type": "string", "enum": ["high", "medium", "low"]},
-            "dimension_scores": {"type": "object"},
-            "signals": {"type": "array", "items": {"type": "string"}}
-          }
-        }
-      }
-    }
-  }
-}
 ```

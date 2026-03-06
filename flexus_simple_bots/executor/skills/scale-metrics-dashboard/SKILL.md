@@ -43,7 +43,7 @@ Level 3 (operational): cohort retention curves, feature adoption, NPS trend
 ## Recording
 
 ```
-write_artifact(artifact_type="growth_metrics_dashboard", path="/growth/metrics-dashboard-{date}", data={...})
+write_artifact(path="/growth/metrics-dashboard-{date}", data={...})
 ```
 
 ## Available Tools
@@ -58,72 +58,4 @@ recurly(op="call", args={"method_id": "recurly.subscriptions.list.v1", "state": 
 salesforce(op="call", args={"method_id": "salesforce.query.v1", "query": "SELECT SUM(Amount), StageName FROM Opportunity WHERE StageName = 'Closed Won' AND CloseDate = THIS_MONTH GROUP BY StageName"})
 
 mixpanel(op="call", args={"method_id": "mixpanel.query.retention.v1", "project_id": "proj_id", "from_date": "2024-01-01", "to_date": "2024-12-31", "retention_type": "compactage"})
-```
-
-## Artifact Schema
-
-```json
-{
-  "growth_metrics_dashboard": {
-    "type": "object",
-    "required": ["period", "revenue_metrics", "retention_metrics", "growth_metrics", "status_summary"],
-    "additionalProperties": false,
-    "properties": {
-      "period": {
-        "type": "object",
-        "required": ["start_date", "end_date"],
-        "additionalProperties": false,
-        "properties": {"start_date": {"type": "string"}, "end_date": {"type": "string"}}
-      },
-      "revenue_metrics": {
-        "type": "object",
-        "required": ["mrr", "arr", "new_mrr", "expansion_mrr", "churned_mrr", "net_new_mrr"],
-        "additionalProperties": false,
-        "properties": {
-          "mrr": {"type": "number"},
-          "arr": {"type": "number"},
-          "new_mrr": {"type": "number"},
-          "expansion_mrr": {"type": "number"},
-          "churned_mrr": {"type": "number"},
-          "net_new_mrr": {"type": "number"},
-          "mom_growth_pct": {"type": "number"}
-        }
-      },
-      "retention_metrics": {
-        "type": "object",
-        "required": ["grr", "nrr", "logo_churn_rate"],
-        "additionalProperties": false,
-        "properties": {
-          "grr": {"type": "number", "minimum": 0, "maximum": 1},
-          "nrr": {"type": "number"},
-          "logo_churn_rate": {"type": "number", "minimum": 0, "maximum": 1}
-        }
-      },
-      "growth_metrics": {
-        "type": "object",
-        "required": ["arr_growth_yoy", "payback_period_months", "avg_cac"],
-        "additionalProperties": false,
-        "properties": {
-          "arr_growth_yoy": {"type": "number"},
-          "payback_period_months": {"type": "number"},
-          "avg_cac": {"type": "number"}
-        }
-      },
-      "status_summary": {
-        "type": "array",
-        "items": {
-          "type": "object",
-          "required": ["metric", "current", "target", "status"],
-          "additionalProperties": false,
-          "properties": {
-            "metric": {"type": "string"},
-            "current": {"type": "string"},
-            "target": {"type": "string"},
-            "status": {"type": "string", "enum": ["on_track", "at_risk", "off_track"]}
-          }
-        }
-      }
-    }
-  }
-}
 ```

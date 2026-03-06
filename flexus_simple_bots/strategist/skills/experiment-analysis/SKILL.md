@@ -50,7 +50,7 @@ Next action options:
 ## Recording
 
 ```
-write_artifact(artifact_type="experiment_results", path="/experiments/{experiment_id}/results", data={...})
+write_artifact(path="/experiments/{experiment_id}/results", data={...})
 ```
 
 ## Available Tools
@@ -58,52 +58,4 @@ write_artifact(artifact_type="experiment_results", path="/experiments/{experimen
 ```
 flexus_policy_document(op="activate", args={"p": "/experiments/{experiment_id}/spec"})
 flexus_policy_document(op="list", args={"p": "/experiments/"})
-```
-
-## Artifact Schema
-
-```json
-{
-  "experiment_results": {
-    "type": "object",
-    "required": ["experiment_id", "analyzed_at", "checklist_passed", "primary_metric_result", "guardrail_results", "verdict", "recommendation", "hypothesis_verdict"],
-    "additionalProperties": false,
-    "properties": {
-      "experiment_id": {"type": "string"},
-      "analyzed_at": {"type": "string"},
-      "checklist_passed": {"type": "boolean"},
-      "checklist_failures": {"type": "array", "items": {"type": "string"}},
-      "primary_metric_result": {
-        "type": "object",
-        "required": ["metric_name", "control_value", "variant_values", "p_value", "is_significant", "confidence_interval"],
-        "additionalProperties": false,
-        "properties": {
-          "metric_name": {"type": "string"},
-          "control_value": {"type": "number"},
-          "variant_values": {"type": "object"},
-          "p_value": {"type": "number"},
-          "is_significant": {"type": "boolean"},
-          "confidence_interval": {"type": "string"},
-          "relative_lift": {"type": "number"}
-        }
-      },
-      "guardrail_results": {
-        "type": "array",
-        "items": {
-          "type": "object",
-          "required": ["metric_name", "is_degraded", "p_value"],
-          "additionalProperties": false,
-          "properties": {
-            "metric_name": {"type": "string"},
-            "is_degraded": {"type": "boolean"},
-            "p_value": {"type": "number"}
-          }
-        }
-      },
-      "verdict": {"type": "string", "enum": ["ship", "do_not_ship", "inconclusive", "blocked_by_guardrail"]},
-      "recommendation": {"type": "string"},
-      "hypothesis_verdict": {"type": "string", "enum": ["validated", "rejected", "inconclusive"]}
-    }
-  }
-}
 ```

@@ -46,7 +46,7 @@ Avoid expansion conversations when:
 ## Recording
 
 ```
-write_artifact(artifact_type="expansion_signal_report", path="/retention/expansion-signals-{date}", data={...})
+write_artifact(path="/retention/expansion-signals-{date}", data={...})
 ```
 
 ## Available Tools
@@ -59,37 +59,4 @@ gong(op="call", args={"method_id": "gong.calls.list.v1", "fromDateTime": "2024-0
 salesforce(op="call", args={"method_id": "salesforce.query.v1", "query": "SELECT AccountId, Name, StageName, Amount FROM Opportunity WHERE Type = 'Upsell' AND CreatedDate = LAST_N_DAYS:30"})
 
 chargebee(op="call", args={"method_id": "chargebee.subscriptions.list.v1", "limit": 100, "status[is]": "active"})
-```
-
-## Artifact Schema
-
-```json
-{
-  "expansion_signal_report": {
-    "type": "object",
-    "required": ["report_date", "accounts_reviewed", "expansion_opportunities"],
-    "additionalProperties": false,
-    "properties": {
-      "report_date": {"type": "string"},
-      "accounts_reviewed": {"type": "integer", "minimum": 0},
-      "expansion_opportunities": {
-        "type": "array",
-        "items": {
-          "type": "object",
-          "required": ["account_id", "signal_type", "signal_description", "expansion_type", "readiness", "recommended_action", "estimated_value"],
-          "additionalProperties": false,
-          "properties": {
-            "account_id": {"type": "string"},
-            "signal_type": {"type": "string", "enum": ["usage_limit_approaching", "seat_expansion", "feature_request", "stakeholder_promotion", "funding_event", "headcount_growth"]},
-            "signal_description": {"type": "string"},
-            "expansion_type": {"type": "string", "enum": ["tier_upgrade", "seat_expansion", "add_on", "cross_sell", "new_department"]},
-            "readiness": {"type": "string", "enum": ["ready_now", "needs_nurture", "blocked"]},
-            "recommended_action": {"type": "string"},
-            "estimated_value": {"type": "number", "minimum": 0}
-          }
-        }
-      }
-    }
-  }
-}
 ```

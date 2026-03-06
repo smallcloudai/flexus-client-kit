@@ -24,11 +24,11 @@ Core mode:
 
 ## Recording Artifacts
 
-- `write_artifact(artifact_type="segment_enrichment", path=/segments/enrichment-{segment_id}-{YYYY-MM-DD}, data={...})` — enriched candidate with firmographic, technographic, intent data
-- `write_artifact(artifact_type="segment_data_quality", path=/segments/quality-{segment_id}-{YYYY-MM-DD}, data={...})` — data quality gate per dimension
-- `write_artifact(artifact_type="segment_priority_matrix", path=/segments/matrix-{YYYY-MM-DD}, data={...})` — weighted scoring across candidate segments
-- `write_artifact(artifact_type="primary_segment_decision", path=/segments/decision-{YYYY-MM-DD}, data={...})` — primary segment selection with rationale
-- `write_artifact(artifact_type="primary_segment_go_no_go_gate", path=/segments/gate-{YYYY-MM-DD}, data={...})` — go/no_go with blocking issues and next checks
+- `write_artifact(path=/segments/enrichment-{segment_id}-{YYYY-MM-DD}, data={...})` — enriched candidate with firmographic, technographic, intent data
+- `write_artifact(path=/segments/quality-{segment_id}-{YYYY-MM-DD}, data={...})` — data quality gate per dimension
+- `write_artifact(path=/segments/matrix-{YYYY-MM-DD}, data={...})` — weighted scoring across candidate segments
+- `write_artifact(path=/segments/decision-{YYYY-MM-DD}, data={...})` — primary segment selection with rationale
+- `write_artifact(path=/segments/gate-{YYYY-MM-DD}, data={...})` — go/no_go with blocking issues and next checks
 
 Do not output raw JSON in chat.
 

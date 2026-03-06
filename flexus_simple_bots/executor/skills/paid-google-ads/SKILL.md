@@ -44,7 +44,7 @@ Assets improve ad rank without extra CPC cost.
 ## Recording
 
 ```
-write_artifact(artifact_type="google_ads_report", path="/campaigns/{campaign_id}/google-report-{date}", data={...})
+write_artifact(path="/campaigns/{campaign_id}/google-report-{date}", data={...})
 ```
 
 ## Available Tools
@@ -57,74 +57,4 @@ google_ads(op="call", args={"method_id": "google_ads.ad_groups.create.v1", "ad_g
 google_ads(op="call", args={"method_id": "google_ads.keywords.create.v1", "operations": [{"create": {"ad_group": "customers/{customer_id}/adGroups/{ad_group_id}", "text": "your keyword", "match_type": "EXACT", "status": "ENABLED"}}]})
 
 google_ads(op="call", args={"method_id": "google_ads.reporting.query.v1", "query": "SELECT campaign.name, metrics.impressions, metrics.clicks, metrics.ctr, metrics.average_cpc, metrics.cost_micros, metrics.conversions, metrics.cost_per_conversion FROM campaign WHERE segments.date DURING LAST_30_DAYS ORDER BY metrics.cost_micros DESC"})
-```
-
-## Artifact Schema
-
-```json
-{
-  "google_ads_report": {
-    "type": "object",
-    "required": ["campaign_id", "period", "campaigns", "keyword_performance", "summary_metrics", "quality_issues"],
-    "additionalProperties": false,
-    "properties": {
-      "campaign_id": {"type": "string"},
-      "period": {
-        "type": "object",
-        "required": ["start_date", "end_date"],
-        "additionalProperties": false,
-        "properties": {"start_date": {"type": "string"}, "end_date": {"type": "string"}}
-      },
-      "campaigns": {
-        "type": "array",
-        "items": {
-          "type": "object",
-          "required": ["name", "type", "spend", "impressions", "clicks", "conversions", "cpa"],
-          "additionalProperties": false,
-          "properties": {
-            "name": {"type": "string"},
-            "type": {"type": "string"},
-            "spend": {"type": "number"},
-            "impressions": {"type": "integer"},
-            "clicks": {"type": "integer"},
-            "ctr": {"type": "number"},
-            "avg_cpc": {"type": "number"},
-            "conversions": {"type": "number"},
-            "cpa": {"type": "number"}
-          }
-        }
-      },
-      "keyword_performance": {
-        "type": "array",
-        "items": {
-          "type": "object",
-          "required": ["keyword", "match_type", "quality_score", "impressions", "clicks", "conversions", "cpa"],
-          "additionalProperties": false,
-          "properties": {
-            "keyword": {"type": "string"},
-            "match_type": {"type": "string"},
-            "quality_score": {"type": ["integer", "null"]},
-            "impressions": {"type": "integer"},
-            "clicks": {"type": "integer"},
-            "conversions": {"type": "number"},
-            "cpa": {"type": "number"}
-          }
-        }
-      },
-      "summary_metrics": {
-        "type": "object",
-        "required": ["total_spend", "total_conversions", "avg_cpa", "cpa_target"],
-        "additionalProperties": false,
-        "properties": {
-          "total_spend": {"type": "number"},
-          "total_conversions": {"type": "number"},
-          "avg_cpa": {"type": "number"},
-          "cpa_target": {"type": "number"}
-        }
-      },
-      "quality_issues": {"type": "array", "items": {"type": "string"}},
-      "optimizations": {"type": "array", "items": {"type": "string"}}
-    }
-  }
-}
 ```

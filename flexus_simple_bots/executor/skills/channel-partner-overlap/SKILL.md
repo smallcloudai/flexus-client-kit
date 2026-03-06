@@ -38,7 +38,7 @@ Pull overlap data weekly when active deals are present. Generate overlap report 
 ## Recording
 
 ```
-write_artifact(artifact_type="partner_overlap_report", path="/partners/overlap-{partner_id}-{date}", data={...})
+write_artifact(path="/partners/overlap-{partner_id}-{date}", data={...})
 ```
 
 ## Available Tools
@@ -51,45 +51,4 @@ crossbeam(op="call", args={"method_id": "crossbeam.reports.overlap_accounts.v1",
 crossbeam(op="call", args={"method_id": "crossbeam.partners.list.v1"})
 
 salesforce(op="call", args={"method_id": "salesforce.query.v1", "query": "SELECT Id, Name, StageName, Amount FROM Opportunity WHERE StageName NOT IN ('Closed Won','Closed Lost') ORDER BY Amount DESC LIMIT 100"})
-```
-
-## Artifact Schema
-
-```json
-{
-  "partner_overlap_report": {
-    "type": "object",
-    "required": ["partner_name", "report_date", "overlap_summary", "action_items"],
-    "additionalProperties": false,
-    "properties": {
-      "partner_name": {"type": "string"},
-      "report_date": {"type": "string"},
-      "overlap_summary": {
-        "type": "object",
-        "required": ["prospect_x_customer_count", "prospect_x_prospect_count", "customer_x_customer_count"],
-        "additionalProperties": false,
-        "properties": {
-          "prospect_x_customer_count": {"type": "integer", "minimum": 0},
-          "prospect_x_prospect_count": {"type": "integer", "minimum": 0},
-          "customer_x_customer_count": {"type": "integer", "minimum": 0}
-        }
-      },
-      "action_items": {
-        "type": "array",
-        "items": {
-          "type": "object",
-          "required": ["account_name", "overlap_type", "action", "priority"],
-          "additionalProperties": false,
-          "properties": {
-            "account_name": {"type": "string"},
-            "overlap_type": {"type": "string", "enum": ["prospect_x_customer", "prospect_x_prospect", "customer_x_customer"]},
-            "action": {"type": "string"},
-            "priority": {"type": "string", "enum": ["high", "medium", "low"]},
-            "deal_stage": {"type": "string"}
-          }
-        }
-      }
-    }
-  }
-}
 ```

@@ -44,7 +44,7 @@ Map each upgrade trigger to an expected timeline (e.g., "typical user hits the 5
 ## Recording
 
 ```
-write_artifact(artifact_type="pricing_tier_structure", path="/strategy/pricing-tiers", data={...})
+write_artifact(path="/strategy/pricing-tiers", data={...})
 ```
 
 ## Available Tools
@@ -53,62 +53,4 @@ write_artifact(artifact_type="pricing_tier_structure", path="/strategy/pricing-t
 flexus_policy_document(op="activate", args={"p": "/strategy/pricing-model"})
 flexus_policy_document(op="activate", args={"p": "/strategy/offer-design"})
 flexus_policy_document(op="list", args={"p": "/pain/"})
-```
-
-## Artifact Schema
-
-```json
-{
-  "pricing_tier_structure": {
-    "type": "object",
-    "required": ["created_at", "currency", "billing_period", "tiers", "upgrade_triggers", "wtp_anchoring"],
-    "additionalProperties": false,
-    "properties": {
-      "created_at": {"type": "string"},
-      "currency": {"type": "string"},
-      "billing_period": {"type": "string", "enum": ["monthly", "annually", "one_time", "per_seat_monthly"]},
-      "tiers": {
-        "type": "array",
-        "items": {
-          "type": "object",
-          "required": ["tier_name", "target_persona", "price", "price_unit", "key_limits", "key_features", "feature_gates"],
-          "additionalProperties": false,
-          "properties": {
-            "tier_name": {"type": "string"},
-            "target_persona": {"type": "string"},
-            "price": {"type": "number", "minimum": 0},
-            "price_unit": {"type": "string"},
-            "key_limits": {"type": "object"},
-            "key_features": {"type": "array", "items": {"type": "string"}},
-            "feature_gates": {"type": "array", "items": {"type": "string"}}
-          }
-        }
-      },
-      "upgrade_triggers": {
-        "type": "array",
-        "items": {
-          "type": "object",
-          "required": ["trigger", "from_tier", "to_tier", "expected_timeline"],
-          "additionalProperties": false,
-          "properties": {
-            "trigger": {"type": "string"},
-            "from_tier": {"type": "string"},
-            "to_tier": {"type": "string"},
-            "expected_timeline": {"type": "string"}
-          }
-        }
-      },
-      "wtp_anchoring": {
-        "type": "object",
-        "required": ["psm_optimal", "psm_stress_point", "applied_discount"],
-        "additionalProperties": false,
-        "properties": {
-          "psm_optimal": {"type": "number"},
-          "psm_stress_point": {"type": "number"},
-          "applied_discount": {"type": "number", "minimum": 0, "maximum": 1}
-        }
-      }
-    }
-  }
-}
 ```

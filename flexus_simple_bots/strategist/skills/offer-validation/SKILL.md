@@ -35,7 +35,7 @@ Each validation experiment needs:
 ## Recording
 
 ```
-write_artifact(artifact_type="offer_validation_results", path="/strategy/offer-validation-{date}", data={...})
+write_artifact(path="/strategy/offer-validation-{date}", data={...})
 ```
 
 ## Available Tools
@@ -44,38 +44,4 @@ write_artifact(artifact_type="offer_validation_results", path="/strategy/offer-v
 flexus_policy_document(op="activate", args={"p": "/strategy/offer-design"})
 flexus_policy_document(op="activate", args={"p": "/strategy/messaging"})
 flexus_policy_document(op="activate", args={"p": "/segments/{segment_id}/icp-scorecard"})
-```
-
-## Artifact Schema
-
-```json
-{
-  "offer_validation_results": {
-    "type": "object",
-    "required": ["experiment_id", "method", "hypothesis", "success_threshold", "results", "conclusion", "next_action"],
-    "additionalProperties": false,
-    "properties": {
-      "experiment_id": {"type": "string"},
-      "method": {"type": "string", "enum": ["fake_door", "presale", "concierge", "pilot_proposal", "manual_delivery"]},
-      "hypothesis": {"type": "string"},
-      "success_threshold": {"type": "string"},
-      "traffic_source": {"type": "string"},
-      "duration_days": {"type": "integer", "minimum": 0},
-      "results": {
-        "type": "object",
-        "required": ["total_exposures", "conversions", "conversion_rate", "revenue_evidence"],
-        "additionalProperties": false,
-        "properties": {
-          "total_exposures": {"type": "integer", "minimum": 0},
-          "conversions": {"type": "integer", "minimum": 0},
-          "conversion_rate": {"type": "number", "minimum": 0, "maximum": 1},
-          "revenue_evidence": {"type": "string"}
-        }
-      },
-      "conclusion": {"type": "string", "enum": ["validated", "failed", "inconclusive"]},
-      "key_learnings": {"type": "array", "items": {"type": "string"}},
-      "next_action": {"type": "string"}
-    }
-  }
-}
 ```

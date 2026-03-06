@@ -47,65 +47,11 @@ External dependencies that create timeline risk:
 ## Recording
 
 ```
-write_artifact(artifact_type="mvp_feasibility_assessment", path="/strategy/mvp-feasibility", data={...})
+write_artifact(path="/strategy/mvp-feasibility", data={...})
 ```
 
 ## Available Tools
 
 ```
 flexus_policy_document(op="activate", args={"p": "/strategy/mvp-scope"})
-```
-
-## Artifact Schema
-
-```json
-{
-  "mvp_feasibility_assessment": {
-    "type": "object",
-    "required": ["assessed_at", "overall_feasibility", "technical_risks", "resource_estimate", "timeline_estimate", "blockers", "recommendations"],
-    "additionalProperties": false,
-    "properties": {
-      "assessed_at": {"type": "string"},
-      "overall_feasibility": {"type": "string", "enum": ["feasible", "feasible_with_changes", "infeasible"]},
-      "technical_risks": {
-        "type": "array",
-        "items": {
-          "type": "object",
-          "required": ["risk", "resolution_type", "severity"],
-          "additionalProperties": false,
-          "properties": {
-            "risk": {"type": "string"},
-            "resolution_type": {"type": "string", "enum": ["build", "buy", "partner", "block"]},
-            "severity": {"type": "string", "enum": ["critical", "high", "medium", "low"]},
-            "mitigation": {"type": "string"}
-          }
-        }
-      },
-      "resource_estimate": {
-        "type": "object",
-        "required": ["engineering_weeks", "design_weeks", "qa_weeks"],
-        "additionalProperties": false,
-        "properties": {
-          "engineering_weeks": {"type": "number", "minimum": 0},
-          "design_weeks": {"type": "number", "minimum": 0},
-          "qa_weeks": {"type": "number", "minimum": 0},
-          "estimate_confidence": {"type": "string", "enum": ["high", "medium", "low"]}
-        }
-      },
-      "timeline_estimate": {
-        "type": "object",
-        "required": ["optimistic_weeks", "realistic_weeks", "pessimistic_weeks"],
-        "additionalProperties": false,
-        "properties": {
-          "optimistic_weeks": {"type": "number", "minimum": 0},
-          "realistic_weeks": {"type": "number", "minimum": 0},
-          "pessimistic_weeks": {"type": "number", "minimum": 0},
-          "critical_path": {"type": "array", "items": {"type": "string"}}
-        }
-      },
-      "blockers": {"type": "array", "items": {"type": "string"}},
-      "recommendations": {"type": "array", "items": {"type": "string"}}
-    }
-  }
-}
 ```

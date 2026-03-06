@@ -44,7 +44,7 @@ What events need to be tracked to measure the primary metric and secondary metri
 ## Recording
 
 ```
-write_artifact(artifact_type="experiment_spec", path="/experiments/{experiment_id}/spec", data={...})
+write_artifact(path="/experiments/{experiment_id}/spec", data={...})
 ```
 
 ## Available Tools
@@ -52,53 +52,4 @@ write_artifact(artifact_type="experiment_spec", path="/experiments/{experiment_i
 ```
 flexus_policy_document(op="activate", args={"p": "/strategy/hypothesis-stack"})
 flexus_policy_document(op="list", args={"p": "/experiments/"})
-```
-
-## Artifact Schema
-
-```json
-{
-  "experiment_spec": {
-    "type": "object",
-    "required": ["experiment_id", "hypothesis_ref", "experiment_type", "control", "variants", "primary_metric", "guardrail_metrics", "sample_size_per_variant", "minimum_detectable_effect", "significance_threshold", "power", "launch_date", "decision_date"],
-    "additionalProperties": false,
-    "properties": {
-      "experiment_id": {"type": "string"},
-      "hypothesis_ref": {"type": "string"},
-      "experiment_type": {"type": "string", "enum": ["ab_test", "holdout", "pre_post", "bayesian"]},
-      "control": {
-        "type": "object",
-        "required": ["description", "current_baseline_rate"],
-        "additionalProperties": false,
-        "properties": {
-          "description": {"type": "string"},
-          "current_baseline_rate": {"type": "number", "minimum": 0, "maximum": 1}
-        }
-      },
-      "variants": {
-        "type": "array",
-        "items": {
-          "type": "object",
-          "required": ["variant_id", "description", "change_description", "traffic_split"],
-          "additionalProperties": false,
-          "properties": {
-            "variant_id": {"type": "string"},
-            "description": {"type": "string"},
-            "change_description": {"type": "string"},
-            "traffic_split": {"type": "number", "minimum": 0, "maximum": 1}
-          }
-        }
-      },
-      "primary_metric": {"type": "string"},
-      "guardrail_metrics": {"type": "array", "items": {"type": "string"}},
-      "sample_size_per_variant": {"type": "integer", "minimum": 1},
-      "minimum_detectable_effect": {"type": "number"},
-      "significance_threshold": {"type": "number"},
-      "power": {"type": "number"},
-      "launch_date": {"type": "string"},
-      "decision_date": {"type": "string"},
-      "instrumentation_plan": {"type": "array", "items": {"type": "string"}}
-    }
-  }
-}
 ```

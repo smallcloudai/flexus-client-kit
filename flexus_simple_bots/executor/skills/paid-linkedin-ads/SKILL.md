@@ -44,7 +44,7 @@ Realistic test budget: $100-200/day for 2-3 weeks to gather statistically meanin
 ## Recording
 
 ```
-write_artifact(artifact_type="linkedin_ads_report", path="/campaigns/{campaign_id}/linkedin-report-{date}", data={...})
+write_artifact(path="/campaigns/{campaign_id}/linkedin-report-{date}", data={...})
 ```
 
 ## Available Tools
@@ -57,57 +57,4 @@ linkedin(op="call", args={"method_id": "linkedin.adaccounts.creatives.create.v1"
 linkedin(op="call", args={"method_id": "linkedin.adanalytics.query.v1", "account_id": "urn:li:sponsoredAccount:123", "pivot": "CAMPAIGN", "dateRange": {"start": {"year": 2024, "month": 1, "day": 1}, "end": {"year": 2024, "month": 12, "day": 31}}, "fields": ["impressions", "clicks", "costInLocalCurrency", "leads", "ctr"]})
 
 linkedin(op="call", args={"method_id": "linkedin.leadgenforms.submit.v1", "form_id": "form_id"})
-```
-
-## Artifact Schema
-
-```json
-{
-  "linkedin_ads_report": {
-    "type": "object",
-    "required": ["campaign_id", "period", "campaigns", "summary_metrics", "audience_performance", "optimizations"],
-    "additionalProperties": false,
-    "properties": {
-      "campaign_id": {"type": "string"},
-      "period": {
-        "type": "object",
-        "required": ["start_date", "end_date"],
-        "additionalProperties": false,
-        "properties": {"start_date": {"type": "string"}, "end_date": {"type": "string"}}
-      },
-      "campaigns": {
-        "type": "array",
-        "items": {
-          "type": "object",
-          "required": ["name", "type", "spend", "impressions", "clicks", "leads", "cpl"],
-          "additionalProperties": false,
-          "properties": {
-            "name": {"type": "string"},
-            "type": {"type": "string"},
-            "spend": {"type": "number"},
-            "impressions": {"type": "integer"},
-            "clicks": {"type": "integer"},
-            "ctr": {"type": "number"},
-            "leads": {"type": "integer"},
-            "cpl": {"type": "number"}
-          }
-        }
-      },
-      "summary_metrics": {
-        "type": "object",
-        "required": ["total_spend", "total_leads", "avg_cpl", "cpl_target", "vs_target"],
-        "additionalProperties": false,
-        "properties": {
-          "total_spend": {"type": "number"},
-          "total_leads": {"type": "integer"},
-          "avg_cpl": {"type": "number"},
-          "cpl_target": {"type": "number"},
-          "vs_target": {"type": "string", "enum": ["on_target", "over_target", "under_target"]}
-        }
-      },
-      "audience_performance": {"type": "array", "items": {"type": "string"}},
-      "optimizations": {"type": "array", "items": {"type": "string"}}
-    }
-  }
-}
 ```

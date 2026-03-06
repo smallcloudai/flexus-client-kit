@@ -17,7 +17,7 @@ You are in **Paid Growth mode** — create testable creatives and run controlled
 
 ## Recording Creative Variant Packs
 
-After generating and QA-ing creatives, call `write_artifact(artifact_type="creative_variant_pack", path=/creatives/variant-pack-{YYYY-MM-DD}, data={...})`:
+After generating and QA-ing creatives, call `write_artifact(path=/creatives/variant-pack-{YYYY-MM-DD}, data={...})`:
 - path: `/creatives/variant-pack-{YYYY-MM-DD}`
 - data: all required fields filled; duration_seconds and max_text_density null if not applicable.
 
@@ -25,19 +25,19 @@ One call per creative production run. Do not output raw JSON in chat.
 
 ## Recording Asset Manifests
 
-After tracking asset QA status, call `write_artifact(artifact_type="creative_asset_manifest", path=/creatives/asset-manifest-{YYYY-MM-DD}, data={...})`:
+After tracking asset QA status, call `write_artifact(path=/creatives/asset-manifest-{YYYY-MM-DD}, data={...})`:
 - path: `/creatives/asset-manifest-{YYYY-MM-DD}`
 - data: qa_checks as empty array if no checks were run.
 
 ## Recording Claim Risk Registers
 
-After substantiating creative claims, call `write_artifact(artifact_type="creative_claim_risk_register", path=/creatives/claim-risk-register-{YYYY-MM-DD}, data={...})`:
+After substantiating creative claims, call `write_artifact(path=/creatives/claim-risk-register-{YYYY-MM-DD}, data={...})`:
 - path: `/creatives/claim-risk-register-{YYYY-MM-DD}`
 - data: all claims with risk_level and substantiation_status filled.
 
 ## Recording Test Plans
 
-Before launching a paid test, call `write_artifact(artifact_type="paid_channel_test_plan", path=/paid/test-plan-{platform}-{YYYY-MM-DD}, data={...})`:
+Before launching a paid test, call `write_artifact(path=/paid/test-plan-{platform}-{YYYY-MM-DD}, data={...})`:
 - path: `/paid/test-plan-{platform}-{YYYY-MM-DD}`
 - data: all guardrail fields filled; stop_conditions must be explicit.
 
@@ -45,13 +45,13 @@ One plan per platform per test.
 
 ## Recording Test Results
 
-After a campaign run, call `write_artifact(artifact_type="paid_channel_result", path=/paid/result-{platform}-{YYYY-MM-DD}, data={...})`:
+After a campaign run, call `write_artifact(path=/paid/result-{platform}-{YYYY-MM-DD}, data={...})`:
 - path: `/paid/result-{platform}-{YYYY-MM-DD}`
 - data: decision must be one of `continue`/`iterate`/`stop` with explicit decision_reason.
 
 ## Recording Budget Guardrail Events
 
-When a budget breach or guardrail event occurs, call `write_artifact(artifact_type="paid_channel_budget_guardrail", path=/paid/budget-guardrail-{YYYY-MM-DD}, data={...})`:
+When a budget breach or guardrail event occurs, call `write_artifact(path=/paid/budget-guardrail-{YYYY-MM-DD}, data={...})`:
 - path: `/paid/budget-guardrail-{YYYY-MM-DD}`
 - data: actual_spend must reflect real values; breaches as empty array if none.
 

@@ -20,18 +20,18 @@ You are in **Retention Intelligence mode** — evidence-first cohort analysis, r
 ## Recording Cohort Artifacts
 
 After completing diagnostics, call the appropriate write tool:
-- `write_artifact(artifact_type="cohort_revenue_review", path=/retention/cohort-review-{YYYY-MM-DD}, data={...})` — activation-retention-revenue review
-- `write_artifact(artifact_type="retention_driver_matrix", path=/retention/driver-matrix-{YYYY-MM-DD}, data={...})` — ranked driver matrix
-- `write_artifact(artifact_type="retention_readiness_gate", path=/retention/readiness-gate-{YYYY-MM-DD}, data={...})` — go/conditional/no_go gate
+- `write_artifact(path=/retention/cohort-review-{YYYY-MM-DD}, data={...})` — activation-retention-revenue review
+- `write_artifact(path=/retention/driver-matrix-{YYYY-MM-DD}, data={...})` — ranked driver matrix
+- `write_artifact(path=/retention/readiness-gate-{YYYY-MM-DD}, data={...})` — go/conditional/no_go gate
 
 Do not output raw JSON in chat.
 
 ## Recording PMF Artifacts
 
 After interpreting PMF evidence, call the appropriate write tool:
-- `write_artifact(artifact_type="pmf_confidence_scorecard", path=/pmf/scorecard-{YYYY-MM-DD}, data={...})` — PMF confidence scorecard
-- `write_artifact(artifact_type="pmf_signal_evidence", path=/pmf/signal-evidence-{YYYY-MM-DD}, data={...})` — catalogued signal evidence
-- `write_artifact(artifact_type="pmf_research_backlog", path=/pmf/research-backlog-{YYYY-MM-DD}, data={...})` — prioritized research backlog
+- `write_artifact(path=/pmf/scorecard-{YYYY-MM-DD}, data={...})` — PMF confidence scorecard
+- `write_artifact(path=/pmf/signal-evidence-{YYYY-MM-DD}, data={...})` — catalogued signal evidence
+- `write_artifact(path=/pmf/research-backlog-{YYYY-MM-DD}, data={...})` — prioritized research backlog
 
 Do not output raw JSON in chat.
 

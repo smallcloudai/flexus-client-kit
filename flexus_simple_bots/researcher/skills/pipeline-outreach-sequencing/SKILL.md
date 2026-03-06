@@ -43,7 +43,7 @@ Load contacts and sequences into the CRM automation layer.
 ## Recording
 
 ```
-write_artifact(artifact_type="outreach_sequence_plan", path="/pipeline/{campaign_id}/sequence-plan", data={...})
+write_artifact(path="/pipeline/{campaign_id}/sequence-plan", data={...})
 ```
 
 ## Available Tools
@@ -58,54 +58,4 @@ outreach(op="call", args={"method_id": "outreach.prospects.create.v1", "firstNam
 salesloft(op="call", args={"method_id": "salesloft.cadences.create.v1", "name": "Campaign Name", "cadence_function": "outreach"})
 
 salesloft(op="call", args={"method_id": "salesloft.people.create.v1", "first_name": "First", "last_name": "Last", "email_address": "contact@company.com", "title": "CTO"})
-```
-
-## Artifact Schema
-
-```json
-{
-  "outreach_sequence_plan": {
-    "type": "object",
-    "required": ["campaign_id", "target_segment", "sequence_steps", "personalization_framework", "deliverability_settings"],
-    "additionalProperties": false,
-    "properties": {
-      "campaign_id": {"type": "string"},
-      "target_segment": {"type": "string"},
-      "sequence_steps": {
-        "type": "array",
-        "items": {
-          "type": "object",
-          "required": ["step_number", "day_offset", "channel", "subject_template", "body_template"],
-          "additionalProperties": false,
-          "properties": {
-            "step_number": {"type": "integer", "minimum": 1},
-            "day_offset": {"type": "integer", "minimum": 0},
-            "channel": {"type": "string", "enum": ["email", "linkedin_connect", "linkedin_message"]},
-            "subject_template": {"type": "string"},
-            "body_template": {"type": "string"},
-            "personalization_tokens": {"type": "array", "items": {"type": "string"}}
-          }
-        }
-      },
-      "personalization_framework": {
-        "type": "object",
-        "required": ["signal_sources", "persona_pain_map"],
-        "additionalProperties": false,
-        "properties": {
-          "signal_sources": {"type": "array", "items": {"type": "string"}},
-          "persona_pain_map": {"type": "object"}
-        }
-      },
-      "deliverability_settings": {
-        "type": "object",
-        "required": ["daily_send_limit", "warmup_complete"],
-        "additionalProperties": false,
-        "properties": {
-          "daily_send_limit": {"type": "integer", "minimum": 1},
-          "warmup_complete": {"type": "boolean"}
-        }
-      }
-    }
-  }
-}
 ```

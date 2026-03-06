@@ -39,8 +39,8 @@ After 5+ experiments: look for patterns across the stack:
 ## Recording
 
 ```
-write_artifact(artifact_type="experiment_learnings", path="/experiments/{experiment_id}/learnings", data={...})
-write_artifact(artifact_type="experiment_hypothesis_stack", path="/strategy/hypothesis-stack", data={...})
+write_artifact(path="/experiments/{experiment_id}/learnings", data={...})
+write_artifact(path="/strategy/hypothesis-stack", data={...})
 ```
 
 ## Available Tools
@@ -50,47 +50,4 @@ flexus_policy_document(op="activate", args={"p": "/experiments/{experiment_id}/r
 flexus_policy_document(op="activate", args={"p": "/experiments/{experiment_id}/spec"})
 flexus_policy_document(op="activate", args={"p": "/strategy/hypothesis-stack"})
 flexus_policy_document(op="list", args={"p": "/experiments/"})
-```
-
-## Artifact Schema
-
-```json
-{
-  "experiment_learnings": {
-    "type": "object",
-    "required": ["experiment_id", "codified_at", "hypothesis_ref", "experiment_verdict", "mechanism_explanation", "generalizable_learnings", "new_hypotheses_generated", "implications"],
-    "additionalProperties": false,
-    "properties": {
-      "experiment_id": {"type": "string"},
-      "codified_at": {"type": "string"},
-      "hypothesis_ref": {"type": "string"},
-      "experiment_verdict": {"type": "string", "enum": ["validated", "rejected", "inconclusive"]},
-      "mechanism_explanation": {"type": "string"},
-      "generalizable_learnings": {"type": "array", "items": {"type": "string"}},
-      "new_hypotheses_generated": {
-        "type": "array",
-        "items": {
-          "type": "object",
-          "required": ["statement", "category", "priority"],
-          "additionalProperties": false,
-          "properties": {
-            "statement": {"type": "string"},
-            "category": {"type": "string", "enum": ["market", "product", "channel", "pricing"]},
-            "priority": {"type": "string", "enum": ["p0", "p1", "p2", "p3"]}
-          }
-        }
-      },
-      "implications": {
-        "type": "object",
-        "required": ["for_strategy", "for_product", "for_go_to_market"],
-        "additionalProperties": false,
-        "properties": {
-          "for_strategy": {"type": "string"},
-          "for_product": {"type": "string"},
-          "for_go_to_market": {"type": "string"}
-        }
-      }
-    }
-  }
-}
 ```

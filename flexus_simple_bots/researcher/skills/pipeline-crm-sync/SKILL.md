@@ -42,7 +42,7 @@ Periodic pipeline health snapshot:
 ## Recording
 
 ```
-write_artifact(artifact_type="pipeline_health_snapshot", path="/pipeline/{period}/health-snapshot", data={...})
+write_artifact(path="/pipeline/{period}/health-snapshot", data={...})
 ```
 
 ## Available Tools
@@ -61,73 +61,4 @@ salesforce(op="call", args={"method_id": "salesforce.sobjects.opportunity.create
 pipedrive(op="call", args={"method_id": "pipedrive.deals.create.v1", "title": "Company - Discovery", "person_id": "person_id", "org_id": "org_id"})
 
 zendesk_sell(op="call", args={"method_id": "zendesk_sell.deals.create.v1", "name": "Company - Discovery", "contact_id": "contact_id"})
-```
-
-## Artifact Schema
-
-```json
-{
-  "pipeline_health_snapshot": {
-    "type": "object",
-    "required": ["period", "crm_source", "stage_distribution", "conversion_rates", "stale_deals", "velocity_metrics"],
-    "additionalProperties": false,
-    "properties": {
-      "period": {
-        "type": "object",
-        "required": ["start_date", "end_date"],
-        "additionalProperties": false,
-        "properties": {"start_date": {"type": "string"}, "end_date": {"type": "string"}}
-      },
-      "crm_source": {"type": "string", "enum": ["hubspot", "salesforce", "pipedrive", "zendesk_sell"]},
-      "stage_distribution": {
-        "type": "array",
-        "items": {
-          "type": "object",
-          "required": ["stage", "deal_count", "total_acv"],
-          "additionalProperties": false,
-          "properties": {
-            "stage": {"type": "string"},
-            "deal_count": {"type": "integer", "minimum": 0},
-            "total_acv": {"type": "number", "minimum": 0}
-          }
-        }
-      },
-      "conversion_rates": {
-        "type": "array",
-        "items": {
-          "type": "object",
-          "required": ["from_stage", "to_stage", "rate"],
-          "additionalProperties": false,
-          "properties": {
-            "from_stage": {"type": "string"},
-            "to_stage": {"type": "string"},
-            "rate": {"type": "number", "minimum": 0, "maximum": 1}
-          }
-        }
-      },
-      "stale_deals": {
-        "type": "array",
-        "items": {
-          "type": "object",
-          "required": ["deal_ref", "days_stale", "current_stage"],
-          "additionalProperties": false,
-          "properties": {
-            "deal_ref": {"type": "string"},
-            "days_stale": {"type": "integer", "minimum": 0},
-            "current_stage": {"type": "string"}
-          }
-        }
-      },
-      "velocity_metrics": {
-        "type": "object",
-        "required": ["avg_days_to_close", "avg_days_per_stage"],
-        "additionalProperties": false,
-        "properties": {
-          "avg_days_to_close": {"type": "number"},
-          "avg_days_per_stage": {"type": "object"}
-        }
-      }
-    }
-  }
-}
 ```

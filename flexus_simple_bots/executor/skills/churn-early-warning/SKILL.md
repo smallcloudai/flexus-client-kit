@@ -47,7 +47,7 @@ Risk threshold: ≥10 points = high churn risk → trigger save play immediately
 ## Recording
 
 ```
-write_artifact(artifact_type="churn_warning_report", path="/churn/warning-report-{date}", data={...})
+write_artifact(path="/churn/warning-report-{date}", data={...})
 ```
 
 ## Available Tools
@@ -60,56 +60,4 @@ chargebee(op="call", args={"method_id": "chargebee.subscriptions.list.v1", "stat
 zendesk(op="call", args={"method_id": "zendesk.tickets.list.v1", "status": "open", "priority": "high"})
 
 delighted(op="call", args={"method_id": "delighted.survey.responses.v1", "score[lte]": 6, "since": 1704067200})
-```
-
-## Artifact Schema
-
-```json
-{
-  "churn_warning_report": {
-    "type": "object",
-    "required": ["report_date", "at_risk_accounts", "signal_summary"],
-    "additionalProperties": false,
-    "properties": {
-      "report_date": {"type": "string"},
-      "at_risk_accounts": {
-        "type": "array",
-        "items": {
-          "type": "object",
-          "required": ["account_id", "risk_score", "risk_tier", "active_signals", "recommended_save_play"],
-          "additionalProperties": false,
-          "properties": {
-            "account_id": {"type": "string"},
-            "risk_score": {"type": "integer", "minimum": 0},
-            "risk_tier": {"type": "string", "enum": ["critical", "high", "medium"]},
-            "active_signals": {
-              "type": "array",
-              "items": {
-                "type": "object",
-                "required": ["signal_type", "description", "detected_at"],
-                "additionalProperties": false,
-                "properties": {
-                  "signal_type": {"type": "string"},
-                  "description": {"type": "string"},
-                  "detected_at": {"type": "string"}
-                }
-              }
-            },
-            "recommended_save_play": {"type": "string"},
-            "days_to_renewal": {"type": ["integer", "null"]}
-          }
-        }
-      },
-      "signal_summary": {
-        "type": "object",
-        "required": ["most_common_signals", "total_at_risk_arr"],
-        "additionalProperties": false,
-        "properties": {
-          "most_common_signals": {"type": "array", "items": {"type": "string"}},
-          "total_at_risk_arr": {"type": "number", "minimum": 0}
-        }
-      }
-    }
-  }
-}
 ```
