@@ -17,14 +17,13 @@ from flexus_client_kit import ckit_kanban
 from flexus_client_kit import ckit_external_auth
 from flexus_client_kit import erp_schema
 from flexus_client_kit import ckit_integrations_db
-from flexus_client_kit.integrations import fi_mcp
 from flexus_client_kit.integrations import fi_mongo_store
 from flexus_client_kit.integrations import fi_pdoc
 from flexus_simple_bots.frog import frog_install
-from flexus_simple_bots.frog.frog_install import FROG_INTEGRATIONS
 from flexus_simple_bots.version_common import SIMPLE_BOTS_COMMON_VERSION
 
 logger = logging.getLogger("bot_frog")
+
 
 BOT_NAME = "frog"
 BOT_VERSION = SIMPLE_BOTS_COMMON_VERSION
@@ -89,23 +88,22 @@ MAKE_POND_REPORT_TOOL = ckit_cloudtool.CloudTool(
     },
 )
 
-frog_mcps = fi_mcp.MCPsDeclaration(["context7"])
 
 TOOLS = [
     RIBBIT_TOOL,
     CATCH_INSECTS_TOOL,
     MAKE_POND_REPORT_TOOL,
     fi_mongo_store.MONGO_STORE_TOOL,
-    *[t for rec in FROG_INTEGRATIONS for t in rec.integr_tools],
-    *frog_mcps.tools(),
+    *[t for rec in frog_install.FROG_INTEGRATIONS for t in rec.integr_tools],
+    *frog_install.FROG_MCPS.tools(),
 ]
 
 
 async def frog_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.RobotContext) -> None:
     setup = ckit_bot_exec.official_setup_mixing_procedure(frog_install.FROG_SETUP_SCHEMA, rcx.persona.persona_setup)
-    integr_objects = await ckit_integrations_db.main_loop_integrations_init(FROG_INTEGRATIONS, rcx)
+    integr_objects = await ckit_integrations_db.main_loop_integrations_init(frog_install.FROG_INTEGRATIONS, rcx)
     pdoc_integration: fi_pdoc.IntegrationPdoc = integr_objects["flexus_policy_document"]
-    await frog_mcps.launch(rcx, setup)
+    await frog_install.FROG_MCPS.launch(rcx, setup)
 
     # Mongo store needs custom setup (bot-specific collection)
     mongo_conn_str = await ckit_mongo.mongo_fetch_creds(fclient, rcx.persona.persona_id)
