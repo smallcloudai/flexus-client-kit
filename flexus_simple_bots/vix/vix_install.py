@@ -117,6 +117,7 @@ async def install(
         marketable_preferred_model_default="claude-opus-4-6",
         marketable_daily_budget_default=10_000_000,
         marketable_default_inbox_default=1_000_000,
+        marketable_max_inprogress=10,
         marketable_experts=[(name, exp.filter_tools(tools)) for name, exp in EXPERTS],
         marketable_tags=["Sales", "Marketing", "CRM", "Email", "Automation", "Shopify", "E-commerce"],
         marketable_picture_big_b64=pic_big,
