@@ -12,11 +12,13 @@ from flexus_simple_bots.frog import frog_prompts
 
 
 FROG_ROOTDIR = Path(__file__).parent
-FROG_SKILLS = ckit_skills.static_skills_find(FROG_ROOTDIR, shared_skills_allowlist="*")
-FROG_MCPS = fi_mcp.MCPsDeclaration(["context7"])
-FROG_SETUP_SCHEMA = json.loads((FROG_ROOTDIR / "setup_schema.json").read_text())
-FROG_SETUP_SCHEMA.extend(FROG_MCPS.setup_schema("MCP Servers", 100))
 
+FROG_SKILLS: list[str] = ckit_skills.static_skills_find(FROG_ROOTDIR, shared_skills_allowlist="*")
+
+FROG_MCPS = ["context7"]
+
+FROG_SETUP_SCHEMA = json.loads((FROG_ROOTDIR / "setup_schema.json").read_text())
+FROG_SETUP_SCHEMA.extend(fi_mcp.mcp_setup_schema(FROG_MCPS))
 
 FROG_INTEGRATIONS: list[ckit_integrations_db.IntegrationRecord] = ckit_integrations_db.static_integrations_load(
     FROG_ROOTDIR,
@@ -29,16 +31,16 @@ FROG_INTEGRATIONS: list[ckit_integrations_db.IntegrationRecord] = ckit_integrati
     builtin_skills=FROG_SKILLS
 )
 
-FROG_SUBCHAT_LARK = f"""
+FROG_SUBCHAT_LARK = """
 print("Ribbit in logs")     # will be visible in lark logs
 subchat_result = "Insect!"
 """
 
-FROG_DEFAULT_LARK = f"""
+FROG_DEFAULT_LARK = """
 print("I see %d messages" % len(messages))
 msg = messages[-1]
 if msg["role"] == "assistant":
-    assistant_says1 = str(msg["content"])    # assistant can only produce text, there will not be [{{"m_type": "image/png", "m_content": "..."}}, ...]
+    assistant_says1 = str(msg["content"])    # assistant can only produce text, there will not be [{"m_type": "image/png", "m_content": "..."}, ...]
     assistant_says2 = str(msg["tool_calls"]) # that might be a big json but it still converts to string, good enough for a frog
     print("assistant_says1", assistant_says1)
     print("assistant_says2", assistant_says2)
