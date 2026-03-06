@@ -132,59 +132,63 @@ MCP_DATABASE = {  # "prefix": ("default_url", {"token_name": "default_value", ..
 }
 
 
-class MCPsDeclaration:
-    def __init__(self, names: list[str]):
-        for n in names:
-            if n not in MCP_DATABASE:
-                raise ValueError(f"Unknown MCP server {n!r}, known: {list(MCP_DATABASE.keys())}")
-        self.names = names
+def _validate_names(names: list[str]):
+    for n in names:
+        if n not in MCP_DATABASE:
+            raise ValueError(f"Unknown MCP server {n!r}, known: {list(MCP_DATABASE.keys())}")
 
-    def setup_schema(self, bs_group: str, bs_order_start: int) -> list[Dict[str, Union[str, int]]]:
-        schema = []
-        for i, n in enumerate(self.names):
-            default_url, default_tokens = MCP_DATABASE[n]
+
+def mcp_setup_schema(names: list[str], bs_group: str = "MCP", bs_order_start: int = 100) -> list[Dict[str, Union[str, int]]]:
+    _validate_names(names)
+    schema = []
+    for i, n in enumerate(names):
+        default_url, default_tokens = MCP_DATABASE[n]
+        schema.append({
+            "bs_name": f"mcp_{n}_url",
+            "bs_type": "string_long",
+            "bs_default": default_url,
+            "bs_group": bs_group,
+            "bs_order": bs_order_start + i * 10,
+            "bs_importance": 0,
+            "bs_description": f"MCP server URL for {n}",
+        })
+        for tk, tv in default_tokens.items():
             schema.append({
-                "bs_name": f"mcp_{n}_url",
+                "bs_name": f"mcp_{n}_{tk}",
                 "bs_type": "string_long",
-                "bs_default": default_url,
+                "bs_default": tv,
                 "bs_group": bs_group,
-                "bs_order": bs_order_start + i * 10,
+                "bs_order": bs_order_start + i * 10 + 1,
                 "bs_importance": 0,
-                "bs_description": f"MCP server URL for {n}",
+                "bs_description": f"Token '{tk}' for {n} MCP server",
             })
-            for tk, tv in default_tokens.items():
-                schema.append({
-                    "bs_name": f"mcp_{n}_{tk}",
-                    "bs_type": "string_long",
-                    "bs_default": tv,
-                    "bs_group": bs_group,
-                    "bs_order": bs_order_start + i * 10 + 1,
-                    "bs_importance": 0,
-                    "bs_description": f"Token '{tk}' for {n} MCP server",
-                })
-        return schema
+    return schema
 
-    def tools(self) -> list[ckit_cloudtool.CloudTool]:
-        return [IntegrationMcp.tool_desc(n) for n in self.names]
 
-    async def launch(self, rcx: ckit_bot_exec.RobotContext, setup: Dict[str, Any]) -> None:
-        for n in self.names:
-            default_url, default_tokens = MCP_DATABASE[n]
-            url = setup.get(f"mcp_{n}_url", default_url)
-            if not url:
-                async def _not_configured(toolcall, args, _n=n):
-                    return f"MCP server {_n} is not configured, set mcp_{_n}_url in bot setup"
-                rcx.on_tool_call(f"mcp_{n}")(_not_configured)
-                continue
-            tokens = {}
-            for tk in default_tokens:
-                v = setup.get(f"mcp_{n}_{tk}", default_tokens[tk])
-                if v:
-                    tokens[tk] = v
-            mcp = IntegrationMcp(url=url, tokens=tokens or None, mcp_name=n)
-            await mcp.initialize()
-            rcx.on_tool_call(f"mcp_{n}")(mcp.handle_tool_call)
-            logger.info("mcp launched %s -> %s", n, url)
+def mcp_tools(names: list[str]) -> list[ckit_cloudtool.CloudTool]:
+    _validate_names(names)
+    return [IntegrationMcp.tool_desc(n) for n in names]
+
+
+async def mcp_launch(names: list[str], rcx: ckit_bot_exec.RobotContext, setup: Dict[str, Any]) -> None:
+    _validate_names(names)
+    for n in names:
+        default_url, default_tokens = MCP_DATABASE[n]
+        url = setup.get(f"mcp_{n}_url", default_url)
+        if not url:
+            async def _not_configured(toolcall, args, _n=n):
+                return f"MCP server {_n} is not configured, set mcp_{_n}_url in bot setup"
+            rcx.on_tool_call(f"mcp_{n}")(_not_configured)
+            continue
+        tokens = {}
+        for tk in default_tokens:
+            v = setup.get(f"mcp_{n}_{tk}", default_tokens[tk])
+            if v:
+                tokens[tk] = v
+        mcp = IntegrationMcp(url=url, tokens=tokens or None, mcp_name=n)
+        await mcp.initialize()
+        rcx.on_tool_call(f"mcp_{n}")(mcp.handle_tool_call)
+        logger.info("mcp launched %s -> %s", n, url)
 
 
 if __name__ == "__main__":
