@@ -401,7 +401,7 @@ async def subscribe_and_produce_callbacks(
         use_ws_id_prefix = None if use_group_id else fclient.ws_id
         async for r in ws.subscribe(
             gql.gql(f"""subscription KarenThreads($marketable_name: String!, $marketable_version: Int!, $inprocess_tool_names: [String!]!, $want_erp_tables: [String!]!, $ws_id_prefix: String, $group_id: String) {{
-                bot_threads_calls_tasks(marketable_name: $marketable_name, marketable_version: $marketable_version, inprocess_tool_names: $inprocess_tool_names, max_threads: {MAX_THREADS}, want_personas: true, want_threads: true, want_messages: true, want_tasks: true, want_erp_tables: $want_erp_tables, ws_id_prefix: $ws_id_prefix, group_id: $group_id) {{
+                bot_threads_calls_tasks(marketable_name: $marketable_name, marketable_version: $marketable_version, inprocess_tool_names: $inprocess_tool_names, max_threads: {MAX_THREADS}, want_personas: true, want_threads: true, want_messages: {"true" if bc.running_test_scenario else "false"}, want_tasks: true, want_erp_tables: $want_erp_tables, ws_id_prefix: $ws_id_prefix, group_id: $group_id) {{
                     {gql_utils.gql_fields(ckit_bot_query.FBotThreadsCallsTasks)}
                 }}
             }}"""),
@@ -514,7 +514,8 @@ async def subscribe_and_produce_callbacks(
                     handled = True
                     if message.ftm_belongs_to_ft_id in bc.thread_tracker:
                         k = "%03d:%03d" % (message.ftm_alt, message.ftm_num)
-                        bc.thread_tracker[message.ftm_belongs_to_ft_id].thread_messages[k] = message
+                        if bc.running_test_scenario:
+                            bc.thread_tracker[message.ftm_belongs_to_ft_id].thread_messages[k] = message
                         persona_id = bc.thread_tracker[message.ftm_belongs_to_ft_id].persona_id
                         if persona_id in bc.bots_running:
                             bc.bots_running[persona_id].instance_rcx._parked_messages[k] = message
