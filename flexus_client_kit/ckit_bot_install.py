@@ -97,6 +97,7 @@ async def marketplace_upsert_dev_bot(
     assert ws_id, "Set FLEXUS_WORKSPACE environment variable to your workspace ID"
     assert not ws_id.startswith("fx-"), "You can find workspace id in the browser address bar, when visiting for example the statistics page"
 
+    auth_scopes = dict(marketable_auth_scopes or {})
     experts_input = []
     for expert_name, expert in marketable_experts:
         has_a2a = expert._tool_allowed("flexus_hand_over_task")
@@ -108,9 +109,15 @@ async def marketplace_upsert_dev_bot(
         included_integr = []
         if add_integrations_into_expert_system_prompt:
             for r in add_integrations_into_expert_system_prompt:
-                if r.integr_prompt and any(expert._tool_allowed(t.name) for t in r.integr_tools):
+                tools_allowed = any(expert._tool_allowed(t.name) for t in r.integr_tools)
+                if r.integr_prompt and tools_allowed:
                     sections.append(r.integr_prompt)
                     included_integr.append(r.integr_name)
+                if tools_allowed and r.integr_provider:
+                    if r.integr_provider not in marketable_auth_supported:
+                        marketable_auth_supported = list(marketable_auth_supported) + [r.integr_provider]
+                    existing = auth_scopes.get(r.integr_provider, [])
+                    auth_scopes[r.integr_provider] = list(dict.fromkeys(existing + r.integr_scopes))
         sections.append(prompts_common.PROMPT_HERE_GOES_SETUP)
         sections = [s.strip() for s in sections]
         prompt = "\n\n\n".join(sections) + "\n"
@@ -133,6 +140,7 @@ async def marketplace_upsert_dev_bot(
         expert_dict["fexp_name"] = f"{marketable_name}_{expert_name}"
         experts_input.append(expert_dict)
 
+    marketable_auth_scopes = auth_scopes or None
     http = await client.use_http()
     async with http as h:
         r = await h.execute(
