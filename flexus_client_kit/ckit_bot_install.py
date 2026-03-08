@@ -87,6 +87,7 @@ async def marketplace_upsert_dev_bot(
     marketable_tags: List[str] = [],
     marketable_daily_budget_default: int = 1_000_000,  # one dollar in microdollars, serves as a guardrail against overspending, user can change later
     marketable_default_inbox_default: int = 100_000,   # limit for 1 task
+    marketable_max_inprogress: int = 2,
     marketable_forms: Optional[Dict[str, str]] = None,
     marketable_required_policydocs: List[str] = [],
     marketable_auth_needed: List[str] = [],
@@ -136,7 +137,7 @@ async def marketplace_upsert_dev_bot(
     http = await client.use_http()
     async with http as h:
         r = await h.execute(
-            gql.gql(f"""mutation InstallBot($ws: String!, $name: String!, $ver: String!, $title1: String!, $title2: String!, $author: String!, $accent_color: String!, $occupation: String!, $desc: String!, $typical_group: String!, $repo: String!, $run: String!, $setup: String!, $featured: [FFeaturedActionInput!]!, $intro: String!, $model: String!, $daily: Int!, $inbox: Int!, $experts: [FMarketplaceExpertInput!]!, $schedule: String!, $big: String!, $small: String!, $tags: [String!]!, $forms: String, $required_policydocs: [String!]!, $auth_needed: [String!]!, $auth_supported: [String!]!, $auth_scopes: String) {{
+            gql.gql(f"""mutation InstallBot($ws: String!, $name: String!, $ver: String!, $title1: String!, $title2: String!, $author: String!, $accent_color: String!, $occupation: String!, $desc: String!, $typical_group: String!, $repo: String!, $run: String!, $setup: String!, $featured: [FFeaturedActionInput!]!, $intro: String!, $model: String!, $daily: Int!, $inbox: Int!, $experts: [FMarketplaceExpertInput!]!, $schedule: String!, $big: String!, $small: String!, $tags: [String!]!, $forms: String, $required_policydocs: [String!]!, $auth_needed: [String!]!, $auth_supported: [String!]!, $auth_scopes: String, $max_inprogress: Int!) {{
                 marketplace_upsert_dev_bot(
                     ws_id: $ws,
                     marketable_name: $name,
@@ -165,7 +166,8 @@ async def marketplace_upsert_dev_bot(
                     marketable_required_policydocs: $required_policydocs,
                     marketable_auth_needed: $auth_needed,
                     marketable_auth_supported: $auth_supported,
-                    marketable_auth_scopes: $auth_scopes
+                    marketable_auth_scopes: $auth_scopes,
+                    marketable_max_inprogress: $max_inprogress
                 ) {{
                     {gql_utils.gql_fields(FBotInstallOutput)}
                 }}
@@ -199,6 +201,7 @@ async def marketplace_upsert_dev_bot(
                 "auth_needed": marketable_auth_needed,
                 "auth_supported": marketable_auth_supported,
                 "auth_scopes": json.dumps(marketable_auth_scopes) if marketable_auth_scopes else None,
+                "max_inprogress": marketable_max_inprogress,
             },
         )
         return gql_utils.dataclass_from_dict(r["marketplace_upsert_dev_bot"], FBotInstallOutput)
