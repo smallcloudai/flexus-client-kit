@@ -114,23 +114,9 @@
         },
         "integrations": {
             "type": "array",
-            "title": "Integrations",
-            "items": {
-                "type": "string",
-                "enum": [
-                    "flexus_policy_document",
-                    "print_widget",
-                    "gmail",
-                    "google_calendar",
-                    "skills",
-                    "github",
-                    "jira",
-                    "facebbok",
-                    "slack",
-                    "linkedin"
-                ]
-            },
-            "description": "List of integrations the bot uses. Each provides tools and optionally OAuth. Example: ['flexus_policy_document', 'gmail', 'google_calendar']."
+            "title": "Tools and Integrations",
+            "items": { "type": "string" },
+            "description": "List of tools and integrations the bot uses. Accepts built-in integrations (flexus_policy_document, print_widget, gmail, google_calendar, jira, skills) and cloud tool names. Each provides tools and optionally OAuth. Example: ['flexus_policy_document', 'gmail', 'google_calendar']."
         },
         "shared_skills_allowlist": {
             "type": "string",

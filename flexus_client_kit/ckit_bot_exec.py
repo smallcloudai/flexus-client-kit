@@ -934,7 +934,7 @@ async def run_bots_in_this_group(
     inprocess_tools: List[ckit_cloudtool.CloudTool],
     bot_main_loop: Callable[[ckit_client.FlexusClient, RobotContext], Awaitable[None]],
     scenario_fn: str,
-    install_func: Callable[[ckit_client.FlexusClient, str], Awaitable[None]],
+    install_func: Callable[[ckit_client.FlexusClient, str, str, list], Awaitable[None]],
     subscribe_to_erp_tables: List[str] = [],
 ) -> None:
     marketable_version = ckit_client.marketplace_version_as_int(marketable_version_str)
