@@ -310,6 +310,37 @@ Tradeoff: more source code we need to maintain vs accuracy on complex tasks.
 Implemented as tool that returns instructions as text.
 Examples: idea rating rules, ad platform specifics.
 
+Skills live in `skills/<skill-name>/SKILL.md` inside the bot directory (or `shared_skills/` at
+the repo root for cross-bot skills). Each SKILL.md has YAML frontmatter with `name` and `description`.
+
+**Important**: when an expert has skills (`fexp_builtin_skills` is non-empty), the backend requires
+`flexus_fetch_skill` tool in `fexp_app_capture_tools`. The `filter_tools()` method on
+`FMarketplaceExpertInput` handles this automatically — it appends the tool if skills are present.
+If you build a custom installer that bypasses `filter_tools()`, you must include it yourself or you'll
+get `400: fexp_builtin_skills requires flexus_fetch_skill in fexp_app_capture_tools`.
+
+The tool format used by `openai_style_tool()` places `strict` at the **top level** alongside `type`,
+not inside `function`:
+
+```
+{
+    "type": "function",
+    "function": {
+        "name": "flexus_fetch_skill",
+        "description": "Load a skill by name, returns the skill instructions.",
+        "parameters": {
+            "type": "object",
+            "properties": {"name": {"type": "string"}},
+            "required": ["name"],
+            "additionalProperties": false,
+        },
+    },
+    "strict": true,
+}
+```
+
+The backend rejects `strict` inside `function` with `bad keys: {'strict'}`.
+
 ### Subchat
 
 A separate thread with isolated context.
