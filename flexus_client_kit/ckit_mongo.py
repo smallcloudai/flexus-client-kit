@@ -125,36 +125,6 @@ async def mongo_ls(
     return documents
 
 
-async def mongo_ls_subdir(
-    mongo_collection: Collection,
-    path: str,
-) -> List[Dict[str, Any]]:
-    # XXX only used by persona_mongo_docs_list() which is UI to re-work
-    path_filter = {"path": {"$exists": True, "$ne": None}, "mon_archived": {"$ne": True}}
-    if path:
-        path_filter["path"] = {"$regex": f"^{path.rstrip('/')}/"}
-    cursor = mongo_collection.find(path_filter, {"path": 1, "mon_ctime": 1, "mon_mtime": 1, "mon_size": 1, "ctime": 1, "mtime": 1, "size_bytes": 1, "_id": 0}).sort([("mon_mtime", -1), ("mtime", -1)])
-    docs = await cursor.to_list(length=None)
-    items = {}
-    for doc in docs:
-        relative = doc["path"][len(path.rstrip('/')) + 1:] if path else doc["path"]
-        immediate = relative.split('/')[0]
-        current_path = f"{path.rstrip('/')}/{immediate}" if path else immediate
-        doc_ctime = doc["mon_ctime"]
-        doc_mtime = doc["mon_mtime"]
-        doc_size = doc["mon_size"]
-        if '/' in relative:
-            if current_path not in items:
-                items[current_path] = {"path": current_path, "mime_type": "subdir", "mon_ctime": doc_ctime, "mon_mtime": doc_mtime, "mon_size": doc_size}
-            else:
-                items[current_path]["mon_ctime"] = min(items[current_path]["mon_ctime"], doc_ctime)
-                items[current_path]["mon_mtime"] = max(items[current_path]["mon_mtime"], doc_mtime)
-                items[current_path]["mon_size"] += doc_size
-        else:
-            items[current_path] = {"path": doc["path"], "mime_type": "", "mon_ctime": doc_ctime, "mon_mtime": doc_mtime, "mon_size": doc_size}
-    return list(items.values())
-
-
 async def mongo_mv(
     mongo_collection: Collection,
     old_path: str,
