@@ -26,7 +26,13 @@ FROG_INTEGRATIONS: list[ckit_integrations_db.IntegrationRecord] = ckit_integrati
         "flexus_policy_document",
         "print_widget",
         "gmail",
-        "skills"
+        "skills",
+        "github",
+        "linkedin",
+        "slack",
+        "google_calendar",
+        "jira",
+        "facebook",
     ],
     builtin_skills=FROG_SKILLS
 )
@@ -106,16 +112,6 @@ async def install(
             prompts_common.SCHED_TODO_5M | {"sched_when": "EVERY:2m", "sched_first_question": "Work on the assigned task with enthusiasm!"},
         ],
         marketable_forms=ckit_bot_install.load_form_bundles(__file__),
-        marketable_auth_supported=["google"],
-        marketable_auth_scopes={
-            "google": [
-                "https://www.googleapis.com/auth/gmail.readonly",
-                "https://www.googleapis.com/auth/gmail.compose",
-                "https://www.googleapis.com/auth/gmail.modify",
-                "https://www.googleapis.com/auth/gmail.send",
-                "https://www.googleapis.com/auth/gmail.labels",
-            ]
-        },
     )
 
 
