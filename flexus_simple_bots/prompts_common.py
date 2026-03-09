@@ -54,20 +54,6 @@ Good usage:
 - Collecting several configuration options together
 """
 
-PROMPT_PRINT_WIDGET = """
-## Print Widget
-
-Use print_widget when the user would benefit from a compact, structured, presentation-friendly output instead of plain prose.
-
-Good fits:
-- concise plans
-- status summaries
-- decision tables
-- formatted handoff notes
-
-Do not mention the widget itself to the user. Just use it when it improves readability and decision speed.
-"""
-
 # """
 # Help user navigate between setup and regular type of chat. If you don't see "setup" in the system prompt,
 # that's a regular chat. If something doesn't work in a regular chat, you can call
@@ -79,16 +65,6 @@ Do not mention the widget itself to the user. Just use it when it improves reada
 # The widget is not intrusive and you can call this function multiple times (after another setup field was filled)
 # and up to 3 in parallel (offer to test several different things).
 # """
-
-PROMPT_POLICY_DOCUMENTS = """
-## Policy Docs
-
-Policy documents control how robots (and sometimes humans) behave. It's a storage for practical lessons learned so far,
-summary of external documents, customer interviews, user instructions, as well as a place for staging documents to update the policy.
-Documents have json structure, organized by path into folders. Last element of the path is the document name, similar to a
-filesystem, folders exist only as a shorthand for shared paths. The convention for names is kebab lower case.
-Call flexus_policy_document() without parameters for details on how to list, read and write those documents.
-"""
 
 PROMPT_A2A_COMMUNICATION = """
 ## A2A Communication
