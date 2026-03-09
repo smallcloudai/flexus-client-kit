@@ -22,18 +22,30 @@ def static_integrations_load(bot_dir: Path, allowlist: list[str], builtin_skills
     result = []
     for name in allowlist:
         if name == "skills":
-            if len(builtin_skills) > 0:
-                from flexus_client_kit import ckit_skills
-                async def _init_skills(rcx, setup):
-                    return None
-                result.append(IntegrationRecord(
-                    integr_name=name,
-                    integr_tools=[ckit_skills.FETCH_SKILL_TOOL],
-                    integr_init=_init_skills,
-                    integr_setup_handlers=lambda obj, rcx, _d=bot_dir, _s=builtin_skills: [
-                        rcx.on_tool_call("flexus_fetch_skill")(lambda tc, args: ckit_skills.called_by_model(tc, args, _d, _s))
-                    ],
-                ))
+            from flexus_client_kit import ckit_skills
+            async def _init_skills(rcx, setup):
+                return None
+            result.append(IntegrationRecord(
+                integr_name=name,
+                integr_tools=[ckit_skills.DISCOVER_SKILLS_TOOL, ckit_skills.FETCH_SKILL_TOOL],
+                integr_init=_init_skills,
+                integr_setup_handlers=lambda obj, rcx, _d=bot_dir, _s=builtin_skills: [
+                    rcx.on_tool_call("flexus_discover_skills")(
+                        lambda tc, args, __d=_d, __s=_s: ckit_skills.discover_skills(
+                            __d, __s,
+                            [s.strip() for s in (rcx.setup or {}).get("CONNECTED_REPOS", "").strip().splitlines() if s.strip()],
+                            str(__d),
+                            rcx.fclient,
+                            rcx.persona.located_fgroup_id,
+                        )
+                    ),
+                    rcx.on_tool_call("flexus_fetch_skill")(
+                        lambda tc, args, __d=_d, __s=_s: ckit_skills.fetch_skill_namespaced(
+                            args.get("name", ""), __d, __s, str(__d),
+                        )
+                    ),
+                ],
+            ))
 
         elif name == "flexus_policy_document":
             from flexus_client_kit.integrations import fi_pdoc
