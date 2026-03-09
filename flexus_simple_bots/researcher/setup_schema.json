@@ -20,7 +20,7 @@
     {
         "bs_name": "source_verification",
         "bs_type": "bool",
-        "bs_default": "true",
+        "bs_default": true,
         "bs_group": "Research Settings",
         "bs_order": 3,
         "bs_importance": 0,
