@@ -45,6 +45,7 @@ VIX_INTEGRATIONS: list[ckit_integrations_db.IntegrationRecord] = ckit_integratio
 TOOLS = [
     fi_mongo_store.MONGO_STORE_TOOL,
     fi_crm.LOG_CRM_ACTIVITY_TOOL,
+    fi_crm.MANAGE_CRM_CONTACT_TOOL,
     fi_crm_automations.CRM_AUTOMATION_TOOL,
     fi_resend.RESEND_SEND_TOOL,
     fi_resend.RESEND_SETUP_TOOL,
@@ -148,6 +149,10 @@ async def vix_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.Ro
     @rcx.on_tool_call(fi_crm.LOG_CRM_ACTIVITY_TOOL.name)
     async def toolcall_log_crm_activity(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
         return await crm_integration.handle_log_crm_activity(toolcall, model_produced_args)
+
+    @rcx.on_tool_call(fi_crm.MANAGE_CRM_CONTACT_TOOL.name)
+    async def toolcall_manage_crm_contact(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
+        return await crm_integration.handle_manage_crm_contact(toolcall, model_produced_args)
 
     @rcx.on_tool_call(fi_crm_automations.CRM_AUTOMATION_TOOL.name)
     async def toolcall_crm_automation(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:

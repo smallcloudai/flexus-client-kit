@@ -1,6 +1,8 @@
 import time
 from typing import Dict, Any, Optional
 
+import gql.transport.exceptions
+
 from flexus_client_kit import ckit_cloudtool, ckit_client, ckit_erp, erp_schema
 
 
@@ -22,7 +24,27 @@ LOG_CRM_ACTIVITY_TOOL = ckit_cloudtool.CloudTool(
     },
 )
 
-LOG_CRM_ACTIVITIES_PROMPT = "After each conversation in a messenger platform or outbound message or email, call log_crm_activity with the contact_id, type, direction, and a brief summary. Do this before finishing the task."
+
+LOG_CRM_ACTIVITIES_PROMPT = (
+    "After the conversation has ended on a messenger platform (not after each message), "
+    "or after sending an outbound message or email, call log_crm_activity with contact_id, type, direction, and a brief summary. "
+    "Do this before finishing the task."
+)
+
+
+MANAGE_CRM_CONTACT_TOOL = ckit_cloudtool.CloudTool(
+    strict=False,
+    name="manage_crm_contact",
+    description="Create, patch, or delete a CRM contact. Call op='help' to see available fields.",
+    parameters={
+        "type": "object",
+        "properties": {
+            "op": {"type": "string", "enum": ["help", "create", "patch", "delete"], "order": 1},
+            "args": {"type": "object", "description": "Contact fields; include contact_id for patch/delete", "order": 2},
+        },
+        "required": ["op"],
+    },
+)
 
 
 async def find_contact_by_platform_id(fclient, ws_id: str, platform: str, identifier: str) -> Optional[str]:
@@ -37,6 +59,31 @@ class IntegrationCrm:
     def __init__(self, fclient: ckit_client.FlexusClient, ws_id: str):
         self.fclient = fclient
         self.ws_id = ws_id
+
+    async def handle_manage_crm_contact(self, toolcall: ckit_cloudtool.FCloudtoolCall, args: Dict[str, Any]) -> str:
+        op = args.get("op", "")
+        if op == "help":
+            return ckit_erp.format_table_meta_text("crm_contact", erp_schema.CrmContact)
+        fields = args.get("args", {})
+        contact_id = fields.pop("contact_id", "").strip()
+        try:
+            if op == "create":
+                new_id = await ckit_erp.create_erp_record(self.fclient, "crm_contact", self.ws_id, {"ws_id": self.ws_id, **fields})
+                return f"✅ Contact created: {new_id}\n"
+            elif op == "patch":
+                if not contact_id:
+                    return "❌ contact_id required for patch\n"
+                await ckit_erp.patch_erp_record(self.fclient, "crm_contact", self.ws_id, contact_id, fields)
+                return "✅ Contact updated\n"
+            elif op == "delete":
+                if not contact_id:
+                    return "❌ contact_id required for delete\n"
+                await ckit_erp.delete_erp_record(self.fclient, "crm_contact", self.ws_id, contact_id)
+                return "✅ Contact deleted\n"
+            else:
+                return f"❌ Unknown op: {op}\n"
+        except gql.transport.exceptions.TransportQueryError as e:
+            return ckit_cloudtool.gql_error_4xx_to_model_reraise_5xx(e, "fi_crm")
 
     async def handle_log_crm_activity(self, toolcall: ckit_cloudtool.FCloudtoolCall, args: Dict[str, Any]) -> str:
         contact_id = args.get("contact_id", "").strip()
@@ -58,5 +105,5 @@ class IntegrationCrm:
                 "activity_occurred_ts": time.time(),
             })
             return "✅ Activity logged\n"
-        except Exception as e:
-            return f"❌ {e}\n"
+        except gql.transport.exceptions.TransportQueryError as e:
+            return ckit_cloudtool.gql_error_4xx_to_model_reraise_5xx(e, "fi_crm")
