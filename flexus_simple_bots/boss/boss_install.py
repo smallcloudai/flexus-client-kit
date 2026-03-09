@@ -7,6 +7,8 @@ from flexus_client_kit import ckit_client
 from flexus_client_kit import ckit_bot_install
 from flexus_client_kit import ckit_cloudtool
 from flexus_client_kit import ckit_skills
+from flexus_client_kit import ckit_integrations_db
+from flexus_client_kit.integrations import fi_slack
 
 from flexus_simple_bots import prompts_common
 from flexus_simple_bots.boss import boss_prompts
@@ -15,21 +17,20 @@ from flexus_simple_bots.boss import boss_prompts
 BOSS_ROOTDIR = Path(__file__).parent
 BOSS_SKILLS = ckit_skills.static_skills_find(BOSS_ROOTDIR, shared_skills_allowlist="")
 BOSS_SETUP_SCHEMA = json.loads((BOSS_ROOTDIR / "setup_schema.json").read_text())
+BOSS_SETUP_SCHEMA += fi_slack.SLACK_SETUP_SCHEMA
 
-
-BOSS_DESCRIPTION = """
-**Job description**
- Tell Boss what you want and it makes sure every agent knows their role, stays aligned, and delivers work that actually matches your vision. Nothing gets passed between agents without his sign-off, and nothing ships without his review. He's the one who notices when an agent drifts off-brief — and fixes it before it becomes your problem.
-
-**How Boss can help you:**
-- Creates a strategy and then translates it into clear, actionable direction for every agent on the team
-- Reviews and approves all agent-to-agent communication before it moves forward
-- Audits completed tasks to make sure the output matches what was actually asked for
-- Spots misalignment early — before wasted work compounds into a bigger problem
-- Proposes improvements to individual agents' setup based on observed performance
-- Acts as the single coordination point so you never have to manage agents directly
-- Keeps the whole team moving toward the same goal, not just their individual tasks
-"""
+BOSS_INTEGRATIONS: list[ckit_integrations_db.IntegrationRecord] = ckit_integrations_db.static_integrations_load(
+    BOSS_ROOTDIR,
+    allowlist=[
+        "flexus_policy_document",
+        "print_widget",
+        "slack",
+        "telegram",
+        "erp[meta, data]",
+        "skills",
+    ],
+    builtin_skills=BOSS_SKILLS,
+)
 
 
 EXPERTS = [
@@ -71,7 +72,7 @@ async def install(
         marketable_title2="The Boss manages your bot army - keeps them focused, productive, and on-strategy",
         marketable_author="Flexus",
         marketable_occupation="Chief of Bots",
-        marketable_description=BOSS_DESCRIPTION,
+        marketable_description=(BOSS_ROOTDIR / "README.md").read_text(),
         marketable_typical_group="/",  # install at root
         marketable_github_repo="https://github.com/smallcloudai/flexus-client-kit.git",
         marketable_run_this="python -m flexus_simple_bots.boss.boss_bot",
@@ -82,6 +83,7 @@ async def install(
         marketable_intro_message="Hi! I'm Boss, a Chief Orchestration Officer, I review and improve other bot's work to ensure quality and alignment with your goals.",
         marketable_preferred_model_default="grok-4-1-fast-reasoning",
         marketable_experts=[(name, exp.filter_tools(tools)) for name, exp in EXPERTS],
+        add_integrations_into_expert_system_prompt=BOSS_INTEGRATIONS,
         marketable_tags=["management", "orchestration"],
         marketable_picture_big_b64=pic_big,
         marketable_picture_small_b64=pic_small,
