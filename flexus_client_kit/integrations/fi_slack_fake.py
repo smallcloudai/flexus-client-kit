@@ -66,20 +66,18 @@ class IntegrationSlackFake:
 
     async def post_into_captured_thread_as_user(self, a: ActivitySlack, chan_id: str) -> bool:
         something_id_slash_thread = f"{chan_id}/{a.thread_ts}" if a.thread_ts else chan_id
-        thread_capturing = RealSlack._thread_capturing(self, something_id_slash_thread)
-        if not thread_capturing:
-            return False
+        searchable = "slack/" + something_id_slash_thread
         content = [{"m_type": "text", "m_content": f"👤{a.message_author_name}\n\n{a.message_text}"}]
         if a.file_contents:
             content.extend(a.file_contents)
         try:
             http = await self.fclient.use_http()
-            await ckit_ask_model.thread_add_user_message(
-                http, thread_capturing.thread_fields.ft_id, content, "slack_fake", ftm_alt=100
+            ft_id = await ckit_ask_model.captured_thread_post_user_message(
+                http, self.rcx.persona.persona_id, searchable, content,
             )
-            return True
+            return bool(ft_id)
         except Exception:
-            logger.exception(f"Failed to post message into captured ft_id={thread_capturing.thread_fields.ft_id}")
+            logger.exception("Failed to post message into captured thread searchable=%s", searchable)
             return False
 
     async def _receive_fake_message(self, channel: str, thread_ts: str, ts: str, text: str, user: str, path: Optional[str] = None):
@@ -136,10 +134,7 @@ class IntegrationSlackFake:
     async def look_assistant_might_have_posted_something(self, msg: ckit_ask_model.FThreadMessageOutput) -> bool:
         if msg.ftm_role != "assistant" or not msg.ftm_content:
             return False
-        fthread = self.rcx.latest_threads.get(msg.ftm_belongs_to_ft_id)
-        if not fthread:
-            return False
-        searchable = fthread.thread_fields.ft_app_searchable
+        searchable = msg.ft_app_searchable or ""
         if not searchable.startswith("slack/"):
             return False
         parts = searchable.split("/")
@@ -167,10 +162,9 @@ class IntegrationSlackFake:
         http = await self.fclient.use_http()
         await ckit_ask_model.thread_app_capture_patch(
             http,
-            fthread.thread_fields.ft_id,
+            msg.ftm_belongs_to_ft_id,
             ft_app_specific=json.dumps({"last_posted_assistant_ts": msg.ftm_created_ts}),
         )
-        fthread.thread_fields.ft_app_specific = {"last_posted_assistant_ts": msg.ftm_created_ts}
         return True
 
 

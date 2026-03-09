@@ -41,14 +41,6 @@ async def slonik_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec
 
     postgres = fi_postgres.IntegrationPostgres(personal_mongo)
 
-    @rcx.on_updated_message
-    async def updated_message_in_db(msg: ckit_ask_model.FThreadMessageOutput):
-        pass
-
-    @rcx.on_updated_thread
-    async def updated_thread_in_db(th: ckit_ask_model.FThreadOutput):
-        pass
-
     @rcx.on_tool_call(fi_postgres.POSTGRES_TOOL.name)
     async def toolcall_postgres(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
         have_human_confirmation = False

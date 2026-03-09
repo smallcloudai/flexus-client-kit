@@ -27,6 +27,7 @@ from flexus_client_kit import (
     ckit_utils,
 )
 from flexus_client_kit.format_utils import format_cat_output
+from flexus_client_kit.integrations import fi_messenger
 from flexus_client_kit.integrations.fi_mongo_store import download_file, validate_path
 
 logger = logging.getLogger("discord")
@@ -683,11 +684,8 @@ class IntegrationDiscord:
         identifier = str(activity.channel_id)
         if activity.thread_id:
             identifier += f"/{activity.thread_id}"
-        thread_capturing = self._thread_capturing(identifier)
-        if thread_capturing is None or thread_capturing.thread_fields.ft_error:
-            return False
+        searchable = f"discord/{identifier}"
 
-        http = await self.fclient.use_http()
         parts: List[Dict[str, str]] = []
         text = activity.message_text.strip()
         if text:
@@ -695,48 +693,31 @@ class IntegrationDiscord:
         parts.extend(activity.attachments)
         if not parts:
             return False
-        if len(parts) > 5:
-            text_parts = [p for p in parts if p["m_type"] == "text"]
-            image_parts = [p for p in parts if p["m_type"].startswith("image/")]
-            combined = "\n\n".join(p["m_content"] for p in text_parts)
-            parts = [{"m_type": "text", "m_content": combined}] + image_parts[:2]
+        parts = fi_messenger.compact_message_parts(parts)
 
+        http = await self.fclient.use_http()
         try:
-            await ckit_ask_model.thread_add_user_message(
-                http,
-                thread_capturing.thread_fields.ft_id,
-                parts,
-                "fi_discord2",
-                ftm_alt=100,
-                user_preferences=json.dumps({"reopen_task_instruction": 1}),
+            ft_id = await ckit_ask_model.captured_thread_post_user_message(
+                http, self.rcx.persona.persona_id, searchable, parts,
             )
-            return True
         except gql.transport.exceptions.TransportQueryError as e:  # type: ignore[attr-defined]
-            logger.info("Discord capture failed, uncapturing: %s", e)
-            await ckit_ask_model.thread_app_capture_patch(
-                http,
-                thread_capturing.thread_fields.ft_id,
-                ft_app_searchable="",
-            )
+            logger.info("Discord captured_thread_post_user_message failed: %s", e)
             return False
+        return bool(ft_id)
 
     async def look_assistant_might_have_posted_something(self, msg: ckit_ask_model.FThreadMessageOutput) -> bool:
         if msg.ftm_role != "assistant" or not msg.ftm_content:
             return False
-        fthread = self.rcx.latest_threads.get(msg.ftm_belongs_to_ft_id)
-        if not fthread:
-            return False
-        searchable = fthread.thread_fields.ft_app_searchable
+        searchable = msg.ft_app_searchable or ""
         if not searchable.startswith("discord/"):
             return False
 
-        # Check if this message was already posted to avoid duplicates
-        my_specific = fthread.thread_fields.ft_app_specific
-        if my_specific is not None:
-            last_posted_assistant_ts = my_specific.get("last_posted_assistant_ts", 0)
-            if msg.ftm_created_ts <= last_posted_assistant_ts:
+        if msg.ft_app_specific is not None:
+            if "last_posted_assistant_ts" not in msg.ft_app_specific:
+                logger.warning("ft_app_specific without last_posted_assistant_ts: %r", msg.ft_app_specific)
+            elif msg.ftm_created_ts <= msg.ft_app_specific["last_posted_assistant_ts"]:
                 logger.info("Already posted message with timestamp %0.1f, last posted: %0.1f",
-                          msg.ftm_created_ts, last_posted_assistant_ts)
+                          msg.ftm_created_ts, msg.ft_app_specific["last_posted_assistant_ts"])
                 return False
 
         identifier = searchable[len("discord/") :]
@@ -782,10 +763,9 @@ class IntegrationDiscord:
         http = await self.fclient.use_http()
         await ckit_ask_model.thread_app_capture_patch(
             http,
-            fthread.thread_fields.ft_id,
+            msg.ftm_belongs_to_ft_id,
             ft_app_specific=json.dumps({"last_posted_assistant_ts": msg.ftm_created_ts}),
         )
-        fthread.thread_fields.ft_app_specific = {"last_posted_assistant_ts": msg.ftm_created_ts}
         return True
 
     def _format_assistant_message(self, content: Any) -> str:

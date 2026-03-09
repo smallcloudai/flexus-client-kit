@@ -324,14 +324,6 @@ async def boss_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.R
 
     erp_integration = fi_erp.IntegrationErp(fclient, rcx.persona.ws_id, personal_mongo)
 
-    @rcx.on_updated_message
-    async def updated_message_in_db(msg: ckit_ask_model.FThreadMessageOutput):
-        pass
-
-    @rcx.on_updated_thread
-    async def updated_thread_in_db(th: ckit_ask_model.FThreadOutput):
-        pass
-
     # @rcx.on_tool_call(BOSS_SETUP_COLLEAGUES_TOOL.name)
     # async def toolcall_colleague_setup(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
     #     return await handle_setup_colleagues(fclient, rcx.persona.ws_id, toolcall, model_produced_args)

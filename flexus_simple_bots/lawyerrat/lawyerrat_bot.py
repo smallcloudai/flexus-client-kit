@@ -114,14 +114,6 @@ async def lawyerrat_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_e
     mongo = AsyncMongoClient(mongo_conn_str)
     personal_mongo = mongo[rcx.persona.persona_id + "_db"]["personal_mongo"]
 
-    @rcx.on_updated_message
-    async def updated_message_in_db(msg: ckit_ask_model.FThreadMessageOutput):
-        pass
-
-    @rcx.on_updated_thread
-    async def updated_thread_in_db(th: ckit_ask_model.FThreadOutput):
-        pass
-
     @rcx.on_updated_task
     async def updated_task_in_db(t: ckit_kanban.FPersonaKanbanTaskOutput):
         logger.info(f"LawyerRat task: {t}")

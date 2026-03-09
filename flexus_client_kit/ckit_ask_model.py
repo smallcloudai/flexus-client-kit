@@ -39,6 +39,9 @@ class FThreadMessageOutput:
     ftm_app_specific: Any
     ftm_created_ts: float
     ftm_provenance: Any
+    ft_app_capture: Optional[str] = None
+    ft_app_searchable: Optional[str] = None
+    ft_app_specific: Any = None
 
 
 @dataclass
@@ -69,52 +72,6 @@ class FThreadComprehensiveSubs:
     news_payload_id: str
     news_payload_thread_message: Optional[FThreadMessageOutput]
     news_payload_thread: Optional[FThreadOutput]
-
-
-async def ask_model(
-    client: ckit_client.FlexusClient,
-    inside_fgroup_id: str,
-    fexp_id: str,
-    persona_id: str,
-    title: str,
-    model: str,
-    who_is_asking: str,
-    question: str,
-    # localtools: Optional[List[Callable]] = None,
-    # cloudtools: Optional[List[ckit_expert.FCloudTool]] = None,
-    on_behalf_of_fuser_id: Optional[str] = None,
-) -> FThreadMessageOutput:
-    # if localtools or cloudtools:
-    #     combined_toolset = []
-    #     if cloudtools:
-    #         combined_toolset.extend(openai_style_cloudtools(cloudtools))
-    #     if localtools:
-    #         combined_toolset.extend([ckit_localtool.openai_style_function_description(f) for f in localtools])
-    #     toolset = combined_toolset
-
-    http = await client.use_http()
-    async with http as h:
-        r = await h.execute(
-            gql.gql(f"""mutation {who_is_asking}CreateCapturedThread($input: FThreadInput!, $u: String) {{
-                create_captured_thread(input: $input, on_behalf_of_fuser_id: $u) {{ ft_id }}
-            }}"""),
-            variable_values={
-                "input": {
-                    "owner_shared": False,
-                    "located_fgroup_id": inside_fgroup_id,
-                    "ft_fexp_id": fexp_id,
-                    "ft_persona_id": persona_id,
-                    "ft_title": title,
-                    "ft_toolset": "null",
-                    "ft_app_capture": "bot",  # XXX fix me service name or something
-                },
-                "u": on_behalf_of_fuser_id,
-            },
-        )
-        ft_id = r["create_captured_thread"]["ft_id"]
-    user_preferences = json.dumps({"model": model, "disable_title_generation": True, "disable_streaming": True})
-    ftm_alt = 100
-    await thread_add_user_message(http, ft_id, question, who_is_asking, user_preferences)
 
 
 async def thread_add_user_message(
@@ -265,6 +222,27 @@ async def thread_app_capture_patch(
             },
         )
     return r["thread_app_capture_patch"]
+
+
+async def captured_thread_post_user_message(
+    http: gql.Client,
+    persona_id: str,
+    ft_app_searchable: str,
+    content: Union[str, List[Dict[str, Any]]],
+) -> str:
+    ftm_content = json.dumps(content)
+    async with http as h:
+        r = await h.execute(gql.gql("""
+            mutation CapturedThreadPost($persona_id: String!, $ft_app_searchable: String!, $ftm_content: String!) {
+                captured_thread_post_user_message(persona_id: $persona_id, ft_app_searchable: $ft_app_searchable, ftm_content: $ftm_content)
+            }"""),
+            variable_values={
+                "persona_id": persona_id,
+                "ft_app_searchable": ft_app_searchable,
+                "ftm_content": ftm_content,
+            },
+        )
+    return r["captured_thread_post_user_message"]
 
 
 async def test(super: bool):

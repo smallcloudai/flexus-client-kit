@@ -32,14 +32,6 @@ async def clerkwing_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_e
     setup = ckit_bot_exec.official_setup_mixing_procedure(clerkwing_install.CLERKWING_SETUP_SCHEMA, rcx.persona.persona_setup)
     await ckit_integrations_db.main_loop_integrations_init(CLERKWING_INTEGRATIONS, rcx, setup=setup)
 
-    @rcx.on_updated_message
-    async def updated_message_in_db(msg: ckit_ask_model.FThreadMessageOutput):
-        pass
-
-    @rcx.on_updated_thread
-    async def updated_thread_in_db(th: ckit_ask_model.FThreadOutput):
-        pass
-
     @rcx.on_updated_task
     async def updated_task_in_db(t: ckit_kanban.FPersonaKanbanTaskOutput):
         pass

@@ -75,6 +75,7 @@ def format_user_message(author: str, text: str) -> str:
 
 
 def compact_message_parts(parts: List[Dict[str, Any]], max_parts: int = 5, max_images: int = 2) -> List[Dict[str, Any]]:
+    # XXX if it's just text, simplify into simple string not list of dicts
     if len(parts) <= max_parts:
         return parts
     text_parts = [p for p in parts if p.get("m_type") == "text"]
@@ -93,10 +94,4 @@ def recent_thread_that_captures(rcx: ckit_bot_exec.RobotContext, platform: str, 
 
 def fmt_searchable(platform: str, identifier: str) -> str:
     return f"{platform}/{identifier}"
-
-
-def get_last_posted_ts(fthread: ckit_bot_query.FThreadWithMessages) -> float:
-    if fthread.thread_fields.ft_app_specific:
-        return fthread.thread_fields.ft_app_specific.get("last_posted_assistant_ts", 0)
-    return 0
 

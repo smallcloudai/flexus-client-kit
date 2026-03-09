@@ -115,7 +115,10 @@ async def frog_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.R
 
     @rcx.on_updated_message
     async def updated_message_in_db(msg: ckit_ask_model.FThreadMessageOutput):
-        # Those are optional if they do nothing, you can always access recent threads via rcx.latest_threads
+        # Note: this and rcx.latest_threads have limited depth!
+        # On start, some replay will arrive (100 threads or so) to address any bot downtime.
+        # This handler is suitable to print for debugging, to write a consistency check (that does not crash if the thread not found in rcx.latest_threads).
+        # Don't assume you'll find any thread infinitely in the past.
         pass
 
     @rcx.on_updated_thread
