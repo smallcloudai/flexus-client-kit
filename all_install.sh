@@ -11,4 +11,7 @@ python -m flexus_simple_bots.boss.boss_install
 python -m flexus_simple_bots.admonster.admonster_install
 python -m flexus_simple_bots.productman.productman_install
 python -m flexus_simple_bots.telegram_groupmod.telegram_groupmod_install
+python -m flexus_simple_bots.researcher.researcher_install
+python -m flexus_simple_bots.executor.executor_install
+python -m flexus_simple_bots.strategist.strategist_install
 
