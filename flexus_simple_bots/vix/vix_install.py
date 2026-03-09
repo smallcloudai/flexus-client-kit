@@ -58,7 +58,7 @@ EXPERTS = [
     ("default", ckit_bot_install.FMarketplaceExpertInput(
         fexp_system_prompt=vix_prompts.vix_prompt_marketing,
         fexp_python_kernel="",
-        fexp_block_tools="shopify_cart,manage_crm_contact",
+        fexp_block_tools="shopify_cart,manage_crm_contact,manage_crm_deal",
         fexp_allow_tools="",
         fexp_inactivity_timeout=3600,
         fexp_description="Marketing assistant for CRM management, contact import, automated outreach, and company/product setup.",
@@ -79,7 +79,7 @@ EXPERTS = [
         fexp_allow_tools="",
         fexp_inactivity_timeout=600,
         fexp_description="Lightweight expert for automated tasks: sending templated emails, follow-ups, and simple CRM operations.",
-        fexp_preferred_model_default="grok-4-1-fast-non-reasoning",
+        fexp_preferred_model_default="grok-4-1-fast-reasoning",
     )),
 ]
 
