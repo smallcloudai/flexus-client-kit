@@ -10,7 +10,6 @@ from flexus_client_kit import ckit_client
 from flexus_client_kit import ckit_cloudtool
 from flexus_client_kit import ckit_bot_exec
 from flexus_client_kit import ckit_shutdown
-from flexus_client_kit import ckit_ask_model
 from flexus_client_kit import ckit_mongo
 from flexus_client_kit import ckit_integrations_db
 from flexus_client_kit.integrations import fi_mongo_store
@@ -23,16 +22,6 @@ logger = logging.getLogger("bot_boss")
 
 BOT_NAME = "boss"
 BOT_VERSION = SIMPLE_BOTS_COMMON_VERSION
-
-BOSS_INTEGRATIONS: list[ckit_integrations_db.IntegrationRecord] = ckit_integrations_db.static_integrations_load(
-    boss_install.BOSS_ROOTDIR,
-    allowlist=[
-        "flexus_policy_document",
-        "print_widget",
-        "skills",
-    ],
-    builtin_skills=boss_install.BOSS_SKILLS,
-)
 
 
 # BOSS_SETUP_COLLEAGUES_TOOL = ckit_cloudtool.CloudTool(
@@ -139,7 +128,7 @@ TOOLS = [
     fi_erp.ERP_TABLE_DATA_TOOL,
     MARKETPLACE_SEARCH_TOOL,
     MARKETPLACE_DESC_TOOL,
-    *[t for rec in BOSS_INTEGRATIONS for t in rec.integr_tools],
+    *[t for rec in boss_install.BOSS_INTEGRATIONS for t in rec.integr_tools],
 ]
 
 
@@ -316,7 +305,7 @@ TOOLS = [
 
 async def boss_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.RobotContext) -> None:
     setup = ckit_bot_exec.official_setup_mixing_procedure(boss_install.BOSS_SETUP_SCHEMA, rcx.persona.persona_setup)
-    integr_objects = await ckit_integrations_db.main_loop_integrations_init(BOSS_INTEGRATIONS, rcx, setup)
+    integr_objects = await ckit_integrations_db.main_loop_integrations_init(boss_install.BOSS_INTEGRATIONS, rcx, setup)
 
     mongo_conn_str = await ckit_mongo.mongo_fetch_creds(fclient, rcx.persona.persona_id)
     mongo = AsyncMongoClient(mongo_conn_str)
@@ -406,7 +395,6 @@ async def boss_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.R
     try:
         while not ckit_shutdown.shutdown_event.is_set():
             await rcx.unpark_collected_events(sleep_if_no_work=10.0)
-
     finally:
         logger.info("%s exit" % (rcx.persona.persona_id,))
 
