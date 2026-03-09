@@ -1,0 +1,56 @@
+[
+    {
+        "bs_name": "content_style",
+        "bs_type": "string_short",
+        "bs_default": "professional",
+        "bs_group": "Content",
+        "bs_order": 1,
+        "bs_importance": 1,
+        "bs_description": "Content style: professional, casual, witty, educational, provocative, inspirational"
+    },
+    {
+        "bs_name": "content_topics",
+        "bs_type": "string_long",
+        "bs_default": "",
+        "bs_group": "Content",
+        "bs_order": 2,
+        "bs_importance": 1,
+        "bs_description": "Content topics/pillars (comma-separated, e.g., AI, startups, product management)"
+    },
+    {
+        "bs_name": "brand_voice",
+        "bs_type": "string_multiline",
+        "bs_default": "",
+        "bs_group": "Content",
+        "bs_order": 3,
+        "bs_importance": 0,
+        "bs_description": "Brand voice description (tone, vocabulary, personality traits)"
+    },
+    {
+        "bs_name": "posting_frequency",
+        "bs_type": "string_short",
+        "bs_default": "3_daily",
+        "bs_group": "Schedule",
+        "bs_order": 4,
+        "bs_importance": 0,
+        "bs_description": "Posting frequency: 1_daily, 3_daily, 5_daily, hourly"
+    },
+    {
+        "bs_name": "approval_mode",
+        "bs_type": "bool",
+        "bs_default": "true",
+        "bs_group": "Safety",
+        "bs_order": 5,
+        "bs_importance": 1,
+        "bs_description": "Require human approval before posting (recommended: true)"
+    },
+    {
+        "bs_name": "thread_mode",
+        "bs_type": "bool",
+        "bs_default": "true",
+        "bs_group": "Content",
+        "bs_order": 6,
+        "bs_importance": 0,
+        "bs_description": "Enable multi-tweet thread creation"
+    }
+]

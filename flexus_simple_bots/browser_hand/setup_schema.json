@@ -1,0 +1,29 @@
+[
+    {
+        "bs_name": "purchase_approval",
+        "bs_type": "bool",
+        "bs_default": "true",
+        "bs_group": "Safety",
+        "bs_order": 1,
+        "bs_importance": 1,
+        "bs_description": "Require explicit approval before any purchase or payment action (strongly recommended)"
+    },
+    {
+        "bs_name": "max_pages_per_task",
+        "bs_type": "string_short",
+        "bs_default": "25",
+        "bs_group": "Limits",
+        "bs_order": 2,
+        "bs_importance": 0,
+        "bs_description": "Maximum pages to visit per task: 10, 25, 50"
+    },
+    {
+        "bs_name": "auto_screenshot",
+        "bs_type": "bool",
+        "bs_default": "true",
+        "bs_group": "Behavior",
+        "bs_order": 3,
+        "bs_importance": 0,
+        "bs_description": "Automatically take screenshots at key steps"
+    }
+]
