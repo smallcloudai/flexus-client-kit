@@ -100,6 +100,7 @@ class RobotContext:
         self.running_happy_yaml = ""
         self.external_auth = external_auth or {}
         self.messengers: list = []
+        self.personal_mongo: Optional[Any] = None   # pymongo Collection, set by main_loop_integrations_init if integr_need_mongo
         os.makedirs(self.workdir, exist_ok=True)
 
     def on_updated_message(self, handler: Callable[[ckit_ask_model.FThreadMessageOutput], Awaitable[None]]):

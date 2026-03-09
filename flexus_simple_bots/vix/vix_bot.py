@@ -6,20 +6,16 @@ import time
 from dataclasses import asdict
 from typing import Dict, Any
 
-from pymongo import AsyncMongoClient
-
 from flexus_client_kit import ckit_client
 from flexus_client_kit import ckit_cloudtool
 from flexus_client_kit import ckit_bot_exec
 from flexus_client_kit import ckit_shutdown
 from flexus_client_kit import ckit_ask_model
-from flexus_client_kit import ckit_mongo
 from flexus_client_kit import ckit_erp
 from flexus_client_kit import ckit_kanban
 from flexus_client_kit import ckit_integrations_db
 from flexus_client_kit import erp_schema
 from flexus_client_kit.integrations import fi_mongo_store
-from flexus_client_kit.integrations import fi_erp
 from flexus_client_kit.integrations import fi_crm_automations
 from flexus_client_kit.integrations import fi_resend
 from flexus_client_kit.integrations import fi_shopify
@@ -41,16 +37,13 @@ VIX_INTEGRATIONS: list[ckit_integrations_db.IntegrationRecord] = ckit_integratio
         "skills",
         "flexus_policy_document",
         "print_widget",
+        "erp[meta, data, crud, csv_import]",
     ],
     builtin_skills=vix_install.VIX_SKILLS,
 )
 
 TOOLS = [
     fi_mongo_store.MONGO_STORE_TOOL,
-    fi_erp.ERP_TABLE_META_TOOL,
-    fi_erp.ERP_TABLE_DATA_TOOL,
-    fi_erp.ERP_TABLE_CRUD_TOOL,
-    fi_erp.ERP_CSV_IMPORT_TOOL,
     fi_crm.LOG_CRM_ACTIVITY_TOOL,
     fi_crm_automations.CRM_AUTOMATION_TOOL,
     fi_resend.RESEND_SEND_TOOL,
@@ -66,14 +59,7 @@ TOOLS = [
 async def vix_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.RobotContext) -> None:
     setup = ckit_bot_exec.official_setup_mixing_procedure(vix_install.VIX_SETUP_SCHEMA, rcx.persona.persona_setup)
 
-    mongo_conn_str = await ckit_mongo.mongo_fetch_creds(fclient, rcx.persona.persona_id)
-    mongo = AsyncMongoClient(mongo_conn_str)
-    dbname = rcx.persona.persona_id + "_db"
-    mydb = mongo[dbname]
-    personal_mongo = mydb["personal_mongo"]
-
     await ckit_integrations_db.main_loop_integrations_init(VIX_INTEGRATIONS, rcx, setup)
-    erp_integration = fi_erp.IntegrationErp(fclient, rcx.persona.ws_id, personal_mongo)
     crm_integration = fi_crm.IntegrationCrm(fclient, rcx.persona.ws_id)
     automations_integration = fi_crm_automations.IntegrationCrmAutomations(
         fclient, rcx, setup, available_erp_tables=ERP_TABLES,
@@ -146,26 +132,10 @@ async def vix_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.Ro
     async def toolcall_mongo_store(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
         return await fi_mongo_store.handle_mongo_store(
             rcx.workdir,
-            personal_mongo,
+            rcx.personal_mongo,
             toolcall,
             model_produced_args,
         )
-
-    @rcx.on_tool_call(fi_erp.ERP_TABLE_META_TOOL.name)
-    async def toolcall_erp_meta(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
-        return await erp_integration.handle_erp_meta(toolcall, model_produced_args)
-
-    @rcx.on_tool_call(fi_erp.ERP_TABLE_DATA_TOOL.name)
-    async def toolcall_erp_data(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
-        return await erp_integration.handle_erp_data(toolcall, model_produced_args)
-
-    @rcx.on_tool_call(fi_erp.ERP_TABLE_CRUD_TOOL.name)
-    async def toolcall_erp_crud(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
-        return await erp_integration.handle_erp_crud(toolcall, model_produced_args)
-
-    @rcx.on_tool_call(fi_erp.ERP_CSV_IMPORT_TOOL.name)
-    async def toolcall_erp_csv_import(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
-        return await erp_integration.handle_csv_import(toolcall, model_produced_args)
 
     @rcx.on_tool_call(fi_resend.RESEND_SEND_TOOL.name)
     async def toolcall_email_send(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:

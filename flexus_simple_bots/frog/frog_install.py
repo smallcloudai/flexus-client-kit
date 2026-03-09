@@ -65,6 +65,7 @@ EXPERTS = [
         fexp_block_tools="*setup*,frog_catch_insects,flexus_fetch_skill,print_widget",
         fexp_allow_tools="",
         fexp_description="Subchat expert for catching insects, respecting tongue_capacity limit.",
+        fexp_subchat_only=True,
     )),
 ]
 

@@ -15,6 +15,7 @@ class IntegrationRecord:
     integr_scopes: list[str] = field(default_factory=list)
     integr_prompt: str = ""
     integr_is_messenger: bool = False
+    integr_need_mongo: bool = False
 
 
 def static_integrations_load(bot_dir: Path, allowlist: list[str], builtin_skills: list[str]) -> list[IntegrationRecord]:
@@ -194,6 +195,31 @@ def static_integrations_load(bot_dir: Path, allowlist: list[str], builtin_skills
                 integr_prompt="",
             ))
 
+        elif name.startswith("erp"):   # "erp[meta, data]" or "erp[meta, data, crud, csv_import]"
+            from flexus_client_kit.integrations import fi_erp
+            subset = _parse_bracket_list(name)
+            tool_map = {
+                "meta": (fi_erp.ERP_TABLE_META_TOOL, "handle_erp_meta"),
+                "data": (fi_erp.ERP_TABLE_DATA_TOOL, "handle_erp_data"),
+                "crud": (fi_erp.ERP_TABLE_CRUD_TOOL, "handle_erp_crud"),
+                "csv_import": (fi_erp.ERP_CSV_IMPORT_TOOL, "handle_csv_import"),
+            }
+            if subset is None:
+                subset = list(tool_map.keys())
+            tools_and_methods = [(tool_map[s][0], tool_map[s][1]) for s in subset]
+            async def _init_erp(rcx, setup):
+                return fi_erp.IntegrationErp(rcx.fclient, rcx.persona.ws_id, rcx.personal_mongo)
+            def _setup_erp(obj, rcx, _tam=tools_and_methods):
+                for tool, method_name in _tam:
+                    rcx.on_tool_call(tool.name)(getattr(obj, method_name))
+            result.append(IntegrationRecord(
+                integr_name="erp",
+                integr_tools=[t for t, _ in tools_and_methods],
+                integr_init=_init_erp,
+                integr_setup_handlers=_setup_erp,
+                integr_need_mongo=True,
+            ))
+
         else:
             raise ValueError(f"Unknown integration {name!r}")
     return result
@@ -207,6 +233,12 @@ def _parse_bracket_list(name: str) -> list[str] | None:
 
 async def main_loop_integrations_init(records: list[IntegrationRecord], rcx: ckit_bot_exec.RobotContext, setup: dict) -> dict[str, Any]:
     from flexus_client_kit.integrations import fi_messenger
+    if any(rec.integr_need_mongo for rec in records) and rcx.personal_mongo is None:
+        from pymongo import AsyncMongoClient
+        from flexus_client_kit import ckit_mongo
+        mongo_conn_str = await ckit_mongo.mongo_fetch_creds(rcx.fclient, rcx.persona.persona_id)
+        mongo = AsyncMongoClient(mongo_conn_str)
+        rcx.personal_mongo = mongo[rcx.persona.persona_id + "_db"]["personal_mongo"]
     result = {}
     for rec in records:
         obj = await rec.integr_init(rcx, setup)

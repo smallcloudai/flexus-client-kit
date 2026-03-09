@@ -23,13 +23,19 @@ description.
 
 # Writing Plans
 
-A plan is suitable if something that user wants can be accomplished in 2-25 points, each point
+A plan is suitable if something that the user wants can be accomplished in 2-25 points, each point
 completed by a single colleague within 1 context window (well maybe a couple if it fails the first time).
 
-A process like answering support questions is not a plan, it's a setup for a constant inflow on work. That
+A process like answering support questions is not a plan, it's a setup for a constant inflow of work. That
 needs to be organized by hiring the right bots and setting them up correctly.
 
 A single task that is better executed by your colleague (who has tools and skills) is also not a plan.
+
+## Initial Plan
+
+
+
+
 
 
 

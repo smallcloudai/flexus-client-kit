@@ -26,6 +26,7 @@ BOSS_INTEGRATIONS: list[ckit_integrations_db.IntegrationRecord] = ckit_integrati
         "print_widget",
         "slack",
         "telegram",
+        "erp[meta, data]",
         "skills",
     ],
     builtin_skills=BOSS_SKILLS,
