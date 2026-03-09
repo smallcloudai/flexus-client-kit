@@ -90,9 +90,9 @@ async def install_from_manifest(m, setup_schema, bot_dir, client, bot_name, bot_
 
 
 async def bot_main_loop(m, setup_schema, bot_dir, fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.RobotContext) -> None:
-    ckit_bot_exec.official_setup_mixing_procedure(setup_schema, rcx.persona.persona_setup)
+    setup = ckit_bot_exec.official_setup_mixing_procedure(setup_schema, rcx.persona.persona_setup)
     skills = ckit_skills.static_skills_find(bot_dir, m.get("shared_skills_allowlist", ""))
-    await ckit_integrations_db.main_loop_integrations_init(ckit_integrations_db.static_integrations_load(bot_dir, m["integrations"], builtin_skills=skills), rcx)
+    await ckit_integrations_db.main_loop_integrations_init(ckit_integrations_db.static_integrations_load(bot_dir, m["integrations"], builtin_skills=skills), rcx, setup)
 
     try:
         while not ckit_shutdown.shutdown_event.is_set():

@@ -64,8 +64,7 @@ TOOLS = [
 
 
 async def vix_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.RobotContext) -> None:
-    def get_setup():
-        return ckit_bot_exec.official_setup_mixing_procedure(vix_install.VIX_SETUP_SCHEMA, rcx.persona.persona_setup)
+    setup = ckit_bot_exec.official_setup_mixing_procedure(vix_install.VIX_SETUP_SCHEMA, rcx.persona.persona_setup)
 
     mongo_conn_str = await ckit_mongo.mongo_fetch_creds(fclient, rcx.persona.persona_id)
     mongo = AsyncMongoClient(mongo_conn_str)
@@ -73,14 +72,14 @@ async def vix_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.Ro
     mydb = mongo[dbname]
     personal_mongo = mydb["personal_mongo"]
 
-    await ckit_integrations_db.main_loop_integrations_init(VIX_INTEGRATIONS, rcx)
+    await ckit_integrations_db.main_loop_integrations_init(VIX_INTEGRATIONS, rcx, setup)
     erp_integration = fi_erp.IntegrationErp(fclient, rcx.persona.ws_id, personal_mongo)
     crm_integration = fi_crm.IntegrationCrm(fclient, rcx.persona.ws_id)
     automations_integration = fi_crm_automations.IntegrationCrmAutomations(
-        fclient, rcx, get_setup, available_erp_tables=ERP_TABLES,
+        fclient, rcx, setup, available_erp_tables=ERP_TABLES,
     )
     resend_domains = (rcx.persona.persona_setup or {}).get("DOMAINS", {})
-    email_respond_to = set(a.strip().lower() for a in get_setup().get("EMAIL_RESPOND_TO", "").split(",") if a.strip())
+    email_respond_to = set(a.strip().lower() for a in setup.get("EMAIL_RESPOND_TO", "").split(",") if a.strip())
     resend_integration = fi_resend.IntegrationResend(fclient, rcx, resend_domains, email_respond_to)
     shopify = fi_shopify.IntegrationShopify(fclient, rcx)
     sched = fi_sched.IntegrationSched(rcx)

@@ -8,6 +8,7 @@ from typing import Dict, Any, Optional, Callable, Awaitable, List
 from pymongo.collection import Collection
 
 from flexus_client_kit import ckit_cloudtool, ckit_client, ckit_bot_exec, ckit_ask_model, ckit_scenario, ckit_bot_query
+from flexus_client_kit.integrations import fi_messenger
 from flexus_client_kit.integrations.fi_mongo_store import validate_path, download_file
 from flexus_client_kit.integrations.fi_slack import (
     HELP, CAPTURE_SUCCESS_MSG, CAPTURE_ADVICE_MSG, UNCAPTURE_SUCCESS_MSG, SKIP_SUCCESS_MSG,
@@ -16,12 +17,14 @@ from flexus_client_kit.integrations.fi_slack import (
 )
 
 
-class IntegrationSlackFake:
+class IntegrationSlackFake(fi_messenger.FlexusMessenger):
+    platform_name = "slack"
+    emessage_type = "SLACK"
+
     def __init__(self, fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.RobotContext,
                  should_join: str = "",
                  mongo_collection: Optional[Collection] = None):
-        self.fclient = fclient
-        self.rcx = rcx
+        super().__init__(fclient, rcx)
         self.should_join = [x.strip() for x in should_join.split(",") if x.strip()]
         self.actually_joined = set()
         self.activity_callback: Optional[Callable[[ActivitySlack, bool], Awaitable[None]]] = None

@@ -30,7 +30,7 @@ TOOLS = [*[t for rec in CLERKWING_INTEGRATIONS for t in rec.integr_tools]]
 
 async def clerkwing_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.RobotContext) -> None:
     setup = ckit_bot_exec.official_setup_mixing_procedure(clerkwing_install.CLERKWING_SETUP_SCHEMA, rcx.persona.persona_setup)
-    await ckit_integrations_db.main_loop_integrations_init(CLERKWING_INTEGRATIONS, rcx, setup=setup)
+    await ckit_integrations_db.main_loop_integrations_init(CLERKWING_INTEGRATIONS, rcx, setup)
 
     @rcx.on_updated_task
     async def updated_task_in_db(t: ckit_kanban.FPersonaKanbanTaskOutput):

@@ -2,7 +2,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Awaitable, Callable
 
-from flexus_client_kit import ckit_cloudtool
+from flexus_client_kit import ckit_ask_model, ckit_bot_exec, ckit_cloudtool
 
 
 @dataclass
@@ -14,6 +14,7 @@ class IntegrationRecord:
     integr_provider: str = ""
     integr_scopes: list[str] = field(default_factory=list)
     integr_prompt: str = ""
+    integr_is_messenger: bool = False
 
 
 def static_integrations_load(bot_dir: Path, allowlist: list[str], builtin_skills: list[str]) -> list[IntegrationRecord]:
@@ -119,29 +120,6 @@ def static_integrations_load(bot_dir: Path, allowlist: list[str], builtin_skills
                 integr_prompt="",
             ))
 
-        elif name == "slack":
-            from flexus_client_kit.integrations import fi_slack
-            async def _init_slack(rcx, setup):
-                should_join = (setup or {}).get("slack_should_join", "")
-                return fi_slack.IntegrationSlack(
-                    rcx.fclient, rcx, should_join=should_join
-                )
-            result.append(IntegrationRecord(
-                integr_name=name,
-                integr_tools=[fi_slack.SLACK_TOOL],
-                integr_init=_init_slack,
-                integr_setup_handlers=lambda obj, rcx: [rcx.on_tool_call("slack")(obj.called_by_model)],
-                integr_provider="slack",
-                integr_scopes=[
-                    "channels:read",
-                    "chat:write",
-                    "files:read",
-                    "users:read",
-                    "im:read",
-                ],
-                integr_prompt="",
-            ))
-
         elif name == "linkedin":
             from flexus_client_kit.integrations import fi_linkedin
             async def _init_linkedin(rcx, setup):
@@ -176,6 +154,46 @@ def static_integrations_load(bot_dir: Path, allowlist: list[str], builtin_skills
                 integr_prompt="",
             ))
 
+        elif name == "slack":
+            from flexus_client_kit.integrations import fi_slack
+            async def _init_slack(rcx, setup):
+                should_join = (setup or {}).get("slack_should_join", "")
+                obj = fi_slack.IntegrationSlack(rcx.fclient, rcx, should_join=should_join)
+                await obj.join_channels()
+                return obj
+            result.append(IntegrationRecord(
+                integr_name=name,
+                integr_tools=[fi_slack.SLACK_TOOL],
+                integr_init=_init_slack,
+                integr_setup_handlers=lambda obj, rcx: [rcx.on_tool_call("slack")(obj.called_by_model)],
+                integr_provider="slack",
+                integr_is_messenger=True,
+                integr_scopes=[
+                    "channels:read",
+                    "chat:write",
+                    "files:read",
+                    "users:read",
+                    "im:read",
+                ],
+                integr_prompt="",
+            ))
+
+        elif name == "telegram":
+            from flexus_client_kit.integrations import fi_telegram
+            async def _init_telegram(rcx, setup):
+                obj = fi_telegram.IntegrationTelegram(rcx.fclient, rcx)
+                await obj.initialize()
+                return obj
+            result.append(IntegrationRecord(
+                integr_name=name,
+                integr_tools=[fi_telegram.TELEGRAM_TOOL],
+                integr_init=_init_telegram,
+                integr_setup_handlers=lambda obj, rcx: [rcx.on_tool_call("telegram")(obj.called_by_model)],
+                integr_provider="telegram",
+                integr_is_messenger=True,
+                integr_prompt="",
+            ))
+
         else:
             raise ValueError(f"Unknown integration {name!r}")
     return result
@@ -187,10 +205,25 @@ def _parse_bracket_list(name: str) -> list[str] | None:
     return [g.strip() for g in name.split("[", 1)[1].rstrip("]").split(",")]
 
 
-async def main_loop_integrations_init(records: list[IntegrationRecord], rcx, setup: dict = None) -> dict[str, Any]:
+async def main_loop_integrations_init(records: list[IntegrationRecord], rcx: ckit_bot_exec.RobotContext, setup: dict) -> dict[str, Any]:
+    from flexus_client_kit.integrations import fi_messenger
     result = {}
     for rec in records:
         obj = await rec.integr_init(rcx, setup)
         rec.integr_setup_handlers(obj, rcx)
         result[rec.integr_name] = obj
+        if rec.integr_is_messenger:
+            assert isinstance(obj, fi_messenger.FlexusMessenger), f"{rec.integr_name} has integr_is_messenger=True but {type(obj).__name__} doesn't inherit FlexusMessenger"
+            rcx.messengers.append(obj)
+            @rcx.on_emessage(obj.emessage_type)
+            async def _emessage_handler(emsg, _m=obj):
+                await _m.handle_emessage(emsg)
+
+    if rcx.messengers:
+        @rcx.on_updated_message
+        async def _messenger_updated_message(msg: ckit_ask_model.FThreadMessageOutput):
+            # Don't worry, you can override it. The default reaction to assistant messages is to get it past messengers:
+            for m in rcx.messengers:
+                await m.look_assistant_might_have_posted_something(msg)
+
     return result

@@ -20,6 +20,8 @@ from flexus_client_kit import ckit_integrations_db
 from flexus_client_kit.integrations import fi_mongo_store
 from flexus_client_kit.integrations import fi_mcp
 from flexus_client_kit.integrations import fi_pdoc
+from flexus_client_kit.integrations import fi_telegram
+from flexus_client_kit.integrations import fi_slack
 from flexus_simple_bots.frog import frog_install
 from flexus_simple_bots.version_common import SIMPLE_BOTS_COMMON_VERSION
 
@@ -102,8 +104,10 @@ TOOLS = [
 
 async def frog_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.RobotContext) -> None:
     setup = ckit_bot_exec.official_setup_mixing_procedure(frog_install.FROG_SETUP_SCHEMA, rcx.persona.persona_setup)
-    integr_objects = await ckit_integrations_db.main_loop_integrations_init(frog_install.FROG_INTEGRATIONS, rcx)
+    integr_objects = await ckit_integrations_db.main_loop_integrations_init(frog_install.FROG_INTEGRATIONS, rcx, setup)
     pdoc_integration: fi_pdoc.IntegrationPdoc = integr_objects["flexus_policy_document"]
+    tg: fi_telegram.IntegrationTelegram = integr_objects["telegram"]
+    sl: fi_slack.IntegrationSlack = integr_objects["slack"]
     await fi_mcp.mcp_launch(frog_install.FROG_MCPS, rcx, setup)
 
     # Mongo store needs custom setup (bot-specific collection)
@@ -113,16 +117,12 @@ async def frog_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.R
 
     tongue_capacity_used = {}
 
-    @rcx.on_updated_message
-    async def updated_message_in_db(msg: ckit_ask_model.FThreadMessageOutput):
+    @rcx.on_updated_thread
+    async def updated_thread_in_db(th: ckit_ask_model.FThreadOutput):
         # Note: this and rcx.latest_threads have limited depth!
         # On start, some replay will arrive (100 threads or so) to address any bot downtime.
         # This handler is suitable to print for debugging, to write a consistency check (that does not crash if the thread not found in rcx.latest_threads).
         # Don't assume you'll find any thread infinitely in the past.
-        pass
-
-    @rcx.on_updated_thread
-    async def updated_thread_in_db(th: ckit_ask_model.FThreadOutput):
         pass
 
     @rcx.on_updated_task
@@ -221,6 +221,7 @@ async def frog_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.R
         )
 
     try:
+        await sl.start_reactive()   # XXX should use webhook
         while not ckit_shutdown.shutdown_event.is_set():
             await rcx.unpark_collected_events(sleep_if_no_work=10.0)
             # Here you can do whatever, just don't block with non-async code! Try not to keep sockets/resources you don't need,
