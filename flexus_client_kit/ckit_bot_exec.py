@@ -92,7 +92,7 @@ class RobotContext:
         # These fields are designed for direct access:
         self.fclient = fclient
         self.persona = p
-        self.latest_threads: Dict[str, ckit_bot_query.FThreadWithMessages] = dict()
+        self.latest_threads: Dict[str, ckit_bot_query.FThreadWithMessages] = dict()   # watch out: limited depth
         self.latest_tasks: Dict[str, ckit_kanban.FPersonaKanbanTaskOutput] = dict()
         self.bg_call_tasks: set[asyncio.Task] = set()
         self.created_ts = time.time()
@@ -399,8 +399,29 @@ async def subscribe_and_produce_callbacks(
         use_group_id = fclient.group_id if fclient.group_id else None
         use_ws_id_prefix = None if use_group_id else fclient.ws_id
         async for r in ws.subscribe(
-            gql.gql(f"""subscription KarenThreads($marketable_name: String!, $marketable_version: Int!, $inprocess_tool_names: [String!]!, $want_erp_tables: [String!]!, $ws_id_prefix: String, $group_id: String) {{
-                bot_threads_calls_tasks(marketable_name: $marketable_name, marketable_version: $marketable_version, inprocess_tool_names: $inprocess_tool_names, max_threads: {MAX_THREADS}, want_personas: true, want_threads: true, want_messages: {"true" if bc.running_test_scenario else "false"}, want_tasks: true, want_erp_tables: $want_erp_tables, ws_id_prefix: $ws_id_prefix, group_id: $group_id) {{
+            gql.gql(f"""subscription KarenThreads(
+                $marketable_name: String!,
+                $marketable_version: Int!,
+                $inprocess_tool_names: [String!]!,
+                $want_erp_tables: [String!]!,
+                $want_messages: Boolean!,
+                $max_threads: Int!,
+                $ws_id_prefix: String,
+                $group_id: String,
+            ) {{
+                bot_threads_calls_tasks(
+                    marketable_name: $marketable_name,
+                    marketable_version: $marketable_version,
+                    inprocess_tool_names: $inprocess_tool_names,
+                    max_threads: $max_threads,
+                    want_personas: true,
+                    want_threads: true,
+                    want_messages: $want_messages,
+                    want_tasks: true,
+                    want_erp_tables: $want_erp_tables,
+                    ws_id_prefix: $ws_id_prefix,
+                    group_id: $group_id,
+                ) {{
                     {gql_utils.gql_fields(ckit_bot_query.FBotThreadsCallsTasks)}
                 }}
             }}"""),
@@ -409,6 +430,8 @@ async def subscribe_and_produce_callbacks(
                 "marketable_version": bc.marketable_version,
                 "inprocess_tool_names": [t.name for t in bc.inprocess_tools],
                 "want_erp_tables": bc.subscribe_to_erp_tables,
+                "want_messages": True,
+                "max_threads": 50,
                 "ws_id_prefix": use_ws_id_prefix,
                 "group_id": use_group_id,
             },
@@ -505,7 +528,8 @@ async def subscribe_and_produce_callbacks(
                     if upd.news_payload_id in bc.thread_tracker:
                         logger.info("%s deleted from thread_tracker" % upd.news_payload_id)
                         del bc.thread_tracker[upd.news_payload_id]
-                    reassign_threads = True
+                        # XXX optimize: maybe this does not require reassign_threads
+                        reassign_threads = True
 
             elif upd.news_about == "flexus_thread_message":
                 if upd.news_action in ["INSERT", "UPDATE"]:

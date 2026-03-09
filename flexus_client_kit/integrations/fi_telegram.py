@@ -283,15 +283,6 @@ class IntegrationTelegram:
             await self._activity_callback(activity, already_posted_to_captured_thread)
 
     async def post_into_captured_thread_as_user(self, activity: ActivityTelegram) -> bool:
-        if not (thread_cap := fi_messenger.recent_thread_that_captures(self.rcx, "telegram", str(activity.chat_id))):
-            # No captured thread, activity_callback() will decide what to do with incoming telegram message (probably will make an inbox task)
-            return False
-        http = await self.fclient.use_http()
-        if thread_cap.thread_fields.ft_error:
-            logger.info("telegram post_into_captured: thread has error, uncapturing ft_id=%s", thread_cap.thread_fields.ft_id)
-            await ckit_ask_model.thread_app_capture_patch(http, thread_cap.thread_fields.ft_id, ft_app_searchable="")
-            return False
-
         msg_text = activity.message_text
         if not msg_text.strip():
             return True  # empty message, keep capture, do nothing
@@ -299,36 +290,32 @@ class IntegrationTelegram:
         # parts: List[Dict[str, str]] = []
         # parts.extend(activity.attachments)
         # parts = fi_messenger.compact_message_parts(parts)
-        logger.info("%s telegram inbound captured ft_id=%s type=%s chat_id=%s msg_id=%s from %r (uid=%s): %s",
-            self.rcx.persona.persona_id,
-            thread_cap.thread_fields.ft_id,
-            activity.chat_type, activity.chat_id, activity.message_id,
-            activity.message_author_name, activity.message_author_id, activity.message_text[:120] or "(empty)")
-
-        parts = msg_text
-        await ckit_ask_model.thread_add_user_message(
-            http,
-            thread_cap.thread_fields.ft_id,
-            parts,
-            "fi_telegram",
-            ftm_alt=100,
-            # `reopen_task_instruction` is backend-side special case: will notify the model that the task is completed and how to reopen, in the same transaction as this message
-            user_preferences=json.dumps({"reopen_task_instruction": 1}),
+        searchable = fi_messenger.fmt_searchable("telegram", str(activity.chat_id))
+        http = await self.fclient.use_http()
+        ft_id = await ckit_ask_model.captured_thread_post_user_message(
+            http, self.rcx.persona.persona_id, searchable, msg_text,
         )
+        if not ft_id:
+            return False
+        logger.info("%s telegram inbound captured ft_id=%s type=%s chat_id=%s msg_id=%s from %r (uid=%s): %s",
+            self.rcx.persona.persona_id, ft_id,
+            activity.chat_type, activity.chat_id, activity.message_id,
+            activity.message_author_name, activity.message_author_id, msg_text[:120] or "(empty)")
         return True
 
     async def look_assistant_might_have_posted_something(self, msg: ckit_ask_model.FThreadMessageOutput) -> bool:
         if msg.ftm_role != "assistant" or not msg.ftm_content:
             return False
 
-        if not (fthread := self.rcx.latest_threads.get(msg.ftm_belongs_to_ft_id)):
-            return False
-        if not (searchable := fthread.thread_fields.ft_app_searchable).startswith("telegram/"):
+        searchable = msg.ft_app_searchable or ""
+        if not searchable.startswith("telegram/"):
             return False
 
-        last_ts = fi_messenger.get_last_posted_ts(fthread)
-        if msg.ftm_created_ts <= last_ts:
-            return False
+        if msg.ft_app_specific is not None:
+            if "last_posted_assistant_ts" not in msg.ft_app_specific:
+                logger.warning("ft_app_specific without last_posted_assistant_ts: %r", msg.ft_app_specific)
+            elif msg.ftm_created_ts <= msg.ft_app_specific["last_posted_assistant_ts"]:
+                return False
 
         chat_id = int(searchable[len("telegram/"):])
         if not isinstance(msg.ftm_content, str):
@@ -352,10 +339,9 @@ class IntegrationTelegram:
         http = await self.fclient.use_http()
         await ckit_ask_model.thread_app_capture_patch(
             http,
-            fthread.thread_fields.ft_id,
+            msg.ftm_belongs_to_ft_id,
             ft_app_specific=json.dumps({"last_posted_assistant_ts": msg.ftm_created_ts}),
         )
-        fthread.thread_fields.ft_app_specific = {"last_posted_assistant_ts": msg.ftm_created_ts}
         return True
 
     # -- Additional stuff --

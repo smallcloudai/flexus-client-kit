@@ -19,6 +19,7 @@ from flexus_client_kit import ckit_client
 from flexus_client_kit import ckit_ask_model
 from flexus_client_kit import ckit_bot_exec
 from flexus_client_kit.format_utils import format_cat_output
+from flexus_client_kit.integrations import fi_messenger
 
 from pymongo.collection import Collection
 
@@ -592,50 +593,26 @@ class IntegrationSlack:
 
     async def post_into_captured_thread_as_user(self, a: ActivitySlack, something_id: str) -> bool:
         something_id_slash_thread = something_id + ("/" + a.thread_ts if a.thread_ts else "")
-        thread_capturing = self._thread_capturing(something_id_slash_thread)
-        if thread_capturing is None:
-            logger.info(
-                "None of recent threads match ft_app_searchable=slack/%s, so I'll let bot handle this message.",
-                something_id_slash_thread,
+        searchable = "slack/" + something_id_slash_thread
+
+        content = [{"m_type": "text", "m_content": f"👤{a.message_author_name}\n\n{a.message_text}"}]
+        if a.file_contents:
+            content.extend(a.file_contents)
+        content = fi_messenger.compact_message_parts(content)
+
+        http = await self.fclient.use_http()
+        try:
+            ft_id = await ckit_ask_model.captured_thread_post_user_message(
+                http, self.rcx.persona.persona_id, searchable, content,
             )
+        except gql.transport.exceptions.TransportQueryError as e:
+            logger.info("captured_thread_post failed, maybe thread itself already has an error, will uncapture: %s", e)
             return False
-        if thread_capturing.thread_fields.ft_error is not None:
-            logger.info("post_into_captured_thread_as_user() thread ft_app_searchable=%s matches, but it has error so I'll let bot handle this message" % (thread_capturing.thread_fields.ft_app_searchable,))
+        if not ft_id:
+            logger.info("None of recent threads match ft_app_searchable=%s, so I'll let bot handle this message.", searchable)
             return False
-
-        if thread_capturing is not None:
-            http = await self.fclient.use_http()
-
-            content = [{"m_type": "text", "m_content": f"👤{a.message_author_name}\n\n{a.message_text}"}]
-            if a.file_contents:
-                content.extend(a.file_contents)
-            if len(content) > 5:
-                text_parts = [c for c in content if c.get('m_type') == 'text']
-                image_parts = [c for c in content if c.get('m_type', '').startswith('image/')][:2]
-                combined_text = "\n\n".join(p['m_content'] for p in text_parts)
-                content = [{"m_type": "text", "m_content": combined_text}] + image_parts
-
-            logger.info(
-                "Captured slack->db ft_id=%s ft_app_searchable=%s sending=%d parts",
-                thread_capturing.thread_fields.ft_id,
-                thread_capturing.thread_fields.ft_app_searchable,
-                len(content),
-            )
-            user_pref = json.dumps({"reopen_task_instruction": 1})
-            try:
-                await ckit_ask_model.thread_add_user_message(http, thread_capturing.thread_fields.ft_id, content, "karen_bot", ftm_alt=100, user_preferences=user_pref)
-                return True
-            except gql.transport.exceptions.TransportQueryError as e:
-                logger.info("A problem, probably because the captured thread over budget or something bad happened, will uncapture the thread: %s" % (str(e),))
-                await ckit_ask_model.thread_app_capture_patch(
-                    http,
-                    thread_capturing.thread_fields.ft_id,
-                    ft_app_searchable="",
-                )
-                return False
-
-        logger.info("No captured thread for", something_id_slash_thread)
-        return False
+        logger.info("Captured slack->db ft_id=%s ft_app_searchable=%s sending=%d parts", ft_id, searchable, len(content))
+        return True
 
     async def look_assistant_might_have_posted_something(self, msg: ckit_ask_model.FThreadMessageOutput) -> bool:
         if msg.ftm_role != "assistant":
@@ -643,25 +620,19 @@ class IntegrationSlack:
         if not msg.ftm_content:  # empty message, slack will not even allow you to post an empty message (there might be tool calls in assistant)
             return False
 
-        fthread = self.rcx.latest_threads.get(msg.ftm_belongs_to_ft_id, None)
-        if not fthread:
-            logger.info("look_assistant_might_have_posted_something(): thread ft_id=%s doesn't even exist in the list of latest threads" % msg.ftm_belongs_to_ft_id)
-            return False
-        searchable = fthread.thread_fields.ft_app_searchable
+        searchable = msg.ft_app_searchable or ""
         if searchable == '':
             return False
         match = re.match(r'^slack/([^/]+)(?:/(.+))?$', searchable)
         if not match:
-            # logger.info("look_assistant_might_have_posted_something(): thread ft_app_searchable=%r doesn't look like a slack/channel/thread" % searchable)
             return False
         something_id, thread_ts = match.groups()
 
-        my_specific = fthread.thread_fields.ft_app_specific
-        if my_specific is not None:
-            last_posted_assistant_ts = my_specific["last_posted_assistant_ts"]   # well it's my thread I know it's there
-            if msg.ftm_created_ts <= last_posted_assistant_ts:
-                # Already posted that one, arrived again after subscription reconnect or something
-                logger.info("look_assistant_might_have_posted_something(): already posted that one last_posted_assistant_ts=%0.1f" % last_posted_assistant_ts)
+        if msg.ft_app_specific is not None:
+            if "last_posted_assistant_ts" not in msg.ft_app_specific:
+                logger.warning("ft_app_specific without last_posted_assistant_ts: %r", msg.ft_app_specific)
+            elif msg.ftm_created_ts <= msg.ft_app_specific["last_posted_assistant_ts"]:
+                logger.info("look_assistant_might_have_posted_something(): already posted that one last_posted_assistant_ts=%0.1f" % msg.ft_app_specific["last_posted_assistant_ts"])
                 return False
 
         logger.info("look_assistant_might_have_posted_something() captured assistant->slack ft_id=%s ft_app_searchable=%s, sending %r" % (msg.ftm_belongs_to_ft_id, searchable, msg.ftm_content[:20].replace("\n", "\\n")))
@@ -680,14 +651,9 @@ class IntegrationSlack:
             return False
 
         http = await self.fclient.use_http()
-        await ckit_ask_model.thread_app_capture_patch(http, fthread.thread_fields.ft_id, ft_app_specific=json.dumps({
+        await ckit_ask_model.thread_app_capture_patch(http, msg.ftm_belongs_to_ft_id, ft_app_specific=json.dumps({
             "last_posted_assistant_ts": msg.ftm_created_ts
         }))
-        # It will take time for the updated fthread to come back via subsription, and we might have more messages incoming
-        # in the pipeline, so for them also change local object:
-        fthread.thread_fields.ft_app_specific = {
-            "last_posted_assistant_ts": msg.ftm_created_ts
-        }
         logger.info("/look_assistant_might_have_posted_something() success")
         return True
 
