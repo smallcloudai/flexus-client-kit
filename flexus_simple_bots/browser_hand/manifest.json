@@ -1,0 +1,22 @@
+{
+    "bot_name": "browser_hand",
+    "accent_color": "#34495E",
+    "title1": "Browser",
+    "title2": "Web automation agent for navigation, forms, and multi-step workflows.",
+    "author": "Flexus",
+    "occupation": "Web Automation Specialist",
+    "typical_group": "Productivity / Automation",
+    "github_repo": "https://github.com/smallcloudai/flexus-client-kit.git",
+    "integrations": ["skills", "mongo_store"],
+    "shared_skills_allowlist": "*",
+    "featured_actions": [
+        {"feat_question": "Navigate to example.com and fill out the contact form", "feat_expert": "default"},
+        {"feat_question": "Compare prices for a product across 3 websites", "feat_expert": "default"},
+        {"feat_question": "Take a screenshot of our landing page on mobile and desktop", "feat_expert": "default"}
+    ],
+    "intro_message": "Hi! I'm Browser. I can navigate websites, take screenshots, extract content, and help with web-based workflows. Tell me what you need done on the web.",
+    "preferred_model_default": "claude-sonnet-4-20250514",
+    "daily_budget_default": 10000000,
+    "default_inbox_default": 10000,
+    "tags": ["Automation", "Browser", "Web", "Productivity"]
+}

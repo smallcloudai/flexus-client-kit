@@ -1,0 +1,65 @@
+[
+    {
+        "bs_name": "target_industry",
+        "bs_type": "string_short",
+        "bs_default": "",
+        "bs_group": "Ideal Customer Profile",
+        "bs_order": 1,
+        "bs_importance": 1,
+        "bs_description": "Target industry (e.g., SaaS, Fintech, Healthcare, E-commerce)"
+    },
+    {
+        "bs_name": "target_role",
+        "bs_type": "string_short",
+        "bs_default": "",
+        "bs_group": "Ideal Customer Profile",
+        "bs_order": 2,
+        "bs_importance": 1,
+        "bs_description": "Target role/title (e.g., CTO, VP Engineering, Head of Product)"
+    },
+    {
+        "bs_name": "company_size",
+        "bs_type": "string_short",
+        "bs_default": "50-500",
+        "bs_group": "Ideal Customer Profile",
+        "bs_order": 3,
+        "bs_importance": 0,
+        "bs_description": "Company size range by employees (e.g., 10-50, 50-200, 200-1000)"
+    },
+    {
+        "bs_name": "geography",
+        "bs_type": "string_short",
+        "bs_default": "",
+        "bs_group": "Ideal Customer Profile",
+        "bs_order": 4,
+        "bs_importance": 0,
+        "bs_description": "Target geography (e.g., North America, Europe, APAC, Global)"
+    },
+    {
+        "bs_name": "enrichment_level",
+        "bs_type": "string_short",
+        "bs_default": "standard",
+        "bs_group": "Research Settings",
+        "bs_order": 5,
+        "bs_importance": 0,
+        "bs_description": "Enrichment depth: basic (name/title/company), standard (+metrics), deep (+funding/news/social)"
+    },
+    {
+        "bs_name": "report_volume",
+        "bs_type": "string_short",
+        "bs_default": "10",
+        "bs_group": "Output",
+        "bs_order": 6,
+        "bs_importance": 0,
+        "bs_description": "Number of leads per report: 10, 25, 50, 100"
+    },
+    {
+        "bs_name": "output_format",
+        "bs_type": "string_short",
+        "bs_default": "markdown",
+        "bs_group": "Output",
+        "bs_order": 7,
+        "bs_importance": 0,
+        "bs_description": "Output format: csv, json, markdown"
+    }
+]

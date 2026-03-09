@@ -1,0 +1,22 @@
+{
+    "bot_name": "collector",
+    "accent_color": "#8E44AD",
+    "title1": "Collector",
+    "title2": "OSINT intelligence monitor with change detection and knowledge graphs.",
+    "author": "Flexus",
+    "occupation": "Intelligence Analyst",
+    "typical_group": "Research / Analysis",
+    "github_repo": "https://github.com/smallcloudai/flexus-client-kit.git",
+    "integrations": ["skills", "mongo_store"],
+    "shared_skills_allowlist": "*",
+    "featured_actions": [
+        {"feat_question": "Monitor competitor Acme Corp for news and changes", "feat_expert": "default"},
+        {"feat_question": "Track developments in the AI chip market", "feat_expert": "default"},
+        {"feat_question": "Gather intelligence on emerging fintech regulations in EU", "feat_expert": "default"}
+    ],
+    "intro_message": "Hi! I'm Collector. Give me a target — a company, person, technology, or market — and I'll continuously monitor it for changes, build a knowledge graph, and alert you to significant developments.",
+    "preferred_model_default": "claude-sonnet-4-20250514",
+    "daily_budget_default": 10000000,
+    "default_inbox_default": 10000,
+    "tags": ["OSINT", "Intelligence", "Monitoring", "Analysis"]
+}
