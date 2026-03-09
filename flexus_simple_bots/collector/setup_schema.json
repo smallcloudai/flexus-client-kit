@@ -47,7 +47,7 @@
     {
         "bs_name": "sentiment_tracking",
         "bs_type": "bool",
-        "bs_default": "true",
+        "bs_default": true,
         "bs_group": "Analysis",
         "bs_order": 6,
         "bs_importance": 0,

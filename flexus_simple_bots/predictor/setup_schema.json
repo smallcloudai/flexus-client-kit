@@ -38,7 +38,7 @@
     {
         "bs_name": "accuracy_tracking",
         "bs_type": "bool",
-        "bs_default": "true",
+        "bs_default": true,
         "bs_group": "Tracking",
         "bs_order": 5,
         "bs_importance": 0,
@@ -56,7 +56,7 @@
     {
         "bs_name": "contrarian_mode",
         "bs_type": "bool",
-        "bs_default": "false",
+        "bs_default": false,
         "bs_group": "Forecasting Settings",
         "bs_order": 7,
         "bs_importance": 0,

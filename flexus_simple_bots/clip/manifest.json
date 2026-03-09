@@ -7,16 +7,33 @@
     "occupation": "Video Editor",
     "typical_group": "Content / Marketing",
     "github_repo": "https://github.com/smallcloudai/flexus-client-kit.git",
-    "integrations": ["skills", "mongo_store"],
+    "integrations": [
+        "skills",
+        "mongo_store"
+    ],
     "shared_skills_allowlist": "*",
     "featured_actions": [
-        {"feat_question": "Turn this YouTube video into 3 short clips: https://...", "feat_expert": "default"},
-        {"feat_question": "Create vertical shorts with captions from a podcast episode", "feat_expert": "default"},
-        {"feat_question": "Extract the best 60-second highlights from this video", "feat_expert": "default"}
+        {
+            "feat_question": "Turn this YouTube video into 3 short clips: https://...",
+            "feat_expert": "default"
+        },
+        {
+            "feat_question": "Create vertical shorts with captions from a podcast episode",
+            "feat_expert": "default"
+        },
+        {
+            "feat_question": "Extract the best 60-second highlights from this video",
+            "feat_expert": "default"
+        }
     ],
     "intro_message": "Hi! I'm Clip. Send me a video URL or file and I'll turn it into viral short clips with captions, thumbnails, and optional voice-over.",
-    "preferred_model_default": "claude-sonnet-4-20250514",
+    "preferred_model_default": "grok-4-1-fast-reasoning",
     "daily_budget_default": 10000000,
     "default_inbox_default": 10000,
-    "tags": ["Video", "Content", "Clips", "Social Media"]
+    "tags": [
+        "Video",
+        "Content",
+        "Clips",
+        "Social Media"
+    ]
 }
