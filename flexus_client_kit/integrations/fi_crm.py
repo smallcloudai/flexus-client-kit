@@ -35,12 +35,26 @@ LOG_CRM_ACTIVITIES_PROMPT = (
 MANAGE_CRM_CONTACT_TOOL = ckit_cloudtool.CloudTool(
     strict=False,
     name="manage_crm_contact",
-    description="Create, patch, or delete a CRM contact. Call op='help' to see available fields.",
+    description="Create or patch a CRM contact. Call op='help' to see available fields.",
     parameters={
         "type": "object",
         "properties": {
-            "op": {"type": "string", "enum": ["help", "create", "patch", "delete"], "order": 1},
-            "args": {"type": "object", "description": "Contact fields; include contact_id for patch/delete", "order": 2},
+            "op": {"type": "string", "enum": ["help", "create", "patch"], "order": 1},
+            "args": {"type": "object", "description": "Contact fields; include contact_id for patch", "order": 2},
+        },
+        "required": ["op"],
+    },
+)
+
+MANAGE_CRM_DEAL_TOOL = ckit_cloudtool.CloudTool(
+    strict=False,
+    name="manage_crm_deal",
+    description="Create or patch a CRM deal. Call op='help' to see available fields.",
+    parameters={
+        "type": "object",
+        "properties": {
+            "op": {"type": "string", "enum": ["help", "create", "patch"], "order": 1},
+            "args": {"type": "object", "description": "Deal fields; include deal_id for patch", "order": 2},
         },
         "required": ["op"],
     },
@@ -65,21 +79,36 @@ class IntegrationCrm:
         if op == "help":
             return ckit_erp.format_table_meta_text("crm_contact", erp_schema.CrmContact)
         fields = args.get("args", {})
-        contact_id = fields.pop("contact_id", "").strip()
+        contact_id = str(fields.pop("contact_id", "") or "").strip()
         try:
             if op == "create":
                 new_id = await ckit_erp.create_erp_record(self.fclient, "crm_contact", self.ws_id, {"ws_id": self.ws_id, **fields})
-                return f"✅ Contact created: {new_id}\n"
+                return f"✅ Created: {new_id}\n"
             elif op == "patch":
                 if not contact_id:
                     return "❌ contact_id required for patch\n"
                 await ckit_erp.patch_erp_record(self.fclient, "crm_contact", self.ws_id, contact_id, fields)
-                return "✅ Contact updated\n"
-            elif op == "delete":
-                if not contact_id:
-                    return "❌ contact_id required for delete\n"
-                await ckit_erp.delete_erp_record(self.fclient, "crm_contact", self.ws_id, contact_id)
-                return "✅ Contact deleted\n"
+                return "✅ Updated\n"
+            else:
+                return f"❌ Unknown op: {op}\n"
+        except gql.transport.exceptions.TransportQueryError as e:
+            return ckit_cloudtool.gql_error_4xx_to_model_reraise_5xx(e, "fi_crm")
+
+    async def handle_manage_crm_deal(self, toolcall: ckit_cloudtool.FCloudtoolCall, args: Dict[str, Any]) -> str:
+        op = args.get("op", "")
+        if op == "help":
+            return ckit_erp.format_table_meta_text("crm_deal", erp_schema.CrmDeal)
+        fields = args.get("args", {})
+        deal_id = str(fields.pop("deal_id", "") or "").strip()
+        try:
+            if op == "create":
+                new_id = await ckit_erp.create_erp_record(self.fclient, "crm_deal", self.ws_id, {"ws_id": self.ws_id, **fields})
+                return f"✅ Created: {new_id}\n"
+            elif op == "patch":
+                if not deal_id:
+                    return "❌ deal_id required for patch\n"
+                await ckit_erp.patch_erp_record(self.fclient, "crm_deal", self.ws_id, deal_id, fields)
+                return "✅ Updated\n"
             else:
                 return f"❌ Unknown op: {op}\n"
         except gql.transport.exceptions.TransportQueryError as e:
