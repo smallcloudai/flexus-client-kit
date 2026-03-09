@@ -1,20 +1,20 @@
 import asyncio
-import datetime
 import json
 import logging
-from pathlib import Path
 from typing import Dict, Any
 
 import gql
+from pymongo import AsyncMongoClient
+
 from flexus_client_kit import ckit_client
 from flexus_client_kit import ckit_cloudtool
-from flexus_client_kit import ckit_scenario
 from flexus_client_kit import ckit_bot_exec
 from flexus_client_kit import ckit_shutdown
-from flexus_client_kit import ckit_external_auth
+from flexus_client_kit import ckit_ask_model
+from flexus_client_kit import ckit_mongo
 from flexus_client_kit import ckit_integrations_db
 from flexus_client_kit.integrations import fi_mongo_store
-from flexus_client_kit.integrations import fi_pdoc
+from flexus_client_kit.integrations import fi_erp
 from flexus_simple_bots.boss import boss_install
 from flexus_simple_bots.version_common import SIMPLE_BOTS_COMMON_VERSION
 
@@ -23,6 +23,16 @@ logger = logging.getLogger("bot_boss")
 
 BOT_NAME = "boss"
 BOT_VERSION = SIMPLE_BOTS_COMMON_VERSION
+
+BOSS_INTEGRATIONS: list[ckit_integrations_db.IntegrationRecord] = ckit_integrations_db.static_integrations_load(
+    boss_install.BOSS_ROOTDIR,
+    allowlist=[
+        "flexus_policy_document",
+        "print_widget",
+        "skills",
+    ],
+    builtin_skills=boss_install.BOSS_SKILLS,
+)
 
 
 # BOSS_SETUP_COLLEAGUES_TOOL = ckit_cloudtool.CloudTool(
@@ -120,129 +130,16 @@ MARKETPLACE_DESC_TOOL = ckit_cloudtool.CloudTool(
     },
 )
 
-PLAN_TEMPLATE_SCHEMA = {
-    "section01-input": {
-        "type": "object",
-        "title": "Input",
-        "properties": {
-            "input_goal": {
-                "type": "string",
-                "order": 0,
-                "ui:multiline": 10,
-            },
-            "input_documents": {
-                "type": "array", "order": 1,
-                "items": {"type": "string"},
-            },
-        },
-        "additionalProperties": False,
-    },
-    "section02-initial-todo": {
-        "type": "object",
-        "title": "Initial todo",
-        "properties": {
-            "initial_tasks": {
-                "type": "array", "order": 0,
-                "items": {
-                    "type": "object",
-                    "properties": {
-                        "to": {"type": "string", "order": 0},
-                        "task": {"type": "string", "order": 1},
-                    },
-                    "additionalProperties": False,
-                },
-            },
-        },
-        "additionalProperties": False,
-    },
-    "section03-progress": {
-        "type": "object",
-        "title": "Progress",
-        "properties": {
-            "task_ids": {
-                "type": "array", "order": 0,
-                "items": {"type": "string"},
-            },
-            "learned_so_far": {
-                "type": "array", "order": 1,
-                "items": {"type": "string"},
-            },
-            "documents": {
-                "type": "array", "order": 2,
-                "items": {"type": "string"},
-            },
-        },
-        "additionalProperties": False,
-    },
-}
-
-PLAN_TEMPLATE_TOOL = ckit_cloudtool.CloudTool(
-    strict=False,
-    name="plan_template",
-    description="Create or update a plan document. Sections: section01-input, section02-initial-todo, section03-progress. Update one section at a time.",
-    parameters={
-        "type": "object",
-        "properties": {
-            "plan_slug": {"type": "string", "description": "Short kebab-case name for the plan, 2-4 words"},
-            "section": {
-                "type": "string",
-                "enum": ["section01-input", "section02-initial-todo", "section03-progress"],
-            },
-            "data": {"type": "object", "description": "Section content matching the section schema"},
-        },
-        "required": ["plan_slug", "section", "data"],
-    },
-)
-
-
-async def handle_plan_template(
-    toolcall: ckit_cloudtool.FCloudtoolCall,
-    args: Dict[str, Any],
-    rcx: ckit_bot_exec.RobotContext,
-    pdoc_integration: fi_pdoc.IntegrationPdoc,
-) -> str:
-    if rcx.running_test_scenario:
-        return await ckit_scenario.scenario_generate_tool_result_via_model(rcx.fclient, toolcall, Path(__file__).read_text())
-    plan_slug = args.get("plan_slug", "").strip()
-    section = args.get("section", "")
-    data = args.get("data")
-    if not plan_slug or not section or not data:
-        return "Error: plan_slug, section, and data are all required"
-    if section not in ("section01-input", "section02-initial-todo", "section03-progress"):
-        return f"Error: unknown section {section!r}"
-
-    caller_fuser_id = ckit_external_auth.get_fuser_id_from_rcx(rcx, toolcall.fcall_ft_id)
-    path = f"/plans/{plan_slug}"
-
-    existing = await pdoc_integration.pdoc_cat(path, caller_fuser_id)
-    if existing is None:
-        doc = {"plan": {"meta": {"created_at": datetime.datetime.now(datetime.timezone.utc).isoformat()}}}
-    else:
-        doc = existing.pdoc_content
-
-    doc["plan"]["schema"] = PLAN_TEMPLATE_SCHEMA
-    doc["plan"][section] = data
-    doc["plan"]["meta"]["updated_at"] = datetime.datetime.now(datetime.timezone.utc).isoformat()
-
-    if existing is None:
-        await pdoc_integration.pdoc_create(path, json.dumps(doc, ensure_ascii=False), caller_fuser_id)
-    else:
-        await pdoc_integration.pdoc_overwrite(path, json.dumps(doc, ensure_ascii=False), caller_fuser_id)
-
-    filled = [s for s in ("section01-input", "section02-initial-todo", "section03-progress") if doc["plan"].get(s)]
-    unfilled = [s for s in ("section01-input", "section02-initial-todo", "section03-progress") if not doc["plan"].get(s)]
-    return f"✍️ {path}\n\nUpdated: {section}\nFilled: {', '.join(filled) or 'none'}\nUnfilled: {', '.join(unfilled) or 'none'}\n"
-
-
 TOOLS = [
     # BOSS_SETUP_COLLEAGUES_TOOL,
     # THREAD_MESSAGES_PRINTED_TOOL,
     # BOT_BUG_REPORT_TOOL,
-    PLAN_TEMPLATE_TOOL,
     fi_mongo_store.MONGO_STORE_TOOL,
+    fi_erp.ERP_TABLE_META_TOOL,
+    fi_erp.ERP_TABLE_DATA_TOOL,
     MARKETPLACE_SEARCH_TOOL,
     MARKETPLACE_DESC_TOOL,
-    *[t for rec in boss_install.BOSS_INTEGRATIONS for t in rec.integr_tools],
+    *[t for rec in BOSS_INTEGRATIONS for t in rec.integr_tools],
 ]
 
 
@@ -419,8 +316,21 @@ TOOLS = [
 
 async def boss_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.RobotContext) -> None:
     setup = ckit_bot_exec.official_setup_mixing_procedure(boss_install.BOSS_SETUP_SCHEMA, rcx.persona.persona_setup)
-    integr_objects = await ckit_integrations_db.main_loop_integrations_init(boss_install.BOSS_INTEGRATIONS, rcx, setup)
-    pdoc_integration = integr_objects["flexus_policy_document"]
+    integr_objects = await ckit_integrations_db.main_loop_integrations_init(BOSS_INTEGRATIONS, rcx)
+
+    mongo_conn_str = await ckit_mongo.mongo_fetch_creds(fclient, rcx.persona.persona_id)
+    mongo = AsyncMongoClient(mongo_conn_str)
+    personal_mongo = mongo[rcx.persona.persona_id + "_db"]["personal_mongo"]
+
+    erp_integration = fi_erp.IntegrationErp(fclient, rcx.persona.ws_id, personal_mongo)
+
+    @rcx.on_updated_message
+    async def updated_message_in_db(msg: ckit_ask_model.FThreadMessageOutput):
+        pass
+
+    @rcx.on_updated_thread
+    async def updated_thread_in_db(th: ckit_ask_model.FThreadOutput):
+        pass
 
     # @rcx.on_tool_call(BOSS_SETUP_COLLEAGUES_TOOL.name)
     # async def toolcall_colleague_setup(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
@@ -434,18 +344,22 @@ async def boss_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.R
     # async def toolcall_bot_bug_report(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
     #     return await handle_bot_bug_report(fclient, rcx.persona.ws_id, model_produced_args)
 
-    @rcx.on_tool_call(PLAN_TEMPLATE_TOOL.name)
-    async def toolcall_plan_template(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
-        return await handle_plan_template(toolcall, model_produced_args, rcx, pdoc_integration)
-
     @rcx.on_tool_call(fi_mongo_store.MONGO_STORE_TOOL.name)
     async def toolcall_mongo_store(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
         return await fi_mongo_store.handle_mongo_store(
             rcx.workdir,
-            rcx.personal_mongo,
+            personal_mongo,
             toolcall,
             model_produced_args,
         )
+
+    @rcx.on_tool_call(fi_erp.ERP_TABLE_META_TOOL.name)
+    async def toolcall_erp_meta(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
+        return await erp_integration.handle_erp_meta(toolcall, model_produced_args)
+
+    @rcx.on_tool_call(fi_erp.ERP_TABLE_DATA_TOOL.name)
+    async def toolcall_erp_data(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
+        return await erp_integration.handle_erp_data(toolcall, model_produced_args)
 
     @rcx.on_tool_call(MARKETPLACE_SEARCH_TOOL.name)
     async def toolcall_marketplace_search(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
@@ -500,6 +414,7 @@ async def boss_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.R
     try:
         while not ckit_shutdown.shutdown_event.is_set():
             await rcx.unpark_collected_events(sleep_if_no_work=10.0)
+
     finally:
         logger.info("%s exit" % (rcx.persona.persona_id,))
 
