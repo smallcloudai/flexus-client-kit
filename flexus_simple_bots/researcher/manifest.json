@@ -1,0 +1,38 @@
+{
+    "bot_name": "researcher",
+    "accent_color": "#4A90D9",
+    "title1": "Researcher",
+    "title2": "Deep autonomous research with cross-referencing and fact-checking.",
+    "author": "Flexus",
+    "occupation": "Research Analyst",
+    "typical_group": "Research / Analysis",
+    "github_repo": "https://github.com/smallcloudai/flexus-client-kit.git",
+    "integrations": [
+        "skills",
+        "mongo_store"
+    ],
+    "shared_skills_allowlist": "*",
+    "featured_actions": [
+        {
+            "feat_question": "Research the latest developments in quantum computing",
+            "feat_expert": "default"
+        },
+        {
+            "feat_question": "Compare the top 5 project management tools for startups",
+            "feat_expert": "default"
+        },
+        {
+            "feat_question": "What are the key trends in AI regulation in 2025?",
+            "feat_expert": "default"
+        }
+    ],
+    "intro_message": "Hi! I'm Researcher. Give me any topic and I'll conduct deep, multi-source research with fact-checking and cross-referencing. I'll deliver a comprehensive, cited report.",
+    "preferred_model_default": "grok-4-1-fast-reasoning",
+    "daily_budget_default": 10000000,
+    "default_inbox_default": 10000,
+    "tags": [
+        "Research",
+        "Analysis",
+        "Fact-Checking"
+    ]
+}

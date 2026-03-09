@@ -1,0 +1,65 @@
+[
+    {
+        "bs_name": "prediction_domain",
+        "bs_type": "string_short",
+        "bs_default": "general",
+        "bs_group": "Forecasting Settings",
+        "bs_order": 1,
+        "bs_importance": 1,
+        "bs_description": "Prediction domain: technology, finance, geopolitics, climate, general"
+    },
+    {
+        "bs_name": "time_horizon",
+        "bs_type": "string_short",
+        "bs_default": "6_months",
+        "bs_group": "Forecasting Settings",
+        "bs_order": 2,
+        "bs_importance": 0,
+        "bs_description": "Default time horizon: 1_week, 1_month, 3_months, 6_months, 1_year"
+    },
+    {
+        "bs_name": "data_sources",
+        "bs_type": "string_short",
+        "bs_default": "all",
+        "bs_group": "Forecasting Settings",
+        "bs_order": 3,
+        "bs_importance": 0,
+        "bs_description": "Data sources to use: news, financial, academic, social_media, all"
+    },
+    {
+        "bs_name": "predictions_per_report",
+        "bs_type": "string_short",
+        "bs_default": "5",
+        "bs_group": "Output",
+        "bs_order": 4,
+        "bs_importance": 0,
+        "bs_description": "Number of predictions per report: 3, 5, 10, 20"
+    },
+    {
+        "bs_name": "accuracy_tracking",
+        "bs_type": "bool",
+        "bs_default": true,
+        "bs_group": "Tracking",
+        "bs_order": 5,
+        "bs_importance": 0,
+        "bs_description": "Track prediction accuracy over time using Brier scores"
+    },
+    {
+        "bs_name": "confidence_threshold",
+        "bs_type": "string_short",
+        "bs_default": "medium",
+        "bs_group": "Output",
+        "bs_order": 6,
+        "bs_importance": 0,
+        "bs_description": "Minimum confidence to include: low (20%+), medium (40%+), high (70%+)"
+    },
+    {
+        "bs_name": "contrarian_mode",
+        "bs_type": "bool",
+        "bs_default": false,
+        "bs_group": "Forecasting Settings",
+        "bs_order": 7,
+        "bs_importance": 0,
+        "bs_description": "Actively seek counter-consensus predictions and contrarian signals"
+    }
+]

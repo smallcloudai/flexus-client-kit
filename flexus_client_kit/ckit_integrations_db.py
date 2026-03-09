@@ -16,6 +16,11 @@ class IntegrationRecord:
     integr_prompt: str = ""
 
 
+@dataclass
+class _MongoStoreState:
+    collection: Any = None
+
+
 def static_integrations_load(bot_dir: Path, allowlist: list[str], builtin_skills: list[str]) -> list[IntegrationRecord]:
     # static means designed to save into constant on top level of a bot file
     # logger is not yet initilized here, no logs possible
@@ -173,6 +178,29 @@ def static_integrations_load(bot_dir: Path, allowlist: list[str], builtin_skills
                 integr_init=_init_github,
                 integr_setup_handlers=lambda obj, rcx: [rcx.on_tool_call("github")(obj.called_by_model)],
                 integr_provider="github",
+                integr_prompt="",
+            ))
+
+        elif name == "mongo_store":
+            from flexus_client_kit.integrations import fi_mongo_store
+            from flexus_client_kit import ckit_mongo
+            state = _MongoStoreState()
+            async def _init_mongo_store(rcx, setup, _state=state):
+                from pymongo import AsyncMongoClient
+                mongo_conn_str = await ckit_mongo.mongo_fetch_creds(rcx.fclient, rcx.persona.persona_id)
+                mongo = AsyncMongoClient(mongo_conn_str)
+                dbname = rcx.persona.persona_id + "_db"
+                _state.collection = mongo[dbname]["personal_mongo"]
+                return _state
+            result.append(IntegrationRecord(
+                integr_name=name,
+                integr_tools=[fi_mongo_store.MONGO_STORE_TOOL],
+                integr_init=_init_mongo_store,
+                integr_setup_handlers=lambda obj, rcx, _s=state: [
+                    rcx.on_tool_call("mongo_store")(
+                        lambda tc, args: fi_mongo_store.handle_mongo_store(rcx.workdir, _s.collection, tc, args)
+                    )
+                ],
                 integr_prompt="",
             ))
 
