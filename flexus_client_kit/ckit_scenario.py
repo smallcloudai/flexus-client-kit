@@ -4,11 +4,11 @@ import argparse
 import yaml
 import dataclasses
 from dataclasses import dataclass
-from typing import Optional, Dict, List, Union, Any
+from typing import Optional
 
 import gql
 
-from flexus_client_kit import gql_utils, ckit_bot_install, ckit_client, ckit_ask_model, ckit_kanban, ckit_bot_query, ckit_cloudtool
+from flexus_client_kit import gql_utils, ckit_client, ckit_ask_model, ckit_kanban, ckit_bot_query, ckit_cloudtool
 
 logger = logging.getLogger("cksce")
 
@@ -280,6 +280,8 @@ class ScenarioSetup:
         persona_setup: dict,
         group_prefix: str = "test",
     ) -> None:
+        from flexus_client_kit import ckit_bot_install   # avoid circular import here
+
         if not self.fclient.ws_id:
             raise RuntimeError("FLEXUS_WORKSPACE environment variable is not set")
 

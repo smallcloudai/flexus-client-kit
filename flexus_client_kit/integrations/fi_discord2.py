@@ -117,7 +117,10 @@ def _parse_channel_reference(ref: str) -> Tuple[Optional[str], Optional[str]]:
     return channel or None, thread or None
 
 
-class IntegrationDiscord:
+class IntegrationDiscord(fi_messenger.FlexusMessenger):
+    platform_name = "discord"
+    emessage_type = "DISCORD"
+
     def __init__(
         self,
         fclient: ckit_client.FlexusClient,
@@ -125,8 +128,7 @@ class IntegrationDiscord:
         watch_channels: str,
         mongo_collection: Optional[Any] = None,
     ):
-        self.fclient = fclient
-        self.rcx = rcx
+        super().__init__(fclient, rcx)
         self.bot_token = (rcx.external_auth.get("discord") or {}).get("api_key", "").strip()
             
         self.mongo_collection = mongo_collection

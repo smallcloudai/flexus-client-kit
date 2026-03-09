@@ -1,11 +1,7 @@
 from collections import deque
 from typing import List, Dict, Any, Optional
 
-from flexus_client_kit import ckit_bot_exec, ckit_bot_query
-
-AUTHOR_EMOJI = "👤"
-FILE_EMOJI = "📎"
-MAX_DEDUP_MESSAGES = 200
+from flexus_client_kit import ckit_ask_model, ckit_bot_exec, ckit_bot_query, ckit_client
 
 MESSENGER_PROMPT = """
 ## Messaging Platforms (Telegram, Slack, WhatsApp, etc.)
@@ -45,15 +41,26 @@ NOT_CAPTURING_MSG = "This thread is not capturing any conversation. Use 'capture
 UNKNOWN_OPERATION_MSG = "Unknown operation %r, try \"help\"\n\n"
 
 
-class MessageDeduplicator:
-    def __init__(self, maxlen: int = MAX_DEDUP_MESSAGES):
-        self._seen: deque[str] = deque(maxlen=maxlen)
+class FlexusMessenger:
+    platform_name: str = ""   # override in subclass, e.g. "telegram"
+    emessage_type: str = ""   # override in subclass, e.g. "TELEGRAM"
 
-    def is_duplicate(self, msg_id: str) -> bool:
-        if msg_id in self._seen:
-            return True
-        self._seen.append(msg_id)
-        return False
+    def __init__(self, fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.RobotContext):
+        self.fclient = fclient
+        self.rcx = rcx
+
+    def recent_thread_that_captures(self, identifier: str) -> Optional[ckit_bot_query.FThreadWithMessages]:
+        searchable = f"{self.platform_name}/{identifier}"
+        for t in self.rcx.latest_threads.values():
+            if t.thread_fields.ft_app_searchable == searchable:
+                return t
+        return None
+
+    async def handle_emessage(self, emsg: ckit_bot_query.FExternalMessageOutput) -> None:
+        raise NotImplementedError
+
+    async def look_assistant_might_have_posted_something(self, msg: ckit_ask_model.FThreadMessageOutput) -> bool:
+        raise NotImplementedError
 
 
 def is_text_file(data: bytes) -> bool:
@@ -70,10 +77,6 @@ def is_text_file(data: bytes) -> bool:
     return (printable / len(sample)) > 0.8 if sample else True
 
 
-def format_user_message(author: str, text: str) -> str:
-    return f"{AUTHOR_EMOJI}{author}\n\n{text}"
-
-
 def compact_message_parts(parts: List[Dict[str, Any]], max_parts: int = 5, max_images: int = 2) -> List[Dict[str, Any]]:
     # XXX if it's just text, simplify into simple string not list of dicts
     if len(parts) <= max_parts:
@@ -82,16 +85,4 @@ def compact_message_parts(parts: List[Dict[str, Any]], max_parts: int = 5, max_i
     image_parts = [p for p in parts if p.get("m_type", "").startswith("image/")][:max_images]
     combined_text = "\n\n".join(p["m_content"] for p in text_parts)
     return [{"m_type": "text", "m_content": combined_text}] + image_parts
-
-
-def recent_thread_that_captures(rcx: ckit_bot_exec.RobotContext, platform: str, identifier: str) -> Optional[ckit_bot_query.FThreadWithMessages]:
-    searchable = fmt_searchable(platform, identifier)
-    for t in rcx.latest_threads.values():
-        if t.thread_fields.ft_app_searchable == searchable:
-            return t
-    return None
-
-
-def fmt_searchable(platform: str, identifier: str) -> str:
-    return f"{platform}/{identifier}"
 

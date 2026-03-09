@@ -4,7 +4,7 @@ import io
 import json
 import logging
 from collections import deque
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 from typing import Any, Awaitable, Callable, Dict, List, Optional
 
 import gql
@@ -12,7 +12,7 @@ from PIL import Image
 import telegram
 import telegram.ext
 
-from flexus_client_kit import ckit_ask_model, ckit_bot_exec, ckit_bot_query, ckit_client, ckit_cloudtool, gql_utils
+from flexus_client_kit import ckit_ask_model, ckit_bot_exec, ckit_bot_query, ckit_client, ckit_cloudtool, ckit_kanban, gql_utils
 from flexus_client_kit.format_utils import format_cat_output
 from flexus_client_kit.integrations import fi_messenger
 
@@ -91,14 +91,16 @@ class ActivityTelegram:
     attachments: List[Dict[str, str]] = field(default_factory=list)
 
 
-class IntegrationTelegram:
+class IntegrationTelegram(fi_messenger.FlexusMessenger):
+    platform_name = "telegram"
+    emessage_type = "TELEGRAM"
+
     def __init__(
         self,
         fclient: ckit_client.FlexusClient,
         rcx: ckit_bot_exec.RobotContext,
     ):
-        self.fclient = fclient
-        self.rcx = rcx
+        super().__init__(fclient, rcx)
         tg_auth = rcx.external_auth.get("telegram") or {}
         self.bot_token = tg_auth.get("api_key", "").strip()
         self.webhook_secret = tg_auth.get("webhook_secret", "")
@@ -109,8 +111,8 @@ class IntegrationTelegram:
 
         self.tg_app: Optional[telegram.ext.Application] = None
 
-        self._activity_callback: Optional[Callable[[ActivityTelegram, bool], Awaitable[None]]] = None
-        self._prev_messages: deque[str] = deque(maxlen=fi_messenger.MAX_DEDUP_MESSAGES)
+        self._activity_callback: Callable[[ActivityTelegram, bool], Awaitable[None]] = self.default_activity_to_inbox
+        self._handled_incoming_emessages: deque[str] = deque(maxlen=200)  # emessages (coming from webhook) are to be fixed a bit, 200 will not help at scale
 
         if not self.bot_token:
             self.oops_a_problem("Telegram is not connected, ask user to connect it in bot settings")
@@ -144,6 +146,20 @@ class IntegrationTelegram:
     def on_incoming_activity(self, handler: Callable[[ActivityTelegram, bool], Awaitable[None]]):
         self._activity_callback = handler
         return handler
+
+    async def default_activity_to_inbox(self, a: ActivityTelegram, already_posted: bool):
+        logger.info("%s Telegram %s by @%s: %s", self.rcx.persona.persona_id, a.chat_type, a.message_author_name, a.message_text[:50])
+        if already_posted:
+            return
+        details = asdict(a)
+        if a.attachments:
+            details["attachments"] = f"{len(a.attachments)} files attached"
+        title = "Telegram %s user=%r chat_id=%d\n%s" % (a.chat_type, a.message_author_name, a.chat_id, a.message_text)
+        await ckit_kanban.bot_kanban_post_into_inbox(
+            self.fclient, self.rcx.persona.persona_id,
+            title=title, details_json=json.dumps(details),
+            provenance_message="telegram_inbound",
+        )
 
     async def close(self) -> None:
         if self.tg_app and self.tg_app.running:
@@ -195,7 +211,7 @@ class IntegrationTelegram:
             if not text:
                 return "Missing text parameter\n"
 
-            if (thread_cap := fi_messenger.recent_thread_that_captures(self.rcx, "telegram", str(chat_id))) and thread_cap.thread_fields.ft_id == toolcall.fcall_ft_id:
+            if (thread_cap := self.recent_thread_that_captures(str(chat_id))) and thread_cap.thread_fields.ft_id == toolcall.fcall_ft_id:
                 return "Cannot post to captured chat. Your responses are sent automatically.\n"
 
             try:
@@ -210,13 +226,13 @@ class IntegrationTelegram:
                 return "Missing chat_id parameter\n"
 
             identifier = str(chat_id)
-            if already := fi_messenger.recent_thread_that_captures(self.rcx, "telegram", identifier):
+            if already := self.recent_thread_that_captures(identifier):
                 if already.thread_fields.ft_id == toolcall.fcall_ft_id:
                     return "Already captured\n"
                 return fi_messenger.OTHER_CHAT_ALREADY_CAPTURING_MSG % identifier
 
             http = await self.fclient.use_http()
-            searchable = fi_messenger.fmt_searchable("telegram", identifier)
+            searchable = f"telegram/{identifier}"
             await ckit_ask_model.thread_app_capture_patch(
                 http,
                 toolcall.fcall_ft_id,
@@ -265,9 +281,9 @@ class IntegrationTelegram:
         msg = update.message or update.edited_message
         if not msg or not msg.from_user:
             return
-        if str(msg.message_id) in self._prev_messages:
+        if str(msg.message_id) in self._handled_incoming_emessages:
             return
-        self._prev_messages.append(str(msg.message_id))
+        self._handled_incoming_emessages.append(str(msg.message_id))
         user = msg.from_user
         activity = ActivityTelegram(
             chat_id=msg.chat.id,
@@ -279,18 +295,17 @@ class IntegrationTelegram:
             attachments=[],
         )
         already_posted_to_captured_thread = await self.post_into_captured_thread_as_user(activity)
-        if self._activity_callback:
-            await self._activity_callback(activity, already_posted_to_captured_thread)
+        await self._activity_callback(activity, already_posted_to_captured_thread)
 
     async def post_into_captured_thread_as_user(self, activity: ActivityTelegram) -> bool:
         msg_text = activity.message_text
         if not msg_text.strip():
             return True  # empty message, keep capture, do nothing
-        # parts.append({"m_type": "text", "m_content": fi_messenger.format_user_message(activity.message_author_name, activity.message_text)})
+        # parts.append({"m_type": "text", "m_content": f"👤{activity.message_author_name}\n\n{activity.message_text}"})
         # parts: List[Dict[str, str]] = []
         # parts.extend(activity.attachments)
         # parts = fi_messenger.compact_message_parts(parts)
-        searchable = fi_messenger.fmt_searchable("telegram", str(activity.chat_id))
+        searchable = f"telegram/{activity.chat_id}"
         http = await self.fclient.use_http()
         ft_id = await ckit_ask_model.captured_thread_post_user_message(
             http, self.rcx.persona.persona_id, searchable, msg_text,
@@ -372,7 +387,7 @@ class IntegrationTelegram:
     #                     items.append(img_part)
     #             elif fi_messenger.is_text_file(bytes(data)):
     #                 formatted = format_cat_output(doc.file_name or "file", bytes(data), safety_valve="10k")
-    #                 items.append({"m_type": "text", "m_content": f"{fi_messenger.FILE_EMOJI} {formatted}"})
+    #                 items.append({"m_type": "text", "m_content": f"📎 {formatted}"})
     #             else:
     #                 items.append({"m_type": "text", "m_content": f"[Binary file: {doc.file_name} ({len(data)} bytes)]"})
     #         except Exception as e:

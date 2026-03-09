@@ -259,18 +259,18 @@ class IntegrationCrmAutomations:
         self,
         client: ckit_client.FlexusClient,
         rcx: ckit_bot_exec.RobotContext,
-        get_setup_func: callable,
+        setup: dict,
         available_erp_tables: List[str],
     ):
         self.client = client
         self.rcx = rcx
-        self.get_setup = get_setup_func
+        self.setup = setup
         self.available_erp_tables = available_erp_tables or []
         self._recently_fired = collections.OrderedDict()  # (auto_name, record_id) -> timestamp
         self._setup_automation_handlers()
 
     def _load_automations(self) -> Dict[str, Any]:
-        setup = self.get_setup()
+        setup = self.setup
         crm_automations_str = setup.get("crm_automations", "{}")
         try:
             return json.loads(crm_automations_str) if isinstance(crm_automations_str, str) else crm_automations_str

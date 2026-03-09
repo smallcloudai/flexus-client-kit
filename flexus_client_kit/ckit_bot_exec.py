@@ -6,9 +6,8 @@ import logging
 import os
 import sys
 import time
-import argparse
 import yaml
-from typing import Dict, List, Optional, Any, Callable, Awaitable, NamedTuple, Union, Type, TypeVar
+from typing import Dict, List, Optional, Any, Callable, Awaitable, NamedTuple, Union
 
 import gql
 import gql.transport.exceptions
@@ -100,6 +99,7 @@ class RobotContext:
         self.running_test_scenario = False
         self.running_happy_yaml = ""
         self.external_auth = external_auth or {}
+        self.messengers: list = []
         os.makedirs(self.workdir, exist_ok=True)
 
     def on_updated_message(self, handler: Callable[[ckit_ask_model.FThreadMessageOutput], Awaitable[None]]):

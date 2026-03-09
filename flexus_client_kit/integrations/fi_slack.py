@@ -8,7 +8,7 @@ import json
 import base64
 import io
 from collections import deque
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 from typing import Dict, Any, Optional, Callable, Awaitable, List
 import httpx
 from PIL import Image
@@ -18,6 +18,7 @@ from flexus_client_kit import ckit_cloudtool
 from flexus_client_kit import ckit_client
 from flexus_client_kit import ckit_ask_model
 from flexus_client_kit import ckit_bot_exec
+from flexus_client_kit import ckit_kanban
 from flexus_client_kit.format_utils import format_cat_output
 from flexus_client_kit.integrations import fi_messenger
 
@@ -136,7 +137,10 @@ class ActivitySlack:
     file_contents: List[Dict[str, str]] = field(default_factory=list)
 
 
-class IntegrationSlack:
+class IntegrationSlack(fi_messenger.FlexusMessenger):
+    platform_name = "slack"
+    emessage_type = "SLACK"
+
     def __init__(
             self,
             fclient: ckit_client.FlexusClient,
@@ -144,8 +148,7 @@ class IntegrationSlack:
             should_join: str,
             mongo_collection: Optional[Collection] = None,
     ):
-        self.fclient = fclient
-        self.rcx = rcx
+        super().__init__(fclient, rcx)
         slack_bot_token = self._get_bot_token()
         app_token = self._get_app_token()
         logger.info("%s have SLACK_BOT_TOKEN=%s and SLACK_APP_TOKEN=...%s", rcx.persona.persona_id, ("..." + slack_bot_token[-4:] if slack_bot_token else "none"), ("..." + app_token[-4:] if app_token else "none"))
@@ -165,7 +168,7 @@ class IntegrationSlack:
             logger.info(f"Failed to connect and setup event handlers: {type(e).__name__} {e}")
             self.problems_other.append("%s %s" % (type(e).__name__, e))
             self.reactive_slack = None
-        self.activity_callback: Optional[Callable[[ActivitySlack, bool], Awaitable[None]]] = None
+        self.activity_callback: Callable[[ActivitySlack, bool], Awaitable[None]] = self.default_activity_to_inbox
         self.prev_messages = deque(maxlen=200)
         self.channels_id2name = {}
         self.channels_name2id = {}
@@ -182,6 +185,23 @@ class IntegrationSlack:
 
     def set_activity_callback(self, cb: Callable[[ActivitySlack, bool], Awaitable[None]]):
         self.activity_callback = cb
+
+    async def default_activity_to_inbox(self, a: ActivitySlack, already_posted: bool):
+        logger.info("%s Slack %s by @%s in %s: %s", self.rcx.persona.persona_id, a.what_happened, a.message_author_name, a.channel_name, a.message_text[:50])
+        if already_posted:
+            return
+        channel_name_slash_thread = a.channel_name
+        if a.thread_ts:
+            channel_name_slash_thread += "/" + a.thread_ts
+        title = "Slack %s user=%r in %s\n%s" % (a.what_happened, a.message_author_name, channel_name_slash_thread, a.message_text)
+        details = asdict(a)
+        if a.file_contents:
+            details["file_contents"] = f"{len(a.file_contents)} files attached"
+        await ckit_kanban.bot_kanban_post_into_inbox(
+            self.fclient, self.rcx.persona.persona_id,
+            title=title, details_json=json.dumps(details),
+            provenance_message="slack_inbound",
+        )
 
     async def start_reactive(self):
         if not self.reactive_slack:
@@ -588,8 +608,7 @@ class IntegrationSlack:
         )
 
         really_posted = await self.post_into_captured_thread_as_user(a, something_id)
-        if self.activity_callback:
-            await self.activity_callback(a, already_posted_to_captured_thread=really_posted)
+        await self.activity_callback(a, already_posted_to_captured_thread=really_posted)
 
     async def post_into_captured_thread_as_user(self, a: ActivitySlack, something_id: str) -> bool:
         something_id_slash_thread = something_id + ("/" + a.thread_ts if a.thread_ts else "")
