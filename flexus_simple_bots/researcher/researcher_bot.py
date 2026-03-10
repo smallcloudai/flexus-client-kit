@@ -81,27 +81,7 @@ def validate_path_kebab(path: str) -> str:
     return ""
 
 
-RESEARCHER_INTEGRATIONS: list[ckit_integrations_db.IntegrationRecord] = ckit_integrations_db.static_integrations_load(
-    researcher_install.RESEARCHER_ROOTDIR,
-    [
-        "flexus_policy_document", "skills", "print_widget",
-        "linkedin",
-        "amazon", "apollo", "appstoreconnect", "bing_webmaster",
-        "bombora", "builtwith", "calendly", "capterra", "cint", "clearbit",
-        "coresignal", "crunchbase", "dataforseo", "dovetail", "ebay",
-        "event_registry", "fireflies", "g2", "gdelt", "glassdoor",
-        "gnews", "gong", "google_ads", "google_calendar", "google_play",
-        "google_search_console", "google_shopping", "hasdata", "instagram",
-        "levelsfyi", "linkedin_jobs", "mediastack", "newsapi",
-        "newscatcher", "newsdata", "outreach", "oxylabs", "pdl", "perigon",
-        "pinterest", "pipedrive", "producthunt", "prolific", "qualtrics",
-        "reddit", "salesforce", "salesloft", "sixsense",
-        "stackexchange", "surveymonkey", "theirstack", "tiktok", "trustpilot",
-        "typeform", "userinterviews", "usertesting", "wappalyzer", "wikimedia",
-        "x", "yelp", "youtube", "zendesk", "zendesk_sell", "zoom",
-    ],
-    builtin_skills=researcher_install.RESEARCHER_SKILLS,
-)
+RESEARCHER_INTEGRATIONS = researcher_install.RESEARCHER_INTEGRATIONS
 
 TOOLS = [
     WRITE_ARTIFACT_TOOL,

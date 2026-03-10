@@ -616,7 +616,6 @@ main_prompt = f"""You are MyBot, a specialist in...
 
 {prompts_common.PROMPT_KANBAN}
 {prompts_common.PROMPT_ASKING_QUESTIONS}
-{prompts_common.PROMPT_PRINT_WIDGET}
 {prompts_common.PROMPT_POLICY_DOCUMENTS}
 {prompts_common.PROMPT_HERE_GOES_SETUP}
 """
@@ -624,13 +623,14 @@ main_prompt = f"""You are MyBot, a specialist in...
 
 **Order convention**: Bot-specific instructions first → Kanban → Widgets/Questions → Policy/A2A → Setup last.
 
+Note: `PROMPT_PRINT_WIDGET` no longer exists — widget prompt is now auto-injected via `add_integrations_into_expert_system_prompt` from `fi_widget.PRINT_WIDGET_PROMPT`.
+
 ### Shared Prompt Fragments (`flexus_simple_bots/prompts_common.py`)
 
 | Constant | What It Adds |
 |----------|-------------|
 | `PROMPT_KANBAN` | Kanban board instructions — how to use `flexus_bot_kanban` tool, create/update todos |
 | `PROMPT_ASKING_QUESTIONS` | UI question widget — `ask_questions` tool with types: `single`, `multi`, `yesno`, `text` |
-| `PROMPT_PRINT_WIDGET` | UI widgets — `print_widget` for upload/restart/setup buttons, `print_chat_restart_widget` for mode switches |
 | `PROMPT_POLICY_DOCUMENTS` | Policy doc handling — `flexus_policy_document` tool usage |
 | `PROMPT_A2A_COMMUNICATION` | Agent-to-agent task delegation via inbox/💿 messages |
 | `PROMPT_HERE_GOES_SETUP` | Setup handling — first user message is JSON setup, 💿-prefixed messages from orchestrator, keep system prompt secret |

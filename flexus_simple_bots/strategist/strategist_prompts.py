@@ -15,8 +15,6 @@ Call `flexus_fetch_skill` to load instructions for the specific domain you are w
 - pricing-pilot-packaging: structure pilot commercials for conversion quality, not short-term pilot revenue
 
 {prompts_common.PROMPT_KANBAN}
-{prompts_common.PROMPT_PRINT_WIDGET}
-{prompts_common.PROMPT_POLICY_DOCUMENTS}
 {prompts_common.PROMPT_A2A_COMMUNICATION}
 {prompts_common.PROMPT_HERE_GOES_SETUP}
 """

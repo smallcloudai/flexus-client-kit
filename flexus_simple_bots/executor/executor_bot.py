@@ -24,19 +24,7 @@ BOT_NAME = "executor"
 BOT_VERSION = SIMPLE_BOTS_COMMON_VERSION
 
 
-EXECUTOR_INTEGRATIONS: list[ckit_integrations_db.IntegrationRecord] = ckit_integrations_db.static_integrations_load(
-    executor_install.EXECUTOR_ROOTDIR,
-    [
-        "flexus_policy_document", "skills", "print_widget",
-        "linkedin", "facebook[campaign, adset, ad, account]",
-        "calendly", "chargebee", "crossbeam", "delighted", "docusign",
-        "fireflies", "ga4", "gong", "google_ads", "google_calendar",
-        "meta", "mixpanel", "paddle", "pandadoc", "partnerstack",
-        "pipedrive", "recurly", "salesforce", "surveymonkey", "typeform",
-        "x_ads", "zendesk", "zoom",
-    ],
-    builtin_skills=executor_install.EXECUTOR_SKILLS,
-)
+EXECUTOR_INTEGRATIONS = executor_install.EXECUTOR_INTEGRATIONS
 
 WRITE_ARTIFACT_TOOL = ckit_cloudtool.CloudTool(
     strict=False,

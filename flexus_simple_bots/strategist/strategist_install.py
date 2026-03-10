@@ -6,6 +6,7 @@ from pathlib import Path
 from flexus_client_kit import ckit_bot_install
 from flexus_client_kit import ckit_client
 from flexus_client_kit import ckit_cloudtool
+from flexus_client_kit import ckit_integrations_db
 from flexus_client_kit import ckit_skills
 from flexus_simple_bots import prompts_common
 from flexus_simple_bots.strategist import strategist_prompts
@@ -13,6 +14,35 @@ from flexus_simple_bots.strategist import strategist_prompts
 STRATEGIST_ROOTDIR = Path(__file__).parent
 STRATEGIST_SKILLS = ckit_skills.static_skills_find(STRATEGIST_ROOTDIR, shared_skills_allowlist="")
 STRATEGIST_SETUP_SCHEMA = json.loads((STRATEGIST_ROOTDIR / "setup_schema.json").read_text())
+
+STRATEGIST_INTEGRATIONS: list[ckit_integrations_db.IntegrationRecord] = ckit_integrations_db.static_integrations_load(
+    STRATEGIST_ROOTDIR,
+    [
+        "flexus_policy_document", "skills", "print_widget",
+        "linkedin",
+        # "chargebee",
+        # "crunchbase",
+        # "datadog",
+        # "ga4",
+        # "gnews",
+        # "google_ads",
+        # "launchdarkly",
+        # "meta",
+        # "mixpanel",
+        # "optimizely",
+        # "paddle",
+        # "pipedrive",
+        # "qualtrics",
+        # "recurly",
+        # "salesforce",
+        # "segment",
+        # "statsig",
+        # "surveymonkey",
+        # "typeform",
+        # "zendesk",
+    ],
+    builtin_skills=STRATEGIST_SKILLS,
+)
 
 EXPERTS = [
     ("default", ckit_bot_install.FMarketplaceExpertInput(
@@ -63,6 +93,7 @@ async def install(
         marketable_daily_budget_default=100_000,
         marketable_default_inbox_default=10_000,
         marketable_experts=[(name, exp.filter_tools(tools)) for name, exp in EXPERTS],
+        add_integrations_into_expert_system_prompt=STRATEGIST_INTEGRATIONS,
         marketable_tags=["GTM", "Strategy", "Experiments", "Growth"],
         marketable_schedule=[prompts_common.SCHED_PICK_ONE_5M | {"sched_when": "EVERY:1m"}],
         marketable_picture_big_b64=pic_big,

@@ -39,17 +39,7 @@ WRITE_ARTIFACT_TOOL = ckit_cloudtool.CloudTool(
         "additionalProperties": False,
     },
 )
-STRATEGIST_INTEGRATIONS: list[ckit_integrations_db.IntegrationRecord] = ckit_integrations_db.static_integrations_load(
-    strategist_install.STRATEGIST_ROOTDIR,
-    [
-        "flexus_policy_document", "skills", "print_widget",
-        "chargebee", "crunchbase", "datadog", "ga4", "gnews", "google_ads",
-        "launchdarkly", "linkedin", "meta", "mixpanel", "optimizely", "paddle",
-        "pipedrive", "qualtrics", "recurly", "salesforce", "segment", "statsig",
-        "surveymonkey", "typeform", "zendesk",
-    ],
-    builtin_skills=strategist_install.STRATEGIST_SKILLS,
-)
+STRATEGIST_INTEGRATIONS = strategist_install.STRATEGIST_INTEGRATIONS
 
 TOOLS = [
     WRITE_ARTIFACT_TOOL,

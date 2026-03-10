@@ -6,6 +6,7 @@ from pathlib import Path
 from flexus_client_kit import ckit_bot_install
 from flexus_client_kit import ckit_client
 from flexus_client_kit import ckit_cloudtool
+from flexus_client_kit import ckit_integrations_db
 from flexus_client_kit import ckit_skills
 from flexus_simple_bots import prompts_common
 from flexus_simple_bots.executor import executor_prompts
@@ -16,6 +17,39 @@ EXECUTOR_SKILLS = [
     if s != "botticelli"
 ]
 EXECUTOR_SETUP_SCHEMA = json.loads((EXECUTOR_ROOTDIR / "setup_schema.json").read_text())
+
+EXECUTOR_INTEGRATIONS: list[ckit_integrations_db.IntegrationRecord] = ckit_integrations_db.static_integrations_load(
+    EXECUTOR_ROOTDIR,
+    [
+        "flexus_policy_document", "skills", "print_widget",
+        "linkedin",
+        "facebook[campaign, adset, ad, account]",
+        "google_calendar",
+        # "calendly",
+        # "chargebee",
+        # "crossbeam",
+        # "delighted",
+        # "docusign",
+        # "fireflies",
+        # "ga4",
+        # "gong",
+        # "google_ads",
+        # "meta",
+        # "mixpanel",
+        # "paddle",
+        # "pandadoc",
+        # "partnerstack",
+        # "pipedrive",
+        # "recurly",
+        # "salesforce",
+        # "surveymonkey",
+        # "typeform",
+        # "x_ads",
+        # "zendesk",
+        # "zoom",
+    ],
+    builtin_skills=EXECUTOR_SKILLS,
+)
 
 EXPERTS = [
     ("default", ckit_bot_install.FMarketplaceExpertInput(
@@ -65,6 +99,7 @@ async def install(
         marketable_daily_budget_default=100_000,
         marketable_default_inbox_default=10_000,
         marketable_experts=[(name, exp.filter_tools(tools)) for name, exp in EXPERTS],
+        add_integrations_into_expert_system_prompt=EXECUTOR_INTEGRATIONS,
         marketable_tags=["GTM", "Execution", "Pilots", "Onboarding", "Conversion"],
         marketable_schedule=[prompts_common.SCHED_PICK_ONE_5M],
         marketable_picture_big_b64=pic_big,

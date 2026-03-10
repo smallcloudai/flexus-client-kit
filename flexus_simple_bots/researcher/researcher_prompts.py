@@ -15,8 +15,6 @@ Call `flexus_fetch_skill` to load instructions for the specific domain you are w
 - pipeline-contact-enrichment: enrich, verify, and score contacts before any outreach begins
 
 {prompts_common.PROMPT_KANBAN}
-{prompts_common.PROMPT_PRINT_WIDGET}
-{prompts_common.PROMPT_POLICY_DOCUMENTS}
 {prompts_common.PROMPT_A2A_COMMUNICATION}
 {prompts_common.PROMPT_HERE_GOES_SETUP}
 """

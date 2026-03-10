@@ -6,6 +6,7 @@ from pathlib import Path
 from flexus_client_kit import ckit_bot_install
 from flexus_client_kit import ckit_client
 from flexus_client_kit import ckit_cloudtool
+from flexus_client_kit import ckit_integrations_db
 from flexus_client_kit import ckit_skills
 from flexus_simple_bots import prompts_common
 from flexus_simple_bots.researcher import researcher_prompts
@@ -13,6 +14,79 @@ from flexus_simple_bots.researcher import researcher_prompts
 RESEARCHER_ROOTDIR = Path(__file__).parent
 RESEARCHER_SKILLS = ckit_skills.static_skills_find(RESEARCHER_ROOTDIR, shared_skills_allowlist="")
 RESEARCHER_SETUP_SCHEMA = json.loads((RESEARCHER_ROOTDIR / "setup_schema.json").read_text())
+
+RESEARCHER_INTEGRATIONS: list[ckit_integrations_db.IntegrationRecord] = ckit_integrations_db.static_integrations_load(
+    RESEARCHER_ROOTDIR,
+    [
+        "flexus_policy_document", "skills", "print_widget",
+        "linkedin",
+        "google_calendar",
+        # "amazon",
+        # "apollo",
+        # "appstoreconnect",
+        # "bing_webmaster",
+        # "bombora",
+        # "builtwith",
+        # "calendly",
+        # "capterra",
+        # "cint",
+        # "clearbit",
+        # "coresignal",
+        # "crunchbase",
+        # "dataforseo",
+        # "dovetail",
+        # "ebay",
+        # "event_registry",
+        # "fireflies",
+        # "g2",
+        # "gdelt",
+        # "glassdoor",
+        # "gnews",
+        # "gong",
+        # "google_ads",
+        # "google_play",
+        # "google_search_console",
+        # "google_shopping",
+        # "hasdata",
+        # "instagram",
+        # "levelsfyi",
+        # "linkedin_jobs",
+        # "mediastack",
+        # "newsapi",
+        # "newscatcher",
+        # "newsdata",
+        # "outreach",
+        # "oxylabs",
+        # "pdl",
+        # "perigon",
+        # "pinterest",
+        # "pipedrive",
+        # "producthunt",
+        # "prolific",
+        # "qualtrics",
+        # "reddit",
+        # "salesforce",
+        # "salesloft",
+        # "sixsense",
+        # "stackexchange",
+        # "surveymonkey",
+        # "theirstack",
+        # "tiktok",
+        # "trustpilot",
+        # "typeform",
+        # "userinterviews",
+        # "usertesting",
+        # "wappalyzer",
+        # "wikimedia",
+        # "x",
+        # "yelp",
+        # "youtube",
+        # "zendesk",
+        # "zendesk_sell",
+        # "zoom",
+    ],
+    builtin_skills=RESEARCHER_SKILLS,
+)
 
 EXPERTS = [
     ("default", ckit_bot_install.FMarketplaceExpertInput(
@@ -63,6 +137,7 @@ async def install(
         marketable_daily_budget_default=100_000,
         marketable_default_inbox_default=10_000,
         marketable_experts=[(name, exp.filter_tools(tools)) for name, exp in EXPERTS],
+        add_integrations_into_expert_system_prompt=RESEARCHER_INTEGRATIONS,
         marketable_tags=["GTM", "Research", "Discovery", "Signals", "ICP"],
         marketable_schedule=[prompts_common.SCHED_PICK_ONE_5M],
         marketable_picture_big_b64=pic_big,

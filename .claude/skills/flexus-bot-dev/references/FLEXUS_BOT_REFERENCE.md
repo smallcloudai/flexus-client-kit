@@ -428,7 +428,6 @@ Optional: `bs_description`, `bs_order`, `bs_importance`, `bs_placeholder`
 |----------|---------|
 | `PROMPT_KANBAN` | Kanban board usage |
 | `PROMPT_POLICY_DOCUMENTS` | Policy doc storage |
-| `PROMPT_PRINT_WIDGET` | UI widgets |
 | `PROMPT_A2A_COMMUNICATION` | Bot-to-bot delegation |
 | `PROMPT_HERE_GOES_SETUP` | Setup message format |
 
