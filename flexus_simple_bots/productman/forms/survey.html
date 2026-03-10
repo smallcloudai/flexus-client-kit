@@ -11,15 +11,14 @@
       from { opacity: 0; transform: translateY(10px); }
       to { opacity: 1; transform: translateY(0); }
     }
-    /* Paper on dark desk pattern - matches WorksheetEditor.vue, theme-aware */
     body { background: var(--p-content-hover-background); margin: 0; padding: 10px; }
     .paper {
-      width: 440px; padding: 20px; min-height: calc(100vh - 20px);
+      width: var(--pdoc-paper-width, 440px); padding: 20px; min-height: calc(100vh - 20px);
       background: var(--p-primary-contrast-color); color: var(--p-primary-color);
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
     }
     .meta-box {
-      width: 400px; display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 3rem; padding: 1rem;
+      width: calc(var(--pdoc-paper-width, 440px) - 40px); display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 3rem; padding: 1rem;
       border: 2px dashed var(--p-text-muted-color); border-radius: 8px; position: relative; font-size: 0.8rem;
       animation: fadeIn 0.3s ease-out;
     }
@@ -30,10 +29,10 @@
     .meta-row { display: flex; gap: 0.5rem; }
     .meta-row label { font-weight: 600; color: var(--p-text-muted-color); }
     h1 { font-size: 1.25rem; font-weight: 600; color: var(--p-primary-color); margin: 0 0 1.5rem 0; }
-    .field { margin-bottom: 1rem; width: 100%; max-width: 400px; }
+    .field { margin-bottom: 1rem; width: 100%; max-width: calc(var(--pdoc-paper-width, 440px) - 40px); }
     .field > label { display: block; font-weight: 600; margin-bottom: 0.5rem; font-size: 0.875rem; }
     .section-card {
-      width: 400px; margin-bottom: 2rem; padding: 16px; box-sizing: border-box;
+      width: calc(var(--pdoc-paper-width, 440px) - 40px); margin-bottom: 2rem; padding: 16px; box-sizing: border-box;
       border-left: 3px solid var(--p-primary-color); background: var(--p-content-hover-background);
       border-radius: 0 8px 8px 0; animation: fadeIn 0.4s ease-out;
     }

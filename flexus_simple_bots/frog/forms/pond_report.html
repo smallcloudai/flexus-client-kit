@@ -15,7 +15,7 @@
     body { background: var(--p-content-hover-background); margin: 0; padding: 10px; }
     body.mobile { background: var(--p-primary-contrast-color); }
     .paper {
-      max-width: 440px; width: 100%; padding: 20px; min-height: calc(100vh - 20px);
+      max-width: var(--pdoc-paper-width, 440px); width: 100%; padding: 20px; min-height: calc(100vh - 20px);
       background: var(--p-primary-contrast-color); color: var(--p-primary-color);
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
     }
@@ -25,7 +25,7 @@
       box-shadow: unset;
     }
     .meta-box {
-      max-width: 400px; width: 100%; display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 3rem; padding: 1rem;
+      max-width: calc(var(--pdoc-paper-width, 440px) - 40px); width: 100%; display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 3rem; padding: 1rem;
       border: 2px dashed var(--p-text-muted-color); border-radius: 8px; position: relative; font-size: 0.8rem;
       animation: fadeIn 0.3s ease-out;
     }
@@ -41,7 +41,7 @@
     .header-row { display: flex; gap: 0.5rem; }
     .header-row label { font-weight: 600; color: var(--p-text-muted-color); }
     h1 { font-size: 1.25rem; font-weight: 600; color: var(--p-primary-color); margin: 0 0 1.5rem 0; }
-    .field { margin-bottom: 1.5rem; width: 100%; max-width: 400px; animation: fadeIn 0.4s ease-out; }
+    .field { margin-bottom: 1.5rem; width: 100%; max-width: calc(var(--pdoc-paper-width, 440px) - 40px); animation: fadeIn 0.4s ease-out; }
     .field > label { display: block; font-weight: 600; margin-bottom: 0.5rem; font-size: 0.875rem; }
     input, textarea, select {
       border: 1px solid var(--p-surface-border); border-radius: 6px;

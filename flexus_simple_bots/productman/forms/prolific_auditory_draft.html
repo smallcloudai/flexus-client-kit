@@ -11,15 +11,14 @@
       from { opacity: 0; transform: translateY(10px); }
       to { opacity: 1; transform: translateY(0); }
     }
-    /* Paper on dark desk pattern - matches WorksheetEditor.vue, theme-aware */
     body { background: var(--p-content-hover-background); margin: 0; padding: 10px; }
     .paper {
-      width: 440px; padding: 20px; min-height: calc(100vh - 20px);
+      width: var(--pdoc-paper-width, 440px); padding: 20px; min-height: calc(100vh - 20px);
       background: var(--p-primary-contrast-color); color: var(--p-primary-color);
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
     }
     .meta-box {
-      width: 400px; display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 3rem; padding: 1rem;
+      width: calc(var(--pdoc-paper-width, 440px) - 40px); display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 3rem; padding: 1rem;
       border: 2px dashed var(--p-text-muted-color); border-radius: 8px; position: relative; font-size: 0.8rem;
       animation: fadeIn 0.3s ease-out;
     }
@@ -34,14 +33,14 @@
       font-size: 1rem; font-weight: 600; color: var(--p-text-muted-color); margin: 2rem 0 1rem 0;
       padding-bottom: 0.5rem; border-bottom: 1px solid var(--p-surface-border);
     }
-    .field { margin-bottom: 1rem; width: 100%; max-width: 400px; }
+    .field { margin-bottom: 1rem; width: 100%; max-width: calc(var(--pdoc-paper-width, 440px) - 40px); }
     .field > label { display: block; font-weight: 600; margin-bottom: 0.5rem; font-size: 0.875rem; }
     .hint { font-size: 0.8rem; color: var(--p-text-muted-color); margin-top: 4px; }
-    .row { display: flex; gap: 1rem; width: 400px; }
+    .row { display: flex; gap: 1rem; width: calc(var(--pdoc-paper-width, 440px) - 40px); }
     .row .field { flex: 1; width: auto; }
     .filter-item {
       padding: 12px; border: 1px solid var(--p-surface-border); border-radius: 6px; margin-bottom: 10px;
-      width: 400px; box-sizing: border-box; background: var(--p-content-hover-background);
+      width: calc(var(--pdoc-paper-width, 440px) - 40px); box-sizing: border-box; background: var(--p-content-hover-background);
       animation: fadeIn 0.3s ease-out; transition: border-color 0.15s ease;
     }
     .filter-item:hover { border-color: var(--p-primary-color); }
@@ -88,7 +87,7 @@
     .dropdown-item input[type="checkbox"] { accent-color: var(--p-primary-color); width: auto; }
 
     .cost-grid {
-      display: grid; grid-template-columns: 1fr auto; gap: 8px 16px; font-size: 0.9rem; width: 400px;
+      display: grid; grid-template-columns: 1fr auto; gap: 8px 16px; font-size: 0.9rem; width: calc(var(--pdoc-paper-width, 440px) - 40px);
       padding: 16px; background: var(--p-content-hover-background); border-radius: 8px;
       border: 1px solid var(--p-surface-border);
     }
@@ -104,7 +103,7 @@
     .btn-icon.danger:hover { border-color: var(--p-red-500); color: var(--p-red-500); }
     .multiselect-wrapper { position: relative; }
     .empty-hint { color: var(--p-text-muted-color); font-size: 0.85rem; }
-    .p-button { width: 400px; transition: all 0.15s ease; }
+    .p-button { width: calc(var(--pdoc-paper-width, 440px) - 40px); transition: all 0.15s ease; }
   </style>
   <style id="theme-css"></style>
 </head>
