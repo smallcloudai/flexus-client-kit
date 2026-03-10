@@ -170,6 +170,10 @@ async def handle_plan_update(
         return "Error: plan_slug is required"
     section, fields = PLAN_SECTION_BY_TOOL[toolcall.fcall_name]
     data = {k: args[k] for k in fields if args.get(k) is not None}
+    # models love to send literal \n instead of real newlines in human-readable text
+    for k, v in data.items():
+        if isinstance(v, str) and "\\n" in v and "\n" not in v:
+            data[k] = v.replace("\\n", "\n")
 
     caller_fuser_id = ckit_external_auth.get_fuser_id_from_rcx(rcx, toolcall.fcall_ft_id)
     path = f"/plans/{plan_slug}"
