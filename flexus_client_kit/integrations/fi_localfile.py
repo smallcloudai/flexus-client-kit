@@ -164,6 +164,7 @@ async def handle_localfile(
         if bad:
             return f"Error: unknown args {bad} for op={op}. Valid: {sorted(valid_args[op])}"
 
+    # XXX make those async
     def _sync_dispatch():
         if op == "cat":
             return handle_cat(workdir, path, args, model_produced_args)
