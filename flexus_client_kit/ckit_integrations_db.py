@@ -157,9 +157,10 @@ def static_integrations_load(bot_dir: Path, allowlist: list[str], builtin_skills
         elif name == "slack":
             from flexus_client_kit.integrations import fi_slack
             async def _init_slack(rcx, setup):
-                should_join = (setup or {}).get("slack_should_join", "")
-                obj = fi_slack.IntegrationSlack(rcx.fclient, rcx, should_join=should_join)
-                await obj.join_channels()
+                bot_name = (setup or {}).get("slack_bot_name", "")
+                bot_icon_url = (setup or {}).get("slack_bot_icon_url", "")
+                obj = fi_slack.IntegrationSlack(rcx.fclient, rcx, bot_name=bot_name, bot_icon_url=bot_icon_url)
+                await obj.load_workspace_maps()
                 return obj
             result.append(IntegrationRecord(
                 integr_name=name,
@@ -171,6 +172,7 @@ def static_integrations_load(bot_dir: Path, allowlist: list[str], builtin_skills
                 integr_scopes=[
                     "channels:read",
                     "chat:write",
+                    "chat:write.customize",
                     "files:read",
                     "users:read",
                     "im:read",
