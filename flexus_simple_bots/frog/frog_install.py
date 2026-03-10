@@ -27,12 +27,6 @@ FROG_INTEGRATIONS: list[ckit_integrations_db.IntegrationRecord] = ckit_integrati
         "print_widget",
         "gmail",
         "skills",
-        "github",
-        "linkedin",
-        "slack",
-        "google_calendar",
-        "jira",
-        "facebook",
     ],
     builtin_skills=FROG_SKILLS
 )
