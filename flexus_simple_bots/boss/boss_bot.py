@@ -25,34 +25,9 @@ BOT_NAME = "boss"
 BOT_VERSION = SIMPLE_BOTS_COMMON_VERSION
 
 
-
-SETUP_COLLEAGUES_HELP = """Usage:
-
-boss_setup_colleagues(op='get', args={'bot_name': 'Frog'})
-    View current setup for a colleague bot.
-
-boss_setup_colleagues(op='update', args={'bot_name': 'Frog', 'set_key': 'greeting_style', 'set_val': 'excited'})
-    Update a setup key for a colleague bot. Always run get operation before update.
-
-boss_setup_colleagues(op='update', args={'bot_name': 'Frog', 'set_key': 'greeting_style'})
-    Reset a setup key to default value (omit set_val). Always run get operation before update.
-"""
-
-BOT_BUG_REPORT_HELP = """Report a bug related to a bot's code, tools, or prompts (not configuration issues).
-Always list bugs before reporting to avoid duplicates.
-
-Usage:
-
-bot_bug_report(op='report_bug', args={'bot_name': 'Karen 5', 'ft_id': 'ft_abc123', 'bug_summary': 'Bot fails to parse dates in ISO format'})
-    Report a bug related to a bot's code, tools, or prompts.
-
-bot_bug_report(op='list_reported_bugs', args={'bot_name': 'Frog'})
-    List all reported bugs for a specific bot.
-"""
-
 MARKETPLACE_SEARCH_TOOL = ckit_cloudtool.CloudTool(
     strict=False,
-    name="flexus_marketplace_search",
+    name="boss_marketplace_search",
     description="Search the Flexus marketplace for bots by keyword. Returns matching bot names, titles, tags, and whether already hired.",
     parameters={
         "type": "object",
@@ -65,7 +40,7 @@ MARKETPLACE_SEARCH_TOOL = ckit_cloudtool.CloudTool(
 
 MARKETPLACE_DESC_TOOL = ckit_cloudtool.CloudTool(
     strict=False,
-    name="flexus_marketplace_desc",
+    name="boss_marketplace_desc",
     description="Get detailed descriptions for specific marketplace bots by their marketable_name. Up to 20 names.",
     parameters={
         "type": "object",
@@ -80,38 +55,40 @@ MARKETPLACE_DESC_TOOL = ckit_cloudtool.CloudTool(
     },
 )
 
+PLAN_PROGRESS_ADD_TOOL = ckit_cloudtool.CloudTool(
+    strict=True,
+    name="plan_progress_add",
+    description="Append a single line to learned_so_far or progress_documents in the progress section of a plan.",
+    parameters={
+        "type": "object",
+        "properties": {
+            "plan_slug": {"type": "string", "description": "Short kebab-case name, 2-4 words"},
+            "field": {"type": "string", "enum": ["learned_so_far", "progress_documents"]},
+            "line": {"type": "string"},
+        },
+        "required": ["plan_slug", "field", "line"],
+        "additionalProperties": False,
+    },
+)
+
+
+PLAN_SECTIONS = ["section01-input", "section02-draft-plan", "section03-progress", "section04-conclusion"]
+
 PLAN_TEMPLATE_SCHEMA = {
     "section01-input": {
         "type": "object",
         "title": "Input",
         "properties": {
-            "input_goal": {
-                "type": "string",
-                "order": 0,
-                "ui:multiline": 10,
-            },
-            "input_documents": {
-                "type": "array", "order": 1,
-                "items": {"type": "string"},
-            },
+            "input_goal": {"type": "string", "order": 0, "ui:multiline": 10},
+            "input_documents": {"type": "string", "order": 1, "ui:multiline": 6},
         },
         "additionalProperties": False,
     },
-    "section02-initial-todo": {
+    "section02-draft-plan": {
         "type": "object",
-        "title": "Initial todo",
+        "title": "Draft",
         "properties": {
-            "initial_tasks": {
-                "type": "array", "order": 0,
-                "items": {
-                    "type": "object",
-                    "properties": {
-                        "to": {"type": "string", "order": 0},
-                        "task": {"type": "string", "order": 1},
-                    },
-                    "additionalProperties": False,
-                },
-            },
+            "draft_tasks": {"type": "string", "order": 0, "ui:multiline": 13},
         },
         "additionalProperties": False,
     },
@@ -119,43 +96,68 @@ PLAN_TEMPLATE_SCHEMA = {
         "type": "object",
         "title": "Progress",
         "properties": {
-            "task_ids": {
-                "type": "array", "order": 0,
-                "items": {"type": "string"},
-            },
-            "learned_so_far": {
-                "type": "array", "order": 1,
-                "items": {"type": "string"},
-            },
-            "documents": {
-                "type": "array", "order": 2,
-                "items": {"type": "string"},
-            },
+            "task_ids": {"type": "array", "order": 0, "items": {"type": "string"}},
+            "learned_so_far": {"type": "string", "order": 1, "ui:multiline": 5},
+            "progress_documents": {"type": "string", "order": 2, "ui:multiline": 3},
+        },
+        "additionalProperties": False,
+    },
+    "section04-conclusion": {
+        "type": "object",
+        "title": "Conclusion",
+        "properties": {
+            "outcome_summary": {"type": "string", "order": 0, "ui:multiline": 10},
+            "outcome_documents": {"type": "string", "order": 1, "ui:multiline": 6},
         },
         "additionalProperties": False,
     },
 }
 
-PLAN_TEMPLATE_TOOL = ckit_cloudtool.CloudTool(
-    strict=False,
-    name="plan_template",
-    description="Create or update a plan document. Sections: section01-input, section02-initial-todo, section03-progress. Update one section at a time.",
-    parameters={
-        "type": "object",
-        "properties": {
-            "plan_slug": {"type": "string", "description": "Short kebab-case name for the plan, 2-4 words"},
-            "section": {
-                "type": "string",
-                "enum": ["section01-input", "section02-initial-todo", "section03-progress"],
-            },
-            "data": {"type": "object", "description": "Section content matching the section schema"},
+def _make_nullable(prop):
+    p = {k: v for k, v in prop.items() if k not in ("order", "ui:multiline")}
+    t = p.get("type", "string")
+    p["type"] = [t, "null"] if isinstance(t, str) else t
+    return p
+
+
+def _plan_tool(section_key, name, description):
+    section_schema = PLAN_TEMPLATE_SCHEMA[section_key]
+    fields = list(section_schema["properties"].keys())
+    props = {"plan_slug": {"type": "string", "description": "Short kebab-case name, 2-4 words"}}
+    props.update({k: _make_nullable(section_schema["properties"][k]) for k in fields})
+    return ckit_cloudtool.CloudTool(
+        strict=True,
+        name=name,
+        description=description,
+        parameters={
+            "type": "object",
+            "properties": props,
+            "required": ["plan_slug", *fields],
+            "additionalProperties": False,
         },
-        "required": ["plan_slug", "section", "data"],
-    },
-)
+    ), (section_key, fields)
 
 
-async def handle_plan_template(
+PLAN_INPUT_TOOL, _plan_input_meta = _plan_tool(
+    "section01-input", "plan_input", "Create or update the input section of a plan: goal and referenced documents.")
+PLAN_DRAFT_TOOL, _plan_draft_meta = _plan_tool(
+    "section02-draft-plan", "plan_draft", "Create or update the draft plan: tasks assigned to bots, one per line like 'BotName: do something'.")
+PLAN_PROGRESS_TOOL, _plan_progress_meta = _plan_tool(
+    "section03-progress", "plan_progress", "Update progress on a plan: task IDs, learnings, and produced documents.")
+PLAN_CONCLUSION_TOOL, _plan_conclusion_meta = _plan_tool(
+    "section04-conclusion", "plan_conclusion", "Close out a plan with a summary and outcome.")
+
+PLAN_TOOLS = [PLAN_INPUT_TOOL, PLAN_DRAFT_TOOL, PLAN_PROGRESS_TOOL, PLAN_CONCLUSION_TOOL]
+
+PLAN_SECTION_BY_TOOL = {
+    "plan_input": _plan_input_meta,
+    "plan_draft": _plan_draft_meta,
+    "plan_progress": _plan_progress_meta,
+    "plan_conclusion": _plan_conclusion_meta,
+}
+
+
+async def handle_plan_update(
     toolcall: ckit_cloudtool.FCloudtoolCall,
     args: Dict[str, Any],
     rcx: ckit_bot_exec.RobotContext,
@@ -164,12 +166,10 @@ async def handle_plan_template(
     if rcx.running_test_scenario:
         return await ckit_scenario.scenario_generate_tool_result_via_model(rcx.fclient, toolcall, Path(__file__).read_text())
     plan_slug = args.get("plan_slug", "").strip()
-    section = args.get("section", "")
-    data = args.get("data")
-    if not plan_slug or not section or not data:
-        return "Error: plan_slug, section, and data are all required"
-    if section not in ("section01-input", "section02-initial-todo", "section03-progress"):
-        return f"Error: unknown section {section!r}"
+    if not plan_slug:
+        return "Error: plan_slug is required"
+    section, fields = PLAN_SECTION_BY_TOOL[toolcall.fcall_name]
+    data = {k: args[k] for k in fields if args.get(k) is not None}
 
     caller_fuser_id = ckit_external_auth.get_fuser_id_from_rcx(rcx, toolcall.fcall_ft_id)
     path = f"/plans/{plan_slug}"
@@ -181,7 +181,7 @@ async def handle_plan_template(
         doc = existing.pdoc_content
 
     doc["plan"]["schema"] = PLAN_TEMPLATE_SCHEMA
-    doc["plan"][section] = data
+    doc["plan"].setdefault(section, {}).update(data)
     doc["plan"]["meta"]["updated_at"] = datetime.datetime.now(datetime.timezone.utc).isoformat()
 
     if existing is None:
@@ -189,13 +189,41 @@ async def handle_plan_template(
     else:
         await pdoc_integration.pdoc_overwrite(path, json.dumps(doc, ensure_ascii=False), caller_fuser_id)
 
-    filled = [s for s in ("section01-input", "section02-initial-todo", "section03-progress") if doc["plan"].get(s)]
-    unfilled = [s for s in ("section01-input", "section02-initial-todo", "section03-progress") if not doc["plan"].get(s)]
-    return f"✍️ {path}\n\nUpdated: {section}\nFilled: {', '.join(filled) or 'none'}\nUnfilled: {', '.join(unfilled) or 'none'}\n"
+    filled = [s for s in PLAN_SECTIONS if doc["plan"].get(s)]
+    unfilled = [s for s in PLAN_SECTIONS if not doc["plan"].get(s)]
+    return f"✍️ {path}\n\nUpdated: {section}\nFilled: {', '.join(filled) or 'none'}\nUnfilled: {', '.join(unfilled) or 'none'}\n\nUse flexus_policy_document(op=\"cat\", args={{\"p\": \"{path}\"}}) to read it in full."
+
+
+async def handle_plan_progress_add(
+    toolcall: ckit_cloudtool.FCloudtoolCall,
+    args: Dict[str, Any],
+    rcx: ckit_bot_exec.RobotContext,
+    pdoc_integration: fi_pdoc.IntegrationPdoc,
+) -> str:
+    if rcx.running_test_scenario:
+        return await ckit_scenario.scenario_generate_tool_result_via_model(rcx.fclient, toolcall, Path(__file__).read_text())
+    plan_slug = args.get("plan_slug", "").strip()
+    field = args.get("field", "")
+    line = args.get("line", "").strip()
+    if not plan_slug or not field or not line:
+        return "Error: plan_slug, field, and line are all required"
+    caller_fuser_id = ckit_external_auth.get_fuser_id_from_rcx(rcx, toolcall.fcall_ft_id)
+    path = f"/plans/{plan_slug}"
+    existing = await pdoc_integration.pdoc_cat(path, caller_fuser_id)
+    if existing is None:
+        return f"Error: plan {path} not found"
+    doc = existing.pdoc_content
+    section = doc["plan"].setdefault("section03-progress", {})
+    prev = section.get(field, "").rstrip("\n")
+    section[field] = (prev + "\n" + line).lstrip("\n")
+    doc["plan"]["meta"]["updated_at"] = datetime.datetime.now(datetime.timezone.utc).isoformat()
+    await pdoc_integration.pdoc_overwrite(path, json.dumps(doc, ensure_ascii=False), caller_fuser_id)
+    return f"✍️ {path}\n\nAppended to {field}"
 
 
 TOOLS = [
-    PLAN_TEMPLATE_TOOL,
+    *PLAN_TOOLS,
+    PLAN_PROGRESS_ADD_TOOL,
     fi_mongo_store.MONGO_STORE_TOOL,
     MARKETPLACE_SEARCH_TOOL,
     MARKETPLACE_DESC_TOOL,
@@ -208,9 +236,14 @@ async def boss_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.R
     integr_objects = await ckit_integrations_db.main_loop_integrations_init(boss_install.BOSS_INTEGRATIONS, rcx, setup)
     pdoc_integration = integr_objects["flexus_policy_document"]
 
-    @rcx.on_tool_call(PLAN_TEMPLATE_TOOL.name)
-    async def toolcall_plan_template(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
-        return await handle_plan_template(toolcall, model_produced_args, rcx, pdoc_integration)
+    for plan_tool in PLAN_TOOLS:
+        @rcx.on_tool_call(plan_tool.name)
+        async def toolcall_plan(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
+            return await handle_plan_update(toolcall, model_produced_args, rcx, pdoc_integration)
+
+    @rcx.on_tool_call(PLAN_PROGRESS_ADD_TOOL.name)
+    async def toolcall_plan_progress_add(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
+        return await handle_plan_progress_add(toolcall, model_produced_args, rcx, pdoc_integration)
 
     @rcx.on_tool_call(fi_mongo_store.MONGO_STORE_TOOL.name)
     async def toolcall_mongo_store(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:

@@ -1,3 +1,27 @@
+SETUP_COLLEAGUES_HELP = """Usage:
+
+boss_setup_colleagues(op='get', args={'bot_name': 'Frog'})
+    View current setup for a colleague bot.
+
+boss_setup_colleagues(op='update', args={'bot_name': 'Frog', 'set_key': 'greeting_style', 'set_val': 'excited'})
+    Update a setup key for a colleague bot. Always run get operation before update.
+
+boss_setup_colleagues(op='update', args={'bot_name': 'Frog', 'set_key': 'greeting_style'})
+    Reset a setup key to default value (omit set_val). Always run get operation before update.
+"""
+
+BOT_BUG_REPORT_HELP = """Report a bug related to a bot's code, tools, or prompts (not configuration issues).
+Always list bugs before reporting to avoid duplicates.
+
+Usage:
+
+bot_bug_report(op='report_bug', args={'bot_name': 'Karen 5', 'ft_id': 'ft_abc123', 'bug_summary': 'Bot fails to parse dates in ISO format'})
+    Report a bug related to a bot's code, tools, or prompts.
+
+bot_bug_report(op='list_reported_bugs', args={'bot_name': 'Frog'})
+    List all reported bugs for a specific bot.
+"""
+
 
 # BOSS_SETUP_COLLEAGUES_TOOL = ckit_cloudtool.CloudTool(
 #     strict=False,

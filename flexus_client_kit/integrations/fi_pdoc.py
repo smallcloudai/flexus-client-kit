@@ -28,12 +28,12 @@ Call flexus_policy_document() without parameters for details on how to list, rea
 POLICY_DOCUMENT_TOOL = ckit_cloudtool.CloudTool(
     strict=False,
     name="flexus_policy_document",
-    description="List, read, update Policy Documents. Start with op=\"help\".",
+    description="Tool to operate Policy Documents. Start with op=\"help\".",
     parameters={
         "type": "object",
         "properties": {
-            "op": {"type": "string"},
-            "args": {"type": "object"},
+            "op": {"type": "string", "enum": ["help", "list", "cat", "activate", "create", "overwrite", "update_json_text", "cp", "rm"]},
+            "args": {"type": "object"},   # model guesses p= to write here quite well for some reason, without help, must be something in prompt
         },
     },
 )
