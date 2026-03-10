@@ -1,33 +1,6 @@
+# Flexus Client Kit (ckit)
+
 Instructions on how to improve existing bots or write new bots for Flexus, an agent orchestrator.
-
-
-Flexus Client Kit (ckit)
-------------------------
-
-fi_discord.py
-fi_gmail.py
-fi_mongo_store.py
-fi_question.py
-fi_report.py
-fi_slack.py
-
-ckit_ask_model.py
-ckit_bot_exec.py
-ckit_bot_install.py
-ckit_client.py
-ckit_cloudtool.py
-ckit_edoc.py
-ckit_expert.py
-ckit_kanban.py
-ckit_localtool.py
-ckit_logs.py
-ckit_mongo.py
-ckit_passwords.py
-ckit_schedule.py
-ckit_service_exec.py
-ckit_shutdown.py
-ckit_utils.py
-gql_utils.py
 
 
 Example
@@ -45,7 +18,7 @@ NAME_bot.py         -- the file to run a bot
 NAME_prompts.py     -- prompts live in a separate file
 NAME_install.py     -- installation script, uses _bot and _prompts to construct a marketplace record
 NAME-1024x1536.webp -- detailed marketplace picture under 0.3M
-NAME-256x256.png    -- small avatar picture with transparent background
+NAME-256x256.webp   -- small avatar picture with transparent background
 forms/              -- optional directory with custom HTML forms for policy documents
 
 In repositories separate from flexus-client-kit, create setup.py that installs flexus_NAME module.
@@ -82,9 +55,12 @@ Humans can talk to a bot, but mostly this platform is about completing work auto
 
 NAME_install.py has `marketable_schedule` among other things, it typically has SCHED_TASK_SORT to
 start sorting inbox, and SCHED_TODO to get assigned a single task from todo column and work on it.
-But anything can be scheduled, such as writing reports daily, or rewriting strategy weekly.
+For bots that don't realistically have a large volume of noisy tasks, use SCHED_PICK_ONE that skips
+sort/todo mechanism.
 
-Think of those as launchers, what kind of job the bot needs to perform on schedule?
+XXX Add SCHED_CRON that creates a task to work on first.
+
+The number of tasks a bot works on simultaneously is MAX_IN_PROGRESS = 2.
 
 
 Messengers
@@ -127,7 +103,7 @@ Bot defines its own setup, in blocks like this:
 A setup dialog is visible to the user in Flexus UI, automatically generated based on bs_* fields.
 Panels or tabs are generated based on bs_group, so related parameters group together.
 
-The full list of all bs_type: string_short, string_long, string_multiline, bool, int, float.
+The full list of all bs_type: string_short, string_long, string_multiline, bool, int, float, list_dict
 
 
 Bot Main Loop
@@ -186,7 +162,7 @@ awkward workarounds later.
    for structured records that need querying (insert_one, find, count_documents), don't forget
    the automatic cleanup.
 
- * Policy documents — structured JSON documents shared across bots and visible/editable by humans in
+ * Policy documents AKA memory — structured JSON documents shared across bots and visible/editable by humans in
    the UI. Good for: rules, strategies, forms filled together with the user, results that other bots
    consume. Bad for: high-frequency writes, daily logs, temporary data.
 
@@ -224,8 +200,10 @@ scenario-dumps/my__s1-score.yaml
 
 Note that .gitignore has scenario-dumps/** inside.
 
-How the bot performs is judged by a model on the backend side and saved into -score.yaml. You'll see
-feedback on how the actual trajectory compares to the happy path so you can make improvements.
+How the bot performs is judged by a model on the backend side and saved into -score.yaml,
+on a scale from 1 to 10. You'll see feedback on how the actual trajectory compares to the happy path so you
+can make improvements. Per-turn feedback fields human_problem_severity, assistant_problem_severity both
+have scale 0=perfect, 1=minor, 2=major.
 
 When running scenarios, human input is simulated by an LLM. Most tools validate their arguments and then
 call an LLM, some simple tools respond without LLMs. The "shaky" you see in -score.yaml means how
@@ -236,7 +214,8 @@ deviation from the original even if the score is high.
 It's a good idea to load -score.yaml into context, because it's small and informative. It MIGHT be a good
 idea to load -happy.yaml and -actual.yaml and judge for yourself, but also it might so happen the trajectories
 are very long and you are better off using the specialized judge feedback, and spending your context tokens on
-loading source code files instead.
+loading source code files instead. Or run a subchat to discover whatever you need without overflowing
+the context.
 
 
 Improving System Prompt
@@ -266,10 +245,11 @@ Lark Kernels
 ------------
 
 Chats are executed on the backend side, bot only gets updates and tool calls, the reason for this design is
-to make bot code smaller, relieving it of important responsibilies. Lark is a fast python-like piece of code
-that executes before and after generation of an assistant message, the library used is "lark-parser/lark" on github.
-What Lark can do: stop an unwanted tool call, set error, return subchat result, prevent chat from finishing, check
-output format and ask for a fix, keep track of spending, post instructions to the model.
+to make bot code smaller, relieving it of important responsibilities (low level model calls). Lark is a fast
+python-like piece of code that executes before and after generation of an assistant message, the library
+used is "lark-parser/lark" on github. What Lark can do: stop an unwanted tool call, set error, return subchat
+result, prevent chat from finishing, check output format and ask for a fix, keep track of spending, post
+instructions to the model.
 
 A subchat will not work at all unless it runs a Lark kernel that will return a value! See
 frog_install.py on how to make an expert with a Lark kernel.
@@ -290,7 +270,7 @@ elif msg["role"] == "assistant" and len(msg["tool_calls"]) > 0:
     kill_tools = True
     error = "Noooo no tool calls today"
 
-All the prints to into the assistant message as ftm_provenance = {..., "kernel1_logs": [], "kernel2_logs": []}
+All the prints go into the assistant message as ftm_provenance = {..., "lark_logs1": [], "lark_logs2": []}
 and the bot will receive them as regular thread message updates, that's how you debug Lark kernels.
 
 
@@ -299,16 +279,19 @@ Definitions: Tools, Skills, Subchats, Experts
 
 ### Tool
 
-Should be used for: API calls, CRUD, instant operations. Returns string visible to the model. Can raise NeedsConfirmation for dangerous ops or WaitForSubchats to spawn subchat.
+Should be used for: API calls, CRUD, instant operations. Returns string visible to the model. Can raise NeedsConfirmation for dangerous ops or WaitForSubchats after spawning subchats.
 Remember that tools with side effects need to be faked when running a scenario, grep scenario_generate_tool_result_via_model() for details.
 Examples: flexus_policy_document, template_idea, facebook/linkedin APIs.
 
 ### Skill
 
 Large instruction set loaded into prompt when needed. No separate context, no extra tools.
-Tradeoff: more source code we need to maintain vs accuracy on complex tasks.
+Tradeoff: more instructions we need to maintain (cost) vs accuracy on complex tasks (gain).
 Implemented as tool that returns instructions as text.
 Examples: idea rating rules, ad platform specifics.
+Each bot can have a function for dynamic skills they can invent, client-kit a has standard mechanism for built-in skills,
+means they are discoverable at install time, skill descriptions appear in the first message along with bot setup,
+from db as installed.
 
 ### Subchat
 
@@ -316,7 +299,7 @@ A separate thread with isolated context.
 Has a Lark kernel to control termination via setting subchat_result.
 Subchats start as tool calls in the original thread, tools call bot_subchat_create_multiple().
 Formally a subchat returns a single string that becomes the tool result, but it can have other side effects.
-Must complete in 10 minutes (actually TIMEOUT_TOOL_CALLS), no human interaction is possible inside.
+Must complete in 10 minutes or so (actually TIMEOUT_TOOL_CALLS), no human interaction is possible inside.
 Use for focused tasks needing a specialized set of tools.
 Example: productman spawns criticize_idea to receive an independent evaluation.
 
@@ -340,12 +323,34 @@ A2A Communication
 Works like this:
 
 - You can tell the model to call flexus_hand_over_task(to_bot="", description="", fexp_name=""),
-that will create a kanban task in the inbox of that bot.
+  that will create a kanban task in the inbox of that bot.
 - You can send a task to your own expert, works exactly like giving a task to another bot.
 - Once the task is completed (moved to kanban "done") a message will appear with role='cd_instruction' informing about that.
 - It might not be real-time because the task goes into a queue, does not get executed immediately.
-- The original chat does not wait, it might continue talking to user or calling other functions, the model needs respond with assistant message with no calls and therefore switch to 'wait for user' mode for waiting to happen.
+- The original chat does not wait, it might continue talking to user or calling other functions, tell the model
+  to respond with no calls and therefore switch to 'wait for user' mode for the waiting to happen.
 
+
+External Auth
+-------------
+
+Auth data for external services is in `rcx.external_auth` dict, keyed by provider. Bot and external service are
+connected by user in the UI, you can't change anything about it unless you make changes in flexus backend.
+
+OAuth providers: "google", "slack", "github", etc.
+Manual API key providers: "slack_manual", "discord_manual", "resend", etc.
+
+In NAME_install.py declare what your bot needs:
+
+```
+marketable_auth_needed=["google"],
+marketable_auth_supported=["atlassian"],
+marketable_auth_scopes={"google": ["https://www.googleapis.com/auth/gmail.modify"]},
+```
+
+Scopes: "read:jira-work" for Atlassian, "channels:read" for Slack, etc.
+
+XXX make a handler in auth_providers to list these.
 
 
 Writing Logs
@@ -540,7 +545,8 @@ For example `fgroup_name` is a name for a group in Flexus. It's not the same as 
 and it's not searchable, meaning you can't trace it to its usages everywhere including JavaScript.
 Always prefer names with prefixes over generic names, including parameter names and external GraphQL interfaces.
 
-Local variables should, in most cases, be short to prioritize code size and readability, but still make sense and be clear. If code gets messy, use variable name length as a tool to visually distinguish between short-lived
+Local variables should, in most cases, be short to prioritize code size and readability, but still make sense and be clear.
+If code gets messy, use variable name length as a tool to visually distinguish between short-lived
 truly local variables and ugly/clever variables that persist on the stack for a long time -- give them a longer name.
 
 Formatting for python, screw the PEP8:
