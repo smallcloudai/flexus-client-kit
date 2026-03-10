@@ -72,11 +72,12 @@ Help:
 slack(op="status")
 
 slack(op="capture", args={"channel_slash_thread": "channel_name/thread_ts"})
+slack(op="capture", args={"channel_slash_thread": "C1234567890/thread_ts"})
 slack(op="capture", args={"channel_slash_thread": "@username/thread_ts"})
     The workhorse of a chatbot. Slack messages start to appear as role="user" messages here, and role="assistant"
     messages get automatically posted to slack. Tool calls and results are invisible for slack users.
-    Capture only works for slack threads, not channels, find 'message_ts' in the details of a kanban task, and
-    then put it after slash as thread_ts.
+    For incoming messages from kanban: the task title contains capture=CHANNEL_ID/MESSAGE_TS — use that value
+    directly as channel_slash_thread. Channel IDs (like C1234567890) work directly, no name lookup needed.
 
 slack(op="post", args={"channel_slash_thread": "channel_name", "text": "Hello world!"})
 slack(op="post", args={"channel_slash_thread": "channel_name/thread_ts", "text": "Hello world!"})
@@ -135,6 +136,7 @@ class ActivitySlack:
     message_text: str
     message_author_name: str
     mention_looked_up: Dict[str, str]
+    channel_id: str = ""  # Slack channel ID (C.../D.../G...) for capture, always more reliable than name
     file_contents: List[Dict[str, str]] = field(default_factory=list)
 
 
@@ -181,10 +183,10 @@ class IntegrationSlack(fi_messenger.FlexusMessenger):
         logger.info("%s Slack %s by @%s in %s: %s", self.rcx.persona.persona_id, a.what_happened, a.message_author_name, a.channel_name, a.message_text[:50])
         if already_posted_to_captured_thread:
             return
-        channel_name_slash_thread = a.channel_name
-        if a.thread_ts:
-            channel_name_slash_thread += "/" + a.thread_ts
-        title = "Slack %s user=%r in %s\n%s" % (a.what_happened, a.message_author_name, channel_name_slash_thread, a.message_text)
+        # Use channel_id (reliable) with effective thread_ts so the bot can call capture directly
+        effective_ts = a.thread_ts or a.message_ts
+        capture_arg = (a.channel_id or a.channel_name) + ("/" + effective_ts if effective_ts else "")
+        title = "Slack %s user=%r in #%s (capture=%s)\n%s" % (a.what_happened, a.message_author_name, a.channel_name, capture_arg, a.message_text)
         details = asdict(a)
         if a.file_contents:
             details["file_contents"] = f"{len(a.file_contents)} files attached"
@@ -260,6 +262,7 @@ class IntegrationSlack(fi_messenger.FlexusMessenger):
         a = ActivitySlack(
             what_happened=what_happened,
             channel_name=channel_name,
+            channel_id=channel_id,
             thread_ts=thread_ts,
             message_ts=ts,
             message_text=text,
@@ -397,6 +400,8 @@ class IntegrationSlack(fi_messenger.FlexusMessenger):
                     dm_response = await self.web_client.conversations_open(users=user_id)
                     something_id = dm_response["channel"]["id"]
                     self.users_name2dm[username] = something_id
+            elif re.match(r'^[A-Z][A-Z0-9]+$', something_name or ""):
+                something_id = something_name  # direct Slack channel/DM/group ID
             elif something_name:
                 something_id = self.channels_name2id.get(something_name.lstrip("#"), None)
             if not something_id:
@@ -622,6 +627,8 @@ class IntegrationSlack(fi_messenger.FlexusMessenger):
             channel_id = self.users_name2id.get(channel_name.lstrip("@"))
             if not channel_id:
                 raise ValueError(f"User {channel_name} not found in users_name2id")
+        elif re.match(r'^[A-Z][A-Z0-9]+$', channel_name):
+            channel_id = channel_name  # direct Slack channel/DM/group ID
         else:
             channel_id = self.channels_name2id.get(channel_name)
             if not channel_id:
