@@ -354,6 +354,28 @@ Scopes: "read:jira-work" for Atlassian, "channels:read" for Slack, etc.
 XXX make a handler in auth_providers to list these.
 
 
+Marketplace Stages
+------------------
+
+marketplace_upsert_dev_bot() — Registers/updates a dev bot in the marketplace. Any next stage requires dev bot installation.
+
+bot_install_from_marketplace() aka "hire" — User hires the bot into their workspace from marketplace.
+Creates a persona instance with unique persona_id and fgroup_id. User configures settings via setup dialog.
+
+run_bots_in_this_group() — The bot process starts. If running with user API key (dev mode), it automatically installs dev bot.
+If running a scenario, it creates a temporary group and hires the bot into it.
+
+What is happening on backend side:
+
+MARKETPLACE_COMING_SOON — Placeholder stage. Has a picture, collects feedback.
+MARKETPLACE_DEV — Default stage when marketplace_upsert_dev_bot() is called. Only visible to the dev's workspace.
+MARKETPLACE_WAITING_IMAGE — Triggered when user clicks "Build" in UI.
+MARKETPLACE_FAILED_IMAGE_BUILD — If docker build or smoke test fails.
+MARKETPLACE_PRIVATE — After successful build+test. At this point many workspaces might have their custom bots long-term.
+MARKETPLACE_ON_REVIEW — Private bot submitted for review to become public.
+MARKETPLACE_BETA / MARKETPLACE_STABLE — Approved after review.
+
+
 Writing Logs
 ------------
 
