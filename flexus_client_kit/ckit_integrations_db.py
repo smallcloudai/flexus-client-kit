@@ -155,9 +155,9 @@ def static_integrations_load(bot_dir: Path, allowlist: list[str], builtin_skills
             ))
 
         elif name == "slack":
-            from flexus_client_kit.integrations import fi_slack
+            from flexus_client_kit.integrations import fi_slack, fi_messenger
             async def _init_slack(rcx, setup):
-                bot_name = (setup or {}).get("slack_bot_name", "")
+                bot_name = (setup or {}).get("slack_bot_name", "") or rcx.persona.persona_name
                 bot_icon_url = (setup or {}).get("slack_bot_icon_url", "")
                 obj = fi_slack.IntegrationSlack(rcx.fclient, rcx, bot_name=bot_name, bot_icon_url=bot_icon_url)
                 await obj.load_workspace_maps()
@@ -177,11 +177,11 @@ def static_integrations_load(bot_dir: Path, allowlist: list[str], builtin_skills
                     "users:read",
                     "im:read",
                 ],
-                integr_prompt="",
+                integr_prompt=fi_messenger.MESSENGER_PROMPT,
             ))
 
         elif name == "telegram":
-            from flexus_client_kit.integrations import fi_telegram
+            from flexus_client_kit.integrations import fi_telegram, fi_messenger
             async def _init_telegram(rcx, setup):
                 obj = fi_telegram.IntegrationTelegram(rcx.fclient, rcx)
                 await obj.initialize()
@@ -193,7 +193,7 @@ def static_integrations_load(bot_dir: Path, allowlist: list[str], builtin_skills
                 integr_setup_handlers=lambda obj, rcx: [rcx.on_tool_call("telegram")(obj.called_by_model)],
                 integr_provider="telegram",
                 integr_is_messenger=True,
-                integr_prompt="",
+                integr_prompt=fi_messenger.MESSENGER_PROMPT,
             ))
 
         else:
