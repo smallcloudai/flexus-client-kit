@@ -1,4 +1,5 @@
 import os
+import asyncio
 import logging
 import re
 import glob
@@ -163,7 +164,7 @@ async def handle_localfile(
         if bad:
             return f"Error: unknown args {bad} for op={op}. Valid: {sorted(valid_args[op])}"
 
-    try:
+    def _sync_dispatch():
         if op == "cat":
             return handle_cat(workdir, path, args, model_produced_args)
         elif op == "replace":
@@ -176,6 +177,9 @@ async def handle_localfile(
             return handle_ls(workdir, path)
         else:
             return "Error: need a valid `op` parameter.\n" + HELP
+
+    try:
+        return await asyncio.get_event_loop().run_in_executor(None, _sync_dispatch)
     except Exception as e:
         logger.error(f"Operation {op} failed: {e}", exc_info=True)
         return f"Error: {e}"
