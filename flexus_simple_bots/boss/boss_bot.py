@@ -65,6 +65,7 @@ MARKETPLACE_HIRE_OR_FIRE_TOOL = ckit_cloudtool.CloudTool(
             "op": {"type": "string", "enum": ["hire", "fire"]},
             "marketable_name": {"type": "string", "description": "Marketplace bot name, for hire"},
             "persona_name": {"type": "string", "description": "Hired bot name (e.g. 'Bob 15'), for fire"},
+            "stability_tolerance": {"type": "string", "enum": ["stable", "beta", "private"], "description": "Minimum stability level to accept when hiring, default stable"},
         },
         "required": ["op"],
     },
@@ -306,6 +307,7 @@ async def boss_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.R
                     marketplace_boss_desc(marketable_names: $marketable_names, ws_id: $ws_id) {
                         marketable_name marketable_title1 marketable_title2 marketable_description marketable_tags marketable_occupation
                         experts { fexp_name fexp_description }
+                        versions { stability marketable_version }
                     }
                 }"""),
                 variable_values={"marketable_names": names, "ws_id": rcx.persona.ws_id},
@@ -321,6 +323,7 @@ async def boss_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.R
                 "tags": it["marketable_tags"],
                 "description": it["marketable_description"],
                 "experts": it["experts"],
+                "versions": it["versions"],
             }, indent=2, ensure_ascii=False))
         return "\n\n".join(parts)
 
@@ -329,6 +332,7 @@ async def boss_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.R
         op = model_produced_args.get("op", "hire")
         mn = model_produced_args.get("marketable_name", "").strip() if op == "hire" else ""
         pn = model_produced_args.get("persona_name", "").strip() if op == "fire" else ""
+        st = model_produced_args.get("stability_tolerance", "stable")
         if op == "hire" and not mn:
             return "Error: marketable_name is required for hire"
         if op == "fire" and not pn:
@@ -343,10 +347,10 @@ async def boss_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.R
         http = await fclient.use_http()
         async with http as h:
             r = await h.execute(gql.gql("""
-                mutation BossHireOrFire($ws_id: String!, $op: String!, $mn: String, $pn: String) {
-                    marketplace_boss_hire_or_fire(ws_id: $ws_id, op: $op, marketable_name: $mn, persona_name: $pn)
+                mutation BossHireOrFire($ws_id: String!, $op: String!, $mn: String, $pn: String, $st: String!) {
+                    marketplace_boss_hire_or_fire(ws_id: $ws_id, op: $op, marketable_name: $mn, persona_name: $pn, stability_tolerance: $st)
                 }"""),
-                variable_values={"ws_id": rcx.persona.ws_id, "op": op, "mn": mn or None, "pn": pn or None},
+                variable_values={"ws_id": rcx.persona.ws_id, "op": op, "mn": mn or None, "pn": pn or None, "st": st},
             )
         pid = r.get("marketplace_boss_hire_or_fire", "")
         return f"{'Fired' if op == 'fire' else 'Hired'} {label}, persona_id={pid}"
