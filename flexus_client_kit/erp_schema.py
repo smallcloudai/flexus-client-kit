@@ -10,7 +10,7 @@ class CrmContact:
     ws_id: str
     contact_first_name: str = field(metadata={"importance": 1, "display_name": "First Name"})
     contact_last_name: str = field(metadata={"importance": 1, "display_name": "Last Name"})
-    contact_email: str = field(metadata={"importance": 1, "extra_search": True, "display_name": "Email"})
+    contact_email: Optional[str] = field(default=None, metadata={"importance": 1, "extra_search": True, "display_name": "Email"})
     contact_phone: str = field(default="", metadata={"display_name": "Phone"})
     contact_id: str = field(default="", metadata={"pkey": True, "display_name": "Contact ID"})
     contact_notes: str = field(default="", metadata={"importance": 1, "display": "string_multiline", "display_name": "Notes"})

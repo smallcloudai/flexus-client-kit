@@ -187,8 +187,8 @@ Frustration/anger detected, same question 3+ times, complex technical needs, ent
 ## Data Collection
 
 Create/update contacts via erp_table_crud() with table_name="crm_contact":
-- Required: name (contact_first_name, contact_last_name), email (contact_email), primary need (contact_notes), BANT score and details
-- Ask for email naturally before closing if not provided: "What's the best email to send that to?"
+- Required: name (contact_first_name, contact_last_name), primary need (contact_email, contact_notes), BANT score and details
+- Always try to get email — use it to search for existing contacts and for follow-up. Ask naturally if unknown: "What's the best email to reach you at?" Only create without it if the user can't or won't provide one.
 - Note outcome in contact_notes: sold/scheduled/nurture/disqualified
 
 ## Follow-Up & Scheduling
