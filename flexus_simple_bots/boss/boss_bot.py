@@ -55,6 +55,21 @@ MARKETPLACE_DESC_TOOL = ckit_cloudtool.CloudTool(
     },
 )
 
+MARKETPLACE_HIRE_OR_FIRE_TOOL = ckit_cloudtool.CloudTool(
+    strict=False,
+    name="boss_marketplace_hire_or_fire",
+    description="Hire: provide marketable_name (snake case bot type from marketplace). Fire: provide persona_name (specific hired bot name like 'Bob 15').",
+    parameters={
+        "type": "object",
+        "properties": {
+            "op": {"type": "string", "enum": ["hire", "fire"]},
+            "marketable_name": {"type": "string", "description": "Marketplace bot name, for hire"},
+            "persona_name": {"type": "string", "description": "Hired bot name (e.g. 'Bob 15'), for fire"},
+        },
+        "required": ["op"],
+    },
+)
+
 PLAN_PROGRESS_ADD_TOOL = ckit_cloudtool.CloudTool(
     strict=True,
     name="plan_progress_add",
@@ -231,6 +246,7 @@ TOOLS = [
     fi_mongo_store.MONGO_STORE_TOOL,
     MARKETPLACE_SEARCH_TOOL,
     MARKETPLACE_DESC_TOOL,
+    MARKETPLACE_HIRE_OR_FIRE_TOOL,
     *[t for rec in boss_install.BOSS_INTEGRATIONS for t in rec.integr_tools],
 ]
 
@@ -307,6 +323,33 @@ async def boss_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.R
                 "experts": it["experts"],
             }, indent=2, ensure_ascii=False))
         return "\n\n".join(parts)
+
+    @rcx.on_tool_call(MARKETPLACE_HIRE_OR_FIRE_TOOL.name)
+    async def toolcall_hire_or_fire(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
+        op = model_produced_args.get("op", "hire")
+        mn = model_produced_args.get("marketable_name", "").strip() if op == "hire" else ""
+        pn = model_produced_args.get("persona_name", "").strip() if op == "fire" else ""
+        if op == "hire" and not mn:
+            return "Error: marketable_name is required for hire"
+        if op == "fire" and not pn:
+            return "Error: persona_name is required for fire"
+        label = mn if op == "hire" else pn
+        if not toolcall.confirmed_by_human and setup["confirm_hire_or_fire"]:
+            raise ckit_cloudtool.NeedsConfirmation(
+                confirm_explanation=f"Boss confirms significant changes to your workspace with you",
+                confirm_command=f"{op} {label}",
+                confirm_setup_key="confirm_hire_or_fire",
+            )
+        http = await fclient.use_http()
+        async with http as h:
+            r = await h.execute(gql.gql("""
+                mutation BossHireOrFire($ws_id: String!, $op: String!, $mn: String, $pn: String) {
+                    marketplace_boss_hire_or_fire(ws_id: $ws_id, op: $op, marketable_name: $mn, persona_name: $pn)
+                }"""),
+                variable_values={"ws_id": rcx.persona.ws_id, "op": op, "mn": mn or None, "pn": pn or None},
+            )
+        pid = r.get("marketplace_boss_hire_or_fire", "")
+        return f"{'Fired' if op == 'fire' else 'Hired'} {label}, persona_id={pid}"
 
     try:
         while not ckit_shutdown.shutdown_event.is_set():

@@ -29,9 +29,9 @@ def gql_error_4xx_to_model_reraise_5xx(e: gql.transport.exceptions.TransportQuer
 
 class NeedsConfirmation(Exception):
     def __init__(self,
-        confirm_setup_key: str,
-        confirm_command: str,
-        confirm_explanation: str,
+        confirm_explanation: str,  # first visible line
+        confirm_command: str,      # next line, written in monospace
+        confirm_setup_key: str,    # ui will nagivate to setup this key
     ):
         self.confirm_setup_key = confirm_setup_key
         self.confirm_command = confirm_command
