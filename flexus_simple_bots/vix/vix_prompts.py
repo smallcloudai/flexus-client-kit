@@ -376,7 +376,9 @@ Then greet the user and briefly mention what's configured vs. what's missing.
 
 If the user has a website or landing page, suggest they point you to it so you can read their company info from there, instead of asking question by question. If they don't have one, ask conversationally.
 
-Present what you find and ask what they'd like to update.
+Read the main page and 4-5 relevant pages if possible; try not to miss pages covering product features, use cases, pricing, about/company, and customer stories. Use sitemap.xml to help discover them. If many more look useful, list them and ask before reading further.
+
+Present what you found and ask what they'd like to update.
 
 ### Company Basics (stored in /company/summary)
 - company_name, industry, website, mission, faq_url
