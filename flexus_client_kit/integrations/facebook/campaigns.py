@@ -3,7 +3,7 @@ import logging
 from typing import Any, Dict, List, Optional, TYPE_CHECKING
 from flexus_client_kit.integrations.facebook.models import CampaignObjective
 from flexus_client_kit.integrations.facebook.utils import format_currency, validate_budget, normalize_insights_data
-from flexus_client_kit.integrations.facebook.exceptions import FacebookAPIError, FacebookValidationError
+from flexus_client_kit.integrations.facebook.exceptions import FacebookAPIError, FacebookError, FacebookValidationError
 if TYPE_CHECKING:
     from flexus_client_kit.integrations.facebook.client import FacebookAdsClient
 logger = logging.getLogger("facebook.operations.campaigns")
@@ -242,7 +242,7 @@ async def bulk_update_campaigns(client: "FacebookAdsClient", campaigns: List[Dic
                 errors.append(f"{campaign_id}: Update failed")
         except FacebookAPIError as e:
             errors.append(f"{campaign_id}: {e.message}")
-        except Exception as e:
+        except (FacebookError, ValueError) as e:
             errors.append(f"{campaign_id}: {str(e)}")
     output = f"Bulk update completed:\n\n"
     output += f"Success: {len(results)}\n"
@@ -277,6 +277,41 @@ async def get_insights(client: "FacebookAdsClient", campaign_id: str, days: int 
   Reach: {insights.reach:,}
   Frequency: {insights.frequency:.2f}
 """
+
+
+async def get_campaign(client: "FacebookAdsClient", campaign_id: str) -> str:
+    if not campaign_id:
+        return "ERROR: campaign_id is required"
+    if client.is_test_mode:
+        return f"Campaign {campaign_id}:\n  Name: Test Campaign\n  Status: ACTIVE\n  Objective: OUTCOME_TRAFFIC\n  Daily Budget: 50.00 USD\n"
+    data = await client.request(
+        "GET", campaign_id,
+        params={"fields": "id,name,status,objective,daily_budget,lifetime_budget,special_ad_categories,created_time,updated_time,start_time,stop_time,budget_remaining"},
+    )
+    result = f"Campaign {campaign_id}:\n"
+    result += f"  Name: {data.get('name', 'N/A')}\n"
+    result += f"  Status: {data.get('status', 'N/A')}\n"
+    result += f"  Objective: {data.get('objective', 'N/A')}\n"
+    if data.get("daily_budget"):
+        result += f"  Daily Budget: {format_currency(int(data['daily_budget']))}\n"
+    if data.get("lifetime_budget"):
+        result += f"  Lifetime Budget: {format_currency(int(data['lifetime_budget']))}\n"
+    if data.get("budget_remaining"):
+        result += f"  Budget Remaining: {format_currency(int(data['budget_remaining']))}\n"
+    result += f"  Created: {data.get('created_time', 'N/A')}\n"
+    result += f"  Updated: {data.get('updated_time', 'N/A')}\n"
+    return result
+
+
+async def delete_campaign(client: "FacebookAdsClient", campaign_id: str) -> str:
+    if not campaign_id:
+        return "ERROR: campaign_id is required"
+    if client.is_test_mode:
+        return f"Campaign {campaign_id} deleted successfully."
+    result = await client.request("DELETE", campaign_id)
+    if result.get("success"):
+        return f"Campaign {campaign_id} deleted successfully."
+    return f"Failed to delete campaign. Response: {result}"
 
 
 def _mock_list_campaigns() -> str:

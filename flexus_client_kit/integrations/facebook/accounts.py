@@ -134,6 +134,49 @@ def _format_account_summary(acc: Dict[str, Any]) -> str:
     return result
 
 
+async def list_account_users(client: "FacebookAdsClient", ad_account_id: str) -> str:
+    if not ad_account_id:
+        return "ERROR: ad_account_id parameter is required"
+    try:
+        ad_account_id = validate_ad_account_id(ad_account_id)
+    except FacebookValidationError as e:
+        return f"ERROR: {e.message}"
+    if client.is_test_mode:
+        return f"Users for {ad_account_id}:\n  Test User (ID: 123456789) — ADMIN\n"
+    data = await client.request(
+        "GET", f"{ad_account_id}/users",
+        params={"fields": "id,name,role,status", "limit": 50},
+    )
+    users = data.get("data", [])
+    if not users:
+        return f"No users found for {ad_account_id}"
+    result = f"Users for {ad_account_id} ({len(users)} total):\n\n"
+    for u in users:
+        result += f"  **{u.get('name', 'Unknown')}** (ID: {u.get('id', 'N/A')}) — {u.get('role', 'N/A')}\n"
+    return result
+
+
+async def list_pages(client: "FacebookAdsClient") -> str:
+    if client.is_test_mode:
+        return "Pages you manage:\n  Test Page (ID: 111111111) — ACTIVE\n"
+    data = await client.request(
+        "GET", "me/accounts",
+        params={"fields": "id,name,category,tasks,access_token", "limit": 50},
+    )
+    pages = data.get("data", [])
+    if not pages:
+        return "No pages found. You need to be an admin of at least one Facebook Page to create ads."
+    result = f"Pages you manage ({len(pages)} total):\n\n"
+    for page in pages:
+        tasks = ", ".join(page.get("tasks", []))
+        result += f"  **{page.get('name', 'Unnamed')}** (ID: {page['id']})\n"
+        result += f"     Category: {page.get('category', 'N/A')}\n"
+        if tasks:
+            result += f"     Tasks: {tasks}\n"
+        result += "\n"
+    return result
+
+
 def _mock_list_ad_accounts() -> str:
     return """Found 1 ad account:
 **Test Ad Account**

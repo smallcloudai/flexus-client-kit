@@ -222,6 +222,67 @@ This is a test validation. In production, Facebook will provide actual estimated
     return output
 
 
+async def get_adset(client: "FacebookAdsClient", adset_id: str) -> str:
+    if not adset_id:
+        return "ERROR: adset_id is required"
+    if client.is_test_mode:
+        return f"Ad Set {adset_id}:\n  Name: Test Ad Set\n  Status: ACTIVE\n  Optimization: LINK_CLICKS\n  Daily Budget: 20.00 USD\n"
+    data = await client.request(
+        "GET", adset_id,
+        params={"fields": "id,name,status,optimization_goal,billing_event,bid_strategy,bid_amount,daily_budget,lifetime_budget,targeting,campaign_id,created_time,updated_time,start_time,end_time"},
+    )
+    result = f"Ad Set {adset_id}:\n"
+    result += f"  Name: {data.get('name', 'N/A')}\n"
+    result += f"  Status: {data.get('status', 'N/A')}\n"
+    result += f"  Campaign ID: {data.get('campaign_id', 'N/A')}\n"
+    result += f"  Optimization: {data.get('optimization_goal', 'N/A')}\n"
+    result += f"  Billing Event: {data.get('billing_event', 'N/A')}\n"
+    result += f"  Bid Strategy: {data.get('bid_strategy', 'N/A')}\n"
+    if data.get("daily_budget"):
+        result += f"  Daily Budget: {format_currency(int(data['daily_budget']))}\n"
+    if data.get("lifetime_budget"):
+        result += f"  Lifetime Budget: {format_currency(int(data['lifetime_budget']))}\n"
+    result += f"  Created: {data.get('created_time', 'N/A')}\n"
+    return result
+
+
+async def delete_adset(client: "FacebookAdsClient", adset_id: str) -> str:
+    if not adset_id:
+        return "ERROR: adset_id is required"
+    if client.is_test_mode:
+        return f"Ad Set {adset_id} deleted successfully."
+    result = await client.request("DELETE", adset_id)
+    if result.get("success"):
+        return f"Ad Set {adset_id} deleted successfully."
+    return f"Failed to delete ad set. Response: {result}"
+
+
+async def list_adsets_for_account(
+    client: "FacebookAdsClient",
+    ad_account_id: str,
+    status_filter: Optional[str] = None,
+) -> str:
+    if not ad_account_id:
+        return "ERROR: ad_account_id is required"
+    if client.is_test_mode:
+        return f"Ad Sets for account {ad_account_id}:\n  Test Ad Set (ID: 234567890123456) — ACTIVE\n"
+    params: Dict[str, Any] = {"fields": ADSET_FIELDS + ",campaign_id", "limit": 100}
+    if status_filter:
+        params["filtering"] = json.dumps([{"field": "adset.delivery_info", "operator": "IN", "value": [status_filter.upper()]}])
+    data = await client.request("GET", f"{ad_account_id}/adsets", params=params)
+    adsets = data.get("data", [])
+    if not adsets:
+        return f"No ad sets found for account {ad_account_id}"
+    result = f"Ad Sets for account {ad_account_id} ({len(adsets)} total):\n\n"
+    for adset in adsets:
+        result += f"  **{adset.get('name', 'Unnamed')}** (ID: {adset['id']})\n"
+        result += f"     Status: {adset.get('status', 'N/A')} | Campaign: {adset.get('campaign_id', 'N/A')}\n"
+        if adset.get("daily_budget"):
+            result += f"     Daily Budget: {format_currency(int(adset['daily_budget']))}\n"
+        result += "\n"
+    return result
+
+
 def _mock_list_adsets(campaign_id: str) -> str:
     return f"""Ad Sets for Campaign {campaign_id}:
 **Test Ad Set**

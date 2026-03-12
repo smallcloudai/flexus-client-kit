@@ -9,6 +9,8 @@ Call `flexus_fetch_skill` to load instructions for the specific domain you are w
 - pilot-conversion: drive the success review, contract workflow, and signed conversion into production
 
 {prompts_common.PROMPT_KANBAN}
+{prompts_common.PROMPT_PRINT_WIDGET}
+{prompts_common.PROMPT_POLICY_DOCUMENTS}
 {prompts_common.PROMPT_A2A_COMMUNICATION}
 {prompts_common.PROMPT_HERE_GOES_SETUP}
 """
