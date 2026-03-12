@@ -538,9 +538,9 @@ async def subscribe_and_produce_callbacks(
                     handled = True
                     if message.ftm_belongs_to_ft_id in bc.thread_tracker:
                         k = "%03d:%03d" % (message.ftm_alt, message.ftm_num)
-                        if bc.running_test_scenario:
-                            bc.thread_tracker[message.ftm_belongs_to_ft_id].thread_messages[k] = message
-                        persona_id = bc.thread_tracker[message.ftm_belongs_to_ft_id].persona_id
+                        t = bc.thread_tracker[message.ftm_belongs_to_ft_id]
+                        t.thread_messages[k] = message
+                        persona_id = t.persona_id
                         if persona_id in bc.bots_running:
                             bc.bots_running[persona_id].instance_rcx._parked_messages[k] = message
                             bc.bots_running[persona_id].instance_rcx._parked_anything_new.set()

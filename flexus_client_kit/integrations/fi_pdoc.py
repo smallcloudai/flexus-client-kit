@@ -224,13 +224,11 @@ class IntegrationPdoc:
                 if self.is_fake:
                     return await ckit_scenario.scenario_generate_tool_result_via_model(self.fclient, toolcall, open(__file__).read())
 
-                # XXX create/overwrite can return the new content immediately
                 if op == "create":
                     await self.pdoc_create(p, text, fuser_id)
                 else:
                     await self.pdoc_overwrite(p, text, fuser_id)
-                saved = await self.pdoc_cat(p, fuser_id)
-                saved_md5 = _pdoc_md5(saved.pdoc_content) if saved else "?"
+                saved_md5 = _pdoc_md5(json.loads(text))
                 verb = "created" if op == "create" else "updated"
                 r += f"✍️ {p}\nmd5={saved_md5}\n\n✓ Policy document {verb}"
 

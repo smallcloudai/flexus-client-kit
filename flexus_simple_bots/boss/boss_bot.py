@@ -2,8 +2,9 @@ import asyncio
 import datetime
 import json
 import logging
+import re
 from pathlib import Path
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 
 import gql
 from flexus_client_kit import ckit_client
@@ -173,6 +174,35 @@ PLAN_SECTION_BY_TOOL = {
 }
 
 
+def _find_last_md5_in_thread(rcx: ckit_bot_exec.RobotContext, toolcall: ckit_cloudtool.FCloudtoolCall, path: str) -> Optional[str]:
+    thread = rcx.latest_threads.get(toolcall.fcall_ft_id)
+    if not thread:
+        return None
+    by_num = {(m.ftm_alt, m.ftm_num): m for m in thread.thread_messages.values()}
+    marker1 = f"✍️ {path}\n"
+    marker2 = f"📄 {path}\n"
+    alt = toolcall.fcall_ftm_alt
+    num = toolcall.fcall_called_ftm_num - 1
+    while num >= 0:
+        m = by_num.get((alt, num))
+        logger.info("md? AAA %s:%03d:%03d", toolcall.fcall_ft_id, alt, num)
+        if not m:
+            break
+        logger.info("md? %s:%03d:%03d role=%s content=%s", toolcall.fcall_ft_id, alt, num, m.ftm_role, str(m.ftm_content).replace("\n", "\\n")[:40])
+        if m and m.ftm_role == "tool" and isinstance(m.ftm_content, str) and (marker1 in m.ftm_content or marker2 in m.ftm_content):
+            match = re.search(r"md5=([0-9a-f]{8})", m.ftm_content)
+            if match:
+                logger.info("md? yes %s", match.group(1))
+                return match.group(1)
+        num -= 1
+    logger.info("md? nothing found")
+
+    if toolcall.fcall_called_ftm_num > 20:
+        exit(0)
+
+    return None
+
+
 async def handle_plan_update(
     toolcall: ckit_cloudtool.FCloudtoolCall,
     args: Dict[str, Any],
@@ -195,6 +225,14 @@ async def handle_plan_update(
     path = f"/plans/{plan_slug}"
 
     existing = await pdoc_integration.pdoc_cat(path, caller_fuser_id)
+
+    # Check if someone else changed the doc since the model last saw it
+    if existing is not None:
+        existing_md5 = fi_pdoc._pdoc_md5(existing.pdoc_content)
+        last_known = _find_last_md5_in_thread(rcx, toolcall, path)
+        if last_known and last_known != existing_md5:
+            return f"Error: {path} has changed since you last read it (your md5={last_known}, current md5={existing_md5}). Read it again before updating."
+
     if existing is None:
         doc = {"plan": {"meta": {"created_at": datetime.datetime.now(datetime.timezone.utc).isoformat()}}}
     else:
