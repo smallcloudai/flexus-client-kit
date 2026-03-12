@@ -19,7 +19,7 @@ from flexus_client_kit.integrations import fi_mongo_store
 from flexus_client_kit.integrations import fi_crm_automations
 from flexus_client_kit.integrations import fi_resend
 from flexus_client_kit.integrations import fi_shopify
-from flexus_client_kit.integrations import fi_telegram
+from flexus_client_kit.integrations import fi_telegram, fi_webchat
 from flexus_client_kit.integrations import fi_crm
 from flexus_client_kit.integrations import fi_sched
 from flexus_simple_bots.vix import vix_install
@@ -39,6 +39,7 @@ VIX_INTEGRATIONS: list[ckit_integrations_db.IntegrationRecord] = ckit_integratio
         "print_widget",
         "erp[meta, data, crud, csv_import]",
         "crm[manage_contact, manage_deal, log_activity]",
+        "webchat",
     ],
     builtin_skills=vix_install.VIX_SKILLS,
 )
@@ -59,7 +60,7 @@ TOOLS = [
 async def vix_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.RobotContext) -> None:
     setup = ckit_bot_exec.official_setup_mixing_procedure(vix_install.VIX_SETUP_SCHEMA, rcx.persona.persona_setup)
 
-    await ckit_integrations_db.main_loop_integrations_init(VIX_INTEGRATIONS, rcx, setup)
+    integrations = await ckit_integrations_db.main_loop_integrations_init(VIX_INTEGRATIONS, rcx, setup)
     automations_integration = fi_crm_automations.IntegrationCrmAutomations(
         fclient, rcx, setup, available_erp_tables=ERP_TABLES,
     )
@@ -71,9 +72,13 @@ async def vix_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.Ro
     telegram = fi_telegram.IntegrationTelegram(fclient, rcx)
     await telegram.initialize()
 
+    webchat: fi_webchat.IntegrationWebchat = integrations["webchat"]
+    webchat.default_fexp_name = "sales"
+
     @rcx.on_updated_message
     async def updated_message_in_db(msg: ckit_ask_model.FThreadMessageOutput):
         await telegram.look_assistant_might_have_posted_something(msg)
+        await webchat.look_assistant_might_have_posted_something(msg)
 
     @rcx.on_updated_task
     async def updated_task_in_db(t: ckit_kanban.FPersonaKanbanTaskOutput):
