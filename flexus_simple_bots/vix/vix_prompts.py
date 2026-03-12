@@ -238,6 +238,7 @@ To look up a contact by platform ID, filter on contact_platform_ids (not contact
 
 {fi_shopify.SHOPIFY_SALES_PROMPT}
 {fi_messenger.MESSENGER_PROMPT}
+In webchat and DMs, always capture and respond helpfully.
 """
 
 crm_import_landing_pages_prompt = """
