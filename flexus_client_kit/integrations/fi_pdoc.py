@@ -1,3 +1,4 @@
+import hashlib
 import json
 import logging
 from typing import Dict, Any, Optional, List
@@ -144,6 +145,10 @@ def _format_tree(items: List[PdocListItem], base_path: str) -> tuple:
     return "\n".join(render(())) + "\n", doc_count, folder_count
 
 
+def _pdoc_md5(content: Any) -> str:
+    return hashlib.md5(json.dumps(content, sort_keys=True, ensure_ascii=False).encode()).hexdigest()[:8]
+
+
 class IntegrationPdoc:
     def __init__(
         self,
@@ -192,11 +197,13 @@ class IntegrationPdoc:
                 result = await self.pdoc_cat(p, fuser_id)
                 if not result:
                     return f"Policy document not found: {p}"
+                content_str = json.dumps(result.pdoc_content, indent=2, ensure_ascii=False)
+                content_md5 = _pdoc_md5(result.pdoc_content)
                 if op == "activate":
-                    r += f"✍️ {result.path}\n\n"
+                    r += f"✍️ {result.path}\nmd5={content_md5}\n\n"
                 else:
-                    r += f"📄 {result.path}\n\n"
-                r += json.dumps(result.pdoc_content, indent=2, ensure_ascii=False)
+                    r += f"📄 {result.path}\nmd5={content_md5}\n\n"
+                r += content_str
 
             elif op == "overwrite" or op == "create":
                 p = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "p", "")
@@ -217,12 +224,15 @@ class IntegrationPdoc:
                 if self.is_fake:
                     return await ckit_scenario.scenario_generate_tool_result_via_model(self.fclient, toolcall, open(__file__).read())
 
+                # XXX create/overwrite can return the new content immediately
                 if op == "create":
                     await self.pdoc_create(p, text, fuser_id)
-                    r += f"✍️ {p}\n\n✓ Policy document created"
                 else:
                     await self.pdoc_overwrite(p, text, fuser_id)
-                    r += f"✍️ {p}\n\n✓ Policy document updated"
+                saved = await self.pdoc_cat(p, fuser_id)
+                saved_md5 = _pdoc_md5(saved.pdoc_content) if saved else "?"
+                verb = "created" if op == "create" else "updated"
+                r += f"✍️ {p}\nmd5={saved_md5}\n\n✓ Policy document {verb}"
 
             elif op == "update_json_text":
                 p = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "p", "")
@@ -237,7 +247,9 @@ class IntegrationPdoc:
                     return await ckit_scenario.scenario_generate_tool_result_via_model(self.fclient, toolcall, open(__file__).read())
 
                 await self.pdoc_update_json_text(p, json_path, text, fuser_id)
-                r += f"✍️ {p}\n\n✓ Updated {json_path}"
+                saved = await self.pdoc_cat(p, fuser_id)
+                saved_md5 = _pdoc_md5(saved.pdoc_content) if saved else "?"
+                r += f"✍️ {p}\nmd5={saved_md5}\n\n✓ Updated {json_path}"
 
             elif op == "cp":
                 p1 = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "p1", "")

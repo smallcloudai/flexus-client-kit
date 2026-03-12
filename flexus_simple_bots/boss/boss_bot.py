@@ -209,9 +209,11 @@ async def handle_plan_update(
     else:
         await pdoc_integration.pdoc_overwrite(path, json.dumps(doc, ensure_ascii=False), caller_fuser_id)
 
+    saved = await pdoc_integration.pdoc_cat(path, caller_fuser_id)
+    saved_md5 = fi_pdoc._pdoc_md5(saved.pdoc_content) if saved else "?"
     filled = [s for s in PLAN_SECTIONS if doc["plan"].get(s)]
     unfilled = [s for s in PLAN_SECTIONS if not doc["plan"].get(s)]
-    return f"✍️ {path}\n\nUpdated: {section}\nFilled: {', '.join(filled) or 'none'}\nUnfilled: {', '.join(unfilled) or 'none'}\n\nUse flexus_policy_document(op=\"cat\", args={{\"p\": \"{path}\"}}) to read it in full."
+    return f"✍️ {path}\nmd5={saved_md5}\n\nUpdated: {section}\nFilled: {', '.join(filled) or 'none'}\nUnfilled: {', '.join(unfilled) or 'none'}\n\nUse flexus_policy_document(op=\"cat\", args={{\"p\": \"{path}\"}}) to read it in full."
 
 
 async def handle_plan_progress_add(
@@ -238,7 +240,9 @@ async def handle_plan_progress_add(
     section[field] = (prev + "\n" + line).lstrip("\n")
     doc["plan"]["meta"]["updated_at"] = datetime.datetime.now(datetime.timezone.utc).isoformat()
     await pdoc_integration.pdoc_overwrite(path, json.dumps(doc, ensure_ascii=False), caller_fuser_id)
-    return f"✍️ {path}\n\nAppended to {field}"
+    saved = await pdoc_integration.pdoc_cat(path, caller_fuser_id)
+    saved_md5 = fi_pdoc._pdoc_md5(saved.pdoc_content) if saved else "?"
+    return f"✍️ {path}\nmd5={saved_md5}\n\nAppended to {field}"
 
 
 TOOLS = [
