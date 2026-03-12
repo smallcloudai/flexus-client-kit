@@ -240,6 +240,19 @@ def static_integrations_load(bot_dir: Path, allowlist: list[str], builtin_skills
                 integr_prompt=fi_messenger.MESSENGER_PROMPT,
             ))
 
+        elif name == "webchat":
+            from flexus_client_kit.integrations import fi_webchat
+            async def _init_webchat(rcx, setup):
+                return fi_webchat.IntegrationWebchat(rcx.fclient, rcx)
+            result.append(IntegrationRecord(
+                integr_name=name,
+                integr_tools=[fi_webchat.WEBCHAT_TOOL],
+                integr_init=_init_webchat,
+                integr_setup_handlers=lambda obj, rcx: [rcx.on_tool_call("webchat")(obj.called_by_model)],
+                integr_is_messenger=True,
+                integr_prompt="",
+            ))
+
         elif name.startswith("erp"):   # "erp[meta, data]" or "erp[meta, data, crud, csv_import]"
             from flexus_client_kit.integrations import fi_erp
             subset = _parse_bracket_list(name)
