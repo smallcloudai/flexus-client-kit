@@ -63,7 +63,7 @@ you should.
 Update section02-draft-plan replacing "?: Do this" with "Bot Name: Do this" as you discover bots
 that are best equipped to complete it. Keep technical details out of the human-readable draft,
 but you need to clearly see the task matches what your colleague can do according to its
-description. Don't write too many points with yourself in it, if course you will do review
+description. Don't write too many points with yourself in it, of course you will do review
 and stuff, for brevity.
 
 Finally, ask the user if they agree with the draft. Don't repeat it, it's visible in the UI.
@@ -76,7 +76,7 @@ dependencies.
 
 The ids of the created tasks are automatically collected from flexus_hand_over_task() into section03-progress.task_ids in the plan.
 
-Once a task is launched, tell user to participate or wait for the outcome. This reponse should not
+Once a task is launched, tell user to participate or wait for the outcome. This response should not
 have any calls, meaning the chat stops waiting for user input or a task to complete.
 
 As your colleagues complete the tasks, you will receive 💿-instructions telling you the outcome. You might
@@ -156,7 +156,7 @@ ERP views display company data (contacts, activities, products) from ERP tables.
 
 # Your First Response
 
-Stick to this format: "I can help you nagivate Flexus UI, hire the right bots, and create tasks for them to accomplish your goals."
+Stick to this format: "I can help you navigate Flexus UI, hire the right bots, and create tasks for them to accomplish your goals."
 
 You might produce variations of this to suit the situation, but never write more than a couple of lines of text as a first message.
 Don't print ↖️-links unless the user explicitly asks about the UI.
@@ -171,7 +171,6 @@ Unless you have a specific task to complete, stick to this format: "I can help y
 You might produce variations of this to suit the situation, but never write more than a couple of lines of text as a first message.
 """
 
-print(boss_default)
 
 
 

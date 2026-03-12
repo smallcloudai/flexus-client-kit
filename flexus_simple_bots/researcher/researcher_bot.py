@@ -7,7 +7,7 @@ from typing import Any, Dict
 from flexus_client_kit import ckit_bot_exec
 from flexus_client_kit import ckit_client
 from flexus_client_kit import ckit_cloudtool
-from flexus_client_kit import ckit_external_auth
+
 from flexus_client_kit import ckit_integrations_db
 from flexus_client_kit import ckit_shutdown
 from flexus_simple_bots.researcher import researcher_install
@@ -102,8 +102,7 @@ async def researcher_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_
         data = args.get("data")
         if not path or data is None:
             return "Error: path and data are required."
-        fuser_id = ckit_external_auth.get_fuser_id_from_rcx(rcx, toolcall.fcall_ft_id)
-        await pdoc_integration.pdoc_overwrite(path, json.dumps(data, ensure_ascii=False), fuser_id)
+        await pdoc_integration.pdoc_overwrite(path, json.dumps(data, ensure_ascii=False), fcall_untrusted_key=toolcall.fcall_untrusted_key)
         return f"Written: {path}"
 
     @rcx.on_tool_call(TEMPLATE_IDEA_TOOL.name)
@@ -120,9 +119,8 @@ async def researcher_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_
             idea_doc = json.loads(text)
         except json.JSONDecodeError as e:
             return f"Error: Invalid JSON: {e}"
-        fuser_id = ckit_external_auth.get_fuser_id_from_rcx(rcx, toolcall.fcall_ft_id)
         path = f"/gtm/discovery/{idea_slug}/idea"
-        await pdoc_integration.pdoc_create(path, json.dumps(idea_doc, indent=2, ensure_ascii=False), fuser_id)
+        await pdoc_integration.pdoc_create(path, json.dumps(idea_doc, indent=2, ensure_ascii=False), fcall_untrusted_key=toolcall.fcall_untrusted_key)
         return f"✍️ {path}\n\n✓ Created idea document"
 
     @rcx.on_tool_call(TEMPLATE_HYPOTHESIS_TOOL.name)
@@ -148,12 +146,11 @@ async def researcher_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_
                 return f"Error: Invalid JSON: {e}"
         if not isinstance(hypothesis_data, dict):
             return "Error: hypothesis must be an object."
-        fuser_id = ckit_external_auth.get_fuser_id_from_rcx(rcx, toolcall.fcall_ft_id)
         path = f"/gtm/discovery/{idea_slug}/{hypothesis_slug}/hypothesis"
         await pdoc_integration.pdoc_create(
             path,
             json.dumps({"hypothesis": hypothesis_data}, indent=2, ensure_ascii=False),
-            fuser_id,
+            fcall_untrusted_key=toolcall.fcall_untrusted_key,
         )
         return f"✍️ {path}\n\n✓ Created hypothesis document"
 

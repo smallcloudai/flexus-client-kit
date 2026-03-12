@@ -191,9 +191,7 @@ class IntegrationFacebook:
         if self.client.ad_account_id or not self.pdoc_integration:
             return
         try:
-            from flexus_client_kit import ckit_external_auth
-            fuser_id = ckit_external_auth.get_fuser_id_from_rcx(self.rcx, toolcall.fcall_ft_id)
-            config = await self.pdoc_integration.pdoc_cat("/company/ad-ops-config", fuser_id)
+            config = await self.pdoc_integration.pdoc_cat("/company/ad-ops-config", fcall_untrusted_key=toolcall.fcall_untrusted_key)
             ad_account_id = config.pdoc_content.get("facebook_ad_account_id", "")
             if ad_account_id:
                 self.client.ad_account_id = ad_account_id

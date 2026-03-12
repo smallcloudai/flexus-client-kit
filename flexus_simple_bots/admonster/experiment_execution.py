@@ -5,7 +5,7 @@ from dataclasses import dataclass, field
 from typing import Dict, Any, List, Optional
 
 from flexus_client_kit import ckit_cloudtool
-from flexus_client_kit import ckit_external_auth
+
 from flexus_client_kit import ckit_ask_model
 from flexus_client_kit import ckit_client
 from flexus_client_kit import ckit_kanban
@@ -126,11 +126,9 @@ class IntegrationExperimentExecution:
             return f"ERROR: experiment_id required.\n\n{LAUNCH_EXPERIMENT_HELP}"
         if not self.facebook_integration:
             return "ERROR: Facebook integration not available."
-        fuser_id = ckit_external_auth.get_fuser_id_from_rcx(self.pdoc_integration.rcx, toolcall.fcall_ft_id)
-
         # Read ad_account_id from policy document
         try:
-            config_doc = await self.pdoc_integration.pdoc_cat("/company/ad-ops-config", fuser_id)
+            config_doc = await self.pdoc_integration.pdoc_cat("/company/ad-ops-config", fcall_untrusted_key=toolcall.fcall_untrusted_key)
             ad_account_id = config_doc.pdoc_content.get("facebook_ad_account_id", "")
         except Exception as e:
             return f"ERROR: Could not read /company/ad-ops-config: {e}"

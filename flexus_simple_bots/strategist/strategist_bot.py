@@ -7,7 +7,7 @@ from typing import Any, Dict
 from flexus_client_kit import ckit_bot_exec
 from flexus_client_kit import ckit_client
 from flexus_client_kit import ckit_cloudtool
-from flexus_client_kit import ckit_external_auth
+
 from flexus_client_kit import ckit_integrations_db
 from flexus_client_kit import ckit_shutdown
 from flexus_simple_bots.strategist import strategist_install
@@ -58,8 +58,7 @@ async def strategist_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_
         data = args.get("data")
         if not path or data is None:
             return "Error: path and data are required."
-        fuser_id = ckit_external_auth.get_fuser_id_from_rcx(rcx, toolcall.fcall_ft_id)
-        await pdoc_integration.pdoc_overwrite(path, json.dumps(data, ensure_ascii=False), fuser_id)
+        await pdoc_integration.pdoc_overwrite(path, json.dumps(data, ensure_ascii=False), fcall_untrusted_key=toolcall.fcall_untrusted_key)
         return f"Written: {path}"
 
     try:

@@ -2,7 +2,6 @@ import asyncio
 import datetime
 import json
 import logging
-import re
 from pathlib import Path
 from typing import Dict, Any, Optional
 
@@ -12,7 +11,6 @@ from flexus_client_kit import ckit_cloudtool
 from flexus_client_kit import ckit_scenario
 from flexus_client_kit import ckit_bot_exec
 from flexus_client_kit import ckit_shutdown
-from flexus_client_kit import ckit_external_auth
 from flexus_client_kit import ckit_integrations_db
 from flexus_client_kit.integrations import fi_mongo_store
 from flexus_client_kit.integrations import fi_pdoc
@@ -82,12 +80,27 @@ PLAN_PROGRESS_ADD_TOOL = ckit_cloudtool.CloudTool(
             "plan_slug": {"type": "string", "description": "Short kebab-case name, 2-4 words"},
             "field": {"type": "string", "enum": ["learned_so_far", "progress_documents"]},
             "line": {"type": "string"},
+            "expected_md5": {"type": ["string", "null"], "description": "md5 from last cat/update, to avoid overwriting concurrent changes"},
         },
-        "required": ["plan_slug", "field", "line"],
+        "required": ["plan_slug", "field", "line", "expected_md5"],
         "additionalProperties": False,
     },
 )
 
+
+PLAN_CREATE_TOOL = ckit_cloudtool.CloudTool(
+    strict=True,
+    name="plan_create",
+    description="Create a new plan document. Fails if already exists. After creation, use plan_input/plan_draft/etc to fill sections.",
+    parameters={
+        "type": "object",
+        "properties": {
+            "plan_slug": {"type": "string", "description": "Short kebab-case name, 2-4 words"},
+        },
+        "required": ["plan_slug"],
+        "additionalProperties": False,
+    },
+)
 
 PLAN_SECTIONS = ["section01-input", "section02-draft-plan", "section03-progress", "section04-conclusion"]
 
@@ -142,6 +155,7 @@ def _plan_tool(section_key, name, description):
     fields = list(section_schema["properties"].keys())
     props = {"plan_slug": {"type": "string", "description": "Short kebab-case name, 2-4 words"}}
     props.update({k: _make_nullable(section_schema["properties"][k]) for k in fields})
+    props["expected_md5"] = {"type": ["string", "null"], "description": "md5 from last cat/update, to avoid overwriting concurrent changes"}
     return ckit_cloudtool.CloudTool(
         strict=True,
         name=name,
@@ -149,7 +163,7 @@ def _plan_tool(section_key, name, description):
         parameters={
             "type": "object",
             "properties": props,
-            "required": ["plan_slug", *fields],
+            "required": ["plan_slug", *fields, "expected_md5"],
             "additionalProperties": False,
         },
     ), (section_key, fields)
@@ -164,7 +178,7 @@ PLAN_PROGRESS_TOOL, _plan_progress_meta = _plan_tool(
 PLAN_CONCLUSION_TOOL, _plan_conclusion_meta = _plan_tool(
     "section04-conclusion", "plan_conclusion", "Close out a plan with a summary and outcome.")
 
-PLAN_TOOLS = [PLAN_INPUT_TOOL, PLAN_DRAFT_TOOL, PLAN_PROGRESS_TOOL, PLAN_CONCLUSION_TOOL]
+PLAN_UPDATE_SECTION_TOOLS = [PLAN_INPUT_TOOL, PLAN_DRAFT_TOOL, PLAN_PROGRESS_TOOL, PLAN_CONCLUSION_TOOL]
 
 PLAN_SECTION_BY_TOOL = {
     "plan_input": _plan_input_meta,
@@ -174,36 +188,59 @@ PLAN_SECTION_BY_TOOL = {
 }
 
 
-def _find_last_md5_in_thread(rcx: ckit_bot_exec.RobotContext, toolcall: ckit_cloudtool.FCloudtoolCall, path: str) -> Optional[str]:
-    thread = rcx.latest_threads.get(toolcall.fcall_ft_id)
-    if not thread:
-        return None
-    by_num = {(m.ftm_alt, m.ftm_num): m for m in thread.thread_messages.values()}
-    marker1 = f"✍️ {path}\n"
-    marker2 = f"📄 {path}\n"
-    alt = toolcall.fcall_ftm_alt
-    num = toolcall.fcall_called_ftm_num - 1
-    while num >= 0:
-        m = by_num.get((alt, num))
-        logger.info("md? AAA %s:%03d:%03d", toolcall.fcall_ft_id, alt, num)
-        if not m:
-            break
-        logger.info("md? %s:%03d:%03d role=%s content=%s", toolcall.fcall_ft_id, alt, num, m.ftm_role, str(m.ftm_content).replace("\n", "\\n")[:40])
-        if m and m.ftm_role == "tool" and isinstance(m.ftm_content, str) and (marker1 in m.ftm_content or marker2 in m.ftm_content):
-            match = re.search(r"md5=([0-9a-f]{8})", m.ftm_content)
-            if match:
-                logger.info("md? yes %s", match.group(1))
-                return match.group(1)
-        num -= 1
-    logger.info("md? nothing found")
-
-    if toolcall.fcall_called_ftm_num > 20:
-        exit(0)
-
-    return None
+async def handle_plan_create(
+    toolcall: ckit_cloudtool.FCloudtoolCall,
+    args: Dict[str, Any],
+    rcx: ckit_bot_exec.RobotContext,
+    pdoc_integration: fi_pdoc.IntegrationPdoc,
+) -> str:
+    if rcx.running_test_scenario:
+        return await ckit_scenario.scenario_generate_tool_result_via_model(rcx.fclient, toolcall, Path(__file__).read_text())
+    plan_slug = args.get("plan_slug", "").strip()
+    if not plan_slug:
+        return "Error: plan_slug is required"
+    uk = toolcall.fcall_untrusted_key
+    path = f"/plans/{plan_slug}"
+    doc = {"plan": {
+        "meta": {"created_at": datetime.datetime.now(datetime.timezone.utc).isoformat()},
+        "schema": PLAN_TEMPLATE_SCHEMA,
+    }}
+    doc["plan"]["section01-input"] = {"input_goal": "", "input_documents": ""}
+    # pdoc_create fails if already exists
+    await pdoc_integration.pdoc_create(path, json.dumps(doc, ensure_ascii=False), fcall_untrusted_key=uk)
+    return f"✍️ {path}\nmd5={fi_pdoc._pdoc_md5(doc)}\n\n✓ Plan created. Use plan_input, plan_draft, etc to fill sections."
 
 
-async def handle_plan_update(
+# def _find_last_md5_in_thread(rcx: ckit_bot_exec.RobotContext, toolcall: ckit_cloudtool.FCloudtoolCall, path: str) -> Optional[str]:
+#     thread = rcx.latest_threads.get(toolcall.fcall_ft_id)
+#     if not thread:
+#         return None
+#     by_num = {(m.ftm_alt, m.ftm_num): m for m in thread.thread_messages.values()}
+#     marker1 = f"✍️ {path}\n"
+#     marker2 = f"📄 {path}\n"
+#     alt = toolcall.fcall_ftm_alt
+#     num = toolcall.fcall_called_ftm_num - 1
+#     while num >= 0:
+#         m = by_num.get((alt, num))
+#         logger.info("md? AAA %s:%03d:%03d", toolcall.fcall_ft_id, alt, num)
+#         if not m:
+#             break
+#         logger.info("md? %s:%03d:%03d role=%s content=%s", toolcall.fcall_ft_id, alt, num, m.ftm_role, str(m.ftm_content).replace("\n", "\\n")[:40])
+#         if m and m.ftm_role == "tool" and isinstance(m.ftm_content, str) and (marker1 in m.ftm_content or marker2 in m.ftm_content):
+#             match = re.search(r"md5=([0-9a-f]{8})", m.ftm_content)
+#             if match:
+#                 logger.info("md? yes %s", match.group(1))
+#                 return match.group(1)
+#         num -= 1
+#     logger.info("md? nothing found")
+
+#     if toolcall.fcall_called_ftm_num > 20:
+#         exit(0)
+
+#     return None
+
+
+async def handle_plan_update_section(
     toolcall: ckit_cloudtool.FCloudtoolCall,
     args: Dict[str, Any],
     rcx: ckit_bot_exec.RobotContext,
@@ -215,43 +252,20 @@ async def handle_plan_update(
     if not plan_slug:
         return "Error: plan_slug is required"
     section, fields = PLAN_SECTION_BY_TOOL[toolcall.fcall_name]
-    data = {k: args[k] for k in fields if args.get(k) is not None}
-    # models love to send literal \n instead of real newlines in human-readable text
-    for k, v in data.items():
-        if isinstance(v, str) and "\\n" in v and "\n" not in v:
-            data[k] = v.replace("\\n", "\n")
-
-    caller_fuser_id = ckit_external_auth.get_fuser_id_from_rcx(rcx, toolcall.fcall_ft_id)
+    uk = toolcall.fcall_untrusted_key
+    expected_md5 = args.get("expected_md5") or ""
     path = f"/plans/{plan_slug}"
 
-    existing = await pdoc_integration.pdoc_cat(path, caller_fuser_id)
+    section_data = {k: args[k] for k in fields if args.get(k) is not None}
+    upd = await pdoc_integration.pdoc_update_json_text(path, f"plan.{section}", json.dumps(section_data, ensure_ascii=False), expected_md5, fcall_untrusted_key=uk)
+    if not upd.changes_saved:
+        return f"📄 {path}\nmd5_requested={upd.md5_requested}\nmd5_found={upd.md5_found}\nchanges_saved=false\n\n{upd.problem_message or 'Document changed, please retry'}\n\n{upd.latest_text}"
 
-    # Check if someone else changed the doc since the model last saw it
-    if existing is not None:
-        existing_md5 = fi_pdoc._pdoc_md5(existing.pdoc_content)
-        last_known = _find_last_md5_in_thread(rcx, toolcall, path)
-        if last_known and last_known != existing_md5:
-            return f"Error: {path} has changed since you last read it (your md5={last_known}, current md5={existing_md5}). Read it again before updating."
-
-    if existing is None:
-        doc = {"plan": {"meta": {"created_at": datetime.datetime.now(datetime.timezone.utc).isoformat()}}}
-    else:
-        doc = existing.pdoc_content
-
-    doc["plan"]["schema"] = PLAN_TEMPLATE_SCHEMA
-    doc["plan"].setdefault(section, {}).update(data)
-    doc["plan"]["meta"]["updated_at"] = datetime.datetime.now(datetime.timezone.utc).isoformat()
-
-    if existing is None:
-        await pdoc_integration.pdoc_create(path, json.dumps(doc, ensure_ascii=False), caller_fuser_id)
-    else:
-        await pdoc_integration.pdoc_overwrite(path, json.dumps(doc, ensure_ascii=False), caller_fuser_id)
-
-    saved = await pdoc_integration.pdoc_cat(path, caller_fuser_id)
-    saved_md5 = fi_pdoc._pdoc_md5(saved.pdoc_content) if saved else "?"
-    filled = [s for s in PLAN_SECTIONS if doc["plan"].get(s)]
-    unfilled = [s for s in PLAN_SECTIONS if not doc["plan"].get(s)]
-    return f"✍️ {path}\nmd5={saved_md5}\n\nUpdated: {section}\nFilled: {', '.join(filled) or 'none'}\nUnfilled: {', '.join(unfilled) or 'none'}\n\nUse flexus_policy_document(op=\"cat\", args={{\"p\": \"{path}\"}}) to read it in full."
+    content = json.loads(upd.latest_text)
+    plan = content.get("plan", {})
+    filled = [s for s in PLAN_SECTIONS if plan.get(s)]
+    unfilled = [s for s in PLAN_SECTIONS if not plan.get(s)]
+    return f"✍️ {path}\nmd5={upd.md5_found}\n\nUpdated: {section}\nFilled: {', '.join(filled) or 'none'}\nUnfilled: {', '.join(unfilled) or 'none'}"
 
 
 async def handle_plan_progress_add(
@@ -267,24 +281,23 @@ async def handle_plan_progress_add(
     line = args.get("line", "").strip()
     if not plan_slug or not field or not line:
         return "Error: plan_slug, field, and line are all required"
-    caller_fuser_id = ckit_external_auth.get_fuser_id_from_rcx(rcx, toolcall.fcall_ft_id)
+    uk = toolcall.fcall_untrusted_key
+    expected_md5 = args.get("expected_md5") or ""
     path = f"/plans/{plan_slug}"
-    existing = await pdoc_integration.pdoc_cat(path, caller_fuser_id)
+    existing = await pdoc_integration.pdoc_cat(path, fcall_untrusted_key=uk)
     if existing is None:
         return f"Error: plan {path} not found"
-    doc = existing.pdoc_content
-    section = doc["plan"].setdefault("section03-progress", {})
-    prev = section.get(field, "").rstrip("\n")
-    section[field] = (prev + "\n" + line).lstrip("\n")
-    doc["plan"]["meta"]["updated_at"] = datetime.datetime.now(datetime.timezone.utc).isoformat()
-    await pdoc_integration.pdoc_overwrite(path, json.dumps(doc, ensure_ascii=False), caller_fuser_id)
-    saved = await pdoc_integration.pdoc_cat(path, caller_fuser_id)
-    saved_md5 = fi_pdoc._pdoc_md5(saved.pdoc_content) if saved else "?"
-    return f"✍️ {path}\nmd5={saved_md5}\n\nAppended to {field}"
+    prev = existing.pdoc_content.get("plan", {}).get("section03-progress", {}).get(field, "").rstrip("\n")
+    new_value = (prev + "\n" + line).lstrip("\n")
+    upd = await pdoc_integration.pdoc_update_json_text(path, f"plan.section03-progress.{field}", new_value, expected_md5, fcall_untrusted_key=uk)
+    if not upd.changes_saved:
+        return f"📄 {path}\nmd5_requested={upd.md5_requested}\nmd5_found={upd.md5_found}\nchanges_saved=false\n\n{upd.problem_message or 'Document changed, please retry.'}\n\n{upd.latest_text}"
+    return f"✍️ {path}\nmd5={upd.md5_found}\n\nAppended to {field}"
 
 
 TOOLS = [
-    *PLAN_TOOLS,
+    PLAN_CREATE_TOOL,
+    *PLAN_UPDATE_SECTION_TOOLS,
     PLAN_PROGRESS_ADD_TOOL,
     fi_mongo_store.MONGO_STORE_TOOL,
     MARKETPLACE_SEARCH_TOOL,
@@ -299,10 +312,14 @@ async def boss_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.R
     integr_objects = await ckit_integrations_db.main_loop_integrations_init(boss_install.BOSS_INTEGRATIONS, rcx, setup)
     pdoc_integration = integr_objects["flexus_policy_document"]
 
-    for plan_tool in PLAN_TOOLS:
+    @rcx.on_tool_call(PLAN_CREATE_TOOL.name)
+    async def toolcall_plan_create(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
+        return await handle_plan_create(toolcall, model_produced_args, rcx, pdoc_integration)
+
+    for plan_tool in PLAN_UPDATE_SECTION_TOOLS:
         @rcx.on_tool_call(plan_tool.name)
-        async def toolcall_plan(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
-            return await handle_plan_update(toolcall, model_produced_args, rcx, pdoc_integration)
+        async def toolcall_plan_update_section(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
+            return await handle_plan_update_section(toolcall, model_produced_args, rcx, pdoc_integration)
 
     @rcx.on_tool_call(PLAN_PROGRESS_ADD_TOOL.name)
     async def toolcall_plan_progress_add(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:

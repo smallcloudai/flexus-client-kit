@@ -9,7 +9,6 @@ import gql
 from flexus_client_kit import ckit_cloudtool
 from flexus_client_kit import ckit_scenario
 from flexus_client_kit import ckit_bot_exec
-from flexus_client_kit import ckit_external_auth
 from flexus_client_kit import gql_utils
 
 
@@ -59,9 +58,11 @@ flexus_policy_document(op="overwrite", args={"p": "/folder/file", "text": '{"str
     Write a new policy document. Normally use "create" variant that returns error if document already exists.
     Only use "overwrite" when you mean it.
 
-flexus_policy_document(op="update_json_text", args={"p": "/folder/file", "json_path": "section1.field", "text": "new value"})
+flexus_policy_document(op="update_json_text", args={"p": "/folder/file", "json_path": "section1.field", "text": "new value", "expected_md5": "abc123"})
     Update a specific field in a document using json_path with dot notation.
     Example: "operations_overview.governance" updates doc["operations_overview"]["governance"]
+    Pass expected_md5 (from a previous cat/update) to avoid overwriting concurrent changes.
+    If md5 doesn't match, changes are not saved and latest content is returned so you can retry.
 
 flexus_policy_document(op="cp", args={"p1": "/customer-research/interview-template", "p2": "/customer-research/interview-monsieur-dupont"})
     Copy a policy document.
@@ -98,6 +99,15 @@ class PdocDocument:
     pdoc_content: Any
     pdoc_created_ts: float
     pdoc_modified_ts: float
+
+
+@dataclass
+class PdocUpdateJsonTextResult:
+    latest_text: str
+    md5_requested: str
+    md5_found: str
+    changes_saved: bool
+    problem_message: str
 
 
 def _format_tree(items: List[PdocListItem], base_path: str) -> tuple:
@@ -173,7 +183,6 @@ class IntegrationPdoc:
         if op == "help":
             return HELP
 
-        fuser_id = ckit_external_auth.get_fuser_id_from_rcx(self.rcx, toolcall.fcall_ft_id)
         r = ""
 
         try:
@@ -181,7 +190,7 @@ class IntegrationPdoc:
                 p = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "p", "/")
                 if self.is_fake:
                     return await ckit_scenario.scenario_generate_tool_result_via_model(self.fclient, toolcall, open(__file__).read())
-                result = await self.pdoc_list(p, fuser_id, depth=5)
+                result = await self.pdoc_list(p, depth=5, fcall_untrusted_key=toolcall.fcall_untrusted_key)
                 tree_text, doc_count, folder_count = _format_tree(result, p)
                 r += f"Listing {p}\n\n"
                 r += tree_text
@@ -194,7 +203,7 @@ class IntegrationPdoc:
                     return f"Error: p required\n\n{HELP}"
                 if self.is_fake:
                     return await ckit_scenario.scenario_generate_tool_result_via_model(self.fclient, toolcall, open(__file__).read())
-                result = await self.pdoc_cat(p, fuser_id)
+                result = await self.pdoc_cat(p, fcall_untrusted_key=toolcall.fcall_untrusted_key)
                 if not result:
                     return f"Policy document not found: {p}"
                 content_str = json.dumps(result.pdoc_content, indent=2, ensure_ascii=False)
@@ -225,9 +234,9 @@ class IntegrationPdoc:
                     return await ckit_scenario.scenario_generate_tool_result_via_model(self.fclient, toolcall, open(__file__).read())
 
                 if op == "create":
-                    await self.pdoc_create(p, text, fuser_id)
+                    await self.pdoc_create(p, text, fcall_untrusted_key=toolcall.fcall_untrusted_key)
                 else:
-                    await self.pdoc_overwrite(p, text, fuser_id)
+                    await self.pdoc_overwrite(p, text, fcall_untrusted_key=toolcall.fcall_untrusted_key)
                 saved_md5 = _pdoc_md5(json.loads(text))
                 verb = "created" if op == "create" else "updated"
                 r += f"✍️ {p}\nmd5={saved_md5}\n\n✓ Policy document {verb}"
@@ -235,19 +244,25 @@ class IntegrationPdoc:
             elif op == "update_json_text":
                 p = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "p", "")
                 p = p or ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "path", "")
-
                 json_path = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "json_path", "")
                 text = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "text", "")
+                expected_md5 = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "expected_md5", "")
                 if not p or not json_path or not text:
                     return f"Error: p, json_path, and text parameters required\n\n{HELP}"
 
                 if self.is_fake:
                     return await ckit_scenario.scenario_generate_tool_result_via_model(self.fclient, toolcall, open(__file__).read())
 
-                await self.pdoc_update_json_text(p, json_path, text, fuser_id)
-                saved = await self.pdoc_cat(p, fuser_id)
-                saved_md5 = _pdoc_md5(saved.pdoc_content) if saved else "?"
-                r += f"✍️ {p}\nmd5={saved_md5}\n\n✓ Updated {json_path}"
+                upd = await self.pdoc_update_json_text(p, json_path, text, expected_md5, fcall_untrusted_key=toolcall.fcall_untrusted_key)
+                if upd.changes_saved:
+                    r += f"✍️ {p}\nmd5={upd.md5_found}\nchanges_saved=true\n\n✓ Updated {json_path}\n\n"
+                else:
+                    r += f"📄 {p}\nmd5_requested={upd.md5_requested}\nmd5_found={upd.md5_found}\nchanges_saved=false\n\n"
+                    if upd.problem_message:
+                        r += f"{upd.problem_message}\n\n"
+                    else:
+                        r += f"Document changed since you last read it, please retry.\n\n"
+                r += upd.latest_text
 
             elif op == "cp":
                 p1 = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "p1", "")
@@ -258,7 +273,7 @@ class IntegrationPdoc:
                 if self.is_fake:
                     return await ckit_scenario.scenario_generate_tool_result_via_model(self.fclient, toolcall, open(__file__).read())
 
-                await self.pdoc_cp(p1, p2, fuser_id)
+                await self.pdoc_cp(p1, p2, fcall_untrusted_key=toolcall.fcall_untrusted_key)
                 r += f"✍️ {p2}\n\n✓ Copied from {p1}"
 
             elif op == "rm":
@@ -271,7 +286,7 @@ class IntegrationPdoc:
                 if self.is_fake:
                     return await ckit_scenario.scenario_generate_tool_result_via_model(self.fclient, toolcall, open(__file__).read())
 
-                await self.pdoc_rm(p, fuser_id)
+                await self.pdoc_rm(p, fcall_untrusted_key=toolcall.fcall_untrusted_key)
                 r += f"🗑 {p}\n\n"
 
             else:
@@ -288,96 +303,107 @@ class IntegrationPdoc:
 
         return r
 
-    async def pdoc_list(self, p: str = "/", fuser_id: str = None, depth: int = 1) -> List[PdocListItem]:
+    def _auth_vars(self, fcall_untrusted_key: str = "", trust_me_bro_persona_id: str = "") -> dict:
+        r = {}
+        if fcall_untrusted_key:
+            r["fcall_untrusted_key"] = fcall_untrusted_key
+        else:
+            r["trust_me_bro_persona_id"] = trust_me_bro_persona_id or self.rcx.persona.persona_id
+        return r
+
+    async def pdoc_list(self, p: str = "/", depth: int = 1, fcall_untrusted_key: str = "", trust_me_bro_persona_id: str = "") -> List[PdocListItem]:
         http = await self.fclient.use_http()
         async with http as h:
             result = await h.execute(
                 gql.gql(f"""
-                    query PdocList($fgroup_id: String!, $p: String!, $fuser_id: String, $depth: Int) {{
-                        policydoc_list(fgroup_id: $fgroup_id, p: $p, fuser_id: $fuser_id, depth: $depth) {{
+                    query PdocList($fgroup_id: String!, $p: String!, $fcall_untrusted_key: String, $trust_me_bro_persona_id: String, $depth: Int) {{
+                        policydoc_list(fgroup_id: $fgroup_id, p: $p, fcall_untrusted_key: $fcall_untrusted_key, trust_me_bro_persona_id: $trust_me_bro_persona_id, depth: $depth) {{
                             {gql_utils.gql_fields(PdocListItem)}
                         }}
                     }}
                 """),
-                variable_values={"fgroup_id": self.fgroup_id, "p": p, "fuser_id": fuser_id, "depth": depth},
+                variable_values={"fgroup_id": self.fgroup_id, "p": p, "depth": depth, **self._auth_vars(fcall_untrusted_key, trust_me_bro_persona_id)},
             )
             items = result.get("policydoc_list", [])
             return [gql_utils.dataclass_from_dict(item, PdocListItem) for item in items]
 
-    async def pdoc_cat(self, p: str, fuser_id: str = None, best_effort_to_find: bool = False) -> Optional[PdocDocument]:
+    async def pdoc_cat(self, p: str, best_effort_to_find: bool = False, fcall_untrusted_key: str = "", trust_me_bro_persona_id: str = "") -> Optional[PdocDocument]:
         http = await self.fclient.use_http()
         async with http as h:
             result = await h.execute(
                 gql.gql(f"""
-                    query PdocCat($fgroup_id: String!, $p: String!, $fuser_id: String, $best_effort_to_find: Boolean) {{
-                        policydoc_cat(fgroup_id: $fgroup_id, p: $p, fuser_id: $fuser_id, best_effort_to_find: $best_effort_to_find) {{
+                    query PdocCat($fgroup_id: String!, $p: String!, $fcall_untrusted_key: String, $trust_me_bro_persona_id: String, $best_effort_to_find: Boolean) {{
+                        policydoc_cat(fgroup_id: $fgroup_id, p: $p, fcall_untrusted_key: $fcall_untrusted_key, trust_me_bro_persona_id: $trust_me_bro_persona_id, best_effort_to_find: $best_effort_to_find) {{
                             {gql_utils.gql_fields(PdocDocument)}
                         }}
                     }}
                 """),
-                variable_values={"fgroup_id": self.fgroup_id, "p": p, "fuser_id": fuser_id, "best_effort_to_find": best_effort_to_find},
+                variable_values={"fgroup_id": self.fgroup_id, "p": p, "best_effort_to_find": best_effort_to_find, **self._auth_vars(fcall_untrusted_key, trust_me_bro_persona_id)},
             )
             doc = result.get("policydoc_cat")
             if not doc:
                 return None
             return gql_utils.dataclass_from_dict(doc, PdocDocument)
 
-    async def pdoc_create(self, p: str, text: str, fuser_id: str) -> None:
+    async def pdoc_create(self, p: str, text: str, fcall_untrusted_key: str = "", trust_me_bro_persona_id: str = "") -> None:
         http = await self.fclient.use_http()
         async with http as h:
             await h.execute(
                 gql.gql("""
-                    mutation PdocCreate($fgroup_id: String!, $p: String!, $text: String!, $fuser_id: String) {
-                        policydoc_create(fgroup_id: $fgroup_id, p: $p, text: $text, fuser_id: $fuser_id)
+                    mutation PdocCreate($fgroup_id: String!, $p: String!, $text: String!, $fcall_untrusted_key: String, $trust_me_bro_persona_id: String) {
+                        policydoc_create(fgroup_id: $fgroup_id, p: $p, text: $text, fcall_untrusted_key: $fcall_untrusted_key, trust_me_bro_persona_id: $trust_me_bro_persona_id)
                     }
                 """),
-                variable_values={"fgroup_id": self.fgroup_id, "p": p, "text": text, "fuser_id": fuser_id},
+                variable_values={"fgroup_id": self.fgroup_id, "p": p, "text": text, **self._auth_vars(fcall_untrusted_key, trust_me_bro_persona_id)},
             )
 
-    async def pdoc_overwrite(self, p: str, text: str, fuser_id: str) -> None:
+    async def pdoc_overwrite(self, p: str, text: str, fcall_untrusted_key: str = "", trust_me_bro_persona_id: str = "") -> None:
         http = await self.fclient.use_http()
         async with http as h:
             await h.execute(
                 gql.gql("""
-                    mutation PdocOverwrite($fgroup_id: String!, $p: String!, $text: String!, $fuser_id: String) {
-                        policydoc_overwrite(fgroup_id: $fgroup_id, p: $p, text: $text, fuser_id: $fuser_id)
+                    mutation PdocOverwrite($fgroup_id: String!, $p: String!, $text: String!, $fcall_untrusted_key: String, $trust_me_bro_persona_id: String) {
+                        policydoc_overwrite(fgroup_id: $fgroup_id, p: $p, text: $text, fcall_untrusted_key: $fcall_untrusted_key, trust_me_bro_persona_id: $trust_me_bro_persona_id)
                     }
                 """),
-                variable_values={"fgroup_id": self.fgroup_id, "p": p, "text": text, "fuser_id": fuser_id},
+                variable_values={"fgroup_id": self.fgroup_id, "p": p, "text": text, **self._auth_vars(fcall_untrusted_key, trust_me_bro_persona_id)},
             )
 
-    async def pdoc_update_json_text(self, p: str, json_path: str, text: str, fuser_id: str) -> None:
+    async def pdoc_update_json_text(self, p: str, json_path: str, text: str, expected_md5: str = "", fcall_untrusted_key: str = "", trust_me_bro_persona_id: str = "") -> PdocUpdateJsonTextResult:
+        http = await self.fclient.use_http()
+        async with http as h:
+            result = await h.execute(
+                gql.gql(f"""
+                    mutation PdocUpdateJsonText($fgroup_id: String!, $p: String!, $json_path: String!, $text: String!, $fcall_untrusted_key: String, $trust_me_bro_persona_id: String, $expected_md5: String) {{
+                        policydoc_update_json_text(fgroup_id: $fgroup_id, p: $p, json_path: $json_path, text: $text, fcall_untrusted_key: $fcall_untrusted_key, trust_me_bro_persona_id: $trust_me_bro_persona_id, expected_md5: $expected_md5) {{
+                            {gql_utils.gql_fields(PdocUpdateJsonTextResult)}
+                        }}
+                    }}
+                """),
+                variable_values={"fgroup_id": self.fgroup_id, "p": p, "json_path": json_path, "text": text, "expected_md5": expected_md5, **self._auth_vars(fcall_untrusted_key, trust_me_bro_persona_id)},
+            )
+            return gql_utils.dataclass_from_dict(result["policydoc_update_json_text"], PdocUpdateJsonTextResult)
+
+    async def pdoc_cp(self, p1: str, p2: str, fcall_untrusted_key: str = "", trust_me_bro_persona_id: str = "") -> None:
         http = await self.fclient.use_http()
         async with http as h:
             await h.execute(
                 gql.gql("""
-                    mutation PdocUpdateJsonText($fgroup_id: String!, $p: String!, $json_path: String!, $text: String!, $fuser_id: String) {
-                        policydoc_update_json_text(fgroup_id: $fgroup_id, p: $p, json_path: $json_path, text: $text, fuser_id: $fuser_id)
+                    mutation PdocCp($fgroup_id: String!, $p1: String!, $p2: String!, $fcall_untrusted_key: String, $trust_me_bro_persona_id: String) {
+                        policydoc_cp(fgroup_id: $fgroup_id, p1: $p1, p2: $p2, fcall_untrusted_key: $fcall_untrusted_key, trust_me_bro_persona_id: $trust_me_bro_persona_id)
                     }
                 """),
-                variable_values={"fgroup_id": self.fgroup_id, "p": p, "json_path": json_path, "text": text, "fuser_id": fuser_id},
+                variable_values={"fgroup_id": self.fgroup_id, "p1": p1, "p2": p2, **self._auth_vars(fcall_untrusted_key, trust_me_bro_persona_id)},
             )
 
-    async def pdoc_cp(self, p1: str, p2: str, fuser_id: str) -> None:
+    async def pdoc_rm(self, p: str, fcall_untrusted_key: str = "", trust_me_bro_persona_id: str = "") -> None:
         http = await self.fclient.use_http()
         async with http as h:
             await h.execute(
                 gql.gql("""
-                    mutation PdocCp($fgroup_id: String!, $p1: String!, $p2: String!, $fuser_id: String) {
-                        policydoc_cp(fgroup_id: $fgroup_id, p1: $p1, p2: $p2, fuser_id: $fuser_id)
+                    mutation PdocRm($fgroup_id: String!, $p: String!, $fcall_untrusted_key: String, $trust_me_bro_persona_id: String) {
+                        policydoc_rm(fgroup_id: $fgroup_id, p: $p, fcall_untrusted_key: $fcall_untrusted_key, trust_me_bro_persona_id: $trust_me_bro_persona_id)
                     }
                 """),
-                variable_values={"fgroup_id": self.fgroup_id, "p1": p1, "p2": p2, "fuser_id": fuser_id},
-            )
-
-    async def pdoc_rm(self, p: str, fuser_id: str) -> None:
-        http = await self.fclient.use_http()
-        async with http as h:
-            await h.execute(
-                gql.gql("""
-                    mutation PdocRm($fgroup_id: String!, $p: String!, $fuser_id: String) {
-                        policydoc_rm(fgroup_id: $fgroup_id, p: $p, fuser_id: $fuser_id)
-                    }
-                """),
-                variable_values={"fgroup_id": self.fgroup_id, "p": p, "fuser_id": fuser_id},
+                variable_values={"fgroup_id": self.fgroup_id, "p": p, **self._auth_vars(fcall_untrusted_key, trust_me_bro_persona_id)},
             )

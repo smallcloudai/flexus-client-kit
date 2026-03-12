@@ -1,13 +1,9 @@
 import json
 import logging
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
 
 import gql
 from flexus_client_kit import ckit_client, gql_utils
-
-if TYPE_CHECKING:
-    from flexus_client_kit import ckit_bot_exec
 
 logger = logging.getLogger("extauth")
 
@@ -21,12 +17,6 @@ class ExternalAuthToken:
     auth_url: str | None = None
     url_template_vars: dict | None = None
 
-
-# XXX garbage code
-def get_fuser_id_from_rcx(rcx: "ckit_bot_exec.RobotContext", ft_id: str | None = None) -> str:
-    if ft_id and ft_id in rcx.latest_threads:
-        return rcx.latest_threads[ft_id].thread_fields.owner_fuser_id
-    return rcx.persona.owner_fuser_id
 
 
 async def upsert_external_auth(

@@ -7,7 +7,7 @@ import os
 from typing import Dict, Any
 
 from flexus_client_kit import ckit_cloudtool
-from flexus_client_kit import ckit_external_auth
+
 
 logger = logging.getLogger("survey_research")
 
@@ -224,11 +224,10 @@ class IntegrationSurveyResearch:
         question_count = sum(len(s.get("questions", [])) for k, s in formatted_content["survey"].items() if k.startswith("section"))
         pdoc_path = f"/gtm/discovery/{idea_slug}/{hypothesis_slug}/survey-draft"
 
-        fuser_id = ckit_external_auth.get_fuser_id_from_rcx(self.pdoc_integration.rcx, toolcall.fcall_ft_id)
         await self.pdoc_integration.pdoc_overwrite(
             pdoc_path,
             json.dumps(formatted_content, indent=2),
-            fuser_id
+            fcall_untrusted_key=toolcall.fcall_untrusted_key,
         )
 
         result = f"✅ Survey draft created successfully!\n\n"
@@ -368,11 +367,10 @@ class IntegrationSurveyResearch:
 
         draft_path = f"/gtm/discovery/{idea_slug}/{hypothesis_slug}/auditory-draft"
 
-        fuser_id = ckit_external_auth.get_fuser_id_from_rcx(self.pdoc_integration.rcx, toolcall.fcall_ft_id)
         await self.pdoc_integration.pdoc_overwrite(
             draft_path,
             json.dumps(draft_content, indent=2),
-            fuser_id
+            fcall_untrusted_key=toolcall.fcall_untrusted_key,
         )
 
         result = f"✅ Audience targeting draft created!\n\n"
@@ -399,9 +397,8 @@ class IntegrationSurveyResearch:
             return "Error: pdoc integration not configured"
 
         try:
-            fuser_id = ckit_external_auth.get_fuser_id_from_rcx(self.pdoc_integration.rcx, toolcall.fcall_ft_id)
             base_path = f"/gtm/discovery/{idea_slug}/{hypothesis_slug}"
-            items = await self.pdoc_integration.pdoc_list(base_path, fuser_id)
+            items = await self.pdoc_integration.pdoc_list(base_path, fcall_untrusted_key=toolcall.fcall_untrusted_key)
 
             survey_files = []
             for item in items:
@@ -503,9 +500,8 @@ class IntegrationSurveyResearch:
         if not idea_slug or not hypothesis_slug:
             return "Error: idea_slug and hypothesis_slug are required"
 
-        fuser_id = ckit_external_auth.get_fuser_id_from_rcx(self.pdoc_integration.rcx, toolcall.fcall_ft_id)
         auditory_draft_path = f"/gtm/discovery/{idea_slug}/{hypothesis_slug}/auditory-draft"
-        auditory_doc = await self.pdoc_integration.pdoc_cat(auditory_draft_path, fuser_id)
+        auditory_doc = await self.pdoc_integration.pdoc_cat(auditory_draft_path, fcall_untrusted_key=toolcall.fcall_untrusted_key)
         auditory_content = auditory_doc.pdoc_content
 
         if not auditory_content or "prolific_auditory_draft" not in auditory_content:
@@ -536,9 +532,8 @@ class IntegrationSurveyResearch:
         auditory_draft_path = f"/gtm/discovery/{idea_slug}/{hypothesis_slug}/auditory-draft"
 
         try:
-            fuser_id = ckit_external_auth.get_fuser_id_from_rcx(self.pdoc_integration.rcx, toolcall.fcall_ft_id)
-            survey_doc = await self.pdoc_integration.pdoc_cat(survey_draft_path, fuser_id)
-            auditory_doc = await self.pdoc_integration.pdoc_cat(auditory_draft_path, fuser_id)
+            survey_doc = await self.pdoc_integration.pdoc_cat(survey_draft_path, fcall_untrusted_key=toolcall.fcall_untrusted_key)
+            auditory_doc = await self.pdoc_integration.pdoc_cat(auditory_draft_path, fcall_untrusted_key=toolcall.fcall_untrusted_key)
 
             survey_content = survey_doc.pdoc_content
             auditory_content = auditory_doc.pdoc_content
@@ -720,11 +715,10 @@ class IntegrationSurveyResearch:
             }
 
             try:
-                fuser_id = ckit_external_auth.get_fuser_id_from_rcx(self.pdoc_integration.rcx, toolcall.fcall_ft_id)
                 await self.pdoc_integration.pdoc_overwrite(
                     results_path,
                     json.dumps(results_content, indent=2),
-                    fuser_id
+                    fcall_untrusted_key=toolcall.fcall_untrusted_key,
                 )
                 result += f"\n📁 Results saved to: {results_path}\n"
                 result += f"✍️ {results_path}\n\n"

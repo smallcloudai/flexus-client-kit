@@ -12,7 +12,7 @@ from flexus_client_kit import ckit_bot_exec
 from flexus_client_kit import ckit_shutdown
 from flexus_client_kit import ckit_ask_model
 from flexus_client_kit import ckit_scenario
-from flexus_client_kit import ckit_external_auth
+
 from flexus_client_kit import ckit_integrations_db
 from flexus_client_kit.integrations import fi_pdoc
 from flexus_simple_bots.productman import productman_install
@@ -262,10 +262,9 @@ async def productman_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_
         if validation_error:
             return f"Error: {validation_error}"
 
-        fuser_id = ckit_external_auth.get_fuser_id_from_rcx(rcx, toolcall.fcall_ft_id)
         path = f"/gtm/discovery/{idea_slug}/idea"
 
-        await pdoc_integration.pdoc_create(path, json.dumps(idea_doc, indent=2), fuser_id)
+        await pdoc_integration.pdoc_create(path, json.dumps(idea_doc, indent=2), fcall_untrusted_key=toolcall.fcall_untrusted_key)
         logger.info(f"Created idea at {path}")
         return f"✍️ {path}\n\n✓ Created idea document"
 
@@ -288,10 +287,9 @@ async def productman_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_
             return f"Error: hypothesis_slug must be kebab-case: {err}"
 
         hypothesis_doc = {"hypothesis": hypothesis_data}
-        fuser_id = ckit_external_auth.get_fuser_id_from_rcx(rcx, toolcall.fcall_ft_id)
         path = f"/gtm/discovery/{idea_slug}/{hypothesis_slug}/hypothesis"
 
-        await pdoc_integration.pdoc_create(path, json.dumps(hypothesis_doc, indent=2), fuser_id)
+        await pdoc_integration.pdoc_create(path, json.dumps(hypothesis_doc, indent=2), fcall_untrusted_key=toolcall.fcall_untrusted_key)
         logger.info(f"Created hypothesis at {path}")
         return f"✍️ {path}\n\n✓ Created hypothesis document"
 
