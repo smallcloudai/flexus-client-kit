@@ -249,3 +249,39 @@ async def bot_install_from_marketplace(
             },
         )
         return gql_utils.dataclass_from_dict(r["bot_install_from_marketplace"], InstallationResult)
+
+
+async def post_install_create_knowledge_eds(
+    client: ckit_client.FlexusClient,
+    located_fgroup_id: str,
+    eds_name: str,
+) -> str:
+    """Create a default knowledge EDS for a bot after installation.
+
+    This creates an empty "knowledge_store" EDS that serves as the bot's
+    knowledge base. Users can populate it by:
+    - Uploading documents through the Flexus UI
+    - Asking the bot to crawl a website URL
+    - Telling the bot facts to remember (via create_knowledge)
+
+    Returns the eds_id of the created data source.
+    """
+    http = await client.use_http()
+    async with http as h:
+        result = await h.execute(
+            gql.gql("""mutation CreateKnowledgeEds($input: FExternalDataSourceInput!) {
+                external_data_source_create(input: $input) { eds_id }
+            }"""),
+            variable_values={
+                "input": {
+                    "located_fgroup_id": located_fgroup_id,
+                    "eds_name": eds_name,
+                    "eds_type": "knowledge_store",
+                    "eds_json": json.dumps({
+                        "auto_created": True,
+                        "purpose": "Default knowledge base for bot",
+                    }),
+                }
+            },
+        )
+    return result["external_data_source_create"]["eds_id"]

@@ -132,6 +132,29 @@ async def install(
     )
 
 
+async def setup_after_install(
+    client: ckit_client.FlexusClient,
+    bot_name: str,
+    fgroup_id: str,
+) -> str:
+    """Post-install step: create a default knowledge EDS for the bot.
+
+    Call this after bot_install_from_marketplace() to seed the bot's
+    knowledge base. Returns the eds_id of the created data source.
+
+    The EDS is created as a 'knowledge_store' type and will be
+    auto-populated as users:
+    - Upload documents through the Flexus UI
+    - Ask the bot to crawl a website URL
+    - Tell the bot facts to remember (via create_knowledge)
+    """
+    return await ckit_bot_install.post_install_create_knowledge_eds(
+        client=client,
+        located_fgroup_id=fgroup_id,
+        eds_name=f"{bot_name}-knowledge",
+    )
+
+
 if __name__ == "__main__":
     from flexus_simple_bots.vix import vix_bot
     client = ckit_client.FlexusClient("vix_install")

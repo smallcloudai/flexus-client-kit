@@ -17,5 +17,14 @@
         "bs_order": 2,
         "bs_importance": 0,
         "bs_description": "Name or contact information of the technical person to escalate unresolved issues"
+    },
+    {
+        "bs_name": "knowledge_eds_ids",
+        "bs_type": "string_long",
+        "bs_default": "",
+        "bs_group": "Knowledge",
+        "bs_order": 1,
+        "bs_importance": 0,
+        "bs_description": "Comma-separated list of External Data Source (EDS) IDs this bot should search. Leave empty to search all workspace EDS."
     }
 ]
