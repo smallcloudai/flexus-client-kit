@@ -6,6 +6,48 @@ from typing import Any, Dict, List, Optional
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
+class CustomAudienceSubtype(str, Enum):
+    CUSTOM = "CUSTOM"
+    WEBSITE = "WEBSITE"
+    APP = "APP"
+    ENGAGEMENT = "ENGAGEMENT"
+    LOOKALIKE = "LOOKALIKE"
+    VIDEO = "VIDEO"
+    LEAD_GENERATION = "LEAD_GENERATION"
+    ON_SITE_LEAD = "ON_SITE_LEAD"
+
+
+class InsightsBreakdown(str, Enum):
+    AGE = "age"
+    GENDER = "gender"
+    COUNTRY = "country"
+    REGION = "region"
+    PLACEMENT = "publisher_platform"
+    DEVICE = "device_platform"
+    IMPRESSION_DEVICE = "impression_device"
+    PLATFORM_POSITION = "platform_position"
+
+
+class InsightsDatePreset(str, Enum):
+    TODAY = "today"
+    YESTERDAY = "yesterday"
+    LAST_7D = "last_7d"
+    LAST_14D = "last_14d"
+    LAST_28D = "last_28d"
+    LAST_30D = "last_30d"
+    LAST_90D = "last_90d"
+    THIS_MONTH = "this_month"
+    LAST_MONTH = "last_month"
+    MAXIMUM = "maximum"
+
+
+class AdRuleStatus(str, Enum):
+    ENABLED = "ENABLED"
+    DISABLED = "DISABLED"
+    DELETED = "DELETED"
+    HAS_ISSUES = "HAS_ISSUES"
+
+
 class CampaignObjective(str, Enum):
     TRAFFIC = "OUTCOME_TRAFFIC"
     SALES = "OUTCOME_SALES"

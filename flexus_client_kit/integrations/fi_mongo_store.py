@@ -107,13 +107,8 @@ async def handle_mongo_store(
         if path_error:
             return f"Error: {path_error}"
         file_data = content.encode("utf-8")
-        existing_doc = await mongo_collection.find_one({"path": path}, {"mon_ctime": 1})
-        was_overwritten = existing_doc is not None
-        await ckit_mongo.mongo_store_file(mongo_collection, path, file_data, 60 * 60 * 24 * 365)
-        result_msg = f"Saved {path} -> MongoDB ({len(file_data)} bytes)"
-        if was_overwritten:
-            result_msg += " [OVERWRITTEN]"
-        return result_msg
+        await ckit_mongo.mongo_overwrite(mongo_collection, path, file_data, 60 * 60 * 24 * 365)
+        return f"Saved {path} -> MongoDB ({len(file_data)} bytes)"
 
     elif op == "upload":
         if not path:
@@ -126,14 +121,8 @@ async def handle_mongo_store(
         path_error = validate_path(path)
         if path_error:
             return f"Error: {path_error}"
-        mongo_path = path
-        existing_doc = await mongo_collection.find_one({"path": mongo_path}, {"mon_ctime": 1})
-        was_overwritten = existing_doc is not None
-        result_id = await ckit_mongo.mongo_store_file(mongo_collection, mongo_path, file_data, 60 * 60 * 24 * 365)
-        result_msg = f"Uploaded {path} -> MongoDB"
-        if was_overwritten:
-            result_msg += " [OVERWRITTEN existing file]"
-        return result_msg
+        await ckit_mongo.mongo_overwrite(mongo_collection, path, file_data, 60 * 60 * 24 * 365)
+        return f"Uploaded {path} -> MongoDB"
 
     elif op in ["list", "ls"]:
         if not path:
@@ -145,8 +134,17 @@ async def handle_mongo_store(
             return f"Error: {path_error}"
         documents = await ckit_mongo.mongo_ls(mongo_collection, path)
         if not documents:
-            return f"No files found with prefix: {path!r}"
-        result = f"Found {len(documents)} files with prefix {path!r}:\n"
+            if path:
+                all_docs = await ckit_mongo.mongo_ls(mongo_collection, "", limit=5)
+                if all_docs:
+                    hint = "Here goes up to 5 file paths that actually exist:\n"
+                    for doc in all_docs:
+                        hint += f"  {doc['path']}\n"
+                    return f"No files found with prefix: {path!r}\n\n{hint}"
+                return f"No files found with prefix: {path!r}. The store is empty, use save to create files."
+            # The path was '' or None
+            return "This storage is completely empty!"
+        result = f"Found {len(documents)} files:\n" if not path else f"Found {len(documents)} files with prefix {path!r}:\n"
         for doc in documents:
             file_path = doc["path"]
             size = doc["mon_size"]

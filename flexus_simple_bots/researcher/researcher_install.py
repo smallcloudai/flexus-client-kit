@@ -8,82 +8,26 @@ from flexus_client_kit import ckit_client
 from flexus_client_kit import ckit_cloudtool
 from flexus_client_kit import ckit_integrations_db
 from flexus_client_kit import ckit_skills
+from flexus_client_kit.integrations import fi_linkedin_b2b
 from flexus_simple_bots import prompts_common
 from flexus_simple_bots.researcher import researcher_prompts
 
 RESEARCHER_ROOTDIR = Path(__file__).parent
 RESEARCHER_SKILLS = ckit_skills.static_skills_find(RESEARCHER_ROOTDIR, shared_skills_allowlist="")
 RESEARCHER_SETUP_SCHEMA = json.loads((RESEARCHER_ROOTDIR / "setup_schema.json").read_text())
+RESEARCHER_SETUP_SCHEMA.extend(fi_linkedin_b2b.LINKEDIN_B2B_SETUP_SCHEMA)
 
 RESEARCHER_INTEGRATIONS: list[ckit_integrations_db.IntegrationRecord] = ckit_integrations_db.static_integrations_load(
     RESEARCHER_ROOTDIR,
     [
         "flexus_policy_document", "skills", "print_widget",
-        "linkedin",
-        "google_calendar",
-        # "amazon",
-        # "apollo",
-        # "appstoreconnect",
-        # "bing_webmaster",
-        # "bombora",
-        # "builtwith",
-        # "calendly",
-        # "capterra",
-        # "cint",
-        # "clearbit",
-        # "coresignal",
-        # "crunchbase",
-        # "dataforseo",
-        # "dovetail",
-        # "ebay",
-        # "event_registry",
-        # "fireflies",
-        # "g2",
-        # "gdelt",
-        # "glassdoor",
-        # "gnews",
-        # "gong",
-        # "google_ads",
-        # "google_play",
-        # "google_search_console",
-        # "google_shopping",
-        # "hasdata",
-        # "instagram",
-        # "levelsfyi",
-        # "linkedin_jobs",
-        # "mediastack",
-        # "newsapi",
-        # "newscatcher",
-        # "newsdata",
-        # "outreach",
-        # "oxylabs",
-        # "pdl",
-        # "perigon",
-        # "pinterest",
-        # "pipedrive",
-        # "producthunt",
-        # "prolific",
-        # "qualtrics",
-        # "reddit",
-        # "salesforce",
-        # "salesloft",
-        # "sixsense",
-        # "stackexchange",
-        # "surveymonkey",
-        # "theirstack",
-        # "tiktok",
-        # "trustpilot",
-        # "typeform",
-        # "userinterviews",
-        # "usertesting",
-        # "wappalyzer",
-        # "wikimedia",
-        # "x",
-        # "yelp",
-        # "youtube",
-        # "zendesk",
-        # "zendesk_sell",
-        # "zoom",
+        "bing_webmaster", "serpapi", "x", "youtube", "producthunt",
+        "event_registry", "newsapi", "gnews", "newsdata", "mediastack",
+        "newscatcher", "perigon", "trustpilot", "yelp", "g2", "capterra",
+        "coresignal", "theirstack", "hasdata", "stackexchange",
+        "prolific", "cint", "mturk", "usertesting", "userinterviews",
+        "respondent", "purespectrum", "dynata", "lucid", "toloka",
+        "linkedin", "linkedin_b2b",
     ],
     builtin_skills=RESEARCHER_SKILLS,
 )
@@ -94,7 +38,7 @@ EXPERTS = [
         fexp_python_kernel="",
         fexp_block_tools="",
         fexp_allow_tools="",
-        fexp_description="GTM Research operator - discovery recruitment, interview capture, alternatives mapping, WTP research, search signals, firmographics, ICP scoring, and contact enrichment.",
+        fexp_description="GTM Research operator - discovery recruitment across panels and marketplaces, interview capture, alternatives mapping, WTP research, search signals, firmographics, ICP scoring, and contact enrichment.",
         fexp_builtin_skills=ckit_skills.read_name_description(RESEARCHER_ROOTDIR, RESEARCHER_SKILLS),
     )),
 ]
@@ -106,6 +50,18 @@ async def install(
     bot_version: str,
     tools: list[ckit_cloudtool.CloudTool],
 ) -> None:
+    auth_supported = ["google"]
+    auth_scopes: dict[str, list[str]] = {"google": []}
+    for rec in RESEARCHER_INTEGRATIONS:
+        if not rec.integr_provider:
+            continue
+        if rec.integr_provider not in auth_supported:
+            auth_supported.append(rec.integr_provider)
+        existing = auth_scopes.get(rec.integr_provider, [])
+        auth_scopes[rec.integr_provider] = list(dict.fromkeys(existing + rec.integr_scopes))
+    if "serpapi" not in auth_supported:
+        auth_supported.append("serpapi")
+    auth_scopes["serpapi"] = []
     pic_big = base64.b64encode((RESEARCHER_ROOTDIR / "researcher-1024x1536.webp").read_bytes()).decode("ascii")
     pic_small = base64.b64encode((RESEARCHER_ROOTDIR / "researcher-256x256.webp").read_bytes()).decode("ascii")
     await ckit_bot_install.marketplace_upsert_dev_bot(
@@ -128,11 +84,11 @@ async def install(
         marketable_run_this="python -m flexus_simple_bots.researcher.researcher_bot",
         marketable_setup_default=RESEARCHER_SETUP_SCHEMA,
         marketable_featured_actions=[
-            {"feat_question": "Recruit qualified participants for discovery interviews", "feat_expert": "default", "feat_depends_on_setup": []},
+            {"feat_question": "Recruit qualified participants across Prolific, Cint, MTurk, Respondent, or other configured recruitment providers", "feat_expert": "default", "feat_depends_on_setup": []},
             {"feat_question": "Map buyer alternatives and switching triggers from evidence", "feat_expert": "default", "feat_depends_on_setup": []},
             {"feat_question": "Enrich and score target accounts and contacts before outreach", "feat_expert": "default", "feat_depends_on_setup": []},
         ],
-        marketable_intro_message="I'm Researcher. Load a skill to activate a workflow: discovery-recruitment, discovery-interview-capture, pain-alternatives-landscape, pain-wtp-research, signal-search-seo, segment-firmographic, segment-icp-scoring, or pipeline-contact-enrichment.",
+        marketable_intro_message="I'm Researcher. Load a skill to activate a workflow: discovery-recruitment, discovery-interview-capture, pain-alternatives-landscape, pain-wtp-research, signal-search-seo, segment-firmographic, segment-icp-scoring, or pipeline-contact-enrichment. Recruitment can route across Prolific, Cint, MTurk, UserTesting, User Interviews, Respondent, PureSpectrum, Dynata, Lucid, and Toloka when those providers are configured.",
         marketable_preferred_model_default="grok-4-1-fast-non-reasoning",
         marketable_daily_budget_default=100_000,
         marketable_default_inbox_default=10_000,
@@ -143,11 +99,8 @@ async def install(
         marketable_picture_big_b64=pic_big,
         marketable_picture_small_b64=pic_small,
         marketable_forms={},
-        marketable_auth_supported=["linkedin", "google"],
-        marketable_auth_scopes={
-            "linkedin": ["r_profile_basicinfo", "email", "w_member_social"],
-            "google": [],
-        },
+        marketable_auth_supported=auth_supported,
+        marketable_auth_scopes=auth_scopes,
     )
 
 

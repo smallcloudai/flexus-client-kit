@@ -8,6 +8,7 @@ from flexus_client_kit import ckit_client
 from flexus_client_kit import ckit_cloudtool
 from flexus_client_kit import ckit_integrations_db
 from flexus_client_kit import ckit_skills
+from flexus_client_kit.integrations import fi_linkedin_b2b
 from flexus_simple_bots import prompts_common
 from flexus_simple_bots.executor import executor_prompts
 
@@ -17,37 +18,11 @@ EXECUTOR_SKILLS = [
     if s != "botticelli"
 ]
 EXECUTOR_SETUP_SCHEMA = json.loads((EXECUTOR_ROOTDIR / "setup_schema.json").read_text())
+EXECUTOR_SETUP_SCHEMA.extend(fi_linkedin_b2b.LINKEDIN_B2B_SETUP_SCHEMA)
 
 EXECUTOR_INTEGRATIONS: list[ckit_integrations_db.IntegrationRecord] = ckit_integrations_db.static_integrations_load(
     EXECUTOR_ROOTDIR,
-    [
-        "flexus_policy_document", "skills", "print_widget",
-        "linkedin",
-        "facebook[campaign, adset, ad, account]",
-        "google_calendar",
-        # "calendly",
-        # "chargebee",
-        # "crossbeam",
-        # "delighted",
-        # "docusign",
-        # "fireflies",
-        # "ga4",
-        # "gong",
-        # "google_ads",
-        # "meta",
-        # "mixpanel",
-        # "paddle",
-        # "pandadoc",
-        # "partnerstack",
-        # "pipedrive",
-        # "recurly",
-        # "salesforce",
-        # "surveymonkey",
-        # "typeform",
-        # "x_ads",
-        # "zendesk",
-        # "zoom",
-    ],
+    ["flexus_policy_document", "skills", "print_widget", "linkedin", "linkedin_b2b"],
     builtin_skills=EXECUTOR_SKILLS,
 )
 
@@ -69,6 +44,15 @@ async def install(
     bot_version: str,
     tools: list[ckit_cloudtool.CloudTool],
 ) -> None:
+    auth_supported = ["google"]
+    auth_scopes: dict[str, list[str]] = {"google": []}
+    for rec in EXECUTOR_INTEGRATIONS:
+        if not rec.integr_provider:
+            continue
+        if rec.integr_provider not in auth_supported:
+            auth_supported.append(rec.integr_provider)
+        existing = auth_scopes.get(rec.integr_provider, [])
+        auth_scopes[rec.integr_provider] = list(dict.fromkeys(existing + rec.integr_scopes))
     pic_big = base64.b64encode((EXECUTOR_ROOTDIR / "executor-1024x1536.webp").read_bytes()).decode("ascii")
     pic_small = base64.b64encode((EXECUTOR_ROOTDIR / "executor-256x256.webp").read_bytes()).decode("ascii")
     await ckit_bot_install.marketplace_upsert_dev_bot(
@@ -105,10 +89,8 @@ async def install(
         marketable_picture_big_b64=pic_big,
         marketable_picture_small_b64=pic_small,
         marketable_forms={},
-        marketable_auth_supported=["google"],
-        marketable_auth_scopes={
-            "google": [],
-        },
+        marketable_auth_supported=auth_supported,
+        marketable_auth_scopes=auth_scopes,
     )
 
 

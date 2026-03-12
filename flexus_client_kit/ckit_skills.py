@@ -105,6 +105,8 @@ def static_skills_find(bot_root_dir: Path, shared_skills_allowlist: str) -> List
         is_shared = (d == shared_dir)
         for p in d.glob("*/SKILL.md"):
             name = p.parent.name
+            if name.startswith("_"):
+                continue
             if is_shared and not _match_allowlist(name, shared_skills_allowlist):
                 continue
             _validate_skill(p, p.read_text())
@@ -117,6 +119,8 @@ def read_name_description(bot_root_dir: Path, skills: List[str]) -> str:
     result = []
     for name in skills:
         for d in _skill_dirs(bot_root_dir):
+            if name.startswith("_"):
+                continue
             p = d / name / "SKILL.md"
             if p.is_file():
                 front = _parse_frontmatter(p.read_text())

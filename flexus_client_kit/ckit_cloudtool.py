@@ -109,6 +109,7 @@ class CloudTool:
     name: str
     description: str
     parameters: dict
+    # in Athropic there is also "defer_loading", that is kind of interesting "official" way to do schema discovery
 
     def openai_style_tool(self):
         def add_order(obj):
