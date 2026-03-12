@@ -18,9 +18,10 @@ Run these stages in order every time:
 - If key criteria are ambiguous, pause and resolve before fielding.
 
 **2. Study type → provider routing**
-- **Survey (quantitative, N≥100):** Prolific (explicit filter/quota control, transparent participant-pay), Cint (larger/global volume, stricter setup), MTurk (budget-sensitive, requires stronger requester-managed QA).
-- **Interview recruiting (qualitative, B2B):** Prolific screened candidates, then hand off to `discovery-scheduling` skill once validated. For B2B seniority targeting, Cint with job-title filters.
-- **Usability testing:** UserTesting (built-in workflow mechanics, plan-tier limits apply).
+- **Survey (quantitative, N≥100):** Prolific (self-serve + explicit filters), Cint (enterprise global volume), PureSpectrum (enterprise sample buying), Dynata Demand (enterprise sample), Lucid Marketplace (enterprise marketplace when consultant onboarding is complete), MTurk or Toloka only when cost sensitivity outweighs panel purity.
+- **Interview recruiting (qualitative, B2B):** Respondent first for expert / professional recruiting, User Interviews when the target audience already lives in Research Hub, Prolific for screened candidates, Cint or Dynata for harder-to-fill professional cells.
+- **Usability testing:** UserTesting first when the account tier is approved; Prolific or Respondent can be fallback recruiting sources if usability execution happens elsewhere.
+- **Bring-your-own panel / synced audience:** User Interviews for Hub participant sync and profile management.
 - Provider switching rule: if feasibility remains poor after one controlled relaxation pass, switch provider instead of repeatedly weakening screening criteria.
 
 **3. Feasibility check before launch**
@@ -99,6 +100,19 @@ Set compensation aligned to expected burden and time. Underpayment increases low
 **Consequence:** Unstable reproducibility and hidden source bias.
 **Mitigation:** Source-level dashboards, caps, and stop-loss rules.
 
+## Provider Notes
+
+- `Prolific`: strongest self-serve option for transparent participant pay, reusable participant groups, and webhook-friendly study operations.
+- `Cint`: enterprise demand-side marketplace with target groups, quota distribution, and async fielding jobs.
+- `MTurk`: cheapest broad crowd option; requires the strictest QA, qualification, and notification discipline from the requester.
+- `UserTesting`: reviewed-access usability platform; best for built-in UX session workflows and result retrieval after tests are live.
+- `User Interviews`: best for Research Hub participant profile sync and managed panel operations, but current public API surface is narrower than the enterprise marketplaces.
+- `Respondent`: strongest option for B2B expert recruiting and moderated interview attendance workflow.
+- `PureSpectrum`: enterprise buyer API for survey procurement with qualifications, quotas, suppliers, and traffic channels.
+- `Dynata`: enterprise option spanning sample demand and respondent exchange; may require separate credential sets for different flows.
+- `Lucid`: consultant-led marketplace onboarding; treat as a provisioning-dependent provider until the exact Postman collection is available to the workspace.
+- `Toloka`: strong for fast, budget-sensitive validation tasks and crowd-based screening when strict panel provenance is not mandatory.
+
 ## Recording
 
 ```
@@ -119,28 +133,42 @@ Before writing any artifact, verify all checks:
 ## Available Tools
 
 ```
-prolific(op="help")
-cint(op="help")
-mturk(op="help")
-usertesting(op="help")
+prolific(op="help", args={})
+cint(op="help", args={})
+mturk(op="help", args={})
+usertesting(op="help", args={})
+userinterviews(op="help", args={})
+respondent(op="help", args={})
+purespectrum(op="help", args={})
+dynata(op="help", args={})
+lucid(op="help", args={})
+toloka(op="help", args={})
 
 prolific(op="call", args={"method_id": "prolific.studies.create.v1", "name": "Study Name", "internal_name": "study_id", "description": "...", "external_study_url": "https://...", "prolific_id_option": "url_parameters", "completion_code": "COMPLETE123", "completion_option": "url", "total_available_places": 50, "estimated_completion_time": 15, "reward": 225})
 
-prolific(op="call", args={"method_id": "prolific.submissions.list.v1", "study_id": "study_id"})
+prolific(op="call", args={"method_id": "prolific.participant_groups.create.v1", "name": "P0 buyers allowlist", "description": "Returning qualified participants"})
 
-prolific(op="call", args={"method_id": "prolific.submissions.approve.v1", "study_id": "study_id", "submission_ids": ["sub_id1"]})
+cint(op="call", args={"method_id": "cint.projects.feasibility.get.v1", "account_id": "acct_123", "country_code": "US", "language_code": "en", "target_completes": 100})
 
-cint(op="call", args={"method_id": "cint.projects.feasibility.get.v1", "countryIsoCode": "US", "targetGroupId": "xxx", "quota": 100})
+cint(op="call", args={"method_id": "cint.target_groups.create.v1", "account_id": "acct_123", "project_id": "proj_123", "name": "VP RevOps US", "country_code": "US", "language_code": "en", "target_completes": 25})
 
-cint(op="call", args={"method_id": "cint.projects.create.v1", "name": "Study Name", "countryIsoCode": "US", "targetGroupId": "xxx", "numberOfCompletes": 100})
+mturk(op="call", args={"method_id": "mturk.hits.create.v1", "title": "Screener survey", "description": "10-minute B2B screener", "reward": "1.50", "max_assignments": 100, "lifetime_in_seconds": 86400, "assignment_duration_in_seconds": 1800, "question": "<QuestionForm>...</QuestionForm>"})
 
-cint(op="call", args={"method_id": "cint.projects.launch.v1", "projectId": "proj_id"})
-
-mturk(op="call", args={"method_id": "mturk.hits.create.v1", "Title": "Task Name", "Description": "...", "Keywords": "survey", "Reward": "0.50", "MaxAssignments": 100, "LifetimeInSeconds": 86400, "AssignmentDurationInSeconds": 1800})
-
-mturk(op="call", args={"method_id": "mturk.assignments.list.v1", "HITId": "hit_id", "AssignmentStatuses": ["Submitted"]})
+mturk(op="call", args={"method_id": "mturk.qualifications.create.v1", "name": "passed_b2b_screener", "description": "Workers who passed the current screener"})
 
 usertesting(op="call", args={"method_id": "usertesting.tests.sessions.list.v1", "test_id": "test_id"})
+
+userinterviews(op="call", args={"method_id": "userinterviews.participants.create.v1", "email": "buyer@example.com", "name": "Target Buyer", "metadata": {"segment": "revops_midmarket"}})
+
+respondent(op="call", args={"method_id": "respondent.projects.create.v1", "publicTitle": "Revenue operations interviews", "publicDescription": "45-minute moderated interview", "targetNumberOfParticipants": 12, "typeOfResearch": "remote"})
+
+respondent(op="call", args={"method_id": "respondent.screener_responses.invite.v1", "project_id": "proj_123", "screener_response_id": "resp_456", "bookingLink": "https://calendar.example/slot"})
+
+purespectrum(op="call", args={"method_id": "purespectrum.surveys.create.v1", "survey_title": "Pricing validation", "survey_category_code": "TECH", "survey_localization": "en_US", "completes_required": 200, "expected_ir": 35, "expected_loi": 12, "live_url": "https://survey.example/start", "field_time": 7})
+
+dynata(op="call", args={"method_id": "dynata.demand.projects.create.v1", "name": "Mid-market SaaS survey", "country_code": "US", "language_code": "en"})
+
+toloka(op="call", args={"method_id": "toloka.projects.create.v1", "public_name": "B2B screener", "public_description": "Short validation survey", "task_spec": {"input_spec": {}, "output_spec": {}, "view_spec": {}}})
 ```
 
 Tool-call policy: if runtime help and official mapping disagree, stop and resolve before launch. Do not invent fallback endpoint syntax. Record any unresolved method uncertainty in artifact `limitations`.
@@ -177,7 +205,7 @@ Tool-call policy: if runtime help and official mapping disagree, stop and resolv
       },
       "channels": {
         "type": "array",
-        "items": {"type": "string", "enum": ["prolific", "cint", "mturk", "usertesting", "internal_panel", "other"]}
+        "items": {"type": "string", "enum": ["prolific", "cint", "mturk", "usertesting", "userinterviews", "respondent", "purespectrum", "dynata", "lucid", "toloka", "internal_panel", "other"]}
       },
       "inclusion_criteria": {"type": "array", "items": {"type": "string"}},
       "exclusion_criteria": {"type": "array", "items": {"type": "string"}},

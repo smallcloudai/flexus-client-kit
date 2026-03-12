@@ -1,6 +1,7 @@
 import asyncio
 import json
 import logging
+import re
 from pathlib import Path
 from typing import Any, Dict
 
@@ -19,6 +20,26 @@ BOT_DIR = Path(__file__).parent
 BOT_NAME = "researcher"
 BOT_VERSION = SIMPLE_BOTS_COMMON_VERSION
 
+
+def load_artifact_schemas() -> Dict[str, Any]:
+    """Read JSON artifact schemas from each skill's SKILL.md at startup."""
+    skills_dir = BOT_DIR / "skills"
+    schemas: Dict[str, Any] = {}
+    for skill_dir in sorted(d for d in skills_dir.iterdir() if not d.name.startswith("_")):
+        skill_md = skill_dir / "SKILL.md"
+        if not skill_md.exists():
+            continue
+        md = skill_md.read_text(encoding="utf-8")
+        m = re.search(r"```json\s*(\{.*?\})\s*```", md, re.DOTALL)
+        if not m:
+            continue
+        parsed = json.loads(m.group(1))
+        schemas.update(parsed)
+    return schemas
+
+
+ARTIFACT_SCHEMAS = load_artifact_schemas()
+ARTIFACT_TYPES = sorted(ARTIFACT_SCHEMAS.keys())
 
 TEMPLATE_IDEA_TOOL = ckit_cloudtool.CloudTool(
     strict=False,
@@ -55,26 +76,32 @@ TEMPLATE_HYPOTHESIS_TOOL = ckit_cloudtool.CloudTool(
 WRITE_ARTIFACT_TOOL = ckit_cloudtool.CloudTool(
     strict=False,
     name="write_artifact",
-    description="Write a structured artifact to the document store. Path and data shape are defined by the active skill.",
+    description="Write a structured artifact to the document store. Artifact type and schema are defined by the active skill.",
     parameters={
         "type": "object",
         "properties": {
+            "artifact_type": {
+                "type": "string",
+                "enum": ARTIFACT_TYPES,
+                "description": "Artifact type as specified by the active skill",
+            },
             "path": {
                 "type": "string",
-                "description": "Document path as specified by the active skill",
+                "description": "Document path, e.g. /signals/search-demand-2024-01-15",
             },
             "data": {
                 "type": "object",
-                "description": "Artifact content as specified by the active skill",
+                "description": "Artifact content matching the schema for this artifact_type",
             },
         },
-        "required": ["path", "data"],
+        "required": ["artifact_type", "path", "data"],
         "additionalProperties": False,
     },
 )
 
 
 def validate_path_kebab(path: str) -> str:
+    """Validates that all segments of a path are kebab-case."""
     for segment in path.strip("/").split("/"):
         if segment and not all(c.islower() or c.isdigit() or c == "-" for c in segment):
             return f"Path segment '{segment}' must be kebab-case (lowercase, numbers, hyphens)"
@@ -92,18 +119,26 @@ TOOLS = [
 
 
 async def researcher_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.RobotContext) -> None:
-    setup = ckit_bot_exec.official_setup_mixing_procedure(researcher_install.RESEARCHER_SETUP_SCHEMA, rcx.persona.persona_setup)
-    integr_objects = await ckit_integrations_db.main_loop_integrations_init(RESEARCHER_INTEGRATIONS, rcx, setup)
+    integr_objects = await ckit_integrations_db.main_loop_integrations_init(RESEARCHER_INTEGRATIONS, rcx)
     pdoc_integration = integr_objects["flexus_policy_document"]
 
     @rcx.on_tool_call(WRITE_ARTIFACT_TOOL.name)
     async def _h_write_artifact(toolcall: ckit_cloudtool.FCloudtoolCall, args: Dict[str, Any]) -> str:
+        artifact_type = str(args.get("artifact_type", "")).strip()
         path = str(args.get("path", "")).strip()
         data = args.get("data")
-        if not path or data is None:
-            return "Error: path and data are required."
-        await pdoc_integration.pdoc_overwrite(path, json.dumps(data, ensure_ascii=False), fcall_untrusted_key=toolcall.fcall_untrusted_key)
-        return f"Written: {path}"
+        if not artifact_type or not path or data is None:
+            return "Error: artifact_type, path, and data are required."
+        if artifact_type not in ARTIFACT_SCHEMAS:
+            return f"Error: unknown artifact_type {artifact_type!r}. Must be one of: {', '.join(ARTIFACT_TYPES)}"
+        doc = dict(data)
+        doc["schema"] = ARTIFACT_SCHEMAS[artifact_type]
+        await pdoc_integration.pdoc_overwrite(
+            path,
+            json.dumps(doc, ensure_ascii=False),
+            fcall_untrusted_key=toolcall.fcall_untrusted_key,
+        )
+        return f"Written: {path}\n\nArtifact {artifact_type} saved."
 
     @rcx.on_tool_call(TEMPLATE_IDEA_TOOL.name)
     async def _h_template_idea(toolcall, args):
@@ -120,8 +155,12 @@ async def researcher_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_
         except json.JSONDecodeError as e:
             return f"Error: Invalid JSON: {e}"
         path = f"/gtm/discovery/{idea_slug}/idea"
-        await pdoc_integration.pdoc_create(path, json.dumps(idea_doc, indent=2, ensure_ascii=False), fcall_untrusted_key=toolcall.fcall_untrusted_key)
-        return f"✍️ {path}\n\n✓ Created idea document"
+        await pdoc_integration.pdoc_create(
+            path,
+            json.dumps(idea_doc, indent=2, ensure_ascii=False),
+            fcall_untrusted_key=toolcall.fcall_untrusted_key,
+        )
+        return f"Written: {path}\n\nCreated idea document"
 
     @rcx.on_tool_call(TEMPLATE_HYPOTHESIS_TOOL.name)
     async def _h_template_hypothesis(toolcall, args):
@@ -152,7 +191,7 @@ async def researcher_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_
             json.dumps({"hypothesis": hypothesis_data}, indent=2, ensure_ascii=False),
             fcall_untrusted_key=toolcall.fcall_untrusted_key,
         )
-        return f"✍️ {path}\n\n✓ Created hypothesis document"
+        return f"Written: {path}\n\nCreated hypothesis document"
 
     try:
         while not ckit_shutdown.shutdown_event.is_set():

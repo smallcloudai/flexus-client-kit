@@ -42,7 +42,7 @@ Goal: validate or reject the P0 market hypothesis through direct evidence from r
 
 ### discovery-recruitment
 Recruit participants for interviews and surveys.
-- **Providers:** Prolific (panel), Cint (panel), MTurk (panel), UserTesting (usability)
+- **Providers:** Prolific (self-serve research panel), Cint (enterprise sample marketplace), MTurk (crowd panel), UserTesting (usability / reviewed access), User Interviews (Research Hub panel sync), Respondent (B2B interview recruiting), PureSpectrum (enterprise sample buying), Dynata (enterprise sample + respondent exchange), Lucid Marketplace (enterprise marketplace / consultant-led onboarding), Toloka (crowd-based validation)
 - **Key methods:** screener design, quota management, pilot launch before full scale, anti-gaming checks
 - **Output:** `/discovery/{study_id}/recruitment-plan`, `/discovery/{study_id}/recruitment-funnel`
 
@@ -188,7 +188,7 @@ Facilitate the success review and drive to signed contract.
 | Category | Providers |
 |---|---|
 | Interview / recording | Zoom, Gong, Fireflies, Dovetail, Fathom |
-| Research panels | Prolific, Cint, MTurk, UserTesting |
+| Research panels | Prolific, Cint, MTurk, UserTesting, User Interviews, Respondent, PureSpectrum, Dynata, Lucid Marketplace, Toloka |
 | Survey | SurveyMonkey, Typeform |
 | SEO / demand signals | Ahrefs, SEMrush, Similarweb |
 | Web research | browser (G2, Capterra, Reddit, ProductHunt, LinkedIn) |

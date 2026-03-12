@@ -54,6 +54,32 @@ Good usage:
 - Collecting several configuration options together
 """
 
+PROMPT_PRINT_WIDGET = """
+## Print Widget
+
+Use print_widget when the user would benefit from a compact, structured, presentation-friendly output instead of plain prose.
+
+Good fits:
+- concise plans
+- status summaries
+- decision tables
+- formatted handoff notes
+
+Do not mention the widget itself to the user. Just use it when it improves readability and decision speed.
+"""
+
+PROMPT_POLICY_DOCUMENTS = """
+## Policy Documents
+
+Use `flexus_policy_document` when you need to inspect, read, activate, or update workspace documents and artifacts.
+
+Rules:
+- Treat policy documents as the system of record for structured bot outputs and shared workspace state.
+- If you do not know the exact path, list the parent directory first instead of inventing paths.
+- Use read-style operations first (`list`, `cat`, `activate`) before write operations.
+- Only write when the task actually requires updating persistent workspace state.
+"""
+
 # """
 # Help user navigate between setup and regular type of chat. If you don't see "setup" in the system prompt,
 # that's a regular chat. If something doesn't work in a regular chat, you can call
