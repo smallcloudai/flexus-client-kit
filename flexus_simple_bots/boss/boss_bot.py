@@ -126,9 +126,8 @@ PLAN_TEMPLATE_SCHEMA = {
         "type": "object",
         "title": "Progress",
         "properties": {
-            "task_ids": {"type": "array", "order": 0, "items": {"type": "string"}},
-            "learned_so_far": {"type": "string", "order": 1, "ui:multiline": 5},
-            "progress_documents": {"type": "string", "order": 2, "ui:multiline": 3},
+            "learned_so_far": {"type": "string", "order": 0, "ui:multiline": 5},
+            "progress_documents": {"type": "string", "order": 1, "ui:multiline": 3},
         },
         "additionalProperties": False,
     },
@@ -257,6 +256,9 @@ async def handle_plan_update_section(
     path = f"/plans/{plan_slug}"
 
     section_data = {k: args[k] for k in fields if args.get(k) is not None}
+    for k, v in section_data.items():
+        if isinstance(v, str) and "\\n" in v and "\n" not in v:
+            section_data[k] = v.replace("\\n", "\n")
     upd = await pdoc_integration.pdoc_update_json_text(path, f"plan.{section}", json.dumps(section_data, ensure_ascii=False), expected_md5, fcall_untrusted_key=uk)
     if not upd.changes_saved:
         return f"📄 {path}\nmd5_requested={upd.md5_requested}\nmd5_found={upd.md5_found}\nchanges_saved=false\n\n{upd.problem_message or 'Document changed, please retry'}\n\n{upd.latest_text}"
