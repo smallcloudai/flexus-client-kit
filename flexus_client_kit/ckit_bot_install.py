@@ -252,6 +252,7 @@ async def post_install_create_knowledge_eds(
     client: ckit_client.FlexusClient,
     located_fgroup_id: str,
     eds_name: str,
+    persona_id: Optional[str] = None,
 ) -> str:
     """Create a default knowledge EDS for a bot after installation.
 
@@ -260,6 +261,10 @@ async def post_install_create_knowledge_eds(
     - Uploading documents through the Flexus UI
     - Asking the bot to crawl a website URL
     - Telling the bot facts to remember (via create_knowledge)
+
+    If persona_id is provided, also writes the EDS ID into the persona's
+    setup as ``knowledge_eds_ids`` so that vector search is scoped to
+    this bot's knowledge base.
 
     Returns the eds_id of the created data source.
     """
@@ -281,4 +286,29 @@ async def post_install_create_knowledge_eds(
                 }
             },
         )
-    return result["external_data_source_create"]["eds_id"]
+    eds_id = result["external_data_source_create"]["eds_id"]
+
+    if persona_id:
+        try:
+            async with http as h:
+                await h.execute(
+                    gql.gql("""mutation PersonaSetupSetKey($persona_id: String!, $set_key: String!, $set_val: String) {
+                        persona_setup_set_key(
+                            persona_id: $persona_id,
+                            set_key: $set_key,
+                            set_val: $set_val
+                        )
+                    }"""),
+                    variable_values={
+                        "persona_id": persona_id,
+                        "set_key": "knowledge_eds_ids",
+                        "set_val": eds_id,
+                    },
+                )
+        except Exception:
+            import logging
+            logging.getLogger("ckit_bot_install").warning(
+                "Failed to write knowledge_eds_ids to persona %s setup", persona_id, exc_info=True,
+            )
+
+    return eds_id
