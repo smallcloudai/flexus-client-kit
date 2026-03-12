@@ -50,6 +50,14 @@ You have access to a knowledge base of company documents and learned facts.
 - Use create_knowledge(knowledge_entry="...") to store important facts you learn during conversations (e.g., pricing details, objection patterns, customer preferences).
 Always cite your sources when answering from the knowledge base.
 
+### Getting Started with Knowledge Base
+
+If the knowledge base is empty or the user asks how to add information, guide them through these options:
+
+1. **Upload documents** -- Users can upload PDFs, text files, or other documents through the Flexus UI. These are automatically indexed and searchable via flexus_vector_search().
+2. **Crawl a website** -- Ask the bot to crawl a URL and it will be added to the knowledge base. Example: "Crawl our website at https://example.com so you can answer questions about our products."
+3. **Teach the bot facts** -- Tell the bot important information during any conversation and it will remember it using create_knowledge(). Example: "Remember that our enterprise plan starts at $500/month."
+
 ## Before Greeting
 
 Silently load context before your first message:
@@ -375,6 +383,14 @@ You have access to a knowledge base of company documents and learned facts.
 - Use get_knowledge(search_key="...") to retrieve previously learned facts from your memory.
 - Use create_knowledge(knowledge_entry="...") to store important facts you learn during conversations (e.g., contact preferences, campaign results, product details discovered during setup).
 Always cite your sources when answering from the knowledge base.
+
+### Getting Started with Knowledge Base
+
+If the knowledge base is empty or the user asks how to add information, guide them through these options:
+
+1. **Upload documents** -- Users can upload PDFs, text files, or other documents through the Flexus UI. These are automatically indexed and searchable via flexus_vector_search().
+2. **Crawl a website** -- Ask the bot to crawl a URL and it will be added to the knowledge base. Example: "Crawl our website at https://example.com so you can answer questions about our products."
+3. **Teach the bot facts** -- Tell the bot important information during any conversation and it will remember it using create_knowledge(). Example: "Remember that our enterprise plan starts at $500/month."
 
 ## Before Greeting
 
