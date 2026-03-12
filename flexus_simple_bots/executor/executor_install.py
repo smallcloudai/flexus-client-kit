@@ -46,6 +46,15 @@ async def install(
 ) -> None:
     auth_supported = ["google"]
     auth_scopes: dict[str, list[str]] = {"google": []}
+    auth_scopes["facebook"] = [
+        "ads_management",
+        "ads_read",
+        "business_management",
+        "pages_manage_ads",
+        "pages_read_engagement",
+        "pages_show_list",
+    ]
+    auth_supported.append("facebook")
     for rec in EXECUTOR_INTEGRATIONS:
         if not rec.integr_provider:
             continue

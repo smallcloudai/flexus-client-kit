@@ -351,29 +351,54 @@ class IntegrationFacebook:
             return f"ERROR: {str(e)}"
 
     async def _handle_connect(self) -> str:
-        return """Click this link to connect your Facebook account in workspace settings.
+        try:
+            auth_error = await self.client.ensure_auth()
+            if auth_error:
+                return auth_error
+            return """Facebook / Meta is already connected for this bot persona.
 
-After authorizing, return here and try your request again.
+You can continue with:
+- list_ad_accounts
+- list_pages
+- status with a specific act_... account
 
-Requirements:
-- Facebook Business Manager account
-- Access to an Ad Account (starts with act_...)"""
+If you want, ask me to list your ad accounts and I will show the available act_... IDs."""
+        except (FacebookAuthError, FacebookAPIError, FacebookValidationError) as e:
+            return e.message
+        except Exception as e:
+            logger.error("Unexpected error in connect", exc_info=e)
+            return f"ERROR: {str(e)}"
 
     async def _handle_status(self, args: Dict[str, Any]) -> str:
-        ad_account_id = args.get("ad_account_id", "") or self.client.ad_account_id
-        if ad_account_id:
-            self.client.ad_account_id = ad_account_id
-        if not self.client.ad_account_id:
-            return "ERROR: ad_account_id parameter required for status"
-        if self.client.is_test_mode:
-            return f"""Facebook Ads Account: {self.client.ad_account_id}
+        try:
+            ad_account_id = args.get("ad_account_id", "") or self.client.ad_account_id
+            if ad_account_id:
+                self.client.ad_account_id = ad_account_id
+            if not self.client.ad_account_id:
+                auth_error = await self.client.ensure_auth()
+                if auth_error:
+                    return auth_error
+                accounts_result = await list_ad_accounts(self.client)
+                return (
+                    "Facebook / Meta is connected and the OAuth token is available.\n\n"
+                    "Available ad accounts:\n\n"
+                    f"{accounts_result}\n"
+                    "Pick any act_... account ID and call status again if you want account-specific details."
+                )
+            if self.client.is_test_mode:
+                return f"""Facebook Ads Account: {self.client.ad_account_id}
 Active Campaigns (2):
   Test Campaign 1 (ID: 123456789)
      Status: ACTIVE, Objective: OUTCOME_TRAFFIC, Daily Budget: $50.00
   Test Campaign 2 (ID: 987654321)
      Status: ACTIVE, Objective: OUTCOME_SALES, Daily Budget: $100.00
 """
-        result = f"Facebook Ads Account: {self.client.ad_account_id}\n"
-        campaigns_result = await list_campaigns(self.client, self.client.ad_account_id, "ACTIVE")
-        result += campaigns_result
-        return result
+            result = f"Facebook Ads Account: {self.client.ad_account_id}\n"
+            campaigns_result = await list_campaigns(self.client, self.client.ad_account_id, "ACTIVE")
+            result += campaigns_result
+            return result
+        except (FacebookAuthError, FacebookAPIError, FacebookValidationError) as e:
+            return e.message
+        except Exception as e:
+            logger.error("Unexpected error in status", exc_info=e)
+            return f"ERROR: {str(e)}"
