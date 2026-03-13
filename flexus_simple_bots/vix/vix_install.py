@@ -129,6 +129,7 @@ async def install(
         marketable_forms={},
         marketable_auth_supported=["telegram", "shopify", "resend"],
         marketable_required_policydocs=["/company/summary", "/company/sales-strategy"],
+        marketable_webchat_supported=True,
     )
 
 
