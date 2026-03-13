@@ -141,7 +141,16 @@ async def handle_pdoc_from_schema(
         **data,
     }}
     uk = toolcall.fcall_untrusted_key
-    await pdoc_integration.pdoc_create(path, json.dumps(doc, ensure_ascii=False), fcall_untrusted_key=uk)
+    try:
+        await pdoc_integration.pdoc_create(path, json.dumps(doc, ensure_ascii=False), fcall_untrusted_key=uk)
+    except gql.transport.exceptions.TransportQueryError as e:
+        if "already exists" in str(e):
+            return (
+                f"Oops {path} already exists. Likely your previous attempt to create the same thing — "
+                f"load it with op=\"activate\" and continue filling out, "
+                f"or verify it's garbage using op=\"cat\" and then op=\"rm\"."
+            )
+        raise
     return f"✍️ {path}\nmd5={fi_pdoc._pdoc_md5(doc)}\n\n✓ Created from schema '{template}'"
 
 
