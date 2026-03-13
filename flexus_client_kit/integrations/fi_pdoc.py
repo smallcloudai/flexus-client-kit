@@ -32,7 +32,7 @@ POLICY_DOCUMENT_TOOL = ckit_cloudtool.CloudTool(
     parameters={
         "type": "object",
         "properties": {
-            "op": {"type": "string", "enum": ["help", "list", "cat", "activate", "create", "overwrite", "update_json_text", "cp", "rm"]},
+            "op": {"type": "string", "enum": ["help", "list", "cat", "activate", "create", "overwrite", "update_json_text", "cp", "mv", "rm"]},
             "args": {"type": "object"},   # model guesses p= to write here quite well for some reason, without help, must be something in prompt
         },
     },
@@ -66,6 +66,9 @@ flexus_policy_document(op="update_json_text", args={"p": "/folder/file", "json_p
 
 flexus_policy_document(op="cp", args={"p1": "/customer-research/interview-template", "p2": "/customer-research/interview-monsieur-dupont"})
     Copy a policy document.
+
+flexus_policy_document(op="mv", args={"p1": "/customer-research/interview-monsieur-dupont", "p2": "/customer-research/interview-dupont-2026-03"})
+    Move (rename) a policy document, overwrites destination if it exists.
 
 flexus_policy_document(op="rm", args={"p": "/customer-research/interview-monsieur-dupont"})
     Archive (soft delete) a policy document.
@@ -276,6 +279,16 @@ class IntegrationPdoc:
                 await self.pdoc_cp(p1, p2, fcall_untrusted_key=toolcall.fcall_untrusted_key)
                 r += f"✍️ {p2}\n\n✓ Copied from {p1}"
 
+            elif op == "mv":
+                p1 = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "p1", "")
+                p2 = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "p2", "")
+                if not p1 or not p2:
+                    return f"Error: p1 and p2 parameters required\n\n{HELP}"
+                if self.is_fake:
+                    return await ckit_scenario.scenario_generate_tool_result_via_model(self.fclient, toolcall, open(__file__).read())
+                await self.pdoc_mv(p1, p2, fcall_untrusted_key=toolcall.fcall_untrusted_key)
+                r += f"✍️ {p2}\n\n✓ Moved from {p1}"
+
             elif op == "rm":
                 p = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "p", "")
                 p = p or ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "path", "")
@@ -391,6 +404,18 @@ class IntegrationPdoc:
                 gql.gql("""
                     mutation PdocCp($fgroup_id: String!, $p1: String!, $p2: String!, $fcall_untrusted_key: String, $trust_me_bro_persona_id: String) {
                         policydoc_cp(fgroup_id: $fgroup_id, p1: $p1, p2: $p2, fcall_untrusted_key: $fcall_untrusted_key, trust_me_bro_persona_id: $trust_me_bro_persona_id)
+                    }
+                """),
+                variable_values={"fgroup_id": self.fgroup_id, "p1": p1, "p2": p2, **self._auth_vars(fcall_untrusted_key, trust_me_bro_persona_id)},
+            )
+
+    async def pdoc_mv(self, p1: str, p2: str, fcall_untrusted_key: str = "", trust_me_bro_persona_id: str = "") -> None:
+        http = await self.fclient.use_http()
+        async with http as h:
+            await h.execute(
+                gql.gql("""
+                    mutation PdocMv($fgroup_id: String!, $p1: String!, $p2: String!, $fcall_untrusted_key: String, $trust_me_bro_persona_id: String) {
+                        policydoc_mv(fgroup_id: $fgroup_id, p1: $p1, p2: $p2, fcall_untrusted_key: $fcall_untrusted_key, trust_me_bro_persona_id: $trust_me_bro_persona_id)
                     }
                 """),
                 variable_values={"fgroup_id": self.fgroup_id, "p1": p1, "p2": p2, **self._auth_vars(fcall_untrusted_key, trust_me_bro_persona_id)},
