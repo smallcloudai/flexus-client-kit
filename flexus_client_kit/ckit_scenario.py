@@ -279,6 +279,7 @@ class ScenarioSetup:
         marketable_version: Optional[int],
         persona_setup: dict,
         group_prefix: str = "test",
+        create_knowledge_eds: bool = False,
     ) -> None:
         from flexus_client_kit import ckit_bot_install   # avoid circular import here
 
@@ -330,6 +331,18 @@ class ScenarioSetup:
                     raise RuntimeError(f"Expected version {marketable_version}, got {self.persona.persona_marketable_version}")
 
                 logger.info("Hired bot %s in group %s", self.persona.persona_id, self.fgroup_name)
+
+                if create_knowledge_eds:
+                    try:
+                        eds_id = await ckit_bot_install.post_install_create_knowledge_eds(
+                            client=self.fclient,
+                            located_fgroup_id=self.fgroup_id,
+                            eds_name=f"{marketable_name}-knowledge",
+                            persona_id=self.persona.persona_id,
+                        )
+                        logger.info("Created knowledge EDS %s for bot %s", eds_id, marketable_name)
+                    except Exception as eds_error:
+                        logger.warning("Failed to create knowledge EDS for %s: %s (non-fatal)", marketable_name, eds_error)
 
             except Exception as e:
                 try:

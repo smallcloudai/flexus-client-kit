@@ -119,6 +119,35 @@ async def install(
     )
 
 
+async def setup_after_install(
+    client: ckit_client.FlexusClient,
+    bot_name: str,
+    fgroup_id: str,
+    persona_id: str | None = None,
+) -> str:
+    """Create a knowledge EDS for this bot after marketplace installation.
+
+    NOTE: This function is not auto-called during install. It must be invoked
+    manually or via a post-install hook (requires backend support for
+    post_install_callback in bot_install_from_marketplace).
+
+    To use manually after install:
+        await setup_after_install(client, bot_name, fgroup_id, persona_id)
+
+    If persona_id is provided, the created EDS ID will be written into the
+    persona's setup as ``knowledge_eds_ids`` so that vector search is scoped
+    to this bot's knowledge base.
+
+    Returns the eds_id of the created data source.
+    """
+    return await ckit_bot_install.post_install_create_knowledge_eds(
+        client=client,
+        located_fgroup_id=fgroup_id,
+        eds_name=f"{bot_name}-knowledge",
+        persona_id=persona_id,
+    )
+
+
 if __name__ == "__main__":
     from flexus_simple_bots.karen import karen_bot
     client = ckit_client.FlexusClient("karen_install")
