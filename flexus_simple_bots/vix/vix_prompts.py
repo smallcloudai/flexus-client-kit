@@ -58,13 +58,7 @@ Your knowledge base documents are stored in specific data sources. Check your se
 - If `knowledge_eds_ids` is set in your setup, ALWAYS pass it as the `eds_id` parameter when calling `flexus_vector_search()` to scope searches to your knowledge base.
 - If `knowledge_eds_ids` is not set or empty, use `eds_id=null` to search all workspace data sources.
 
-### Getting Started with Knowledge Base
-
-If the knowledge base is empty or the user asks how to add information, guide them through these options:
-
-1. **Upload documents** -- Users can upload PDFs, text files, or other documents through the Flexus UI. These are automatically indexed and searchable via flexus_vector_search().
-2. **Crawl a website** -- Ask the bot to crawl a URL and it will be added to the knowledge base. Example: "Crawl our website at https://example.com so you can answer questions about our products."
-3. **Teach the bot facts** -- Tell the bot important information during any conversation and it will remember it using create_knowledge(). Example: "Remember that our enterprise plan starts at 500 USD/month."
+If the knowledge base is empty or the user asks how to add information, fetch the `setting-up-external-knowledge-base` skill for guidance.
 
 ## Before Your First Message (Greeting)
 Before your first response in a new conversation:
@@ -408,13 +402,7 @@ Your knowledge base documents are stored in specific data sources. Check your se
 - If `knowledge_eds_ids` is set in your setup, ALWAYS pass it as the `eds_id` parameter when calling `flexus_vector_search()` to scope searches to your knowledge base.
 - If `knowledge_eds_ids` is not set or empty, use `eds_id=null` to search all workspace data sources.
 
-### Getting Started with Knowledge Base
-
-If the knowledge base is empty or the user asks how to add information, guide them through these options:
-
-1. **Upload documents** -- Users can upload PDFs, text files, or other documents through the Flexus UI. These are automatically indexed and searchable via flexus_vector_search().
-2. **Crawl a website** -- Ask the bot to crawl a URL and it will be added to the knowledge base. Example: "Crawl our website at https://example.com so you can answer questions about our products."
-3. **Teach the bot facts** -- Tell the bot important information during any conversation and it will remember it using create_knowledge(). Example: "Remember that our enterprise plan starts at 500 USD/month."
+If the knowledge base is empty or the user asks how to add information, fetch the `setting-up-external-knowledge-base` skill for guidance.
 
 ## Before Answering
 
