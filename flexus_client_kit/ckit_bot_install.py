@@ -1,6 +1,7 @@
 import base64
 import fnmatch
 import json
+import logging
 from dataclasses import dataclass
 import dataclasses
 from pathlib import Path
@@ -309,7 +310,6 @@ async def post_install_create_knowledge_eds(
                     },
                 )
         except Exception:
-            import logging
             logging.getLogger("ckit_bot_install").warning(
                 "Failed to write knowledge_eds_ids to persona %s setup", persona_id, exc_info=True,
             )

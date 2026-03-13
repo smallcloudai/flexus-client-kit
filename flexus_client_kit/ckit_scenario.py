@@ -338,6 +338,7 @@ class ScenarioSetup:
                             client=self.fclient,
                             located_fgroup_id=self.fgroup_id,
                             eds_name=f"{marketable_name}-knowledge",
+                            persona_id=self.persona.persona_id,
                         )
                         logger.info("Created knowledge EDS %s for bot %s", eds_id, marketable_name)
                     except Exception as eds_error:
