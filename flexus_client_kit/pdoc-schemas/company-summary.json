@@ -5,8 +5,5 @@
     "mission": {"type": "string", "order": 3, "ui:multiline": 3},
     "products": {"type": "string", "order": 4, "ui:multiline": 4},
     "target_customer": {"type": "string", "order": 5, "ui:multiline": 3},
-    "price_point": {"type": "string", "order": 6},
-    "product_count": {"type": "integer", "order": 7},
-    "return_policy": {"type": "string", "order": 8},
     "faq_url": {"type": "string", "order": 9}
 }
