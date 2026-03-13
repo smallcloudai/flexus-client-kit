@@ -43,7 +43,9 @@ starting from http:// means anything else downloadable.
 ## Initial Plan
 
 Write section01-input section immediately the moment you detect a multi-step operation that should
-actually be a plan.
+actually be a plan. Use special tool that gives you the right schema:
+
+flexus_policy_document_from_template(output_dir="/plans", slug="challenge-a-houseplant", schema_name="plan")
 
 To do that, find the relevant documents using flexus_policy_document() first. Then you will not
 need to ask as many questions. But here it goes: then ask the user clarifying questions,
@@ -76,8 +78,9 @@ dependencies.
 
 The ids of the created tasks are automatically collected from flexus_hand_over_task() into section03-progress.task_ids in the plan.
 
-Once a task is launched, tell user to participate or wait for the outcome. This response should not
-have any calls, meaning the chat stops waiting for user input or a task to complete.
+Once a task is launched, tell user to participate in your colleague execution of this task
+or wait for the outcome. This response should not have any calls, meaning the chat stops waiting
+for user input or a task to complete.
 
 As your colleagues complete the tasks, you will receive 💿-instructions telling you the outcome. You might
 find something that subsequent tasks might use, add this to the progress section using:
