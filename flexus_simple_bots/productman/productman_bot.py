@@ -189,6 +189,119 @@ TOOLS_ALL = [
 ]
 
 
+def validate_idea_structure(provided: Dict, expected: Dict, path: str = "root") -> str:
+    if type(provided) != type(expected):
+        return f"Type mismatch at {path}: expected {type(expected).__name__}, got {type(provided).__name__}"
+    if isinstance(expected, dict):
+        expected_keys = set(expected.keys())
+        provided_keys = set(provided.keys())
+        if expected_keys != provided_keys:
+            missing = expected_keys - provided_keys
+            extra = provided_keys - expected_keys
+            errors = []
+            if missing:
+                errors.append(f"missing keys: {missing}")
+            if extra:
+                errors.append(f"unexpected keys: {extra}")
+            return f"Key mismatch at {path}: {', '.join(errors)}"
+        for key in expected_keys:
+            if key in ("q", "a", "title"):
+                continue
+            error = validate_idea_structure(provided[key], expected[key], f"{path}.{key}")
+            if error:
+                return error
+    return ""
+
+
+def validate_path_kebab(path: str) -> str:
+    for segment in path.strip("/").split("/"):
+        if segment and not all(c.islower() or c.isdigit() or c == "-" for c in segment):
+            return f"Path segment '{segment}' must be kebab-case (lowercase, numbers, hyphens)"
+    return ""
+
+
+def setup_handlers(fclient, rcx, pdoc_integration):
+    survey_integration = survey_research.IntegrationSurveyResearch(
+        surveymonkey_token=os.getenv("SURVEYMONKEY_ACCESS_TOKEN", ""),
+        prolific_token=os.getenv("PROLIFIC_API_TOKEN", ""),
+        pdoc_integration=pdoc_integration,
+        fclient=fclient,
+    )
+
+    @rcx.on_tool_call(IDEA_TEMPLATE_TOOL.name)
+    async def _h_idea(toolcall, args):
+        idea_slug = args.get("idea_slug", "")
+        text = args.get("text", "")
+        if not idea_slug:
+            return "Error: idea_slug required"
+        if not text:
+            return "Error: text required"
+        if rcx.running_test_scenario:
+            return await ckit_scenario.scenario_generate_tool_result_via_model(fclient, toolcall, Path(__file__).read_text())
+        if err := validate_path_kebab(idea_slug):
+            return f"Error: idea_slug must be kebab-case: {err}"
+        try:
+            idea_doc = json.loads(text)
+        except json.JSONDecodeError as e:
+            return f"Error: Invalid JSON: {e}"
+        if err := validate_idea_structure(idea_doc, productman_prompts.example_idea):
+            return f"Error: {err}"
+        fuser_id = ckit_external_auth.get_fuser_id_from_rcx(rcx, toolcall.fcall_ft_id)
+        path = f"/gtm/discovery/{idea_slug}/idea"
+        await pdoc_integration.pdoc_create(path, json.dumps(idea_doc, indent=2), fuser_id)
+        return f"✍️ {path}\n\n✓ Created idea document"
+
+    @rcx.on_tool_call(HYPOTHESIS_TEMPLATE_TOOL.name)
+    async def _h_hyp(toolcall, args):
+        idea_slug = args.get("idea_slug", "")
+        hypothesis_slug = args.get("hypothesis_slug", "")
+        hypothesis_data = args.get("hypothesis")
+        if not idea_slug:
+            return "Error: idea_slug required"
+        if not hypothesis_slug:
+            return "Error: hypothesis_slug required"
+        if not hypothesis_data:
+            return "Error: hypothesis required"
+        if rcx.running_test_scenario:
+            return await ckit_scenario.scenario_generate_tool_result_via_model(fclient, toolcall, Path(__file__).read_text())
+        if err := validate_path_kebab(idea_slug):
+            return f"Error: idea_slug must be kebab-case: {err}"
+        if err := validate_path_kebab(hypothesis_slug):
+            return f"Error: hypothesis_slug must be kebab-case: {err}"
+        fuser_id = ckit_external_auth.get_fuser_id_from_rcx(rcx, toolcall.fcall_ft_id)
+        path = f"/gtm/discovery/{idea_slug}/{hypothesis_slug}/hypothesis"
+        await pdoc_integration.pdoc_create(path, json.dumps({"hypothesis": hypothesis_data}, indent=2), fuser_id)
+        return f"✍️ {path}\n\n✓ Created hypothesis document"
+
+    @rcx.on_tool_call(VERIFY_IDEA_TOOL.name)
+    async def _h_verify(toolcall, args):
+        pdoc_path = args.get("pdoc_path", "")
+        language = args.get("language", "")
+        if not pdoc_path:
+            return "Error: pdoc_path required"
+        if not language:
+            return "Error: language required"
+        if rcx.running_test_scenario:
+            return await ckit_scenario.scenario_generate_tool_result_via_model(fclient, toolcall, Path(__file__).read_text())
+        subchats = await ckit_ask_model.bot_subchat_create_multiple(
+            client=fclient,
+            who_is_asking="productman_verify_idea",
+            persona_id=rcx.persona.persona_id,
+            first_question=[f"Rate this idea document in {language}:\n{pdoc_path}"],
+            first_calls=["null"],
+            title=[f"Verifying Idea {pdoc_path}"],
+            fcall_id=toolcall.fcall_id,
+            fexp_name="criticize_idea",
+        )
+        raise ckit_cloudtool.WaitForSubchats(subchats)
+
+    @rcx.on_tool_call(survey_research.SURVEY_RESEARCH_TOOL.name)
+    async def _h_survey(toolcall, args):
+        return await survey_integration.handle_survey_research(toolcall, args)
+
+    return survey_integration
+
+
 
 
 async def productman_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.RobotContext) -> None:
@@ -206,39 +319,6 @@ async def productman_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_
     @rcx.on_updated_task
     async def updated_task_in_db(t: ckit_kanban.FPersonaKanbanTaskOutput):
         survey_research_integration.track_survey_task(t)
-
-    def validate_idea_structure(provided: Dict, expected: Dict, path: str = "root") -> str:
-        if type(provided) != type(expected):
-            return f"Type mismatch at {path}: expected {type(expected).__name__}, got {type(provided).__name__}"
-        if isinstance(expected, dict):
-            expected_keys = set(expected.keys())
-            provided_keys = set(provided.keys())
-            if expected_keys != provided_keys:
-                missing = expected_keys - provided_keys
-                extra = provided_keys - expected_keys
-                errors = []
-                if missing:
-                    errors.append(f"missing keys: {missing}")
-                if extra:
-                    errors.append(f"unexpected keys: {extra}")
-                return f"Key mismatch at {path}: {', '.join(errors)}"
-            for key in expected_keys:
-                if key == "q":
-                    continue
-                if key == "a":
-                    continue
-                if key == "title":
-                    continue
-                error = validate_idea_structure(provided[key], expected[key], f"{path}.{key}")
-                if error:
-                    return error
-        return ""
-
-    def validate_path_kebab(path: str) -> str:
-        for segment in path.strip("/").split("/"):
-            if segment and not all(c.islower() or c.isdigit() or c == "-" for c in segment):
-                return f"Path segment '{segment}' must be kebab-case (lowercase, numbers, hyphens)"
-        return ""
 
     @rcx.on_tool_call(IDEA_TEMPLATE_TOOL.name)
     async def toolcall_idea_template(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:

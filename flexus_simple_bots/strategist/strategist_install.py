@@ -8,38 +8,24 @@ from flexus_client_kit import ckit_client
 from flexus_client_kit import ckit_cloudtool
 from flexus_client_kit import ckit_integrations_db
 from flexus_client_kit import ckit_skills
+from flexus_client_kit.integrations import fi_linkedin_b2b
 from flexus_simple_bots import prompts_common
 from flexus_simple_bots.strategist import strategist_prompts
 
 STRATEGIST_ROOTDIR = Path(__file__).parent
 STRATEGIST_SKILLS = ckit_skills.static_skills_find(STRATEGIST_ROOTDIR, shared_skills_allowlist="")
 STRATEGIST_SETUP_SCHEMA = json.loads((STRATEGIST_ROOTDIR / "setup_schema.json").read_text())
+STRATEGIST_SETUP_SCHEMA.extend(fi_linkedin_b2b.LINKEDIN_B2B_SETUP_SCHEMA)
 
 STRATEGIST_INTEGRATIONS: list[ckit_integrations_db.IntegrationRecord] = ckit_integrations_db.static_integrations_load(
     STRATEGIST_ROOTDIR,
     [
         "flexus_policy_document", "skills", "print_widget",
-        "linkedin",
-        # "chargebee",
-        # "crunchbase",
-        # "datadog",
-        # "ga4",
-        # "gnews",
-        # "google_ads",
-        # "launchdarkly",
-        # "meta",
-        # "mixpanel",
-        # "optimizely",
-        # "paddle",
-        # "pipedrive",
-        # "qualtrics",
-        # "recurly",
-        # "salesforce",
-        # "segment",
-        # "statsig",
-        # "surveymonkey",
-        # "typeform",
-        # "zendesk",
+        "apify",
+        "chargebee", "crunchbase", "datadog", "ga4", "gnews", "google_ads",
+        "launchdarkly", "linkedin", "linkedin_b2b", "meta", "mixpanel", "optimizely", "paddle",
+        "pipedrive", "qualtrics", "recurly", "salesforce", "segment", "statsig",
+        "surveymonkey", "typeform", "zendesk",
     ],
     builtin_skills=STRATEGIST_SKILLS,
 )
@@ -62,6 +48,21 @@ async def install(
     bot_version: str,
     tools: list[ckit_cloudtool.CloudTool],
 ) -> None:
+    auth_supported: list[str] = []
+    auth_scopes: dict[str, list[str]] = {}
+    for rec in STRATEGIST_INTEGRATIONS:
+        if not rec.integr_provider:
+            continue
+        if rec.integr_provider not in auth_supported:
+            auth_supported.append(rec.integr_provider)
+        existing = auth_scopes.get(rec.integr_provider, [])
+        auth_scopes[rec.integr_provider] = list(dict.fromkeys(existing + rec.integr_scopes))
+    # Apify auth is intentionally enabled only for Strategist.
+    # The integration reads rcx.external_auth["apify"], so exposing the provider here
+    # makes the UI render a workspace key field without changing the global generic loader.
+    if "apify" not in auth_supported:
+        auth_supported.append("apify")
+    auth_scopes["apify"] = []
     pic_big = base64.b64encode((STRATEGIST_ROOTDIR / "strategist-1024x1536.webp").read_bytes()).decode("ascii")
     pic_small = base64.b64encode((STRATEGIST_ROOTDIR / "strategist-256x256.webp").read_bytes()).decode("ascii")
     await ckit_bot_install.marketplace_upsert_dev_bot(
@@ -99,10 +100,8 @@ async def install(
         marketable_picture_big_b64=pic_big,
         marketable_picture_small_b64=pic_small,
         marketable_forms={},
-        marketable_auth_supported=["linkedin"],
-        marketable_auth_scopes={
-            "linkedin": ["r_profile_basicinfo", "email", "w_member_social"],
-        },
+        marketable_auth_supported=auth_supported,
+        marketable_auth_scopes=auth_scopes,
     )
 
 

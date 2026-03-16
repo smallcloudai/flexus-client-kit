@@ -1,583 +1,332 @@
-import asyncio
+import json
 import logging
-import time
-from dataclasses import dataclass
-from typing import Dict, Any, Optional, List
+from typing import Any, Dict, Optional
 
 import httpx
 
-from flexus_client_kit import ckit_client
 from flexus_client_kit import ckit_cloudtool
-from flexus_client_kit import ckit_bot_exec
 
 
 logger = logging.getLogger("linkedin")
 
+PROVIDER_NAME = "linkedin"
+METHOD_IDS = [
+    "linkedin.auth.userinfo.get.v1",
+    "linkedin.posts.create_text.v1",
+    "linkedin.posts.create_article.v1",
+    "linkedin.assets.register_image_upload.v1",
+    "linkedin.assets.register_video_upload.v1",
+    "linkedin.posts.create_image.v1",
+    "linkedin.posts.create_video.v1",
+]
 
-AD_ACCOUNT_ID = "513489554"
-
-API_BASE = "https://api.linkedin.com"
-API_VERSION = "202509"
-
+_BASE_URL = "https://api.linkedin.com"
+_TIMEOUT = 30.0
 
 LINKEDIN_TOOL = ckit_cloudtool.CloudTool(
     strict=False,
     name="linkedin",
-    description="Interact with LinkedIn Ads API, call with op=\"help\" to print usage, call with op=\"status+help\" to see both status and help in one call",
+    description="LinkedIn open permissions: OIDC userinfo and member posting.",
     parameters={
         "type": "object",
         "properties": {
-            "op": {"type": "string", "description": "Start with 'help' for usage"},
+            "op": {"type": "string", "description": "Use help, status, list_methods, or call."},
             "args": {"type": "object"},
         },
-        "required": []
+        "required": [],
     },
 )
 
-
-HELP = """
-Help:
-
-linkedin(op="status")
-    Shows current LinkedIn Ads account status, lists all campaign groups with their campaigns.
-
-linkedin(op="list_campaign_groups")
-    Lists all campaign groups for ad account.
-
-linkedin(op="list_campaigns", args={"campaign_group_id": "123456", "status": "ACTIVE"})
-    Lists campaigns. Optional filters: campaign_group_id, status (ACTIVE, PAUSED, ARCHIVED, etc).
-
-linkedin(op="create_campaign_group", args={
-    "name": "Q1 2024 Campaigns",
-    "total_budget": 1000.0,
-    "currency": "USD",
-    "status": "ACTIVE"
-})
-    Creates a new campaign group with specified budget.
-
-linkedin(op="create_campaign", args={
-    "campaign_group_id": "123456",
-    "name": "Brand Awareness Campaign",
-    "objective": "BRAND_AWARENESS",
-    "daily_budget": 50.0,
-    "currency": "USD",
-    "status": "PAUSED"
-})
-    Creates a campaign in a campaign group.
-    Valid objectives: BRAND_AWARENESS, WEBSITE_VISITS, ENGAGEMENT, VIDEO_VIEWS, LEAD_GENERATION, WEBSITE_CONVERSIONS, JOB_APPLICANTS
-
-linkedin(op="get_campaign", args={"campaign_id": "123456"})
-    Gets details for a specific campaign.
-
-linkedin(op="update_campaign", args={"campaign_id": "123456", "status": "ACTIVE", "daily_budget": 100.0})
-    Updates campaign settings. Optional: status, daily_budget, name.
-
-linkedin(op="get_analytics", args={"campaign_id": "123456", "days": 30})
-    Gets analytics for a campaign. Default: last 30 days.
-"""
-
-LINKEDIN_SETUP_SCHEMA = [
-    {
-        "bs_name": "ad_account_id",
-        "bs_type": "string_short",
-        "bs_default": "",
-        "bs_group": "LinkedIn",
-        "bs_importance": 1,
-        "bs_description": "LinkedIn Ads Account ID",
-    },
-]
-
-
-@dataclass
-class Budget:
-    amount: str
-    currency_code: str
-
-
-@dataclass
-class CampaignGroup:
-    id: str
-    name: str
-    status: str
-    total_budget: Optional[Budget] = None
-
-
-@dataclass
-class Campaign:
-    id: str
-    name: str
-    status: str
-    objective_type: str
-    daily_budget: Budget
-    campaign_group_id: Optional[str] = None
-
-
-@dataclass
-class Analytics:
-    impressions: int
-    clicks: int
-    cost: float
+# Open-permissions LinkedIn does not need per-bot setup fields.
+# Credentials are not pasted into this file or bot setup.
+# They must already exist in the platform auth provider named "linkedin".
+# Required provider-side values are:
+# - client_id: LinkedIn app Client ID from developer.linkedin.com
+# - client_secret: LinkedIn app Client Secret from developer.linkedin.com
+# - redirect_uri: the Flexus OAuth callback URL configured in the platform auth layer
+# - scopes: at minimum openid, profile, email, w_member_social
+# After user OAuth completes, Flexus must store the connected account under
+# rcx.external_auth["linkedin"], with token.access_token populated.
+# Optional refresh flow data, if available in the auth layer, also belongs there.
+LINKEDIN_SETUP_SCHEMA = []
 
 
 class IntegrationLinkedIn:
-    def __init__(
-        self,
-        fclient: ckit_client.FlexusClient,
-        rcx: ckit_bot_exec.RobotContext,
-        ad_account_id: str,
-    ):
-        self.fclient = fclient
+    def __init__(self, rcx=None):
         self.rcx = rcx
-        self.access_token = ""
-        self.ad_account_id = ad_account_id or AD_ACCOUNT_ID
-        self.problems = []
-        self._campaign_groups_cache = None
-        self._campaigns_cache = None
-        self._last_access_token = None
 
-    async def called_by_model(self, toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Optional[Dict[str, Any]]) -> str:
-        if not model_produced_args:
-            return HELP
+    def _auth(self) -> Dict[str, Any]:
+        # This integration only reads already-connected OAuth data.
+        # Where to paste values:
+        # - app-level keys such as client_id/client_secret belong in the platform auth provider "linkedin"
+        # - user-level access tokens belong in the connected external auth record for provider "linkedin"
+        # Expected token shape:
+        # {
+        #   "token": {
+        #     "access_token": "...",
+        #     "refresh_token": "...",   # optional, if your auth layer supports refresh
+        #   }
+        # }
+        # Legacy fallback oauth_token is still accepted to keep the read path simple.
+        return (self.rcx.external_auth.get("linkedin") or {}) if self.rcx else {}
 
-        linkedin_auth = self.rcx.external_auth.get("linkedin") or {}
-        token_obj = linkedin_auth.get("token") or {}
-        self.access_token = token_obj.get("access_token", "")
-        self._last_access_token = self.access_token
+    def _access_token(self) -> str:
+        auth = self._auth()
+        token_obj = auth.get("token") or {}
+        return str(token_obj.get("access_token", "") or auth.get("oauth_token", "")).strip()
 
-        if not self.access_token:
-            return "❌ LinkedIn not connected. Please connect LinkedIn in workspace settings.\n\nTry linkedin(op='help') for usage."
+    def _status(self) -> str:
+        access_token = self._access_token()
+        return json.dumps({
+            "ok": bool(access_token),
+            "provider": PROVIDER_NAME,
+            "status": "ready" if access_token else "missing_credentials",
+            "method_count": len(METHOD_IDS),
+            "auth_provider": "linkedin",
+            "products": [
+                "Sign in with LinkedIn using OpenID Connect",
+                "Share on LinkedIn",
+            ],
+            "scopes_expected": ["openid", "profile", "email", "w_member_social"],
+            "has_access_token": bool(access_token),
+        }, indent=2, ensure_ascii=False)
 
-        self.headers = {
-            "Authorization": f"Bearer {self.access_token}",
-            "Content-Type": "application/json",
+    def _help(self) -> str:
+        return (
+            f"provider={PROVIDER_NAME}\n"
+            "op=help | status | list_methods | call\n"
+            f"methods: {', '.join(METHOD_IDS)}\n"
+            "notes:\n"
+            "- auth.userinfo.get returns OIDC userinfo from /v2/userinfo\n"
+            "- register_*_upload returns uploadUrl + asset for a later binary upload step\n"
+            "- create_image/create_video require an already uploaded asset URN\n"
+        )
+
+    def _headers(self, *, has_body: bool) -> Dict[str, str]:
+        access_token = self._access_token()
+        headers = {
+            "Authorization": f"Bearer {access_token}",
             "X-Restli-Protocol-Version": "2.0.0",
-            "LinkedIn-Version": API_VERSION,
         }
+        if has_body:
+            headers["Content-Type"] = "application/json"
+        return headers
 
-        op = model_produced_args.get("op", "")
-        args, args_error = ckit_cloudtool.sanitize_args(model_produced_args)
-        if args_error:
-            return args_error
+    def _auth_missing(self, method_id: str) -> str:
+        return json.dumps({
+            "ok": False,
+            "provider": PROVIDER_NAME,
+            "method_id": method_id,
+            "error_code": "AUTH_MISSING",
+            "message": "Connect LinkedIn in workspace settings and ensure an access token is present.",
+        }, indent=2, ensure_ascii=False)
 
-        print_help = False
-        print_status = False
-        r = ""
+    def _invalid_args(self, method_id: str, message: str) -> str:
+        return json.dumps({
+            "ok": False,
+            "provider": PROVIDER_NAME,
+            "method_id": method_id,
+            "error_code": "INVALID_ARGS",
+            "message": message,
+        }, indent=2, ensure_ascii=False)
 
-        if not op or "help" in op:
-            print_help = True
-        if not op or "status" in op:
-            print_status = True
+    def _result(self, method_id: str, result: Any) -> str:
+        return json.dumps({
+            "ok": True,
+            "provider": PROVIDER_NAME,
+            "method_id": method_id,
+            "result": result,
+        }, indent=2, ensure_ascii=False)
 
-        if print_status:
-            r += f"LinkedIn Ads Account: {self.ad_account_id}\n"
-
-            await self._refresh_cache()
-            if self._campaign_groups_cache:
-                r += f"Campaign Groups ({len(self._campaign_groups_cache)}):\n"
-                for group in self._campaign_groups_cache:
-                    r += f"  📁 {group.name} (ID: {group.id}, Status: {group.status})"
-                    if group.total_budget:
-                        r += f" - Budget: {group.total_budget.amount} {group.total_budget.currency_code}"
-                    r += "\n"
-
-                    group_campaigns = [c for c in (self._campaigns_cache or []) if c.campaign_group_id == group.id]
-                    if group_campaigns:
-                        for campaign in group_campaigns:
-                            r += f"    📊 {campaign.name} (ID: {campaign.id})"
-                            r += f"       Objective: {campaign.objective_type}, Daily Budget: {campaign.daily_budget.amount} {campaign.daily_budget.currency_code}\n"
-                    else:
-                        r += f"    (no campaigns)\n"
-            else:
-                r += "No campaign groups found or failed to fetch.\n"
-
-            if self.problems:
-                r += "\nProblems:\n"
-                for problem in self.problems:
-                    r += f"  {problem}\n"
-            r += "\n"
-
-        if print_help:
-            r += HELP
-
-        elif print_status:
+    def _provider_error(self, method_id: str, status_code: int, body: str) -> str:
+        detail: Any = body[:500]
+        try:
+            detail = json.loads(body)
+        except json.JSONDecodeError:
             pass
+        logger.info("linkedin api error method=%s status=%s body=%s", method_id, status_code, body[:300])
+        return json.dumps({
+            "ok": False,
+            "provider": PROVIDER_NAME,
+            "method_id": method_id,
+            "error_code": "PROVIDER_ERROR",
+            "http_status": status_code,
+            "detail": detail,
+        }, indent=2, ensure_ascii=False)
 
-        elif op == "list_campaign_groups":
-            result = await self._list_campaign_groups()
-            if result:
-                r += f"Found {len(result)} campaign groups:\n"
-                for group in result:
-                    r += f"  {group.name} (ID: {group.id}, Status: {group.status})"
-                    if group.total_budget:
-                        r += f" - Budget: {group.total_budget.amount} {group.total_budget.currency_code}"
-            else:
-                r += "No campaign groups found.\n"
-
-        elif op == "list_campaigns":
-            campaign_group_id = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "campaign_group_id", None)
-            status_filter = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "status", None)
-            result = await self._list_campaigns(status_filter=status_filter)
-            if result:
-                campaigns = result
-                if campaign_group_id:
-                    campaigns = [c for c in campaigns if c.campaign_group_id == campaign_group_id]
-                r += f"Found {len(campaigns)} campaigns:\n"
-                for campaign in campaigns:
-                    r += f"  {campaign.name} (ID: {campaign.id})"
-                    r += f"    Status: {campaign.status}, Objective: {campaign.objective_type}"
-                    r += f"    Daily Budget: {campaign.daily_budget.amount} {campaign.daily_budget.currency_code}\n"
-            else:
-                r += "No campaigns found.\n"
-
-        elif op == "create_campaign_group":
-            name = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "name", "")
-            total_budget = float(ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "total_budget", "1000.0"))
-            currency = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "currency", "USD")
-            status = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "status", "ACTIVE")
-
-            if not name:
-                return "ERROR: name parameter required for create_campaign_group\n"
-
-            result = await self._create_campaign_group(name, total_budget, currency, status)
-            if result:
-                self._campaign_groups_cache = None
-                r += f"✅ Campaign group created: {result.name} (ID: {result.id})\n"
-            else:
-                r += "❌ Failed to create campaign group. Check logs for details.\n"
-
-        elif op == "create_campaign":
-            campaign_group_id = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "campaign_group_id", "")
-            name = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "name", "")
-            objective = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "objective", "BRAND_AWARENESS")
-            daily_budget = float(ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "daily_budget", "10.0"))
-            currency = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "currency", "USD")
-            status = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "status", "PAUSED")
-
-            if not campaign_group_id or not name:
-                return "ERROR: campaign_group_id and name parameters required for create_campaign\n"
-
-            result = await self._create_campaign(campaign_group_id, name, objective, daily_budget, currency, status)
-            if result:
-                self._campaigns_cache = None
-                r += f"✅ Campaign created: {result.name} (ID: {result.id})\n"
-                r += f"   Status: {result.status}, Objective: {result.objective_type}"
-                r += f"   Daily Budget: {result.daily_budget.amount} {result.daily_budget.currency_code}\n"
-            else:
-                r += "❌ Failed to create campaign. Check logs for details.\n"
-
-        elif op == "get_campaign":
-            campaign_id = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "campaign_id", "")
-            if not campaign_id:
-                return "ERROR: campaign_id parameter required for get_campaign\n"
-
-            result = await self._get_campaign(campaign_id)
-            if result:
-                r += f"Campaign: {result.name} (ID: {result.id})\n"
-                r += f"  Status: {result.status}\n"
-                r += f"  Objective: {result.objective_type}\n"
-                r += f"  Daily Budget: {result.daily_budget.amount} {result.daily_budget.currency_code}\n"
-            else:
-                r += f"❌ Failed to get campaign {campaign_id}\n"
-
-        elif op == "get_analytics":
-            campaign_id = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "campaign_id", "")
-            days = int(ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "days", "30"))
-
-            if not campaign_id:
-                return "ERROR: campaign_id parameter required for get_analytics\n"
-
-            result = await self._get_campaign_analytics(campaign_id, days)
-            if result:
-                r += f"Analytics for campaign {campaign_id} (last {days} days):\n"
-                r += f"  Impressions: {result.impressions:,}\n"
-                r += f"  Clicks: {result.clicks:,}\n"
-                r += f"  Cost: ${result.cost:.2f}\n"
-                if result.impressions > 0:
-                    ctr = (result.clicks / result.impressions) * 100
-                    r += f"  CTR: {ctr:.2f}%\n"
-                if result.clicks > 0:
-                    cpc = result.cost / result.clicks
-                    r += f"  CPC: ${cpc:.2f}\n"
-            else:
-                r += f"❌ Failed to get analytics for campaign {campaign_id}\n"
-
-        else:
-            r += f"Unknown operation {op!r}, try \"help\"\n\n"
-
-        return r
-
-    async def _refresh_cache(self):
-        """Refresh campaign groups and campaigns cache"""
-        self._campaign_groups_cache = await self._list_campaign_groups()
-        self._campaigns_cache = await self._list_campaigns()
-
-    async def _list_campaign_groups(self) -> Optional[List[CampaignGroup]]:
-        url = f"{API_BASE}/rest/adAccounts/{self.ad_account_id}/adCampaignGroups?q=search"
-        logger.info(f"Listing campaign groups for account: {self.ad_account_id}")
-        try:
-            async with httpx.AsyncClient() as client:
-                response = await client.get(url, headers=self.headers, timeout=30.0)
-                if response.status_code == 200:
-                    data = response.json()
-                    elements = data.get("elements", [])
-                    groups = []
-                    for elem in elements:
-                        budget_data = elem.get("totalBudget")
-                        groups.append(CampaignGroup(
-                            id=elem["id"],
-                            name=elem["name"],
-                            status=elem["status"],
-                            total_budget=Budget(
-                                amount=budget_data["amount"],
-                                currency_code=budget_data["currencyCode"],
-                            ) if budget_data else None,
-                        ))
-                    return groups
-                else:
-                    logger.error(f"Failed to list campaign groups: {response.status_code} - {response.text}")
-                    self.problems.append(f"Failed to list campaign groups: {response.status_code}")
-                    return None
-        except Exception as e:
-            logger.exception("Exception listing campaign groups")
-            self.problems.append(f"Exception listing campaign groups: {e}")
-            return None
-
-    async def _list_campaigns(self, status_filter: Optional[str] = None) -> Optional[List[Campaign]]:
-        params = {"q": "search"}
-        if status_filter:
-            params["search"] = f"(status:(values:List({status_filter})))"
-        url = f"{API_BASE}/rest/adAccounts/{self.ad_account_id}/adCampaigns"
-        logger.info(f"Listing campaigns for account: {self.ad_account_id}")
-        try:
-            async with httpx.AsyncClient() as client:
-                response = await client.get(url, params=params, headers=self.headers, timeout=30.0)
-                if response.status_code == 200:
-                    data = response.json()
-                    elements = data.get("elements", [])
-                    campaigns = []
-                    for elem in elements:
-                        budget_data = elem["dailyBudget"]
-                        campaign_group_urn = elem.get("campaignGroup", "")
-                        campaign_group_id = campaign_group_urn.split(":")[-1] if campaign_group_urn else None
-                        campaigns.append(Campaign(
-                            id=elem["id"],
-                            name=elem["name"],
-                            status=elem["status"],
-                            objective_type=elem["objectiveType"],
-                            daily_budget=Budget(
-                                amount=budget_data["amount"],
-                                currency_code=budget_data["currencyCode"],
-                            ),
-                            campaign_group_id=campaign_group_id,
-                        ))
-                    return campaigns
-                else:
-                    logger.error(f"Failed to list campaigns: {response.status_code} - {response.text}")
-                    self.problems.append(f"Failed to list campaigns: {response.status_code}")
-                    return None
-        except Exception as e:
-            logger.exception("Exception listing campaigns")
-            self.problems.append(f"Exception listing campaigns: {e}")
-            return None
-
-    async def _create_campaign_group(
+    async def called_by_model(
         self,
-        name: str,
-        total_budget_amount: float,
-        total_budget_currency: str,
-        status: str,
-    ) -> Optional[CampaignGroup]:
-        account_urn = f"urn:li:sponsoredAccount:{self.ad_account_id}"
-        start_time = int(time.time() * 1000)
-        end_time = start_time + (30 * 86400 * 1000)
-        payload = {
-            "account": account_urn,
-            "name": name,
-            "status": status,
-            "runSchedule": {
-                "start": start_time,
-                "end": end_time,
+        toolcall: ckit_cloudtool.FCloudtoolCall,
+        model_produced_args: Optional[Dict[str, Any]],
+    ) -> str:
+        args = model_produced_args or {}
+        op = str(args.get("op", "help")).strip()
+        if op == "help":
+            return self._help()
+        if op == "status":
+            return self._status()
+        if op == "list_methods":
+            return json.dumps({"ok": True, "provider": PROVIDER_NAME, "method_ids": METHOD_IDS}, indent=2, ensure_ascii=False)
+        if op != "call":
+            return "Error: unknown op. Use help/status/list_methods/call."
+
+        call_args = args.get("args") or {}
+        method_id = str(call_args.get("method_id", "")).strip()
+        if not method_id:
+            return "Error: args.method_id required for op=call."
+        if method_id not in METHOD_IDS:
+            return json.dumps({"ok": False, "error_code": "METHOD_UNKNOWN", "method_id": method_id}, indent=2, ensure_ascii=False)
+        if not self._access_token():
+            return self._auth_missing(method_id)
+        return await self._dispatch(method_id, call_args)
+
+    async def _request(
+        self,
+        method_id: str,
+        http_method: str,
+        path: str,
+        *,
+        body: Optional[Dict[str, Any]] = None,
+    ) -> str:
+        url = _BASE_URL + path
+        try:
+            async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
+                if http_method == "GET":
+                    response = await client.get(url, headers=self._headers(has_body=False))
+                elif http_method == "POST":
+                    response = await client.post(url, headers=self._headers(has_body=True), json=body)
+                else:
+                    return json.dumps({"ok": False, "error_code": "UNSUPPORTED_HTTP_METHOD"}, indent=2, ensure_ascii=False)
+        except httpx.TimeoutException:
+            return json.dumps({"ok": False, "provider": PROVIDER_NAME, "method_id": method_id, "error_code": "TIMEOUT"}, indent=2, ensure_ascii=False)
+        except (httpx.HTTPError, ValueError) as e:
+            logger.error("linkedin request failed", exc_info=e)
+            return json.dumps({
+                "ok": False,
+                "provider": PROVIDER_NAME,
+                "method_id": method_id,
+                "error_code": "HTTP_ERROR",
+                "message": f"{type(e).__name__}: {e}",
+            }, indent=2, ensure_ascii=False)
+
+        if response.status_code >= 400:
+            return self._provider_error(method_id, response.status_code, response.text)
+
+        if not response.text.strip():
+            return self._result(method_id, {})
+        try:
+            return self._result(method_id, response.json())
+        except json.JSONDecodeError:
+            return self._result(method_id, response.text)
+
+    def _build_share_payload(self, args: Dict[str, Any], media_category: str) -> Dict[str, Any]:
+        author = str(args.get("author", "")).strip()
+        text = str(args.get("text", "") or args.get("commentary", "")).strip()
+        visibility = str(args.get("visibility", "PUBLIC")).strip().upper()
+        if not author:
+            raise ValueError("author is required and must be a Person URN such as urn:li:person:123.")
+        if not text:
+            raise ValueError("text is required.")
+
+        share_content: Dict[str, Any] = {
+            "shareCommentary": {"text": text},
+            "shareMediaCategory": media_category,
+        }
+        if media_category == "ARTICLE":
+            original_url = str(args.get("original_url", "") or args.get("url", "")).strip()
+            if not original_url:
+                raise ValueError("original_url is required for article posts.")
+            share_content["media"] = [{
+                "status": "READY",
+                "originalUrl": original_url,
+                **({"title": {"text": str(args.get("title", "")).strip()}} if str(args.get("title", "")).strip() else {}),
+                **({"description": {"text": str(args.get("description", "")).strip()}} if str(args.get("description", "")).strip() else {}),
+            }]
+        if media_category in {"IMAGE", "VIDEO"}:
+            asset = str(args.get("asset", "")).strip()
+            if not asset:
+                raise ValueError("asset is required for image/video posts. Register and upload media first.")
+            share_content["media"] = [{
+                "status": "READY",
+                "media": asset,
+                **({"title": {"text": str(args.get("title", "")).strip()}} if str(args.get("title", "")).strip() else {}),
+                **({"description": {"text": str(args.get("description", "")).strip()}} if str(args.get("description", "")).strip() else {}),
+            }]
+
+        return {
+            "author": author,
+            "lifecycleState": "PUBLISHED",
+            "specificContent": {
+                "com.linkedin.ugc.ShareContent": share_content,
             },
-            "totalBudget": {
-                "amount": str(total_budget_amount),
-                "currencyCode": total_budget_currency,
+            "visibility": {
+                "com.linkedin.ugc.MemberNetworkVisibility": visibility,
             },
         }
-        url = f"{API_BASE}/rest/adAccounts/{self.ad_account_id}/adCampaignGroups"
-        logger.info(f"Creating campaign group: {name}")
-        try:
-            async with httpx.AsyncClient() as client:
-                response = await client.post(url, json=payload, headers=self.headers, timeout=30.0)
-                if response.status_code == 201:
-                    campaign_group_id = response.headers["x-restli-id"]
-                    return CampaignGroup(
-                        id=campaign_group_id,
-                        name=name,
-                        status=status,
-                        total_budget=Budget(
-                            amount=str(total_budget_amount),
-                            currency_code=total_budget_currency,
-                        ),
-                    )
-                else:
-                    logger.error(f"Failed to create campaign group: {response.status_code} - {response.text}")
-                    self.problems.append(f"Failed to create campaign group: {response.status_code}")
-                    return None
-        except Exception as e:
-            logger.exception("Exception creating campaign group")
-            self.problems.append(f"Exception creating campaign group: {e}")
-            return None
 
-    async def _create_campaign(
-        self,
-        campaign_group_id: str,
-        name: str,
-        objective_type: str,
-        daily_budget_amount: float,
-        daily_budget_currency: str,
-        status: str,
-    ) -> Optional[Campaign]:
-        valid_objectives = ["BRAND_AWARENESS", "WEBSITE_VISITS", "ENGAGEMENT", "VIDEO_VIEWS", "LEAD_GENERATION", "WEBSITE_CONVERSIONS", "JOB_APPLICANTS"]
-        if objective_type not in valid_objectives:
-            logger.error(f"Invalid objective_type: {objective_type}")
-            self.problems.append(f"Invalid objective_type: {objective_type}. Valid: {', '.join(valid_objectives)}")
-            return None
-
-        account_urn = f"urn:li:sponsoredAccount:{self.ad_account_id}"
-        campaign_group_urn = f"urn:li:sponsoredCampaignGroup:{campaign_group_id}"
-        payload = {
-            "account": account_urn,
-            "campaignGroup": campaign_group_urn,
-            "name": name,
-            "type": "SPONSORED_UPDATES",
-            "objectiveType": objective_type,
-            "status": status,
-            "dailyBudget": {
-                "amount": str(daily_budget_amount),
-                "currencyCode": daily_budget_currency,
-            },
-            "unitCost": {
-                "amount": "10.0",
-                "currencyCode": daily_budget_currency,
-            },
-            "costType": "CPM",
-            "offsiteDeliveryEnabled": False,
-            "locale": {"country": "US", "language": "en"},
-            "runSchedule": {
-                "start": int(time.time() * 1000),
-            },
-            "politicalIntent": "NOT_POLITICAL",
+    def _build_register_upload_payload(self, args: Dict[str, Any], recipe_suffix: str) -> Dict[str, Any]:
+        owner = str(args.get("owner", "")).strip()
+        if not owner:
+            raise ValueError("owner is required and must be a Person URN such as urn:li:person:123.")
+        return {
+            "registerUploadRequest": {
+                "recipes": [f"urn:li:digitalmediaRecipe:feedshare-{recipe_suffix}"],
+                "owner": owner,
+                "serviceRelationships": [
+                    {
+                        "relationshipType": "OWNER",
+                        "identifier": "urn:li:userGeneratedContent",
+                    }
+                ],
+            }
         }
-        url = f"{API_BASE}/rest/adAccounts/{self.ad_account_id}/adCampaigns"
-        logger.info(f"Creating campaign: {name}")
+
+    async def _dispatch(self, method_id: str, args: Dict[str, Any]) -> str:
         try:
-            async with httpx.AsyncClient() as client:
-                response = await client.post(url, json=payload, headers=self.headers, timeout=30.0)
-                if response.status_code == 201:
-                    logger.info(f"Campaign created - headers: {dict(response.headers)}")
-                    campaign_id = response.headers["x-restli-id"]
-                    return Campaign(
-                        id=campaign_id,
-                        name=name,
-                        status=status,
-                        objective_type=objective_type,
-                        daily_budget=Budget(
-                            amount=str(daily_budget_amount),
-                            currency_code=daily_budget_currency,
-                        ),
-                        campaign_group_id=campaign_group_id,
-                    )
-                else:
-                    logger.error(f"Failed to create campaign: {response.status_code} - {response.text}")
-                    self.problems.append(f"Failed to create campaign: {response.status_code}")
-                    return None
-        except Exception as e:
-            logger.exception("Exception creating campaign")
-            self.problems.append(f"Exception creating campaign: {e}")
-            return None
-
-    async def _get_campaign(self, campaign_id: str) -> Optional[Campaign]:
-        url = f"{API_BASE}/rest/adAccounts/{self.ad_account_id}/adCampaigns/{campaign_id}"
-        logger.info(f"Fetching campaign: {campaign_id}")
-        try:
-            async with httpx.AsyncClient() as client:
-                response = await client.get(url, headers=self.headers, timeout=30.0)
-                if response.status_code == 200:
-                    data = response.json()
-                    budget_data = data["dailyBudget"]
-                    campaign_group_urn = data.get("campaignGroup", "")
-                    campaign_group_id = campaign_group_urn.split(":")[-1] if campaign_group_urn else None
-                    return Campaign(
-                        id=data["id"],
-                        name=data["name"],
-                        status=data["status"],
-                        objective_type=data["objectiveType"],
-                        daily_budget=Budget(
-                            amount=budget_data["amount"],
-                            currency_code=budget_data["currencyCode"],
-                        ),
-                        campaign_group_id=campaign_group_id,
-                    )
-                else:
-                    logger.error(f"Failed to get campaign: {response.status_code} - {response.text}")
-                    self.problems.append(f"Failed to get campaign: {response.status_code}")
-                    return None
-        except Exception as e:
-            logger.exception("Exception fetching campaign")
-            self.problems.append(f"Exception fetching campaign: {e}")
-            return None
-
-    async def _get_campaign_analytics(
-        self,
-        campaign_id: str,
-        days: int = 30,
-    ) -> Optional[Analytics]:
-        from datetime import datetime, timedelta
-
-        end_date = datetime.utcnow()
-        start_date = end_date - timedelta(days=days)
-        date_range = (
-            f"(start:(year:{start_date.year},month:{start_date.month},day:{start_date.day}),"
-            f"end:(year:{end_date.year},month:{end_date.month},day:{end_date.day}))"
-        )
-
-        campaign_urn = f"urn%3Ali%3AsponsoredCampaign%3A{campaign_id}"
-
-        url = (
-            f"{API_BASE}/rest/adAnalytics?"
-            f"q=analytics&"
-            f"pivot=CAMPAIGN&"
-            f"campaigns=List({campaign_urn})&"
-            f"timeGranularity=DAILY&"
-            f"dateRange={date_range}&"
-            f"fields=impressions,clicks,costInLocalCurrency"
-        )
-        logger.info(f"Fetching analytics for campaign: {campaign_id}")
-        try:
-            async with httpx.AsyncClient(timeout=30.0) as client:
-                headers = {k: v for k, v in self.headers.items() if k != "Content-Type"}
-                request = httpx.Request("GET", url, headers=headers)
-                response = await client.send(request)
-                if response.status_code == 200:
-                    data = response.json()
-                    elements = data.get("elements", [])
-                    if not elements:
-                        return Analytics(impressions=0, clicks=0, cost=0.0)
-
-                    total_impressions = sum(e.get("impressions", 0) for e in elements)
-                    total_clicks = sum(e.get("clicks", 0) for e in elements)
-                    total_cost = sum(float(e.get("costInLocalCurrency", 0) or 0) for e in elements)
-
-                    return Analytics(
-                        impressions=total_impressions,
-                        clicks=total_clicks,
-                        cost=total_cost,
-                    )
-                else:
-                    logger.error(f"Failed to get analytics: {response.status_code} - {response.text}")
-                    self.problems.append(f"Failed to get analytics: {response.status_code}")
-                    return None
-        except Exception as e:
-            logger.exception("Exception fetching analytics")
-            self.problems.append(f"Exception fetching analytics: {e}")
-            return None
+            if method_id == "linkedin.auth.userinfo.get.v1":
+                return await self._request(method_id, "GET", "/v2/userinfo")
+            if method_id == "linkedin.assets.register_image_upload.v1":
+                return await self._request(
+                    method_id,
+                    "POST",
+                    "/v2/assets?action=registerUpload",
+                    body=self._build_register_upload_payload(args, "image"),
+                )
+            if method_id == "linkedin.assets.register_video_upload.v1":
+                return await self._request(
+                    method_id,
+                    "POST",
+                    "/v2/assets?action=registerUpload",
+                    body=self._build_register_upload_payload(args, "video"),
+                )
+            if method_id == "linkedin.posts.create_text.v1":
+                return await self._request(
+                    method_id,
+                    "POST",
+                    "/v2/ugcPosts",
+                    body=self._build_share_payload(args, "NONE"),
+                )
+            if method_id == "linkedin.posts.create_article.v1":
+                return await self._request(
+                    method_id,
+                    "POST",
+                    "/v2/ugcPosts",
+                    body=self._build_share_payload(args, "ARTICLE"),
+                )
+            if method_id == "linkedin.posts.create_image.v1":
+                return await self._request(
+                    method_id,
+                    "POST",
+                    "/v2/ugcPosts",
+                    body=self._build_share_payload(args, "IMAGE"),
+                )
+            if method_id == "linkedin.posts.create_video.v1":
+                return await self._request(
+                    method_id,
+                    "POST",
+                    "/v2/ugcPosts",
+                    body=self._build_share_payload(args, "VIDEO"),
+                )
+        except ValueError as e:
+            return self._invalid_args(method_id, str(e))
+        return json.dumps({"ok": False, "error_code": "METHOD_UNIMPLEMENTED", "method_id": method_id}, indent=2, ensure_ascii=False)
