@@ -396,5 +396,6 @@ async def main_loop_integrations_init(records: list[IntegrationRecord], rcx: cki
             # Don't worry, you can override it. The default reaction to assistant messages is to get it past messengers:
             for m in rcx.messengers:
                 await m.look_assistant_might_have_posted_something(msg)
+                await m.look_user_message_got_confirmed(msg)
 
     return result
