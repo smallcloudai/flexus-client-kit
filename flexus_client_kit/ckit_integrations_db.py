@@ -283,15 +283,10 @@ def static_integrations_load(bot_dir: Path, allowlist: list[str], builtin_skills
             ))
 
         else:
-            # Generic handler for any fi_{name}.py integration that follows the standard pattern.
-            # Avoids writing an explicit elif branch for every one of the 70+ API providers.
-
             # Import fi_{name}.py at runtime by name (e.g. "reddit" -> fi_reddit.py).
             # We can't do this at the top of the file because the name is only known at call time.
             mod = importlib.import_module(f"flexus_client_kit.integrations.fi_{name}")
 
-            # Each fi_*.py defines exactly one class named Integration* (e.g. IntegrationReddit).
-            # inspect.getmembers lists all class objects in the module.
             # The c.__module__ == mod.__name__ guard skips classes that were *imported into* the
             # module from elsewhere (e.g. base classes), keeping only the one defined there.
             integration_class = next(
@@ -322,8 +317,7 @@ def static_integrations_load(bot_dir: Path, allowlist: list[str], builtin_skills
                 },
             )
 
-            # XXX: _make_generic_init is a factory function, not a plain closure, to avoid a
-            # classic Python loop-capture bug: without it, every closure would share the last
+            # Avoid a classic Python loop-capture bug: without it, every closure would share the last
             # iteration's integration_class after the loop completes.
             def _make_generic_init(klass):
                 async def _init(rcx, setup, _cls=klass):
