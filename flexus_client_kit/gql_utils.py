@@ -8,38 +8,20 @@ from flexus_client_kit import ckit_shutdown
 T = TypeVar('T')
 
 
-def strawberry_from_prisma(prisma_obj: pydantic.BaseModel, strawberry_class: Type[T]) -> T:
-    """
-    Prisma models are pydantic.BaseModel.
-    Strawberry models are dataclasses.
-
-    Use for return types like this:
-
-    @strawberry.type
-    class MyOutputStruct:
-        field1: str
-
-    @strawberry.field
-    async def my_external_api_call(
-        self,
-        ...
-    ) -> MyOutputStruct:
-        ...
-        my_struct = await my_prisma.flexus_group.find_unique(...)
-        return gql_utils.strawberry_from_prisma(my_struct, MyOutputStruct)
-    """
+def hydrate_to_strawberry(source, strawberry_class: Type[T]) -> T:
+    d = source.model_dump() if hasattr(source, 'model_dump') else dict(source)
     field_values = {}
     for f in dataclasses.fields(strawberry_class):
-        if hasattr(prisma_obj, f.name):
-            val = getattr(prisma_obj, f.name)
+        if f.name in d:
+            val = d[f.name]
             if dataclasses.is_dataclass(f.type) and isinstance(val, pydantic.BaseModel):
-                field_values[f.name] = strawberry_from_prisma(val, f.type)
+                field_values[f.name] = hydrate_to_strawberry(val, f.type)
             else:
                 field_values[f.name] = val
         else:
-            origin = getattr(f.type, "__origin__", None)   # Optional[T] is syntactic sugar for Union[T, None]
+            origin = getattr(f.type, "__origin__", None)
             args = getattr(f.type, "__args__", ())
-            assert origin is Union and type(None) in args, f"Field '{f.name}' is missing from prisma object but is not optional"
+            assert origin is Union and type(None) in args, f"Field '{f.name}' missing but not Optional in {strawberry_class.__name__}"
             field_values[f.name] = None
     return strawberry_class(**field_values)
 
