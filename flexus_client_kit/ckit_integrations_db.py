@@ -1,3 +1,5 @@
+import importlib
+import inspect
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Awaitable, Callable
@@ -124,10 +126,7 @@ def static_integrations_load(bot_dir: Path, allowlist: list[str], builtin_skills
         elif name == "linkedin":
             from flexus_client_kit.integrations import fi_linkedin
             async def _init_linkedin(rcx, setup):
-                ad_account_id = (setup or {}).get("ad_account_id", "")
-                return fi_linkedin.IntegrationLinkedIn(
-                    rcx.fclient, rcx, ad_account_id=ad_account_id
-                )
+                return fi_linkedin.IntegrationLinkedIn(rcx)
             result.append(IntegrationRecord(
                 integr_name=name,
                 integr_tools=[fi_linkedin.LINKEDIN_TOOL],
@@ -135,11 +134,48 @@ def static_integrations_load(bot_dir: Path, allowlist: list[str], builtin_skills
                 integr_setup_handlers=lambda obj, rcx: [rcx.on_tool_call("linkedin")(obj.called_by_model)],
                 integr_provider="linkedin",
                 integr_scopes=[
-                    "r_profile_basicinfo",
+                    "openid",
+                    "profile",
                     "email",
                     "w_member_social",
                 ],
                 integr_prompt="",
+            ))
+
+        elif name == "linkedin_b2b":
+            from flexus_client_kit.integrations import fi_linkedin_b2b
+            async def _init_linkedin_b2b(rcx, setup):
+                return fi_linkedin_b2b.IntegrationLinkedinB2B(
+                    rcx,
+                    ad_account_id=(setup or {}).get("ad_account_id", ""),
+                    organization_id=(setup or {}).get("organization_id", ""),
+                    linkedin_api_version=(setup or {}).get("linkedin_api_version", "202509"),
+                )
+            result.append(IntegrationRecord(
+                integr_name=name,
+                integr_tools=[fi_linkedin_b2b.LINKEDIN_B2B_TOOL],
+                integr_init=_init_linkedin_b2b,
+                integr_setup_handlers=lambda obj, rcx: [rcx.on_tool_call("linkedin_b2b")(obj.called_by_model)],
+                integr_provider="linkedin",
+                integr_scopes=[
+                    "r_ads",
+                    "rw_ads",
+                    "r_ads_reporting",
+                    "r_organization_admin",
+                    "rw_organization_admin",
+                    "r_organization_social",
+                    "w_organization_social",
+                    "r_organization_social_feed",
+                    "w_organization_social_feed",
+                    "r_organization_followers",
+                    "r_events",
+                    "rw_events",
+                    "r_marketing_leadgen_automation",
+                    "rw_conversions",
+                    "r_member_profileAnalytics",
+                    "r_member_postAnalytics",
+                    "rw_dmp_segments",
+                ],
             ))
 
         elif name == "github":
@@ -247,7 +283,68 @@ def static_integrations_load(bot_dir: Path, allowlist: list[str], builtin_skills
             ))
 
         else:
-            raise ValueError(f"Unknown integration {name!r}")
+            # Generic handler for any fi_{name}.py integration that follows the standard pattern.
+            # Avoids writing an explicit elif branch for every one of the 70+ API providers.
+
+            # Import fi_{name}.py at runtime by name (e.g. "reddit" -> fi_reddit.py).
+            # We can't do this at the top of the file because the name is only known at call time.
+            mod = importlib.import_module(f"flexus_client_kit.integrations.fi_{name}")
+
+            # Each fi_*.py defines exactly one class named Integration* (e.g. IntegrationReddit).
+            # inspect.getmembers lists all class objects in the module.
+            # The c.__module__ == mod.__name__ guard skips classes that were *imported into* the
+            # module from elsewhere (e.g. base classes), keeping only the one defined there.
+            integration_class = next(
+                (c for _, c in inspect.getmembers(mod, inspect.isclass)
+                 if c.__name__.startswith("Integration") and c.__module__ == mod.__name__),
+                None,
+            )
+            if integration_class is None:
+                raise ValueError(f"No Integration* class found in fi_{name}.py")
+
+            # fi_*.py defines PROVIDER_NAME = "reddit" (may differ from the file name fi_x.py -> "x").
+            provider_name = getattr(mod, "PROVIDER_NAME", name)
+
+            # All fi_*.py integrations speak the same op=help|status|list_methods|call protocol,
+            # so one tool schema covers all of them.
+            generic_tool = ckit_cloudtool.CloudTool(
+                strict=True,
+                name=provider_name,
+                description=f"{provider_name}: data provider. op=help|status|list_methods|call",
+                parameters={
+                    "type": "object",
+                    "properties": {
+                        "op": {"type": "string", "enum": ["help", "status", "list_methods", "call"]},
+                        "args": {"type": ["object", "null"]},
+                    },
+                    "required": ["op", "args"],
+                    "additionalProperties": False,
+                },
+            )
+
+            # XXX: _make_generic_init is a factory function, not a plain closure, to avoid a
+            # classic Python loop-capture bug: without it, every closure would share the last
+            # iteration's integration_class after the loop completes.
+            def _make_generic_init(klass):
+                async def _init(rcx, setup, _cls=klass):
+                    # XXX: fi_*.py constructors are inconsistent: some accept (rcx), some accept
+                    # nothing. Try the more common (rcx) first; fall back to () on TypeError.
+                    try:
+                        return _cls(rcx)
+                    except TypeError:
+                        return _cls()
+                return _init
+
+            result.append(IntegrationRecord(
+                integr_name=provider_name,
+                integr_tools=[generic_tool],
+                integr_init=_make_generic_init(integration_class),
+                # _t=generic_tool captures the current tool into the lambda for the same reason
+                # as _make_generic_init above: without it all lambdas would share the last tool.
+                integr_setup_handlers=lambda obj, rcx, _t=generic_tool: [
+                    rcx.on_tool_call(_t.name)(obj.called_by_model)
+                ],
+            ))
     return result
 
 
@@ -257,7 +354,7 @@ def _parse_bracket_list(name: str) -> list[str] | None:
     return [g.strip() for g in name.split("[", 1)[1].rstrip("]").split(",")]
 
 
-async def main_loop_integrations_init(records: list[IntegrationRecord], rcx: ckit_bot_exec.RobotContext, setup: dict) -> dict[str, Any]:
+async def main_loop_integrations_init(records: list[IntegrationRecord], rcx, setup: dict | None = None) -> dict[str, Any]:
     from flexus_client_kit.integrations import fi_messenger
     if any(rec.integr_need_mongo for rec in records) and rcx.personal_mongo is None:
         from pymongo import AsyncMongoClient
