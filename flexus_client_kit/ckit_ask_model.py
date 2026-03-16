@@ -229,17 +229,18 @@ async def captured_thread_post_user_message(
     ft_app_searchable: str,
     content: Union[str, List[Dict[str, Any]]],
     only_to_expert: str = "",
+    ftm_provenance: Optional[Dict[str, Any]] = None,
 ) -> str:
-    ftm_content = json.dumps(content)
     async with http as h:
         r = await h.execute(gql.gql("""
-            mutation CapturedThreadPostSafe($persona_id: String!, $ft_app_searchable: String!, $ftm_content: String!, $only_to_expert: String!) {
-                captured_thread_post_user_message(persona_id: $persona_id, ft_app_searchable: $ft_app_searchable, ftm_content: $ftm_content, only_to_expert: $only_to_expert)
+            mutation CapturedThreadPostSafe($persona_id: String!, $ft_app_searchable: String!, $ftm_content: String!, $only_to_expert: String!, $ftm_provenance: String) {
+                captured_thread_post_user_message(persona_id: $persona_id, ft_app_searchable: $ft_app_searchable, ftm_content: $ftm_content, only_to_expert: $only_to_expert, ftm_provenance: $ftm_provenance)
             }"""),
             variable_values={
                 "persona_id": persona_id,
                 "ft_app_searchable": ft_app_searchable,
-                "ftm_content": ftm_content,
+                "ftm_content": json.dumps(content),
+                "ftm_provenance": json.dumps(ftm_provenance) if ftm_provenance else None,
                 "only_to_expert": only_to_expert,
             },
         )

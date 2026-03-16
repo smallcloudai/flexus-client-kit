@@ -67,6 +67,19 @@ class FlexusMessenger:
     async def look_assistant_might_have_posted_something(self, msg: ckit_ask_model.FThreadMessageOutput) -> bool:
         raise NotImplementedError
 
+    async def look_user_message_got_confirmed(self, msg: ckit_ask_model.FThreadMessageOutput) -> bool:
+        return False
+
+
+def ftm_content_to_text(content) -> str:
+    if isinstance(content, list):
+        return "\n\n".join(
+            x.get("m_content") or x.get("text", "")
+            for x in content
+            if isinstance(x, dict) and (x.get("m_type") or x.get("type")) == "text"
+        )
+    return content or ""
+
 
 def is_text_file(data: bytes) -> bool:
     if not data:
