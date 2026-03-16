@@ -1,3 +1,5 @@
+import importlib
+import inspect
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Awaitable, Callable
@@ -247,7 +249,68 @@ def static_integrations_load(bot_dir: Path, allowlist: list[str], builtin_skills
             ))
 
         else:
-            raise ValueError(f"Unknown integration {name!r}")
+            # Generic handler for any fi_{name}.py integration that follows the standard pattern.
+            # Avoids writing an explicit elif branch for every one of the 70+ API providers.
+
+            # Import fi_{name}.py at runtime by name (e.g. "newsapi" -> fi_newsapi.py).
+            # We can't do this at the top of the file because the name is only known at call time.
+            mod = importlib.import_module(f"flexus_client_kit.integrations.fi_{name}")
+
+            # Each fi_*.py defines exactly one class named Integration* (e.g. IntegrationNewsapi).
+            # inspect.getmembers lists all class objects in the module.
+            # The c.__module__ == mod.__name__ guard skips classes that were *imported into* the
+            # module from elsewhere (e.g. base classes), keeping only the one defined there.
+            integration_class = next(
+                (c for _, c in inspect.getmembers(mod, inspect.isclass)
+                 if c.__name__.startswith("Integration") and c.__module__ == mod.__name__),
+                None,
+            )
+            if integration_class is None:
+                raise ValueError(f"No Integration* class found in fi_{name}.py")
+
+            # fi_*.py defines PROVIDER_NAME = "newsapi" (may differ from the file name fi_x.py -> "x").
+            provider_name = getattr(mod, "PROVIDER_NAME", name)
+
+            # All fi_*.py integrations speak the same op=help|status|list_methods|call protocol,
+            # so one tool schema covers all of them.
+            generic_tool = ckit_cloudtool.CloudTool(
+                strict=True,
+                name=provider_name,
+                description=f"{provider_name}: data provider. op=help|status|list_methods|call",
+                parameters={
+                    "type": "object",
+                    "properties": {
+                        "op": {"type": "string", "enum": ["help", "status", "list_methods", "call"]},
+                        "args": {"type": ["object", "null"]},
+                    },
+                    "required": ["op", "args"],
+                    "additionalProperties": False,
+                },
+            )
+
+            # XXX: _make_generic_init is a factory function, not a plain closure, to avoid a
+            # classic Python loop-capture bug: without it, every closure would share the last
+            # iteration's integration_class after the loop completes.
+            def _make_generic_init(klass):
+                async def _init(rcx, setup, _cls=klass):
+                    # XXX: fi_*.py constructors are inconsistent: some accept (rcx), some accept
+                    # nothing. Try the more common (rcx) first; fall back to () on TypeError.
+                    try:
+                        return _cls(rcx)
+                    except TypeError:
+                        return _cls()
+                return _init
+
+            result.append(IntegrationRecord(
+                integr_name=provider_name,
+                integr_tools=[generic_tool],
+                integr_init=_make_generic_init(integration_class),
+                # _t=generic_tool captures the current tool into the lambda for the same reason
+                # as _make_generic_init above: without it all lambdas would share the last tool.
+                integr_setup_handlers=lambda obj, rcx, _t=generic_tool: [
+                    rcx.on_tool_call(_t.name)(obj.called_by_model)
+                ],
+            ))
     return result
 
 
@@ -257,7 +320,7 @@ def _parse_bracket_list(name: str) -> list[str] | None:
     return [g.strip() for g in name.split("[", 1)[1].rstrip("]").split(",")]
 
 
-async def main_loop_integrations_init(records: list[IntegrationRecord], rcx: ckit_bot_exec.RobotContext, setup: dict) -> dict[str, Any]:
+async def main_loop_integrations_init(records: list[IntegrationRecord], rcx, setup: dict | None = None) -> dict[str, Any]:
     from flexus_client_kit.integrations import fi_messenger
     if any(rec.integr_need_mongo for rec in records) and rcx.personal_mongo is None:
         from pymongo import AsyncMongoClient
