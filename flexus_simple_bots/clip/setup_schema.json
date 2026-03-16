@@ -1,0 +1,56 @@
+[
+    {
+        "bs_name": "stt_provider",
+        "bs_type": "string_short",
+        "bs_default": "auto",
+        "bs_group": "Processing",
+        "bs_order": 1,
+        "bs_importance": 0,
+        "bs_description": "Speech-to-text provider: auto (best available), whisper_local, groq_whisper, openai_whisper, deepgram"
+    },
+    {
+        "bs_name": "tts_provider",
+        "bs_type": "string_short",
+        "bs_default": "none",
+        "bs_group": "Processing",
+        "bs_order": 2,
+        "bs_importance": 0,
+        "bs_description": "Text-to-speech for voice-over: none, edge_tts (free), openai_tts, elevenlabs"
+    },
+    {
+        "bs_name": "publish_target",
+        "bs_type": "string_short",
+        "bs_default": "local_only",
+        "bs_group": "Publishing",
+        "bs_order": 3,
+        "bs_importance": 0,
+        "bs_description": "Where to publish clips: local_only, telegram, whatsapp, both"
+    },
+    {
+        "bs_name": "telegram_bot_token",
+        "bs_type": "string_short",
+        "bs_default": "",
+        "bs_group": "Publishing",
+        "bs_order": 4,
+        "bs_importance": 0,
+        "bs_description": "Telegram bot token from @BotFather (e.g., 123456:ABC-DEF...)"
+    },
+    {
+        "bs_name": "telegram_chat_id",
+        "bs_type": "string_short",
+        "bs_default": "",
+        "bs_group": "Publishing",
+        "bs_order": 5,
+        "bs_importance": 0,
+        "bs_description": "Telegram channel/group ID (e.g., -100XXXXXXXXXX or @channelname)"
+    },
+    {
+        "bs_name": "clip_duration",
+        "bs_type": "string_short",
+        "bs_default": "30-90",
+        "bs_group": "Processing",
+        "bs_order": 6,
+        "bs_importance": 0,
+        "bs_description": "Target clip duration range in seconds (e.g., 30-60, 30-90, 60-120)"
+    }
+]

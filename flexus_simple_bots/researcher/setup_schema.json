@@ -1,1 +1,56 @@
-[]
+[
+    {
+        "bs_name": "research_depth",
+        "bs_type": "string_short",
+        "bs_default": "thorough",
+        "bs_group": "Research Settings",
+        "bs_order": 1,
+        "bs_importance": 1,
+        "bs_description": "Research depth: quick (5-10 sources), thorough (20-30 sources), exhaustive (50+ sources)"
+    },
+    {
+        "bs_name": "output_style",
+        "bs_type": "string_short",
+        "bs_default": "detailed",
+        "bs_group": "Research Settings",
+        "bs_order": 2,
+        "bs_importance": 0,
+        "bs_description": "Output style: brief, detailed, academic, executive"
+    },
+    {
+        "bs_name": "source_verification",
+        "bs_type": "bool",
+        "bs_default": true,
+        "bs_group": "Research Settings",
+        "bs_order": 3,
+        "bs_importance": 0,
+        "bs_description": "Enable CRAAP framework source verification (Currency, Relevance, Authority, Accuracy, Purpose)"
+    },
+    {
+        "bs_name": "max_sources",
+        "bs_type": "string_short",
+        "bs_default": "30",
+        "bs_group": "Research Settings",
+        "bs_order": 4,
+        "bs_importance": 0,
+        "bs_description": "Maximum number of sources to consult: 10, 30, 50, unlimited"
+    },
+    {
+        "bs_name": "citation_style",
+        "bs_type": "string_short",
+        "bs_default": "inline",
+        "bs_group": "Output",
+        "bs_order": 5,
+        "bs_importance": 0,
+        "bs_description": "Citation style: inline (URLs in text), footnotes, apa, numbered"
+    },
+    {
+        "bs_name": "language",
+        "bs_type": "string_short",
+        "bs_default": "english",
+        "bs_group": "Output",
+        "bs_order": 6,
+        "bs_importance": 0,
+        "bs_description": "Output language: english, spanish, french, german, chinese, japanese, auto-detect"
+    }
+]

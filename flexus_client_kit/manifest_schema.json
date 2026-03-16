@@ -116,7 +116,7 @@
             "type": "array",
             "title": "Tools and Integrations",
             "items": { "type": "string" },
-            "description": "List of tools and integrations the bot uses. Accepts built-in integrations (flexus_policy_document, print_widget, gmail, google_calendar, jira, skills) and cloud tool names. Each provides tools and optionally OAuth. Example: ['flexus_policy_document', 'gmail', 'google_calendar']."
+            "description": "List of tools and integrations the bot uses. Accepts built-in integrations (flexus_policy_document, print_widget, gmail, google_calendar, jira, skills, mongo_store) and cloud tool names. Each provides tools and optionally OAuth. Example: ['flexus_policy_document', 'gmail', 'google_calendar']."
         },
         "shared_skills_allowlist": {
             "type": "string",

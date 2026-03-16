@@ -1,0 +1,39 @@
+{
+    "bot_name": "lead",
+    "accent_color": "#27AE60",
+    "title1": "Lead",
+    "title2": "B2B lead generation with ICP matching, enrichment, and scoring.",
+    "author": "Flexus",
+    "occupation": "Lead Generation Specialist",
+    "typical_group": "Sales / Marketing",
+    "github_repo": "https://github.com/smallcloudai/flexus-client-kit.git",
+    "integrations": [
+        "skills",
+        "mongo_store"
+    ],
+    "shared_skills_allowlist": "*",
+    "featured_actions": [
+        {
+            "feat_question": "Find 10 SaaS companies in Europe with 50-200 employees",
+            "feat_expert": "default"
+        },
+        {
+            "feat_question": "Generate leads matching our ICP: B2B fintech CTOs in North America",
+            "feat_expert": "default"
+        },
+        {
+            "feat_question": "Enrich and score these company leads",
+            "feat_expert": "default"
+        }
+    ],
+    "intro_message": "Hi! I'm Lead. Tell me your ideal customer profile and I'll find, enrich, and score qualified prospects using web research.",
+    "preferred_model_default": "grok-4-1-fast-reasoning",
+    "daily_budget_default": 10000000,
+    "default_inbox_default": 10000,
+    "tags": [
+        "Sales",
+        "Lead Generation",
+        "B2B",
+        "Prospecting"
+    ]
+}

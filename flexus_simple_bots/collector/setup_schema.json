@@ -1,0 +1,56 @@
+[
+    {
+        "bs_name": "target_subject",
+        "bs_type": "string_long",
+        "bs_default": "",
+        "bs_group": "Monitoring Target",
+        "bs_order": 1,
+        "bs_importance": 1,
+        "bs_description": "Primary monitoring target (company name, person, technology, market segment)"
+    },
+    {
+        "bs_name": "focus_area",
+        "bs_type": "string_short",
+        "bs_default": "business",
+        "bs_group": "Monitoring Target",
+        "bs_order": 2,
+        "bs_importance": 1,
+        "bs_description": "Focus area: market_intelligence, business, competitor, person, technology"
+    },
+    {
+        "bs_name": "collection_depth",
+        "bs_type": "string_short",
+        "bs_default": "deep",
+        "bs_group": "Collection Settings",
+        "bs_order": 3,
+        "bs_importance": 0,
+        "bs_description": "Collection depth: surface (quick scan), deep (thorough), exhaustive (comprehensive)"
+    },
+    {
+        "bs_name": "alert_threshold",
+        "bs_type": "string_short",
+        "bs_default": "important",
+        "bs_group": "Alerts",
+        "bs_order": 4,
+        "bs_importance": 0,
+        "bs_description": "Alert threshold: critical_only, important, all"
+    },
+    {
+        "bs_name": "report_format",
+        "bs_type": "string_short",
+        "bs_default": "markdown",
+        "bs_group": "Output",
+        "bs_order": 5,
+        "bs_importance": 0,
+        "bs_description": "Report format: markdown, json, html"
+    },
+    {
+        "bs_name": "sentiment_tracking",
+        "bs_type": "bool",
+        "bs_default": true,
+        "bs_group": "Analysis",
+        "bs_order": 6,
+        "bs_importance": 0,
+        "bs_description": "Enable sentiment analysis tracking for the target"
+    }
+]
