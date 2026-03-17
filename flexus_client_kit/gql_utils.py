@@ -4,16 +4,18 @@ import pydantic
 import dataclasses
 import logging
 import aiohttp.client_exceptions
-from strawberry.scalars import JSON as _StrawberryJSON
 from flexus_client_kit import ckit_shutdown
 
 T = TypeVar('T')
 
 
 def _is_json_scalar(ftype):
-    if ftype is _StrawberryJSON:
+    if hasattr(ftype, '_scalar_definition') and ftype._scalar_definition.name == 'JSON':
         return True
-    return _StrawberryJSON in getattr(ftype, "__args__", ())
+    for a in getattr(ftype, '__args__', ()):
+        if hasattr(a, '_scalar_definition') and a._scalar_definition.name == 'JSON':
+            return True
+    return False
 
 
 def hydrate_to_strawberry(source, strawberry_class: Type[T]) -> T:
