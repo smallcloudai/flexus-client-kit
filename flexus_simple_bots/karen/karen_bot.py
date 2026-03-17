@@ -6,7 +6,6 @@ from flexus_client_kit import ckit_client
 from flexus_client_kit import ckit_cloudtool
 from flexus_client_kit import ckit_bot_exec
 from flexus_client_kit import ckit_shutdown
-from flexus_client_kit import ckit_ask_model
 from flexus_client_kit import ckit_integrations_db
 from flexus_client_kit.integrations import fi_slack
 from flexus_client_kit.integrations import fi_discord2
@@ -45,10 +44,6 @@ async def karen_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.
         rcx,
         watch_channels=setup["discord_watch_channels"],
     )
-
-    @rcx.on_updated_thread
-    async def updated_thread_in_db(th: ckit_ask_model.FThreadOutput):
-        pass
 
     @rcx.on_tool_call(fi_discord2.DISCORD_TOOL.name)
     async def toolcall_discord(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
