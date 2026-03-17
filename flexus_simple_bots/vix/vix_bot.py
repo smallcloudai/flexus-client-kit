@@ -19,7 +19,7 @@ from flexus_client_kit.integrations import fi_mongo_store
 from flexus_client_kit.integrations import fi_crm_automations
 from flexus_client_kit.integrations import fi_resend
 from flexus_client_kit.integrations import fi_shopify
-from flexus_client_kit.integrations import fi_telegram, fi_webchat
+from flexus_client_kit.integrations import fi_telegram, fi_magic_desk
 from flexus_client_kit.integrations import fi_crm
 from flexus_client_kit.integrations import fi_sched
 from flexus_simple_bots.vix import vix_install
@@ -38,7 +38,7 @@ VIX_INTEGRATIONS: list[ckit_integrations_db.IntegrationRecord] = ckit_integratio
         "flexus_policy_document",
         "print_widget",
         "erp[meta, data, crud, csv_import]",
-        "webchat",
+        "magic_desk",
     ],
     builtin_skills=vix_install.VIX_SKILLS,
 )
@@ -71,14 +71,14 @@ async def vix_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.Ro
     telegram = fi_telegram.IntegrationTelegram(fclient, rcx)
     await telegram.initialize()
 
-    webchat: fi_webchat.IntegrationWebchat = integrations["webchat"]
-    webchat.default_fexp_name = "sales"
+    magic_desk: fi_magic_desk.IntegrationMagicDesk = integrations["magic_desk"]
+    magic_desk.default_fexp_name = "sales"
 
     @rcx.on_updated_message
     async def updated_message_in_db(msg: ckit_ask_model.FThreadMessageOutput):
         await telegram.look_assistant_might_have_posted_something(msg)
-        await webchat.look_assistant_might_have_posted_something(msg)
-        await webchat.look_user_message_got_confirmed(msg)
+        await magic_desk.look_assistant_might_have_posted_something(msg)
+        await magic_desk.look_user_message_got_confirmed(msg)
 
     @rcx.on_updated_task
     async def updated_task_in_db(t: ckit_kanban.FPersonaKanbanTaskOutput):

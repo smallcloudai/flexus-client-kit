@@ -240,15 +240,15 @@ def static_integrations_load(bot_dir: Path, allowlist: list[str], builtin_skills
                 integr_prompt=fi_messenger.MESSENGER_PROMPT,
             ))
 
-        elif name == "webchat":
-            from flexus_client_kit.integrations import fi_webchat
-            async def _init_webchat(rcx, setup):
-                return fi_webchat.IntegrationWebchat(rcx.fclient, rcx)
+        elif name == "magic_desk":
+            from flexus_client_kit.integrations import fi_magic_desk
+            async def _init_magic_desk(rcx, setup):
+                return fi_magic_desk.IntegrationMagicDesk(rcx.fclient, rcx)
             result.append(IntegrationRecord(
                 integr_name=name,
-                integr_tools=[fi_webchat.WEBCHAT_TOOL],
-                integr_init=_init_webchat,
-                integr_setup_handlers=lambda obj, rcx: [rcx.on_tool_call("webchat")(obj.called_by_model)],
+                integr_tools=[fi_magic_desk.MAGIC_DESK_TOOL],
+                integr_init=_init_magic_desk,
+                integr_setup_handlers=lambda obj, rcx: [rcx.on_tool_call("magic_desk")(obj.called_by_model)],
                 integr_is_messenger=True,
                 integr_prompt="",
             ))

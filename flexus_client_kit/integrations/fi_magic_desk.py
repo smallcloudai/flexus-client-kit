@@ -8,12 +8,12 @@ import gql
 from flexus_client_kit import ckit_ask_model, ckit_bot_exec, ckit_bot_query, ckit_client, ckit_cloudtool, ckit_kanban
 from flexus_client_kit.integrations import fi_messenger
 
-logger = logging.getLogger("wchat")
+logger = logging.getLogger("mdesk")
 
-WEBCHAT_TOOL = ckit_cloudtool.CloudTool(
+MAGIC_DESK_TOOL = ckit_cloudtool.CloudTool(
     strict=False,
-    name="webchat",
-    description="Interact with the web chat widget. Call with op=\"help\" for usage.",
+    name="magic_desk",
+    description="Interact with the Magic Desk chat widget. Call with op=\"help\" for usage.",
     parameters={
         "type": "object",
         "properties": {
@@ -25,41 +25,41 @@ WEBCHAT_TOOL = ckit_cloudtool.CloudTool(
 
 HELP = """Help:
 
-webchat(op="capture", args={"session_id": "uuid"})
-    Capture a web chat session. Messages will appear here and your responses will be sent back.
+magic_desk(op="capture", args={"session_id": "uuid"})
+    Capture a Magic Desk chat session. Messages will appear here and your responses will be sent back.
 
-webchat(op="uncapture")
+magic_desk(op="uncapture")
     Stop capturing this session.
 """
 
 
 @dataclass
-class ActivityWebchat:
+class ActivityMagicDesk:
     session_id: str
     text: str
 
 
-class IntegrationWebchat(fi_messenger.FlexusMessenger):
-    platform_name = "webchat"
-    emessage_type = "WEBCHAT"
+class IntegrationMagicDesk(fi_messenger.FlexusMessenger):
+    platform_name = "magic_desk"
+    emessage_type = "MAGIC_DESK"
 
     def __init__(self, fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.RobotContext, default_fexp_name: str = "default"):
         super().__init__(fclient, rcx)
         self.default_fexp_name = default_fexp_name
-        self._activity_callback: Callable[[ActivityWebchat, bool], Awaitable[None]] = self.default_activity_to_inbox
+        self._activity_callback: Callable[[ActivityMagicDesk, bool], Awaitable[None]] = self.default_activity_to_inbox
 
-    def on_incoming_activity(self, handler: Callable[[ActivityWebchat, bool], Awaitable[None]]):
+    def on_incoming_activity(self, handler: Callable[[ActivityMagicDesk, bool], Awaitable[None]]):
         self._activity_callback = handler
         return handler
 
-    async def default_activity_to_inbox(self, a: ActivityWebchat, already_posted: bool):
+    async def default_activity_to_inbox(self, a: ActivityMagicDesk, already_posted: bool):
         if already_posted:
             return
         await ckit_kanban.bot_kanban_post_into_inbox(
             self.fclient, self.rcx.persona.persona_id,
-            title=f"Web chat session={a.session_id}\n{a.text}",
+            title=f"Magic Desk session={a.session_id}\n{a.text}",
             details_json=json.dumps({"session_id": a.session_id, "text": a.text}),
-            provenance_message="webchat_inbound",
+            provenance_message="magic_desk_inbound",
             fexp_name=self.default_fexp_name,
         )
 
@@ -81,9 +81,9 @@ class IntegrationWebchat(fi_messenger.FlexusMessenger):
                     return "Already captured\n"
                 return fi_messenger.OTHER_CHAT_ALREADY_CAPTURING_MSG % session_id
             http = await self.fclient.use_http()
-            await ckit_ask_model.thread_app_capture_patch(http, toolcall.fcall_ft_id, ft_app_searchable=f"webchat/{session_id}")
+            await ckit_ask_model.thread_app_capture_patch(http, toolcall.fcall_ft_id, ft_app_searchable=f"magic_desk/{session_id}")
             if fthread := self.rcx.latest_threads.get(toolcall.fcall_ft_id):
-                fthread.thread_fields.ft_app_searchable = f"webchat/{session_id}"
+                fthread.thread_fields.ft_app_searchable = f"magic_desk/{session_id}"
             return fi_messenger.CAPTURE_SUCCESS_MSG % session_id + fi_messenger.CAPTURE_ADVICE_MSG
         if op == "uncapture":
             http = await self.fclient.use_http()
@@ -100,31 +100,31 @@ class IntegrationWebchat(fi_messenger.FlexusMessenger):
         if not text.strip():
             return
         http = await self.fclient.use_http()
-        ft_id = await ckit_ask_model.captured_thread_post_user_message(http, self.rcx.persona.persona_id, f"webchat/{session_id}", text, ftm_provenance={"system_type": "captured_thread_post", "webchat_id": emsg.emsg_external_id})
+        ft_id = await ckit_ask_model.captured_thread_post_user_message(http, self.rcx.persona.persona_id, f"magic_desk/{session_id}", text, ftm_provenance={"system_type": "captured_thread_post", "mdesk_id": emsg.emsg_external_id})
         if ft_id:
-            logger.info("%s webchat inbound captured ft_id=%s session=%s: %s", self.rcx.persona.persona_id, ft_id, session_id, text[:120])
+            logger.info("%s magic_desk inbound captured ft_id=%s session=%s: %s", self.rcx.persona.persona_id, ft_id, session_id, text[:120])
         else:
-            logger.info("%s webchat inbound session=%s no capture: %s", self.rcx.persona.persona_id, session_id, text[:120])
-        await self._activity_callback(ActivityWebchat(session_id=session_id, text=text), bool(ft_id))
+            logger.info("%s magic_desk inbound session=%s no capture: %s", self.rcx.persona.persona_id, session_id, text[:120])
+        await self._activity_callback(ActivityMagicDesk(session_id=session_id, text=text), bool(ft_id))
 
     async def look_user_message_got_confirmed(self, msg: ckit_ask_model.FThreadMessageOutput) -> bool:
         if msg.ftm_role != "user" or msg.ftm_num < 0:
             return False
         searchable = msg.ft_app_searchable or ""
-        if not searchable.startswith("webchat/"):
+        if not searchable.startswith("magic_desk/"):
             return False
-        session_id = searchable[len("webchat/"):]
+        session_id = searchable[len("magic_desk/"):]
         text = fi_messenger.ftm_content_to_text(msg.ftm_content)
         if not text.strip():
             return False
-        webchat_id = (msg.ftm_provenance if isinstance(msg.ftm_provenance, dict) else {}).get("webchat_id")
+        mdesk_id = (msg.ftm_provenance if isinstance(msg.ftm_provenance, dict) else {}).get("mdesk_id")
         http = await self.fclient.use_http()
         async with http as h:
             await h.execute(gql.gql("""
-                mutation WebchatConfirmUserMessage($session_id: String!, $text: String!, $ftm_alt: Int!, $ftm_num: Int!, $webchat_id: String) {
-                    webchat_deliver_reply(session_id: $session_id, text: $text, role: "user", ftm_alt: $ftm_alt, ftm_num: $ftm_num, webchat_id: $webchat_id)
+                mutation MagicDeskConfirmUserMessage($session_id: String!, $text: String!, $ftm_alt: Int!, $ftm_num: Int!, $mdesk_id: String, $persona_id: String) {
+                    magic_desk_deliver_reply(session_id: $session_id, text: $text, role: "user", ftm_alt: $ftm_alt, ftm_num: $ftm_num, mdesk_id: $mdesk_id, persona_id: $persona_id)
                 }"""),
-                variable_values={"session_id": session_id, "text": text, "ftm_alt": msg.ftm_alt, "ftm_num": msg.ftm_num, "webchat_id": webchat_id},
+                variable_values={"session_id": session_id, "text": text, "ftm_alt": msg.ftm_alt, "ftm_num": msg.ftm_num, "mdesk_id": mdesk_id, "persona_id": self.rcx.persona.persona_id},
             )
         return True
 
@@ -132,9 +132,9 @@ class IntegrationWebchat(fi_messenger.FlexusMessenger):
         if msg.ftm_role != "assistant" or not msg.ftm_content:
             return False
         searchable = msg.ft_app_searchable or ""
-        if not searchable.startswith("webchat/"):
+        if not searchable.startswith("magic_desk/"):
             return False
-        session_id = searchable[len("webchat/"):]
+        session_id = searchable[len("magic_desk/"):]
         text = fi_messenger.ftm_content_to_text(msg.ftm_content)
         if "TASK_COMPLETED" in text and len(text) <= len("TASK_COMPLETED") + 6:
             return False
@@ -142,10 +142,10 @@ class IntegrationWebchat(fi_messenger.FlexusMessenger):
         http = await self.fclient.use_http()
         async with http as h:
             await h.execute(gql.gql("""
-                mutation WebchatDeliverReply($session_id: String!, $text: String!, $ftm_alt: Int!, $ftm_num: Int!) {
-                    webchat_deliver_reply(session_id: $session_id, text: $text, ftm_alt: $ftm_alt, ftm_num: $ftm_num)
+                mutation MagicDeskDeliverReply($session_id: String!, $text: String!, $ftm_alt: Int!, $ftm_num: Int!, $persona_id: String) {
+                    magic_desk_deliver_reply(session_id: $session_id, text: $text, ftm_alt: $ftm_alt, ftm_num: $ftm_num, persona_id: $persona_id)
                 }"""),
-                variable_values={"session_id": session_id, "text": text, "ftm_alt": msg.ftm_alt, "ftm_num": msg.ftm_num},
+                variable_values={"session_id": session_id, "text": text, "ftm_alt": msg.ftm_alt, "ftm_num": msg.ftm_num, "persona_id": self.rcx.persona.persona_id},
             )
-        logger.info("%s webchat reply to session=%s: %s", self.rcx.persona.persona_id, session_id, text[:80])
+        logger.info("%s magic_desk reply to session=%s: %s", self.rcx.persona.persona_id, session_id, text[:80])
         return True
