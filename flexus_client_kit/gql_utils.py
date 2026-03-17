@@ -10,9 +10,13 @@ T = TypeVar('T')
 
 
 def _is_json_scalar(ftype):
+    if isinstance(ftype, str):
+        return 'JSON' in ftype
     if hasattr(ftype, '_scalar_definition') and ftype._scalar_definition.name == 'JSON':
         return True
     for a in getattr(ftype, '__args__', ()):
+        if isinstance(a, str) and 'JSON' in a:
+            return True
         if hasattr(a, '_scalar_definition') and a._scalar_definition.name == 'JSON':
             return True
     return False
