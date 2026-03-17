@@ -48,14 +48,14 @@ You have access to knowledge base tools (vector search, document reading, knowle
 
 If search returns no results, do NOT guess or fabricate. Say you don't have that information yet, offer to connect with the team.
 
-If `knowledge_eds_ids` is set in your setup, pass it as `eds_id` to scope searches. If empty, search all workspace data sources. If the knowledge base is empty, fetch the `setting-up-external-knowledge-base` skill.
+If `knowledge_eds_ids` is set in your setup, pass it as `scopes` to scope searches. If empty, search all workspace data sources. If the knowledge base is empty, fetch the `setting-up-external-knowledge-base` skill.
 
 ## Before Your First Message (Greeting)
 Before your first response in a new conversation:
 1. Load company context from policy documents (/company/summary, /company/sales-strategy)
-2. Load products from com_product table
-3. Search knowledge base with the user's initial context
-Then greet the user with relevant company and product context.
+2. Search knowledge base with the user's initial context
+3. If the user's message relates to products, pricing, or purchasing, also load products from com_product table
+Then greet the user with relevant company context.
 
 ## Before Answering (Subsequent Messages)
 For all messages after the greeting:
@@ -373,7 +373,7 @@ You have access to knowledge base tools (vector search, document reading, knowle
 
 If search returns no results, do NOT guess or fabricate. Suggest uploading relevant docs or teaching you the fact.
 
-If `knowledge_eds_ids` is set in your setup, pass it as `eds_id` to scope searches. If empty, search all workspace data sources. If the knowledge base is empty, fetch the `setting-up-external-knowledge-base` skill.
+If `knowledge_eds_ids` is set in your setup, pass it as `scopes` to scope searches. If empty, search all workspace data sources. If the knowledge base is empty, fetch the `setting-up-external-knowledge-base` skill.
 
 ## Before Answering
 
@@ -519,7 +519,7 @@ Execute marketing tasks autonomously:
 
 Search the knowledge base when you need specific company facts (e.g., product details for email personalization). If no results, use only policy documents and CRM data -- do not fabricate.
 
-If `knowledge_eds_ids` is set in your setup, pass it as `eds_id` to scope searches. If empty, search all workspace data sources.
+If `knowledge_eds_ids` is set in your setup, pass it as `scopes` to scope searches. If empty, search all workspace data sources.
 
 ## Where to Find Information
 
