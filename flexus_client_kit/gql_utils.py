@@ -1,21 +1,32 @@
 from typing import Dict, Any, Type, TypeVar, get_type_hints, Union, Callable, Awaitable
+import json
 import pydantic
 import dataclasses
 import logging
 import aiohttp.client_exceptions
+from strawberry.scalars import JSON as _StrawberryJSON
 from flexus_client_kit import ckit_shutdown
 
 T = TypeVar('T')
 
 
+def _is_json_scalar(ftype):
+    if ftype is _StrawberryJSON:
+        return True
+    return _StrawberryJSON in getattr(ftype, "__args__", ())
+
+
 def hydrate_to_strawberry(source, strawberry_class: Type[T]) -> T:
-    d = source.model_dump() if hasattr(source, 'model_dump') else dict(source)
+    from_model = hasattr(source, 'model_dump')
+    d = source.model_dump() if from_model else dict(source)
     field_values = {}
     for f in dataclasses.fields(strawberry_class):
         if f.name in d:
             val = d[f.name]
             if dataclasses.is_dataclass(f.type) and isinstance(val, pydantic.BaseModel):
                 field_values[f.name] = hydrate_to_strawberry(val, f.type)
+            elif not from_model and isinstance(val, str) and _is_json_scalar(f.type):
+                field_values[f.name] = json.loads(val)
             else:
                 field_values[f.name] = val
         else:
