@@ -71,6 +71,35 @@ MARKETPLACE_HIRE_OR_FIRE_TOOL = ckit_cloudtool.CloudTool(
     },
 )
 
+BOSS_SETUP_COLLEAGUES_TOOL = ckit_cloudtool.CloudTool(
+    strict=True,
+    name="boss_setup_colleagues",
+    description="View or update colleague bot configuration.",
+    parameters={
+        "type": "object",
+        "properties": {
+            "op": {"type": "string", "enum": ["get_all", "update_one"]},
+            "bot_name": {"type": "string", "description": "Colleague bot name"},
+            "update_key": {"type": ["string", "null"]},
+            "new_val": {"type": ["string", "null"], "description": "Set null to reset to default"},
+        },
+        "required": ["op", "bot_name", "update_key", "new_val"],
+        "additionalProperties": False,
+    },
+)
+
+BOSS_TREE_FETCH_TOOL = ckit_cloudtool.CloudTool(
+    strict=True,
+    name="boss_tree_fetch",
+    description="Fetch the workspace tree: bots, kanban boards, tasks, policy documents — all in one view.",
+    parameters={
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": False,
+    },
+)
+
 PDOC_SCHEMAS_DIR = Path(__file__).resolve().parents[2] / "flexus_client_kit" / "pdoc-schemas"
 
 
@@ -288,6 +317,8 @@ TOOLS = [
     MARKETPLACE_SEARCH_TOOL,
     MARKETPLACE_DESC_TOOL,
     MARKETPLACE_HIRE_OR_FIRE_TOOL,
+    BOSS_SETUP_COLLEAGUES_TOOL,
+    BOSS_TREE_FETCH_TOOL,
     *[t for rec in boss_install.BOSS_INTEGRATIONS for t in rec.integr_tools],
 ]
 
@@ -318,6 +349,70 @@ async def boss_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.R
             toolcall,
             model_produced_args,
         )
+
+    @rcx.on_tool_call(BOSS_SETUP_COLLEAGUES_TOOL.name)
+    async def toolcall_setup_colleagues(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
+        op = model_produced_args.get("op", "get_all")
+        bot_name = model_produced_args.get("bot_name", "").strip()
+        update_key = model_produced_args.get("update_key") or None
+        new_val = model_produced_args.get("new_val") or None
+        backend_op = "update" if op == "update_one" else "get"
+        if not bot_name:
+            return "Error: bot_name is required"
+        if op == "update_one" and not update_key:
+            return "Error: update_key required for update_one"
+        if op == "update_one" and not toolcall.confirmed_by_human:
+            http = await fclient.use_http()
+            async with http as h:
+                try:
+                    prev_val = (await h.execute(gql.gql("""
+                        mutation BossGetColleagueSetup($ws_id: String!, $bot_name: String!, $op: String!, $key: String) {
+                            boss_setup_colleagues(ws_id: $ws_id, bot_name: $bot_name, op: $op, key: $key)
+                        }"""),
+                        variable_values={"ws_id": rcx.persona.ws_id, "bot_name": bot_name, "op": "get", "key": update_key},
+                    )).get("boss_setup_colleagues", "")
+                except gql.transport.exceptions.TransportQueryError as e:
+                    return f"Error: {e}"
+            disp_val = new_val if new_val is not None else "(default)"
+            if len(disp_val) < 100 and "\n" not in disp_val and len(prev_val) < 100 and "\n" not in prev_val:
+                explanation = f"Update {bot_name} setup key '{update_key}':\nNew value: {disp_val}\nOld value: {prev_val}"
+            else:
+                new_lines = "\n".join(f"+ {line}" for line in disp_val.split("\n"))
+                old_lines = "\n".join(f"- {line}" for line in prev_val.split("\n"))
+                explanation = f"Update {bot_name} setup key '{update_key}':\n\n{new_lines}\n{old_lines}"
+            raise ckit_cloudtool.NeedsConfirmation(
+                confirm_setup_key="boss_can_update_colleague_setup",
+                confirm_command=f"update {bot_name}.{update_key}",
+                confirm_explanation=explanation,
+            )
+        http = await fclient.use_http()
+        async with http as h:
+            try:
+                r = await h.execute(gql.gql("""
+                    mutation BossSetupColleagues($ws_id: String!, $bot_name: String!, $op: String!, $key: String, $val: String) {
+                        boss_setup_colleagues(ws_id: $ws_id, bot_name: $bot_name, op: $op, key: $key, val: $val)
+                    }"""),
+                    variable_values={"ws_id": rcx.persona.ws_id, "bot_name": bot_name, "op": backend_op, "key": update_key, "val": new_val},
+                )
+                return r.get("boss_setup_colleagues", f"Error: Failed to {op} setup for {bot_name}")
+            except gql.transport.exceptions.TransportQueryError as e:
+                logger.exception("handle_setup_colleagues error")
+                return f"handle_setup_colleagues problem: {e}"
+
+    @rcx.on_tool_call(BOSS_TREE_FETCH_TOOL.name)
+    async def toolcall_tree_fetch(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
+        http = await fclient.use_http()
+        async with http as h:
+            try:
+                r = await h.execute(gql.gql("""
+                    mutation BossTreeFetch($ws_id: String!) {
+                        boss_tree_fetch(ws_id: $ws_id)
+                    }"""),
+                    variable_values={"ws_id": rcx.persona.ws_id},
+                )
+                return r.get("boss_tree_fetch", "Error: empty response")
+            except gql.transport.exceptions.TransportQueryError as e:
+                return f"Error: {e}"
 
     @rcx.on_tool_call(MARKETPLACE_SEARCH_TOOL.name)
     async def toolcall_marketplace_search(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:

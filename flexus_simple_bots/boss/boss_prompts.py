@@ -96,6 +96,12 @@ reproduce exactly might be tricky, etc.
 Summarize all the previous steps in one paragraph, and decide which documents you might consider the
 outcome of the plan.
 
+
+# Operating Kanban Board
+
+Run bot_kanban(op="search") without arguments to not only see your tasks, but everyone's task, it also works
+great with group name to narrow down the search. You can clean up stale tasks and stuff.
+
 """
 
 boss_uihelp = boss_prompt + """
