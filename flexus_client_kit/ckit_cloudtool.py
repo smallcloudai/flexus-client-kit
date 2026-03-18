@@ -190,13 +190,13 @@ def try_best_to_find_argument(args: dict, args_dict_from_model: Any, param_name:
     This handles cases where the model puts parameters in the wrong place.
     """
     value = args.get(param_name)   # Normal, as asked
-    if value:
+    if value is not None:
         return value
 
     # We might find it on the top level, a common mistake
     if isinstance(args_dict_from_model, dict):
         value = args_dict_from_model.get(param_name)
-        if value:
+        if value is not None:
             return value
 
     return default_value

@@ -103,7 +103,9 @@ async def handle_repo_reader(
     if not op or "help" in op:
         return HELP + "\n\n" + await ckit_devenv.format_devenv_list(rcx.fclient, rcx.persona.located_fgroup_id)
 
-    args = model_produced_args.get("args", {})
+    args, args_error = ckit_cloudtool.sanitize_args(model_produced_args)
+    if args_error:
+        return f"{args_error}\n\n{HELP}"
     if not (repo_input := ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "repo", "")):
         return "Error: repo parameter is required\n\n" + HELP + "\n\n" + await ckit_devenv.format_devenv_list(rcx.fclient, rcx.persona.located_fgroup_id)
 
@@ -118,4 +120,10 @@ async def handle_repo_reader(
         logger.info(f"Could not access repo {repo_url}: {e}", exc_info=True)
         return f"Error accessing repository: {e}\n\n" + await ckit_devenv.format_devenv_list(rcx.fclient, rcx.persona.located_fgroup_id)
 
-    return await fi_localfile.handle_localfile(cache_path, model_produced_args)
+    # Strip repo-specific args before passing to handle_localfile, and normalize "context" -> "context_lines"
+    localfile_args = {k: v for k, v in args.items() if k not in ("repo", "branch")}
+    if "context" in localfile_args:
+        localfile_args["context_lines"] = localfile_args.pop("context")
+    localfile_model_args = dict(model_produced_args)
+    localfile_model_args["args"] = localfile_args
+    return await fi_localfile.handle_localfile(cache_path, localfile_model_args)
