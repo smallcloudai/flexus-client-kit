@@ -114,7 +114,7 @@ async def install(
             {"feat_question": "What people ask for today?", "feat_expert": "default", "feat_depends_on_setup": []},
         ],
         marketable_intro_message="I'm here for your customers 24/7 — answering questions, remembering every detail, and always following up. I also deliver weekly feedback reports that help your team improve the product.",
-        marketable_preferred_model_default="grok-4-1-fast-non-reasoning",
+        marketable_preferred_model_default="gpt-5.4-nano",
         marketable_experts=[(name, exp.filter_tools(tools)) for name, exp in EXPERTS],
         add_integrations_into_expert_system_prompt=KAREN_INTEGRATIONS,
         marketable_tags=["Customer Support"],

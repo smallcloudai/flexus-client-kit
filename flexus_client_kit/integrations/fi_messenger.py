@@ -4,7 +4,7 @@ from typing import List, Dict, Any, Optional
 from flexus_client_kit import ckit_ask_model, ckit_bot_exec, ckit_bot_query, ckit_client
 
 MESSENGER_PROMPT = """
-## Messaging Platforms (Telegram, Slack, WhatsApp, etc.)
+## Messaging Platforms (Telegram, Slack, WhatsApp, Flexus Magic Desk, etc.)
 
 Incoming messages from these platforms appear as kanban tasks when not captured.
 
