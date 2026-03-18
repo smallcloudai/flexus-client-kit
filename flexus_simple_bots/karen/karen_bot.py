@@ -7,7 +7,6 @@ from flexus_client_kit import ckit_cloudtool
 from flexus_client_kit import ckit_bot_exec
 from flexus_client_kit import ckit_shutdown
 from flexus_client_kit import ckit_integrations_db
-from flexus_client_kit.integrations import fi_slack
 from flexus_client_kit.integrations import fi_discord2
 from flexus_client_kit.integrations import fi_repo_reader
 from flexus_simple_bots.karen import karen_install
@@ -24,7 +23,6 @@ TOOLS = [
     fi_repo_reader.REPO_READER_TOOL,
     *[t for rec in karen_install.KAREN_INTEGRATIONS for t in rec.integr_tools],
 ]
-
 
 async def karen_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.RobotContext) -> None:
     setup = ckit_bot_exec.official_setup_mixing_procedure(karen_install.KAREN_SETUP_SCHEMA, rcx.persona.persona_setup)
