@@ -121,9 +121,11 @@ async def handle_repo_reader(
         return f"Error accessing repository: {e}\n\n" + await ckit_devenv.format_devenv_list(rcx.fclient, rcx.persona.located_fgroup_id)
 
     # Strip repo-specific args before passing to handle_localfile, and normalize "context" -> "context_lines"
-    localfile_args = {k: v for k, v in args.items() if k not in ("repo", "branch")}
+    localfile_args = {k: v for k, v in args.items() if k not in ("repo", "branch") and v is not None}
     if "context" in localfile_args:
         localfile_args["context_lines"] = localfile_args.pop("context")
+    if "path" in localfile_args and isinstance(localfile_args["path"], str):
+        localfile_args["path"] = localfile_args["path"].lstrip("/") or "."
     localfile_model_args = dict(model_produced_args)
     localfile_model_args["args"] = localfile_args
     return await fi_localfile.handle_localfile(cache_path, localfile_model_args)
