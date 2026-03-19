@@ -6,9 +6,9 @@ client = openai.AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 async def make_fullsize_variations(input_path: str, base_name: str, out_dir: str) -> list:
     rsp = await client.images.edit(
-        model="gpt-image-1",
+        model="gpt-image-1.5",
         image=open(input_path, "rb"),
-        prompt="Improve quality, transparent background.",
+        prompt="Preserve the exact facial expression, face shape, lighting direction, color balance. Add transparent background.",
         n=5,
         size="1024x1536",
     )
@@ -36,7 +36,7 @@ async def make_avatar(i: int, png_bytes: bytes, base_name: str, out_dir: str):
     bio = io.BytesIO(png_bytes)
     bio.name = "image.png"
     rsp = await client.images.edit(
-        model="gpt-image-1",
+        model="gpt-image-1.5",
         image=bio,
         prompt="Make avatar suitable for small pictures, face much bigger with transparent background.",
         n=1,
