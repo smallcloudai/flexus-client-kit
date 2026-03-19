@@ -13,7 +13,7 @@ Once captured, their messages appear here and your responses are sent back autom
 At that point you can talk normally like a regular assistant by printing text!
 
 There is usually also op="post", that is intended for one-off messaging without capturing
-the chat, follow-ups will go the long way via kanban tasks. It's good for tests or daily reports,
+the chat, there's no good way to receive messages back, it's only good for tests or daily reports,
 not for talking to people and keeping context of the conversation.
 
 IMPORTANT: if your thread does not capture any chat, your responses will go nowhere,
@@ -21,15 +21,15 @@ only tool calls will have an effect!
 
 When you see a timeout message from scheduler, think what you should do:
 
-- If it's a thread specialized on a topic, then keep it captured, because if someone will ask a
+- If it's a thread specialized on a single issue, then keep it captured, because if someone will ask a
   question later, the current task will automatically reopen, that's good you'll see the context
   to respond.
-- If it's an infinite chat like channel/group or DMs with somebody, then uncapture it. Any
-  message will create a new task, not reopen an old one.
+- If it's an infinite chat like channel/group or DM, then uncapture it. Any message will create
+  a new task, not reopen an old one.
 
 After you have run op="uncapture" or decided to keep it captured, resolve the current kanban task and
 after that say "TASK_COMPLETED" in English all caps, that's a special word that does not make it into the
-captured chat in any case.
+captured chat in any case, and of course call no tools so the chat stops.
 """.strip()
 
 CAPTURE_SUCCESS_MSG = "Captured! The next thing you write will be visible. Don't comment on that fact and think about what do you want to say in %r.\n"
