@@ -6,6 +6,7 @@ from pathlib import Path
 from flexus_client_kit import ckit_client
 from flexus_client_kit import ckit_bot_install
 from flexus_client_kit import ckit_cloudtool
+from flexus_client_kit import ckit_integrations_db
 from flexus_client_kit import ckit_skills
 from flexus_client_kit.integrations import fi_slack
 from flexus_client_kit.integrations import fi_discord2
@@ -18,6 +19,12 @@ KAREN_ROOTDIR = Path(__file__).parent
 KAREN_SKILLS = ckit_skills.static_skills_find(KAREN_ROOTDIR, shared_skills_allowlist="")
 KAREN_SETUP_SCHEMA = json.loads((KAREN_ROOTDIR / "setup_schema.json").read_text())
 KAREN_SETUP_SCHEMA += fi_discord2.DISCORD_SETUP_SCHEMA
+
+KAREN_INTEGRATIONS: list[ckit_integrations_db.IntegrationRecord] = ckit_integrations_db.static_integrations_load(
+    KAREN_ROOTDIR,
+    allowlist=["slack"],
+    builtin_skills=[],
+)
 
 
 KAREN_DESC = """
@@ -98,6 +105,7 @@ async def install(
         marketable_intro_message="I'm here for your customers 24/7 — answering questions, remembering every detail, and always following up. I also deliver weekly feedback reports that help your team improve the product.",
         marketable_preferred_model_default="grok-4-fast",
         marketable_experts=[(name, exp.filter_tools(tools)) for name, exp in EXPERTS],
+        add_integrations_into_expert_system_prompt=KAREN_INTEGRATIONS,
         marketable_tags=["Customer Support"],
         marketable_picture_big_b64=pic_big,
         marketable_picture_small_b64=pic_small,

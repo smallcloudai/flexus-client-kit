@@ -203,7 +203,8 @@ class IntegrationSlack(fi_messenger.FlexusMessenger):
 
         user_id = event.get("user")
         if not user_id:
-            return  # bot message or system event, skip
+            logger.info("handle_emessage: no user field, skipping event type=%r subtype=%r keys=%s", event.get("type"), event.get("subtype"), list(event.keys()))
+            return
 
         dedup_key = event.get("client_msg_id") or event.get("ts", "")
         if dedup_key and dedup_key in self.prev_messages:
@@ -237,18 +238,19 @@ class IntegrationSlack(fi_messenger.FlexusMessenger):
         for file_info in event.get("files", [])[:5]:
             try:
                 file_bytes, mimetype = await self._download_slack_file(file_info)
-                if file_bytes:
-                    filename = file_info.get("name", "unknown")
-                    if mimetype and mimetype.startswith("image/") and image_count < 2:
-                        file_contents.append(await self._process_slack_image(file_bytes, mimetype))
-                        image_count += 1
-                    elif fi_messenger.is_text_file(file_bytes):
-                        processed = await self._process_slack_text_file(file_bytes, filename)
-                        text_files.append(processed["m_content"])
-                    else:
-                        text_files.append(f"[Binary file: {filename} ({len(file_bytes)} bytes)]")
+                filename = file_info.get("name", "unknown")
+                if file_bytes is None:
+                    text_files.append(f"[Failed to download: {filename}]")
+                elif mimetype and mimetype.startswith("image/") and image_count < 2:
+                    file_contents.append(await self._process_slack_image(file_bytes, mimetype))
+                    image_count += 1
+                elif fi_messenger.is_text_file(file_bytes):
+                    processed = await self._process_slack_text_file(file_bytes, filename)
+                    text_files.append(processed["m_content"])
+                else:
+                    text_files.append(f"[Binary file: {filename} ({len(file_bytes)} bytes)]")
             except Exception:
-                logger.exception("Error processing file in handle_emessage")
+                logger.exception("handle_emessage file processing failed: %s", file_info.get("name", "?"))
 
         if text_files:
             file_contents.append({"m_type": "text", "m_content": "\n📎 Files:\n" + "\n".join(text_files)})
@@ -428,24 +430,26 @@ class IntegrationSlack(fi_messenger.FlexusMessenger):
                         if user_id:
                             author_name = await self._get_user_name(user_id)
                         else:
-                            author_name = "unknown_user"
+                            author_name = msg.get('username') or (msg.get('bot_profile') or {}).get('name')
+                            if not author_name:
+                                author_name = "unknown_user"
+                                logger.warning("capture history: no user/username/bot_profile: keys=%s text=%r", list(msg.keys()), txt[:200])
                         text_content += f"👤{author_name}\n\n{txt}\n\n"
 
-                    files = msg.get('files', [])
-                    for file_info in files[:2]:
+                    for file_info in msg.get('files', [])[:2]:
                         try:
                             file_bytes, mimetype = await self._download_slack_file(file_info)
-                            if file_bytes:
-                                filename = file_info.get('name', 'unknown')
-                                if mimetype and mimetype.startswith('image/') and len(image_parts) < 3:
-                                    image_parts.append(await self._process_slack_image(file_bytes, mimetype))
-                                elif fi_messenger.is_text_file(file_bytes):
-                                    processed = await self._process_slack_text_file(file_bytes, filename)
-                                    file_summaries.append(processed['m_content'])
-                                else:
-                                    file_summaries.append(f"[Binary file: {filename} ({len(file_bytes)} bytes)]")
+                            filename = file_info.get('name', 'unknown')
+                            if file_bytes is None:
+                                file_summaries.append(f"[Failed to download: {filename}]")
+                            elif mimetype and mimetype.startswith('image/') and len(image_parts) < 3:
+                                image_parts.append(await self._process_slack_image(file_bytes, mimetype))
+                            elif fi_messenger.is_text_file(file_bytes):
+                                file_summaries.append((await self._process_slack_text_file(file_bytes, filename))['m_content'])
+                            else:
+                                file_summaries.append(f"[Binary file: {filename} ({len(file_bytes)} bytes)]")
                         except Exception:
-                            logger.exception("Error processing file during capture")
+                            logger.exception("capture file processing failed: %s", file_info.get("name", "?"))
 
                 all_message_parts = []
                 if text_content:
@@ -515,7 +519,7 @@ class IntegrationSlack(fi_messenger.FlexusMessenger):
             logger.info("captured_thread_post failed, maybe thread itself already has an error, will uncapture: %s", e)
             return False
         if not ft_id:
-            logger.info("None of recent threads match ft_app_searchable=%s, so I'll let bot handle this message.", searchable)
+            logger.info("No threads match ft_app_searchable=%s, so I'll let bot handle this message.", searchable)
             return False
         logger.info("Captured slack->db ft_id=%s ft_app_searchable=%s sending=%d parts", ft_id, searchable, len(content))
         return True
@@ -526,27 +530,32 @@ class IntegrationSlack(fi_messenger.FlexusMessenger):
         if not msg.ftm_content:
             return False
 
-        searchable = msg.ft_app_searchable or ""
-        if searchable == '':
+        if not msg.ft_app_searchable:
             return False
-        match = re.match(r'^slack/([^/]+)(?:/(.+))?$', searchable)
+        match = re.match(r'^slack/([^/]+)(?:/(.+))?$', msg.ft_app_searchable)
         if not match:
             return False
         something_id, thread_ts = match.groups()
 
         if msg.ft_app_specific is not None:
-            if "last_posted_assistant_ts" not in msg.ft_app_specific:
+            last_ts = msg.ft_app_specific.get("last_posted_assistant_ts")
+            if last_ts is None:
                 logger.warning("ft_app_specific without last_posted_assistant_ts: %r", msg.ft_app_specific)
-            elif msg.ftm_created_ts <= msg.ft_app_specific["last_posted_assistant_ts"]:
-                logger.info("look_assistant_might_have_posted_something(): already posted that one last_posted_assistant_ts=%0.1f" % msg.ft_app_specific["last_posted_assistant_ts"])
+            elif msg.ftm_created_ts <= last_ts:
                 return False
 
         if not self.web_client:
             return False
 
-        logger.info("look_assistant_might_have_posted_something() captured assistant->slack ft_id=%s ft_app_searchable=%s, sending %r" % (msg.ftm_belongs_to_ft_id, searchable, msg.ftm_content[:20].replace("\n", "\\n")))
+        text = msg.ftm_content
+        if "TASK_COMPLETED" in text and len(text) <= len("TASK_COMPLETED") + 6:
+            logger.info("look_assistant_might_have_posted_something: ftm_content has TASK_COMPLETED, not posting to slack")
+            return False
+        text = text.replace("TASK_COMPLETED", "")
+
+        logger.info("assistant->slack ft_id=%s searchable=%s sending %r", msg.ftm_belongs_to_ft_id, msg.ft_app_searchable, text[:20].replace("\n", "\\n"))
         try:
-            kwargs = {"channel": something_id, "text": msg.ftm_content}
+            kwargs = {"channel": something_id, "text": text}
             if thread_ts:
                 kwargs["thread_ts"] = thread_ts
             if self.bot_name:
@@ -554,12 +563,9 @@ class IntegrationSlack(fi_messenger.FlexusMessenger):
             if self.bot_icon_url:
                 kwargs["icon_url"] = self.bot_icon_url
             await self.web_client.chat_postMessage(**kwargs)
-            logger.info(f"Successfully posted assistant message to channel {something_id!r} thread_ts {thread_ts!r}")
-        except SlackApiError as e:
-            logger.exception(f"Failed to post message to channel {something_id!r} thread_ts {thread_ts!r}")
-            return False
-        except Exception as e:
-            logger.exception("Unexpected error posting message to Slack")
+            logger.info("posted to channel=%s thread_ts=%s", something_id, thread_ts)
+        except Exception:
+            logger.exception("failed to post to slack channel=%s thread_ts=%s", something_id, thread_ts)
             return False
 
         http = await self.fclient.use_http()
@@ -573,17 +579,16 @@ class IntegrationSlack(fi_messenger.FlexusMessenger):
         if not self.web_client:
             return
         my_info = await self.web_client.auth_test()
-        logger.info("Slack bot user ID: %s", my_info.get("user_id"))
+        logger.info("Slack bot user ID: %s", my_info["user_id"])
 
         try:
             users_response = await self.web_client.users_list(limit=5000)
             for user in users_response["members"]:
-                if not user.get("deleted", False) and not user.get("is_bot", False):
-                    user_id = user["id"]
-                    user_name = user["name"]
-                    self.users_id2name[user_id] = user_name
-                    self.users_name2id[user_name] = user_id
-                    logger.info(f"👤 User {user_name} -> {user_id}")
+                if user.get("deleted") or user.get("is_bot"):
+                    continue
+                self.users_id2name[user["id"]] = user["name"]
+                self.users_name2id[user["name"]] = user["id"]
+                logger.info("user %s -> %s", user["name"], user["id"])
         except SlackApiError as e:
             logger.exception("Failed to list users")
             self.problems_other.append(f"Failed to list users: {type(e).__name__} {e}")
@@ -591,16 +596,13 @@ class IntegrationSlack(fi_messenger.FlexusMessenger):
         try:
             channels_response = await self.web_client.conversations_list(types="im", limit=5000)
             for rec in channels_response["channels"]:
-                if not rec['is_im']:
+                if not rec["is_im"]:
                     continue
-                user_id = rec['user']
-                dm_channel_id = rec['id']
-                username = self.users_id2name.get(user_id)
+                username = self.users_id2name.get(rec["user"])
                 if username:
-                    self.users_name2dm[username] = dm_channel_id
-                    logger.info(f"✉️  DM {user_id} -> {dm_channel_id}")
-                else:
-                    logger.error(f"User {user_id} not found in users_id2name, cannot map DM channel {dm_channel_id}")
+                    self.users_name2dm[username] = rec["id"]
+                    logger.info("dm %s -> %s", rec["user"], rec["id"])
+                # else: DM with a bot or deleted user, skip
         except SlackApiError as e:
             logger.exception("Failed to list DMs")
             self.problems_other.append(f"Failed to list DMs: {type(e).__name__} {e}")
@@ -658,8 +660,10 @@ class IntegrationSlack(fi_messenger.FlexusMessenger):
             for msg in messages_response["messages"]:
                 yield msg
 
+            if not messages_response.get("has_more"):
+                break
             cursor = messages_response.get("response_metadata", {}).get("next_cursor")
-            if not messages_response.get("has_more") or not cursor:
+            if not cursor:
                 break
 
     async def _get_user_name(self, user_id: str) -> str:
@@ -705,19 +709,14 @@ class IntegrationSlack(fi_messenger.FlexusMessenger):
 
     async def _download_slack_file(self, file_info: dict) -> tuple[Optional[bytes], Optional[str]]:
         url = file_info.get('url_private_download')
+        filename = file_info.get('name', '?')
         if not url:
-            logger.warning(f"No download URL for file: {file_info.get('name', 'unknown')}")
+            logger.warning("no download URL for file %r, keys=%s", filename, list(file_info.keys()))
             return None, None
-
         headers = {'Authorization': f'Bearer {self._get_bot_token()}'}
-        try:
-            async with httpx.AsyncClient(follow_redirects=True) as client:
-                response = await client.get(url, headers=headers, timeout=30.0)
-                if response.status_code == 200:
-                    return response.content, file_info.get('mimetype', 'application/octet-stream')
-                else:
-                    logger.error(f"Failed to download file, status: {response.status_code}")
-                    return None, None
-        except Exception as e:
-            logger.exception("Error downloading file from Slack")
+        async with httpx.AsyncClient(follow_redirects=True) as client:
+            response = await client.get(url, headers=headers, timeout=30.0)
+        if response.status_code != 200:
+            logger.error("download %r failed: HTTP %d", filename, response.status_code)
             return None, None
+        return response.content, file_info.get('mimetype', 'application/octet-stream')

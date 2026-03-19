@@ -20,19 +20,17 @@ logger = logging.getLogger("bot_karen")
 BOT_NAME = "karen"
 BOT_VERSION = SIMPLE_BOTS_COMMON_VERSION
 
-TOOLS = [fi_slack.SLACK_TOOL, fi_discord2.DISCORD_TOOL, fi_repo_reader.REPO_READER_TOOL]
-
-BOT_INTEGRATIONS = ckit_integrations_db.static_integrations_load(
-    karen_install.KAREN_ROOTDIR,
-    allowlist=["slack"],
-    builtin_skills=[],
-)
+TOOLS = [
+    fi_discord2.DISCORD_TOOL,
+    fi_repo_reader.REPO_READER_TOOL,
+    *[t for rec in karen_install.KAREN_INTEGRATIONS for t in rec.integr_tools],
+]
 
 
 async def karen_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.RobotContext) -> None:
     setup = ckit_bot_exec.official_setup_mixing_procedure(karen_install.KAREN_SETUP_SCHEMA, rcx.persona.persona_setup)
 
-    integrations = await ckit_integrations_db.main_loop_integrations_init(BOT_INTEGRATIONS, rcx, setup)
+    integrations = await ckit_integrations_db.main_loop_integrations_init(karen_install.KAREN_INTEGRATIONS, rcx, setup)
     slack: fi_slack.IntegrationSlack = integrations["slack"]
 
     discord = fi_discord2.IntegrationDiscord(
