@@ -135,7 +135,7 @@ async def install(
                 "im:read",
             ],
         },
-        marketable_magic_desk_supported=True,
+        marketable_features=["magic_desk"],
     )
 
 
