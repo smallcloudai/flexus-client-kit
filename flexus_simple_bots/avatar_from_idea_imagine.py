@@ -59,18 +59,6 @@ def make_transparent(im, fringe_fight: float = 0.30, defringe_radius: int = 4):
 async def make_fullsize_variations(input_path: str, base_name: str, out_dir: str) -> list:
     with open(input_path, "rb") as f:
         raw = f.read()
-    with Image.open(io.BytesIO(raw)) as im:
-        w, h = im.size
-        target = 1024 / 1536  # 2:3
-        if abs(w / h - target) > 0.01:
-            new_w, new_h = (w, int(w / target)) if w / h > target else (int(h * target), h)
-            cx, cy = w // 2, h // 2
-            box = (cx - new_w//2, cy - new_h//2, cx + new_w//2, cy + new_h//2)
-            print(f"WARNING: Expected 2:3 aspect, got {w}x{h} — cropping to {box}")
-            im = im.crop(box)
-            buf = io.BytesIO()
-            im.save(buf, format="PNG")
-            raw = buf.getvalue()
     image_data = base64.b64encode(raw).decode("utf-8")
     image_url = f"data:image/png;base64,{image_data}"
 
