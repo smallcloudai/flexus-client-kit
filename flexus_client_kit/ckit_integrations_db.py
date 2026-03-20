@@ -196,6 +196,10 @@ def static_integrations_load(bot_dir: Path, allowlist: list[str], builtin_skills
             async def _init_slack(rcx, setup):
                 bot_name = (setup or {}).get("slack_bot_name", "") or rcx.persona.persona_name
                 bot_icon_url = (setup or {}).get("slack_bot_icon_url", "")
+                if not bot_icon_url:
+                    # Auto-fill from marketplace avatar
+                    bot_icon_url = "%s/v1/marketplace/%s/%s/small.webp" % (
+                        rcx.fclient.base_url_http.rstrip("/"), rcx.persona.persona_marketable_name, rcx.persona.persona_marketable_version)
                 obj = fi_slack.IntegrationSlack(rcx.fclient, rcx, bot_name=bot_name, bot_icon_url=bot_icon_url)
                 await obj.load_workspace_maps()
                 return obj
