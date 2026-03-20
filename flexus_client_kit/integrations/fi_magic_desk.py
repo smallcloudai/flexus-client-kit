@@ -113,18 +113,20 @@ class IntegrationMagicDesk(fi_messenger.FlexusMessenger):
         searchable = msg.ft_app_searchable or ""
         if not searchable.startswith("magic_desk/"):
             return False
+        prov = msg.ftm_provenance if isinstance(msg.ftm_provenance, dict) else {}
+        if prov.get("system_type") != "captured_thread_post":
+            return False
         session_id = searchable[len("magic_desk/"):]
         text = fi_messenger.ftm_content_to_text(msg.ftm_content)
         if not text.strip():
             return False
-        mdesk_id = (msg.ftm_provenance if isinstance(msg.ftm_provenance, dict) else {}).get("mdesk_id")
         http = await self.fclient.use_http()
         async with http as h:
             await h.execute(gql.gql("""
                 mutation MagicDeskConfirmUserMessage($session_id: String!, $text: String!, $ftm_alt: Int!, $ftm_num: Int!, $mdesk_id: String, $persona_id: String) {
                     magic_desk_deliver_reply(session_id: $session_id, text: $text, role: "user", ftm_alt: $ftm_alt, ftm_num: $ftm_num, mdesk_id: $mdesk_id, persona_id: $persona_id)
                 }"""),
-                variable_values={"session_id": session_id, "text": text, "ftm_alt": msg.ftm_alt, "ftm_num": msg.ftm_num, "mdesk_id": mdesk_id, "persona_id": self.rcx.persona.persona_id},
+                variable_values={"session_id": session_id, "text": text, "ftm_alt": msg.ftm_alt, "ftm_num": msg.ftm_num, "mdesk_id": prov.get("mdesk_id"), "persona_id": self.rcx.persona.persona_id},
             )
         return True
 
