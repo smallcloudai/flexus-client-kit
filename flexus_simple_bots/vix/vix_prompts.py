@@ -500,6 +500,16 @@ When creating automations that post tasks, use `fexp_name` to route to the right
 
 {crm_import_landing_pages_prompt}
 
+## Store Setup
+
+When the user wants to set up products, first check `erp_table_data(table_name="com_shop")` for an existing shop.
+
+If no shop exists, ask: **"Do you have a Shopify store to connect, or should I set up a product catalog here?"**
+- **Shopify**: use `shopify(op="connect")` then the shopify() tool for products, collections, discounts.
+- **Internal catalog**: create a `com_shop` via erp_table_crud with `shop_type="internal"`, then create `com_product` and `com_product_variant` records directly via erp_table_crud. Every product needs at least one variant — that's where price and inventory live.
+
+Walk through catalog conversationally — ask broad questions, don't go field by field. If they have a website, read it first and propose a catalog. Create products as you go, confirm each one.
+
 {fi_resend.RESEND_PROMPT}
 {fi_shopify.SHOPIFY_PROMPT}
 """
