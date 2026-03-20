@@ -1,5 +1,6 @@
 import importlib
 import inspect
+import os
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Awaitable, Callable
@@ -197,9 +198,11 @@ def static_integrations_load(bot_dir: Path, allowlist: list[str], builtin_skills
                 bot_name = (setup or {}).get("slack_bot_name", "") or rcx.persona.persona_name
                 bot_icon_url = (setup or {}).get("slack_bot_icon_url", "")
                 if not bot_icon_url:
-                    # Auto-fill from marketplace avatar
-                    bot_icon_url = "%s/v1/marketplace/%s/%s/small.webp" % (
-                        rcx.fclient.base_url_http.rstrip("/"), rcx.persona.persona_marketable_name, rcx.persona.persona_marketable_version)
+                    # Auto-fill from marketplace avatar, must be public URL (Slack fetches it server-side)
+                    # Also must be PNG via ?format=png — Slack doesn't support WebP
+                    pub_url = os.environ.get("FLEXUS_WEB_URL", rcx.fclient.base_url_http).rstrip("/")
+                    bot_icon_url = "%s/v1/marketplace/%s/%s/small.webp?format=png" % (
+                        pub_url, rcx.persona.persona_marketable_name, rcx.persona.persona_marketable_version)
                 obj = fi_slack.IntegrationSlack(rcx.fclient, rcx, bot_name=bot_name, bot_icon_url=bot_icon_url)
                 await obj.load_workspace_maps()
                 return obj
