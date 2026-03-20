@@ -31,6 +31,7 @@ KAREN_INTEGRATIONS: list[ckit_integrations_db.IntegrationRecord] = ckit_integrat
         "slack",
         "telegram",
         "skills",
+        "magic_desk",
     ],
     builtin_skills=KAREN_SKILLS,
 )
