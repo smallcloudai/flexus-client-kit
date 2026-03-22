@@ -51,7 +51,7 @@ def make_transparent(im, fringe_fight: float = 0.30, defringe_radius: int = 4):
         rb_avg = ((r_ch.astype(np.int16) + b_ch.astype(np.int16)) // 2).astype(np.uint8)
         g_suppressed = np.minimum(g_ch, np.maximum(rb_avg, (g_ch * fringe_fight).astype(np.uint8)))
         arr[:, :, 1] = np.where(fringe_mask, g_suppressed, g_ch)
-        im = Image.fromarray(arr, "RGBA")
+        im = Image.fromarray(arr)
 
     return im
 
@@ -75,11 +75,11 @@ async def make_fullsize_variations(input_path: str, base_name: str, out_dir: str
         rsp = await asyncio.to_thread(api_call)
         png_bytes = rsp.image
 
-        fn = os.path.join(out_dir, f"i{i:02d}-{base_name}-1024x1536.webp")
         with Image.open(io.BytesIO(png_bytes)) as im:
             im = make_transparent(im)
+            fn = os.path.join(out_dir, f"i{i:02d}-{base_name}-{im.size[0]}x{im.size[1]}.webp")
             im.save(fn, 'WEBP', quality=85, method=6)
-        print(f"Saved {fn}")
+            print(f"Saved {fn}")
         return (i, png_bytes)
 
     tasks = [generate_one(i) for i in range(5)]
@@ -101,16 +101,16 @@ async def make_avatar(i: int, png_bytes: bytes, base_name: str, out_dir: str):
     rsp = await asyncio.to_thread(api_call)
     avatar_png = rsp.image
 
-    fn_intermediate = os.path.join(out_dir, f"i{i:02d}-{base_name}-avatar.webp")
-    fn = os.path.join(out_dir, f"i{i:02d}-{base_name}-256x256.webp")
     with Image.open(io.BytesIO(avatar_png)) as im:
         im = make_transparent(im)
+        fn_intermediate = os.path.join(out_dir, f"i{i:02d}-{base_name}-avatar-{im.size[0]}x{im.size[1]}.webp")
+        im.save(fn_intermediate, 'WEBP', quality=85)
         s = min(im.size)
         cx, cy = im.size[0] // 2, im.size[1] // 2
         im_cropped = im.crop((cx - s//2, cy - s//2, cx + s//2, cy + s//2)).resize((256, 256), Image.LANCZOS)
+        fn = os.path.join(out_dir, f"i{i:02d}-{base_name}-avatar-{im_cropped.size[0]}x{im_cropped.size[1]}.webp")
         im_cropped.save(fn, 'WEBP', quality=85)
-        im.save(fn_intermediate, 'WEBP', quality=85)
-    print(f"Saved {fn}")
+        print(f"Saved {fn}")
 
 
 async def main():

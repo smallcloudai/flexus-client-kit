@@ -59,7 +59,7 @@ async def install(
     bot_version: str,
     tools: list[ckit_cloudtool.CloudTool],
 ):
-    pic_big = base64.b64encode((BOSS_ROOTDIR / "boss-1024x1536.webp").read_bytes()).decode("ascii")
+    pic_big = base64.b64encode((BOSS_ROOTDIR / "boss-896x1152.webp").read_bytes()).decode("ascii")
     pic_small = base64.b64encode((BOSS_ROOTDIR / "boss-256x256.webp").read_bytes()).decode("ascii")
 
     await ckit_bot_install.marketplace_upsert_dev_bot(
