@@ -165,12 +165,20 @@ class IntegrationSlack(fi_messenger.FlexusMessenger):
         else:
             self.web_client = AsyncWebClient(token=token)
         self.activity_callback: Callable[[ActivitySlack, bool], Awaitable[None]] = self.default_activity_to_inbox
-        self.prev_messages = deque(maxlen=200)
         self.channels_id2name = {}
         self.channels_name2id = {}
         self.users_id2name = {}
         self.users_name2id = {}
         self.users_name2dm = {}
+        # Both inbound and outbound deduplicated.
+        # Inbound dedup needed: bot receives emessages starting up, handled_emsg_ids delete fails for whatever reason, bot starts up again
+        # Outbound dedup needed: bot receives a stray update on existing message (via news mechanism) before it can get an updated last_posted_assistant_ts
+        # That's authoritative code that actually got some testing.
+        # On laptop 50_000 records: fill deque + set 4.1ms, append+evict 9.2ms, lookup 1.3ms
+        self._from_stack_dedup = deque(maxlen=50000)
+        self._from_stack_dedup_set = set()
+        self._to_slack_dedup = deque(maxlen=50000)
+        self._to_slack_dedup_set = set()
 
     def _get_bot_token(self) -> str:
         slack_auth = self.rcx.external_auth.get("slack") or {}
@@ -207,10 +215,13 @@ class IntegrationSlack(fi_messenger.FlexusMessenger):
             return
 
         dedup_key = event.get("client_msg_id") or event.get("ts", "")
-        if dedup_key and dedup_key in self.prev_messages:
+        if dedup_key and dedup_key in self._from_stack_dedup_set:
             return
         if dedup_key:
-            self.prev_messages.append(dedup_key)
+            if len(self._from_stack_dedup) == self._from_stack_dedup.maxlen:
+                self._from_stack_dedup_set.discard(self._from_stack_dedup[0])
+            self._from_stack_dedup.append(dedup_key)
+            self._from_stack_dedup_set.add(dedup_key)
 
         channel_id = event.get("channel", "")
         channel_type = event.get("channel_type", "channel")
@@ -534,15 +545,20 @@ class IntegrationSlack(fi_messenger.FlexusMessenger):
             return False
         match = re.match(r'^slack/([^/]+)(?:/(.+))?$', msg.ft_app_searchable)
         if not match:
+            # It is actually a chat using telegram or something, not slack, we get all updates, that's fine
             return False
         something_id, thread_ts = match.groups()
 
         if msg.ft_app_specific is not None:
-            last_ts = msg.ft_app_specific.get("last_posted_assistant_ts")
-            if last_ts is None:
+            already_posted_ts = msg.ft_app_specific.get("last_posted_assistant_ts")
+            if already_posted_ts is None:
                 logger.warning("ft_app_specific without last_posted_assistant_ts: %r", msg.ft_app_specific)
-            elif msg.ftm_created_ts <= last_ts:
+            elif msg.ftm_created_ts <= already_posted_ts:
                 return False
+
+        dedup_key = "%s:%03d:%03d" % (msg.ftm_belongs_to_ft_id, msg.ftm_alt, msg.ftm_num)
+        if dedup_key in self._to_slack_dedup_set:
+            return False
 
         if not self.web_client:
             return False
@@ -563,6 +579,10 @@ class IntegrationSlack(fi_messenger.FlexusMessenger):
             if self.bot_icon_url:
                 kwargs["icon_url"] = self.bot_icon_url
             await self.web_client.chat_postMessage(**kwargs)
+            if len(self._to_slack_dedup) == self._to_slack_dedup.maxlen:
+                self._to_slack_dedup_set.discard(self._to_slack_dedup[0])
+            self._to_slack_dedup.append(dedup_key)
+            self._to_slack_dedup_set.add(dedup_key)
             logger.info("posted to channel=%s thread_ts=%s", something_id, thread_ts)
         except Exception:
             logger.exception("failed to post to slack channel=%s thread_ts=%s", something_id, thread_ts)

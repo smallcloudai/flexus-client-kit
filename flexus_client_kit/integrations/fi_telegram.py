@@ -112,7 +112,11 @@ class IntegrationTelegram(fi_messenger.FlexusMessenger):
         self.tg_app: Optional[telegram.ext.Application] = None
 
         self._activity_callback: Callable[[ActivityTelegram, bool], Awaitable[None]] = self.default_activity_to_inbox
-        self._handled_incoming_emessages: deque[str] = deque(maxlen=200)  # emessages (coming from webhook) are to be fixed a bit, 200 will not help at scale
+        # See fi_slack.py for explanation of deque+set dedup pattern
+        self._from_tg_dedup = deque(maxlen=50000)
+        self._from_tg_dedup_set = set()
+        self._to_tg_dedup = deque(maxlen=50000)
+        self._to_tg_dedup_set = set()
 
         if not self.bot_token:
             self.oops_a_problem("Telegram is not connected, ask user to connect it in bot settings")
@@ -281,9 +285,13 @@ class IntegrationTelegram(fi_messenger.FlexusMessenger):
         msg = update.message or update.edited_message
         if not msg or not msg.from_user:
             return
-        if str(msg.message_id) in self._handled_incoming_emessages:
+        dedup_key = str(msg.message_id)
+        if dedup_key in self._from_tg_dedup_set:
             return
-        self._handled_incoming_emessages.append(str(msg.message_id))
+        if len(self._from_tg_dedup) == self._from_tg_dedup.maxlen:
+            self._from_tg_dedup_set.discard(self._from_tg_dedup[0])
+        self._from_tg_dedup.append(dedup_key)
+        self._from_tg_dedup_set.add(dedup_key)
         user = msg.from_user
         activity = ActivityTelegram(
             chat_id=msg.chat.id,
@@ -332,6 +340,10 @@ class IntegrationTelegram(fi_messenger.FlexusMessenger):
             elif msg.ftm_created_ts <= msg.ft_app_specific["last_posted_assistant_ts"]:
                 return False
 
+        dedup_key = "%s:%03d:%03d" % (msg.ftm_belongs_to_ft_id, msg.ftm_alt, msg.ftm_num)
+        if dedup_key in self._to_tg_dedup_set:
+            return False
+
         chat_id = int(searchable[len("telegram/"):])
         if not isinstance(msg.ftm_content, str):
             logger.warning("telegram look_assistant_might_have_posted_something: ftm_content is not a string: %r" % msg.ftm_content)
@@ -347,6 +359,10 @@ class IntegrationTelegram(fi_messenger.FlexusMessenger):
 
         try:
             await self.tg_app.bot.send_message(chat_id=chat_id, text=text, parse_mode="HTML")
+            if len(self._to_tg_dedup) == self._to_tg_dedup.maxlen:
+                self._to_tg_dedup_set.discard(self._to_tg_dedup[0])
+            self._to_tg_dedup.append(dedup_key)
+            self._to_tg_dedup_set.add(dedup_key)
         except Exception as e:
             logger.warning("Failed to post to Telegram chat %d: %s", chat_id, e)
             return False
