@@ -298,12 +298,20 @@ async def crash_boom_bang(fclient: ckit_client.FlexusClient, rcx: RobotContext, 
             await bot_main_loop(fclient, rcx)
         except RestartBecauseAuthChanged:
             logger.info("%s restart requested (auth changed)", rcx.persona.persona_id)
+            await rcx.wait_for_bg_tasks(timeout=30.0)
             rcx._soft_restart_requested = False
+            # _parked_messages, _parked_toolcalls -- don't clear, they still need handling (with new auth), subscription does NOT restart for the bot
+            if len(rcx.bg_call_tasks):
+                logger.error("%s background tasks still running after restart, that's a bug", rcx.persona.persona_id)
+            rcx.messengers.clear()  # new loop will populate this with new auth
             continue
         except RestartBecauseSettingsChanged:
             logger.info("%s restart requested (settings changed)", rcx.persona.persona_id)
-            break
+            await rcx.wait_for_bg_tasks(timeout=30.0)
+            rcx.messengers.clear()  # new loop will populate this with new settings
+            continue
         except asyncio.CancelledError:
+            # Only happens on shutdown (hopefully)
             break
         except Exception as e:
             logger.error("%s Bot main loop problem: %s %s", rcx.persona.persona_id, type(e).__name__, str(e), exc_info=e)

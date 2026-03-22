@@ -203,7 +203,6 @@ async def main():
                 "message": "Test survey task for dentist samples idea",
                 "system": "test_script",
             }),
-            "ktask_inactivity_timeout": expert.fexp_inactivity_timeout if expert else 3600,
             "ktask_budget": 100000,
             "ktask_todo_ts": current_time,
             "ktask_inprogress_ts": 0,

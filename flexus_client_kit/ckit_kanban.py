@@ -86,7 +86,7 @@ async def bot_kanban_post_into_inbox(
     title: str,
     details_json: str,
     provenance_message: str,
-    fexp_name: str = "default",
+    fexp_name: str = "",
     comingup_ts: float = 0.0,
 ) -> None:
     http = await client.use_http()

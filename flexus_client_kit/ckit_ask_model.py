@@ -131,7 +131,7 @@ async def bot_activate(
     who_is_asking: str,
     persona_id: str,
     fexp_name: str,
-    first_question: str,
+    first_question: Any,  # string or [{"m_type": "...", "m_content": "..."}]
     first_calls: Any = None,
     title: str = "",
     sched_id: str = "",
@@ -152,7 +152,7 @@ async def bot_activate(
                 "who_is_asking": who_is_asking,
                 "persona_id": persona_id,
                 "fexp_name": fexp_name,
-                "first_question": first_question,
+                "first_question": json.dumps(first_question),
                 "first_calls": json.dumps(first_calls),
                 "title": title,
                 "sched_id": sched_id,

@@ -191,11 +191,9 @@ class IntegrationSlack(fi_messenger.FlexusMessenger):
         logger.info("%s Slack %s by @%s in %s: %s", self.rcx.persona.persona_id, a.what_happened, a.message_author_name, a.channel_name, a.message_text[:50])
         if already_posted_to_captured_thread:
             return
-        # Use channel_id (reliable) with effective thread_ts so the bot can call capture directly
-        effective_ts = a.thread_ts or a.message_ts
-        capture_arg = (a.channel_id or a.channel_name) + ("/" + effective_ts if effective_ts else "")
-        title = "Slack %s user=%r in #%s (capture=%s)\n%s" % (a.what_happened, a.message_author_name, a.channel_name, capture_arg, a.message_text)
+        title = "Slack %s user=%r in #%s\n%s" % (a.what_happened, a.message_author_name, a.channel_name, a.message_text)
         details = asdict(a)
+        details["to_capture"] = (a.channel_id or a.channel_name) + "/" + (a.thread_ts or a.message_ts)
         if a.file_contents:
             details["file_contents"] = f"{len(a.file_contents)} files attached"
         await ckit_kanban.bot_kanban_post_into_inbox(
@@ -530,7 +528,7 @@ class IntegrationSlack(fi_messenger.FlexusMessenger):
             logger.info("captured_thread_post failed, maybe thread itself already has an error, will uncapture: %s", e)
             return False
         if not ft_id:
-            logger.info("No threads match ft_app_searchable=%s, so I'll let bot handle this message.", searchable)
+            logger.info("No threads match ft_app_searchable=%s so not captured => let bot handle this message.", searchable)
             return False
         logger.info("Captured slack->db ft_id=%s ft_app_searchable=%s sending=%d parts", ft_id, searchable, len(content))
         return True
