@@ -10,20 +10,29 @@ from flexus_client_kit import ckit_integrations_db
 from flexus_client_kit import ckit_skills
 from flexus_client_kit.integrations import fi_slack
 from flexus_client_kit.integrations import fi_discord2
+from flexus_client_kit.integrations import fi_mcp
 
 from flexus_simple_bots import prompts_common
 from flexus_simple_bots.karen import karen_prompts
 
 
 KAREN_ROOTDIR = Path(__file__).parent
-KAREN_SKILLS = ckit_skills.static_skills_find(KAREN_ROOTDIR, shared_skills_allowlist="")
+KAREN_SKILLS = ckit_skills.static_skills_find(KAREN_ROOTDIR, shared_skills_allowlist="*")
+KAREN_MCPS = []
 KAREN_SETUP_SCHEMA = json.loads((KAREN_ROOTDIR / "setup_schema.json").read_text())
 KAREN_SETUP_SCHEMA += fi_discord2.DISCORD_SETUP_SCHEMA
+KAREN_SETUP_SCHEMA.extend(fi_mcp.mcp_setup_schema(KAREN_MCPS))
 
 KAREN_INTEGRATIONS: list[ckit_integrations_db.IntegrationRecord] = ckit_integrations_db.static_integrations_load(
     KAREN_ROOTDIR,
-    allowlist=["slack"],
-    builtin_skills=[],
+    allowlist=[
+        "flexus_policy_document",
+        "print_widget",
+        "slack",
+        "telegram",
+        "skills",
+    ],
+    builtin_skills=KAREN_SKILLS,
 )
 
 
@@ -59,19 +68,21 @@ if coins > budget * 0.5 and not messages[-1]["tool_calls"]:
 
 EXPERTS = [
     ("default", ckit_bot_install.FMarketplaceExpertInput(
-        fexp_system_prompt=karen_prompts.short_prompt,
+        fexp_system_prompt=karen_prompts.karen_setup,
         fexp_python_kernel=KAREN_BUDGET_KERNEL,
         fexp_block_tools="*setup*",
         fexp_allow_tools="",
-        fexp_inactivity_timeout=600,
-        fexp_description="Handles customer support tickets by searching knowledge base, providing helpful responses, and escalating unresolved issues.",
+        fexp_inactivity_timeout=3600,
+        fexp_description="Flexus expert: triages inbox, has a full access to kanban and setup tools.",
+        fexp_builtin_skills=ckit_skills.read_name_description(KAREN_ROOTDIR, KAREN_SKILLS),
     )),
-    ("setup", ckit_bot_install.FMarketplaceExpertInput(
-        fexp_system_prompt=karen_prompts.karen_setup,
+    ("very_limited", ckit_bot_install.FMarketplaceExpertInput(
+        fexp_system_prompt=karen_prompts.very_limited,
         fexp_python_kernel=KAREN_BUDGET_KERNEL,
         fexp_block_tools="",
-        fexp_allow_tools="",
-        fexp_description="Guides users through bot configuration, helping set up information sources like MCP servers or Flexus hotstorage for support queries.",
+        fexp_allow_tools="flexus_bot_kanban,flexus_vector_search,flexus_read_original",
+        fexp_inactivity_timeout=600,
+        fexp_description="Customer-facing worker: captures messenger threads, searches knowledge base, responds to users. No access potentially dangerous tools.",
     )),
 ]
 
@@ -103,7 +114,7 @@ async def install(
             {"feat_question": "What people ask for today?", "feat_expert": "default", "feat_depends_on_setup": []},
         ],
         marketable_intro_message="I'm here for your customers 24/7 — answering questions, remembering every detail, and always following up. I also deliver weekly feedback reports that help your team improve the product.",
-        marketable_preferred_model_default="grok-4-fast",
+        marketable_preferred_model_default="grok-4-1-fast-non-reasoning",
         marketable_experts=[(name, exp.filter_tools(tools)) for name, exp in EXPERTS],
         add_integrations_into_expert_system_prompt=KAREN_INTEGRATIONS,
         marketable_tags=["Customer Support"],
@@ -111,7 +122,7 @@ async def install(
         marketable_picture_small_b64=pic_small,
         marketable_schedule=[
             prompts_common.SCHED_TASK_SORT_10M | {"sched_when": "EVERY:1m"},
-            prompts_common.SCHED_TODO_5M | {"sched_when": "EVERY:1m"},
+            prompts_common.SCHED_TODO_5M | {"sched_when": "EVERY:1m", "sched_fexp_name": "very_limited"},
         ],
         marketable_auth_supported=["slack", "discord_manual"],
         marketable_auth_scopes={
