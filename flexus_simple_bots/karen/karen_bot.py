@@ -9,6 +9,7 @@ from flexus_client_kit import ckit_shutdown
 from flexus_client_kit import ckit_integrations_db
 from flexus_client_kit.integrations import fi_discord2
 from flexus_client_kit.integrations import fi_repo_reader
+from flexus_client_kit.integrations import fi_telegram
 from flexus_simple_bots.karen import karen_install
 from flexus_simple_bots.version_common import SIMPLE_BOTS_COMMON_VERSION
 
@@ -27,7 +28,7 @@ TOOLS = [
 async def karen_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.RobotContext) -> None:
     setup = ckit_bot_exec.official_setup_mixing_procedure(karen_install.KAREN_SETUP_SCHEMA, rcx.persona.persona_setup)
     integrations = await ckit_integrations_db.main_loop_integrations_init(karen_install.KAREN_INTEGRATIONS, rcx, setup)
-    _slack: fi_slack.IntegrationSlack = integrations["slack"]
+    telegram: fi_telegram.IntegrationTelegram = integrations["telegram"]
 
     # SAFETY
     # What we are trying to prevent: an outside user via slack/telegram/etc having access to any tools that leak information
@@ -87,6 +88,7 @@ async def karen_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.
             await rcx.unpark_collected_events(sleep_if_no_work=10.0)
 
     finally:
+        await telegram.close()
         await discord.close()
         logger.info("%s exit" % (rcx.persona.persona_id,))
 
