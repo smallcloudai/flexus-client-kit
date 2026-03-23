@@ -39,6 +39,7 @@ SKIP_SUCCESS_MSG = "Great, other people are talking, thread is still captured, a
 OTHER_CHAT_ALREADY_CAPTURING_MSG = "Some other chat is already capturing %s\n"
 NOT_CAPTURING_MSG = "This thread is not capturing any conversation. Use 'capture' first.\n"
 UNKNOWN_OPERATION_MSG = "Unknown operation %r, try \"help\"\n\n"
+CAPTURE_WRONG_EXPERT_MSG = "This chat is not suitable to receive messages from outside. Create a task instead with expert %r that will handle it, or if the task already exists just wait for it to execute.\n\n"
 
 
 class FlexusMessenger:
@@ -48,6 +49,10 @@ class FlexusMessenger:
     def __init__(self, fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.RobotContext):
         self.fclient = fclient
         self.rcx = rcx
+        self.outside_messages_fexp_name: str = ""
+
+    def accept_outside_messages_only_to_expert(self, fexp_name: str):
+        self.outside_messages_fexp_name = fexp_name
 
     def recent_thread_that_captures(self, identifier: str) -> Optional[ckit_bot_query.FThreadWithMessages]:
         searchable = f"{self.platform_name}/{identifier}"

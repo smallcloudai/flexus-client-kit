@@ -29,9 +29,16 @@ TOOLS = [
 
 async def karen_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.RobotContext) -> None:
     setup = ckit_bot_exec.official_setup_mixing_procedure(karen_install.KAREN_SETUP_SCHEMA, rcx.persona.persona_setup)
-
     integrations = await ckit_integrations_db.main_loop_integrations_init(karen_install.KAREN_INTEGRATIONS, rcx, setup)
-    slack: fi_slack.IntegrationSlack = integrations["slack"]
+    _slack: fi_slack.IntegrationSlack = integrations["slack"]
+
+    # SAFETY
+    # What we are trying to prevent: an outside user via slack/telegram/etc having access to any tools that leak information
+    # about the company, or do any actions like sending A2A to Boss, that would be really silly.
+    # How: expert 'very_limited' only has allowlist of tools, all messengers informed about the destination expert that they
+    # are allowed to post the outside messages to.
+    for me in rcx.messengers:
+        me.accept_outside_messages_only_to_expert("very_limited")
 
     discord = fi_discord2.IntegrationDiscord(
         fclient,

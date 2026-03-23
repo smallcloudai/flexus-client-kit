@@ -76,7 +76,11 @@ class IntegrationSlackFake(fi_messenger.FlexusMessenger):
         try:
             http = await self.fclient.use_http()
             ft_id = await ckit_ask_model.captured_thread_post_user_message(
-                http, self.rcx.persona.persona_id, searchable, content,
+                http,
+                self.rcx.persona.persona_id,
+                searchable,
+                content,
+                only_to_expert=self.outside_messages_fexp_name,
             )
             return bool(ft_id)
         except Exception:

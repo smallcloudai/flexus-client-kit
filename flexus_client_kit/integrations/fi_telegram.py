@@ -160,9 +160,12 @@ class IntegrationTelegram(fi_messenger.FlexusMessenger):
             details["attachments"] = f"{len(a.attachments)} files attached"
         title = "Telegram %s user=%r chat_id=%d\n%s" % (a.chat_type, a.message_author_name, a.chat_id, a.message_text)
         await ckit_kanban.bot_kanban_post_into_inbox(
-            self.fclient, self.rcx.persona.persona_id,
-            title=title, details_json=json.dumps(details),
+            self.fclient,
+            self.rcx.persona.persona_id,
+            title=title,
+            details_json=json.dumps(details),
             provenance_message="telegram_inbound",
+            fexp_name=self.outside_messages_fexp_name,
         )
 
     async def close(self) -> None:
@@ -225,6 +228,8 @@ class IntegrationTelegram(fi_messenger.FlexusMessenger):
                 return f"ERROR: {type(e).__name__}: {e}\n"
 
         if op == "capture":
+            if self.outside_messages_fexp_name and not toolcall.fcall_fexp_name.endswith("_" + self.outside_messages_fexp_name):
+                return fi_messenger.CAPTURE_WRONG_EXPERT_MSG % self.outside_messages_fexp_name
             chat_id = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "chat_id", None)
             if not chat_id:
                 return "Missing chat_id parameter\n"
@@ -316,7 +321,11 @@ class IntegrationTelegram(fi_messenger.FlexusMessenger):
         searchable = f"telegram/{activity.chat_id}"
         http = await self.fclient.use_http()
         ft_id = await ckit_ask_model.captured_thread_post_user_message(
-            http, self.rcx.persona.persona_id, searchable, msg_text,
+            http,
+            self.rcx.persona.persona_id,
+            searchable,
+            msg_text,
+            only_to_expert=self.outside_messages_fexp_name,
         )
         if not ft_id:
             return False

@@ -197,9 +197,12 @@ class IntegrationSlack(fi_messenger.FlexusMessenger):
         if a.file_contents:
             details["file_contents"] = f"{len(a.file_contents)} files attached"
         await ckit_kanban.bot_kanban_post_into_inbox(
-            self.fclient, self.rcx.persona.persona_id,
-            title=title, details_json=json.dumps(details),
+            self.fclient,
+            self.rcx.persona.persona_id,
+            title=title,
+            details_json=json.dumps(details),
             provenance_message="slack_inbound",
+            fexp_name=self.outside_messages_fexp_name,
         )
 
     async def handle_emessage(self, emsg: ckit_bot_query.FExternalMessageOutput) -> None:
@@ -398,6 +401,12 @@ class IntegrationSlack(fi_messenger.FlexusMessenger):
 
         elif op == "capture":
             channel_slash_thread = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "channel_slash_thread", "")
+            if self.outside_messages_fexp_name and not toolcall.fcall_fexp_name.endswith("_" + self.outside_messages_fexp_name):
+                wrong_expert = fi_messenger.CAPTURE_WRONG_EXPERT_MSG % self.outside_messages_fexp_name
+                return wrong_expert + (HELP if not channel_slash_thread else "")
+            if not channel_slash_thread:
+                return "Retry calling this tool with `channel_slash_thread` parameter next time.\n\n" + HELP
+
             something_name, thread_ts = parse_channel_slash_thread(channel_slash_thread)
             something_id = ""
             if something_name.startswith('@'):
@@ -522,7 +531,11 @@ class IntegrationSlack(fi_messenger.FlexusMessenger):
         http = await self.fclient.use_http()
         try:
             ft_id = await ckit_ask_model.captured_thread_post_user_message(
-                http, self.rcx.persona.persona_id, searchable, content,
+                http,
+                self.rcx.persona.persona_id,
+                searchable,
+                content,
+                only_to_expert=self.outside_messages_fexp_name,
             )
         except gql.transport.exceptions.TransportQueryError as e:
             logger.info("captured_thread_post failed, maybe thread itself already has an error, will uncapture: %s", e)

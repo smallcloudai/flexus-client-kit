@@ -89,6 +89,7 @@ class FCloudtoolCall:
     fcall_id: str
     fcall_ft_id: str
     fcall_ft_btest_name: str
+    fcall_fexp_name: str
     fcall_ftm_alt: int
     fcall_called_ftm_num: int
     fcall_call_n: int

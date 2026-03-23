@@ -1,10 +1,9 @@
 import time
-import asyncio
 import json
 import random
 import re
 from dataclasses import dataclass
-from typing import Optional, Any, List, Callable, Union, Dict
+from typing import Optional, Any, List, Union, Dict
 
 import gql
 
@@ -229,17 +228,19 @@ async def captured_thread_post_user_message(
     persona_id: str,
     ft_app_searchable: str,
     content: Union[str, List[Dict[str, Any]]],
+    only_to_expert: str = "",
 ) -> str:
     ftm_content = json.dumps(content)
     async with http as h:
         r = await h.execute(gql.gql("""
-            mutation CapturedThreadPost($persona_id: String!, $ft_app_searchable: String!, $ftm_content: String!) {
-                captured_thread_post_user_message(persona_id: $persona_id, ft_app_searchable: $ft_app_searchable, ftm_content: $ftm_content)
+            mutation CapturedThreadPostSafe($persona_id: String!, $ft_app_searchable: String!, $ftm_content: String!, $only_to_expert: String!) {
+                captured_thread_post_user_message(persona_id: $persona_id, ft_app_searchable: $ft_app_searchable, ftm_content: $ftm_content, only_to_expert: $only_to_expert)
             }"""),
             variable_values={
                 "persona_id": persona_id,
                 "ft_app_searchable": ft_app_searchable,
                 "ftm_content": ftm_content,
+                "only_to_expert": only_to_expert,
             },
         )
     return r["captured_thread_post_user_message"]

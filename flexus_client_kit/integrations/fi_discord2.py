@@ -268,6 +268,8 @@ class IntegrationDiscord(fi_messenger.FlexusMessenger):
             return "Post success\n"
 
         if op == "capture":
+            if self.outside_messages_fexp_name and not toolcall.fcall_fexp_name.endswith("_" + self.outside_messages_fexp_name):
+                return fi_messenger.CAPTURE_WRONG_EXPERT_MSG % self.outside_messages_fexp_name
             channel_ref = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "target", "")
             message_id = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "message_id", None)
             if not channel_ref:
@@ -700,7 +702,11 @@ class IntegrationDiscord(fi_messenger.FlexusMessenger):
         http = await self.fclient.use_http()
         try:
             ft_id = await ckit_ask_model.captured_thread_post_user_message(
-                http, self.rcx.persona.persona_id, searchable, parts,
+                http,
+                self.rcx.persona.persona_id,
+                searchable,
+                parts,
+                only_to_expert=self.outside_messages_fexp_name,
             )
         except gql.transport.exceptions.TransportQueryError as e:  # type: ignore[attr-defined]
             logger.info("Discord captured_thread_post_user_message failed: %s", e)
