@@ -43,9 +43,8 @@ class IntegrationMagicDesk(fi_messenger.FlexusMessenger):
     platform_name = "magic_desk"
     emessage_type = "MAGIC_DESK"
 
-    def __init__(self, fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.RobotContext, default_fexp_name: str = "default"):
+    def __init__(self, fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.RobotContext):
         super().__init__(fclient, rcx)
-        self.default_fexp_name = default_fexp_name
         self._activity_callback: Callable[[ActivityMagicDesk, bool], Awaitable[None]] = self.default_activity_to_inbox
 
     def on_incoming_activity(self, handler: Callable[[ActivityMagicDesk, bool], Awaitable[None]]):
@@ -60,7 +59,7 @@ class IntegrationMagicDesk(fi_messenger.FlexusMessenger):
             title=f"Magic Desk session={a.session_id}\n{a.text}",
             details_json=json.dumps({"session_id": a.session_id, "text": a.text}),
             provenance_message="magic_desk_inbound",
-            fexp_name=self.default_fexp_name,
+            fexp_name=self.outside_messages_fexp_name,
         )
 
     async def called_by_model(self, toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Optional[Dict[str, Any]]) -> str:
@@ -76,6 +75,8 @@ class IntegrationMagicDesk(fi_messenger.FlexusMessenger):
             session_id = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "session_id", None)
             if not session_id:
                 return "Missing session_id parameter\n"
+            if self.outside_messages_fexp_name and not toolcall.fcall_fexp_name.endswith("_" + self.outside_messages_fexp_name):
+                return fi_messenger.CAPTURE_WRONG_EXPERT_MSG % self.outside_messages_fexp_name
             if already := self.recent_thread_that_captures(session_id):
                 if already.thread_fields.ft_id == toolcall.fcall_ft_id:
                     return "Already captured\n"
@@ -100,7 +101,7 @@ class IntegrationMagicDesk(fi_messenger.FlexusMessenger):
         if not text.strip():
             return
         http = await self.fclient.use_http()
-        ft_id = await ckit_ask_model.captured_thread_post_user_message(http, self.rcx.persona.persona_id, f"magic_desk/{session_id}", text, ftm_provenance={"system_type": "captured_thread_post", "mdesk_id": emsg.emsg_external_id})
+        ft_id = await ckit_ask_model.captured_thread_post_user_message(http, self.rcx.persona.persona_id, f"magic_desk/{session_id}", text, ftm_provenance={"system_type": "captured_thread_post", "mdesk_id": emsg.emsg_external_id}, only_to_expert=self.outside_messages_fexp_name)
         if ft_id:
             logger.info("%s magic_desk inbound captured ft_id=%s session=%s: %s", self.rcx.persona.persona_id, ft_id, session_id, text[:120])
         else:
