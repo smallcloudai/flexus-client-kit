@@ -188,7 +188,7 @@ async def bot_subchat_create_multiple(
             variable_values={
                 "who_is_asking": who_is_asking,
                 "persona_id": persona_id,
-                "first_question": first_question,
+                "first_question": [json.dumps(q) for q in first_question],
                 "first_calls": first_calls,
                 "title": title,
                 "fcall_id": fcall_id,
