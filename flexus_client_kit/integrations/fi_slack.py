@@ -98,16 +98,8 @@ slack(op="skip")
     Ignore the most recent message but keep capturing the thread. Useful for unrelated messages (e.g. from other participants).
 """ + FORMATTING
 
-CAPTURE_SUCCESS_MSG = "Captured! The next thing you write will be visible in Slack. Don't comment on that fact and think about what do you want to say in %r.\n"
-CAPTURE_ADVICE_MSG = "Don't use op=post because now anything you say is visible on Slack automatically.\n"
-UNCAPTURE_SUCCESS_MSG = "Uncaptured successfully. This thread is no longer connected to Slack.\n"
-SKIP_SUCCESS_MSG = "Great, other people are talking, thread is still captured, any new messages will appear in this thread.\n"
-OTHER_CHAT_ALREADY_CAPTURING_MSG = "Some other chat is already capturing %s\n"
-BAD_CHANNEL_SLASH_THREAD_MSG = "Bad channel_slash_thread parameter, it's @username/thread_ts (don't forget @ for users) or channel/thread_ts (it's channel name not id)\n"
-MISSING_OR_INVALID_PARAMETER_MSG = "Missing or invalid %r parameter\n"
-CANNOT_POST_TO_CAPTURED_MSG = "Cannot use post for a captured thread. Type your message normally and it will appear in Slack automatically.\n"
-NOT_CAPTURING_THREAD_MSG = "This thread is not capturing any Slack conversation. Use 'capture' first to start capturing a thread.\n"
-UNKNOWN_OPERATION_MSG = "Unknown operation %r, try \"help\"\n\n"
+
+
 
 SLACK_SETUP_SCHEMA = [
     {
@@ -334,7 +326,7 @@ class IntegrationSlack(fi_messenger.FlexusMessenger):
             attach_file = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "path", None)
             something_name, thread_ts = parse_channel_slash_thread(channel_slash_thread)
             if not something_name:
-                return MISSING_OR_INVALID_PARAMETER_MSG % "channel_slash_thread"
+                return "Missing or invalid 'channel_slash_thread' parameter\n"
             try:
                 if something_name.startswith('@'):
                     username = something_name.lstrip('@')
@@ -354,7 +346,7 @@ class IntegrationSlack(fi_messenger.FlexusMessenger):
                 something_id_slash_thread = channel_id + ("/" + thread_ts if thread_ts else "")
                 thread_capturing = self._thread_capturing(something_id_slash_thread)
                 if thread_capturing and thread_capturing.thread_fields.ft_id == toolcall.fcall_ft_id:
-                    return CANNOT_POST_TO_CAPTURED_MSG
+                    return "Cannot use post for a captured thread. Type your message normally and it will appear in Slack automatically.\n"
 
                 if attach_file:
                     from flexus_client_kit import ckit_mongo
@@ -386,7 +378,7 @@ class IntegrationSlack(fi_messenger.FlexusMessenger):
                         r += "File upload success (channel)\n"
                 else:
                     if not isinstance(text, str):
-                        return MISSING_OR_INVALID_PARAMETER_MSG % "text"
+                        return "Missing or invalid 'text' parameter\n"
                     kwargs = {"channel": channel_id, "text": text}
                     if thread_ts:
                         kwargs["thread_ts"] = thread_ts
@@ -425,7 +417,7 @@ class IntegrationSlack(fi_messenger.FlexusMessenger):
             elif something_name:
                 something_id = self.channels_name2id.get(something_name.lstrip("#"), None)
             if not something_id:
-                return BAD_CHANNEL_SLASH_THREAD_MSG
+                return "Bad channel_slash_thread parameter, it's @username/thread_ts (don't forget @ for users) or channel/thread_ts (it's channel name not id)\n"
             something_id_slash_thread = something_id + ("/" + thread_ts if thread_ts else "")
 
             searchable = "slack/" + something_id_slash_thread
@@ -434,7 +426,7 @@ class IntegrationSlack(fi_messenger.FlexusMessenger):
                 if already_captured_by.thread_fields.ft_id == toolcall.fcall_ft_id:
                     return "Already captured"
                 else:
-                    return OTHER_CHAT_ALREADY_CAPTURING_MSG % (something_id_slash_thread,)
+                    return "Some other chat is already capturing %s\n" % (something_id_slash_thread,)
 
             try:
                 thirty_minutes_ago = str(int(time.time() - 30*60))
@@ -494,8 +486,8 @@ class IntegrationSlack(fi_messenger.FlexusMessenger):
                         "last_posted_assistant_ts": max(toolcall.fcall_created_ts, float(thread_ts) if thread_ts else 0) + 0.01
                     }),
                 )
-                r += CAPTURE_SUCCESS_MSG % (something_name,)
-                r += CAPTURE_ADVICE_MSG
+                r += "Captured! The next thing you write will be visible in Slack. Don't comment on that fact and think about what do you want to say in %r.\n" % (something_name,)
+                r += "Don't use op=post because now anything you say is visible on Slack automatically.\n"
 
             except SlackApiError as e:
                 r += "ERROR: %s %s\n" % (type(e).__name__, e)
@@ -504,18 +496,18 @@ class IntegrationSlack(fi_messenger.FlexusMessenger):
             try:
                 http = await self.fclient.use_http()
                 await ckit_ask_model.thread_app_capture_patch(http, toolcall.fcall_ft_id, ft_app_searchable="")
-                r += UNCAPTURE_SUCCESS_MSG
+                r += "Uncaptured successfully. This thread is no longer connected to Slack.\n"
             except Exception as e:
                 r += "ERROR: %s %s\n" % (type(e).__name__, e)
 
         elif op == "skip":
             captured_thread = self.rcx.latest_threads.get(toolcall.fcall_ft_id, None)
             if not captured_thread or not captured_thread.thread_fields.ft_app_searchable or not captured_thread.thread_fields.ft_app_searchable.startswith("slack/"):
-                return NOT_CAPTURING_THREAD_MSG
-            r += SKIP_SUCCESS_MSG
+                return "This thread is not capturing any Slack conversation. Use 'capture' first to start capturing a thread.\n"
+            r += "Great, other people are talking, thread is still captured, any new messages will appear in this thread.\n"
 
         else:
-            r += UNKNOWN_OPERATION_MSG % op
+            r += "Unknown operation %r, try \"help\"\n\n" % op
 
         return r
 
