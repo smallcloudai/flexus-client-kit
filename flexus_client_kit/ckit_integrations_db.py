@@ -253,6 +253,23 @@ def static_integrations_load(bot_dir: Path, allowlist: list[str], builtin_skills
                 integr_prompt="",
             ))
 
+        elif name == "resend":
+            from flexus_client_kit.integrations import fi_resend
+            async def _init_resend(rcx, setup):
+                domains = (rcx.persona.persona_setup or {}).get("DOMAINS", {})
+                return fi_resend.IntegrationResend(rcx.fclient, rcx, domains)
+            result.append(IntegrationRecord(
+                integr_name=name,
+                integr_tools=[fi_resend.RESEND_SEND_TOOL, fi_resend.RESEND_SETUP_TOOL],
+                integr_init=_init_resend,
+                integr_setup_handlers=lambda obj, rcx: [
+                    rcx.on_tool_call("email_send")(obj.send_called_by_model),
+                    rcx.on_tool_call("email_setup_domain")(obj.setup_called_by_model),
+                ],
+                integr_provider="resend",
+                integr_prompt=fi_resend.RESEND_PROMPT,
+            ))
+
         elif name.startswith("erp"):   # "erp[meta, data]" or "erp[meta, data, crud, csv_import]"
             from flexus_client_kit.integrations import fi_erp
             subset = _parse_bracket_list(name)

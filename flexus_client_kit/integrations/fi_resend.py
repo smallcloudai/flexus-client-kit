@@ -149,11 +149,10 @@ def parse_emessage(emsg: ckit_bot_query.FExternalMessageOutput) -> ActivityEmail
 
 class IntegrationResend:
 
-    def __init__(self, fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.RobotContext, domains: Dict[str, str], emails_to_register: set):
+    def __init__(self, fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.RobotContext, domains: Dict[str, str]):
         self.fclient = fclient
         self.rcx = rcx
         self.domains = domains  # {"domain.com": "resend_domain_id"}
-        self.emails_to_register = emails_to_register
 
     async def send_called_by_model(self, toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Optional[Dict[str, Any]]):
         if not model_produced_args:
