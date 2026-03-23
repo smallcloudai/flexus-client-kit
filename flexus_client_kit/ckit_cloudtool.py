@@ -241,7 +241,7 @@ async def call_python_function_and_save_result(
         return
     except Exception as e:
         logger.error("error processing call %s %s:%03d:%03d %+d: %s %s" % (call.fcall_id, call.fcall_ft_id, call.fcall_ftm_alt, call.fcall_called_ftm_num, call.fcall_call_n, type(e).__name__, e), exc_info=e)
-        result = f"Internal error: {type(e).__name__} {e}"
+        result = json.dumps(f"Internal error: {type(e).__name__} {e}")
         prov = json.dumps({"system": service_name})
         dollars = 0.0
     if result is not None:

@@ -249,3 +249,5 @@ async def bot_install_from_marketplace(
             },
         )
         return gql_utils.dataclass_from_dict(r["bot_install_from_marketplace"], InstallationResult)
+
+
