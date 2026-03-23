@@ -19,7 +19,8 @@ from flexus_client_kit.integrations import fi_mongo_store
 from flexus_client_kit.integrations import fi_crm_automations
 from flexus_client_kit.integrations import fi_resend
 from flexus_client_kit.integrations import fi_shopify
-from flexus_client_kit.integrations import fi_telegram, fi_magic_desk
+from flexus_client_kit.integrations import fi_telegram
+from flexus_client_kit.integrations import fi_magic_desk
 from flexus_client_kit.integrations import fi_crm
 from flexus_client_kit.integrations import fi_sched
 from flexus_simple_bots.vix import vix_install
@@ -38,6 +39,7 @@ VIX_INTEGRATIONS: list[ckit_integrations_db.IntegrationRecord] = ckit_integratio
         "flexus_policy_document",
         "print_widget",
         "erp[meta, data, crud, csv_import]",
+        "crm[manage_contact, manage_deal, log_activity]",
         "magic_desk",
     ],
     builtin_skills=vix_install.VIX_SKILLS,
