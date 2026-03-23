@@ -129,6 +129,7 @@ class ActivitySlack:
     message_author_name: str
     mention_looked_up: Dict[str, str]
     channel_id: str = ""  # Slack channel ID (C.../D.../G...) for capture, always more reliable than name
+    message_author_id: str = ""
     file_contents: List[Dict[str, str]] = field(default_factory=list)
 
 
@@ -175,6 +176,10 @@ class IntegrationSlack(fi_messenger.FlexusMessenger):
     def _get_bot_token(self) -> str:
         slack_auth = self.rcx.external_auth.get("slack") or {}
         return (slack_auth.get("token") or {}).get("access_token", "")
+
+    def on_incoming_activity(self, handler: Callable[[ActivitySlack, bool], Awaitable[None]]):
+        self.activity_callback = handler
+        return handler
 
     def set_activity_callback(self, cb: Callable[[ActivitySlack, bool], Awaitable[None]]):
         self.activity_callback = cb
@@ -274,6 +279,7 @@ class IntegrationSlack(fi_messenger.FlexusMessenger):
             message_text=text,
             message_author_name=author_name,
             mention_looked_up=mention_looked_up,
+            message_author_id=user_id,
             file_contents=file_contents,
         )
 

@@ -19,6 +19,7 @@ from flexus_client_kit.integrations import fi_crm_automations
 from flexus_client_kit.integrations import fi_resend
 from flexus_client_kit.integrations import fi_shopify
 from flexus_client_kit.integrations import fi_telegram
+from flexus_client_kit.integrations import fi_slack
 from flexus_client_kit.integrations import fi_crm
 from flexus_client_kit.integrations import fi_sched
 from flexus_simple_bots.vix import vix_install
@@ -39,6 +40,7 @@ VIX_INTEGRATIONS: list[ckit_integrations_db.IntegrationRecord] = ckit_integratio
         "erp[meta, data, crud, csv_import]",
         "crm[manage_contact, manage_deal, log_activity]",
         "magic_desk",
+        "slack",
         "telegram",
         "resend",
     ],
@@ -65,6 +67,7 @@ async def vix_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.Ro
     email_respond_to = set(a.strip().lower() for a in setup.get("EMAIL_RESPOND_TO", "").split(",") if a.strip())
     shopify = fi_shopify.IntegrationShopify(fclient, rcx)
     sched = fi_sched.IntegrationSched(rcx)
+    slack: fi_slack.IntegrationSlack = integrations["slack"]
     telegram: fi_telegram.IntegrationTelegram = integrations["telegram"]
 
     for me in rcx.messengers:
@@ -163,6 +166,29 @@ async def vix_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.Ro
             title=title,
             details_json=json.dumps(details),
             provenance_message="vix_telegram_activity",
+            fexp_name="sales",
+        )
+
+    @slack.on_incoming_activity
+    async def slack_activity_callback(a: fi_slack.ActivitySlack, already_posted: bool):
+        logger.info("%s Slack %s by @%s: %s", rcx.persona.persona_id, a.what_happened, a.message_author_name, a.message_text[:50])
+        if already_posted:
+            return
+        details = asdict(a)
+        if a.file_contents:
+            details["file_contents"] = f"{len(a.file_contents)} files attached"
+        details["to_capture"] = (a.channel_id or a.channel_name) + "/" + (a.thread_ts or a.message_ts)
+        if a.message_author_id:
+            if contact_id := await fi_crm.find_contact_by_platform_id(fclient, rcx.persona.ws_id, "slack", a.message_author_id):
+                details["contact_id"] = contact_id
+        title = "Slack %s user=%r in #%s\n%s" % (a.what_happened, a.message_author_name, a.channel_name, a.message_text)
+        if a.file_contents:
+            title += f"\n[{len(a.file_contents)} file(s) attached]"
+        await ckit_kanban.bot_kanban_post_into_inbox(
+            fclient, rcx.persona.persona_id,
+            title=title,
+            details_json=json.dumps(details),
+            provenance_message="vix_slack_activity",
             fexp_name="sales",
         )
 
