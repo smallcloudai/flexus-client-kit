@@ -10,7 +10,6 @@ from flexus_client_kit import ckit_client
 from flexus_client_kit import ckit_cloudtool
 from flexus_client_kit import ckit_bot_exec
 from flexus_client_kit import ckit_shutdown
-from flexus_client_kit import ckit_ask_model
 from flexus_client_kit import ckit_erp
 from flexus_client_kit import ckit_kanban
 from flexus_client_kit import ckit_integrations_db
@@ -20,7 +19,6 @@ from flexus_client_kit.integrations import fi_crm_automations
 from flexus_client_kit.integrations import fi_resend
 from flexus_client_kit.integrations import fi_shopify
 from flexus_client_kit.integrations import fi_telegram
-from flexus_client_kit.integrations import fi_magic_desk
 from flexus_client_kit.integrations import fi_crm
 from flexus_client_kit.integrations import fi_sched
 from flexus_simple_bots.vix import vix_install
@@ -41,6 +39,7 @@ VIX_INTEGRATIONS: list[ckit_integrations_db.IntegrationRecord] = ckit_integratio
         "erp[meta, data, crud, csv_import]",
         "crm[manage_contact, manage_deal, log_activity]",
         "magic_desk",
+        "telegram",
     ],
     builtin_skills=vix_install.VIX_SKILLS,
 )
@@ -52,7 +51,6 @@ TOOLS = [
     fi_resend.RESEND_SETUP_TOOL,
     fi_shopify.SHOPIFY_TOOL,
     fi_shopify.SHOPIFY_CART_TOOL,
-    fi_telegram.TELEGRAM_TOOL,
     fi_sched.SCHED_TOOL,
     *[t for rec in VIX_INTEGRATIONS for t in rec.integr_tools],
 ]
@@ -70,21 +68,10 @@ async def vix_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.Ro
     resend_integration = fi_resend.IntegrationResend(fclient, rcx, resend_domains, email_respond_to)
     shopify = fi_shopify.IntegrationShopify(fclient, rcx)
     sched = fi_sched.IntegrationSched(rcx)
-    telegram = fi_telegram.IntegrationTelegram(fclient, rcx)
-    await telegram.initialize()
+    telegram: fi_telegram.IntegrationTelegram = integrations["telegram"]
 
-    magic_desk: fi_magic_desk.IntegrationMagicDesk = integrations["magic_desk"]
-    magic_desk.default_fexp_name = "sales"
-
-    @rcx.on_updated_message
-    async def updated_message_in_db(msg: ckit_ask_model.FThreadMessageOutput):
-        await telegram.look_assistant_might_have_posted_something(msg)
-        await magic_desk.look_assistant_might_have_posted_something(msg)
-        await magic_desk.look_user_message_got_confirmed(msg)
-
-    @rcx.on_updated_task
-    async def updated_task_in_db(t: ckit_kanban.FPersonaKanbanTaskOutput):
-        pass
+    for me in rcx.messengers:
+        me.accept_outside_messages_only_to_expert("sales")
 
     @rcx.on_emessage("EMAIL")
     async def handle_email(emsg):
@@ -130,10 +117,6 @@ async def vix_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.Ro
             provenance_message="vix_email_inbound",
         )
 
-    @rcx.on_emessage("TELEGRAM")
-    async def handle_telegram_emessage(emsg):
-        await telegram.handle_emessage(emsg)
-
     @rcx.on_tool_call(fi_mongo_store.MONGO_STORE_TOOL.name)
     async def toolcall_mongo_store(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
         return await fi_mongo_store.handle_mongo_store(
@@ -162,10 +145,6 @@ async def vix_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.Ro
     @rcx.on_tool_call(fi_shopify.SHOPIFY_CART_TOOL.name)
     async def toolcall_shopify_cart(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
         return await shopify.handle_cart(toolcall, model_produced_args)
-
-    @rcx.on_tool_call(fi_telegram.TELEGRAM_TOOL.name)
-    async def toolcall_telegram(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
-        return await telegram.called_by_model(toolcall, model_produced_args)
 
     @rcx.on_tool_call(fi_sched.SCHED_TOOL.name)
     async def toolcall_sched(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
