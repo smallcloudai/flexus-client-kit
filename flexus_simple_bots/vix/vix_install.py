@@ -9,6 +9,7 @@ from flexus_client_kit import ckit_cloudtool
 from flexus_client_kit import ckit_skills
 from flexus_client_kit.integrations import fi_crm_automations
 from flexus_client_kit.integrations import fi_resend
+from flexus_client_kit.integrations import fi_slack
 from flexus_client_kit.integrations import fi_shopify
 
 from flexus_simple_bots import prompts_common
@@ -51,7 +52,7 @@ Vix is an integrated sales and marketing agent who covers the full revenue cycle
 
 
 VIX_SETUP_SCHEMA = json.loads((VIX_ROOTDIR / "setup_schema.json").read_text())
-VIX_SETUP_SCHEMA += fi_shopify.SHOPIFY_SETUP_SCHEMA + fi_crm_automations.CRM_AUTOMATIONS_SETUP_SCHEMA + fi_resend.RESEND_SETUP_SCHEMA
+VIX_SETUP_SCHEMA += fi_shopify.SHOPIFY_SETUP_SCHEMA + fi_crm_automations.CRM_AUTOMATIONS_SETUP_SCHEMA + fi_resend.RESEND_SETUP_SCHEMA + fi_slack.SLACK_SETUP_SCHEMA
 
 
 EXPERTS = [
@@ -127,7 +128,17 @@ async def install(
             prompts_common.SCHED_TODO_5M | {"sched_when": "EVERY:1m"},
         ],
         marketable_forms={},
-        marketable_auth_supported=["telegram", "shopify", "resend"],
+        marketable_auth_supported=["slack", "telegram", "shopify", "resend"],
+        marketable_auth_scopes={
+            "slack": [
+                "channels:read",
+                "chat:write",
+                "chat:write.customize",
+                "files:read",
+                "users:read",
+                "im:read",
+            ],
+        },
         marketable_required_policydocs=["/company/summary", "/company/sales-strategy"],
         marketable_features=["magic_desk"],
     )
