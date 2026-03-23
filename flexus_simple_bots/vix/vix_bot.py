@@ -40,6 +40,7 @@ VIX_INTEGRATIONS: list[ckit_integrations_db.IntegrationRecord] = ckit_integratio
         "crm[manage_contact, manage_deal, log_activity]",
         "magic_desk",
         "telegram",
+        "resend",
     ],
     builtin_skills=vix_install.VIX_SKILLS,
 )
@@ -47,8 +48,6 @@ VIX_INTEGRATIONS: list[ckit_integrations_db.IntegrationRecord] = ckit_integratio
 TOOLS = [
     fi_mongo_store.MONGO_STORE_TOOL,
     fi_crm_automations.CRM_AUTOMATION_TOOL,
-    fi_resend.RESEND_SEND_TOOL,
-    fi_resend.RESEND_SETUP_TOOL,
     fi_shopify.SHOPIFY_TOOL,
     fi_shopify.SHOPIFY_CART_TOOL,
     fi_sched.SCHED_TOOL,
@@ -63,9 +62,7 @@ async def vix_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.Ro
     automations_integration = fi_crm_automations.IntegrationCrmAutomations(
         fclient, rcx, setup, available_erp_tables=ERP_TABLES,
     )
-    resend_domains = (rcx.persona.persona_setup or {}).get("DOMAINS", {})
     email_respond_to = set(a.strip().lower() for a in setup.get("EMAIL_RESPOND_TO", "").split(",") if a.strip())
-    resend_integration = fi_resend.IntegrationResend(fclient, rcx, resend_domains, email_respond_to)
     shopify = fi_shopify.IntegrationShopify(fclient, rcx)
     sched = fi_sched.IntegrationSched(rcx)
     telegram: fi_telegram.IntegrationTelegram = integrations["telegram"]
@@ -125,14 +122,6 @@ async def vix_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.Ro
             toolcall,
             model_produced_args,
         )
-
-    @rcx.on_tool_call(fi_resend.RESEND_SEND_TOOL.name)
-    async def toolcall_email_send(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
-        return await resend_integration.send_called_by_model(toolcall, model_produced_args)
-
-    @rcx.on_tool_call(fi_resend.RESEND_SETUP_TOOL.name)
-    async def toolcall_email_setup(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
-        return await resend_integration.setup_called_by_model(toolcall, model_produced_args)
 
     @rcx.on_tool_call(fi_crm_automations.CRM_AUTOMATION_TOOL.name)
     async def toolcall_crm_automation(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
