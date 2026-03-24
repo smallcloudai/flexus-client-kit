@@ -240,6 +240,25 @@ def static_integrations_load(bot_dir: Path, allowlist: list[str], builtin_skills
                 integr_prompt=fi_messenger.MESSENGER_PROMPT,
             ))
 
+        elif name == "discord":
+            from flexus_client_kit.integrations import fi_discord2, fi_messenger
+            async def _init_discord(rcx, setup):
+                obj = fi_discord2.IntegrationDiscord(
+                    rcx.fclient, rcx,
+                    watch_channels=(setup or {}).get("discord_watch_channels", ""),
+                )
+                await obj.start_reactive()
+                return obj
+            result.append(IntegrationRecord(
+                integr_name=name,
+                integr_tools=[fi_discord2.DISCORD_TOOL],
+                integr_init=_init_discord,
+                integr_setup_handlers=lambda obj, rcx: [rcx.on_tool_call("discord")(obj.called_by_model)],
+                integr_provider="discord_manual",
+                integr_is_messenger=True,
+                integr_prompt=fi_messenger.MESSENGER_PROMPT,
+            ))
+
         elif name == "magic_desk":
             from flexus_client_kit.integrations import fi_magic_desk
             async def _init_magic_desk(rcx, setup):

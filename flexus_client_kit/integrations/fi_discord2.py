@@ -8,6 +8,7 @@ import random
 import tempfile
 import time
 from collections import deque
+import dataclasses
 from dataclasses import dataclass, field
 from typing import Any, Awaitable, Callable, Dict, List, Optional, Tuple
 
@@ -24,6 +25,7 @@ from flexus_client_kit import (
     ckit_bot_query,
     ckit_cloudtool,
     ckit_client,
+    ckit_kanban,
     ckit_utils,
 )
 from flexus_client_kit.format_utils import format_cat_output
@@ -56,6 +58,7 @@ discord(op=\"capture\", args={"target": "@username"})
     Create and capture a Discord thread. Any messages in discord will appear in this
     chat and your responses will be sent back to Discord automatically. For channels, provide
     message_id to create a new thread from that message.
+    For incoming messages from kanban: the task details contain to_capture — use that value directly as target.
 
 discord(op=\"post\", args={"target": "channel-name", "text": "Hello world!"})
 discord(op=\"post\", args={"target": "channel-name/thread-id", "text": "Thread reply"})
@@ -132,13 +135,16 @@ class IntegrationDiscord(fi_messenger.FlexusMessenger):
         self.bot_token = (rcx.external_auth.get("discord_manual") or rcx.external_auth.get("discord") or {}).get("api_key", "").strip()
 
         self.mongo_collection = mongo_collection
-        self.activity_callback: Optional[Callable[[ActivityDiscord, bool], Awaitable[None]]] = None
-        self.prev_messages: deque[str] = deque(maxlen=200)
+        self.activity_callback: Callable[[ActivityDiscord, bool], Awaitable[None]] = self.default_activity_to_inbox
         self.user_id2name: Dict[int, str] = {}
         self.user_name2id: Dict[str, int] = {}
         self.channel_id2name: Dict[int, str] = {}
         self.channel_name2id: Dict[str, int] = {}
         self.problems_other: List[str] = []
+        self._from_discord_dedup = deque(maxlen=50000)
+        self._from_discord_dedup_set: set[str] = set()
+        self._to_discord_dedup = deque(maxlen=50000)
+        self._to_discord_dedup_set: set[str] = set()
         self.watch_channel_ids: set[str] = set()
         self.watch_channel_names: set[str] = set()
         self.reactive_task: Optional[asyncio.Task] = None
@@ -171,6 +177,27 @@ class IntegrationDiscord(fi_messenger.FlexusMessenger):
 
     def set_activity_callback(self, cb: Callable[[ActivityDiscord, bool], Awaitable[None]]):
         self.activity_callback = cb
+
+    async def default_activity_to_inbox(self, a: ActivityDiscord, already_posted_to_captured_thread: bool):
+        logger.info("%s Discord %s by @%s in %s: %s", self.rcx.persona.persona_id, "message", a.message_author_name, a.channel_name, a.message_text[:50])
+        if already_posted_to_captured_thread:
+            return
+        title = "Discord user=%r in %s\n%s" % (a.message_author_name, a.channel_name, a.message_text)
+        details = dataclasses.asdict(a)
+        details["to_capture"] = str(a.channel_id) + ("/" + str(a.thread_id) if a.thread_id else "")
+        if a.attachments:
+            details["attachments"] = f"{len(a.attachments)} files attached"
+        await ckit_kanban.bot_kanban_post_into_inbox(
+            self.fclient,
+            self.rcx.persona.persona_id,
+            title=title,
+            details_json=json.dumps(details),
+            provenance_message="discord_inbound",
+            fexp_name=self.outside_messages_fexp_name,
+        )
+
+    async def handle_emessage(self, emsg: ckit_bot_query.FExternalMessageOutput) -> None:
+        pass  # Discord uses persistent websocket, not webhook emessages
 
     async def start_reactive(self) -> None:
         if not self.client or self.reactive_task:
@@ -432,6 +459,9 @@ class IntegrationDiscord(fi_messenger.FlexusMessenger):
             self._record_thread(thread_obj)
             return Destination(thread_obj, thread_obj.parent_id or channel_obj.id, thread_obj.id, thread_obj.name, None)
 
+        if isinstance(channel_obj, discord.DMChannel):
+            name = channel_obj.recipient.display_name if channel_obj.recipient else f"DM-{channel_obj.id}"
+            return Destination(channel_obj, channel_obj.id, 0, name, None)
         return Destination(channel_obj, channel_obj.id, 0, channel_obj.name, None)
 
     async def _ensure_thread_for_capture(self, destination, message_id: Optional[str] = None):
@@ -658,9 +688,13 @@ class IntegrationDiscord(fi_messenger.FlexusMessenger):
             ):
                 return
 
-        if str(message.id) in self.prev_messages:
+        dedup_key = str(message.id)
+        if dedup_key in self._from_discord_dedup_set:
             return
-        self.prev_messages.append(str(message.id))
+        if len(self._from_discord_dedup) == self._from_discord_dedup.maxlen:
+            self._from_discord_dedup_set.discard(self._from_discord_dedup[0])
+        self._from_discord_dedup.append(dedup_key)
+        self._from_discord_dedup_set.add(dedup_key)
 
         author_name = self._record_user(message.author)
         text = message.content or ""
@@ -677,8 +711,7 @@ class IntegrationDiscord(fi_messenger.FlexusMessenger):
         )
 
         posted = await self.post_into_captured_thread_as_user(activity)
-        if self.activity_callback:
-            await self.activity_callback(activity, posted)
+        await self.activity_callback(activity, posted)
 
     def _identify_message_location(self, message: discord.Message) -> Tuple[Optional[int], int]:
         if isinstance(message.channel, discord.Thread):
@@ -723,19 +756,23 @@ class IntegrationDiscord(fi_messenger.FlexusMessenger):
     async def look_assistant_might_have_posted_something(self, msg: ckit_ask_model.FThreadMessageOutput) -> bool:
         if msg.ftm_role != "assistant" or not msg.ftm_content:
             return False
-        searchable = msg.ft_app_searchable or ""
-        if not searchable.startswith("discord/"):
+        if not msg.ft_app_searchable:
+            return False
+        if not msg.ft_app_searchable.startswith("discord/"):
             return False
 
         if msg.ft_app_specific is not None:
-            if "last_posted_assistant_ts" not in msg.ft_app_specific:
+            already_posted_ts = msg.ft_app_specific.get("last_posted_assistant_ts")
+            if already_posted_ts is None:
                 logger.warning("ft_app_specific without last_posted_assistant_ts: %r", msg.ft_app_specific)
-            elif msg.ftm_created_ts <= msg.ft_app_specific["last_posted_assistant_ts"]:
-                logger.info("Already posted message with timestamp %0.1f, last posted: %0.1f",
-                          msg.ftm_created_ts, msg.ft_app_specific["last_posted_assistant_ts"])
+            elif msg.ftm_created_ts <= already_posted_ts:
                 return False
 
-        identifier = searchable[len("discord/") :]
+        dedup_key = "%s:%03d:%03d" % (msg.ftm_belongs_to_ft_id, msg.ftm_alt, msg.ftm_num)
+        if dedup_key in self._to_discord_dedup_set:
+            return False
+
+        identifier = msg.ft_app_searchable[len("discord/"):]
         channel_id_str, thread_id_str = identifier.split("/", 1) if "/" in identifier else (identifier, None)
         channel_id = int(channel_id_str)
         thread_id = int(thread_id_str) if thread_id_str else None
@@ -767,12 +804,19 @@ class IntegrationDiscord(fi_messenger.FlexusMessenger):
         text = self._format_assistant_message(msg.ftm_content)
         if not text:
             return False
+        if "TASK_COMPLETED" in text and len(text) <= len("TASK_COMPLETED") + 6:
+            return False
+        text = text.replace("TASK_COMPLETED", "")
 
+        logger.info("assistant->discord ft_id=%s searchable=%s sending %r", msg.ftm_belongs_to_ft_id, msg.ft_app_searchable, text[:20].replace("\n", "\\n"))
         try:
             await target.send(text)
+            if len(self._to_discord_dedup) == self._to_discord_dedup.maxlen:
+                self._to_discord_dedup_set.discard(self._to_discord_dedup[0])
+            self._to_discord_dedup.append(dedup_key)
+            self._to_discord_dedup_set.add(dedup_key)
         except DiscordException:
-            target_id = thread_id if thread_id else channel_id
-            logger.warning("%s Failed to post assistant message to channel/thread %d", self.rcx.persona.persona_id, target_id)
+            logger.exception("failed to post to discord channel=%s thread=%s", channel_id, thread_id)
             return False
 
         http = await self.fclient.use_http()
