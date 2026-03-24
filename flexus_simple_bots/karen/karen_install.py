@@ -53,7 +53,7 @@ Karen runs customer support like the best hire you ever made. She answers with p
 """
 
 
-KAREN_BUDGET_KERNEL = f"""
+KAREN_BUDGET_KERNEL = """
 warning_text = "💿 Token budget is running low. Wrap up your current work, summarize the current chat thread, include what the original user's request was and the current status, and what to do next. Then call kanban_restart() with this summary to refresh context"
 
 if coins > budget * 0.5 and not messages[-1]["tool_calls"]:
@@ -64,6 +64,34 @@ if coins > budget * 0.5 and not messages[-1]["tool_calls"]:
             break
     if not warning_already_sent:
         post_cd_instruction = warning_text
+"""
+
+KAREN_VERY_LIMITED_KERNEL = """
+captured = False
+warn1_text = "You have not captured any chat or thread. No one can see your messages. Capture something and repeat whatever you are trying to say. Disregard if you are just thinking aloud."
+warn1_have = False
+warn2_text = "The token budget is running low. Close the current task with a good summary, the next message will go to kanban inbox, your previous summary will be visible to you."
+warn2_have = False
+
+for msg in messages:
+    s = str(msg["content"])
+    if "📌CAPTURED" in s:
+        captured = True
+    if warn1_text in s:
+        warn1_have = True
+    if warn2_text in s:
+        warn2_have = True
+
+post_cd_instruction = ""
+if not messages[-1]["tool_calls"]:
+    if not captured and not warn1_have and messages[-1]["role"] == "assistant":
+        post_cd_instruction = warn1_text
+    elif not warn2_have and coins > budget * 0.5 and not messages[-1]["tool_calls"]:
+        post_cd_instruction = warn2_text
+
+print("warn1_have", warn1_have)
+print("warn2_have", warn2_have)
+print("post_cd_instruction", post_cd_instruction)
 """
 
 
@@ -79,7 +107,7 @@ EXPERTS = [
     )),
     ("very_limited", ckit_bot_install.FMarketplaceExpertInput(
         fexp_system_prompt=karen_prompts.very_limited,
-        fexp_python_kernel=KAREN_BUDGET_KERNEL,
+        fexp_python_kernel=KAREN_VERY_LIMITED_KERNEL,
         fexp_block_tools="",
         fexp_allow_tools="slack,telegram,flexus_bot_kanban,flexus_vector_search,flexus_read_original",
         fexp_inactivity_timeout=600,

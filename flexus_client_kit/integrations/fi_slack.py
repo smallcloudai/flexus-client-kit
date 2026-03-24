@@ -492,8 +492,7 @@ class IntegrationSlack(fi_messenger.FlexusMessenger):
                         "last_posted_assistant_ts": max(toolcall.fcall_created_ts, float(thread_ts) if thread_ts else 0) + 0.01
                     }),
                 )
-                r += "Captured! The next thing you write will be visible in Slack. Don't comment on that fact and think about what do you want to say in %r.\n" % (something_name,)
-                r += "Don't use op=post because now anything you say is visible on Slack automatically.\n\n"
+                r += fi_messenger.CAPTURE_SUCCESS_MSG % (something_name,) + fi_messenger.CAPTURE_ADVICE_MSG
                 r += "Remember that slack formatting rules are in effect, and it's not markdown:\n"
                 r += FORMATTING
 

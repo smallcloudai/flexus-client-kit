@@ -32,7 +32,7 @@ after that say "TASK_COMPLETED" in English all caps, that's a special word that 
 captured chat in any case, and of course call no tools so the chat stops.
 """.strip()
 
-CAPTURE_SUCCESS_MSG = "Captured! The next thing you write will be visible. Don't comment on that fact and think about what do you want to say in %r.\n"
+CAPTURE_SUCCESS_MSG = "📌CAPTURED\n\nThe next thing you write will be visible. Don't comment on that fact and think about what do you want to say in %r.\n"
 CAPTURE_ADVICE_MSG = "Don't use op=post because now anything you say is visible automatically.\n"
 UNCAPTURE_SUCCESS_MSG = "Uncaptured successfully. This thread is no longer connected.\n"
 SKIP_SUCCESS_MSG = "Great, other people are talking, thread is still captured, any new messages will appear in this thread.\n"
