@@ -556,10 +556,11 @@ async def subscribe_and_produce_callbacks(
                             logger.info("Thread %s is about persona=%s which is not running here." % (message.ftm_belongs_to_ft_id, persona_id))
                     else:
                         logger.info("Thread %s not found for the new message arrived, most likely ok because server side sends messages again when it sees a new untracked thread." % message.ftm_belongs_to_ft_id)
-                    if message.ftm_role == "assistant" and "lark_logs1" in message.ftm_provenance and message.ftm_provenance["lark_logs1"]:
-                        logger.info("Lark1 logs in %s:%03d:%03d:\n%s" % (message.ftm_belongs_to_ft_id, message.ftm_alt, message.ftm_num, "\n".join(message.ftm_provenance["lark_logs1"])))
-                    if message.ftm_role == "assistant" and "lark_logs2" in message.ftm_provenance and message.ftm_provenance["lark_logs2"]:
-                        logger.info("Lark2 logs in %s:%03d:%03d:\n%s" % (message.ftm_belongs_to_ft_id, message.ftm_alt, message.ftm_num, "\n".join(message.ftm_provenance["lark_logs2"])))
+                    if fclient.api_key and message.ftm_role == "assistant" and isinstance(message.ftm_provenance, dict):
+                        for lark_key in ["kernel1_logs", "kernel2_logs"]:
+                            logs = message.ftm_provenance.get(lark_key)
+                            if logs:
+                                logger.info("🪵 %s in %s:%03d:%03d:\n%s", lark_key, message.ftm_belongs_to_ft_id, message.ftm_alt, message.ftm_num, "\n".join(logs))
                 elif upd.news_action == "DELETE":
                     # messages are never deleted as well
                     handled = True

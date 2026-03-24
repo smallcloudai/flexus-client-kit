@@ -270,7 +270,7 @@ elif msg["role"] == "assistant" and len(msg["tool_calls"]) > 0:
     kill_tools = True
     error = "Noooo no tool calls today"
 
-All the prints go into the assistant message as ftm_provenance = {..., "lark_logs1": [], "lark_logs2": []}
+All the prints go into the assistant message as ftm_provenance = {..., "kernel1_logs": [], "kernel2_logs": []}
 and the bot will receive them as regular thread message updates, that's how you debug Lark kernels.
 
 
