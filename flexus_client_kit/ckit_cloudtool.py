@@ -100,7 +100,6 @@ class FCloudtoolCall:
     fcall_untrusted_key: str
     connected_persona_id: str
     ws_id: str
-    subgroups_list: List[str]
     confirmed_by_human: Optional[bool] = None
 
 

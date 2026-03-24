@@ -62,7 +62,6 @@ def make_toolcall(ft_id: str = "test_ft_123", confirmed: bool = False) -> ckit_c
         fcall_untrusted_key="key123",
         connected_persona_id="persona_123",
         ws_id="ws_123",
-        subgroups_list=[],
         confirmed_by_human=confirmed,
     )
 
