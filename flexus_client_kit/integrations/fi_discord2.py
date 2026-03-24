@@ -129,7 +129,7 @@ class IntegrationDiscord(fi_messenger.FlexusMessenger):
         mongo_collection: Optional[Any] = None,
     ):
         super().__init__(fclient, rcx)
-        self.bot_token = (rcx.external_auth.get("discord") or {}).get("api_key", "").strip()
+        self.bot_token = (rcx.external_auth.get("discord_manual") or rcx.external_auth.get("discord") or {}).get("api_key", "").strip()
             
         self.mongo_collection = mongo_collection
         self.activity_callback: Optional[Callable[[ActivityDiscord, bool], Awaitable[None]]] = None
