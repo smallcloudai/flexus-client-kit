@@ -47,4 +47,8 @@ async def handle_print_widget(
         if not question:
             return "Error: for restart-chat, non empty question q=\"...\" is also required"
 
-    return f"⏸️WAIT_FOR_USER\nPrinting UI widget: {widget_type}"
+    wait_for_user = ""
+    if widget_type in []:  # none needs it so far, some widgets in Bob need it
+        wait_for_user = "⏸️WAIT_FOR_USER\n\n"
+
+    return wait_for_user + "Printing UI widget: {widget_type}"
