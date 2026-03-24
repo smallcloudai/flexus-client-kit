@@ -62,7 +62,7 @@ def parse_channel_slash_thread(s: str) -> tuple[Optional[str], Optional[str]]:
     return parts[0], parts[1] if len(parts) > 1 else None
 
 FORMATTING = """
-In slack messages, formatting is *bold* _italic_ ~strikeout~. Tables and headers don't work.
+In slack messages, formatting is *bold* _italic_ ~strikeout~. Tables and headers don't work. Double asterisks don't work.
 Triple backquotes for code work, but without language specifier, write newline immediately after triple backquotes.
 """
 
@@ -493,7 +493,9 @@ class IntegrationSlack(fi_messenger.FlexusMessenger):
                     }),
                 )
                 r += "Captured! The next thing you write will be visible in Slack. Don't comment on that fact and think about what do you want to say in %r.\n" % (something_name,)
-                r += "Don't use op=post because now anything you say is visible on Slack automatically.\n"
+                r += "Don't use op=post because now anything you say is visible on Slack automatically.\n\n"
+                r += "Remember that slack formatting rules are in effect, and it's not markdown:\n"
+                r += FORMATTING
 
             except SlackApiError as e:
                 r += "ERROR: %s %s\n" % (type(e).__name__, e)
@@ -647,6 +649,8 @@ class IntegrationSlack(fi_messenger.FlexusMessenger):
             self.problems_other.append(f"Failed to list channels: {type(e).__name__} {e}")
 
     def _thread_capturing(self, something_id_slash_thread: str):
+        # This function is using latest_threads which is not deep enough for anything serious.
+        # Good for warnings, asserts, maybe better errors for the model (questionable).
         searchable = "slack/" + something_id_slash_thread
         for t in self.rcx.latest_threads.values():
             if t.thread_fields.ft_app_searchable == searchable:

@@ -130,7 +130,7 @@ class IntegrationDiscord(fi_messenger.FlexusMessenger):
     ):
         super().__init__(fclient, rcx)
         self.bot_token = (rcx.external_auth.get("discord_manual") or rcx.external_auth.get("discord") or {}).get("api_key", "").strip()
-            
+
         self.mongo_collection = mongo_collection
         self.activity_callback: Optional[Callable[[ActivityDiscord, bool], Awaitable[None]]] = None
         self.prev_messages: deque[str] = deque(maxlen=200)
@@ -348,6 +348,8 @@ class IntegrationDiscord(fi_messenger.FlexusMessenger):
         return self.client.is_ready()
 
     def _thread_capturing(self, identifier: str) -> Optional[ckit_bot_query.FThreadWithMessages]:
+        # This function is using latest_threads which is not deep enough for anything serious.
+        # Good for warnings, asserts, maybe better errors for the model (questionable).
         searchable = f"discord/{identifier}"
         for thread in self.rcx.latest_threads.values():
             if thread.thread_fields.ft_app_searchable == searchable:
