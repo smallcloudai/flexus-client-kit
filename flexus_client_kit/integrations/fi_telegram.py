@@ -1,14 +1,11 @@
 import asyncio
-import base64
-import io
+import re
 import json
 import logging
 from collections import deque
 from dataclasses import asdict, dataclass, field
 from typing import Any, Awaitable, Callable, Dict, List, Optional
 
-import gql
-from PIL import Image
 import telegram
 import telegram.ext
 
@@ -17,6 +14,7 @@ from flexus_client_kit.format_utils import format_cat_output
 from flexus_client_kit.integrations import fi_messenger
 
 logger = logging.getLogger("teleg")
+
 
 # Testing telegram with webhook on localhost:
 #
@@ -62,23 +60,79 @@ telegram(op="uncapture")
     Stop capturing this Telegram chat. Do this at the end when you're done talking.
 
 telegram(op="post", args={"chat_id": 123456789, "text": "Hello!"})
-    Post a message to a Telegram chat. Don't use this for captured chats.
+    Post a message to a Telegram chat. Don't use this for captured chats. Remember to use MarkdownV2 markup.
 
 telegram(op="generate_chat_link", args={"contact_id": "abc123"})
     Generate a link that opens a chat with this bot and passes the contact_id.
     When clicked, bot receives /start c_<contact_id>.
 
-
-Telegram uses HTML markup. Plain text works too, but for formatting use:
-<b>bold</b>  <i>italic</i>  <u>underline</u>  <s>strikethrough</s>
-<code>inline code</code>
-<pre>code block</pre>
-<a href="https://example.com">link text</a>
-<blockquote>quote</blockquote>
-<tg-spoiler>hidden text</tg-spoiler>
-Characters < > & must be escaped as &lt; &gt; &amp; in regular text.
-Tables are not allowed.
 """
+
+# https://core.telegram.org/bots/api#formatting-options
+TG_MARKUP_HELP = """
+Telegram uses MarkdownV2 markup:
+*bold*  _italic_  __underline__  ~strikethrough~
+`inline code`
+```python
+code block
+```
+[link text](https://example.com)
+||spoiler||
+
+> blockquote
+> each line must start with >
+
+No bullet lists or tables.
+"""
+
+HELP += TG_MARKUP_HELP
+
+_TG_MD2_SPECIAL = re.compile(r"([_*\[\]()~`>#+\-=|{}.!\\<>])")
+_TG_MD2_CODE_ESCAPE = re.compile(r"([`\\])")
+_TG_MD2_LINK_URL_ESCAPE = re.compile(r"([)\\])")
+_TG_MD2_MARKUP = re.compile(
+    r"(?s)"
+    r"```.*?```"              # code blocks
+    r"|`[^`]+`"              # inline code
+    r"|\*[^*]+\*"            # bold
+    r"|__[^_]+__"            # underline (before italic, or italic eats the leading _)
+    r"|_[^_]+_"              # italic
+    r"|~[^~]+~"              # strikethrough
+    r"|\|\|[^|]+\|\|"       # spoiler
+    r"|\[[^\]]+\]\([^)]+\)"  # links
+    r"|(?m)^>[^\n]*"         # blockquote lines (only at line start)
+)
+
+
+def _escape_markup_match(m: re.Match) -> str:
+    s = m.group(0)
+    if s.startswith("```"):
+        inner = s[3:-3]
+        return "```" + _TG_MD2_CODE_ESCAPE.sub(r"\\\1", inner) + "```"
+    if s.startswith("`"):
+        inner = s[1:-1]
+        return "`" + _TG_MD2_CODE_ESCAPE.sub(r"\\\1", inner) + "`"
+    if s.startswith("["):
+        # [text](url) — escape ) and \ inside url part
+        bracket_end = s.index("](")
+        text_part = s[1:bracket_end]
+        url_part = s[bracket_end+2:-1]
+        return "[" + text_part + "](" + _TG_MD2_LINK_URL_ESCAPE.sub(r"\\\1", url_part) + ")"
+    return s
+
+
+def tg_escape_md2(text: str) -> str:
+    parts = []
+    last = 0
+    for m in _TG_MD2_MARKUP.finditer(text):
+        if m.start() > last:
+            parts.append(_TG_MD2_SPECIAL.sub(r"\\\1", text[last:m.start()]))
+        parts.append(_escape_markup_match(m))
+        last = m.end()
+    if last < len(text):
+        parts.append(_TG_MD2_SPECIAL.sub(r"\\\1", text[last:]))
+    return "".join(parts)
+
 
 @dataclass
 class ActivityTelegram:
@@ -223,7 +277,7 @@ class IntegrationTelegram(fi_messenger.FlexusMessenger):
                 return "Cannot post to captured chat. Your responses are sent automatically.\n"
 
             try:
-                await self.tg_app.bot.send_message(chat_id=int(chat_id), text=text, parse_mode="HTML")
+                await self.tg_app.bot.send_message(chat_id=int(chat_id), text=tg_escape_md2(text), parse_mode="MarkdownV2")
                 return "Post success\n"
             except Exception as e:
                 return f"ERROR: {type(e).__name__}: {e}\n"
@@ -251,8 +305,8 @@ class IntegrationTelegram(fi_messenger.FlexusMessenger):
             )
             if fthread := self.rcx.latest_threads.get(toolcall.fcall_ft_id):
                 fthread.thread_fields.ft_app_searchable = searchable
-            markup_help = "Reminder: after this point, telegram HTML-like markup rules are in effect, bold is <b>like this</b> etc.\n\n"
-            return fi_messenger.CAPTURE_SUCCESS_MSG % identifier + fi_messenger.CAPTURE_ADVICE_MSG + markup_help
+            return fi_messenger.CAPTURE_SUCCESS_MSG % identifier + fi_messenger.CAPTURE_ADVICE_MSG + "\n" + \
+                "Reminder: after this point telegram MarkdownV2 markup rules are in effect for your output, there are no tables! Here's help for you again.\n\n" + TG_MARKUP_HELP
 
         if op == "uncapture":
             http = await self.fclient.use_http()
@@ -368,7 +422,7 @@ class IntegrationTelegram(fi_messenger.FlexusMessenger):
         text = text.replace("TASK_COMPLETED", "")   # yes, sometimes the model writes it anyway
 
         try:
-            await self.tg_app.bot.send_message(chat_id=chat_id, text=text, parse_mode="HTML")
+            await self.tg_app.bot.send_message(chat_id=chat_id, text=tg_escape_md2(text), parse_mode="MarkdownV2")
             if len(self._to_tg_dedup) == self._to_tg_dedup.maxlen:
                 self._to_tg_dedup_set.discard(self._to_tg_dedup[0])
             self._to_tg_dedup.append(dedup_key)
@@ -434,3 +488,51 @@ class IntegrationTelegram(fi_messenger.FlexusMessenger):
     #     except Exception:
     #         logger.exception("Failed to process image")
     #         return None
+
+
+if __name__ == "__main__":
+    import os
+
+    bot_token = os.environ["TELEG_TEST_BOT"]
+    chat_id = os.environ["TELEG_TEST_CHAT"]
+
+    test_msg = r"""Hello! This is a *bold* test message. Here's _italic_ and ~strikethrough~ too.
+
+Some tricky chars: prices are $9.99 (USD) and $12.50 - not bad! Version 2.0 is out.
+
+HTML example: <div class="container"> is not a tag here.
+Ampersand: Tom & Jerry. Less than: 5 < 10. Greater: 10 > 5.
+
+```sql
+SELECT u.name, COUNT(*) AS total
+FROM users u
+JOIN orders o ON u.id = o.user_id
+WHERE o.created_at > '2025-01-01'
+GROUP BY u.name
+HAVING COUNT(*) >= 3;
+```
+
+Inline code: `print("hello world!")` works fine.
+
+A [link to Google](https://www.google.com) and some ||spoiler text|| here.
+
+>This is a blockquote
+>with multiple lines
+
+List of things:
+- item one
+- item two (with parens)
+- item #3!
+"""
+
+    async def _test():
+        app = telegram.ext.Application.builder().token(bot_token).build()
+        await app.initialize()
+        escaped = tg_escape_md2(test_msg)
+        print("--- escaped ---")
+        print(escaped)
+        print("--- sending ---")
+        await app.bot.send_message(chat_id=int(chat_id), text=escaped, parse_mode="MarkdownV2")
+        print("done!")
+
+    asyncio.run(_test())
