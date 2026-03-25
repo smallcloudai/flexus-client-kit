@@ -86,11 +86,29 @@ async def _sample_image(
 
 
 _FULLSIZE_TARGET = (1024, 1536)
+_MAX_IMAGE_BYTES = 250_000
+
+
+def _encode_webp_within_limit(
+    im: Image.Image,
+    quality: int = 100,
+    max_bytes: int = _MAX_IMAGE_BYTES,
+    min_quality: int = 40,
+) -> bytes:
+    for q in range(quality, min_quality - 1, -5):
+        out = io.BytesIO()
+        im.save(out, "WEBP", quality=q, method=6)
+        data = out.getvalue()
+        if len(data) <= max_bytes:
+            return data
+    out = io.BytesIO()
+    im.save(out, "WEBP", quality=min_quality, method=6)
+    return out.getvalue()
 
 
 def _save_fullsize_webp_bytes(
     png_bytes: bytes,
-    quality: int = 85,
+    quality: int = 100,
     target_size: tuple[int, int] = _FULLSIZE_TARGET,
 ) -> tuple[bytes, tuple[int, int]]:
     tw, th = target_size
@@ -104,22 +122,20 @@ def _save_fullsize_webp_bytes(
             canvas = Image.new("RGBA", (tw, th), (0, 0, 0, 0))
             canvas.paste(im, ((tw - new_w) // 2, (th - new_h) // 2))
             im = canvas
-        out = io.BytesIO()
-        im.save(out, "WEBP", quality=quality, method=6)
+        data = _encode_webp_within_limit(im, quality)
         size = im.size
-    return out.getvalue(), size
+    return data, size
 
 
-def _save_avatar_256_webp_bytes(avatar_png_bytes: bytes, quality: int = 85) -> tuple[bytes, tuple[int, int]]:
-    out = io.BytesIO()
+def _save_avatar_256_webp_bytes(avatar_png_bytes: bytes, quality: int = 100) -> tuple[bytes, tuple[int, int]]:
     with Image.open(io.BytesIO(avatar_png_bytes)) as im:
         im = make_transparent(im)
         s = min(im.size)
         cx, cy = im.size[0] // 2, im.size[1] // 2
         im = im.crop((cx - s // 2, cy - s // 2, cx + s // 2, cy + s // 2)).resize((256, 256), Image.LANCZOS)
-        im.save(out, "WEBP", quality=quality, method=6)
+        data = _encode_webp_within_limit(im, quality)
         size = im.size
-    return out.getvalue(), size
+    return data, size
 
 
 async def generate_avatar_assets_from_idea(
