@@ -7,6 +7,8 @@ import tempfile
 from typing import Dict, Any, Optional, Callable, Awaitable, List
 from pymongo.collection import Collection
 
+import gql
+
 from flexus_client_kit import ckit_cloudtool, ckit_client, ckit_bot_exec, ckit_ask_model, ckit_scenario, ckit_bot_query
 from flexus_client_kit.integrations import fi_messenger
 from flexus_client_kit.integrations.fi_mongo_store import validate_path, download_file
@@ -221,13 +223,6 @@ class IntegrationSlackFake(fi_messenger.FlexusMessenger):
 
             something_id_slash_thread = f"{chan_id}/{thread}"
             searchable = f"slack/{something_id_slash_thread}"
-            already_captured_by = RealSlack._thread_capturing(self, something_id_slash_thread)
-            if already_captured_by:
-                if already_captured_by.thread_fields.ft_id == toolcall.fcall_ft_id:
-                    return "Already captured"
-                else:
-                    return OTHER_CHAT_ALREADY_CAPTURING_MSG % (something_id_slash_thread,)
-
             all_message_parts = []
             thread_messages = [msg for msg in self.messages.get(chan_id, []) if msg.get("thread_ts") == thread]
 
@@ -254,9 +249,12 @@ class IntegrationSlackFake(fi_messenger.FlexusMessenger):
                     ftm_alt=100,
                 )
 
-            await ckit_ask_model.thread_app_capture_patch(
-                http, toolcall.fcall_ft_id, ft_app_searchable=searchable
-            )
+            try:
+                await ckit_ask_model.thread_app_capture_patch(
+                    http, toolcall.fcall_ft_id, ft_app_searchable=searchable
+                )
+            except gql.transport.exceptions.TransportQueryError as e:
+                return ckit_cloudtool.gql_error_4xx_to_model_reraise_5xx(e, "slack_fake_capture")
             return (CAPTURE_SUCCESS_MSG % (channel,)) + CAPTURE_ADVICE_MSG
 
         if op == "uncapture":
@@ -287,8 +285,11 @@ class IntegrationSlackFake(fi_messenger.FlexusMessenger):
             self.users_name2id.setdefault("bot", "bot")
 
             something_id_slash_thread = f"{chan_id}/{thread}" if thread else chan_id
-            thread_capturing = RealSlack._thread_capturing(self, something_id_slash_thread)
-            if thread_capturing and thread_capturing.thread_fields.ft_id == toolcall.fcall_ft_id:
+            http = await self.fclient.use_http()
+            capturing_ft_id = await ckit_ask_model.captured_thread_lookup(
+                http, self.rcx.persona.persona_id, "slack/" + something_id_slash_thread,
+            )
+            if capturing_ft_id == toolcall.fcall_ft_id:
                 return CANNOT_POST_TO_CAPTURED_MSG
 
             ts = str(time.time())

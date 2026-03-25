@@ -77,14 +77,11 @@ class IntegrationMagicDesk(fi_messenger.FlexusMessenger):
                 return "Missing session_id parameter\n"
             if self.outside_messages_fexp_name and not toolcall.fcall_fexp_name.endswith("_" + self.outside_messages_fexp_name):
                 return fi_messenger.CAPTURE_WRONG_EXPERT_MSG % self.outside_messages_fexp_name
-            if already := self.recent_thread_that_captures(session_id):
-                if already.thread_fields.ft_id == toolcall.fcall_ft_id:
-                    return "Already captured\n"
-                return fi_messenger.OTHER_CHAT_ALREADY_CAPTURING_MSG % session_id
             http = await self.fclient.use_http()
-            await ckit_ask_model.thread_app_capture_patch(http, toolcall.fcall_ft_id, ft_app_searchable=f"magic_desk/{session_id}")
-            if fthread := self.rcx.latest_threads.get(toolcall.fcall_ft_id):
-                fthread.thread_fields.ft_app_searchable = f"magic_desk/{session_id}"
+            try:
+                await ckit_ask_model.thread_app_capture_patch(http, toolcall.fcall_ft_id, ft_app_searchable=f"magic_desk/{session_id}")
+            except gql.transport.exceptions.TransportQueryError as e:
+                return ckit_cloudtool.gql_error_4xx_to_model_reraise_5xx(e, "magic_desk_capture")
             return fi_messenger.CAPTURE_SUCCESS_MSG % session_id + fi_messenger.CAPTURE_ADVICE_MSG
         if op == "uncapture":
             http = await self.fclient.use_http()
