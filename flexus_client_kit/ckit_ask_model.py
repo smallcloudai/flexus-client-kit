@@ -245,3 +245,21 @@ async def captured_thread_post_user_message(
             },
         )
     return r["captured_thread_post_user_message"]
+
+
+async def captured_thread_lookup(
+    http: gql.Client,
+    persona_id: str,
+    ft_app_searchable: str,
+) -> str:
+    async with http as h:
+        r = await h.execute(gql.gql("""
+            query CapturedThreadLookup($persona_id: String!, $ft_app_searchable: String!) {
+                captured_thread_lookup(persona_id: $persona_id, ft_app_searchable: $ft_app_searchable)
+            }"""),
+            variable_values={
+                "persona_id": persona_id,
+                "ft_app_searchable": ft_app_searchable,
+            },
+        )
+    return r["captured_thread_lookup"]

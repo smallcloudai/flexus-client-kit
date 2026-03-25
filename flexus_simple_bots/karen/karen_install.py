@@ -110,7 +110,7 @@ EXPERTS = [
         fexp_system_prompt=karen_prompts.very_limited,
         fexp_python_kernel=KAREN_VERY_LIMITED_KERNEL,
         fexp_block_tools="",
-        fexp_allow_tools="slack,telegram,discord,flexus_bot_kanban,flexus_vector_search,flexus_read_original",
+        fexp_allow_tools="slack,telegram,discord,magic_desk,flexus_bot_kanban,flexus_vector_search,flexus_read_original",
         fexp_inactivity_timeout=600,
         fexp_description="Customer-facing worker: captures messenger threads, searches knowledge base, responds to users. No access potentially dangerous tools.",
     )),

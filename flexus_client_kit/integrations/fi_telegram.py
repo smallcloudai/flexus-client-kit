@@ -273,7 +273,11 @@ class IntegrationTelegram(fi_messenger.FlexusMessenger):
             if not text:
                 return "Missing text parameter\n"
 
-            if (thread_cap := self.recent_thread_that_captures(str(chat_id))) and thread_cap.thread_fields.ft_id == toolcall.fcall_ft_id:
+            http = await self.fclient.use_http()
+            capturing_ft_id = await ckit_ask_model.captured_thread_lookup(
+                http, self.rcx.persona.persona_id, f"telegram/{chat_id}",
+            )
+            if capturing_ft_id == toolcall.fcall_ft_id:
                 return "Cannot post to captured chat. Your responses are sent automatically.\n"
 
             try:
@@ -290,21 +294,17 @@ class IntegrationTelegram(fi_messenger.FlexusMessenger):
                 return "Missing chat_id parameter\n"
 
             identifier = str(chat_id)
-            if already := self.recent_thread_that_captures(identifier):
-                if already.thread_fields.ft_id == toolcall.fcall_ft_id:
-                    return "Already captured\n"
-                return fi_messenger.OTHER_CHAT_ALREADY_CAPTURING_MSG % identifier
-
             http = await self.fclient.use_http()
             searchable = f"telegram/{identifier}"
-            await ckit_ask_model.thread_app_capture_patch(
-                http,
-                toolcall.fcall_ft_id,
-                ft_app_searchable=searchable,
-                ft_app_specific=json.dumps({"last_posted_assistant_ts": toolcall.fcall_created_ts}),
-            )
-            if fthread := self.rcx.latest_threads.get(toolcall.fcall_ft_id):
-                fthread.thread_fields.ft_app_searchable = searchable
+            try:
+                await ckit_ask_model.thread_app_capture_patch(
+                    http,
+                    toolcall.fcall_ft_id,
+                    ft_app_searchable=searchable,
+                    ft_app_specific=json.dumps({"last_posted_assistant_ts": toolcall.fcall_created_ts}),
+                )
+            except gql.transport.exceptions.TransportQueryError as e:
+                return ckit_cloudtool.gql_error_4xx_to_model_reraise_5xx(e, "telegram_capture")
             return fi_messenger.CAPTURE_SUCCESS_MSG % identifier + fi_messenger.CAPTURE_ADVICE_MSG + "\n" + \
                 "Reminder: after this point telegram MarkdownV2 markup rules are in effect for your output, there are no tables! Here's help for you again.\n\n" + TG_MARKUP_HELP
 

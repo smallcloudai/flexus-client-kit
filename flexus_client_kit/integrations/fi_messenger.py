@@ -1,5 +1,5 @@
 from collections import deque
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any
 
 from flexus_client_kit import ckit_ask_model, ckit_bot_exec, ckit_bot_query, ckit_client
 
@@ -53,13 +53,6 @@ class FlexusMessenger:
 
     def accept_outside_messages_only_to_expert(self, fexp_name: str):
         self.outside_messages_fexp_name = fexp_name
-
-    def recent_thread_that_captures(self, identifier: str) -> Optional[ckit_bot_query.FThreadWithMessages]:
-        searchable = f"{self.platform_name}/{identifier}"
-        for t in self.rcx.latest_threads.values():
-            if t.thread_fields.ft_app_searchable == searchable:
-                return t
-        return None
 
     async def handle_emessage(self, emsg: ckit_bot_query.FExternalMessageOutput) -> None:
         raise NotImplementedError

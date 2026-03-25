@@ -355,8 +355,11 @@ class IntegrationSlack(fi_messenger.FlexusMessenger):
                         return f"ERROR: Channel {something_name!r} not found in channels_name2id"
 
                 something_id_slash_thread = channel_id + ("/" + thread_ts if thread_ts else "")
-                thread_capturing = self._thread_capturing(something_id_slash_thread)
-                if thread_capturing and thread_capturing.thread_fields.ft_id == toolcall.fcall_ft_id:
+                http = await self.fclient.use_http()
+                capturing_ft_id = await ckit_ask_model.captured_thread_lookup(
+                    http, self.rcx.persona.persona_id, "slack/" + something_id_slash_thread,
+                )
+                if capturing_ft_id == toolcall.fcall_ft_id:
                     return "Cannot use post for a captured thread. Type your message normally and it will appear in Slack automatically.\n"
 
                 if attach_file:
@@ -432,12 +435,6 @@ class IntegrationSlack(fi_messenger.FlexusMessenger):
             something_id_slash_thread = something_id + ("/" + thread_ts if thread_ts else "")
 
             searchable = "slack/" + something_id_slash_thread
-            already_captured_by = self._thread_capturing(something_id_slash_thread)
-            if already_captured_by:
-                if already_captured_by.thread_fields.ft_id == toolcall.fcall_ft_id:
-                    return "Already captured"
-                else:
-                    return "Some other chat is already capturing %s\n" % (something_id_slash_thread,)
 
             try:
                 thirty_minutes_ago = str(int(time.time() - 30*60))
@@ -479,8 +476,19 @@ class IntegrationSlack(fi_messenger.FlexusMessenger):
                     all_message_parts.append({"m_type": "text", "m_content": "\n📎 Attached files:\n" + "\n".join(file_summaries)})
                 all_message_parts.extend(image_parts)
 
-                logger.info("Successful capture %s <-> %s, posting %d parts into the captured thread" % (something_id_slash_thread, toolcall.fcall_ft_id, len(all_message_parts)))
                 http = await self.fclient.use_http()
+                try:
+                    await ckit_ask_model.thread_app_capture_patch(
+                        http,
+                        toolcall.fcall_ft_id,
+                        ft_app_searchable=searchable,
+                        ft_app_specific=json.dumps({
+                            "last_posted_assistant_ts": max(toolcall.fcall_created_ts, float(thread_ts) if thread_ts else 0) + 0.01
+                        }),
+                    )
+                except gql.transport.exceptions.TransportQueryError as e:
+                    return ckit_cloudtool.gql_error_4xx_to_model_reraise_5xx(e, "slack_capture")
+                logger.info("Successful capture %s <-> %s, posting %d parts into the captured thread" % (something_id_slash_thread, toolcall.fcall_ft_id, len(all_message_parts)))
                 if all_message_parts:
                     await ckit_ask_model.thread_add_user_message(
                         http,
@@ -489,14 +497,6 @@ class IntegrationSlack(fi_messenger.FlexusMessenger):
                         "fi_slack",
                         ftm_alt=100,
                     )
-                await ckit_ask_model.thread_app_capture_patch(
-                    http,
-                    toolcall.fcall_ft_id,
-                    ft_app_searchable=searchable,
-                    ft_app_specific=json.dumps({
-                        "last_posted_assistant_ts": max(toolcall.fcall_created_ts, float(thread_ts) if thread_ts else 0) + 0.01
-                    }),
-                )
                 r += fi_messenger.CAPTURE_SUCCESS_MSG % (something_name,) + fi_messenger.CAPTURE_ADVICE_MSG
                 r += "Remember that slack formatting rules are in effect, and it's not markdown:\n"
                 r += FORMATTING
@@ -652,14 +652,6 @@ class IntegrationSlack(fi_messenger.FlexusMessenger):
             logger.exception("Failed to list channels")
             self.oops_a_problem(f"Failed to list channels: {type(e).__name__} {e}", dont_print=True)
 
-    def _thread_capturing(self, something_id_slash_thread: str):
-        # This function is using latest_threads which is not deep enough for anything serious.
-        # Good for warnings, asserts, maybe better errors for the model (questionable).
-        searchable = "slack/" + something_id_slash_thread
-        for t in self.rcx.latest_threads.values():
-            if t.thread_fields.ft_app_searchable == searchable:
-                return t
-        return None
 
     async def _get_history(self, channel_name: str, thread_ts: Optional[str], long_ago: str, limit_cnt: int):
         if channel_name.startswith('@'):
