@@ -91,7 +91,7 @@ _TG_MD2_SPECIAL = re.compile(r"([_*\[\]()~`>#+\-=|{}.!\\<>])")
 _TG_MD2_CODE_ESCAPE = re.compile(r"([`\\])")
 _TG_MD2_LINK_URL_ESCAPE = re.compile(r"([)\\])")
 _TG_MD2_MARKUP = re.compile(
-    r"(?s)"
+    r"(?sm)"
     r"```.*?```"              # code blocks
     r"|`[^`]+`"              # inline code
     r"|\*[^*]+\*"            # bold
@@ -100,7 +100,7 @@ _TG_MD2_MARKUP = re.compile(
     r"|~[^~]+~"              # strikethrough
     r"|\|\|[^|]+\|\|"       # spoiler
     r"|\[[^\]]+\]\([^)]+\)"  # links
-    r"|(?m)^>[^\n]*"         # blockquote lines (only at line start)
+    r"|^>[^\n]*"             # blockquote lines (only at line start)
 )
 
 
