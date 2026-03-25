@@ -54,11 +54,7 @@ async def admonster_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_e
     mongo = AsyncMongoClient(mongo_conn_str)
     personal_mongo = mongo[rcx.persona.persona_id + "_db"]["personal_mongo"]
 
-    linkedin_integration = fi_linkedin.IntegrationLinkedIn(
-        fclient=fclient,
-        rcx=rcx,
-        ad_account_id=setup.get("ad_account_id", ""),
-    )
+    linkedin_integration = fi_linkedin.IntegrationLinkedIn(rcx=rcx)
 
     # Facebook integration -- ad_account_id read from /company/ad-ops-config at runtime
     facebook_integration = IntegrationFacebook(fclient=fclient, rcx=rcx, ad_account_id="", pdoc_integration=pdoc_integration)
