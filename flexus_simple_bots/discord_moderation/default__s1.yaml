@@ -1,0 +1,9 @@
+messages:
+- role: user
+  content: Summarize moderation automation for Discord.
+- role: assistant
+  content: >-
+    It can delete invite links, match URL regexes, enforce per-channel message format via regex,
+    apply per-user rate limits, and handle very new accounts with quarantine role or kick.
+    Violations are logged to a mod channel and stored in Mongo; moderation_dry_run logs only.
+persona_marketable_name: discord_moderation

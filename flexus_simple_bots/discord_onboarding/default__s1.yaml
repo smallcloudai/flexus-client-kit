@@ -1,0 +1,9 @@
+messages:
+- role: user
+  content: What does this bot do on Discord?
+- role: assistant
+  content: >-
+    On the Discord server it sends welcome DMs (unless disabled), optional public welcome posts,
+    a start-here checklist, delayed follow-up DMs via a job queue, reaction-based role assignment,
+    and mod-only !announce with optional role pings. All channel and role IDs come from setup.
+persona_marketable_name: discord_onboarding

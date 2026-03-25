@@ -1,0 +1,114 @@
+[
+    {
+        "bs_name": "dc_guild_id",
+        "bs_type": "string_short",
+        "bs_default": "",
+        "bs_group": "Discord",
+        "bs_importance": 1,
+        "bs_description": "Guild snowflake ID."
+    },
+    {
+        "bs_name": "keyword_pings_json",
+        "bs_type": "string_long",
+        "bs_default": "{}",
+        "bs_group": "Engagement",
+        "bs_importance": 0,
+        "bs_description": "JSON object: {\"keyword_lower\": {\"role_id\":\"snowflake\"}} — whole-word match pings role."
+    },
+    {
+        "bs_name": "keyword_cooldown_seconds",
+        "bs_type": "int",
+        "bs_default": 120,
+        "bs_group": "Engagement",
+        "bs_importance": 0,
+        "bs_description": "Cooldown per keyword per channel before another ping."
+    },
+    {
+        "bs_name": "networking_channel_id",
+        "bs_type": "string_short",
+        "bs_default": "",
+        "bs_group": "Engagement",
+        "bs_importance": 0,
+        "bs_description": "Channel for !match introductions (empty disables public match posts)."
+    },
+    {
+        "bs_name": "valuable_role_ids",
+        "bs_type": "string_long",
+        "bs_default": "",
+        "bs_group": "Inactivity",
+        "bs_importance": 0,
+        "bs_description": "Comma-separated role IDs: members with any of these roles are eligible for inactivity check-in DMs."
+    },
+    {
+        "bs_name": "inactivity_opt_in_role_id",
+        "bs_type": "string_short",
+        "bs_default": "",
+        "bs_group": "Inactivity",
+        "bs_importance": 0,
+        "bs_description": "If set, only members with this role receive inactivity DMs (in addition to valuable roles)."
+    },
+    {
+        "bs_name": "inactivity_days",
+        "bs_type": "int",
+        "bs_default": 14,
+        "bs_group": "Inactivity",
+        "bs_importance": 0,
+        "bs_description": "No guild messages for this many days triggers check-in (if eligible)."
+    },
+    {
+        "bs_name": "checkin_dm_body",
+        "bs_type": "string_long",
+        "bs_default": "Hey! We missed you — anything we can help with? Recent discussions are in our topic channels.",
+        "bs_group": "Inactivity",
+        "bs_importance": 0,
+        "bs_description": "DM sent to inactive valuable members (rate-limited per scan)."
+    },
+    {
+        "bs_name": "inactivity_scan_interval_hours",
+        "bs_type": "int",
+        "bs_default": 24,
+        "bs_group": "Inactivity",
+        "bs_importance": 0,
+        "bs_description": "How often to run inactivity scan job."
+    },
+    {
+        "bs_name": "max_checkin_dms_per_scan",
+        "bs_type": "int",
+        "bs_default": 10,
+        "bs_group": "Inactivity",
+        "bs_importance": 0,
+        "bs_description": "Cap DMs per scan to avoid bursts."
+    },
+    {
+        "bs_name": "checkin_cooldown_days",
+        "bs_type": "int",
+        "bs_default": 7,
+        "bs_group": "Inactivity",
+        "bs_importance": 0,
+        "bs_description": "Minimum days between repeated inactivity DMs to the same user."
+    },
+    {
+        "bs_name": "disable_keyword_pings",
+        "bs_type": "string_short",
+        "bs_default": "false",
+        "bs_group": "Flags",
+        "bs_importance": 0,
+        "bs_description": "If true, skip keyword-to-role pings."
+    },
+    {
+        "bs_name": "disable_inactivity_dm",
+        "bs_type": "string_short",
+        "bs_default": "false",
+        "bs_group": "Flags",
+        "bs_importance": 0,
+        "bs_description": "If true, inactivity scan runs but never sends check-in DMs."
+    },
+    {
+        "bs_name": "inactivity_log_only",
+        "bs_type": "string_short",
+        "bs_default": "false",
+        "bs_group": "Flags",
+        "bs_importance": 0,
+        "bs_description": "If true, log would-be check-in targets to server logs only (no DM, no last_checkin_ts update)."
+    }
+]

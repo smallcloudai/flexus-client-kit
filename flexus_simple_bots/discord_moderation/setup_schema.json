@@ -1,0 +1,74 @@
+[
+    {
+        "bs_name": "dc_guild_id",
+        "bs_type": "string_short",
+        "bs_default": "",
+        "bs_group": "Discord",
+        "bs_importance": 1,
+        "bs_description": "Guild snowflake ID this bot enforces."
+    },
+    {
+        "bs_name": "mod_log_channel_id",
+        "bs_type": "string_short",
+        "bs_default": "",
+        "bs_group": "Moderation",
+        "bs_importance": 1,
+        "bs_description": "Channel ID for audit messages (deletes, kicks)."
+    },
+    {
+        "bs_name": "block_invite_links",
+        "bs_type": "string_short",
+        "bs_default": "true",
+        "bs_group": "Moderation",
+        "bs_importance": 1,
+        "bs_description": "If true, delete messages containing discord.gg / invite URLs."
+    },
+    {
+        "bs_name": "url_block_regexes",
+        "bs_type": "string_long",
+        "bs_default": "",
+        "bs_group": "Moderation",
+        "bs_importance": 0,
+        "bs_description": "One regex per line; if any matches message content, delete."
+    },
+    {
+        "bs_name": "channel_rules_json",
+        "bs_type": "string_long",
+        "bs_default": "[]",
+        "bs_group": "Moderation",
+        "bs_importance": 0,
+        "bs_description": "JSON array: [{\"channel_id\":\"\",\"must_match_regex\":\".*\",\"hint\":\"\"}] — in that channel, delete if content does not match regex."
+    },
+    {
+        "bs_name": "max_messages_per_minute",
+        "bs_type": "int",
+        "bs_default": 0,
+        "bs_group": "Moderation",
+        "bs_importance": 0,
+        "bs_description": "Per-user rolling limit in the guild (0 = disabled)."
+    },
+    {
+        "bs_name": "new_account_max_age_days",
+        "bs_type": "int",
+        "bs_default": 0,
+        "bs_group": "Moderation",
+        "bs_importance": 0,
+        "bs_description": "If >0, kick accounts newer than this many days (use with care; 0 disables)."
+    },
+    {
+        "bs_name": "new_account_quarantine_role_id",
+        "bs_type": "string_short",
+        "bs_default": "",
+        "bs_group": "Moderation",
+        "bs_importance": 0,
+        "bs_description": "If set with new_account_max_age_days, assign this role instead of kick when account is new."
+    },
+    {
+        "bs_name": "moderation_dry_run",
+        "bs_type": "string_short",
+        "bs_default": "false",
+        "bs_group": "Flags",
+        "bs_importance": 0,
+        "bs_description": "If true, log violations to mod channel and Mongo but do not delete messages, kick, or assign quarantine."
+    }
+]

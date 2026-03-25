@@ -1,0 +1,74 @@
+[
+    {
+        "bs_name": "dc_guild_id",
+        "bs_type": "string_short",
+        "bs_default": "",
+        "bs_group": "Discord",
+        "bs_importance": 1,
+        "bs_description": "Guild snowflake ID."
+    },
+    {
+        "bs_name": "faq_channel_ids",
+        "bs_type": "string_long",
+        "bs_default": "",
+        "bs_group": "FAQ",
+        "bs_importance": 1,
+        "bs_description": "Comma-separated channel IDs where the bot answers (regex rules)."
+    },
+    {
+        "bs_name": "faq_rules_json",
+        "bs_type": "string_long",
+        "bs_default": "[]",
+        "bs_group": "FAQ",
+        "bs_importance": 1,
+        "bs_description": "JSON array: [{\"pattern\":\"(?i)pricing\",\"response\":\"See https://example.com/pricing\"}] — first match wins."
+    },
+    {
+        "bs_name": "faq_reply_prefix",
+        "bs_type": "string_short",
+        "bs_default": "",
+        "bs_group": "FAQ",
+        "bs_importance": 0,
+        "bs_description": "If non-empty, only messages starting with this prefix trigger replies (after trimming)."
+    },
+    {
+        "bs_name": "faq_unmatched_reply",
+        "bs_type": "string_long",
+        "bs_default": "I do not have a canned answer. A teammate will follow up, or ask in a thread with details.",
+        "bs_group": "FAQ",
+        "bs_importance": 0,
+        "bs_description": "Sent when no regex matches (only if message was a FAQ trigger)."
+    },
+    {
+        "bs_name": "faq_escalate_kanban",
+        "bs_type": "string_short",
+        "bs_default": "false",
+        "bs_group": "FAQ",
+        "bs_importance": 0,
+        "bs_description": "If true, post an inbox task when there is no regex match (for human + vector follow-up in Flexus)."
+    },
+    {
+        "bs_name": "faq_rate_limit_seconds",
+        "bs_type": "int",
+        "bs_default": 15,
+        "bs_group": "FAQ",
+        "bs_importance": 0,
+        "bs_description": "Minimum seconds between bot replies per user in a channel."
+    },
+    {
+        "bs_name": "faq_context_messages",
+        "bs_type": "int",
+        "bs_default": 3,
+        "bs_group": "FAQ",
+        "bs_importance": 0,
+        "bs_description": "When escalating to kanban, prepend this many prior user messages from the channel as context (0 disables)."
+    },
+    {
+        "bs_name": "faq_dry_run",
+        "bs_type": "string_short",
+        "bs_default": "false",
+        "bs_group": "Flags",
+        "bs_importance": 0,
+        "bs_description": "If true, log FAQ triggers to logger only (no channel reply, no kanban escalation)."
+    }
+]

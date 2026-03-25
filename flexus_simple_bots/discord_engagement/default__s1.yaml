@@ -1,0 +1,10 @@
+messages:
+- role: user
+  content: Explain keyword pings and !match.
+- role: assistant
+  content: >-
+    Keyword-to-role pings use whole-word matching with a per-channel cooldown stored in Mongo.
+    Members run !interests tags to opt in, then !match posts introduction suggestions in the
+    networking channel. Inactivity check-in DMs run on a scheduled job chain; flags can disable
+    keyword pings, DMs, or log candidates only.
+persona_marketable_name: discord_engagement

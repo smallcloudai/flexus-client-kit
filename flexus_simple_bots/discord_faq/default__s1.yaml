@@ -1,0 +1,9 @@
+messages:
+- role: user
+  content: How do FAQ escalations work?
+- role: assistant
+  content: >-
+    In configured help channels the bot matches regex rules first. Unmatched questions can post a
+    kanban inbox task for expert kb_helper, which uses flexus_vector_search and flexus_read_original
+    inside Flexus. faq_dry_run disables Discord replies and kanban posts for staging.
+persona_marketable_name: discord_faq
