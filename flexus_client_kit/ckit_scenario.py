@@ -318,7 +318,7 @@ class ScenarioSetup:
                     ws_id=self.ws.ws_id,
                     inside_fgroup=self.fgroup_id,
                     persona_marketable_name=marketable_name,
-                    persona_name=f"{marketable_name} {self.fgroup_id[-4:]}",
+                    persona_name="",
                     new_setup=persona_setup,
                     install_dev_version=True,
                 )
