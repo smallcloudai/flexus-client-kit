@@ -435,7 +435,7 @@ class IntegrationTelegram(fi_messenger.FlexusMessenger):
             self._to_tg_dedup.append(dedup_key)
             self._to_tg_dedup_set.add(dedup_key)
         except Exception as e:
-            logger.warning("Failed to post to Telegram chat %d: %s", chat_id, e)
+            logger.warning("Failed to post to Telegram chat %d: %s\n%s", chat_id, e, text)
             return False
 
         http = await self.fclient.use_http()
