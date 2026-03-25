@@ -129,7 +129,7 @@ async def install(
         ws_id=client.ws_id,
         marketable_name=bot_name,
         marketable_version=bot_version,
-        marketable_accent_color="#23CCCC",
+        marketable_accent_color="#524214",
         marketable_title1="Karen",
         marketable_title2="Your 24/7 customer support agent. Empathetic, accurate, and always keeps your users happy.",
         marketable_author="Flexus",
