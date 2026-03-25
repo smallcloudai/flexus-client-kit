@@ -95,6 +95,7 @@ class ActivityDiscord:
     message_id: str
     message_text: str
     message_author_name: str
+    is_dm: bool = False
     attachments: List[Dict[str, str]] = field(default_factory=list)
     mention_looked_up: Dict[str, str] = field(default_factory=dict)
 
@@ -184,17 +185,23 @@ class IntegrationDiscord(fi_messenger.FlexusMessenger):
             return
         title = "Discord user=%r in %s\n%s" % (a.message_author_name, a.channel_name, a.message_text)
         details = dataclasses.asdict(a)
-        details["to_capture"] = str(a.channel_id) + ("/" + str(a.thread_id) if a.thread_id else "")
+        to_capture = str(a.channel_id) + ("/" + str(a.thread_id) if a.thread_id else "")
+        details["to_capture"] = to_capture
         if a.attachments:
             details["attachments"] = f"{len(a.attachments)} files attached"
-        await ckit_kanban.bot_kanban_post_into_inbox(
-            self.fclient,
-            self.rcx.persona.persona_id,
-            title=title,
-            details_json=json.dumps(details),
-            provenance_message="discord_inbound",
-            fexp_name=self.outside_messages_fexp_name,
-        )
+        if a.is_dm:
+            await ckit_kanban.bot_kanban_run_immediate_task(
+                self.fclient, self.rcx.persona.persona_id, title=title,
+                details_json=json.dumps(details), provenance_message="discord_inbound",
+                fexp_name=self.outside_messages_fexp_name,
+                first_calls=[{"tool_name": "discord", "tool_args": {"op": "capture", "args": {"target": to_capture}}}],
+            )
+        else:
+            await ckit_kanban.bot_kanban_post_into_inbox(
+                self.fclient, self.rcx.persona.persona_id, title=title,
+                details_json=json.dumps(details), provenance_message="discord_inbound",
+                fexp_name=self.outside_messages_fexp_name,
+            )
 
     async def handle_emessage(self, emsg: ckit_bot_query.FExternalMessageOutput) -> None:
         pass  # Discord uses persistent websocket, not webhook emessages
@@ -681,6 +688,7 @@ class IntegrationDiscord(fi_messenger.FlexusMessenger):
             message_id=str(message.id),
             message_text=text,
             message_author_name=author_name,
+            is_dm=isinstance(message.channel, discord.DMChannel),
             attachments=attachments,
         )
 

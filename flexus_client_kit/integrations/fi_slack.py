@@ -195,17 +195,23 @@ class IntegrationSlack(fi_messenger.FlexusMessenger):
             return
         title = "Slack %s user=%r in #%s\n%s" % (a.what_happened, a.message_author_name, a.channel_name, a.message_text)
         details = asdict(a)
-        details["to_capture"] = (a.channel_id or a.channel_name) + "/" + (a.thread_ts or a.message_ts)
+        to_capture = (a.channel_id or a.channel_name) + "/" + (a.thread_ts or a.message_ts)
+        details["to_capture"] = to_capture
         if a.file_contents:
             details["file_contents"] = f"{len(a.file_contents)} files attached"
-        await ckit_kanban.bot_kanban_post_into_inbox(
-            self.fclient,
-            self.rcx.persona.persona_id,
-            title=title,
-            details_json=json.dumps(details),
-            provenance_message="slack_inbound",
-            fexp_name=self.outside_messages_fexp_name,
-        )
+        if a.what_happened == "message/im":
+            await ckit_kanban.bot_kanban_run_immediate_task(
+                self.fclient, self.rcx.persona.persona_id, title=title,
+                details_json=json.dumps(details), provenance_message="slack_inbound",
+                fexp_name=self.outside_messages_fexp_name,
+                first_calls=[{"tool_name": "slack", "tool_args": {"op": "capture", "args": {"channel_slash_thread": to_capture}}}],
+            )
+        else:
+            await ckit_kanban.bot_kanban_post_into_inbox(
+                self.fclient, self.rcx.persona.persona_id, title=title,
+                details_json=json.dumps(details), provenance_message="slack_inbound",
+                fexp_name=self.outside_messages_fexp_name,
+            )
 
     async def handle_emessage(self, emsg: ckit_bot_query.FExternalMessageOutput) -> None:
         payload = emsg.emsg_payload if isinstance(emsg.emsg_payload, dict) else json.loads(emsg.emsg_payload)

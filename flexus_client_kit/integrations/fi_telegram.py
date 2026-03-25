@@ -91,7 +91,7 @@ _TG_MD2_SPECIAL = re.compile(r"([_*\[\]()~`>#+\-=|{}.!\\<>])")
 _TG_MD2_CODE_ESCAPE = re.compile(r"([`\\])")
 _TG_MD2_LINK_URL_ESCAPE = re.compile(r"([)\\])")
 _TG_MD2_MARKUP = re.compile(
-    r"(?s)"
+    r"(?sm)"
     r"```.*?```"              # code blocks
     r"|`[^`]+`"              # inline code
     r"|\*[^*]+\*"            # bold
@@ -100,7 +100,7 @@ _TG_MD2_MARKUP = re.compile(
     r"|~[^~]+~"              # strikethrough
     r"|\|\|[^|]+\|\|"       # spoiler
     r"|\[[^\]]+\]\([^)]+\)"  # links
-    r"|(?m)^>[^\n]*"         # blockquote lines (only at line start)
+    r"|^>[^\n]*"             # blockquote lines (only at line start)
 )
 
 
@@ -214,14 +214,19 @@ class IntegrationTelegram(fi_messenger.FlexusMessenger):
         if a.attachments:
             details["attachments"] = f"{len(a.attachments)} files attached"
         title = "Telegram %s user=%r chat_id=%d\n%s" % (a.chat_type, a.message_author_name, a.chat_id, a.message_text)
-        await ckit_kanban.bot_kanban_post_into_inbox(
-            self.fclient,
-            self.rcx.persona.persona_id,
-            title=title,
-            details_json=json.dumps(details),
-            provenance_message="telegram_inbound",
-            fexp_name=self.outside_messages_fexp_name,
-        )
+        if a.chat_type == "private":
+            await ckit_kanban.bot_kanban_run_immediate_task(
+                self.fclient, self.rcx.persona.persona_id, title=title,
+                details_json=json.dumps(details), provenance_message="telegram_inbound",
+                fexp_name=self.outside_messages_fexp_name,
+                first_calls=[{"tool_name": "telegram", "tool_args": {"op": "capture", "args": {"chat_id": a.chat_id}}}],
+            )
+        else:
+            await ckit_kanban.bot_kanban_post_into_inbox(
+                self.fclient, self.rcx.persona.persona_id, title=title,
+                details_json=json.dumps(details), provenance_message="telegram_inbound",
+                fexp_name=self.outside_messages_fexp_name,
+            )
 
     async def close(self) -> None:
         if self.tg_app and self.tg_app.running:

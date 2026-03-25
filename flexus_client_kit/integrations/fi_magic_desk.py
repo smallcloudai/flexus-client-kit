@@ -54,12 +54,13 @@ class IntegrationMagicDesk(fi_messenger.FlexusMessenger):
     async def default_activity_to_inbox(self, a: ActivityMagicDesk, already_posted: bool):
         if already_posted:
             return
-        await ckit_kanban.bot_kanban_post_into_inbox(
+        await ckit_kanban.bot_kanban_run_immediate_task(
             self.fclient, self.rcx.persona.persona_id,
             title=f"Magic Desk session={a.session_id}\n{a.text}",
             details_json=json.dumps({"session_id": a.session_id, "text": a.text}),
             provenance_message="magic_desk_inbound",
             fexp_name=self.outside_messages_fexp_name,
+            first_calls=[{"tool_name": "magic_desk", "tool_args": {"op": "capture", "args": {"session_id": a.session_id}}}],
         )
 
     async def called_by_model(self, toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Optional[Dict[str, Any]]) -> str:

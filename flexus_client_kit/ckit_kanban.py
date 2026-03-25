@@ -80,6 +80,32 @@ async def persona_kanban_list(
     return sorted(tasks.values(), key=lambda t: bucket_order.get(t.calc_bucket(), 4))
 
 
+async def bot_kanban_run_immediate_task(
+    client: ckit_client.FlexusClient,
+    persona_id: str,
+    title: str,
+    details_json: str,
+    provenance_message: str,
+    fexp_name: str = "",
+    first_calls: list = [],
+) -> None:
+    http = await client.use_http()
+    async with http as h:
+        await h.execute(gql.gql("""
+            mutation KanbanImmediate($pid: String!, $title: String!, $details: String!, $prov: String!, $fexp: String!, $first_calls: String!) {
+                bot_kanban_run_immediate_task(persona_id: $pid, title: $title, details_json: $details, provenance_message: $prov, fexp_name: $fexp, first_calls: $first_calls) { ktask_id }
+            }"""),
+            variable_values={
+                "pid": persona_id,
+                "title": title,
+                "details": details_json,
+                "prov": provenance_message,
+                "fexp": fexp_name,
+                "first_calls": json.dumps(first_calls),
+            },
+        )
+
+
 async def bot_kanban_post_into_inbox(
     client: ckit_client.FlexusClient,
     persona_id: str,
