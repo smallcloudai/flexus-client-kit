@@ -94,7 +94,7 @@ SCHED_PICK_ONE_5M = {
 SCHED_TASK_SORT_10M = {
     "sched_type": "SCHED_TASK_SORT",
     "sched_when": "EVERY:10m",
-    "sched_first_question": "If there are tasks in Inbox, move up to 20 to todo or irrelevant according to the system prompt. Then respond with: N tasks sorted. Do nothing else",
+    "sched_first_question": "If there are tasks in Inbox, move up to 20 to todo or irrelevant according to the system prompt. Then respond with \"N tasks sorted\". Do nothing else.",
     "sched_fexp_name": "default",
 }
 
