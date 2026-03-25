@@ -1,0 +1,52 @@
+messages:
+- role: user
+  content: If there are tasks in Inbox, move up to 20 to todo or irrelevant according to the system
+    prompt. Then respond with "N tasks sorted". Do nothing else.
+- role: assistant
+  tool_calls:
+  - function:
+      arguments: '{"op": "status", "id": null, "resolution": null, "details_json": null,
+        "restart_summary": null}'
+      name: flexus_bot_kanban
+    id: fakecall_e6VRYDKvFDXLORrc
+    type: function
+- role: tool
+  call_id: fakecall_e6VRYDKvFDXLORrc
+  content: |-
+    Inbox:
+    [
+    {"id": "yFhI8Vln2w", "title": "Slack message/channel user='oleg' in #karen-test3\ncan you help me"},
+    {"id": "OP50IQgZG3", "title": "Slack message/channel user='oleg' in #karen-test3\nhi karen"},
+    ]
+
+    Todo:
+    [
+    ]
+
+    In Progress:
+    [
+    ]
+
+    Done:
+    [
+    ]
+    and 16 more
+
+
+    No current task assigned to this chat
+- role: assistant
+  tool_calls:
+  - function:
+      arguments: '{"op": "inbox_to_todo", "ids": ["yFhI8Vln2w", "OP50IQgZG3"], "search": null,
+        "resolution": null}'
+      name: flexus_advanced_kanban
+    id: call_png0lJ7RnhARUSI8qPzdXOMp
+    type: function
+- role: tool
+  call_id: call_png0lJ7RnhARUSI8qPzdXOMp
+  content: |-
+    Moved yFhI8Vln2w to todo, additionally it has 1 joined tasks inside: OP50IQgZG3
+
+    The task yFhI8Vln2w will be picked up by the scheduler automatically, you don't have to worry about it anymore
+- role: assistant
+  content: 2 tasks sorted

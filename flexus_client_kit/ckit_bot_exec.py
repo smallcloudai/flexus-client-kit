@@ -696,7 +696,7 @@ async def run_happy_trajectory(
     logger.info(f"bot_activate() first_calls, taken from the happy path:\n{first_calls}")
     trajectory_happy_messages_only = ckit_scenario.yaml_dump_with_multiline({"messages": trajectory_data["messages"]})
 
-    skill__scenario = os.path.splitext(os.path.basename(trajectory_yaml_path))[0]
+    expert__scenario = os.path.splitext(os.path.basename(trajectory_yaml_path))[0]
     bot_version = ckit_client.marketplace_version_as_str(scenario.persona.persona_marketable_version)
     model_name = scenario.explicit_model or scenario.persona.persona_preferred_model
     await ckit_scenario.bot_scenario_result_upsert(
@@ -704,7 +704,7 @@ async def run_happy_trajectory(
         ckit_scenario.BotScenarioUpsertInput(
             btest_marketable_name=scenario.persona.persona_marketable_name,
             btest_marketable_version_str=bot_version,
-            btest_name=skill__scenario,
+            btest_name=expert__scenario,
             btest_model=model_name,
             btest_experiment=scenario.experiment or "",
             btest_trajectory_happy=trajectory_happy,
@@ -729,8 +729,8 @@ async def run_happy_trajectory(
     stop_reason = ""
     last_human_message = ""
     try:
-        assert "__" in skill__scenario
-        fexp_name = skill__scenario.split("__")[0]
+        assert "__" in expert__scenario
+        fexp_name = expert__scenario.split("__")[0]
         assert fexp_name != "default", "the first part before \"__\" in scenario name should be the bot name, not \"default\""
         if fexp_name == scenario.persona.persona_marketable_name:
             fexp_name = "default"
@@ -759,7 +759,7 @@ async def run_happy_trajectory(
                     first_question=result.next_human_message,
                     first_calls=first_calls,
                     title="Trajectory Test",
-                    ft_btest_name=skill__scenario,
+                    ft_btest_name=expert__scenario,
                     model=model_name,
                 )
                 logger.info(f"Scenario thread {ft_id}")
@@ -868,14 +868,14 @@ async def run_happy_trajectory(
             logger.info(f"Summary:\n{cost_stop_output}")
 
             experiment_suffix = f"-{scenario.experiment}" if scenario.experiment else ""
-            happy_path = os.path.join(output_dir, f"{skill__scenario}-v{bot_version}{experiment_suffix}-{model_name}-happy.yaml")
+            happy_path = os.path.join(output_dir, f"{expert__scenario}-v{bot_version}{experiment_suffix}-{model_name}-happy.yaml")
             with open(happy_path, "w", encoding="utf-8") as f:
                 f.write("# This is generated file don't edit!\n\n")
                 f.write(trajectory_happy_messages_only)
             logger.info(f"exported {happy_path}")
 
             trajectory_actual = ckit_scenario.fmessages_to_yaml(sorted_messages)
-            actual_path = os.path.join(output_dir, f"{skill__scenario}-v{bot_version}{experiment_suffix}-{model_name}-actual.yaml")
+            actual_path = os.path.join(output_dir, f"{expert__scenario}-v{bot_version}{experiment_suffix}-{model_name}-actual.yaml")
             with open(actual_path, "w", encoding="utf-8") as f:
                 f.write("# This is generated file don't edit!\n\n")
                 f.write(trajectory_actual)
@@ -899,7 +899,7 @@ async def run_happy_trajectory(
                 },
             }
             score_yaml = ckit_scenario.yaml_dump_with_multiline(score_data)
-            score_path = os.path.join(output_dir, f"{skill__scenario}-v{bot_version}{experiment_suffix}-{model_name}-score.yaml")
+            score_path = os.path.join(output_dir, f"{expert__scenario}-v{bot_version}{experiment_suffix}-{model_name}-score.yaml")
             with open(score_path, "w", encoding="utf-8") as f:
                 f.write(score_yaml)
             logger.info(f"exported {score_path}")
@@ -910,7 +910,7 @@ async def run_happy_trajectory(
                 ckit_scenario.BotScenarioUpsertInput(
                     btest_marketable_name=scenario.persona.persona_marketable_name,
                     btest_marketable_version_str=bot_version,
-                    btest_name=skill__scenario,
+                    btest_name=expert__scenario,
                     btest_model=model_name,
                     btest_experiment=scenario.experiment or "",
                     btest_trajectory_happy=trajectory_happy,

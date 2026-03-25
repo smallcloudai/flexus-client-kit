@@ -184,10 +184,10 @@ scenario author: what should be rewarded and penalized in the behavior, what to 
 
 After making changes to a bot, run:
 
-python flexus_simple_bots/my/my_bot.py --scenario flexus_simple_bots/my/default__s1.yaml
+python flexus_simple_bots/my/my_bot.py --scenario flexus_simple_bots/my/my__s1.yaml
 
-The naming convention is $EXPERT$__$SCENARIO$.yaml with double underscore, in this example the expert is "default" and
-the scenario name is "s1".
+The naming convention is $EXPERT$__$SCENARIO$.yaml with double underscore. The 'default' expert is replaced
+by the bot name, so files are easier to find. In this example the bot "my" has expert "default" so the prefix is "my".
 
 Don't run this for all bots because it's expensive, but it's a good idea to run one scenario of your choosing
 for the one bot you've just changed.
