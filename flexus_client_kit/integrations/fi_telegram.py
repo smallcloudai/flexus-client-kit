@@ -118,6 +118,13 @@ def _escape_markup_match(m: re.Match) -> str:
         text_part = s[1:bracket_end]
         url_part = s[bracket_end+2:-1]
         return "[" + text_part + "](" + _TG_MD2_LINK_URL_ESCAPE.sub(r"\\\1", url_part) + ")"
+    if s.startswith(">"):
+        return ">" + _TG_MD2_SPECIAL.sub(r"\\\1", s[1:])
+    # bold, italic, underline, strikethrough, spoiler: escape special chars in inner text
+    for delim in ("__", "||", "*", "_", "~"):
+        if s.startswith(delim) and s.endswith(delim) and len(s) > 2 * len(delim):
+            inner = s[len(delim):-len(delim)]
+            return delim + _TG_MD2_SPECIAL.sub(r"\\\1", inner) + delim
     return s
 
 
@@ -515,6 +522,8 @@ HAVING COUNT(*) >= 3;
 Inline code: `print("hello world!")` works fine.
 
 A [link to Google](https://www.google.com) and some ||spoiler text|| here.
+
+*bold with - dashes and $prices!* and _italic (with parens) - also tricky_ and ~strike - through~
 
 >This is a blockquote
 >with multiple lines
