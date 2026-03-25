@@ -161,13 +161,19 @@ async def vix_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.Ro
             title = "Telegram %s user=%r chat_id=%d\n%s" % (a.chat_type, a.message_author_name, a.chat_id, a.message_text)
             if a.attachments:
                 title += f"\n[{len(a.attachments)} file(s) attached]"
-        await ckit_kanban.bot_kanban_post_into_inbox(
-            fclient, rcx.persona.persona_id,
-            title=title,
-            details_json=json.dumps(details),
-            provenance_message="vix_telegram_activity",
-            fexp_name="sales",
-        )
+        if a.chat_type == "private":
+            await ckit_kanban.bot_kanban_run_immediate_task(
+                fclient, rcx.persona.persona_id, title=title,
+                details_json=json.dumps(details), provenance_message="vix_telegram_activity",
+                fexp_name="sales",
+                first_calls=[{"tool_name": "telegram", "tool_args": {"op": "capture", "args": {"chat_id": a.chat_id}}}],
+            )
+        else:
+            await ckit_kanban.bot_kanban_post_into_inbox(
+                fclient, rcx.persona.persona_id, title=title,
+                details_json=json.dumps(details), provenance_message="vix_telegram_activity",
+                fexp_name="sales",
+            )
 
     @slack.on_incoming_activity
     async def slack_activity_callback(a: fi_slack.ActivitySlack, already_posted: bool):
@@ -177,20 +183,27 @@ async def vix_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.Ro
         details = asdict(a)
         if a.file_contents:
             details["file_contents"] = f"{len(a.file_contents)} files attached"
-        details["to_capture"] = (a.channel_id or a.channel_name) + "/" + (a.thread_ts or a.message_ts)
+        to_capture = (a.channel_id or a.channel_name) + "/" + (a.thread_ts or a.message_ts)
+        details["to_capture"] = to_capture
         if a.message_author_id:
             if contact_id := await fi_crm.find_contact_by_platform_id(fclient, rcx.persona.ws_id, "slack", a.message_author_id):
                 details["contact_id"] = contact_id
         title = "Slack %s user=%r in #%s\n%s" % (a.what_happened, a.message_author_name, a.channel_name, a.message_text)
         if a.file_contents:
             title += f"\n[{len(a.file_contents)} file(s) attached]"
-        await ckit_kanban.bot_kanban_post_into_inbox(
-            fclient, rcx.persona.persona_id,
-            title=title,
-            details_json=json.dumps(details),
-            provenance_message="vix_slack_activity",
-            fexp_name="sales",
-        )
+        if a.what_happened == "message/im":
+            await ckit_kanban.bot_kanban_run_immediate_task(
+                fclient, rcx.persona.persona_id, title=title,
+                details_json=json.dumps(details), provenance_message="vix_slack_activity",
+                fexp_name="sales",
+                first_calls=[{"tool_name": "slack", "tool_args": {"op": "capture", "args": {"channel_slash_thread": to_capture}}}],
+            )
+        else:
+            await ckit_kanban.bot_kanban_post_into_inbox(
+                fclient, rcx.persona.persona_id, title=title,
+                details_json=json.dumps(details), provenance_message="vix_slack_activity",
+                fexp_name="sales",
+            )
 
     try:
         while not ckit_shutdown.shutdown_event.is_set():

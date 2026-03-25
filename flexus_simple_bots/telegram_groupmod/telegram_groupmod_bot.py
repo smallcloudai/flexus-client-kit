@@ -547,13 +547,11 @@ async def telegram_groupmod_main_loop(
         if a.attachments:
             details["attachments"] = f"{len(a.attachments)} files attached"
         title = "%r private message via telegram: %s" % (a.message_author_name, a.message_text)
-        await ckit_kanban.bot_kanban_post_into_inbox(
-            fclient,
-            rcx.persona.persona_id,
-            title=title,
-            details_json=json.dumps(details),
-            provenance_message="telegram_private_message",
+        await ckit_kanban.bot_kanban_run_immediate_task(
+            fclient, rcx.persona.persona_id, title=title,
+            details_json=json.dumps(details), provenance_message="telegram_private_message",
             fexp_name="talk_in_dm",
+            first_calls=[{"tool_name": "telegram", "tool_args": {"op": "capture", "args": {"chat_id": a.chat_id}}}],
         )
 
     await tg.initialize()
