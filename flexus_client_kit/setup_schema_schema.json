@@ -16,15 +16,18 @@
                 "type": "string",
                 "title": "Input Type",
                 "enum": ["string_short", "string_long", "string_multiline", "bool", "int", "float"],
-                "description": "UI input control type. string_short: single-line text, string_long: wider single-line text, string_multiline: textarea, bool: checkbox, int/float: numeric input."
+                "description": "UI input control type. string_short: single-line text, string_long: wider single-line text, string_multiline: textarea, bool: toggle, int/float: numeric input."
             },
             "bs_default": {
                 "title": "Default Value",
                 "oneOf": [
                     { "type": "string" },
+                    { "type": "boolean" },
                     { "type": "integer" },
-                    { "type": "number" },
-                    { "type": "boolean" }
+                    {
+                        "type": "number",
+                        "not": { "multipleOf": 1 }
+                    }
                 ],
                 "description": "Default value used when the admin has not provided an override in the setup dialog. Must match bs_type."
             },
