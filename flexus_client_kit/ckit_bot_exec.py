@@ -734,29 +734,18 @@ async def run_happy_trajectory(
         assert fexp_name != "default", "the first part before \"__\" in scenario name should be the bot name, not \"default\""
         if fexp_name == scenario.persona.persona_marketable_name:
             fexp_name = "default"
+        assert messages and messages[0]["role"] == "user", "happy trajectory must start with a user message"
+        first_human_message = messages[0]["content"]
         for step in range(max_steps):
-            ht1 = time.time()
-            result = await ckit_scenario.scenario_generate_human_message(
-                scenario.fclient,
-                trajectory_happy,
-                scenario.fgroup_id,
-                ft_id,
-            )
-            ht2 = time.time()
-            cost_human += result.cost
-            stop_reason = result.stop_reason
-            last_human_message = result.next_human_message
-            logger.info("human says %0.2fs: %r shaky=%s stop_reason=%r" % (ht2-ht1, result.next_human_message, result.shaky, result.stop_reason))
-            if result.scenario_done:
-                break
-
-            if not ft_id:  # same as step==0
+            if not ft_id:  # step==0: use the first human message directly from the happy path
+                last_human_message = first_human_message
+                logger.info("human says (from happy path): %r" % first_human_message)
                 ft_id = await ckit_ask_model.bot_activate(
                     client=scenario.fclient,
                     who_is_asking="trajectory_scenario",
                     persona_id=scenario.persona.persona_id,
                     fexp_name=fexp_name,
-                    first_question=result.next_human_message,
+                    first_question=first_human_message,
                     first_calls=first_calls,
                     title="Trajectory Test",
                     ft_btest_name=expert__scenario,
@@ -764,6 +753,20 @@ async def run_happy_trajectory(
                 )
                 logger.info(f"Scenario thread {ft_id}")
             else:
+                ht1 = time.time()
+                result = await ckit_scenario.scenario_generate_human_message(
+                    scenario.fclient,
+                    trajectory_happy,
+                    scenario.fgroup_id,
+                    ft_id,
+                )
+                ht2 = time.time()
+                cost_human += result.cost
+                stop_reason = result.stop_reason
+                last_human_message = result.next_human_message
+                logger.info("human says %0.2fs: %r shaky=%s stop_reason=%r" % (ht2-ht1, result.next_human_message, result.shaky, result.stop_reason))
+                if result.scenario_done:
+                    break
                 http = await scenario.fclient.use_http()
                 await ckit_ask_model.thread_add_user_message(
                     http=http,
