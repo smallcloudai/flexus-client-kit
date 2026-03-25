@@ -119,7 +119,7 @@ class IntegrationTelegram(fi_messenger.FlexusMessenger):
         self._to_tg_dedup_set = set()
 
         if not self.bot_token:
-            self.oops_a_problem("Telegram is not connected, ask user to connect it in bot settings")
+            self.oops_a_problem("Telegram is not connected, ask user to connect it in bot Integrations", dont_print=False)
             return
 
         if ":" not in self.bot_token:
@@ -133,8 +133,9 @@ class IntegrationTelegram(fi_messenger.FlexusMessenger):
             logger.exception("Failed to initialize Telegram bot")
             self.oops_a_problem(f"{type(e).__name__}: {e}")
 
-    def oops_a_problem(self, text: str) -> None:
-        logger.info("%s telegram problem: %s", self.rcx.persona.persona_id, text)
+    def oops_a_problem(self, text: str, dont_print: bool =False) -> None:
+        if not dont_print:
+            logger.info("%s telegram problem: %s", self.rcx.persona.persona_id, text)
         self.problems_accumulator.append(text)
 
     async def initialize(self) -> None:

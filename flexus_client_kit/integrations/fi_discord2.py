@@ -151,7 +151,7 @@ class IntegrationDiscord(fi_messenger.FlexusMessenger):
                 self.watch_channel_names.add(item.lstrip("#").lower())
 
         if not self.bot_token:
-            self.problems_other.append("Discord not configured: connect Discord in workspace OAuth settings")
+            self.oops_a_problem("Discord not configured: connect Discord in bot Integrations", dont_print=True)
             return
 
         intents = discord.Intents.default()
@@ -164,6 +164,11 @@ class IntegrationDiscord(fi_messenger.FlexusMessenger):
         self.client = discord.Client(intents=intents)
         self._setup_event_handlers()
 
+    def oops_a_problem(self, text: str, dont_print: bool = False) -> None:
+        if not dont_print:
+            logger.info("%s discord problem: %s", self.rcx.persona.persona_id, text)
+        self.problems_other.append(text)
+
     def set_activity_callback(self, cb: Callable[[ActivityDiscord, bool], Awaitable[None]]):
         self.activity_callback = cb
 
@@ -175,7 +180,7 @@ class IntegrationDiscord(fi_messenger.FlexusMessenger):
             self.reactive_task.add_done_callback(lambda t: ckit_utils.report_crash(t, logger))
         except Exception as e:
             logger.exception("Failed to start discord client")
-            self.problems_other.append(f"{type(e).__name__} {e}")
+            self.oops_a_problem(f"{type(e).__name__} {e}", dont_print=True)
             self.client = None
 
     async def close(self) -> None:

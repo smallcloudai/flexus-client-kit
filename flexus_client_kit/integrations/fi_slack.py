@@ -154,7 +154,7 @@ class IntegrationSlack(fi_messenger.FlexusMessenger):
         logger.info("%s have SLACK_BOT_TOKEN=...%s", rcx.persona.persona_id, (token[-4:] if token else "none"))
         if not token:
             self.web_client = None
-            self.problems_other.append("Slack is not connected, ask user to connect it in bot settings")
+            self.oops_a_problem("Slack is not connected, ask user to connect it in bot Integrations", dont_print=True)
         else:
             self.web_client = AsyncWebClient(token=token)
         self.activity_callback: Callable[[ActivitySlack, bool], Awaitable[None]] = self.default_activity_to_inbox
@@ -172,6 +172,11 @@ class IntegrationSlack(fi_messenger.FlexusMessenger):
         self._from_stack_dedup_set = set()
         self._to_slack_dedup = deque(maxlen=50000)
         self._to_slack_dedup_set = set()
+
+    def oops_a_problem(self, text: str, dont_print: bool = False) -> None:
+        if not dont_print:
+            logger.info("%s slack problem: %s", self.rcx.persona.persona_id, text)
+        self.problems_other.append(text)
 
     def _get_bot_token(self) -> str:
         slack_auth = self.rcx.external_auth.get("slack") or {}
@@ -621,7 +626,7 @@ class IntegrationSlack(fi_messenger.FlexusMessenger):
                 logger.info("user %s -> %s", user["name"], user["id"])
         except SlackApiError as e:
             logger.exception("Failed to list users")
-            self.problems_other.append(f"Failed to list users: {type(e).__name__} {e}")
+            self.oops_a_problem(f"Failed to list users: {type(e).__name__} {e}", dont_print=True)
 
         try:
             channels_response = await self.web_client.conversations_list(types="im", limit=5000)
@@ -635,7 +640,7 @@ class IntegrationSlack(fi_messenger.FlexusMessenger):
                 # else: DM with a bot or deleted user, skip
         except SlackApiError as e:
             logger.exception("Failed to list DMs")
-            self.problems_other.append(f"Failed to list DMs: {type(e).__name__} {e}")
+            self.oops_a_problem(f"Failed to list DMs: {type(e).__name__} {e}", dont_print=True)
 
         try:
             channels_response = await self.web_client.conversations_list(types="public_channel", limit=1000)
@@ -645,7 +650,7 @@ class IntegrationSlack(fi_messenger.FlexusMessenger):
                 logger.info("channel #%s -> %s", channel["name"], channel["id"])
         except SlackApiError as e:
             logger.exception("Failed to list channels")
-            self.problems_other.append(f"Failed to list channels: {type(e).__name__} {e}")
+            self.oops_a_problem(f"Failed to list channels: {type(e).__name__} {e}", dont_print=True)
 
     def _thread_capturing(self, something_id_slash_thread: str):
         # This function is using latest_threads which is not deep enough for anything serious.
