@@ -85,10 +85,26 @@ async def _sample_image(
     return rsp.image
 
 
-def _save_fullsize_webp_bytes(png_bytes: bytes, quality: int = 85) -> tuple[bytes, tuple[int, int]]:
-    out = io.BytesIO()
+_FULLSIZE_TARGET = (1024, 1536)
+
+
+def _save_fullsize_webp_bytes(
+    png_bytes: bytes,
+    quality: int = 85,
+    target_size: tuple[int, int] = _FULLSIZE_TARGET,
+) -> tuple[bytes, tuple[int, int]]:
+    tw, th = target_size
     with Image.open(io.BytesIO(png_bytes)) as im:
         im = make_transparent(im)
+        iw, ih = im.size
+        if (iw, ih) != (tw, th):
+            scale = min(tw / iw, th / ih)
+            new_w, new_h = int(iw * scale), int(ih * scale)
+            im = im.resize((new_w, new_h), Image.LANCZOS)
+            canvas = Image.new("RGBA", (tw, th), (0, 0, 0, 0))
+            canvas.paste(im, ((tw - new_w) // 2, (th - new_h) // 2))
+            im = canvas
+        out = io.BytesIO()
         im.save(out, "WEBP", quality=quality, method=6)
         size = im.size
     return out.getvalue(), size
@@ -225,8 +241,17 @@ async def make_fullsize_variations(input_path: str, base_name: str, out_dir: str
         rsp = await asyncio.to_thread(api_call)
         png_bytes = rsp.image
 
+        tw, th = _FULLSIZE_TARGET
         with Image.open(io.BytesIO(png_bytes)) as im:
             im = make_transparent(im)
+            iw, ih = im.size
+            if (iw, ih) != (tw, th):
+                scale = min(tw / iw, th / ih)
+                new_w, new_h = int(iw * scale), int(ih * scale)
+                im = im.resize((new_w, new_h), Image.LANCZOS)
+                canvas = Image.new("RGBA", (tw, th), (0, 0, 0, 0))
+                canvas.paste(im, ((tw - new_w) // 2, (th - new_h) // 2))
+                im = canvas
             fn = os.path.join(out_dir, f"i{i:02d}-{base_name}-{im.size[0]}x{im.size[1]}.webp")
             im.save(fn, 'WEBP', quality=85, method=6)
             print(f"Saved {fn}")
