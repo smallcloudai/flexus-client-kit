@@ -209,13 +209,20 @@ class IntegrationDiscord(fi_messenger.FlexusMessenger):
     async def start_reactive(self) -> None:
         if not self.client or self.reactive_task:
             return
-        try:
-            self.reactive_task = asyncio.create_task(self.client.start(self.bot_token))
-            self.reactive_task.add_done_callback(lambda t: ckit_utils.report_crash(t, logger))
-        except Exception as e:
-            logger.exception("Failed to start discord client")
-            self.oops_a_problem(f"{type(e).__name__} {e}", dont_print=True)
-            self.client = None
+        def _on_done(t):
+            try:
+                exc = t.exception()
+            except asyncio.CancelledError:
+                return
+            if exc is None:
+                return
+            if isinstance(exc, (discord.errors.LoginFailure, discord.errors.PrivilegedIntentsRequired)):
+                self.oops_a_problem(f"{type(exc).__name__}: {exc}")
+                self.client = None
+                return
+            ckit_utils.report_crash(t, logger)
+        self.reactive_task = asyncio.create_task(self.client.start(self.bot_token))
+        self.reactive_task.add_done_callback(_on_done)
 
     async def close(self) -> None:
         if self.reactive_task and not self.reactive_task.done():
