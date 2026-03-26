@@ -220,6 +220,7 @@ class IntegrationTelegram(fi_messenger.FlexusMessenger):
         if already_posted:
             return
         details = asdict(a)
+        details["to_capture"] = a.chat_id
         if a.attachments:
             details["attachments"] = f"{len(a.attachments)} files attached"
         title = "Telegram %s user=%r chat_id=%d\n%s" % (a.chat_type, a.message_author_name, a.chat_id, a.message_text)

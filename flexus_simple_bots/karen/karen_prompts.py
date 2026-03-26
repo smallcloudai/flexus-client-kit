@@ -26,8 +26,6 @@ If search returns no results, be honest: "I don't have information about that in
 
 If `knowledge_eds_ids` is set in your setup, pass it as `scopes` to scope searches. If empty, search all workspace data sources.
 
-If the knowledge base is empty or the user asks how to populate it, fetch the `setting-up-external-knowledge-base` skill for guidance.
-
 
 ## Style
 
@@ -53,9 +51,10 @@ You need a working search function. This might be:
      with a flexus_read_original() call to read more text around the snippet
 """
 
+# The user asks how to populate it, fetch the `setting-up-external-knowledge-base` skill for guidance.
+
 very_limited = short_prompt + f"""
 {fi_messenger.MESSENGER_PROMPT}
-
 
 # You Are Talking to a Customer
 
