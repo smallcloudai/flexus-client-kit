@@ -96,12 +96,12 @@ _TG_MD2_MARKUP = re.compile(
     r"(?sm)"
     r"```.*?```"              # code blocks
     r"|`[^`]+`"              # inline code
-    r"|\*[^*]+\*"            # bold
-    r"|__[^_]+__"            # underline (before italic, or italic eats the leading _)
-    r"|_[^_]+_"              # italic
-    r"|~[^~]+~"              # strikethrough
-    r"|\|\|[^|]+\|\|"       # spoiler
-    r"|\[[^\]]+\]\([^)]+\)"  # links
+    r"|\*[^*\n]+\*"          # bold (no newline crossing)
+    r"|(?<!\w)__[^_\n]+__(?!\w)"  # underline (word-boundary, before italic)
+    r"|(?<!\w)_[^_\n]+_(?!\w)"    # italic (word-boundary, like Telegram's parser)
+    r"|~[^~\n]+~"            # strikethrough
+    r"|\|\|[^|\n]+\|\|"     # spoiler
+    r"|\[[^\]]+\]\([^)]*(?:\([^)]*\)[^)]*)*\)"  # links (supports one level of parens in URL)
     r"|^>[^\n]*"             # blockquote lines (only at line start)
 )
 
@@ -115,11 +115,11 @@ def _escape_markup_match(m: re.Match) -> str:
         inner = s[1:-1]
         return "`" + _TG_MD2_CODE_ESCAPE.sub(r"\\\1", inner) + "`"
     if s.startswith("["):
-        # [text](url) — escape ) and \ inside url part
+        # [text](url) — escape special chars in text, escape ) and \ in url
         bracket_end = s.index("](")
         text_part = s[1:bracket_end]
         url_part = s[bracket_end+2:-1]
-        return "[" + text_part + "](" + _TG_MD2_LINK_URL_ESCAPE.sub(r"\\\1", url_part) + ")"
+        return "[" + _TG_MD2_SPECIAL.sub(r"\\\1", text_part) + "](" + _TG_MD2_LINK_URL_ESCAPE.sub(r"\\\1", url_part) + ")"
     if s.startswith(">"):
         return ">" + _TG_MD2_SPECIAL.sub(r"\\\1", s[1:])
     # bold, italic, underline, strikethrough, spoiler: escape special chars in inner text
@@ -542,14 +542,116 @@ List of things:
 - item #3!
 """
 
+    test_msg_hard = r"""Edge cases for MarkdownV2 escaping:
+
+Lone special chars: price is $9.99 and 50% off! Also: 2+2=4, x<y>z, a|b, {braces}, #hashtag.
+
+Backslashes already in text: C:\Users\name\file.txt and \\server\share
+
+Empty delimiters that are NOT markup: ** ~~ __ || just double chars hanging out.
+
+Unmatched stars: one * in the middle * of text (not bold, spaces around).
+
+Adjacent markup no gap: *bold1**bold2* and _italic1__italic2_
+
+Markup with every special char inside: *hello (world) [brackets] {curly} $dollar #hash +plus =equals -dash .dot !bang ~tilde |pipe > < \backslash*
+
+_italic with $price! and (parens) and [square]_
+
+~strike with 100% and #tag~
+
+||spoiler with (parens) and $money!||
+
+Links with nasty URLs: [click (here)!](https://example.com/path?a=1&b=2#frag)
+[another link](https://example.com/foo(bar))
+
+Code with markup chars: `*bold* _italic_ ~strike~` should stay literal.
+
+```
+code block with * and _ and ~ and | and $ and () and [] and {} and # and + and = and . and ! and > and < and \
+also ` backtick inside
+```
+
+>blockquote with *bold markup* and $price and (parens)
+>second line with [brackets] and {curly} and #hash
+
+Multiple blockquotes separated:
+>first block
+regular text between
+>second block
+
+Underscore snake_case_variable should not become italic. Same with __dunder_method__.
+
+Stars in math: 2*3*4 and a*b (not bold because no matching).
+
+Pipes in tables: col1 | col2 | col3
+
+Exclamation! Period. Hash# Plus+ Equals= Dash- all at word boundaries.
+
+Mixed line: I paid $9.99 (USD) for *premium* at https://example.com — worth it!
+
+Trailing special chars at EOF: test!"""
+
+    test_msg_ru = r"""Русский текст с особыми символами:
+
+Цена: 9.99$ (включая НДС 20%) — выгодно! А ещё: 2+2=4, x<y>z, a|b, {скобки}, #хештег.
+
+Путь к файлу: C:\Users\Вася\документы\отчёт.txt и \\сервер\папка
+
+Пустые разделители: ** ~~ __ || просто двойные символы.
+
+Одинокие звёздочки: одна * посреди текста * не жирный (пробелы вокруг).
+
+*Жирный текст с (скобками), [квадратными] и {фигурными} — всё внутри!*
+
+_Курсив с ценой 9.99$ и (скобками) и [квадратными]_
+
+~Зачёркнутый с 100% и #тегом~
+
+||Спойлер: убийца — дворецкий! Цена $99.99 (шок)||
+
+Ссылки: [нажми (сюда)!](https://example.com/path?a=1&b=2#фрагмент)
+[ещё ссылка](https://ru.wikipedia.org/wiki/Кот_(значения))
+
+Код: `*жирный* _курсив_ ~зачёркнутый~` — литерал.
+
+```
+блок кода: * и _ и ~ и | и $ и () и [] и {} и # и + и = и . и ! и > и < и \
+также ` обратная кавычка
+```
+
+>цитата с *жирным* и $ценой и (скобками)
+>вторая строка [квадратные] и {фигурные} и #хеш
+
+Несколько цитат:
+>первый блок
+обычный текст между
+>второй блок
+
+Переменные: snake_case_переменная и __dunder_метод__ не должны стать курсивом.
+
+Математика: 2*3*4 и a*b (не жирный).
+
+Таблицы: кол1 | кол2 | кол3
+
+Смешанная строка: я заплатил $9.99 (USD) за *премиум* на https://example.com — оно того стоит!
+
+Эмодзи и спецсимволы: 🎉 Привет! 👋 (тест) [тест] {тест} #тест +тест =тест -тест .тест !тест ~тест |тест >тест <тест \тест
+
+Конец с восклицанием!"""
+
     async def _test():
         app = telegram.ext.Application.builder().token(bot_token).build()
         await app.initialize()
-        escaped = tg_escape_md2(test_msg)
-        print("--- escaped ---")
-        print(escaped)
-        print("--- sending ---")
-        await app.bot.send_message(chat_id=int(chat_id), text=escaped, parse_mode="MarkdownV2")
-        print("done!")
+        for label, msg in [("original", test_msg), ("hard", test_msg_hard), ("russian", test_msg_ru)]:
+            escaped = tg_escape_md2(msg)
+            print(f"--- {label} escaped ---")
+            print(escaped)
+            print(f"--- sending {label} ---")
+            try:
+                await app.bot.send_message(chat_id=int(chat_id), text=escaped, parse_mode="MarkdownV2")
+                print(f"{label}: ok!")
+            except telegram.error.BadRequest as e:
+                print(f"{label}: FAILED: {e}")
 
     asyncio.run(_test())
