@@ -36,7 +36,7 @@ POLICY_DOCUMENT_TOOL = ckit_cloudtool.CloudTool(
     parameters={
         "type": "object",
         "properties": {
-            "op": {"type": "string", "enum": ["help", "list", "cat", "activate", "create", "create_draft_qa", "create_draft_from_template", "overwrite", "update_json_text", "cp", "mv", "rm"]},
+            "op": {"type": "string", "enum": ["help", "list", "cat", "activate", "create", "create_draft_qa", "create_draft_from_template", "overwrite", "update_json_text", "translate_qa", "cp", "mv", "rm"]},
             "args": {"type": "object"},   # model guesses p= to write here quite well for some reason, without help, must be something in prompt
         },
     },
@@ -76,6 +76,12 @@ flexus_policy_document(op="update_json_text", args={"p": "/folder/file", "json_p
     Example: "operations_overview.governance" updates doc["operations_overview"]["governance"]
     Pass expected_md5 (from a previous cat/update) to avoid overwriting concurrent changes.
     If md5 doesn't match, changes are not saved and latest content is returned so you can retry.
+
+flexus_policy_document(op="translate_qa", args={"p": "/folder/file", "expected_md5": "abc123", "translation": [["top-tag.section01-product.question01-description.q", "Translated text"], ...]})
+    Batch-update question texts in a QA document, typically for translation.
+    Each entry in translation is [json_path, text] where json_path uses dot notation (same as update_json_text).
+    Pass expected_md5 to avoid overwriting concurrent changes.
+    Returns list of still-empty "q" and "a" fields and the new md5.
 
 flexus_policy_document(op="cp", args={"p1": "/customer-research/interview-template", "p2": "/customer-research/interview-monsieur-dupont"})
     Copy a policy document.
@@ -202,14 +208,10 @@ def _strip_numbered_prefix(name: str) -> str:
     return _NUMBERED_PREFIX_RE.sub("", name)
 
 
-def _kebab_title(name: str) -> str:
-    return name.replace("-", " ").title()
-
-
 def _build_qa_doc(top_tag: str, sections: dict) -> dict:
     result = {}
     for si, (sec_name, questions) in enumerate(sections.items(), 1):
-        sec = {"title": _kebab_title(sec_name)}
+        sec = {"title": ""}
         for qi, q_name in enumerate(questions, 1):
             sec[f"question{qi:02d}-{q_name}"] = {"q": "", "a": ""}
         result[f"section{si:02d}-{sec_name}"] = sec
@@ -218,6 +220,32 @@ def _build_qa_doc(top_tag: str, sections: dict) -> dict:
 
 def _pdoc_md5(content: Any) -> str:
     return hashlib.md5(json.dumps(content, sort_keys=True, ensure_ascii=False).encode()).hexdigest()[:8]
+
+
+def _set_by_dot_path(doc: dict, dot_path: str, value: str) -> bool:
+    parts = dot_path.split(".")
+    obj = doc
+    for part in parts[:-1]:
+        if not isinstance(obj, dict) or part not in obj:
+            return False
+        obj = obj[part]
+    if not isinstance(obj, dict) or parts[-1] not in obj:
+        return False
+    obj[parts[-1]] = value
+    return True
+
+
+def _collect_empty_qa_questions(doc: dict, prefix: str = "") -> List[str]:
+    result = []
+    for k, v in doc.items():
+        path = f"{prefix}.{k}" if prefix else k
+        if isinstance(v, dict):
+            if "q" in v and "a" in v:
+                if not v["q"]:
+                    result.append(f"{path}.q")
+            else:
+                result.extend(_collect_empty_qa_questions(v, path))
+    return result
 
 
 class IntegrationPdoc:
@@ -330,12 +358,28 @@ class IntegrationPdoc:
                 doc = _build_qa_doc(top_tag, sections)
                 text = json.dumps(doc, ensure_ascii=False)
                 await self.pdoc_create(p, text, fcall_untrusted_key=toolcall.fcall_untrusted_key)
+                doc_md5 = _pdoc_md5(doc)
+                empty = _collect_empty_qa_questions(doc)
                 r += f"✍️ {p}\n"
-                r += f"created text md5={_pdoc_md5(doc)}\n"
+                r += f"created text md5={doc_md5}\n"
                 r += f"\n"
                 r += f"✓ QA document created with {len(sections)} sections\n"
                 r += f"\n"
                 r += json.dumps(doc, indent=2, ensure_ascii=False)
+                translate_paths = []
+                for sec_key, sec_val in doc[top_tag].items():
+                    if sec_key == "meta":
+                        continue
+                    translate_paths.append(f"{top_tag}.{sec_key}.title")
+                    for q_key in sec_val:
+                        if q_key != "title":
+                            translate_paths.append(f"{top_tag}.{sec_key}.{q_key}.q")
+                if translate_paths:
+                    r += f"\n\nNow translate by calling:\n"
+                    r += f"flexus_policy_document(op=\"translate_qa\", args={{\"p\": \"{p}\", \"expected_md5\": \"{doc_md5}\", \"translation\": [\n"
+                    for dot_path in translate_paths:
+                        r += f"  [\"{dot_path}\", \"TRANSLATED\"],\n"
+                    r += f"]}})"
 
             elif op == "create_draft_from_template":
                 template = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "template", "")
@@ -404,6 +448,51 @@ class IntegrationPdoc:
                     # Post the text because it saves a round-trip
                     r += f"Here's the document text as found on disk md5={upd.md5_found}\n\n"
                     r += upd.latest_text
+
+            elif op == "translate_qa":
+                p = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "p", "")
+                p = p or ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "path", "")
+                expected_md5 = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "expected_md5", "")
+                translation = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "translation", None)
+                if not p or not translation or not isinstance(translation, list):
+                    return f"Error: p and translation required\n\n{HELP}"
+                if self.is_fake:
+                    return await ckit_scenario.scenario_generate_tool_result_via_model(self.fclient, toolcall, open(__file__).read())
+                doc_obj = await self.pdoc_cat(p, fcall_untrusted_key=toolcall.fcall_untrusted_key)
+                if not doc_obj:
+                    return f"Policy document not found: {p}"
+                content = doc_obj.pdoc_content
+                if not isinstance(content, dict):
+                    return f"Error: document content is not a dict"
+                found_md5 = _pdoc_md5(content)
+                if expected_md5 and found_md5 != expected_md5:
+                    r += f"📄 {p}\n"
+                    r += f"md5_requested={expected_md5}\n"
+                    r += f"md5_found={found_md5}\n"
+                    r += f"changes_saved=false\n\n"
+                    r += f"Try calling this function again. Here's the document text as found on disk md5={found_md5}\n\n"
+                    r += json.dumps(content, indent=2, ensure_ascii=False)
+                else:
+                    bad = []
+                    for pair in translation:
+                        if not isinstance(pair, list) or len(pair) != 2:
+                            bad.append(str(pair))
+                            continue
+                        dot_path, text = pair
+                        if not _set_by_dot_path(content, dot_path, text):
+                            bad.append(dot_path)
+                    text_to_save = json.dumps(content, ensure_ascii=False)
+                    await self.pdoc_overwrite(p, text_to_save, fcall_untrusted_key=toolcall.fcall_untrusted_key)
+                    new_md5 = _pdoc_md5(content)
+                    empty = _collect_empty_qa_questions(content)
+                    r += f"✍️ {p}\nmd5={new_md5}\n\n"
+                    if bad:
+                        r += f"⚠️ Could not apply {len(bad)} paths: {', '.join(bad)}\n"
+                    r += f"✓ Applied {len(translation) - len(bad)}/{len(translation)} translations\n"
+                    if empty:
+                        r += f"\nUntranslated questions ({len(empty)}):\n" + "\n".join(empty) + "\n"
+                    else:
+                        r += f"\nAll questions are translated.\n"
 
             elif op == "cp":
                 p1 = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "p1", "")
