@@ -90,9 +90,9 @@ if not messages[-1]["tool_calls"]:
     elif not warn2_have and coins > budget * 0.5 and not messages[-1]["tool_calls"]:
         post_cd_instruction = warn2_text
 
-print("warn1_have", warn1_have)
-print("warn2_have", warn2_have)
-print("post_cd_instruction", post_cd_instruction)
+# print("warn1_have", warn1_have)
+# print("warn2_have", warn2_have)
+# print("post_cd_instruction", post_cd_instruction)
 """
 
 

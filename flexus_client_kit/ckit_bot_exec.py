@@ -458,7 +458,8 @@ async def subscribe_and_produce_callbacks(
                     if persona_id not in bc.auth:
                         bc.auth[persona_id] = {}
                     bc.auth[persona_id][provider] = upd.news_payload_auth.auth_key2value
-                    logger.info(f"auth arrived bc.auth[{persona_id}][{provider}] = {upd.news_payload_auth.auth_key2value}")
+                    # Good for debugging, not good leaking tokens into logs:
+                    # logger.info(f"subsription auth arrived bc.auth[{persona_id}][{provider}] = {upd.news_payload_auth.auth_key2value}")
                     if bot := bc.bots_running.get(persona_id, None):
                         bot.instance_rcx.external_auth = bc.auth.get(persona_id, {})
                         bot.instance_rcx._soft_restart_requested = True
