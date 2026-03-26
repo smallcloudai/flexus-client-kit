@@ -2,6 +2,8 @@ import asyncio
 import re
 import json
 import logging
+import gql
+
 from collections import deque
 from dataclasses import asdict, dataclass, field
 from typing import Any, Awaitable, Callable, Dict, List, Optional
@@ -180,7 +182,7 @@ class IntegrationTelegram(fi_messenger.FlexusMessenger):
         self._to_tg_dedup_set = set()
 
         if not self.bot_token:
-            self.oops_a_problem("Telegram is not connected, ask user to connect it in bot Integrations", dont_print=False)
+            self.oops_a_problem("Telegram is not connected, ask user to connect it in bot Integrations", dont_print=True)
             return
 
         if ":" not in self.bot_token:
