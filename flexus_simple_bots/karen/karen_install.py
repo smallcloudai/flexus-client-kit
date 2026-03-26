@@ -141,7 +141,8 @@ async def install(
         marketable_run_this="python -m flexus_simple_bots.karen.karen_bot",
         marketable_setup_default=KAREN_SETUP_SCHEMA,
         marketable_featured_actions=[
-            {"feat_question": "What people ask for today?", "feat_expert": "default", "feat_depends_on_setup": []},
+            {"feat_question": "Collect/improve company info"},
+            {"feat_question": "What people asked today?"},
         ],
         marketable_intro_message="I'm here for your customers 24/7 — answering questions, remembering every detail, and always following up. I also deliver weekly feedback reports that help your team improve the product.",
         marketable_preferred_model_default="gpt-5.4-nano",

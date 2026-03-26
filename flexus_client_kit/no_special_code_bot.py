@@ -45,7 +45,7 @@ async def install_from_manifest(m, setup_schema, bot_dir, client, bot_name, bot_
     description = readme_path.read_text() if readme_path.exists() else m["title2"]
     skills = ckit_skills.static_skills_find(bot_dir, m.get("shared_skills_allowlist", ""))
     experts = ckit_experts_from_files.discover_experts(bot_dir, skills)
-    featured = [fa | {"feat_depends_on_setup": []} for fa in m["featured_actions"]]
+    featured = m["featured_actions"]
 
     auth_supported = list(m.get("auth_supported", []))
     auth_scopes: dict = dict(m.get("auth_scopes", {}))

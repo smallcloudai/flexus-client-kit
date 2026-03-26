@@ -188,7 +188,7 @@ async def marketplace_upsert_dev_bot(
                 "repo": marketable_github_repo,
                 "run": marketable_run_this,
                 "setup": json.dumps(marketable_setup_default),
-                "featured": marketable_featured_actions,
+                "featured": [{"feat_expert": "default", "feat_depends_on_setup": [], **fa} for fa in marketable_featured_actions],
                 "intro": marketable_intro_message,
                 "model": marketable_preferred_model_default,
                 "daily": marketable_daily_budget_default,

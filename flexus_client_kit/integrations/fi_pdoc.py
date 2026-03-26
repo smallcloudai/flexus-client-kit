@@ -36,7 +36,7 @@ POLICY_DOCUMENT_TOOL = ckit_cloudtool.CloudTool(
     parameters={
         "type": "object",
         "properties": {
-            "op": {"type": "string", "enum": ["help", "list", "cat", "activate", "create", "create_qa", "create_from_template", "overwrite", "update_json_text", "cp", "mv", "rm"]},
+            "op": {"type": "string", "enum": ["help", "list", "cat", "activate", "create", "create_draft_qa", "create_draft_from_template", "overwrite", "update_json_text", "cp", "mv", "rm"]},
             "args": {"type": "object"},   # model guesses p= to write here quite well for some reason, without help, must be something in prompt
         },
     },
@@ -62,12 +62,12 @@ flexus_policy_document(op="overwrite", args={"p": "/folder/file", "text": '{"str
     Write a new policy document. Normally use "create" variant that returns error if document already exists.
     Only use "overwrite" when you mean it.
 
-flexus_policy_document(op="create_qa", args={"p": "/path", "top_tag": "hypothesis", "sections": {"formula": ["formula"], "ice": ["ease", "impact", "confidence"]}})
-    Create a QA-format document. Section and question names are kebab-case.
-    Tool auto-numbers (section01-name, question01-name), generates titles, sets q="" a="" on each question.
+flexus_policy_document(op="create_draft_qa", args={"output_dir": "/support/", "slug": "summary", "top_tag": "support-policy", "sections": {"product": ["description", "icp"], "payments": ["normal-work", "refunds"]}})
+    Create a QA-format document. Date is prepended to slug automatically.
+    Sections and questions are kebab-case names, will be auto-numbered (section01-product, question01-description, etc) with q="" a="" on each question.
     Fails if document already exists.
 
-flexus_policy_document(op="create_from_template", args={"template": "plan", "output_dir": "/plans", "slug": "my-thing"})
+flexus_policy_document(op="create_draft_from_template", args={"output_dir": "/plans", "slug": "my-thing", "template": "plan"})
     Create a new policy document from a known template. Automatically prepends current date between
     output_dir and slug, e.g. /plans/20260325-my-thing. Fails if the document already exists.
 
@@ -195,6 +195,11 @@ def _empty_value_for_field(field_schema: dict):
 
 
 _KEBAB_RE = re.compile(r"^[a-z][a-z0-9]*(-[a-z0-9]+)*$")
+_NUMBERED_PREFIX_RE = re.compile(r"^(section|question)\d+-")
+
+
+def _strip_numbered_prefix(name: str) -> str:
+    return _NUMBERED_PREFIX_RE.sub("", name)
 
 
 def _kebab_title(name: str) -> str:
@@ -297,16 +302,17 @@ class IntegrationPdoc:
                 verb = "created" if op == "create" else "updated"
                 r += f"✍️ {p}\nmd5={saved_md5}\n\n✓ Policy document {verb}"
 
-            elif op == "create_qa":
-                p = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "p", "")
-                if not p:
-                    return f"Error: p required\n\n{HELP}"
+            elif op == "create_draft_qa":
+                output_dir = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "output_dir", "")
+                slug = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "slug", "")
                 top_tag = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "top_tag", "")
                 sections = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "sections", None)
-                if not top_tag or not sections or not isinstance(sections, dict):
-                    return f"Error: top_tag and sections required\n\n{HELP}"
+                if not output_dir or not slug or not top_tag or not sections or not isinstance(sections, dict):
+                    return f"Error: output_dir, slug, top_tag, and sections required\n\n{HELP}"
                 if not _KEBAB_RE.match(top_tag):
                     return f"Error: top_tag must be kebab-case: {top_tag!r}"
+                # strip sectionNN-/questionNN- prefixes if model added them, then validate
+                sections = {_strip_numbered_prefix(k): [_strip_numbered_prefix(q) for q in v] for k, v in sections.items()}
                 for sec_name, questions in sections.items():
                     if not _KEBAB_RE.match(sec_name):
                         return f"Error: section name must be kebab-case: {sec_name!r}"
@@ -317,11 +323,21 @@ class IntegrationPdoc:
                             return f"Error: question name must be kebab-case: {q_name!r}"
                 if self.is_fake:
                     return await ckit_scenario.scenario_generate_tool_result_via_model(self.fclient, toolcall, open(__file__).read())
+                output_dir = "/" + output_dir.strip().strip("/")
+                tz = ZoneInfo(self.rcx.persona.ws_timezone)
+                date_prefix = datetime.datetime.now(tz).strftime("%Y%m%d")
+                p = f"{output_dir}/{date_prefix}-{slug}"
                 doc = _build_qa_doc(top_tag, sections)
-                await self.pdoc_create(p, json.dumps(doc, ensure_ascii=False), fcall_untrusted_key=toolcall.fcall_untrusted_key)
-                r += f"✍️ {p}\nmd5={_pdoc_md5(doc)}\n\n✓ QA document created with {len(sections)} sections"
+                text = json.dumps(doc, ensure_ascii=False)
+                await self.pdoc_create(p, text, fcall_untrusted_key=toolcall.fcall_untrusted_key)
+                r += f"✍️ {p}\n"
+                r += f"created text md5={_pdoc_md5(doc)}\n"
+                r += f"\n"
+                r += f"✓ QA document created with {len(sections)} sections\n"
+                r += f"\n"
+                r += json.dumps(doc, indent=2, ensure_ascii=False)
 
-            elif op == "create_from_template":
+            elif op == "create_draft_from_template":
                 template = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "template", "")
                 output_dir = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "output_dir", "")
                 slug = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "slug", "")
@@ -372,14 +388,22 @@ class IntegrationPdoc:
 
                 upd = await self.pdoc_update_json_text(p, json_path, text, expected_md5, fcall_untrusted_key=toolcall.fcall_untrusted_key)
                 if upd.changes_saved:
-                    r += f"✍️ {p}\nmd5={upd.md5_found}\nchanges_saved=true\n\n✓ Updated {json_path}\n\n"
+                    r += f"✍️ {p}\n"
+                    r += f"changes_saved=true\n\n"
+                    r += f"after update, new md5={upd.md5_found}\n"
+                    # Don't post the text because the model knows it, including its own update
                 else:
-                    r += f"📄 {p}\nmd5_requested={upd.md5_requested}\nmd5_found={upd.md5_found}\nchanges_saved=false\n\n"
+                    r += f"📄 {p}\n"
+                    r += f"md5_requested={upd.md5_requested}\n"
+                    r += f"md5_found={upd.md5_found}\n"
+                    r += f"changes_saved=false\n\n"
                     if upd.problem_message:
                         r += f"{upd.problem_message}\n\n"
                     else:
                         r += f"Document changed since you last read it, please retry.\n\n"
-                r += upd.latest_text
+                    # Post the text because it saves a round-trip
+                    r += f"Here's the document text as found on disk md5={upd.md5_found}\n\n"
+                    r += upd.latest_text
 
             elif op == "cp":
                 p1 = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "p1", "")

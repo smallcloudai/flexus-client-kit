@@ -110,6 +110,11 @@ def static_skills_find(bot_root_dir: Path, shared_skills_allowlist: str) -> List
             _validate_skill(p, p.read_text())
             found.append(name)
     found.sort()
+    shared_names = {p.parent.name for p in shared_dir.glob("*/SKILL.md")} if shared_dir.is_dir() else set()
+    for pat in shared_skills_allowlist.split(","):
+        pat = pat.strip()
+        if pat and not any(fnmatch.fnmatch(n, pat) for n in shared_names):
+            print("WARNING shared skill %r not found in %s" % (pat, shared_dir))
     return found
 
 
