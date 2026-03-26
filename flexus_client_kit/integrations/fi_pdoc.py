@@ -1,8 +1,12 @@
+import datetime
 import hashlib
 import json
 import logging
+import re
+from pathlib import Path
 from typing import Dict, Any, Optional, List
 from dataclasses import dataclass
+from zoneinfo import ZoneInfo
 
 import gql
 
@@ -32,7 +36,7 @@ POLICY_DOCUMENT_TOOL = ckit_cloudtool.CloudTool(
     parameters={
         "type": "object",
         "properties": {
-            "op": {"type": "string", "enum": ["help", "list", "cat", "activate", "create", "overwrite", "update_json_text", "cp", "mv", "rm"]},
+            "op": {"type": "string", "enum": ["help", "list", "cat", "activate", "create", "create_qa", "create_from_template", "overwrite", "update_json_text", "cp", "mv", "rm"]},
             "args": {"type": "object"},   # model guesses p= to write here quite well for some reason, without help, must be something in prompt
         },
     },
@@ -57,6 +61,15 @@ flexus_policy_document(op="create", args={"p": "/folder/file", "text": '{"struct
 flexus_policy_document(op="overwrite", args={"p": "/folder/file", "text": '{"structured": "doc"}'})
     Write a new policy document. Normally use "create" variant that returns error if document already exists.
     Only use "overwrite" when you mean it.
+
+flexus_policy_document(op="create_qa", args={"p": "/path", "top_tag": "hypothesis", "sections": {"formula": ["formula"], "ice": ["ease", "impact", "confidence"]}})
+    Create a QA-format document. Section and question names are kebab-case.
+    Tool auto-numbers (section01-name, question01-name), generates titles, sets q="" a="" on each question.
+    Fails if document already exists.
+
+flexus_policy_document(op="create_from_template", args={"template": "plan", "output_dir": "/plans", "slug": "my-thing"})
+    Create a new policy document from a known template. Automatically prepends current date between
+    output_dir and slug, e.g. /plans/20260325-my-thing. Fails if the document already exists.
 
 flexus_policy_document(op="update_json_text", args={"p": "/folder/file", "json_path": "section1.field", "text": "new value", "expected_md5": "abc123"})
     Update a specific field in a document using json_path with dot notation.
@@ -158,6 +171,46 @@ def _format_tree(items: List[PdocListItem], base_path: str) -> tuple:
     return "\n".join(render(())) + "\n", doc_count, folder_count
 
 
+PDOC_SCHEMAS_DIR = Path(__file__).resolve().parent.parent / "pdoc-schemas"
+
+
+def _load_pdoc_schema(template: str) -> Optional[dict]:
+    f = PDOC_SCHEMAS_DIR / f"{template}.json"
+    if not f.exists():
+        return None
+    return json.loads(f.read_text())
+
+
+def _empty_value_for_field(field_schema: dict):
+    t = field_schema.get("type", "string")
+    if t == "object":
+        return {k: _empty_value_for_field(v) for k, v in field_schema.get("properties", {}).items()}
+    if t == "integer":
+        return 0
+    if t == "number" or t == "float":
+        return 0.0
+    if t == "boolean" or t == "bool":
+        return False
+    return ""
+
+
+_KEBAB_RE = re.compile(r"^[a-z][a-z0-9]*(-[a-z0-9]+)*$")
+
+
+def _kebab_title(name: str) -> str:
+    return name.replace("-", " ").title()
+
+
+def _build_qa_doc(top_tag: str, sections: dict) -> dict:
+    result = {}
+    for si, (sec_name, questions) in enumerate(sections.items(), 1):
+        sec = {"title": _kebab_title(sec_name)}
+        for qi, q_name in enumerate(questions, 1):
+            sec[f"question{qi:02d}-{q_name}"] = {"q": "", "a": ""}
+        result[f"section{si:02d}-{sec_name}"] = sec
+    return {top_tag: {"meta": {"created_at": datetime.datetime.now(datetime.timezone.utc).isoformat()}, **result}}
+
+
 def _pdoc_md5(content: Any) -> str:
     return hashlib.md5(json.dumps(content, sort_keys=True, ensure_ascii=False).encode()).hexdigest()[:8]
 
@@ -243,6 +296,67 @@ class IntegrationPdoc:
                 saved_md5 = _pdoc_md5(json.loads(text))
                 verb = "created" if op == "create" else "updated"
                 r += f"✍️ {p}\nmd5={saved_md5}\n\n✓ Policy document {verb}"
+
+            elif op == "create_qa":
+                p = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "p", "")
+                if not p:
+                    return f"Error: p required\n\n{HELP}"
+                top_tag = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "top_tag", "")
+                sections = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "sections", None)
+                if not top_tag or not sections or not isinstance(sections, dict):
+                    return f"Error: top_tag and sections required\n\n{HELP}"
+                if not _KEBAB_RE.match(top_tag):
+                    return f"Error: top_tag must be kebab-case: {top_tag!r}"
+                for sec_name, questions in sections.items():
+                    if not _KEBAB_RE.match(sec_name):
+                        return f"Error: section name must be kebab-case: {sec_name!r}"
+                    if not isinstance(questions, list) or not questions:
+                        return f"Error: section {sec_name!r} must have a non-empty list of question names"
+                    for q_name in questions:
+                        if not isinstance(q_name, str) or not _KEBAB_RE.match(q_name):
+                            return f"Error: question name must be kebab-case: {q_name!r}"
+                if self.is_fake:
+                    return await ckit_scenario.scenario_generate_tool_result_via_model(self.fclient, toolcall, open(__file__).read())
+                doc = _build_qa_doc(top_tag, sections)
+                await self.pdoc_create(p, json.dumps(doc, ensure_ascii=False), fcall_untrusted_key=toolcall.fcall_untrusted_key)
+                r += f"✍️ {p}\nmd5={_pdoc_md5(doc)}\n\n✓ QA document created with {len(sections)} sections"
+
+            elif op == "create_from_template":
+                template = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "template", "")
+                output_dir = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "output_dir", "")
+                slug = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "slug", "")
+                if not template or not output_dir or not slug:
+                    return f"Error: template, output_dir, and slug are required\n\n{HELP}"
+                output_dir = "/" + output_dir.strip().strip("/")
+                slug = slug.strip()
+                schema = _load_pdoc_schema(template)
+                if schema is None:
+                    return f"Error: template '{template}' not found"
+                if self.is_fake:
+                    return await ckit_scenario.scenario_generate_tool_result_via_model(self.fclient, toolcall, open(__file__).read())
+                tz = ZoneInfo(self.rcx.persona.ws_timezone)
+                date_prefix = datetime.datetime.now(tz).strftime("%Y%m%d")
+                p = f"{output_dir}/{date_prefix}-{slug}"
+                keys = list(schema.keys())
+                data = {keys[0]: _empty_value_for_field(schema[keys[0]])}
+                for k in keys[1:]:
+                    data[k] = None
+                doc = {template: {
+                    "meta": {"created_at": datetime.datetime.now(datetime.timezone.utc).isoformat()},
+                    "schema": schema,
+                    **data,
+                }}
+                try:
+                    await self.pdoc_create(p, json.dumps(doc, ensure_ascii=False), fcall_untrusted_key=toolcall.fcall_untrusted_key)
+                except gql.transport.exceptions.TransportQueryError as e:
+                    if "already exists" in str(e):
+                        return (
+                            f"Oops {p} already exists. Likely your previous attempt to create the same thing — "
+                            f"load it with op=\"activate\" and continue filling out, "
+                            f"or verify it's garbage using op=\"cat\" and then op=\"rm\"."
+                        )
+                    raise
+                r += f"✍️ {p}\nmd5={_pdoc_md5(doc)}\n\n✓ Created from template '{template}'"
 
             elif op == "update_json_text":
                 p = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "p", "")

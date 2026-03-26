@@ -1,10 +1,8 @@
 import asyncio
-import datetime
 import json
 import logging
 from pathlib import Path
-from typing import Dict, Any, Optional
-from zoneinfo import ZoneInfo
+from typing import Dict, Any
 
 import gql
 from flexus_client_kit import ckit_client
@@ -100,89 +98,6 @@ BOSS_TREE_FETCH_TOOL = ckit_cloudtool.CloudTool(
     },
 )
 
-PDOC_SCHEMAS_DIR = Path(__file__).resolve().parents[2] / "flexus_client_kit" / "pdoc-schemas"
-
-
-PDOC_FROM_SCHEMA_TOOL = ckit_cloudtool.CloudTool(
-    strict=True,
-    name="flexus_policy_document_from_template",
-    description="Create a new policy document from a known template. Automatically prepends current date between path and slug. Fails if the document already exists, or template not found.",
-    parameters={
-        "type": "object",
-        "properties": {
-            "output_dir": {"type": "string", "description": "Parent path, e.g. /company or /plans"},
-            "slug": {"type": "string", "description": "Short kebab-case-name, 2-4 english words"},
-            "template": {"type": "string"},
-        },
-        "required": ["output_dir", "slug", "template"],
-        "additionalProperties": False,
-    },
-)
-
-
-def _load_pdoc_schema(template: str) -> Optional[dict]:
-    f = PDOC_SCHEMAS_DIR / f"{template}.json"
-    if not f.exists():
-        return None
-    return json.loads(f.read_text())
-
-
-def _empty_value_for_field(field_schema: dict):
-    t = field_schema.get("type", "string")
-    if t == "object":
-        return {k: _empty_value_for_field(v) for k, v in field_schema.get("properties", {}).items()}
-    if t == "integer":
-        return 0
-    if t == "number" or t == "float":
-        return 0.0
-    if t == "boolean" or t == "bool":
-        return False
-    return ""
-
-
-async def handle_pdoc_from_schema(
-    toolcall: ckit_cloudtool.FCloudtoolCall,
-    args: Dict[str, Any],
-    rcx: ckit_bot_exec.RobotContext,
-    pdoc_integration: fi_pdoc.IntegrationPdoc,
-) -> str:
-    if rcx.running_test_scenario:
-        return await ckit_scenario.scenario_generate_tool_result_via_model(rcx.fclient, toolcall, Path(__file__).read_text())
-    output_dir = "/" + args.get("output_dir", "").strip().strip("/")
-    slug = args.get("slug", "").strip()
-    template = args.get("template", "").strip()
-    if not output_dir or not slug or not template:
-        return "Error: output_dir, slug, and template are required"
-    tz = ZoneInfo(rcx.persona.ws_timezone)
-    date_prefix = datetime.datetime.now(tz).strftime("%Y%m%d")
-    path = f"{output_dir}/{date_prefix}-{slug}"
-    schema = _load_pdoc_schema(template)
-    if schema is None:
-        available = [f.stem for f in PDOC_SCHEMAS_DIR.glob("*.json")]
-        return f"Error: schema '{template}' not found. Available: {', '.join(available)}"
-    keys = list(schema.keys())
-    data = {keys[0]: _empty_value_for_field(schema[keys[0]])}
-    for k in keys[1:]:
-        data[k] = None
-    doc = {template: {
-        "meta": {"created_at": datetime.datetime.now(datetime.timezone.utc).isoformat()},
-        "schema": schema,
-        **data,
-    }}
-    uk = toolcall.fcall_untrusted_key
-    try:
-        await pdoc_integration.pdoc_create(path, json.dumps(doc, ensure_ascii=False), fcall_untrusted_key=uk)
-    except gql.transport.exceptions.TransportQueryError as e:
-        if "already exists" in str(e):
-            return (
-                f"Oops {path} already exists. Likely your previous attempt to create the same thing — "
-                f"load it with op=\"activate\" and continue filling out, "
-                f"or verify it's garbage using op=\"cat\" and then op=\"rm\"."
-            )
-        raise
-    return f"✍️ {path}\nmd5={fi_pdoc._pdoc_md5(doc)}\n\n✓ Created from schema '{template}'"
-
-
 PLAN_PROGRESS_ADD_TOOL = ckit_cloudtool.CloudTool(
     strict=True,
     name="plan_progress_add",
@@ -201,7 +116,7 @@ PLAN_PROGRESS_ADD_TOOL = ckit_cloudtool.CloudTool(
 )
 
 
-PLAN_TEMPLATE_SCHEMA = _load_pdoc_schema("plan")
+PLAN_TEMPLATE_SCHEMA = fi_pdoc._load_pdoc_schema("plan")
 PLAN_SECTIONS = ["section01-input", "section02-draft-plan", "section03-progress", "section04-conclusion"]
 assert list(PLAN_TEMPLATE_SCHEMA.keys()) == PLAN_SECTIONS
 
@@ -310,7 +225,6 @@ async def handle_plan_progress_add(
 
 
 TOOLS = [
-    PDOC_FROM_SCHEMA_TOOL,
     *PLAN_UPDATE_SECTION_TOOLS,
     PLAN_PROGRESS_ADD_TOOL,
     fi_mongo_store.MONGO_STORE_TOOL,
@@ -327,10 +241,6 @@ async def boss_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.R
     setup = ckit_bot_exec.official_setup_mixing_procedure(boss_install.BOSS_SETUP_SCHEMA, rcx.persona.persona_setup)
     integr_objects = await ckit_integrations_db.main_loop_integrations_init(boss_install.BOSS_INTEGRATIONS, rcx, setup)
     pdoc_integration = integr_objects["flexus_policy_document"]
-
-    @rcx.on_tool_call(PDOC_FROM_SCHEMA_TOOL.name)
-    async def toolcall_pdoc_from_schema(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
-        return await handle_pdoc_from_schema(toolcall, model_produced_args, rcx, pdoc_integration)
 
     for plan_tool in PLAN_UPDATE_SECTION_TOOLS:
         @rcx.on_tool_call(plan_tool.name)
