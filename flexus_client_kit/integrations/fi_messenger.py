@@ -6,7 +6,8 @@ from flexus_client_kit import ckit_ask_model, ckit_bot_exec, ckit_bot_query, cki
 MESSENGER_PROMPT = """
 ## Messaging Platforms (Telegram, Slack, WhatsApp, Flexus Magic Desk, etc.)
 
-Incoming messages from these platforms appear as kanban tasks when not captured.
+Incoming messages from these platforms appear as kanban tasks when not captured. To sort inbox
+tasks correctly, join tasks that reflect messages coming from the same person, in the same channel.
 
 To start responding: capture the chat using the messenger tool with op="capture".
 Once captured, their messages appear here and your responses are sent back automatically.

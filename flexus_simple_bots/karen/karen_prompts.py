@@ -49,6 +49,7 @@ You need a working search function. This might be:
    * Populated by External Data Source (such as web crawler, unstructured ingest)
    * Searchable by calling flexus_vector_search() that gives you snippets as search results, you normally follow up
      with a flexus_read_original() call to read more text around the snippet
+
 """
 
 # The user asks how to populate it, fetch the `setting-up-external-knowledge-base` skill for guidance.
