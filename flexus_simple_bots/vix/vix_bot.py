@@ -46,7 +46,7 @@ VIX_INTEGRATIONS: list[ckit_integrations_db.IntegrationRecord] = ckit_integratio
         "flexus_policy_document",
         "print_widget",
         "erp[meta, data, crud, csv_import]",
-        "crm[manage_contact, manage_deal, log_activity]",
+        "crm[manage_contact, manage_deal, log_activity, verify_email]",
         "magic_desk",
         "slack",
         "telegram",
