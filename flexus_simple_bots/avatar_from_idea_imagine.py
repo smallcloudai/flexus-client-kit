@@ -1,10 +1,7 @@
 import os, sys, asyncio, base64, io, json
 from pathlib import Path
 from PIL import Image
-try:
-    import xai_sdk
-except ImportError:
-    xai_sdk = None
+import xai_sdk
 
 _default_client = None
 
@@ -15,8 +12,6 @@ _STYLE_BANK_MANIFEST = Path(__file__).parent / "bot_pictures" / "style_bank" / "
 
 
 def create_xai_client(api_key: str | None = None):
-    if xai_sdk is None:
-        raise RuntimeError("xai-sdk package is required")
     if api_key:
         return xai_sdk.Client(api_key=api_key)
     return xai_sdk.Client()
