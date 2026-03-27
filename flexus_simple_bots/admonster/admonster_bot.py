@@ -1,6 +1,8 @@
 import asyncio
+import json
 import logging
 import time
+from pathlib import Path
 from typing import Dict, Any
 
 from pymongo import AsyncMongoClient
@@ -12,11 +14,11 @@ from flexus_client_kit import ckit_shutdown
 from flexus_client_kit import ckit_mongo
 from flexus_client_kit import ckit_kanban
 from flexus_client_kit import ckit_integrations_db
+from flexus_client_kit import ckit_skills
 from flexus_client_kit.integrations import fi_mongo_store
 from flexus_client_kit.integrations import fi_linkedin
 from flexus_client_kit.integrations import fi_pdoc
 from flexus_client_kit.integrations.facebook.fi_facebook import IntegrationFacebook, FACEBOOK_TOOL
-from flexus_simple_bots.admonster import admonster_install
 from flexus_simple_bots.admonster import experiment_execution
 from flexus_simple_bots.version_common import SIMPLE_BOTS_COMMON_VERSION
 
@@ -27,12 +29,16 @@ BOT_VERSION = SIMPLE_BOTS_COMMON_VERSION
 BOT_VERSION_INT = ckit_client.marketplace_version_as_int(BOT_VERSION)
 ACCENT_COLOR = "#0077B5"
 
+ADMONSTER_ROOTDIR = Path(__file__).parent
+ADMONSTER_SKILLS = ckit_skills.static_skills_find(ADMONSTER_ROOTDIR, shared_skills_allowlist="")
+ADMONSTER_SETUP_SCHEMA = json.loads((ADMONSTER_ROOTDIR / "setup_schema.json").read_text())
+
 ADMONSTER_INTEGRATIONS: list[ckit_integrations_db.IntegrationRecord] = ckit_integrations_db.static_integrations_load(
-    admonster_install.ADMONSTER_ROOTDIR,
+    ADMONSTER_ROOTDIR,
     allowlist=[
         "flexus_policy_document",
     ],
-    builtin_skills=admonster_install.ADMONSTER_SKILLS,
+    builtin_skills=ADMONSTER_SKILLS,
 )
 
 TOOLS = [
@@ -45,7 +51,7 @@ TOOLS = [
 
 
 async def admonster_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.RobotContext) -> None:
-    setup = ckit_bot_exec.official_setup_mixing_procedure(admonster_install.ADMONSTER_SETUP_SCHEMA, rcx.persona.persona_setup)
+    setup = ckit_bot_exec.official_setup_mixing_procedure(ADMONSTER_SETUP_SCHEMA, rcx.persona.persona_setup)
 
     integr_objects = await ckit_integrations_db.main_loop_integrations_init(ADMONSTER_INTEGRATIONS, rcx, setup)
     pdoc_integration: fi_pdoc.IntegrationPdoc = integr_objects["flexus_policy_document"]
@@ -116,6 +122,7 @@ async def admonster_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_e
 
 
 def main():
+    from flexus_simple_bots.admonster import admonster_install
     scenario_fn = ckit_bot_exec.parse_bot_args()
     fclient = ckit_client.FlexusClient(ckit_client.bot_service_name(BOT_NAME, BOT_VERSION), endpoint="/v1/jailed-bot")
 

@@ -1,20 +1,16 @@
 import asyncio
-import json
 import base64
-from pathlib import Path
 
 from flexus_client_kit import ckit_client
 from flexus_client_kit import ckit_bot_install
 from flexus_client_kit import ckit_cloudtool
-from flexus_client_kit import ckit_skills
 
 from flexus_simple_bots import prompts_common
+from flexus_simple_bots.botticelli import botticelli_bot
 from flexus_simple_bots.botticelli import botticelli_prompts
 
 
-BOTTICELLI_ROOTDIR = Path(__file__).parent
-BOTTICELLI_SKILLS = ckit_skills.static_skills_find(BOTTICELLI_ROOTDIR, shared_skills_allowlist="")
-BOTTICELLI_SETUP_SCHEMA = json.loads((BOTTICELLI_ROOTDIR / "setup_schema.json").read_text())
+TOOL_NAMESET = {t.name for t in botticelli_bot.TOOLS}
 
 
 BOT_DESCRIPTION = """
@@ -49,7 +45,7 @@ EXPERTS = [
     ("default", ckit_bot_install.FMarketplaceExpertInput(
         fexp_system_prompt=botticelli_prompts.botticelli_prompt,
         fexp_python_kernel=BOTTICELLI_DEFAULT_LARK,
-        fexp_allow_tools=",".join(ckit_cloudtool.CLOUDTOOLS_QUITE_A_LOT),
+        fexp_allow_tools=",".join(TOOL_NAMESET | ckit_cloudtool.CLOUDTOOLS_QUITE_A_LOT),
         fexp_description="Creates ad campaign pictures using style guides. Manages company style guides and generates images with picturegen().",
     )),
     ("meta_ads_creative", ckit_bot_install.FMarketplaceExpertInput(
@@ -66,8 +62,8 @@ async def install(
     bot_version: str,
     tools: list[ckit_cloudtool.CloudTool],
 ):
-    pic_big = base64.b64encode((BOTTICELLI_ROOTDIR / "botticelli-1024x1536.webp").read_bytes()).decode("ascii")
-    pic_small = base64.b64encode((BOTTICELLI_ROOTDIR / "botticelli-256x256.webp").read_bytes()).decode("ascii")
+    pic_big = base64.b64encode((botticelli_bot.BOTTICELLI_ROOTDIR / "botticelli-1024x1536.webp").read_bytes()).decode("ascii")
+    pic_small = base64.b64encode((botticelli_bot.BOTTICELLI_ROOTDIR / "botticelli-256x256.webp").read_bytes()).decode("ascii")
     await ckit_bot_install.marketplace_upsert_dev_bot(
         client,
         ws_id=client.ws_id,
@@ -82,7 +78,7 @@ async def install(
         marketable_typical_group="Testing",
         marketable_github_repo="https://github.com/smallcloudai/flexus-client-kit.git",
         marketable_run_this="python -m flexus_simple_bots.botticelli.botticelli_bot",
-        marketable_setup_default=BOTTICELLI_SETUP_SCHEMA,
+        marketable_setup_default=botticelli_bot.BOTTICELLI_SETUP_SCHEMA,
         marketable_featured_actions=[],
         marketable_intro_message="Hello, I am Botticelli. I create high-converting Meta Ads creatives optimized with cognitive biases. Ready to generate stunning FB/IG ad campaigns?",
         marketable_preferred_model_default="grok-4-1-fast-non-reasoning",
@@ -99,6 +95,5 @@ async def install(
 
 
 if __name__ == "__main__":
-    from flexus_simple_bots.botticelli import botticelli_bot
     client = ckit_client.FlexusClient("botticelli_install")
     asyncio.run(install(client, bot_name=botticelli_bot.BOT_NAME, bot_version=botticelli_bot.BOT_VERSION, tools=botticelli_bot.TOOLS))

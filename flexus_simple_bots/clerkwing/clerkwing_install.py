@@ -1,20 +1,16 @@
 import asyncio
-import json
 import base64
-from pathlib import Path
 
 from flexus_client_kit import ckit_client
 from flexus_client_kit import ckit_bot_install
 from flexus_client_kit import ckit_cloudtool
-from flexus_client_kit import ckit_skills
 
 from flexus_simple_bots import prompts_common
+from flexus_simple_bots.clerkwing import clerkwing_bot
 from flexus_simple_bots.clerkwing import clerkwing_prompts
 
 
-CLERKWING_ROOTDIR = Path(__file__).parent
-CLERKWING_SKILLS = ckit_skills.static_skills_find(CLERKWING_ROOTDIR, shared_skills_allowlist="")
-CLERKWING_SETUP_SCHEMA = json.loads((CLERKWING_ROOTDIR / "setup_schema.json").read_text())
+TOOL_NAMESET = {t.name for t in clerkwing_bot.TOOLS}
 
 BOT_DESCRIPTION = """
 **Job description**
@@ -34,13 +30,13 @@ EXPERTS = [
     ("default", ckit_bot_install.FMarketplaceExpertInput(
         fexp_system_prompt=clerkwing_prompts.clerkwing_prompt,
         fexp_python_kernel="",
-        fexp_allow_tools=",".join(ckit_cloudtool.CLOUDTOOLS_QUITE_A_LOT),
+        fexp_allow_tools=",".join(TOOL_NAMESET | ckit_cloudtool.CLOUDTOOLS_QUITE_A_LOT),
         fexp_description="Main secretary assistant for managing email, calendar, and Jira tasks with proactive organization and helpful suggestions.",
     )),
     ("setup", ckit_bot_install.FMarketplaceExpertInput(
         fexp_system_prompt=clerkwing_prompts.clerkwing_setup,
         fexp_python_kernel="",
-        fexp_allow_tools=",".join(ckit_cloudtool.CLOUDTOOLS_ADVANCED),
+        fexp_allow_tools=",".join(TOOL_NAMESET | ckit_cloudtool.CLOUDTOOLS_ADVANCED),
         fexp_description="Configuration assistant for setting up Gmail, Google Calendar, and Jira OAuth connections.",
     )),
 ]
@@ -52,8 +48,8 @@ async def install(
     bot_version: str,
     tools: list[ckit_cloudtool.CloudTool],
 ):
-    pic_big = base64.b64encode((CLERKWING_ROOTDIR / "clerkwing-1024x1536.webp").read_bytes()).decode("ascii")
-    pic_small = base64.b64encode((CLERKWING_ROOTDIR / "clerkwing-256x256.webp").read_bytes()).decode("ascii")
+    pic_big = base64.b64encode((clerkwing_bot.CLERKWING_ROOTDIR / "clerkwing-1024x1536.webp").read_bytes()).decode("ascii")
+    pic_small = base64.b64encode((clerkwing_bot.CLERKWING_ROOTDIR / "clerkwing-256x256.webp").read_bytes()).decode("ascii")
 
     await ckit_bot_install.marketplace_upsert_dev_bot(
         client,
@@ -69,7 +65,7 @@ async def install(
         marketable_typical_group="Productivity",
         marketable_github_repo="https://github.com/smallcloudai/flexus-client-kit.git",
         marketable_run_this="python -m flexus_simple_bots.clerkwing.clerkwing_bot",
-        marketable_setup_default=CLERKWING_SETUP_SCHEMA,
+        marketable_setup_default=clerkwing_bot.CLERKWING_SETUP_SCHEMA,
         marketable_featured_actions=[
             {"feat_question": "Summarize my unread emails", "feat_expert": "default", "feat_depends_on_setup": []},
             {"feat_question": "What's on my calendar today?", "feat_expert": "default", "feat_depends_on_setup": []},
@@ -108,6 +104,5 @@ async def install(
 
 
 if __name__ == "__main__":
-    from flexus_simple_bots.clerkwing import clerkwing_bot
     client = ckit_client.FlexusClient("clerkwing_install")
     asyncio.run(install(client, bot_name=clerkwing_bot.BOT_NAME, bot_version=clerkwing_bot.BOT_VERSION, tools=clerkwing_bot.TOOLS))

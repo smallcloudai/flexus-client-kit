@@ -1,41 +1,17 @@
 import asyncio
-import json
 import base64
-from pathlib import Path
 
 from flexus_client_kit import ckit_client
 from flexus_client_kit import ckit_bot_install
 from flexus_client_kit import ckit_cloudtool
-from flexus_client_kit import ckit_integrations_db
 from flexus_client_kit import ckit_skills
-from flexus_client_kit.integrations import fi_slack
-from flexus_client_kit.integrations import fi_discord2
-from flexus_client_kit.integrations import fi_mcp
 
 from flexus_simple_bots import prompts_common
+from flexus_simple_bots.karen import karen_bot
 from flexus_simple_bots.karen import karen_prompts
 
 
-KAREN_ROOTDIR = Path(__file__).parent
-KAREN_SKILLS = ckit_skills.static_skills_find(KAREN_ROOTDIR, shared_skills_allowlist="setting-up-external-knowledge-base")
-KAREN_MCPS = []
-KAREN_SETUP_SCHEMA = json.loads((KAREN_ROOTDIR / "setup_schema.json").read_text())
-KAREN_SETUP_SCHEMA += fi_discord2.DISCORD_SETUP_SCHEMA
-KAREN_SETUP_SCHEMA.extend(fi_mcp.mcp_setup_schema(KAREN_MCPS))
-
-KAREN_INTEGRATIONS: list[ckit_integrations_db.IntegrationRecord] = ckit_integrations_db.static_integrations_load(
-    KAREN_ROOTDIR,
-    allowlist=[
-        "flexus_policy_document",
-        "print_widget",
-        "slack",
-        "telegram",
-        "discord",
-        "skills",
-        "magic_desk",
-    ],
-    builtin_skills=KAREN_SKILLS,
-)
+TOOL_NAMESET = {t.name for t in karen_bot.TOOLS}
 
 
 KAREN_DESC = """
@@ -100,18 +76,18 @@ EXPERTS = [
     ("default", ckit_bot_install.FMarketplaceExpertInput(
         fexp_system_prompt=karen_prompts.karen_setup,
         fexp_python_kernel="",
-        fexp_allow_tools=",".join(ckit_cloudtool.CLOUDTOOLS_QUITE_A_LOT),
+        fexp_allow_tools=",".join(TOOL_NAMESET | ckit_cloudtool.CLOUDTOOLS_QUITE_A_LOT),
         fexp_inactivity_timeout=3600,
         fexp_description="Talks to a priviledged user, can set up data sources, change its own settings.",
-        fexp_builtin_skills=ckit_skills.read_name_description(KAREN_ROOTDIR, KAREN_SKILLS),
+        fexp_builtin_skills=ckit_skills.read_name_description(karen_bot.KAREN_ROOTDIR, karen_bot.KAREN_SKILLS),
     )),
     ("messages_triage", ckit_bot_install.FMarketplaceExpertInput(
         fexp_system_prompt=karen_prompts.short_prompt,
         fexp_python_kernel="",
-        fexp_allow_tools=",".join(ckit_cloudtool.CLOUDTOOLS_TRIAGE),
+        fexp_allow_tools=",".join(TOOL_NAMESET | ckit_cloudtool.CLOUDTOOLS_TRIAGE),
         fexp_inactivity_timeout=3600,
         fexp_description="Deals with untrusted messages in the inbox.",
-        fexp_builtin_skills=ckit_skills.read_name_description(KAREN_ROOTDIR, KAREN_SKILLS),
+        fexp_builtin_skills=ckit_skills.read_name_description(karen_bot.KAREN_ROOTDIR, karen_bot.KAREN_SKILLS),
     )),
     ("very_limited", ckit_bot_install.FMarketplaceExpertInput(
         fexp_system_prompt=karen_prompts.very_limited,
@@ -129,8 +105,8 @@ async def install(
     bot_version: str,
     tools: list[ckit_cloudtool.CloudTool],
 ):
-    pic_big = base64.b64encode((KAREN_ROOTDIR / "karen-1024x1536.webp").read_bytes()).decode("ascii")
-    pic_small = base64.b64encode((KAREN_ROOTDIR / "karen-256x256.webp").read_bytes()).decode("ascii")
+    pic_big = base64.b64encode((karen_bot.KAREN_ROOTDIR / "karen-1024x1536.webp").read_bytes()).decode("ascii")
+    pic_small = base64.b64encode((karen_bot.KAREN_ROOTDIR / "karen-256x256.webp").read_bytes()).decode("ascii")
     await ckit_bot_install.marketplace_upsert_dev_bot(
         client,
         ws_id=client.ws_id,
@@ -145,7 +121,7 @@ async def install(
         marketable_typical_group="Support",
         marketable_github_repo="https://github.com/smallcloudai/flexus-client-kit.git",
         marketable_run_this="python -m flexus_simple_bots.karen.karen_bot",
-        marketable_setup_default=KAREN_SETUP_SCHEMA,
+        marketable_setup_default=karen_bot.KAREN_SETUP_SCHEMA,
         marketable_featured_actions=[
             {"feat_question": "Collect/improve company info"},
             {"feat_question": "What people asked today?"},
@@ -154,7 +130,7 @@ async def install(
         marketable_preferred_model_default="gpt-5.4-nano",
         marketable_max_inprogress=10,
         marketable_experts=[(name, exp.filter_tools(tools)) for name, exp in EXPERTS],
-        add_integrations_into_expert_system_prompt=KAREN_INTEGRATIONS,
+        add_integrations_into_expert_system_prompt=karen_bot.KAREN_INTEGRATIONS,
         marketable_tags=["Customer Support"],
         marketable_picture_big_b64=pic_big,
         marketable_picture_small_b64=pic_small,
@@ -182,6 +158,5 @@ async def install(
 
 
 if __name__ == "__main__":
-    from flexus_simple_bots.karen import karen_bot
     client = ckit_client.FlexusClient("karen_install")
     asyncio.run(install(client, bot_name=karen_bot.BOT_NAME, bot_version=karen_bot.BOT_VERSION, tools=karen_bot.TOOLS))

@@ -1,5 +1,7 @@
 import asyncio
+import json
 import logging
+from pathlib import Path
 from typing import Dict, Any
 
 from pymongo import AsyncMongoClient
@@ -12,8 +14,8 @@ from flexus_client_kit import ckit_ask_model
 from flexus_client_kit import ckit_mongo
 from flexus_client_kit import ckit_kanban
 from flexus_client_kit import ckit_integrations_db
+from flexus_client_kit import ckit_skills
 from flexus_client_kit.integrations import fi_mongo_store
-from flexus_simple_bots.lawyerrat import lawyerrat_install
 from flexus_simple_bots.version_common import SIMPLE_BOTS_COMMON_VERSION
 
 logger = logging.getLogger("bot_lawyerrat")
@@ -22,9 +24,13 @@ logger = logging.getLogger("bot_lawyerrat")
 BOT_NAME = "lawyerrat"
 BOT_VERSION = SIMPLE_BOTS_COMMON_VERSION
 
+LAWYERRAT_ROOTDIR = Path(__file__).parent
+LAWYERRAT_SKILLS = ckit_skills.static_skills_find(LAWYERRAT_ROOTDIR, shared_skills_allowlist="")
+LAWYERRAT_SETUP_SCHEMA = json.loads((LAWYERRAT_ROOTDIR / "setup_schema.json").read_text())
+
 
 LAWYERRAT_INTEGRATIONS: list[ckit_integrations_db.IntegrationRecord] = ckit_integrations_db.static_integrations_load(
-    lawyerrat_install.LAWYERRAT_ROOTDIR,
+    LAWYERRAT_ROOTDIR,
     allowlist=[
         "flexus_policy_document",
         "print_widget",
@@ -107,7 +113,7 @@ TOOLS = [
 
 
 async def lawyerrat_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.RobotContext) -> None:
-    setup = ckit_bot_exec.official_setup_mixing_procedure(lawyerrat_install.LAWYERRAT_SETUP_SCHEMA, rcx.persona.persona_setup)
+    setup = ckit_bot_exec.official_setup_mixing_procedure(LAWYERRAT_SETUP_SCHEMA, rcx.persona.persona_setup)
     integr_objects = await ckit_integrations_db.main_loop_integrations_init(LAWYERRAT_INTEGRATIONS, rcx, setup)
 
     mongo_conn_str = await ckit_mongo.mongo_fetch_creds(fclient, rcx.persona.persona_id)
@@ -315,6 +321,7 @@ Provide a structured risk assessment including:
 
 
 def main():
+    from flexus_simple_bots.lawyerrat import lawyerrat_install
     scenario_fn = ckit_bot_exec.parse_bot_args()
     fclient = ckit_client.FlexusClient(ckit_client.bot_service_name(BOT_NAME, BOT_VERSION), endpoint="/v1/jailed-bot")
 

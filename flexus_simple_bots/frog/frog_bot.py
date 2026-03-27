@@ -17,12 +17,12 @@ from flexus_client_kit import ckit_kanban
 
 from flexus_client_kit import erp_schema
 from flexus_client_kit import ckit_integrations_db
+from flexus_client_kit import ckit_skills
 from flexus_client_kit.integrations import fi_mongo_store
 from flexus_client_kit.integrations import fi_mcp
 from flexus_client_kit.integrations import fi_pdoc
 from flexus_client_kit.integrations import fi_telegram
 from flexus_client_kit.integrations import fi_slack
-from flexus_simple_bots.frog import frog_install
 from flexus_simple_bots.version_common import SIMPLE_BOTS_COMMON_VERSION
 
 logger = logging.getLogger("bot_frog")
@@ -30,6 +30,25 @@ logger = logging.getLogger("bot_frog")
 
 BOT_NAME = "frog"
 BOT_VERSION = SIMPLE_BOTS_COMMON_VERSION
+
+FROG_ROOTDIR = Path(__file__).parent
+FROG_SKILLS: list[str] = ckit_skills.static_skills_find(FROG_ROOTDIR, shared_skills_allowlist="*")
+FROG_MCPS = ["context7"]
+FROG_SETUP_SCHEMA = json.loads((FROG_ROOTDIR / "setup_schema.json").read_text())
+FROG_SETUP_SCHEMA.extend(fi_mcp.mcp_setup_schema(FROG_MCPS))
+
+FROG_INTEGRATIONS: list[ckit_integrations_db.IntegrationRecord] = ckit_integrations_db.static_integrations_load(
+    FROG_ROOTDIR,
+    allowlist=[
+        "flexus_policy_document",
+        "print_widget",
+        "gmail",
+        "telegram",
+        "slack",
+        "skills"
+    ],
+    builtin_skills=FROG_SKILLS
+)
 
 RIBBIT_TOOL = ckit_cloudtool.CloudTool(
     strict=True,
@@ -97,18 +116,18 @@ TOOLS = [
     CATCH_INSECTS_TOOL,
     MAKE_POND_REPORT_TOOL,
     fi_mongo_store.MONGO_STORE_TOOL,
-    *[t for rec in frog_install.FROG_INTEGRATIONS for t in rec.integr_tools],
-    *fi_mcp.mcp_tools(frog_install.FROG_MCPS),
+    *[t for rec in FROG_INTEGRATIONS for t in rec.integr_tools],
+    *fi_mcp.mcp_tools(FROG_MCPS),
 ]
 
 
 async def frog_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.RobotContext) -> None:
-    setup = ckit_bot_exec.official_setup_mixing_procedure(frog_install.FROG_SETUP_SCHEMA, rcx.persona.persona_setup)
-    integr_objects = await ckit_integrations_db.main_loop_integrations_init(frog_install.FROG_INTEGRATIONS, rcx, setup)
+    setup = ckit_bot_exec.official_setup_mixing_procedure(FROG_SETUP_SCHEMA, rcx.persona.persona_setup)
+    integr_objects = await ckit_integrations_db.main_loop_integrations_init(FROG_INTEGRATIONS, rcx, setup)
     pdoc_integration: fi_pdoc.IntegrationPdoc = integr_objects["flexus_policy_document"]
     tg: fi_telegram.IntegrationTelegram = integr_objects["telegram"]
     sl: fi_slack.IntegrationSlack = integr_objects["slack"]
-    await fi_mcp.mcp_launch(frog_install.FROG_MCPS, rcx, setup)
+    await fi_mcp.mcp_launch(FROG_MCPS, rcx, setup)
 
     # Mongo store needs custom setup (bot-specific collection)
     mongo_conn_str = await ckit_mongo.mongo_fetch_creds(fclient, rcx.persona.persona_id)
@@ -229,6 +248,7 @@ async def frog_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.R
 
 
 def main():
+    from flexus_simple_bots.frog import frog_install
     scenario_fn = ckit_bot_exec.parse_bot_args()
     fclient = ckit_client.FlexusClient(ckit_client.bot_service_name(BOT_NAME, BOT_VERSION), endpoint="/v1/jailed-bot")
 

@@ -1,5 +1,7 @@
 import asyncio
+import json
 import logging
+from pathlib import Path
 from typing import Dict, Any
 
 from pymongo import AsyncMongoClient
@@ -10,9 +12,9 @@ from flexus_client_kit import ckit_bot_exec
 from flexus_client_kit import ckit_shutdown
 from flexus_client_kit import ckit_ask_model
 from flexus_client_kit import ckit_mongo
+from flexus_client_kit import ckit_skills
 from flexus_client_kit.integrations import fi_mongo_store
 from flexus_client_kit.integrations import fi_postgres
-from flexus_simple_bots.slonik import slonik_install
 from flexus_simple_bots.version_common import SIMPLE_BOTS_COMMON_VERSION
 
 logger = logging.getLogger("bot_slonik")
@@ -20,6 +22,10 @@ logger = logging.getLogger("bot_slonik")
 
 BOT_NAME = "slonik"
 BOT_VERSION = SIMPLE_BOTS_COMMON_VERSION
+
+SLONIK_ROOTDIR = Path(__file__).parent
+SLONIK_SKILLS = ckit_skills.static_skills_find(SLONIK_ROOTDIR, shared_skills_allowlist="")
+SLONIK_SETUP_SCHEMA = json.loads((SLONIK_ROOTDIR / "setup_schema.json").read_text())
 
 ACCENT_COLOR = "#336791"
 
@@ -31,7 +37,7 @@ TOOLS = [
 
 
 async def slonik_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.RobotContext) -> None:
-    setup = ckit_bot_exec.official_setup_mixing_procedure(slonik_install.SLONIK_SETUP_SCHEMA, rcx.persona.persona_setup)
+    setup = ckit_bot_exec.official_setup_mixing_procedure(SLONIK_SETUP_SCHEMA, rcx.persona.persona_setup)
 
     mongo_conn_str = await ckit_mongo.mongo_fetch_creds(fclient, rcx.persona.persona_id)
     mongo = AsyncMongoClient(mongo_conn_str)
@@ -64,6 +70,7 @@ async def slonik_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec
 
 
 def main():
+    from flexus_simple_bots.slonik import slonik_install
     scenario_fn = ckit_bot_exec.parse_bot_args()
     fclient = ckit_client.FlexusClient(ckit_client.bot_service_name(BOT_NAME, BOT_VERSION), endpoint="/v1/jailed-bot")
 

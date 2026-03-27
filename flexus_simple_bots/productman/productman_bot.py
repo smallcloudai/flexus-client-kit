@@ -12,10 +12,10 @@ from flexus_client_kit import ckit_bot_exec
 from flexus_client_kit import ckit_shutdown
 from flexus_client_kit import ckit_ask_model
 from flexus_client_kit import ckit_scenario
+from flexus_client_kit import ckit_skills
 
 from flexus_client_kit import ckit_integrations_db
 from flexus_client_kit.integrations import fi_pdoc
-from flexus_simple_bots.productman import productman_install
 from flexus_simple_bots.productman import productman_prompts
 from flexus_simple_bots.productman.integrations import survey_research
 from flexus_simple_bots.version_common import SIMPLE_BOTS_COMMON_VERSION
@@ -26,8 +26,12 @@ logger = logging.getLogger("bot_productman")
 BOT_NAME = "productman"
 BOT_VERSION = SIMPLE_BOTS_COMMON_VERSION
 
+PRODUCTMAN_ROOTDIR = Path(__file__).parent
+PRODUCTMAN_SKILLS = ckit_skills.static_skills_find(PRODUCTMAN_ROOTDIR, shared_skills_allowlist="")
+PRODUCTMAN_SETUP_SCHEMA = json.loads((PRODUCTMAN_ROOTDIR / "setup_schema.json").read_text())
+
 PRODUCTMAN_INTEGRATIONS: list[ckit_integrations_db.IntegrationRecord] = ckit_integrations_db.static_integrations_load(
-    productman_install.PRODUCTMAN_ROOTDIR,
+    PRODUCTMAN_ROOTDIR,
     allowlist=["flexus_policy_document"],
     builtin_skills=[],
 )
@@ -192,7 +196,7 @@ TOOLS_ALL = [
 
 
 async def productman_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.RobotContext) -> None:
-    setup = ckit_bot_exec.official_setup_mixing_procedure(productman_install.PRODUCTMAN_SETUP_SCHEMA, rcx.persona.persona_setup)
+    setup = ckit_bot_exec.official_setup_mixing_procedure(PRODUCTMAN_SETUP_SCHEMA, rcx.persona.persona_setup)
     integr_objects = await ckit_integrations_db.main_loop_integrations_init(PRODUCTMAN_INTEGRATIONS, rcx, setup)
     pdoc_integration: fi_pdoc.IntegrationPdoc = integr_objects["flexus_policy_document"]
 
@@ -347,6 +351,7 @@ async def productman_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_
 
 
 def main():
+    from flexus_simple_bots.productman import productman_install
     scenario_fn = ckit_bot_exec.parse_bot_args()
     fclient = ckit_client.FlexusClient(ckit_client.bot_service_name(BOT_NAME, BOT_VERSION), endpoint="/v1/jailed-bot")
 

@@ -1,5 +1,7 @@
 import asyncio
+import json
 import logging
+from pathlib import Path
 
 from flexus_client_kit import ckit_client
 from flexus_client_kit import ckit_bot_exec
@@ -7,7 +9,7 @@ from flexus_client_kit import ckit_shutdown
 from flexus_client_kit import ckit_ask_model
 from flexus_client_kit import ckit_kanban
 from flexus_client_kit import ckit_integrations_db
-from flexus_simple_bots.clerkwing import clerkwing_install
+from flexus_client_kit import ckit_skills
 from flexus_simple_bots.version_common import SIMPLE_BOTS_COMMON_VERSION
 
 logger = logging.getLogger("clerk")
@@ -15,21 +17,25 @@ logger = logging.getLogger("clerk")
 BOT_NAME = "clerkwing"
 BOT_VERSION = SIMPLE_BOTS_COMMON_VERSION
 
+CLERKWING_ROOTDIR = Path(__file__).parent
+CLERKWING_SKILLS = ckit_skills.static_skills_find(CLERKWING_ROOTDIR, shared_skills_allowlist="")
+CLERKWING_SETUP_SCHEMA = json.loads((CLERKWING_ROOTDIR / "setup_schema.json").read_text())
+
 CLERKWING_INTEGRATIONS = ckit_integrations_db.static_integrations_load(
-    clerkwing_install.CLERKWING_ROOTDIR,
+    CLERKWING_ROOTDIR,
     allowlist=[
         "gmail",
         "google_calendar",
         "jira",
     ],
-    builtin_skills=clerkwing_install.CLERKWING_SKILLS,
+    builtin_skills=CLERKWING_SKILLS,
 )
 
 TOOLS = [*[t for rec in CLERKWING_INTEGRATIONS for t in rec.integr_tools]]
 
 
 async def clerkwing_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.RobotContext) -> None:
-    setup = ckit_bot_exec.official_setup_mixing_procedure(clerkwing_install.CLERKWING_SETUP_SCHEMA, rcx.persona.persona_setup)
+    setup = ckit_bot_exec.official_setup_mixing_procedure(CLERKWING_SETUP_SCHEMA, rcx.persona.persona_setup)
     await ckit_integrations_db.main_loop_integrations_init(CLERKWING_INTEGRATIONS, rcx, setup)
 
     @rcx.on_updated_task
@@ -45,6 +51,7 @@ async def clerkwing_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_e
 
 
 def main():
+    from flexus_simple_bots.clerkwing import clerkwing_install
     scenario_fn = ckit_bot_exec.parse_bot_args()
     fclient = ckit_client.FlexusClient(ckit_client.bot_service_name(BOT_NAME, BOT_VERSION), endpoint="/v1/jailed-bot")
 

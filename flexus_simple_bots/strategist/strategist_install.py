@@ -1,56 +1,23 @@
 import asyncio
 import base64
-import json
-from pathlib import Path
 
 from flexus_client_kit import ckit_bot_install
 from flexus_client_kit import ckit_client
 from flexus_client_kit import ckit_cloudtool
-from flexus_client_kit import ckit_integrations_db
 from flexus_client_kit import ckit_skills
 from flexus_simple_bots import prompts_common
+from flexus_simple_bots.strategist import strategist_bot
 from flexus_simple_bots.strategist import strategist_prompts
 
-STRATEGIST_ROOTDIR = Path(__file__).parent
-STRATEGIST_SKILLS = ckit_skills.static_skills_find(STRATEGIST_ROOTDIR, shared_skills_allowlist="")
-STRATEGIST_SETUP_SCHEMA = json.loads((STRATEGIST_ROOTDIR / "setup_schema.json").read_text())
-
-STRATEGIST_INTEGRATIONS: list[ckit_integrations_db.IntegrationRecord] = ckit_integrations_db.static_integrations_load(
-    STRATEGIST_ROOTDIR,
-    [
-        "flexus_policy_document", "skills", "print_widget",
-        "linkedin",
-        # "chargebee",
-        # "crunchbase",
-        # "datadog",
-        # "ga4",
-        # "gnews",
-        # "google_ads",
-        # "launchdarkly",
-        # "meta",
-        # "mixpanel",
-        # "optimizely",
-        # "paddle",
-        # "pipedrive",
-        # "qualtrics",
-        # "recurly",
-        # "salesforce",
-        # "segment",
-        # "statsig",
-        # "surveymonkey",
-        # "typeform",
-        # "zendesk",
-    ],
-    builtin_skills=STRATEGIST_SKILLS,
-)
+TOOL_NAMESET = {t.name for t in strategist_bot.TOOLS}
 
 EXPERTS = [
     ("default", ckit_bot_install.FMarketplaceExpertInput(
         fexp_system_prompt=strategist_prompts.DEFAULT_PROMPT,
         fexp_python_kernel="",
-        fexp_allow_tools=",".join(ckit_cloudtool.CLOUDTOOLS_QUITE_A_LOT),
+        fexp_allow_tools=",".join(TOOL_NAMESET | ckit_cloudtool.CLOUDTOOLS_QUITE_A_LOT),
         fexp_description="GTM Strategy operator — hypothesis design, channel strategy, MVP scoping, validation criteria, positioning, messaging, offer design, and pricing decisions.",
-        fexp_builtin_skills=ckit_skills.read_name_description(STRATEGIST_ROOTDIR, STRATEGIST_SKILLS),
+        fexp_builtin_skills=ckit_skills.read_name_description(strategist_bot.STRATEGIST_ROOTDIR, strategist_bot.STRATEGIST_SKILLS),
     )),
 ]
 
@@ -61,8 +28,8 @@ async def install(
     bot_version: str,
     tools: list[ckit_cloudtool.CloudTool],
 ) -> None:
-    pic_big = base64.b64encode((STRATEGIST_ROOTDIR / "strategist-1024x1536.webp").read_bytes()).decode("ascii")
-    pic_small = base64.b64encode((STRATEGIST_ROOTDIR / "strategist-256x256.webp").read_bytes()).decode("ascii")
+    pic_big = base64.b64encode((strategist_bot.STRATEGIST_ROOTDIR / "strategist-1024x1536.webp").read_bytes()).decode("ascii")
+    pic_small = base64.b64encode((strategist_bot.STRATEGIST_ROOTDIR / "strategist-256x256.webp").read_bytes()).decode("ascii")
     await ckit_bot_install.marketplace_upsert_dev_bot(
         client,
         ws_id=client.ws_id,
@@ -81,7 +48,7 @@ async def install(
         marketable_typical_group="GTM / Strategy",
         marketable_github_repo="https://github.com/smallcloudai/flexus-client-kit.git",
         marketable_run_this="python -m flexus_simple_bots.strategist.strategist_bot",
-        marketable_setup_default=STRATEGIST_SETUP_SCHEMA,
+        marketable_setup_default=strategist_bot.STRATEGIST_SETUP_SCHEMA,
         marketable_featured_actions=[
             {"feat_question": "Create strategy for my hypothesis", "feat_expert": "default", "feat_depends_on_setup": []},
             {"feat_question": "Design the smallest MVP scope that can test our core risk", "feat_expert": "default", "feat_depends_on_setup": []},
@@ -92,7 +59,7 @@ async def install(
         marketable_daily_budget_default=100_000,
         marketable_default_inbox_default=10_000,
         marketable_experts=[(name, exp.filter_tools(tools)) for name, exp in EXPERTS],
-        add_integrations_into_expert_system_prompt=STRATEGIST_INTEGRATIONS,
+        add_integrations_into_expert_system_prompt=strategist_bot.STRATEGIST_INTEGRATIONS,
         marketable_tags=["GTM", "Strategy", "Experiments", "Growth"],
         marketable_schedule=[prompts_common.SCHED_PICK_ONE_5M | {"sched_when": "EVERY:1m"}],
         marketable_picture_big_b64=pic_big,
@@ -106,6 +73,5 @@ async def install(
 
 
 if __name__ == "__main__":
-    from flexus_simple_bots.strategist import strategist_bot
     client = ckit_client.FlexusClient("strategist_install")
     asyncio.run(install(client, bot_name=strategist_bot.BOT_NAME, bot_version=strategist_bot.BOT_VERSION, tools=strategist_bot.TOOLS))

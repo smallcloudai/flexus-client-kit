@@ -1,20 +1,16 @@
 import asyncio
-import json
 import base64
-from pathlib import Path
 
 from flexus_client_kit import ckit_client
 from flexus_client_kit import ckit_bot_install
 from flexus_client_kit import ckit_cloudtool
-from flexus_client_kit import ckit_skills
 
 from flexus_simple_bots import prompts_common
+from flexus_simple_bots.lawyerrat import lawyerrat_bot
 from flexus_simple_bots.lawyerrat import lawyerrat_prompts
 
 
-LAWYERRAT_ROOTDIR = Path(__file__).parent
-LAWYERRAT_SKILLS = ckit_skills.static_skills_find(LAWYERRAT_ROOTDIR, shared_skills_allowlist="")
-LAWYERRAT_SETUP_SCHEMA = json.loads((LAWYERRAT_ROOTDIR / "setup_schema.json").read_text())
+TOOL_NAMESET = {t.name for t in lawyerrat_bot.TOOLS}
 
 BOT_DESCRIPTION = """
 **Job description**
@@ -89,13 +85,13 @@ EXPERTS = [
     ("default", ckit_bot_install.FMarketplaceExpertInput(
         fexp_system_prompt=lawyerrat_prompts.lawyerrat_prompt,
         fexp_python_kernel=LAWYERRAT_DEFAULT_LARK,
-        fexp_allow_tools=",".join(ckit_cloudtool.CLOUDTOOLS_QUITE_A_LOT),
+        fexp_allow_tools=",".join(TOOL_NAMESET | ckit_cloudtool.CLOUDTOOLS_QUITE_A_LOT),
         fexp_description="Main legal assistant for research, document drafting, and contract analysis.",
     )),
     ("setup", ckit_bot_install.FMarketplaceExpertInput(
         fexp_system_prompt=lawyerrat_prompts.lawyerrat_setup,
         fexp_python_kernel=LAWYERRAT_DEFAULT_LARK,
-        fexp_allow_tools=",".join(ckit_cloudtool.CLOUDTOOLS_ADVANCED),
+        fexp_allow_tools=",".join(TOOL_NAMESET | ckit_cloudtool.CLOUDTOOLS_ADVANCED),
         fexp_description="Setup assistant for configuring legal specialty, formality, and jurisdiction.",
     )),
     ("contract_review", ckit_bot_install.FMarketplaceExpertInput(
@@ -131,8 +127,8 @@ async def install(
     bot_version: str,
     tools: list[ckit_cloudtool.CloudTool],
 ):
-    pic_big = base64.b64encode((LAWYERRAT_ROOTDIR / "lawyerrat-1024x1536.webp").read_bytes()).decode("ascii")
-    pic_small = base64.b64encode((LAWYERRAT_ROOTDIR / "lawyerrat-256x256.webp").read_bytes()).decode("ascii")
+    pic_big = base64.b64encode((lawyerrat_bot.LAWYERRAT_ROOTDIR / "lawyerrat-1024x1536.webp").read_bytes()).decode("ascii")
+    pic_small = base64.b64encode((lawyerrat_bot.LAWYERRAT_ROOTDIR / "lawyerrat-256x256.webp").read_bytes()).decode("ascii")
 
     await ckit_bot_install.marketplace_upsert_dev_bot(
         client,
@@ -148,7 +144,7 @@ async def install(
         marketable_typical_group="Legal / Professional",
         marketable_github_repo="https://github.com/smallcloudai/flexus-client-kit.git",
         marketable_run_this="python -m flexus_simple_bots.lawyerrat.lawyerrat_bot",
-        marketable_setup_default=LAWYERRAT_SETUP_SCHEMA,
+        marketable_setup_default=lawyerrat_bot.LAWYERRAT_SETUP_SCHEMA,
         marketable_featured_actions=[
             {"feat_question": "Research contract law basics", "feat_expert": "default", "feat_depends_on_setup": []},
             {"feat_question": "Draft a simple NDA", "feat_expert": "default", "feat_depends_on_setup": []},
@@ -171,6 +167,5 @@ async def install(
 
 
 if __name__ == "__main__":
-    from flexus_simple_bots.lawyerrat import lawyerrat_bot
     client = ckit_client.FlexusClient("lawyerrat_install")
     asyncio.run(install(client, bot_name=lawyerrat_bot.BOT_NAME, bot_version=lawyerrat_bot.BOT_VERSION, tools=lawyerrat_bot.TOOLS))

@@ -1,25 +1,21 @@
 import asyncio
-import json
 import base64
-from pathlib import Path
 
 from flexus_client_kit import ckit_client
 from flexus_client_kit import ckit_bot_install
 from flexus_client_kit import ckit_cloudtool
-from flexus_client_kit import ckit_skills
 
+from flexus_simple_bots.slonik import slonik_bot
 from flexus_simple_bots.slonik import slonik_prompts
 
 
-SLONIK_ROOTDIR = Path(__file__).parent
-SLONIK_SKILLS = ckit_skills.static_skills_find(SLONIK_ROOTDIR, shared_skills_allowlist="")
-SLONIK_SETUP_SCHEMA = json.loads((SLONIK_ROOTDIR / "setup_schema.json").read_text())
+TOOL_NAMESET = {t.name for t in slonik_bot.TOOLS}
 
 EXPERTS = [
     ("default", ckit_bot_install.FMarketplaceExpertInput(
         fexp_system_prompt=slonik_prompts.slonik_prompt,
         fexp_python_kernel="",
-        fexp_allow_tools=",".join(ckit_cloudtool.CLOUDTOOLS_PYTHON | ckit_cloudtool.CLOUDTOOLS_SAFE),
+        fexp_allow_tools=",".join(TOOL_NAMESET | ckit_cloudtool.CLOUDTOOLS_QUITE_A_LOT),
         fexp_description="PostgreSQL assistant that helps run queries, analyze data, and troubleshoot database connections using psql.",
     )),
 ]
@@ -30,8 +26,8 @@ async def install(
     bot_version: str,
     tools: list[ckit_cloudtool.CloudTool],
 ):
-    pic_big = base64.b64encode((SLONIK_ROOTDIR / "slonik-1024x1536.webp").read_bytes()).decode("ascii")
-    pic_small = base64.b64encode((SLONIK_ROOTDIR / "slonik-256x256.webp").read_bytes()).decode("ascii")
+    pic_big = base64.b64encode((slonik_bot.SLONIK_ROOTDIR / "slonik-1024x1536.webp").read_bytes()).decode("ascii")
+    pic_small = base64.b64encode((slonik_bot.SLONIK_ROOTDIR / "slonik-256x256.webp").read_bytes()).decode("ascii")
 
     await ckit_bot_install.marketplace_upsert_dev_bot(
         client,
@@ -47,7 +43,7 @@ async def install(
         marketable_typical_group="Admin Tools",
         marketable_github_repo="https://github.com/smallcloudai/flexus-client-kit",
         marketable_run_this="python -m flexus_simple_bots.slonik.slonik_bot",
-        marketable_setup_default=SLONIK_SETUP_SCHEMA,
+        marketable_setup_default=slonik_bot.SLONIK_SETUP_SCHEMA,
         marketable_featured_actions=[
             {"feat_question": "Test whether database connection works", "feat_expert": "default", "feat_depends_on_setup": []},
             {"feat_question": "Analyze database performance", "feat_expert": "default", "feat_depends_on_setup": []},
@@ -64,6 +60,5 @@ async def install(
 
 
 if __name__ == "__main__":
-    from flexus_simple_bots.slonik import slonik_bot
     client = ckit_client.FlexusClient("slonik_install")
     asyncio.run(install(client, bot_name=slonik_bot.BOT_NAME, bot_version=slonik_bot.BOT_VERSION, tools=slonik_bot.TOOLS))

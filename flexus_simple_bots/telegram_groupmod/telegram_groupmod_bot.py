@@ -6,6 +6,7 @@ import time
 from dataclasses import asdict
 from datetime import datetime
 from typing import Dict, Any, List
+from pathlib import Path
 from zoneinfo import ZoneInfo
 
 from pymongo import AsyncMongoClient
@@ -15,16 +16,20 @@ from flexus_client_kit import ckit_cloudtool
 from flexus_client_kit import ckit_bot_exec
 from flexus_client_kit import ckit_kanban
 from flexus_client_kit import ckit_shutdown
+from flexus_client_kit import ckit_skills
 from flexus_client_kit import ckit_mongo
 from flexus_client_kit.integrations import fi_telegram
 from flexus_client_kit.integrations import fi_mongo_store
-from flexus_simple_bots.telegram_groupmod import telegram_groupmod_install
 from flexus_simple_bots.version_common import SIMPLE_BOTS_COMMON_VERSION
 
 logger = logging.getLogger("telegram_groupmod")
 
 BOT_NAME = "telegram_groupmod"
 BOT_VERSION = SIMPLE_BOTS_COMMON_VERSION
+
+TELEGRAM_GROUPMOD_ROOTDIR = Path(__file__).parent
+TELEGRAM_GROUPMOD_SKILLS = ckit_skills.static_skills_find(TELEGRAM_GROUPMOD_ROOTDIR, shared_skills_allowlist="")
+TELEGRAM_GROUPMOD_SETUP_SCHEMA = json.loads((TELEGRAM_GROUPMOD_ROOTDIR / "setup_schema.json").read_text())
 
 BUFFER_MAX_KB = 128
 MESSAGE_MAX_KB = 50
@@ -151,7 +156,7 @@ async def telegram_groupmod_main_loop(
     rcx: ckit_bot_exec.RobotContext,
 ) -> None:
     setup = ckit_bot_exec.official_setup_mixing_procedure(
-        telegram_groupmod_install.TELEGRAM_GROUPMOD_SETUP_SCHEMA,
+        TELEGRAM_GROUPMOD_SETUP_SCHEMA,
         rcx.persona.persona_setup,
     )
 
@@ -578,6 +583,7 @@ async def telegram_groupmod_main_loop(
 
 
 def main():
+    from flexus_simple_bots.telegram_groupmod import telegram_groupmod_install
     scenario_fn = ckit_bot_exec.parse_bot_args()
     fclient = ckit_client.FlexusClient(
         ckit_client.bot_service_name(BOT_NAME, BOT_VERSION),

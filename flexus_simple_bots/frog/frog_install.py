@@ -1,37 +1,17 @@
 import asyncio
 import base64
-import json
-from pathlib import Path
 
-from flexus_client_kit import ckit_client, ckit_bot_install, ckit_cloudtool
+from flexus_client_kit import ckit_client
+from flexus_client_kit import ckit_bot_install
+from flexus_client_kit import ckit_cloudtool
 from flexus_client_kit import ckit_skills
-from flexus_client_kit import ckit_integrations_db
-from flexus_client_kit.integrations import fi_mcp
+
 from flexus_simple_bots import prompts_common
+from flexus_simple_bots.frog import frog_bot
 from flexus_simple_bots.frog import frog_prompts
 
 
-FROG_ROOTDIR = Path(__file__).parent
-
-FROG_SKILLS: list[str] = ckit_skills.static_skills_find(FROG_ROOTDIR, shared_skills_allowlist="*")
-
-FROG_MCPS = ["context7"]
-
-FROG_SETUP_SCHEMA = json.loads((FROG_ROOTDIR / "setup_schema.json").read_text())
-FROG_SETUP_SCHEMA.extend(fi_mcp.mcp_setup_schema(FROG_MCPS))
-
-FROG_INTEGRATIONS: list[ckit_integrations_db.IntegrationRecord] = ckit_integrations_db.static_integrations_load(
-    FROG_ROOTDIR,
-    allowlist=[
-        "flexus_policy_document",
-        "print_widget",
-        "gmail",
-        "telegram",
-        "slack",
-        "skills"
-    ],
-    builtin_skills=FROG_SKILLS
-)
+TOOL_NAMESET = {t.name for t in frog_bot.TOOLS}
 
 FROG_SUBCHAT_LARK = """
 print("Ribbit in logs")     # will be visible in lark logs
@@ -54,9 +34,9 @@ EXPERTS = [
     ("default", ckit_bot_install.FMarketplaceExpertInput(
         fexp_system_prompt=frog_prompts.frog_prompt,
         fexp_python_kernel=FROG_DEFAULT_LARK,
-        fexp_allow_tools=",".join(ckit_cloudtool.CLOUDTOOLS_QUITE_A_LOT),
+        fexp_allow_tools=",".join(TOOL_NAMESET | ckit_cloudtool.CLOUDTOOLS_QUITE_A_LOT),
         fexp_description="Main conversational expert that handles user interactions, task management, and provides cheerful encouragement.",
-        fexp_builtin_skills=ckit_skills.read_name_description(FROG_ROOTDIR, FROG_SKILLS),
+        fexp_builtin_skills=ckit_skills.read_name_description(frog_bot.FROG_ROOTDIR, frog_bot.FROG_SKILLS),
     )),
     ("huntmode", ckit_bot_install.FMarketplaceExpertInput(
         fexp_system_prompt=frog_prompts.frog_prompt,
@@ -74,8 +54,8 @@ async def install(
     bot_version: str,
     tools: list[ckit_cloudtool.CloudTool],
 ):
-    pic_big = base64.b64encode((FROG_ROOTDIR / "frog-1024x1536.webp").read_bytes()).decode("ascii")
-    pic_small = base64.b64encode((FROG_ROOTDIR / "frog-256x256.webp").read_bytes()).decode("ascii")
+    pic_big = base64.b64encode((frog_bot.FROG_ROOTDIR / "frog-1024x1536.webp").read_bytes()).decode("ascii")
+    pic_small = base64.b64encode((frog_bot.FROG_ROOTDIR / "frog-256x256.webp").read_bytes()).decode("ascii")
     await ckit_bot_install.marketplace_upsert_dev_bot(
         client,
         ws_id=client.ws_id,
@@ -86,11 +66,11 @@ async def install(
         marketable_title2="A cheerful frog bot that brings joy and positivity to your workspace.",
         marketable_author="Flexus",
         marketable_occupation="Motivational Assistant",
-        marketable_description=(FROG_ROOTDIR / "README.md").read_text(),
+        marketable_description=(frog_bot.FROG_ROOTDIR / "README.md").read_text(),
         marketable_typical_group="Fun / Testing",
         marketable_github_repo="https://github.com/smallcloudai/flexus-client-kit.git",
         marketable_run_this="python -m flexus_simple_bots.frog.frog_bot",
-        marketable_setup_default=json.loads((FROG_ROOTDIR / "setup_schema.json").read_text()),
+        marketable_setup_default=frog_bot.FROG_SETUP_SCHEMA,
         marketable_featured_actions=[
             {"feat_question": "Ribbit! Tell me something fun", "feat_expert": "default", "feat_depends_on_setup": []},
             {"feat_question": "Give me a motivational boost", "feat_expert": "default", "feat_depends_on_setup": []},
@@ -98,7 +78,7 @@ async def install(
         marketable_intro_message="Ribbit! Hi there! I'm Frog, your cheerful workspace companion. I'm here to bring joy and keep your spirits high. What can I do for you today?",
         marketable_preferred_model_default="grok-4-1-fast-non-reasoning",
         marketable_experts=[(name, exp.filter_tools(tools)) for name, exp in EXPERTS],
-        add_integrations_into_expert_system_prompt=FROG_INTEGRATIONS,
+        add_integrations_into_expert_system_prompt=frog_bot.FROG_INTEGRATIONS,
         marketable_tags=["Fun", "Simple", "Motivational"],
         marketable_picture_big_b64=pic_big,
         marketable_picture_small_b64=pic_small,
@@ -121,6 +101,5 @@ async def install(
 
 
 if __name__ == "__main__":
-    from flexus_simple_bots.frog import frog_bot
     client = ckit_client.FlexusClient("frog_install")
     asyncio.run(install(client, bot_name=frog_bot.BOT_NAME, bot_version=frog_bot.BOT_VERSION, tools=frog_bot.TOOLS))

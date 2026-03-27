@@ -9,12 +9,11 @@ from pymongo import AsyncMongoClient
 from flexus_client_kit import ckit_bot_exec
 from flexus_client_kit import ckit_client
 from flexus_client_kit import ckit_cloudtool
-
 from flexus_client_kit import ckit_integrations_db
 from flexus_client_kit import ckit_mongo
 from flexus_client_kit import ckit_shutdown
+from flexus_client_kit import ckit_skills
 from flexus_client_kit.integrations import fi_mongo_store
-from flexus_simple_bots.executor import executor_install
 from flexus_simple_bots.version_common import SIMPLE_BOTS_COMMON_VERSION
 
 logger = logging.getLogger("bot_executor")
@@ -23,8 +22,22 @@ BOT_DIR = Path(__file__).parent
 BOT_NAME = "executor"
 BOT_VERSION = SIMPLE_BOTS_COMMON_VERSION
 
-
-EXECUTOR_INTEGRATIONS = executor_install.EXECUTOR_INTEGRATIONS
+EXECUTOR_ROOTDIR = Path(__file__).parent
+EXECUTOR_SKILLS = [
+    s for s in ckit_skills.static_skills_find(EXECUTOR_ROOTDIR, shared_skills_allowlist="")
+    if s != "botticelli"
+]
+EXECUTOR_SETUP_SCHEMA = json.loads((EXECUTOR_ROOTDIR / "setup_schema.json").read_text())
+EXECUTOR_INTEGRATIONS: list[ckit_integrations_db.IntegrationRecord] = ckit_integrations_db.static_integrations_load(
+    EXECUTOR_ROOTDIR,
+    [
+        "flexus_policy_document", "skills", "print_widget",
+        "linkedin",
+        "facebook[campaign, adset, ad, account]",
+        "google_calendar",
+    ],
+    builtin_skills=EXECUTOR_SKILLS,
+)
 
 WRITE_ARTIFACT_TOOL = ckit_cloudtool.CloudTool(
     strict=False,
@@ -55,7 +68,7 @@ TOOLS = [
 
 
 async def executor_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.RobotContext) -> None:
-    setup = ckit_bot_exec.official_setup_mixing_procedure(executor_install.EXECUTOR_SETUP_SCHEMA, rcx.persona.persona_setup)
+    setup = ckit_bot_exec.official_setup_mixing_procedure(EXECUTOR_SETUP_SCHEMA, rcx.persona.persona_setup)
     integr_objects = await ckit_integrations_db.main_loop_integrations_init(EXECUTOR_INTEGRATIONS, rcx, setup)
     pdoc_integration = integr_objects["flexus_policy_document"]
 
@@ -84,6 +97,7 @@ async def executor_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_ex
 
 
 def main():
+    from flexus_simple_bots.executor import executor_install
     scenario_fn = ckit_bot_exec.parse_bot_args()
     fclient = ckit_client.FlexusClient(ckit_client.bot_service_name(BOT_NAME, BOT_VERSION), endpoint="/v1/jailed-bot")
     asyncio.run(ckit_bot_exec.run_bots_in_this_group(

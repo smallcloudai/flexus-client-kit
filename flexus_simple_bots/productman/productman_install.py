@@ -1,16 +1,13 @@
 import asyncio
 import base64
-import json
-from pathlib import Path
 
-from flexus_client_kit import ckit_client, ckit_bot_install, ckit_cloudtool, ckit_skills
+from flexus_client_kit import ckit_client, ckit_bot_install, ckit_cloudtool
 from flexus_simple_bots import prompts_common
+from flexus_simple_bots.productman import productman_bot
 from flexus_simple_bots.productman import productman_prompts, productman_skill_survey
 
 
-PRODUCTMAN_ROOTDIR = Path(__file__).parent
-PRODUCTMAN_SKILLS = ckit_skills.static_skills_find(PRODUCTMAN_ROOTDIR, shared_skills_allowlist="")
-PRODUCTMAN_SETUP_SCHEMA = json.loads((PRODUCTMAN_ROOTDIR / "setup_schema.json").read_text())
+TOOL_NAMESET = {t.name for t in productman_bot.TOOLS_ALL}
 
 BOT_DESCRIPTION = """
 **Job description**
@@ -45,7 +42,7 @@ EXPERTS = [
     ("default", ckit_bot_install.FMarketplaceExpertInput(
         fexp_system_prompt=productman_prompts.productman_prompt_default,
         fexp_python_kernel="",
-        fexp_allow_tools=",".join(ckit_cloudtool.CLOUDTOOLS_QUITE_A_LOT),
+        fexp_allow_tools=",".join(TOOL_NAMESET | ckit_cloudtool.CLOUDTOOLS_QUITE_A_LOT),
         fexp_description="Guides product discovery via Socratic dialogue, validating ideas and generating customer hypotheses.",
     )),
     ("criticize_idea", ckit_bot_install.FMarketplaceExpertInput(
@@ -56,7 +53,7 @@ EXPERTS = [
     )),
     ("survey", ckit_bot_install.FMarketplaceExpertInput(
         fexp_system_prompt=productman_skill_survey.prompt,
-        fexp_python_kernel=(PRODUCTMAN_ROOTDIR / "lark/survey_skill_kernel.lark").read_text(),
+        fexp_python_kernel=(productman_bot.PRODUCTMAN_ROOTDIR / "lark/survey_skill_kernel.lark").read_text(),
         fexp_allow_tools="*bot_kanban",
         fexp_description="Executes survey campaigns to validate hypotheses with real customer feedback.",
     )),
@@ -69,8 +66,8 @@ async def install(
     bot_version: str,
     tools: list[ckit_cloudtool.CloudTool],
 ):
-    pic_big = base64.b64encode((PRODUCTMAN_ROOTDIR / "productman-1024x1536.webp").read_bytes()).decode("ascii")
-    pic_small = base64.b64encode((PRODUCTMAN_ROOTDIR / "productman-256x256.webp").read_bytes()).decode("ascii")
+    pic_big = base64.b64encode((productman_bot.PRODUCTMAN_ROOTDIR / "productman-1024x1536.webp").read_bytes()).decode("ascii")
+    pic_small = base64.b64encode((productman_bot.PRODUCTMAN_ROOTDIR / "productman-256x256.webp").read_bytes()).decode("ascii")
     await ckit_bot_install.marketplace_upsert_dev_bot(
         client,
         ws_id=client.ws_id,
@@ -85,7 +82,7 @@ async def install(
         marketable_typical_group="Product / Research",
         marketable_github_repo="https://github.com/smallcloudai/flexus-client-kit.git",
         marketable_run_this="python -m flexus_simple_bots.productman.productman_bot",
-        marketable_setup_default=PRODUCTMAN_SETUP_SCHEMA,
+        marketable_setup_default=productman_bot.PRODUCTMAN_SETUP_SCHEMA,
         marketable_featured_actions=[
             {"feat_question": "A1: Challenge my product idea", "feat_expert": "default", "feat_depends_on_setup": []},
             {"feat_question": "A2: Research and prioritize hypotheses", "feat_expert": "default", "feat_depends_on_setup": []},
@@ -106,6 +103,5 @@ async def install(
 
 
 if __name__ == "__main__":
-    from flexus_simple_bots.productman import productman_bot
     client = ckit_client.FlexusClient("productman_install")
     asyncio.run(install(client, bot_name=productman_bot.BOT_NAME, bot_version=productman_bot.BOT_VERSION, tools=productman_bot.TOOLS_ALL))

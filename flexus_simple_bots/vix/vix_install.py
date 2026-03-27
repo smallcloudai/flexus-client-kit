@@ -1,24 +1,17 @@
 import asyncio
 import base64
-import json
-from pathlib import Path
 
 from flexus_client_kit import ckit_client
 from flexus_client_kit import ckit_bot_install
 from flexus_client_kit import ckit_cloudtool
 from flexus_client_kit import ckit_skills
-from flexus_client_kit.integrations import fi_crm_automations
-from flexus_client_kit.integrations import fi_resend
-from flexus_client_kit.integrations import fi_slack
-from flexus_client_kit.integrations import fi_shopify
 
 from flexus_simple_bots import prompts_common
+from flexus_simple_bots.vix import vix_bot
 from flexus_simple_bots.vix import vix_prompts
 
 
-VIX_ROOTDIR = Path(__file__).parent
-VIX_SKILLS = ckit_skills.static_skills_find(VIX_ROOTDIR, shared_skills_allowlist="*")
-VIX_SKILLS_DEFAULT = ["stall-deals"]
+TOOL_NAMESET = {t.name for t in vix_bot.TOOLS}
 
 
 BOT_DESCRIPTION = """
@@ -51,23 +44,19 @@ Vix is an integrated sales and marketing agent who covers the full revenue cycle
 """
 
 
-VIX_SETUP_SCHEMA = json.loads((VIX_ROOTDIR / "setup_schema.json").read_text())
-VIX_SETUP_SCHEMA += fi_shopify.SHOPIFY_SETUP_SCHEMA + fi_crm_automations.CRM_AUTOMATIONS_SETUP_SCHEMA + fi_resend.RESEND_SETUP_SCHEMA + fi_slack.SLACK_SETUP_SCHEMA
-
-
 EXPERTS = [
     ("default", ckit_bot_install.FMarketplaceExpertInput(
         fexp_system_prompt=vix_prompts.vix_prompt_marketing,
         fexp_python_kernel="",
-        fexp_allow_tools=",".join(ckit_cloudtool.CLOUDTOOLS_QUITE_A_LOT),
+        fexp_allow_tools=",".join(TOOL_NAMESET | ckit_cloudtool.CLOUDTOOLS_QUITE_A_LOT),
         fexp_inactivity_timeout=3600,
         fexp_description="Marketing assistant for CRM management, contact import, automated outreach, and company/product setup.",
-        fexp_builtin_skills=ckit_skills.read_name_description(VIX_ROOTDIR, VIX_SKILLS_DEFAULT),
+        fexp_builtin_skills=ckit_skills.read_name_description(vix_bot.VIX_ROOTDIR, vix_bot.VIX_SKILLS_DEFAULT),
     )),
     ("sales", ckit_bot_install.FMarketplaceExpertInput(
         fexp_system_prompt=vix_prompts.vix_prompt_sales,
         fexp_python_kernel="",
-        fexp_allow_tools=",".join(ckit_cloudtool.CLOUDTOOLS_QUITE_A_LOT),
+        fexp_allow_tools=",".join(TOOL_NAMESET | ckit_cloudtool.CLOUDTOOLS_QUITE_A_LOT),
         fexp_inactivity_timeout=3600,
         fexp_description="Conducts sales conversations using C.L.O.S.E.R. Framework, qualifies leads with BANT, and handles objections with consultative approach.",
     )),
@@ -88,8 +77,8 @@ async def install(
     bot_version: str,
     tools: list[ckit_cloudtool.CloudTool],
 ):
-    pic_big = base64.b64encode((VIX_ROOTDIR / "vix-1024x1536.webp").read_bytes()).decode("ascii")
-    pic_small = base64.b64encode((VIX_ROOTDIR / "vix-256x256.webp").read_bytes()).decode("ascii")
+    pic_big = base64.b64encode((vix_bot.VIX_ROOTDIR / "vix-1024x1536.webp").read_bytes()).decode("ascii")
+    pic_small = base64.b64encode((vix_bot.VIX_ROOTDIR / "vix-256x256.webp").read_bytes()).decode("ascii")
     await ckit_bot_install.marketplace_upsert_dev_bot(
         client,
         ws_id=client.ws_id,
@@ -104,7 +93,7 @@ async def install(
         marketable_typical_group="Sales",
         marketable_github_repo="https://github.com/smallcloudai/flexus-client-kit.git",
         marketable_run_this="python -m flexus_simple_bots.vix.vix_bot",
-        marketable_setup_default=VIX_SETUP_SCHEMA,
+        marketable_setup_default=vix_bot.VIX_SETUP_SCHEMA,
         marketable_featured_actions=[
             {"feat_question": "Help me set up my company and sales pipeline", "feat_expert": "default", "feat_depends_on_setup": []},
             {"feat_question": "Help me send contacts from my landing page to Flexus", "feat_expert": "default", "feat_depends_on_setup": []},
@@ -142,6 +131,5 @@ async def install(
 
 
 if __name__ == "__main__":
-    from flexus_simple_bots.vix import vix_bot
     client = ckit_client.FlexusClient("vix_install")
     asyncio.run(install(client, bot_name=vix_bot.BOT_NAME, bot_version=vix_bot.BOT_VERSION, tools=vix_bot.TOOLS))

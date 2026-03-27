@@ -11,9 +11,10 @@ from flexus_client_kit import ckit_scenario
 from flexus_client_kit import ckit_bot_exec
 from flexus_client_kit import ckit_shutdown
 from flexus_client_kit import ckit_integrations_db
+from flexus_client_kit import ckit_skills
 from flexus_client_kit.integrations import fi_mongo_store
 from flexus_client_kit.integrations import fi_pdoc
-from flexus_simple_bots.boss import boss_install
+from flexus_client_kit.integrations import fi_slack
 from flexus_simple_bots.version_common import SIMPLE_BOTS_COMMON_VERSION
 
 logger = logging.getLogger("bot_boss")
@@ -21,6 +22,24 @@ logger = logging.getLogger("bot_boss")
 
 BOT_NAME = "boss"
 BOT_VERSION = SIMPLE_BOTS_COMMON_VERSION
+
+BOSS_ROOTDIR = Path(__file__).parent
+BOSS_SKILLS = ckit_skills.static_skills_find(BOSS_ROOTDIR, shared_skills_allowlist="")
+BOSS_SETUP_SCHEMA = json.loads((BOSS_ROOTDIR / "setup_schema.json").read_text())
+BOSS_SETUP_SCHEMA += fi_slack.SLACK_SETUP_SCHEMA
+
+BOSS_INTEGRATIONS: list[ckit_integrations_db.IntegrationRecord] = ckit_integrations_db.static_integrations_load(
+    BOSS_ROOTDIR,
+    allowlist=[
+        "flexus_policy_document",
+        "print_widget",
+        "slack",
+        "telegram",
+        "erp[meta, data]",
+        "skills",
+    ],
+    builtin_skills=BOSS_SKILLS,
+)
 
 
 MARKETPLACE_SEARCH_TOOL = ckit_cloudtool.CloudTool(
@@ -224,7 +243,7 @@ async def handle_plan_progress_add(
     return f"✍️ {path}\nmd5={upd.md5_found}\n\nAppended to {field}"
 
 
-TOOLS = [
+BOSS_LOCAL_TOOLS = [
     *PLAN_UPDATE_SECTION_TOOLS,
     PLAN_PROGRESS_ADD_TOOL,
     fi_mongo_store.MONGO_STORE_TOOL,
@@ -233,13 +252,17 @@ TOOLS = [
     MARKETPLACE_HIRE_OR_FIRE_TOOL,
     BOSS_SETUP_COLLEAGUES_TOOL,
     BOSS_TREE_FETCH_TOOL,
-    *[t for rec in boss_install.BOSS_INTEGRATIONS for t in rec.integr_tools],
+]
+
+TOOLS = [
+    *BOSS_LOCAL_TOOLS,
+    *[t for rec in BOSS_INTEGRATIONS for t in rec.integr_tools],
 ]
 
 
 async def boss_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.RobotContext) -> None:
-    setup = ckit_bot_exec.official_setup_mixing_procedure(boss_install.BOSS_SETUP_SCHEMA, rcx.persona.persona_setup)
-    integr_objects = await ckit_integrations_db.main_loop_integrations_init(boss_install.BOSS_INTEGRATIONS, rcx, setup)
+    setup = ckit_bot_exec.official_setup_mixing_procedure(BOSS_SETUP_SCHEMA, rcx.persona.persona_setup)
+    integr_objects = await ckit_integrations_db.main_loop_integrations_init(BOSS_INTEGRATIONS, rcx, setup)
     pdoc_integration = integr_objects["flexus_policy_document"]
 
     for plan_tool in PLAN_UPDATE_SECTION_TOOLS:
@@ -412,6 +435,7 @@ async def boss_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.R
 
 
 def main():
+    from flexus_simple_bots.boss import boss_install
     scenario_fn = ckit_bot_exec.parse_bot_args()
     fclient = ckit_client.FlexusClient(ckit_client.bot_service_name(BOT_NAME, BOT_VERSION), endpoint="/v1/jailed-bot")
 

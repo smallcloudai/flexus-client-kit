@@ -1,16 +1,13 @@
 import asyncio
 import base64
-import json
-from pathlib import Path
 
-from flexus_client_kit import ckit_bot_install, ckit_client, ckit_cloudtool, ckit_skills
+from flexus_client_kit import ckit_bot_install, ckit_client, ckit_cloudtool
 from flexus_simple_bots import prompts_common
+from flexus_simple_bots.telegram_groupmod import telegram_groupmod_bot
 from flexus_simple_bots.telegram_groupmod import telegram_groupmod_prompts
 
 
-TELEGRAM_GROUPMOD_ROOTDIR = Path(__file__).parent
-TELEGRAM_GROUPMOD_SKILLS = ckit_skills.static_skills_find(TELEGRAM_GROUPMOD_ROOTDIR, shared_skills_allowlist="")
-TELEGRAM_GROUPMOD_SETUP_SCHEMA = json.loads((TELEGRAM_GROUPMOD_ROOTDIR / "setup_schema.json").read_text())
+TOOL_NAMESET = {t.name for t in telegram_groupmod_bot.TOOLS_ALL}
 
 BOT_DESCRIPTION = """
 **Job description**
@@ -42,7 +39,7 @@ EXPERTS = [
     ("default", ckit_bot_install.FMarketplaceExpertInput(
         fexp_system_prompt=telegram_groupmod_prompts.prompt_groupmod_default,
         fexp_python_kernel="",
-        fexp_allow_tools=",".join(ckit_cloudtool.CLOUDTOOLS_QUITE_A_LOT),
+        fexp_allow_tools=",".join(TOOL_NAMESET | ckit_cloudtool.CLOUDTOOLS_QUITE_A_LOT),
         fexp_description="Can both run moderation tasks and help to human admin interactively to do stuff.",
     )),
     ("review_messages", ckit_bot_install.FMarketplaceExpertInput(
@@ -68,8 +65,8 @@ async def install(
     bot_version: str,
     tools: list[ckit_cloudtool.CloudTool],
 ):
-    pic_big = base64.b64encode((TELEGRAM_GROUPMOD_ROOTDIR / f"{bot_name}-1024x1536.webp").read_bytes()).decode("ascii")
-    pic_small = base64.b64encode((TELEGRAM_GROUPMOD_ROOTDIR / f"{bot_name}-256x256.webp").read_bytes()).decode("ascii")
+    pic_big = base64.b64encode((telegram_groupmod_bot.TELEGRAM_GROUPMOD_ROOTDIR / f"{bot_name}-1024x1536.webp").read_bytes()).decode("ascii")
+    pic_small = base64.b64encode((telegram_groupmod_bot.TELEGRAM_GROUPMOD_ROOTDIR / f"{bot_name}-256x256.webp").read_bytes()).decode("ascii")
 
     await ckit_bot_install.marketplace_upsert_dev_bot(
         client,
@@ -85,7 +82,7 @@ async def install(
         marketable_typical_group="Moderation",
         marketable_github_repo="https://github.com/smallcloudai/flexus-client-kit.git",
         marketable_run_this="python -m flexus_simple_bots.telegram_groupmod.telegram_groupmod_bot",
-        marketable_setup_default=TELEGRAM_GROUPMOD_SETUP_SCHEMA,
+        marketable_setup_default=telegram_groupmod_bot.TELEGRAM_GROUPMOD_SETUP_SCHEMA,
         marketable_featured_actions=[
             {"feat_question": "Show moderation stats for today", "feat_expert": "default", "feat_depends_on_setup": []},
             {"feat_question": "List recent warnings", "feat_expert": "default", "feat_depends_on_setup": []},
@@ -106,7 +103,6 @@ async def install(
 
 
 if __name__ == "__main__":
-    from flexus_simple_bots.telegram_groupmod import telegram_groupmod_bot
     client = ckit_client.FlexusClient("telegram_groupmod_install")
     asyncio.run(install(
         client,

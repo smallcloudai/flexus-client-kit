@@ -10,7 +10,7 @@ from flexus_client_kit import ckit_cloudtool
 
 from flexus_client_kit import ckit_integrations_db
 from flexus_client_kit import ckit_shutdown
-from flexus_simple_bots.strategist import strategist_install
+from flexus_client_kit import ckit_skills
 from flexus_simple_bots.version_common import SIMPLE_BOTS_COMMON_VERSION
 
 logger = logging.getLogger("bot_strategist")
@@ -18,6 +18,38 @@ logger = logging.getLogger("bot_strategist")
 BOT_DIR = Path(__file__).parent
 BOT_NAME = "strategist"
 BOT_VERSION = SIMPLE_BOTS_COMMON_VERSION
+
+STRATEGIST_ROOTDIR = BOT_DIR
+STRATEGIST_SKILLS = ckit_skills.static_skills_find(STRATEGIST_ROOTDIR, shared_skills_allowlist="")
+STRATEGIST_SETUP_SCHEMA = json.loads((STRATEGIST_ROOTDIR / "setup_schema.json").read_text())
+STRATEGIST_INTEGRATIONS: list[ckit_integrations_db.IntegrationRecord] = ckit_integrations_db.static_integrations_load(
+    STRATEGIST_ROOTDIR,
+    [
+        "flexus_policy_document", "skills", "print_widget",
+        "linkedin",
+        # "chargebee",
+        # "crunchbase",
+        # "datadog",
+        # "ga4",
+        # "gnews",
+        # "google_ads",
+        # "launchdarkly",
+        # "meta",
+        # "mixpanel",
+        # "optimizely",
+        # "paddle",
+        # "pipedrive",
+        # "qualtrics",
+        # "recurly",
+        # "salesforce",
+        # "segment",
+        # "statsig",
+        # "surveymonkey",
+        # "typeform",
+        # "zendesk",
+    ],
+    builtin_skills=STRATEGIST_SKILLS,
+)
 
 WRITE_ARTIFACT_TOOL = ckit_cloudtool.CloudTool(
     strict=False,
@@ -39,8 +71,6 @@ WRITE_ARTIFACT_TOOL = ckit_cloudtool.CloudTool(
         "additionalProperties": False,
     },
 )
-STRATEGIST_INTEGRATIONS = strategist_install.STRATEGIST_INTEGRATIONS
-
 TOOLS = [
     WRITE_ARTIFACT_TOOL,
     *[t for rec in STRATEGIST_INTEGRATIONS for t in rec.integr_tools],
@@ -48,7 +78,7 @@ TOOLS = [
 
 
 async def strategist_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.RobotContext) -> None:
-    setup = ckit_bot_exec.official_setup_mixing_procedure(strategist_install.STRATEGIST_SETUP_SCHEMA, rcx.persona.persona_setup)
+    setup = ckit_bot_exec.official_setup_mixing_procedure(STRATEGIST_SETUP_SCHEMA, rcx.persona.persona_setup)
     integr_objects = await ckit_integrations_db.main_loop_integrations_init(STRATEGIST_INTEGRATIONS, rcx, setup)
     pdoc_integration = integr_objects["flexus_policy_document"]
 
@@ -69,6 +99,7 @@ async def strategist_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_
 
 
 def main():
+    from flexus_simple_bots.strategist import strategist_install
     scenario_fn = ckit_bot_exec.parse_bot_args()
     fclient = ckit_client.FlexusClient(ckit_client.bot_service_name(BOT_NAME, BOT_VERSION), endpoint="/v1/jailed-bot")
     asyncio.run(ckit_bot_exec.run_bots_in_this_group(

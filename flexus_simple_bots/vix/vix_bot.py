@@ -4,6 +4,7 @@ import json
 import logging
 import time
 from dataclasses import asdict
+from pathlib import Path
 from typing import Dict, Any
 
 from flexus_client_kit import ckit_client
@@ -13,6 +14,7 @@ from flexus_client_kit import ckit_shutdown
 from flexus_client_kit import ckit_erp
 from flexus_client_kit import ckit_kanban
 from flexus_client_kit import ckit_integrations_db
+from flexus_client_kit import ckit_skills
 from flexus_client_kit import erp_schema
 from flexus_client_kit.integrations import fi_mongo_store
 from flexus_client_kit.integrations import fi_crm_automations
@@ -22,7 +24,6 @@ from flexus_client_kit.integrations import fi_telegram
 from flexus_client_kit.integrations import fi_slack
 from flexus_client_kit.integrations import fi_crm
 from flexus_client_kit.integrations import fi_sched
-from flexus_simple_bots.vix import vix_install
 from flexus_simple_bots.version_common import SIMPLE_BOTS_COMMON_VERSION
 
 logger = logging.getLogger("bot_vix")
@@ -30,9 +31,16 @@ logger = logging.getLogger("bot_vix")
 BOT_NAME = "vix"
 BOT_VERSION = SIMPLE_BOTS_COMMON_VERSION
 
+VIX_ROOTDIR = Path(__file__).parent
+VIX_SKILLS = ckit_skills.static_skills_find(VIX_ROOTDIR, shared_skills_allowlist="*")
+VIX_SKILLS_DEFAULT = ["stall-deals"]
+
+VIX_SETUP_SCHEMA = json.loads((VIX_ROOTDIR / "setup_schema.json").read_text())
+VIX_SETUP_SCHEMA += fi_shopify.SHOPIFY_SETUP_SCHEMA + fi_crm_automations.CRM_AUTOMATIONS_SETUP_SCHEMA + fi_resend.RESEND_SETUP_SCHEMA + fi_slack.SLACK_SETUP_SCHEMA
+
 ERP_TABLES = ["crm_contact", "crm_activity", "crm_deal", "com_shop", "com_product", "com_product_variant", "com_order", "com_order_item", "com_refund"]
 VIX_INTEGRATIONS: list[ckit_integrations_db.IntegrationRecord] = ckit_integrations_db.static_integrations_load(
-    vix_install.VIX_ROOTDIR,
+    VIX_ROOTDIR,
     allowlist=[
         "skills",
         "flexus_policy_document",
@@ -44,7 +52,7 @@ VIX_INTEGRATIONS: list[ckit_integrations_db.IntegrationRecord] = ckit_integratio
         "telegram",
         "resend",
     ],
-    builtin_skills=vix_install.VIX_SKILLS,
+    builtin_skills=VIX_SKILLS,
 )
 
 TOOLS = [
@@ -58,7 +66,7 @@ TOOLS = [
 
 
 async def vix_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.RobotContext) -> None:
-    setup = ckit_bot_exec.official_setup_mixing_procedure(vix_install.VIX_SETUP_SCHEMA, rcx.persona.persona_setup)
+    setup = ckit_bot_exec.official_setup_mixing_procedure(VIX_SETUP_SCHEMA, rcx.persona.persona_setup)
 
     integrations = await ckit_integrations_db.main_loop_integrations_init(VIX_INTEGRATIONS, rcx, setup)
     automations_integration = fi_crm_automations.IntegrationCrmAutomations(
@@ -236,6 +244,7 @@ async def vix_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.Ro
 
 
 def main():
+    from flexus_simple_bots.vix import vix_install
     scenario_fn = ckit_bot_exec.parse_bot_args()
     fclient = ckit_client.FlexusClient(ckit_client.bot_service_name(BOT_NAME, BOT_VERSION), endpoint="/v1/jailed-bot")
 
