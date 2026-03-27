@@ -54,9 +54,11 @@ class IntegrationMagicDesk(fi_messenger.FlexusMessenger):
     async def default_activity_to_inbox(self, a: ActivityMagicDesk, already_posted: bool):
         if already_posted:
             return
-        await ckit_kanban.bot_kanban_run_immediate_task(
-            self.fclient, self.rcx.persona.persona_id,
+        await ckit_kanban.bot_kanban_post_into_inprogress(
+            self.fclient,
+            self.rcx.persona.persona_id,
             title=f"Magic Desk session={a.session_id}\n{a.text}",
+            human_id="magic_desk:%s" % a.session_id,
             details_json=json.dumps({"session_id": a.session_id, "text": a.text}),
             provenance_message="magic_desk_inbound",
             fexp_name=self.outside_messages_fexp_name,

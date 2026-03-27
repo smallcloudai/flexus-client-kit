@@ -223,17 +223,26 @@ class IntegrationTelegram(fi_messenger.FlexusMessenger):
         if a.attachments:
             details["attachments"] = f"{len(a.attachments)} files attached"
         title = "Telegram %s user=%r chat_id=%d\n%s" % (a.chat_type, a.message_author_name, a.chat_id, a.message_text)
+        human_id = "telegram:%d" % a.chat_id
         if a.chat_type == "private":
-            await ckit_kanban.bot_kanban_run_immediate_task(
-                self.fclient, self.rcx.persona.persona_id, title=title,
-                details_json=json.dumps(details), provenance_message="telegram_inbound",
+            await ckit_kanban.bot_kanban_post_into_inprogress(
+                self.fclient,
+                self.rcx.persona.persona_id,
+                title=title,
+                human_id=human_id,
+                details_json=json.dumps(details),
+                provenance_message="telegram_inbound",
                 fexp_name=self.outside_messages_fexp_name,
                 first_calls=[{"tool_name": "telegram", "tool_args": {"op": "capture", "args": {"chat_id": a.chat_id}}}],
             )
         else:
             await ckit_kanban.bot_kanban_post_into_inbox(
-                self.fclient, self.rcx.persona.persona_id, title=title,
-                details_json=json.dumps(details), provenance_message="telegram_inbound",
+                self.fclient,
+                self.rcx.persona.persona_id,
+                title=title,
+                human_id=human_id,
+                details_json=json.dumps(details),
+                provenance_message="telegram_inbound",
                 fexp_name=self.outside_messages_fexp_name,
             )
 

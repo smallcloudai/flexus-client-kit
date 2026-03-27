@@ -80,7 +80,7 @@ async def persona_kanban_list(
     return sorted(tasks.values(), key=lambda t: bucket_order.get(t.calc_bucket(), 4))
 
 
-async def bot_kanban_run_immediate_task(
+async def bot_kanban_post_into_inprogress(
     client: ckit_client.FlexusClient,
     persona_id: str,
     title: str,
@@ -88,16 +88,18 @@ async def bot_kanban_run_immediate_task(
     provenance_message: str,
     fexp_name: str = "",
     first_calls: list = [],
+    human_id: str = "",
 ) -> None:
     http = await client.use_http()
     async with http as h:
         await h.execute(gql.gql("""
-            mutation KanbanImmediate($pid: String!, $title: String!, $details: String!, $prov: String!, $fexp: String!, $first_calls: String!) {
-                bot_kanban_run_immediate_task(persona_id: $pid, title: $title, details_json: $details, provenance_message: $prov, fexp_name: $fexp, first_calls: $first_calls) { ktask_id }
+            mutation KanbanPostInprogress($pid: String!, $title: String!, $human_id: String!, $details: String!, $prov: String!, $fexp: String!, $first_calls: String!) {
+                bot_kanban_post_into_inprogress(persona_id: $pid, title: $title, human_id: $human_id, details_json: $details, provenance_message: $prov, fexp_name: $fexp, first_calls: $first_calls) { ktask_id }
             }"""),
             variable_values={
                 "pid": persona_id,
                 "title": title,
+                "human_id": human_id,
                 "details": details_json,
                 "prov": provenance_message,
                 "fexp": fexp_name,
@@ -114,18 +116,20 @@ async def bot_kanban_post_into_inbox(
     provenance_message: str,
     fexp_name: str = "",
     comingup_ts: float = 0.0,
+    human_id: str = "",
 ) -> None:
     http = await client.use_http()
     async with http as h:
         await h.execute(
             gql.gql(
-                """mutation KanbanInbox($pid: String!, $title: String!, $details: String!, $prov: String!, $fexp: String!, $comingup: Float!) {
-                    bot_kanban_post_into_inbox(persona_id: $pid, title: $title, details_json: $details, provenance_message: $prov, fexp_name: $fexp, comingup_ts: $comingup)
+                """mutation KanbanPostInbox($pid: String!, $title: String!, $human_id: String!, $details: String!, $prov: String!, $fexp: String!, $comingup: Float!) {
+                    bot_kanban_post_into_inbox(persona_id: $pid, title: $title, human_id: $human_id, details_json: $details, provenance_message: $prov, fexp_name: $fexp, comingup_ts: $comingup)
                 }""",
             ),
             variable_values={
                 "pid": persona_id,
                 "title": title,
+                "human_id": human_id,
                 "details": details_json,
                 "prov": provenance_message,
                 "fexp": fexp_name,

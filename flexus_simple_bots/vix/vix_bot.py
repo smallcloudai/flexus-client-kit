@@ -112,8 +112,11 @@ async def vix_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.Ro
         if em.cc_addrs:
             title += " (cc: %s)" % ", ".join(em.cc_addrs)
         await ckit_kanban.bot_kanban_post_into_inbox(
-            fclient, rcx.persona.persona_id,
-            title=title, details_json=json.dumps({"from": em.from_addr, "to": em.to_addrs, "cc": em.cc_addrs, "subject": em.subject, "body": body[:2000]}),
+            fclient,
+            rcx.persona.persona_id,
+            title=title,
+            human_id="email:%s" % em.from_addr,
+            details_json=json.dumps({"from": em.from_addr, "to": em.to_addrs, "cc": em.cc_addrs, "subject": em.subject, "body": body[:2000]}),
             provenance_message="vix_email_inbound",
         )
 
@@ -161,17 +164,26 @@ async def vix_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.Ro
             title = "Telegram %s user=%r chat_id=%d\n%s" % (a.chat_type, a.message_author_name, a.chat_id, a.message_text)
             if a.attachments:
                 title += f"\n[{len(a.attachments)} file(s) attached]"
+        human_id = "telegram:%d" % a.chat_id
         if a.chat_type == "private":
-            await ckit_kanban.bot_kanban_run_immediate_task(
-                fclient, rcx.persona.persona_id, title=title,
-                details_json=json.dumps(details), provenance_message="vix_telegram_activity",
+            await ckit_kanban.bot_kanban_post_into_inprogress(
+                fclient,
+                rcx.persona.persona_id,
+                title=title,
+                human_id=human_id,
+                details_json=json.dumps(details),
+                provenance_message="vix_telegram_activity",
                 fexp_name="sales",
                 first_calls=[{"tool_name": "telegram", "tool_args": {"op": "capture", "args": {"chat_id": a.chat_id}}}],
             )
         else:
             await ckit_kanban.bot_kanban_post_into_inbox(
-                fclient, rcx.persona.persona_id, title=title,
-                details_json=json.dumps(details), provenance_message="vix_telegram_activity",
+                fclient,
+                rcx.persona.persona_id,
+                title=title,
+                human_id=human_id,
+                details_json=json.dumps(details),
+                provenance_message="vix_telegram_activity",
                 fexp_name="sales",
             )
 
@@ -191,17 +203,26 @@ async def vix_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.Ro
         title = "Slack %s user=%r in #%s\n%s" % (a.what_happened, a.message_author_name, a.channel_name, a.message_text)
         if a.file_contents:
             title += f"\n[{len(a.file_contents)} file(s) attached]"
+        human_id = "slack:%s" % a.message_author_id if a.message_author_id else ""
         if a.what_happened == "message/im":
-            await ckit_kanban.bot_kanban_run_immediate_task(
-                fclient, rcx.persona.persona_id, title=title,
-                details_json=json.dumps(details), provenance_message="vix_slack_activity",
+            await ckit_kanban.bot_kanban_post_into_inprogress(
+                fclient,
+                rcx.persona.persona_id,
+                title=title,
+                human_id=human_id,
+                details_json=json.dumps(details),
+                provenance_message="vix_slack_activity",
                 fexp_name="sales",
                 first_calls=[{"tool_name": "slack", "tool_args": {"op": "capture", "args": {"channel_slash_thread": to_capture}}}],
             )
         else:
             await ckit_kanban.bot_kanban_post_into_inbox(
-                fclient, rcx.persona.persona_id, title=title,
-                details_json=json.dumps(details), provenance_message="vix_slack_activity",
+                fclient,
+                rcx.persona.persona_id,
+                title=title,
+                human_id=human_id,
+                details_json=json.dumps(details),
+                provenance_message="vix_slack_activity",
                 fexp_name="sales",
             )
 

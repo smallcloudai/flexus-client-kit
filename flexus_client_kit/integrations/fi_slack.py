@@ -199,17 +199,26 @@ class IntegrationSlack(fi_messenger.FlexusMessenger):
         details["to_capture"] = to_capture
         if a.file_contents:
             details["file_contents"] = f"{len(a.file_contents)} files attached"
+        human_id = "slack:%s" % a.message_author_id if a.message_author_id else ""
         if a.what_happened == "message/im":
-            await ckit_kanban.bot_kanban_run_immediate_task(
-                self.fclient, self.rcx.persona.persona_id, title=title,
-                details_json=json.dumps(details), provenance_message="slack_inbound",
+            await ckit_kanban.bot_kanban_post_into_inprogress(
+                self.fclient,
+                self.rcx.persona.persona_id,
+                title=title,
+                human_id=human_id,
+                details_json=json.dumps(details),
+                provenance_message="slack_inbound",
                 fexp_name=self.outside_messages_fexp_name,
                 first_calls=[{"tool_name": "slack", "tool_args": {"op": "capture", "args": {"channel_slash_thread": to_capture}}}],
             )
         else:
             await ckit_kanban.bot_kanban_post_into_inbox(
-                self.fclient, self.rcx.persona.persona_id, title=title,
-                details_json=json.dumps(details), provenance_message="slack_inbound",
+                self.fclient,
+                self.rcx.persona.persona_id,
+                title=title,
+                human_id=human_id,
+                details_json=json.dumps(details),
+                provenance_message="slack_inbound",
                 fexp_name=self.outside_messages_fexp_name,
             )
 
