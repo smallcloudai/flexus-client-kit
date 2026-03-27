@@ -58,6 +58,7 @@ setup(
         "pandas",
         "playwright",
         "openai",
+        "xai-sdk",
         "mcp",
         "python-telegram-bot>=20.0",
     ],
