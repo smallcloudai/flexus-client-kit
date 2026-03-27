@@ -30,7 +30,7 @@ logger = logging.getLogger("teleg")
 
 
 # Capturing mechanics:
-# private message(s) from user => bot python code creates kanban task(s) =>
+# private message(s) from user => bot python code creates kanban tasks in inbox =>
 # scheduler runs SCHED_TASK_SORT_10M => one or several tasks joined go into kanban todo column =>
 # scheduler runs SCHED_TODO_5M => bot activates, runs telegram(op=capture) => talks to human directly =>
 # human is happy => scheduler hits fexp_inactivity_timeout => bot moves task to kanban done and summarizes
@@ -63,12 +63,11 @@ telegram(op="uncapture")
 
 telegram(op="post", args={"chat_id": 123456789, "text": "Hello!"})
     Post a message to a Telegram chat. Don't use this for captured chats. Remember to use MarkdownV2 markup.
-
-telegram(op="generate_chat_link", args={"contact_id": "abc123"})
-    Generate a link that opens a chat with this bot and passes the contact_id.
-    When clicked, bot receives /start c_<contact_id>.
-
 """
+# Unclear why is this useful, commeted out for now:
+# telegram(op="generate_chat_link", args={"contact_id": "abc123"})
+#     Generate a link that opens a chat with this bot and passes the contact_id.
+#     When clicked, bot receives /start c_<contact_id>.
 
 # https://core.telegram.org/bots/api#formatting-options
 TG_MARKUP_HELP = """
@@ -94,7 +93,7 @@ _TG_MD2_CODE_ESCAPE = re.compile(r"([`\\])")
 _TG_MD2_LINK_URL_ESCAPE = re.compile(r"([)\\])")
 _TG_MD2_MARKUP = re.compile(
     r"(?sm)"
-    r"```.*?```"              # code blocks
+    r"```.*?```"             # code blocks
     r"|`[^`]+`"              # inline code
     r"|\*[^*\n]+\*"          # bold (no newline crossing)
     r"|(?<!\w)__[^_\n]+__(?!\w)"  # underline (word-boundary, before italic)
@@ -241,8 +240,6 @@ class IntegrationTelegram(fi_messenger.FlexusMessenger):
     async def close(self) -> None:
         if self.tg_app and self.tg_app.running:
             try:
-                # if self.tg_app.updater and self.tg_app.updater.running:
-                #     await self.tg_app.updater.stop()
                 await self.tg_app.stop()
                 await self.tg_app.shutdown()
                 self.tg_app = None
@@ -321,7 +318,8 @@ class IntegrationTelegram(fi_messenger.FlexusMessenger):
             except gql.transport.exceptions.TransportQueryError as e:
                 return ckit_cloudtool.gql_error_4xx_to_model_reraise_5xx(e, "telegram_capture")
             return fi_messenger.CAPTURE_SUCCESS_MSG % identifier + fi_messenger.CAPTURE_ADVICE_MSG + "\n" + \
-                "Reminder: after this point telegram MarkdownV2 markup rules are in effect for your output, there are no tables! Here's help for you again.\n\n" + TG_MARKUP_HELP
+                "Reminder: after this point telegram MarkdownV2 markup rules are in effect for your output, there are no tables! Here's markup help for you again.\n\n" + \
+                TG_MARKUP_HELP
 
         if op == "uncapture":
             http = await self.fclient.use_http()
@@ -330,20 +328,20 @@ class IntegrationTelegram(fi_messenger.FlexusMessenger):
                 fthread.thread_fields.ft_app_searchable = ""
             return fi_messenger.UNCAPTURE_SUCCESS_MSG
 
-        if op == "generate_chat_link":
-            contact_id = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "contact_id", None)
-            if not contact_id:
-                return "Missing contact_id parameter\n"
-            try:
-                bot_info = await self.tg_app.bot.get_me()
-                return f"https://t.me/{bot_info.username}?start=c_{contact_id}\n"
-            except Exception as e:
-                return f"ERROR: {type(e).__name__}: {e}\n"
+        # if op == "generate_chat_link":
+        #     contact_id = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "contact_id", None)
+        #     if not contact_id:
+        #         return "Missing contact_id parameter\n"
+        #     try:
+        #         bot_info = await self.tg_app.bot.get_me()
+        #         return f"https://t.me/{bot_info.username}?start=c_{contact_id}\n"
+        #     except Exception as e:
+        #         return f"ERROR: {type(e).__name__}: {e}\n"
 
         return fi_messenger.UNKNOWN_OPERATION_MSG % op
 
     async def handle_emessage(self, emsg: ckit_bot_query.FExternalMessageOutput) -> None:
-        # external message! FExternalMessageOutput(
+        # external message FExternalMessageOutput(
         #  emsg_id='vgfz9BmBpa',
         #  emsg_persona_id='6gjySpynvG',
         #  emsg_type='TELEGRAM',
@@ -352,7 +350,7 @@ class IntegrationTelegram(fi_messenger.FlexusMessenger):
         #  emsg_external_id='22',
         #  emsg_payload={'message': {'chat': {'id': 14931503, 'type': 'private', 'username': 'handle', 'first_name': 'Real Name'}, 'date': 1770975588, 'from': {'id': 14931503, 'is_bot': False, 'username': 'handle', 'first_name': 'Real Name', 'language_code': 'en'}, 'text': 'hello wrold', 'message_id': 22}, 'update_id': 257336450},
         #  emsg_created_ts=1770975590.564911,
-        # ws_id='solarsystem')
+        #  ws_id='solarsystem')
 
         payload = emsg.emsg_payload if isinstance(emsg.emsg_payload, dict) else json.loads(emsg.emsg_payload)
         update = telegram.Update.de_json(payload, bot=None)   # Scary, strange types, date becomes datetime.datetime etc, but good for validation

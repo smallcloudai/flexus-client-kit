@@ -136,7 +136,7 @@ async def install(
         marketable_author="Flexus",
         marketable_occupation="Customer Support",
         marketable_description=KAREN_DESC,
-        marketable_typical_group="Development / Documentation",
+        marketable_typical_group="Support",
         marketable_github_repo="https://github.com/smallcloudai/flexus-client-kit.git",
         marketable_run_this="python -m flexus_simple_bots.karen.karen_bot",
         marketable_setup_default=KAREN_SETUP_SCHEMA,
