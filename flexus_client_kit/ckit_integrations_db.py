@@ -321,12 +321,13 @@ def static_integrations_load(bot_dir: Path, allowlist: list[str], builtin_skills
                 "manage_contact": (fi_crm.MANAGE_CRM_CONTACT_TOOL, "handle_manage_crm_contact"),
                 "manage_deal": (fi_crm.MANAGE_CRM_DEAL_TOOL, "handle_manage_crm_deal"),
                 "log_activity": (fi_crm.LOG_CRM_ACTIVITY_TOOL, "handle_log_crm_activity"),
+                "verify_email": (fi_crm.VERIFY_EMAIL_TOOL, "handle_verify_email"),
             }
             if subset is None:
                 subset = list(tool_map.keys())
             tools_and_methods = [(tool_map[s][0], tool_map[s][1]) for s in subset]
             async def _init_crm(rcx, setup):
-                return fi_crm.IntegrationCrm(rcx)
+                return fi_crm.IntegrationCrm(rcx.fclient, rcx.persona.ws_id, rcx)
             def _setup_crm(obj, rcx, _tam=tools_and_methods):
                 for tool, method_name in _tam:
                     rcx.on_tool_call(tool.name)(getattr(obj, method_name))

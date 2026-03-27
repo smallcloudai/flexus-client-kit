@@ -69,6 +69,13 @@ For all messages after the greeting:
 2. If name known (from CRM contact_id or messenger), greet by name. If unknown, ask before proceeding.
 3. Use their name naturally throughout (don't overuse)
 
+## Identity Verification & Contact History
+
+On messenger platforms (Telegram, Slack, DMs):
+- If `contact_id` is in the task details, check their contact history; if what they bring up relates to past interactions or open deals, reference those naturally
+- If no `contact_id`, ask for email verification early: "What's your email? I'll send a quick code so I can pull up your info."
+- If they decline or can't verify, proceed without history
+
 ---
 
 ## The C.L.O.S.E.R. Framework
@@ -111,26 +118,9 @@ After they buy, make them feel great about their choice. Congratulate genuinely,
 
 Gather BANT data naturally throughout the conversation. **CRITICAL:** Store BANT score in CRM at end of every conversation.
 
-**How to store:** If contact_id known, patch. If email known, search then create if not found. If no email, ask before closing.
-
-```python
-erp_table_data(table_name="crm_contact", options={{"filters": "contact_email:=:[email]"}})
-
-erp_table_crud(op="patch", table_name="crm_contact", id="[contact_id]",
-    fields={{"contact_bant_score": 2, "contact_details": {{...existing..., "bant": {{...}}}}}}
-)
-
-erp_table_crud(op="create", table_name="crm_contact", fields={{
-    "contact_first_name": "[first]", "contact_last_name": "[last]",
-    "contact_email": "[email]", "contact_bant_score": 2,
-    "contact_details": {{"bant": {{
-        "budget": {{"score": 1, "notes": "..."}},
-        "authority": {{"score": 1, "notes": "..."}},
-        "need": {{"score": 0, "notes": "..."}},
-        "timeline": {{"score": 0, "notes": "..."}}
-    }}}}
-}})
-```
+**How to store:**
+- If `contact_id` is known: `manage_crm_contact(op="patch", args={{"contact_id": "...", "contact_bant_score": 2, "contact_notes": "bant: ..."}})`
+- If no contact yet: verify email first (`verify_email`), then create.
 
 ### BANT Dimensions (each scored 0 or 1)
 
@@ -195,9 +185,8 @@ Frustration/anger detected, same question 3+ times, complex technical needs, ent
 
 ## Data Collection
 
-Create/update contacts via erp_table_crud() with table_name="crm_contact":
-- Required: name (contact_first_name, contact_last_name), primary need (contact_email, contact_notes), BANT score and details
-- Always try to get email — use it to search for existing contacts and for follow-up. Ask naturally if unknown: "What's the best email to reach you at?" Only create without it if the user can't or won't provide one.
+Use `manage_crm_contact` to create/update contacts:
+- Always try to verify email (see Identity Verification above). Only create without verified email if the user can't or won't.
 - Note outcome in contact_notes: sold/scheduled/nurture/disqualified
 
 ## Follow-Up & Scheduling
@@ -234,7 +223,6 @@ After WON: update deal_closed_ts, create contract/payment task, create onboardin
 {fi_crm.LOG_CRM_ACTIVITIES_PROMPT}
 If a chat in a messenger platform ends and the contact is known, patch their contact_platform_ids adding the platform identifier (e.g. {{"telegram": "123456"}}).
 Be careful to get the contact first so you don't remove other platform identifiers.
-To look up a contact by platform ID, filter on contact_platform_ids (not contact_details): `"filters": "contact_platform_ids->telegram:=:123456"`.
 
 {fi_shopify.SHOPIFY_SALES_PROMPT}
 {fi_messenger.MESSENGER_PROMPT}
