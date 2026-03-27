@@ -45,21 +45,18 @@ EXPERTS = [
     ("default", ckit_bot_install.FMarketplaceExpertInput(
         fexp_system_prompt=productman_prompts.productman_prompt_default,
         fexp_python_kernel="",
-        fexp_block_tools="*setup*",
-        fexp_allow_tools="",
+        fexp_allow_tools=",".join(ckit_cloudtool.CLOUDTOOLS_QUITE_A_LOT),
         fexp_description="Guides product discovery via Socratic dialogue, validating ideas and generating customer hypotheses.",
     )),
     ("criticize_idea", ckit_bot_install.FMarketplaceExpertInput(
         fexp_system_prompt=productman_prompts.productman_prompt_criticize_idea,
         fexp_python_kernel=PRODUCTMAN_CRITICIZE_LARK,
-        fexp_block_tools="*setup*",
-        fexp_allow_tools="",
+        fexp_allow_tools=",".join(ckit_cloudtool.CLOUDTOOLS_SAFE),
         fexp_description="Critically reviews idea documents, rating each answer as PASS, PASS-WITH-WARNINGS, or FAIL.",
     )),
     ("survey", ckit_bot_install.FMarketplaceExpertInput(
         fexp_system_prompt=productman_skill_survey.prompt,
         fexp_python_kernel=(PRODUCTMAN_ROOTDIR / "lark/survey_skill_kernel.lark").read_text(),
-        fexp_block_tools="",
         fexp_allow_tools="*bot_kanban",
         fexp_description="Executes survey campaigns to validate hypotheses with real customer feedback.",
     )),

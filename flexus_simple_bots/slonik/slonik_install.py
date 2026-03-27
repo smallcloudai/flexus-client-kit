@@ -19,8 +19,7 @@ EXPERTS = [
     ("default", ckit_bot_install.FMarketplaceExpertInput(
         fexp_system_prompt=slonik_prompts.slonik_prompt,
         fexp_python_kernel="",
-        fexp_block_tools="*setup*",
-        fexp_allow_tools="",
+        fexp_allow_tools=",".join(ckit_cloudtool.CLOUDTOOLS_PYTHON | ckit_cloudtool.CLOUDTOOLS_SAFE),
         fexp_description="PostgreSQL assistant that helps run queries, analyze data, and troubleshoot database connections using psql.",
     )),
 ]

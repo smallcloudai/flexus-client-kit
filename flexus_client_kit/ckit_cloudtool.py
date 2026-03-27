@@ -19,6 +19,20 @@ from flexus_client_kit import gql_utils
 logger = logging.getLogger("ctool")
 
 
+CLOUDTOOLS_ADVANCED = {"flexus_kanban_advanced", "flexus_my_setup", "flexus_colleagues", "flexus_hand_over_task", "flexus_mcp_setup", "flexus_eds_setup"}
+CLOUDTOOLS_TRIAGE = {"flexus_kanban_triage"}
+CLOUDTOOLS_PUBLIC = {"flexus_kanban_public"}
+CLOUDTOOLS_SAFE = {"flexus_kanban_safe"}
+
+CLOUDTOOLS_VECDB = {"flexus_vector_search", "flexus_read_original"}
+CLOUDTOOLS_PYTHON = {"python_execute"}
+CLOUDTOOLS_WEB = {"web"}
+CLOUDTOOLS_MCP = {"mcp_*"}
+
+CLOUDTOOLS_ALL_KNOWN = CLOUDTOOLS_ADVANCED | CLOUDTOOLS_TRIAGE | CLOUDTOOLS_PUBLIC | CLOUDTOOLS_VECDB | CLOUDTOOLS_PYTHON | CLOUDTOOLS_WEB
+CLOUDTOOLS_QUITE_A_LOT = CLOUDTOOLS_ADVANCED | CLOUDTOOLS_VECDB | CLOUDTOOLS_PYTHON | CLOUDTOOLS_WEB | CLOUDTOOLS_MCP
+
+
 def gql_error_4xx_to_model_reraise_5xx(e: gql.transport.exceptions.TransportQueryError, label: str) -> str:
     msg = (e.errors[0].get("message", "") if e.errors else "") or str(e)
     logger.info("%s: %s", label, msg)

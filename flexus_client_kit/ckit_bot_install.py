@@ -11,34 +11,16 @@ from flexus_simple_bots import prompts_common
 from flexus_client_kit import ckit_client, ckit_cloudtool, ckit_integrations_db, ckit_skills, gql_utils
 
 
-def load_form_bundles_from_dir(forms_dir: Path) -> Dict[str, str]:
-    bundles = {}
-    if forms_dir.exists():
-        for f in forms_dir.iterdir():
-            if f.suffix in ('.html', '.json'):
-                bundles[f.name] = base64.b64encode(f.read_bytes()).decode("ascii")
-    return bundles
-
-
-def load_form_bundles(install_file: str) -> Dict[str, str]:
-    return load_form_bundles_from_dir(Path(install_file).parent / "forms")
-
-
 @dataclass
 class FBotInstallOutput:
     marketable_name: str
     marketable_version: int
 
-@dataclass
-class InstallationResult:
-    fgroup_id: str
-    persona_id: str
 
 @dataclass
 class FMarketplaceExpertInput:
     fexp_system_prompt: str
     fexp_python_kernel: str
-    fexp_block_tools: str
     fexp_allow_tools: str
     fexp_inactivity_timeout: int = 0
     fexp_app_capture_tools: str = ""
@@ -48,13 +30,20 @@ class FMarketplaceExpertInput:
     fexp_builtin_skills: str = "[]"  # [{"name", "description"}, ...]
 
     def _tool_allowed(self, name: str) -> bool:
-        block = [p.strip() for p in self.fexp_block_tools.split(",") if p.strip()]
         allow = [p.strip() for p in self.fexp_allow_tools.split(",") if p.strip()]
-        if allow:
-            return any(fnmatch.fnmatch(name, p) for p in allow)
-        return not any(fnmatch.fnmatch(name, p) for p in block)
+        if not allow:
+            return True
+        return any(fnmatch.fnmatch(name, p) for p in allow)
 
     def filter_tools(self, tools: list[ckit_cloudtool.CloudTool]) -> "FMarketplaceExpertInput":
+        local_names = {t.name for t in tools}
+        for p in [p.strip() for p in self.fexp_allow_tools.split(",") if p.strip()]:
+            matches_known = any(fnmatch.fnmatch(name, p) for name in ckit_cloudtool.CLOUDTOOLS_ALL_KNOWN)
+            matches_local = any(fnmatch.fnmatch(name, p) for name in local_names)
+            if not matches_known and not matches_local and (not "*" in p):
+                raise ValueError(f"fexp_allow_tools pattern {p!r} doesn't match any known cloud tool or local tool")
+            if "*" in p and matches_known:
+                raise ValueError(f"fexp_allow_tools pattern {p!r} with wildcard matches cloud tools — use exact names for cloud tools")
         filtered = [t for t in tools if self._tool_allowed(t.name) and t.name != "flexus_fetch_skill"]
         if self.fexp_builtin_skills != "[]":
             filtered.append(ckit_skills.FETCH_SKILL_TOOL)
@@ -101,6 +90,10 @@ async def marketplace_upsert_dev_bot(
 
     experts_input = []
     for expert_name, expert in marketable_experts:
+        for p in expert.fexp_allow_tools.split(","):
+            p = p.strip()
+            if p == "*":
+                raise ValueError(f"Expert {expert_name!r}: bare '*' in fexp_allow_tools is not allowed, use empty string for all tools")
         has_a2a = expert._tool_allowed("flexus_hand_over_task")
         sections = [expert.fexp_system_prompt]
         sections.append("# Flexus Environment")
@@ -120,7 +113,7 @@ async def marketplace_upsert_dev_bot(
         tool_names = [t["function"]["name"] for t in json.loads(expert.fexp_app_capture_tools)] if expert.fexp_app_capture_tools else []
         summary = (
             f"  {marketable_name} expert {expert_name!r}\n"
-            f"    allow={expert.fexp_allow_tools!r} block={expert.fexp_block_tools!r} has_a2a={has_a2a}\n"
+            f"    allow={expert.fexp_allow_tools!r} has_a2a={has_a2a}\n"
             f"    built-in-tools={tool_names}\n"
             f"    built-in-skills={skill_names}\n"
             f"    prompt sections from integrations: {', '.join(included_integr)}\n"
@@ -210,6 +203,13 @@ async def marketplace_upsert_dev_bot(
         return gql_utils.dataclass_from_dict(r["marketplace_upsert_dev_bot"], FBotInstallOutput)
 
 
+
+@dataclass
+class InstallationResult:
+    fgroup_id: str
+    persona_id: str
+
+
 async def bot_install_from_marketplace(
     client: ckit_client.FlexusClient,
     ws_id: str,
@@ -254,3 +254,14 @@ async def bot_install_from_marketplace(
         return gql_utils.dataclass_from_dict(r["bot_install_from_marketplace"], InstallationResult)
 
 
+def load_form_bundles_from_dir(forms_dir: Path) -> Dict[str, str]:
+    bundles = {}
+    if forms_dir.exists():
+        for f in forms_dir.iterdir():
+            if f.suffix in ('.html', '.json'):
+                bundles[f.name] = base64.b64encode(f.read_bytes()).decode("ascii")
+    return bundles
+
+
+def load_form_bundles(install_file: str) -> Dict[str, str]:
+    return load_form_bundles_from_dir(Path(install_file).parent / "forms")

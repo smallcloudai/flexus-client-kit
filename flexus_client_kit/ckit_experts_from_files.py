@@ -45,7 +45,7 @@ def discover_experts(bot_dir: Path, all_possible_skills: List[str]) -> list[tupl
     for f in sorted(prompts_dir.glob("expert_*.md")):
         name = f.stem.removeprefix("expert_")
         header, body = parse_expert_md(f.read_text())
-        recognized = {"expert_description", "expert_block_tools", "expert_allow_tools", "expert_block_skills", "expert_allow_skills"}
+        recognized = {"expert_description", "expert_allow_tools", "expert_block_skills", "expert_allow_skills"}
         required = {"expert_description"}
         unknown = set(header.keys()) - recognized
         missing = required - set(header.keys())
@@ -59,7 +59,6 @@ def discover_experts(bot_dir: Path, all_possible_skills: List[str]) -> list[tupl
                 f"  Expected format of expert_*.md file header:\n\n"
                 f"  ---\n"
                 f"  expert_description: A short description of what this expert does\n"
-                f"  expert_block_tools: (optional) tool glob patterns to block\n"
                 f"  expert_allow_tools: (optional) tool glob patterns to allow\n"
                 f"  expert_block_skills: (optional) skill glob patterns to block\n"
                 f"  expert_allow_skills: (optional) skill glob patterns to allow\n"
@@ -71,7 +70,6 @@ def discover_experts(bot_dir: Path, all_possible_skills: List[str]) -> list[tupl
         experts.append((name, ckit_bot_install.FMarketplaceExpertInput(
             fexp_system_prompt=build_expert_prompt(prompts_dir, body),
             fexp_python_kernel="",
-            fexp_block_tools=header.get("expert_block_tools", ""),
             fexp_allow_tools=header.get("expert_allow_tools", ""),
             fexp_description=header["expert_description"],
             fexp_builtin_skills=ckit_skills.read_name_description(bot_dir, exp_skills) if exp_skills else "[]",

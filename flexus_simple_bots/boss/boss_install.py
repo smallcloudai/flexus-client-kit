@@ -37,16 +37,14 @@ EXPERTS = [
     ("default", ckit_bot_install.FMarketplaceExpertInput(
         fexp_system_prompt=boss_prompts.boss_default,
         fexp_python_kernel="",
-        fexp_block_tools="*setup",
-        fexp_allow_tools="",
+        fexp_allow_tools=",".join(ckit_cloudtool.CLOUDTOOLS_QUITE_A_LOT),
         fexp_description="Helps hire bots and create tasks to accomplish goals, ensuring work aligns with company strategy and vision.",
         fexp_builtin_skills=ckit_skills.read_name_description(BOSS_ROOTDIR, BOSS_SKILLS),
     )),
     ("uihelp", ckit_bot_install.FMarketplaceExpertInput(
         fexp_system_prompt=boss_prompts.boss_uihelp,
         fexp_python_kernel="",
-        fexp_block_tools="*setup",
-        fexp_allow_tools="",
+        fexp_allow_tools=",".join(ckit_cloudtool.CLOUDTOOLS_QUITE_A_LOT),
         fexp_description="Assists users in navigating Flexus UI, including highlighting elements, document uploads, EDS, and MCP configuration.",
         fexp_builtin_skills=ckit_skills.read_name_description(BOSS_ROOTDIR, BOSS_SKILLS),
     )),

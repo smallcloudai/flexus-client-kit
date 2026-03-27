@@ -92,8 +92,7 @@ EXPERTS = [
     ("default", ckit_bot_install.FMarketplaceExpertInput(
         fexp_system_prompt=researcher_prompts.DEFAULT_PROMPT,
         fexp_python_kernel="",
-        fexp_block_tools="",
-        fexp_allow_tools="",
+        fexp_allow_tools=",".join(ckit_cloudtool.CLOUDTOOLS_QUITE_A_LOT),
         fexp_description="GTM Research operator - discovery recruitment, interview capture, alternatives mapping, WTP research, search signals, firmographics, ICP scoring, and contact enrichment.",
         fexp_builtin_skills=ckit_skills.read_name_description(RESEARCHER_ROOTDIR, RESEARCHER_SKILLS),
     )),

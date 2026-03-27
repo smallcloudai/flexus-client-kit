@@ -48,8 +48,7 @@ EXPERTS = [
     ("default", ckit_bot_install.FMarketplaceExpertInput(
         fexp_system_prompt=strategist_prompts.DEFAULT_PROMPT,
         fexp_python_kernel="",
-        fexp_block_tools="",
-        fexp_allow_tools="",
+        fexp_allow_tools=",".join(ckit_cloudtool.CLOUDTOOLS_QUITE_A_LOT),
         fexp_description="GTM Strategy operator — hypothesis design, channel strategy, MVP scoping, validation criteria, positioning, messaging, offer design, and pricing decisions.",
         fexp_builtin_skills=ckit_skills.read_name_description(STRATEGIST_ROOTDIR, STRATEGIST_SKILLS),
     )),

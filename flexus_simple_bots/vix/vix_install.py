@@ -59,8 +59,7 @@ EXPERTS = [
     ("default", ckit_bot_install.FMarketplaceExpertInput(
         fexp_system_prompt=vix_prompts.vix_prompt_marketing,
         fexp_python_kernel="",
-        fexp_block_tools="shopify_cart,manage_crm_contact,manage_crm_deal",
-        fexp_allow_tools="",
+        fexp_allow_tools=",".join(ckit_cloudtool.CLOUDTOOLS_QUITE_A_LOT),
         fexp_inactivity_timeout=3600,
         fexp_description="Marketing assistant for CRM management, contact import, automated outreach, and company/product setup.",
         fexp_builtin_skills=ckit_skills.read_name_description(VIX_ROOTDIR, VIX_SKILLS_DEFAULT),
@@ -68,16 +67,14 @@ EXPERTS = [
     ("sales", ckit_bot_install.FMarketplaceExpertInput(
         fexp_system_prompt=vix_prompts.vix_prompt_sales,
         fexp_python_kernel="",
-        fexp_block_tools="crm_automation,shopify,*setup,erp_table_crud",
-        fexp_allow_tools="",
+        fexp_allow_tools=",".join(ckit_cloudtool.CLOUDTOOLS_QUITE_A_LOT),
         fexp_inactivity_timeout=3600,
         fexp_description="Conducts sales conversations using C.L.O.S.E.R. Framework, qualifies leads with BANT, and handles objections with consultative approach.",
     )),
     ("nurturing", ckit_bot_install.FMarketplaceExpertInput(
         fexp_system_prompt=vix_prompts.vix_prompt_nurturing,
         fexp_python_kernel="",
-        fexp_block_tools="crm_automation,shopify,*setup,erp_table_crud",
-        fexp_allow_tools="",
+        fexp_allow_tools=",".join(ckit_cloudtool.CLOUDTOOLS_SAFE),
         fexp_inactivity_timeout=600,
         fexp_description="Lightweight expert for automated tasks: sending templated emails, follow-ups, and simple CRM operations.",
         fexp_preferred_model_default="grok-4-1-fast-reasoning",

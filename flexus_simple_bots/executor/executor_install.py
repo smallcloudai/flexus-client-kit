@@ -55,8 +55,7 @@ EXPERTS = [
     ("default", ckit_bot_install.FMarketplaceExpertInput(
         fexp_system_prompt=executor_prompts.DEFAULT_PROMPT,
         fexp_python_kernel="",
-        fexp_block_tools="",
-        fexp_allow_tools="",
+        fexp_allow_tools=",".join(ckit_cloudtool.CLOUDTOOLS_QUITE_A_LOT),
         fexp_description="GTM Execution operator — pilot onboarding, pilot success tracking, and pilot conversion into signed revenue.",
         fexp_builtin_skills=ckit_skills.read_name_description(EXECUTOR_ROOTDIR, EXECUTOR_SKILLS),
     )),

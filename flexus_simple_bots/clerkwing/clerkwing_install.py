@@ -34,15 +34,13 @@ EXPERTS = [
     ("default", ckit_bot_install.FMarketplaceExpertInput(
         fexp_system_prompt=clerkwing_prompts.clerkwing_prompt,
         fexp_python_kernel="",
-        fexp_block_tools="*setup*",
-        fexp_allow_tools="",
+        fexp_allow_tools=",".join(ckit_cloudtool.CLOUDTOOLS_QUITE_A_LOT),
         fexp_description="Main secretary assistant for managing email, calendar, and Jira tasks with proactive organization and helpful suggestions.",
     )),
     ("setup", ckit_bot_install.FMarketplaceExpertInput(
         fexp_system_prompt=clerkwing_prompts.clerkwing_setup,
         fexp_python_kernel="",
-        fexp_block_tools="",
-        fexp_allow_tools="",
+        fexp_allow_tools=",".join(ckit_cloudtool.CLOUDTOOLS_ADVANCED),
         fexp_description="Configuration assistant for setting up Gmail, Google Calendar, and Jira OAuth connections.",
     )),
 ]

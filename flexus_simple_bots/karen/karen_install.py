@@ -99,20 +99,26 @@ if not messages[-1]["tool_calls"]:
 EXPERTS = [
     ("default", ckit_bot_install.FMarketplaceExpertInput(
         fexp_system_prompt=karen_prompts.karen_setup,
-        fexp_python_kernel=KAREN_BUDGET_KERNEL,
-        fexp_block_tools="",
-        fexp_allow_tools="",
+        fexp_python_kernel="",
+        fexp_allow_tools=",".join(ckit_cloudtool.CLOUDTOOLS_QUITE_A_LOT),
         fexp_inactivity_timeout=3600,
-        fexp_description="Flexus expert: triages inbox, has a full access to kanban and setup tools.",
+        fexp_description="Talks to a priviledged user, can set up data sources, change its own settings.",
+        fexp_builtin_skills=ckit_skills.read_name_description(KAREN_ROOTDIR, KAREN_SKILLS),
+    )),
+    ("messages_triage", ckit_bot_install.FMarketplaceExpertInput(
+        fexp_system_prompt=karen_prompts.short_prompt,
+        fexp_python_kernel="",
+        fexp_allow_tools=",".join(ckit_cloudtool.CLOUDTOOLS_TRIAGE),
+        fexp_inactivity_timeout=3600,
+        fexp_description="Deals with untrusted messages in the inbox.",
         fexp_builtin_skills=ckit_skills.read_name_description(KAREN_ROOTDIR, KAREN_SKILLS),
     )),
     ("very_limited", ckit_bot_install.FMarketplaceExpertInput(
         fexp_system_prompt=karen_prompts.very_limited,
         fexp_python_kernel=KAREN_VERY_LIMITED_KERNEL,
-        fexp_block_tools="",
-        fexp_allow_tools="slack,telegram,discord,magic_desk,flexus_bot_kanban,flexus_vector_search,flexus_read_original",
+        fexp_allow_tools=",".join({"slack", "telegram", "discord", "magic_desk"} | ckit_cloudtool.CLOUDTOOLS_PUBLIC | ckit_cloudtool.CLOUDTOOLS_VECDB | ckit_cloudtool.CLOUDTOOLS_MCP),
         fexp_inactivity_timeout=600,
-        fexp_description="Customer-facing worker: captures messenger threads, searches knowledge base, responds to users. No access potentially dangerous tools.",
+        fexp_description="Customer-facing worker: captures messenger threads, searches knowledge base, responds to users. No access potentially dangerous tools, MCPs only in the same group or subgroup.",
     )),
 ]
 
@@ -153,7 +159,7 @@ async def install(
         marketable_picture_big_b64=pic_big,
         marketable_picture_small_b64=pic_small,
         marketable_schedule=[
-            prompts_common.SCHED_TASK_SORT_10M | {"sched_when": "EVERY:1m"},
+            prompts_common.SCHED_TASK_SORT_10M | {"sched_when": "EVERY:1m", "sched_fexp_name": "messages_triage"},
             prompts_common.SCHED_TODO_5M | {"sched_when": "EVERY:1m", "sched_fexp_name": "very_limited"},
         ],
         marketable_required_policydocs=[

@@ -19,16 +19,14 @@ EXPERTS = [
     ("default", ckit_bot_install.FMarketplaceExpertInput(
         fexp_system_prompt=admonster_prompts.admonster_prompt,
         fexp_python_kernel="",
-        fexp_block_tools="*setup*",
-        fexp_allow_tools="",
+        fexp_allow_tools=",".join(ckit_cloudtool.CLOUDTOOLS_QUITE_A_LOT),
         fexp_inactivity_timeout=0,
         fexp_description="Automated advertising execution engine that launches campaigns from Owl Strategist tactics, monitors performance hourly, and optimizes based on stop/accelerate rules.",
     )),
     ("setup", ckit_bot_install.FMarketplaceExpertInput(
         fexp_system_prompt=admonster_prompts.admonster_setup,
         fexp_python_kernel="",
-        fexp_block_tools="",
-        fexp_allow_tools="",
+        fexp_allow_tools=",".join(ckit_cloudtool.CLOUDTOOLS_ADVANCED),
         fexp_inactivity_timeout=0,
         fexp_description="Helps users configure Facebook OAuth connections and ad account settings, plus LinkedIn advertising credentials.",
     )),
