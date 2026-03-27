@@ -66,6 +66,14 @@ In slack messages, formatting is *bold* _italic_ ~strikeout~. Tables and headers
 Triple backquotes for code work, but without language specifier, write newline immediately after triple backquotes.
 """
 
+SLACK_FORMATTING_INFORMATION = f"""
+Your output goes to Slack and will be rendered using Slack's mrkdwn format (not standard Markdown).
+
+{FORMATTING}
+
+Keep messages concise and natural. Use *bold* for emphasis, `code` for technical terms.
+""".strip()
+
 HELP = """
 Help:
 
@@ -181,6 +189,9 @@ class IntegrationSlack(fi_messenger.FlexusMessenger):
     def _get_bot_token(self) -> str:
         slack_auth = self.rcx.external_auth.get("slack") or {}
         return (slack_auth.get("token") or {}).get("access_token", "")
+
+    def get_capture_formatting_cd_instruction(self) -> Optional[str]:
+        return SLACK_FORMATTING_INFORMATION
 
     def on_incoming_activity(self, handler: Callable[[ActivitySlack, bool], Awaitable[None]]):
         self.activity_callback = handler
@@ -503,9 +514,12 @@ class IntegrationSlack(fi_messenger.FlexusMessenger):
                         "fi_slack",
                         ftm_alt=100,
                     )
+                formatting = self.get_capture_formatting_cd_instruction()
+                if formatting:
+                    await ckit_ask_model.thread_add_user_message(
+                        http, toolcall.fcall_ft_id, formatting, "fi_slack", ftm_alt=100, role="cd_instruction",
+                    )
                 r += fi_messenger.CAPTURE_SUCCESS_MSG % (something_name,) + fi_messenger.CAPTURE_ADVICE_MSG
-                r += "Remember that slack formatting rules are in effect, and it's not markdown:\n"
-                r += FORMATTING
 
             except SlackApiError as e:
                 r += "ERROR: %s %s\n" % (type(e).__name__, e)
