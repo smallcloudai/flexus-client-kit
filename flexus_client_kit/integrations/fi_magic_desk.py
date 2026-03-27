@@ -83,6 +83,11 @@ class IntegrationMagicDesk(fi_messenger.FlexusMessenger):
                 await ckit_ask_model.thread_app_capture_patch(http, toolcall.fcall_ft_id, ft_app_searchable=f"magic_desk/{session_id}")
             except gql.transport.exceptions.TransportQueryError as e:
                 return ckit_cloudtool.gql_error_4xx_to_model_reraise_5xx(e, "magic_desk_capture")
+            formatting = self.get_capture_formatting_cd_instruction()
+            if formatting:
+                await ckit_ask_model.thread_add_user_message(
+                    http, toolcall.fcall_ft_id, formatting, "fi_magic_desk", ftm_alt=100, role="cd_instruction",
+                )
             return fi_messenger.CAPTURE_SUCCESS_MSG % session_id + fi_messenger.CAPTURE_ADVICE_MSG
         if op == "uncapture":
             http = await self.fclient.use_http()

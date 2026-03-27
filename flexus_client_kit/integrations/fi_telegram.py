@@ -87,6 +87,17 @@ code block
 No bullet lists or tables.
 """
 
+TELEGRAM_FORMATTING_INFORMATION = f"""
+Your output goes to Telegram and will be rendered using MarkdownV2 rules. Our code handles escaping
+of special characters outside markup automatically, so just write using these markup rules:
+
+{TG_MARKUP_HELP}
+
+Do NOT escape characters yourself, just use the markup rules described above, we will handle escaping of special characters for you. If you escape characters yourself, the message will look weird with too many backslashes.
+
+Keep messages concise and natural. Use *bold* for emphasis, `code` for technical terms.
+""".strip()
+
 HELP += TG_MARKUP_HELP
 
 _TG_MD2_SPECIAL = re.compile(r"([_*\[\]()~`>#+\-=|{}.!\\<>])")
@@ -140,6 +151,7 @@ def tg_escape_md2(text: str) -> str:
         last = m.end()
     if last < len(text):
         parts.append(_TG_MD2_SPECIAL.sub(r"\\\1", text[last:]))
+    logger.info(f"tg_escape_md2: original: {text}\nescaped: {''.join(parts)}")
     return "".join(parts)
 
 
@@ -210,6 +222,9 @@ class IntegrationTelegram(fi_messenger.FlexusMessenger):
         except Exception as e:
             logger.exception("%s telegram failed to initialize", self.rcx.persona.persona_id)
             self.oops_a_problem(f"initialize: {type(e).__name__}: {e}")
+
+    def get_capture_formatting_cd_instruction(self) -> Optional[str]:
+        return TELEGRAM_FORMATTING_INFORMATION
 
     def on_incoming_activity(self, handler: Callable[[ActivityTelegram, bool], Awaitable[None]]):
         self._activity_callback = handler
@@ -296,6 +311,7 @@ class IntegrationTelegram(fi_messenger.FlexusMessenger):
                 return "Cannot post to captured chat. Your responses are sent automatically.\n"
 
             try:
+                logger.info(f"sending text: {text} to chat_id {chat_id}, escaped as: {tg_escape_md2(text)}")
                 await self.tg_app.bot.send_message(chat_id=int(chat_id), text=tg_escape_md2(text), parse_mode="MarkdownV2")
                 return "Post success\n"
             except Exception as e:
@@ -320,8 +336,12 @@ class IntegrationTelegram(fi_messenger.FlexusMessenger):
                 )
             except gql.transport.exceptions.TransportQueryError as e:
                 return ckit_cloudtool.gql_error_4xx_to_model_reraise_5xx(e, "telegram_capture")
-            return fi_messenger.CAPTURE_SUCCESS_MSG % identifier + fi_messenger.CAPTURE_ADVICE_MSG + "\n" + \
-                "Reminder: after this point telegram MarkdownV2 markup rules are in effect for your output, there are no tables! Here's help for you again.\n\n" + TG_MARKUP_HELP
+            formatting = self.get_capture_formatting_cd_instruction()
+            if formatting:
+                await ckit_ask_model.thread_add_user_message(
+                    http, toolcall.fcall_ft_id, formatting, "fi_telegram", ftm_alt=100, role="cd_instruction",
+                )
+            return fi_messenger.CAPTURE_SUCCESS_MSG % identifier + fi_messenger.CAPTURE_ADVICE_MSG
 
         if op == "uncapture":
             http = await self.fclient.use_http()

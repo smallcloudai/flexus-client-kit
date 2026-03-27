@@ -1,5 +1,5 @@
 from collections import deque
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 
 from flexus_client_kit import ckit_ask_model, ckit_bot_exec, ckit_bot_query, ckit_client
 
@@ -63,6 +63,9 @@ class FlexusMessenger:
 
     async def look_user_message_got_confirmed(self, msg: ckit_ask_model.FThreadMessageOutput) -> bool:
         return False
+
+    def get_capture_formatting_cd_instruction(self) -> Optional[str]:
+        return None
 
 
 def ftm_content_to_text(content) -> str:
