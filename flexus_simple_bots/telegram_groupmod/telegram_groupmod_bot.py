@@ -13,6 +13,7 @@ from pymongo import AsyncMongoClient
 
 from flexus_client_kit import ckit_client
 from flexus_client_kit import ckit_cloudtool
+from flexus_client_kit import ckit_integrations_db
 from flexus_client_kit import ckit_bot_exec
 from flexus_client_kit import ckit_kanban
 from flexus_client_kit import ckit_shutdown
@@ -30,6 +31,13 @@ BOT_VERSION = SIMPLE_BOTS_COMMON_VERSION
 TELEGRAM_GROUPMOD_ROOTDIR = Path(__file__).parent
 TELEGRAM_GROUPMOD_SKILLS = ckit_skills.static_skills_find(TELEGRAM_GROUPMOD_ROOTDIR, shared_skills_allowlist="")
 TELEGRAM_GROUPMOD_SETUP_SCHEMA = json.loads((TELEGRAM_GROUPMOD_ROOTDIR / "setup_schema.json").read_text())
+TELEGRAM_GROUPMOD_INTEGRATIONS: list[ckit_integrations_db.IntegrationRecord] = ckit_integrations_db.static_integrations_load(
+    TELEGRAM_GROUPMOD_ROOTDIR,
+    allowlist=[
+        "flexus_policy_document",
+    ],
+    builtin_skills=TELEGRAM_GROUPMOD_SKILLS,
+)
 
 BUFFER_MAX_KB = 128
 MESSAGE_MAX_KB = 50
@@ -143,6 +151,7 @@ TOOLS_ALL = [
     BUFFER_TOOL,
     fi_telegram.TELEGRAM_TOOL,
     fi_mongo_store.MONGO_STORE_TOOL,
+    *[t for rec in TELEGRAM_GROUPMOD_INTEGRATIONS for t in rec.integr_tools],
 ]
 
 
@@ -159,6 +168,7 @@ async def telegram_groupmod_main_loop(
         TELEGRAM_GROUPMOD_SETUP_SCHEMA,
         rcx.persona.persona_setup,
     )
+    await ckit_integrations_db.main_loop_integrations_init(TELEGRAM_GROUPMOD_INTEGRATIONS, rcx, setup)
 
     warns_before_mute = setup["warns_before_mute"]
     mutes_before_ban = setup["mutes_before_ban"]

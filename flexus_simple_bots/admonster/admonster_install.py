@@ -15,7 +15,7 @@ EXPERTS = [
         fexp_system_prompt=admonster_prompts.admonster_prompt,
         fexp_python_kernel="",
         fexp_allow_tools=",".join(sorted(set(ckit_cloudtool.CLOUDTOOLS_QUITE_A_LOT) | TOOL_NAMESET)),
-        fexp_nature="NATURE_AUTONOMOUS",
+        fexp_nature="NATURE_INTERACTIVE",
         fexp_inactivity_timeout=0,
         fexp_description="Automated advertising execution engine that launches campaigns from Owl Strategist tactics, monitors performance hourly, and optimizes based on stop/accelerate rules.",
     )),

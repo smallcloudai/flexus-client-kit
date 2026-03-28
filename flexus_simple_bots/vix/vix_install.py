@@ -65,8 +65,8 @@ EXPERTS = [
     ("nurturing", ckit_bot_install.FMarketplaceExpertInput(
         fexp_system_prompt=vix_prompts.vix_prompt_nurturing,
         fexp_python_kernel="",
-        fexp_allow_tools=",".join(ckit_cloudtool.CLOUDTOOLS_SAFE),
-        fexp_nature="NATURE_AUTONOMOUS",
+        fexp_allow_tools=",".join(TOOL_NAMESET | ckit_cloudtool.CLOUDTOOLS_QUITE_A_LOT),
+        fexp_nature="NATURE_SEMI_AUTONOMOUS",
         fexp_inactivity_timeout=600,
         fexp_description="Lightweight expert for automated tasks: sending templated emails, follow-ups, and simple CRM operations.",
         fexp_preferred_model_default="grok-4-1-fast-reasoning",
