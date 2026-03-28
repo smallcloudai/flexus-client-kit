@@ -305,6 +305,10 @@ class IntegrationDiscord(fi_messenger.FlexusMessenger):
                 identifier = f"{destination.channel_identifier}/{destination.thread_identifier}"
             else:
                 identifier = str(destination.channel_identifier)
+            this_thread = self.rcx.latest_threads.get(toolcall.fcall_ft_id)
+            if this_thread and (this_thread.thread_fields.ft_app_searchable or "").startswith("discord/"):
+                return "Cannot post to a captured thread/DM. Your regular responses are sent automatically.\n"
+
             http = await self.fclient.use_http()
             capturing_ft_id = await ckit_ask_model.captured_thread_lookup(
                 http, self.rcx.persona.persona_id, f"discord/{identifier}",

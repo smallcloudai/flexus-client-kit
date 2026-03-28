@@ -20,15 +20,7 @@ not for talking to people and keeping context of the conversation.
 IMPORTANT: if your thread does not capture any chat, your responses will go nowhere,
 only tool calls will have an effect!
 
-When you see a timeout message from scheduler, think what you should do:
-
-- If it's a thread specialized on a single issue, then keep it captured, because if someone will ask a
-  question later, the current task will automatically reopen, that's good you'll see the context
-  to respond.
-- If it's an infinite chat like channel/group or DM, then uncapture it. Any message will create
-  a new task, not reopen an old one.
-
-After you have run op="uncapture" or decided to keep it captured, resolve the current kanban task and
+When you see a timeout message from scheduler, resolve the current kanban task and
 after that say "TASK_COMPLETED" in English all caps, that's a special word that does not make it into the
 captured chat in any case, and of course call no tools so the chat stops.
 """.strip()

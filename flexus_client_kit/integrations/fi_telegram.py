@@ -210,42 +210,6 @@ class IntegrationTelegram(fi_messenger.FlexusMessenger):
             logger.exception("%s telegram failed to initialize", self.rcx.persona.persona_id)
             self.oops_a_problem(f"initialize: {type(e).__name__}: {e}")
 
-    def on_incoming_activity(self, handler: Callable[[ActivityTelegram, bool], Awaitable[None]]):
-        self._activity_callback = handler
-        return handler
-
-    async def default_activity_to_inbox(self, a: ActivityTelegram, already_posted: bool):
-        logger.info("%s Telegram %s by @%s: %s", self.rcx.persona.persona_id, a.chat_type, a.message_author_name, a.message_text[:50])
-        if already_posted:
-            return
-        details = asdict(a)
-        details["to_capture"] = a.chat_id
-        if a.attachments:
-            details["attachments"] = f"{len(a.attachments)} files attached"
-        title = "Telegram %s user=%r chat_id=%d\n%s" % (a.chat_type, a.message_author_name, a.chat_id, a.message_text)
-        human_id = "telegram:%d" % a.chat_id
-        if a.chat_type == "private":
-            await ckit_kanban.bot_kanban_post_into_inprogress(
-                self.fclient,
-                self.rcx.persona.persona_id,
-                title=title,
-                human_id=human_id,
-                details_json=json.dumps(details),
-                provenance_message="telegram_inbound",
-                fexp_name=self.outside_messages_fexp_name,
-                first_calls=[{"tool_name": "telegram", "tool_args": {"op": "capture", "args": {"chat_id": a.chat_id}}}],
-            )
-        else:
-            await ckit_kanban.bot_kanban_post_into_inbox(
-                self.fclient,
-                self.rcx.persona.persona_id,
-                title=title,
-                human_id=human_id,
-                details_json=json.dumps(details),
-                provenance_message="telegram_inbound",
-                fexp_name=self.outside_messages_fexp_name,
-            )
-
     async def close(self) -> None:
         if self.tg_app and self.tg_app.running:
             try:
@@ -294,12 +258,20 @@ class IntegrationTelegram(fi_messenger.FlexusMessenger):
             if not text:
                 return "Missing text parameter\n"
 
+            this_thread = self.rcx.latest_threads.get(toolcall.fcall_ft_id)
+            if this_thread and (this_thread.thread_fields.ft_app_searchable or "").startswith("telegram/"):
+                return "Cannot post to captured chat. Your responses are sent automatically.\n"
+
             http = await self.fclient.use_http()
             capturing_ft_id = await ckit_ask_model.captured_thread_lookup(
                 http, self.rcx.persona.persona_id, f"telegram/{chat_id}",
             )
             if capturing_ft_id == toolcall.fcall_ft_id:
                 return "Cannot post to captured chat. Your responses are sent automatically.\n"
+            if capturing_ft_id:
+                logger.warning("telegram post blocked: target telegram/%s already captured by ft_id=%s, this ft_id=%s, persona=%s",
+                    chat_id, capturing_ft_id, toolcall.fcall_ft_id, self.rcx.persona.persona_id)
+                return "This chat is already captured in another thread.\n"
 
             try:
                 await self.tg_app.bot.send_message(chat_id=int(chat_id), text=tg_escape_md2(text), parse_mode="MarkdownV2")
@@ -361,7 +333,7 @@ class IntegrationTelegram(fi_messenger.FlexusMessenger):
         #  emsg_created_ts=1770975590.564911,
         #  ws_id='solarsystem')
 
-        payload = emsg.emsg_payload if isinstance(emsg.emsg_payload, dict) else json.loads(emsg.emsg_payload)
+        payload = emsg.emsg_payload
         update = telegram.Update.de_json(payload, bot=None)   # Scary, strange types, date becomes datetime.datetime etc, but good for validation
 
         msg = update.message or update.edited_message
@@ -386,6 +358,42 @@ class IntegrationTelegram(fi_messenger.FlexusMessenger):
         )
         already_posted_to_captured_thread = await self.post_into_captured_thread_as_user(activity)
         await self._activity_callback(activity, already_posted_to_captured_thread)
+
+    def on_incoming_activity(self, handler: Callable[[ActivityTelegram, bool], Awaitable[None]]):
+        self._activity_callback = handler
+        return handler
+
+    async def default_activity_to_inbox(self, a: ActivityTelegram, already_posted: bool):
+        logger.info("%s Telegram %s by @%s: %s", self.rcx.persona.persona_id, a.chat_type, a.message_author_name, a.message_text[:50])
+        if already_posted:
+            return
+        details = asdict(a)
+        details["to_capture"] = a.chat_id
+        if a.attachments:
+            details["attachments"] = f"{len(a.attachments)} files attached"
+        title = "Telegram %s user=%r chat_id=%d\n%s" % (a.chat_type, a.message_author_name, a.chat_id, a.message_text)
+        human_id = "telegram:%d" % a.chat_id
+        if a.chat_type == "private":
+            await ckit_kanban.bot_kanban_post_into_inprogress(
+                self.fclient,
+                self.rcx.persona.persona_id,
+                title=title,
+                human_id=human_id,
+                details_json=json.dumps(details),
+                provenance_message="telegram_inbound",
+                fexp_name=self.outside_messages_fexp_name,
+                first_calls=[{"tool_name": "telegram", "tool_args": {"op": "capture", "args": {"chat_id": a.chat_id}}}],
+            )
+        else:
+            await ckit_kanban.bot_kanban_post_into_inbox(
+                self.fclient,
+                self.rcx.persona.persona_id,
+                title=title,
+                human_id=human_id,
+                details_json=json.dumps(details),
+                provenance_message="telegram_inbound",
+                fexp_name=self.outside_messages_fexp_name,
+            )
 
     async def post_into_captured_thread_as_user(self, activity: ActivityTelegram) -> bool:
         msg_text = activity.message_text

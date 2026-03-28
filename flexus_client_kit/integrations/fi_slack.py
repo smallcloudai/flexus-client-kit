@@ -364,22 +364,33 @@ class IntegrationSlack(fi_messenger.FlexusMessenger):
                         dm_resp = await self.web_client.conversations_open(users=user_id)
                         channel_id = dm_resp["channel"]["id"]
                         self.users_name2dm[username] = channel_id
+                elif something_name in self.channels_name2id.values():
+                    channel_id = something_name
                 else:
-                    channel_id = self.channels_name2id.get(something_name)
+                    channel_id = self.channels_name2id.get(something_name.lstrip("#"))
                     if not channel_id:
                         return f"ERROR: Channel {something_name!r} not found in channels_name2id"
 
+                this_thread = self.rcx.latest_threads.get(toolcall.fcall_ft_id, None)
+                # Caveat: latest_threads might be not deep enough to find it, but here we are handling a failure mode that should not
+                # really happen, so it's like an imperfect filter to catch model mistakes.
+                if this_thread and this_thread.thread_fields.ft_app_searchable.startswith("slack/"):
+                    return "Cannot use \"post\" in a captured thread. Type your message normally and it will appear in Slack automatically.\n"
+
                 something_id_slash_thread = channel_id + ("/" + thread_ts if thread_ts else "")
+                # Or maybe the other thread is captured (other_thread might not be this_thread)
                 http = await self.fclient.use_http()
-                capturing_ft_id = await ckit_ask_model.captured_thread_lookup(
+                other_thread_ft_id = await ckit_ask_model.captured_thread_lookup(
                     http, self.rcx.persona.persona_id, "slack/" + something_id_slash_thread,
                 )
-                if capturing_ft_id == toolcall.fcall_ft_id:
-                    return "Cannot use post for a captured thread. Type your message normally and it will appear in Slack automatically.\n"
+                if other_thread_ft_id == toolcall.fcall_ft_id:
+                    return "Cannot use \"post\" in a captured thread. Type your message normally and it will appear in Slack automatically.\n"
+                if other_thread_ft_id:
+                    logger.warning("slack post blocked: target slack/%s already captured by ft_id=%s, this ft_id=%s, persona=%s",
+                        something_id_slash_thread, other_thread_ft_id, toolcall.fcall_ft_id, self.rcx.persona.persona_id)
+                    return "Hmm this channel_slash_thread is already captured by you in another chat, somehow.\n"
 
                 if attach_file:
-                    from flexus_client_kit import ckit_mongo
-
                     if self.mongo_collection is None:
                         return "ERROR: Attaching file is not available. You should setup the slack tool with mongo collection"
 
