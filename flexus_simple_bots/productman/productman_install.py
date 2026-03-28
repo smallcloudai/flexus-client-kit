@@ -58,6 +58,7 @@ EXPERTS = [
         fexp_python_kernel=(productman_bot.PRODUCTMAN_ROOTDIR / "lark/survey_skill_kernel.lark").read_text(),
         fexp_allow_tools=",".join(ckit_cloudtool.CLOUDTOOLS_SAFE),
         fexp_nature="NATURE_AUTONOMOUS",
+        fexp_inactivity_timeout=600,
         fexp_description="Executes survey campaigns to validate hypotheses with real customer feedback.",
     )),
 ]
