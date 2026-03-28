@@ -104,7 +104,7 @@ async def marketplace_upsert_dev_bot(
         included_integr = []
         if add_integrations_into_expert_system_prompt:
             for r in add_integrations_into_expert_system_prompt:
-                if r.integr_prompt and any(expert._tool_allowed(t.name) for t in r.integr_tools):
+                if r.integr_prompt and not any(r.integr_prompt in s for s in sections) and any(expert._tool_allowed(t.name) for t in r.integr_tools):
                     sections.append(r.integr_prompt)
                     included_integr.append(r.integr_name)
         sections.append(prompts_common.PROMPT_HERE_GOES_SETUP)
