@@ -16,6 +16,7 @@ EXPERTS = [
         fexp_system_prompt=strategist_prompts.DEFAULT_PROMPT,
         fexp_python_kernel="",
         fexp_allow_tools=",".join(TOOL_NAMESET | ckit_cloudtool.CLOUDTOOLS_QUITE_A_LOT),
+        fexp_nature="NATURE_INTERACTIVE",
         fexp_description="GTM Strategy operator — hypothesis design, channel strategy, MVP scoping, validation criteria, positioning, messaging, offer design, and pricing decisions.",
         fexp_builtin_skills=ckit_skills.read_name_description(strategist_bot.STRATEGIST_ROOTDIR, strategist_bot.STRATEGIST_SKILLS),
     )),

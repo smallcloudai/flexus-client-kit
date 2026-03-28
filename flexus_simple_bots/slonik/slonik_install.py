@@ -16,6 +16,7 @@ EXPERTS = [
         fexp_system_prompt=slonik_prompts.slonik_prompt,
         fexp_python_kernel="",
         fexp_allow_tools=",".join(TOOL_NAMESET | ckit_cloudtool.CLOUDTOOLS_QUITE_A_LOT),
+        fexp_nature="NATURE_INTERACTIVE",
         fexp_description="PostgreSQL assistant that helps run queries, analyze data, and troubleshoot database connections using psql.",
     )),
 ]

@@ -16,6 +16,7 @@ EXPERTS = [
         fexp_system_prompt=executor_prompts.DEFAULT_PROMPT,
         fexp_python_kernel="",
         fexp_allow_tools=",".join(TOOL_NAMESET | ckit_cloudtool.CLOUDTOOLS_QUITE_A_LOT),
+        fexp_nature="NATURE_INTERACTIVE",
         fexp_description="GTM Execution operator — pilot onboarding, pilot success tracking, and pilot conversion into signed revenue.",
         fexp_builtin_skills=ckit_skills.read_name_description(executor_bot.EXECUTOR_ROOTDIR, executor_bot.EXECUTOR_SKILLS),
     )),

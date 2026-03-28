@@ -1,5 +1,6 @@
 ---
 expert_description: Conversational reframing expert. Listens, validates, reframes, suggests next move.
+expert_nature: NATURE_INTERACTIVE
 ---
 
 ## Conversation Mode

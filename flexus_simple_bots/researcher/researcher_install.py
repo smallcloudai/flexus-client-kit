@@ -17,6 +17,7 @@ EXPERTS = [
         fexp_system_prompt=researcher_prompts.DEFAULT_PROMPT,
         fexp_python_kernel="",
         fexp_allow_tools=",".join(TOOL_NAMESET | ckit_cloudtool.CLOUDTOOLS_QUITE_A_LOT),
+        fexp_nature="NATURE_INTERACTIVE",
         fexp_description="GTM Research operator - discovery recruitment, interview capture, alternatives mapping, WTP research, search signals, firmographics, ICP scoring, and contact enrichment.",
         fexp_builtin_skills=ckit_skills.read_name_description(researcher_bot.RESEARCHER_ROOTDIR, researcher_bot.RESEARCHER_SKILLS),
     )),

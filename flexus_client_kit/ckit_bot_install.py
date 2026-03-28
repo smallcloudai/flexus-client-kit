@@ -22,6 +22,7 @@ class FMarketplaceExpertInput:
     fexp_system_prompt: str
     fexp_python_kernel: str
     fexp_allow_tools: str
+    fexp_nature: str  # NATURE_INTERACTIVE NATURE_SEMI_AUTONOMOUS NATURE_AUTONOMOUS NATURE_NO_TASK
     fexp_inactivity_timeout: int = 0
     fexp_app_capture_tools: str = ""
     fexp_description: str = ""

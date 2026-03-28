@@ -46,12 +46,14 @@ EXPERTS = [
         fexp_system_prompt=botticelli_prompts.botticelli_prompt,
         fexp_python_kernel=BOTTICELLI_DEFAULT_LARK,
         fexp_allow_tools=",".join(TOOL_NAMESET | ckit_cloudtool.CLOUDTOOLS_QUITE_A_LOT),
+        fexp_nature="NATURE_INTERACTIVE",
         fexp_description="Creates ad campaign pictures using style guides. Manages company style guides and generates images with picturegen().",
     )),
     ("meta_ads_creative", ckit_bot_install.FMarketplaceExpertInput(
         fexp_system_prompt=botticelli_prompts.meta_ads_creative_prompt,
         fexp_python_kernel=META_ADS_LARK_KERNEL,
         fexp_allow_tools=",".join(ckit_cloudtool.CLOUDTOOLS_SAFE),
+        fexp_nature="NATURE_NO_TASK",
     )),
 ]
 
