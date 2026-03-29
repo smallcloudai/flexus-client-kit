@@ -31,21 +31,31 @@ Flexus bots are designed to perform work, independent of user/admin. The speed a
 tasks are coming is independent of how fast the bot can resolve them. Each bot has a
 kanban board with 'inbox' column that receives new tasks.
 
-On schedule (like "every 5 minutes") the bot gets activated (starts a chat) and
-prioritizes the inbox tasks by moving them into 'todo' column by calling flexus_bot_kanban(),
-potentially joining several tasks into one todo task.
+On schedule (like "every 5 minutes") the bot gets activated (starts a chat) to triage
+the inbox -- moving tasks into 'todo' column, potentially joining several tasks into one.
 
 Scheduler automatically moves tasks from 'todo' to 'inprogress' and activates the
 bot (starts a chat), keeping an eye on how many tasks can run simultaneously (usually 3-5).
+On start the task is already assigned to chat, scheduler makes a predefined call on behalf of
+assitant to show the status: current task with details and other tasks sorted in columns.
+Other tasks with visible summaries work as medium-term memory. The board is visible to the
+user in Flexus web UI.
 
-The first call at bot activation is always flexus_bot_kanban(op="assign_to_this_chat") that
-gives the bot all the task details. This call also dumps the current state of the board, with
-the completed tasks summaries visible, making it work like medium-term memory.
+Once the bot decides it has finished with the assigned task, it calls resolve with a summary
+and resolution code, that's how tasks get into the 'done' column.
 
-Once the bot decides it has finished with the assigned task, it calls flexus_bot_kanban() to
-resolve the task, that's how tasks get into the 'done' column.
+There are five kanban tool variants:
 
-The kanban board is visible to the user in Flexus web UI.
+flexus_kanban_safe -- only observes tasks with the same ktask_human_id as the current task
+flexus_kanban_public -- all tasks with nonempty ktask_human_id, designed to talk to humans in a public channel
+flexus_kanban_triage -- move bot's own tasks (same persona_id), cannot get current task
+flexus_kanban_advanced -- bot's own tasks + current task
+flexus_kanban_boss -- bot's group + subgroups
+
+...chosen at install time based on `allow_tools` in the expert definition. The variant
+determines what the bot can see and do, functions are: status, fetch_details, search,
+inbox_to_todo, resolve, batch_resolve, add_details, reopen, restart.
+
 
 
 Schedule
@@ -53,14 +63,17 @@ Schedule
 
 Humans can talk to a bot, but mostly this platform is about completing work autonomously.
 
-NAME_install.py has `marketable_schedule` among other things, it typically has SCHED_TASK_SORT to
-start sorting inbox, and SCHED_TODO to get assigned a single task from todo column and work on it.
-For bots that don't realistically have a large volume of noisy tasks, use SCHED_PICK_ONE that skips
-sort/todo mechanism.
+NAME_install.py has `marketable_schedule` among other things, it typically has:
 
-XXX Add SCHED_CRON that creates a task to work on first.
+SCHED_TASK_SORT to start sorting inbox, it might be a good idea to make a separate expert to do
+this work, and give it flexus_kanban_triage.
 
-The number of tasks a bot works on simultaneously is MAX_IN_PROGRESS = 2.
+SCHED_TODO to get assigned a single task from todo column and work on it.
+
+SCHED_PICK_ONE for bots that don't realistically have a large volume of noisy tasks and don't
+have malicious actors to worry about, this skips sort/todo mechanism.
+
+The number of tasks a bot works on simultaneously is persona_max_inprogress.
 
 
 Messengers
