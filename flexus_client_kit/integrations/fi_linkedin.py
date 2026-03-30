@@ -52,8 +52,10 @@ LINKEDIN_SETUP_SCHEMA = []
 
 
 class IntegrationLinkedIn:
-    def __init__(self, rcx=None):
+    def __init__(self, fclient=None, rcx=None, ad_account_id=""):
+        self.fclient = fclient
         self.rcx = rcx
+        self.ad_account_id = ad_account_id
 
     def _auth(self) -> Dict[str, Any]:
         # This integration only reads already-connected OAuth data.
