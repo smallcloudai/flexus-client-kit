@@ -13,7 +13,7 @@ from flexus_simple_bots.vix import vix_prompts
 
 TOOLS_DEFAULT = {
     "flexus_policy_document", "mongo_store", "flexus_fetch_skill", "print_widget",
-    "crm_automation", "sched",
+    "crm_automation", "flexus_schedule",
     "shopify", "shopify_cart",
     "erp_table_meta", "erp_table_data", "erp_table_crud", "erp_csv_import",
     "slack", "telegram",
@@ -35,7 +35,7 @@ TOOLS_NURTURING = {
     "manage_crm_contact", "manage_crm_deal", "log_crm_activity",
     "email_send",
     "magic_desk", "slack", "telegram",
-} | ckit_cloudtool.CLOUDTOOLS_SAFE | ckit_cloudtool.CLOUDTOOLS_VECDB | ckit_cloudtool.CLOUDTOOLS_WEB | ckit_cloudtool.CLOUDTOOLS_MCP
+} | ckit_cloudtool.CLOUDTOOLS_TRIAGE | ckit_cloudtool.CLOUDTOOLS_VECDB | ckit_cloudtool.CLOUDTOOLS_WEB | ckit_cloudtool.CLOUDTOOLS_MCP
 
 
 BOT_DESCRIPTION = """

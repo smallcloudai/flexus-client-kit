@@ -36,7 +36,7 @@ VIX_SKILLS = ckit_skills.static_skills_find(VIX_ROOTDIR, shared_skills_allowlist
 VIX_SKILLS_DEFAULT = ["stall-deals"]
 
 VIX_SETUP_SCHEMA = json.loads((VIX_ROOTDIR / "setup_schema.json").read_text())
-VIX_SETUP_SCHEMA += fi_shopify.SHOPIFY_SETUP_SCHEMA + fi_crm_automations.CRM_AUTOMATIONS_SETUP_SCHEMA + fi_resend.RESEND_SETUP_SCHEMA + fi_slack.SLACK_SETUP_SCHEMA
+VIX_SETUP_SCHEMA += fi_shopify.SHOPIFY_SETUP_SCHEMA + fi_crm_automations.CRM_AUTOMATIONS_SETUP_SCHEMA + fi_crm.CRM_SETUP_SCHEMA + fi_resend.RESEND_SETUP_SCHEMA + fi_slack.SLACK_SETUP_SCHEMA
 
 ERP_TABLES = ["crm_contact", "crm_activity", "crm_deal", "com_shop", "com_product", "com_product_variant", "com_order", "com_order_item", "com_refund"]
 VIX_INTEGRATIONS: list[ckit_integrations_db.IntegrationRecord] = ckit_integrations_db.static_integrations_load(
