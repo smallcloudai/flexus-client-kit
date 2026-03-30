@@ -311,7 +311,7 @@ async def crash_boom_bang(fclient: ckit_client.FlexusClient, rcx: RobotContext, 
             logger.info("%s restart requested (settings changed)", rcx.persona.persona_id)
             await rcx.wait_for_bg_tasks(timeout=30.0)
             rcx.messengers.clear()  # new loop will populate this with new settings
-            continue
+            break
         except asyncio.CancelledError:
             # Only happens on shutdown (hopefully)
             break
