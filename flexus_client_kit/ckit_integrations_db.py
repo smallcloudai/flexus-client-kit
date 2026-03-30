@@ -279,10 +279,11 @@ def static_integrations_load(bot_dir: Path, allowlist: list[str], builtin_skills
                 return fi_resend.IntegrationResend(rcx.fclient, rcx, domains)
             result.append(IntegrationRecord(
                 integr_name=name,
-                integr_tools=[fi_resend.RESEND_SEND_TOOL, fi_resend.RESEND_SETUP_TOOL],
+                integr_tools=[fi_resend.RESEND_SEND_TOOL, fi_resend.RESEND_REPLY_TOOL, fi_resend.RESEND_SETUP_TOOL],
                 integr_init=_init_resend,
                 integr_setup_handlers=lambda obj, rcx: [
                     rcx.on_tool_call("email_send")(obj.send_called_by_model),
+                    rcx.on_tool_call("email_reply")(obj.reply_called_by_model),
                     rcx.on_tool_call("email_setup_domain")(obj.setup_called_by_model),
                 ],
                 integr_provider="resend",

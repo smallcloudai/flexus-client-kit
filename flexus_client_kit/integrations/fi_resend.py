@@ -73,6 +73,22 @@ RESEND_SEND_TOOL = ckit_cloudtool.CloudTool(
     },
 )
 
+RESEND_REPLY_TOOL = ckit_cloudtool.CloudTool(
+    strict=True,
+    name="email_reply",
+    description="Reply to the inbound email of the current task. Recipient and CC are locked to the original sender/CCs.",
+    parameters={
+        "type": "object",
+        "properties": {
+            "subject": {"type": "string", "order": 1, "description": "Subject line (typically Re: original subject)"},
+            "html": {"type": "string", "order": 2, "description": "HTML body, or empty string if text-only"},
+            "text": {"type": "string", "order": 3, "description": "Plain text fallback, or empty string if html-only"},
+        },
+        "required": ["subject", "html", "text"],
+        "additionalProperties": False,
+    },
+)
+
 RESEND_SETUP_TOOL = ckit_cloudtool.CloudTool(
     strict=False,
     name="email_setup_domain",
@@ -184,6 +200,37 @@ class IntegrationResend:
         rid = r.get("resend_email_send", "")
         logger.info("sent email %s to %s", rid, to)
         return ckit_cloudtool.ToolResult(content=f"Email sent (id: {rid})", dollars=0)
+
+    async def reply_called_by_model(self, toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Optional[Dict[str, Any]]):
+        if not model_produced_args:
+            return "Provide subject, and html or text body."
+        a = model_produced_args
+        if not a.get("html", "") and not a.get("text", ""):
+            return "Provide 'html' and/or 'text'"
+        ktask_id = None
+        for t in self.rcx.latest_tasks.values():
+            if t.ktask_inprogress_ft_id == toolcall.fcall_ft_id:
+                ktask_id = t.ktask_id
+                break
+        if not ktask_id:
+            return "No task assigned to this thread — email_reply only works within a task context."
+        http = await self.fclient.use_http()
+        try:
+            async with http as h:
+                r = await h.execute(gql.gql("""mutation ResendBotReplyEmail($input: ResendEmailReplyInput!) {
+                    resend_email_reply(input: $input)
+                }"""), variable_values={"input": {
+                    "persona_id": self.rcx.persona.persona_id,
+                    "ktask_id": ktask_id,
+                    "subject": a.get("subject", ""),
+                    "html": a.get("html", ""),
+                    "text": a.get("text", ""),
+                }})
+        except gql.transport.exceptions.TransportQueryError as e:
+            return ckit_cloudtool.gql_error_4xx_to_model_reraise_5xx(e, "email_reply")
+        rid = r.get("resend_email_reply", "")
+        logger.info("reply email %s (task %s)", rid, ktask_id)
+        return ckit_cloudtool.ToolResult(content="Reply sent (id: %s)" % rid, dollars=0)
 
     async def setup_called_by_model(self, toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Optional[Dict[str, Any]]):
         if not model_produced_args:
