@@ -86,7 +86,7 @@ async def executor_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_ex
         data = args.get("data")
         if not path or data is None:
             return "Error: path and data are required."
-        await pdoc_integration.pdoc_overwrite(path, json.dumps(data, ensure_ascii=False), fcall_untrusted_key=toolcall.fcall_untrusted_key)
+        await pdoc_integration.pdoc_overwrite(path, json.dumps(data, ensure_ascii=False), persona_id=rcx.persona.persona_id, fcall_untrusted_key=toolcall.fcall_untrusted_key)
         return f"Written: {path}"
 
     try:

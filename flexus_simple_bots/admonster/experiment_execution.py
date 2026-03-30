@@ -128,7 +128,7 @@ class IntegrationExperimentExecution:
             return "ERROR: Facebook integration not available."
         # Read ad_account_id from policy document
         try:
-            config_doc = await self.pdoc_integration.pdoc_cat("/company/ad-ops-config", fcall_untrusted_key=toolcall.fcall_untrusted_key)
+            config_doc = await self.pdoc_integration.pdoc_cat("/company/ad-ops-config", persona_id=self.pdoc_integration.rcx.persona.persona_id, fcall_untrusted_key=toolcall.fcall_untrusted_key)
             ad_account_id = config_doc.pdoc_content.get("facebook_ad_account_id", "")
         except Exception as e:
             return f"ERROR: Could not read /company/ad-ops-config: {e}"
@@ -139,7 +139,7 @@ class IntegrationExperimentExecution:
         # 1. Read tactics-campaigns document (new format: 4 separate docs)
         tactics_path = f"/gtm/discovery/{experiment_id}/tactics-campaigns"
         try:
-            tactics_doc = await self.pdoc_integration.pdoc_cat(tactics_path, fuser_id)
+            tactics_doc = await self.pdoc_integration.pdoc_cat(tactics_path, persona_id=self.pdoc_integration.rcx.persona.persona_id, fcall_untrusted_key=toolcall.fcall_untrusted_key)
             tactics_raw = tactics_doc.pdoc_content
             # Extract from wrapper: {"tactics_campaigns": {"meta": {...}, "campaigns": [...]}}
             tactics = tactics_raw.get("tactics_campaigns", tactics_raw) if isinstance(tactics_raw, dict) else {}
@@ -254,7 +254,7 @@ class IntegrationExperimentExecution:
         }
         runtime_doc = {"meta_runtime": runtime_inner}
         try:
-            await self.pdoc_integration.pdoc_overwrite(runtime_path, json.dumps(runtime_doc, indent=2), fuser_id)
+            await self.pdoc_integration.pdoc_overwrite(runtime_path, json.dumps(runtime_doc, indent=2), persona_id=self.pdoc_integration.rcx.persona.persona_id, fcall_untrusted_key=toolcall.fcall_untrusted_key)
         except Exception as e:
             errors.append(f"Failed to save runtime: {e}")
 
@@ -316,13 +316,12 @@ class IntegrationExperimentExecution:
 
     async def _check_single_experiment(self, experiment_id: str, tracking: ExperimentTracking) -> None:
         """Check and optimize a single experiment."""
-        # Use bot's fuser_id for pdoc access
-        fuser_id = self.pdoc_integration.rcx.persona.persona_id
+        pid = self.pdoc_integration.rcx.persona.persona_id
 
         # 1. Load runtime doc (wrapped in meta-runtime key)
         runtime_path = f"/gtm/discovery/{experiment_id}/meta-runtime"
         try:
-            runtime_doc = await self.pdoc_integration.pdoc_cat(runtime_path, fuser_id)
+            runtime_doc = await self.pdoc_integration.pdoc_cat(runtime_path, persona_id=pid, fcall_untrusted_key="")
             raw_content = runtime_doc.pdoc_content
             # Extract inner runtime from meta-runtime wrapper
             runtime = raw_content.get("meta_runtime", raw_content) if isinstance(raw_content, dict) else {}
@@ -336,7 +335,7 @@ class IntegrationExperimentExecution:
         metrics_path = f"/gtm/discovery/{experiment_id}/metrics"
         metrics = None
         try:
-            metrics_doc = await self.pdoc_integration.pdoc_cat(metrics_path, fuser_id)
+            metrics_doc = await self.pdoc_integration.pdoc_cat(metrics_path, persona_id=pid, fcall_untrusted_key="")
             metrics = metrics_doc.pdoc_content
         except Exception:
             pass
@@ -345,7 +344,7 @@ class IntegrationExperimentExecution:
         tactics_tracking_path = f"/gtm/discovery/{experiment_id}/tactics-tracking"
         tactics_tracking = None
         try:
-            tactics_doc = await self.pdoc_integration.pdoc_cat(tactics_tracking_path, fuser_id)
+            tactics_doc = await self.pdoc_integration.pdoc_cat(tactics_tracking_path, persona_id=pid, fcall_untrusted_key="")
             tactics_raw = tactics_doc.pdoc_content
             # Extract from wrapper: {"tactics_tracking": {"meta": {...}, "iteration_guide": {...}}}
             tactics_tracking = tactics_raw.get("tactics_tracking", tactics_raw) if isinstance(tactics_raw, dict) else {}
@@ -421,7 +420,7 @@ class IntegrationExperimentExecution:
         # Wrap in meta-runtime for microfrontend compatibility
         runtime_wrapped = {"meta_runtime": runtime}
         try:
-            await self.pdoc_integration.pdoc_overwrite(runtime_path, json.dumps(runtime_wrapped, indent=2), fuser_id)
+            await self.pdoc_integration.pdoc_overwrite(runtime_path, json.dumps(runtime_wrapped, indent=2), persona_id=pid, fcall_untrusted_key="")
         except Exception as e:
             logger.warning(f"Failed to update runtime for {experiment_id}: {e}")
 
