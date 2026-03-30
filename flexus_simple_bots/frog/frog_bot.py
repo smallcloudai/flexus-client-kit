@@ -226,7 +226,7 @@ async def frog_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.R
         #   top_level_tag is "pond_report" as written here into the doc
         # The general idea: UI will load the `top_level_tag` editor from `microfrontend` bot of the currently installed version
 
-        await pdoc_integration.pdoc_create(path, json.dumps(pond_report_doc), fcall_untrusted_key=toolcall.fcall_untrusted_key)
+        await pdoc_integration.pdoc_create(path, json.dumps(pond_report_doc), persona_id=rcx.persona.persona_id, fcall_untrusted_key=toolcall.fcall_untrusted_key)
         return f"✍️ {path}\n\n✓ Successfully updated\n\n"
 
     @rcx.on_tool_call(fi_mongo_store.MONGO_STORE_TOOL.name)

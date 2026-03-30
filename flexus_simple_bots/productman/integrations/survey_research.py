@@ -227,6 +227,7 @@ class IntegrationSurveyResearch:
         await self.pdoc_integration.pdoc_overwrite(
             pdoc_path,
             json.dumps(formatted_content, indent=2),
+            persona_id=self.pdoc_integration.rcx.persona.persona_id,
             fcall_untrusted_key=toolcall.fcall_untrusted_key,
         )
 
@@ -370,6 +371,7 @@ class IntegrationSurveyResearch:
         await self.pdoc_integration.pdoc_overwrite(
             draft_path,
             json.dumps(draft_content, indent=2),
+            persona_id=self.pdoc_integration.rcx.persona.persona_id,
             fcall_untrusted_key=toolcall.fcall_untrusted_key,
         )
 
@@ -398,7 +400,7 @@ class IntegrationSurveyResearch:
 
         try:
             base_path = f"/gtm/discovery/{idea_slug}/{hypothesis_slug}"
-            items = await self.pdoc_integration.pdoc_list(base_path, fcall_untrusted_key=toolcall.fcall_untrusted_key)
+            items = await self.pdoc_integration.pdoc_list(base_path, persona_id=self.pdoc_integration.rcx.persona.persona_id, fcall_untrusted_key=toolcall.fcall_untrusted_key)
 
             survey_files = []
             for item in items:
@@ -501,7 +503,7 @@ class IntegrationSurveyResearch:
             return "Error: idea_slug and hypothesis_slug are required"
 
         auditory_draft_path = f"/gtm/discovery/{idea_slug}/{hypothesis_slug}/auditory-draft"
-        auditory_doc = await self.pdoc_integration.pdoc_cat(auditory_draft_path, fcall_untrusted_key=toolcall.fcall_untrusted_key)
+        auditory_doc = await self.pdoc_integration.pdoc_cat(auditory_draft_path, persona_id=self.pdoc_integration.rcx.persona.persona_id, fcall_untrusted_key=toolcall.fcall_untrusted_key)
         auditory_content = auditory_doc.pdoc_content
 
         if not auditory_content or "prolific_auditory_draft" not in auditory_content:
@@ -532,8 +534,8 @@ class IntegrationSurveyResearch:
         auditory_draft_path = f"/gtm/discovery/{idea_slug}/{hypothesis_slug}/auditory-draft"
 
         try:
-            survey_doc = await self.pdoc_integration.pdoc_cat(survey_draft_path, fcall_untrusted_key=toolcall.fcall_untrusted_key)
-            auditory_doc = await self.pdoc_integration.pdoc_cat(auditory_draft_path, fcall_untrusted_key=toolcall.fcall_untrusted_key)
+            survey_doc = await self.pdoc_integration.pdoc_cat(survey_draft_path, persona_id=self.pdoc_integration.rcx.persona.persona_id, fcall_untrusted_key=toolcall.fcall_untrusted_key)
+            auditory_doc = await self.pdoc_integration.pdoc_cat(auditory_draft_path, persona_id=self.pdoc_integration.rcx.persona.persona_id, fcall_untrusted_key=toolcall.fcall_untrusted_key)
 
             survey_content = survey_doc.pdoc_content
             auditory_content = auditory_doc.pdoc_content
@@ -718,6 +720,7 @@ class IntegrationSurveyResearch:
                 await self.pdoc_integration.pdoc_overwrite(
                     results_path,
                     json.dumps(results_content, indent=2),
+                    persona_id=self.pdoc_integration.rcx.persona.persona_id,
                     fcall_untrusted_key=toolcall.fcall_untrusted_key,
                 )
                 result += f"\n📁 Results saved to: {results_path}\n"

@@ -268,7 +268,7 @@ async def productman_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_
 
         path = f"/gtm/discovery/{idea_slug}/idea"
 
-        await pdoc_integration.pdoc_create(path, json.dumps(idea_doc, indent=2), fcall_untrusted_key=toolcall.fcall_untrusted_key)
+        await pdoc_integration.pdoc_create(path, json.dumps(idea_doc, indent=2), persona_id=rcx.persona.persona_id, fcall_untrusted_key=toolcall.fcall_untrusted_key)
         logger.info(f"Created idea at {path}")
         return f"✍️ {path}\n\n✓ Created idea document"
 
@@ -293,7 +293,7 @@ async def productman_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_
         hypothesis_doc = {"hypothesis": hypothesis_data}
         path = f"/gtm/discovery/{idea_slug}/{hypothesis_slug}/hypothesis"
 
-        await pdoc_integration.pdoc_create(path, json.dumps(hypothesis_doc, indent=2), fcall_untrusted_key=toolcall.fcall_untrusted_key)
+        await pdoc_integration.pdoc_create(path, json.dumps(hypothesis_doc, indent=2), persona_id=rcx.persona.persona_id, fcall_untrusted_key=toolcall.fcall_untrusted_key)
         logger.info(f"Created hypothesis at {path}")
         return f"✍️ {path}\n\n✓ Created hypothesis document"
 

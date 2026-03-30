@@ -177,7 +177,7 @@ async def researcher_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_
         data = args.get("data")
         if not path or data is None:
             return "Error: path and data are required."
-        await pdoc_integration.pdoc_overwrite(path, json.dumps(data, ensure_ascii=False), fcall_untrusted_key=toolcall.fcall_untrusted_key)
+        await pdoc_integration.pdoc_overwrite(path, json.dumps(data, ensure_ascii=False), persona_id=rcx.persona.persona_id, fcall_untrusted_key=toolcall.fcall_untrusted_key)
         return f"Written: {path}"
 
     @rcx.on_tool_call(TEMPLATE_IDEA_TOOL.name)
@@ -195,7 +195,7 @@ async def researcher_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_
         except json.JSONDecodeError as e:
             return f"Error: Invalid JSON: {e}"
         path = f"/gtm/discovery/{idea_slug}/idea"
-        await pdoc_integration.pdoc_create(path, json.dumps(idea_doc, indent=2, ensure_ascii=False), fcall_untrusted_key=toolcall.fcall_untrusted_key)
+        await pdoc_integration.pdoc_create(path, json.dumps(idea_doc, indent=2, ensure_ascii=False), persona_id=rcx.persona.persona_id, fcall_untrusted_key=toolcall.fcall_untrusted_key)
         return f"✍️ {path}\n\n✓ Created idea document"
 
     @rcx.on_tool_call(TEMPLATE_HYPOTHESIS_TOOL.name)
@@ -225,6 +225,7 @@ async def researcher_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_
         await pdoc_integration.pdoc_create(
             path,
             json.dumps({"hypothesis": hypothesis_data}, indent=2, ensure_ascii=False),
+            persona_id=rcx.persona.persona_id,
             fcall_untrusted_key=toolcall.fcall_untrusted_key,
         )
         return f"✍️ {path}\n\n✓ Created hypothesis document"

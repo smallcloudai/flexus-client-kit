@@ -26,15 +26,15 @@ class MockPdocIntegration:
         self.storage: Dict[str, Dict[str, Any]] = {}
         self.list_items: Dict[str, List[MockPdocItem]] = {}
 
-    async def pdoc_overwrite(self, path: str, content: str, ft_id: str):
+    async def pdoc_overwrite(self, path: str, content: str, persona_id: str, fcall_untrusted_key: str):
         self.storage[path] = json.loads(content)
 
-    async def pdoc_cat(self, path: str) -> MockPdocDocument:
+    async def pdoc_cat(self, path: str, persona_id: str, fcall_untrusted_key: str) -> MockPdocDocument:
         if path not in self.storage:
             raise KeyError(f"Path not found: {path}")
         return MockPdocDocument(pdoc_content=self.storage[path])
 
-    async def pdoc_list(self, base_path: str) -> List[MockPdocItem]:
+    async def pdoc_list(self, base_path: str, persona_id: str, fcall_untrusted_key: str) -> List[MockPdocItem]:
         return self.list_items.get(base_path, [])
 
     def set_list_items(self, base_path: str, items: List[MockPdocItem]):

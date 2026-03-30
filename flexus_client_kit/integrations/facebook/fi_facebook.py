@@ -191,7 +191,7 @@ class IntegrationFacebook:
         if self.client.ad_account_id or not self.pdoc_integration:
             return
         try:
-            config = await self.pdoc_integration.pdoc_cat("/company/ad-ops-config", fcall_untrusted_key=toolcall.fcall_untrusted_key)
+            config = await self.pdoc_integration.pdoc_cat("/company/ad-ops-config", persona_id=self.rcx.persona.persona_id, fcall_untrusted_key=toolcall.fcall_untrusted_key)
             ad_account_id = config.pdoc_content.get("facebook_ad_account_id", "")
             if ad_account_id:
                 self.client.ad_account_id = ad_account_id

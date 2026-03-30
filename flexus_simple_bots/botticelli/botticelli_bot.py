@@ -319,7 +319,7 @@ async def botticelli_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_
         if validation_error:
             return f"Error: Structure validation failed: {validation_error}"
 
-        await pdoc_integration.pdoc_create(path, json.dumps(styleguide_doc, indent=2), toolcall.fcall_ft_id)
+        await pdoc_integration.pdoc_create(path, json.dumps(styleguide_doc, indent=2), persona_id=rcx.persona.persona_id, fcall_untrusted_key=toolcall.fcall_untrusted_key)
         logger.info(f"Created style guide at {path}")
         return f"✍️ {path}\n\n✓ Created style guide document"
 
@@ -626,7 +626,7 @@ async def botticelli_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_
             brief_path = f"/ad-campaigns/{campaign_id}/brief"
             brief_content = json.dumps(model_produced_args, indent=2)
 
-            await pdoc_integration.pdoc_create(brief_path, brief_content, toolcall.fcall_ft_id)
+            await pdoc_integration.pdoc_create(brief_path, brief_content, persona_id=rcx.persona.persona_id, fcall_untrusted_key=toolcall.fcall_untrusted_key)
             logger.info(f"Created campaign brief at {brief_path}")
 
             # Prepare context for subchat with campaign brief details
@@ -937,7 +937,8 @@ Full brief saved to: {brief_path}
             await pdoc_integration.pdoc_overwrite(
                 save_path,
                 json.dumps(styleguide, indent=2),
-                toolcall.fcall_ft_id
+                persona_id=rcx.persona.persona_id,
+                fcall_untrusted_key=toolcall.fcall_untrusted_key,
             )
 
             logger.info(f"Saved style guide to {save_path}")

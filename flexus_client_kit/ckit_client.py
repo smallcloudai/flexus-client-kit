@@ -68,46 +68,66 @@ class FlexusClient:
         assert not self.base_url_http.startswith("fx-")
 
     async def use_http(self, execute_timeout: float = 10) -> gql.Client:
+        headers = await self._base_headers()
+        transport = AIOHTTPTransport(url=self.http_url, headers=headers)
+        return gql.Client(transport=transport, fetch_schema_from_transport=False, execute_timeout=execute_timeout)
+
+    async def use_http_on_behalf(self, persona_id: str, fcall_untrusted_key: str, execute_timeout: float = 10) -> gql.Client:
+        headers = await self._base_headers()
+        headers["x-flexus-persona-id"] = persona_id
+        headers["x-flexus-call-untrusted-key"] = fcall_untrusted_key
+        transport = AIOHTTPTransport(url=self.http_url, headers=headers)
+        return gql.Client(transport=transport, fetch_schema_from_transport=False, execute_timeout=execute_timeout)
+
+    async def _base_headers(self) -> dict:
         if self.api_key is not None:
-            headers = {
+            return {
                 "Authorization": f"Bearer {self.api_key}",
                 "x-flexus-service-name": self.service_name,
             }
         elif self.use_ws_ticket:
             ws_ticket = self.dev_ws_ticket or (await ckit_passwords.get_flexus_ws_ticket(self.service_name))
-            headers = {
+            return {
                 "x-flexus-ws-ticket": ws_ticket,
-                "x-flexus-service-name": self.service_name
+                "x-flexus-service-name": self.service_name,
             }
         else:
             superpassword_curr, _ = await ckit_passwords.get_superuser_token_from_vault(self.endpoint)
-            headers = {
+            return {
                 "x-flexus-superuser": superpassword_curr,
                 "x-flexus-service-name": self.service_name,
             }
-        transport = AIOHTTPTransport(url=self.http_url, headers=headers)
-        return gql.Client(transport=transport, fetch_schema_from_transport=False, execute_timeout=execute_timeout)
 
     async def use_ws(self) -> gql.Client:
+        payload = await self._base_ws_payload()
+        transport = WebsocketsTransport(url=self.websocket_url, init_payload=payload, keep_alive_timeout=120, ping_interval=30, pong_timeout=10, connect_args={"max_size": 10_485_760})
+        return gql.Client(transport=transport, fetch_schema_from_transport=False)
+
+    async def use_ws_on_behalf(self, persona_id: str, fcall_untrusted_key: str) -> gql.Client:
+        payload = await self._base_ws_payload()
+        payload["x-flexus-persona-id"] = persona_id
+        payload["x-flexus-call-untrusted-key"] = fcall_untrusted_key
+        transport = WebsocketsTransport(url=self.websocket_url, init_payload=payload, keep_alive_timeout=120, ping_interval=30, pong_timeout=10, connect_args={"max_size": 10_485_760})
+        return gql.Client(transport=transport, fetch_schema_from_transport=False)
+
+    async def _base_ws_payload(self) -> dict:
         if self.api_key is not None:
-            payload = {
+            return {
                 "apikey": self.api_key,
                 "x-flexus-service-name": self.service_name,
             }
         elif self.use_ws_ticket:
             ws_ticket = self.dev_ws_ticket or (await ckit_passwords.get_flexus_ws_ticket(self.service_name))
-            payload = {
+            return {
                 "x-flexus-ws-ticket": ws_ticket,
-                "x-flexus-service-name": self.service_name
+                "x-flexus-service-name": self.service_name,
             }
         else:
             superpassword_curr, _ = await ckit_passwords.get_superuser_token_from_vault(self.endpoint)
-            payload = {
+            return {
                 "x-flexus-superuser": superpassword_curr,
                 "x-flexus-service-name": self.service_name,
             }
-        transport = WebsocketsTransport(url=self.websocket_url, init_payload=payload, keep_alive_timeout=120, ping_interval=30, pong_timeout=10, connect_args={"max_size": 10_485_760})
-        return gql.Client(transport=transport, fetch_schema_from_transport=False)
 
 
 def marketplace_version_as_int(v: str) -> int:

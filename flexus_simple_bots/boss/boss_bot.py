@@ -206,7 +206,7 @@ async def handle_plan_update_section(
             section_data[k] = v.replace("\\n", "\n")
         if isinstance(v, str) and "&#10;" in v and "\n" not in v:
             section_data[k] = section_data[k].replace("&#10;", "\n")
-    upd = await pdoc_integration.pdoc_update_json_text(path, f"plan.{section}", json.dumps(section_data, ensure_ascii=False), expected_md5, fcall_untrusted_key=uk)
+    upd = await pdoc_integration.pdoc_update_json_text(path, f"plan.{section}", json.dumps(section_data, ensure_ascii=False), persona_id=rcx.persona.persona_id, fcall_untrusted_key=uk, expected_md5=expected_md5)
     if not upd.changes_saved:
         return f"📄 {path}\nmd5_requested={upd.md5_requested}\nmd5_found={upd.md5_found}\nchanges_saved=false\n\n{upd.problem_message or 'Document changed, please retry'}\n\n{upd.latest_text}"
 
@@ -232,12 +232,12 @@ async def handle_plan_progress_add(
         return "Error: path, field, and line are all required"
     uk = toolcall.fcall_untrusted_key
     expected_md5 = args.get("expected_md5") or ""
-    existing = await pdoc_integration.pdoc_cat(path, fcall_untrusted_key=uk)
+    existing = await pdoc_integration.pdoc_cat(path, persona_id=rcx.persona.persona_id, fcall_untrusted_key=uk)
     if existing is None:
         return f"Error: plan {path} not found"
     prev = existing.pdoc_content.get("plan", {}).get("section03-progress", {}).get(field, "").rstrip("\n")
     new_value = (prev + "\n" + line).lstrip("\n")
-    upd = await pdoc_integration.pdoc_update_json_text(path, f"plan.section03-progress.{field}", new_value, expected_md5, fcall_untrusted_key=uk)
+    upd = await pdoc_integration.pdoc_update_json_text(path, f"plan.section03-progress.{field}", new_value, persona_id=rcx.persona.persona_id, fcall_untrusted_key=uk, expected_md5=expected_md5)
     if not upd.changes_saved:
         return f"📄 {path}\nmd5_requested={upd.md5_requested}\nmd5_found={upd.md5_found}\nchanges_saved=false\n\n{upd.problem_message or 'Document changed, please retry.'}\n\n{upd.latest_text}"
     return f"✍️ {path}\nmd5={upd.md5_found}\n\nAppended to {field}"
