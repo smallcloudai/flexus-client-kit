@@ -11,12 +11,12 @@ from flexus_client_kit import ckit_client
 MAX_FILE_SIZE = 2 * 1024 * 1024
 
 
+# XXX delete, should send automatically via subscription
 async def mongo_fetch_creds(
     client: ckit_client.FlexusClient,
     persona_id: str,
 ) -> str:
     http = await client.use_http()
-    # XXX use gql_with_retry
     async with http as h:
         r = await h.execute(
             gql.gql("""mutation GetMongoDbCreds($persona_id: String!) {
