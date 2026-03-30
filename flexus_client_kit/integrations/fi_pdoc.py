@@ -536,9 +536,9 @@ class IntegrationPdoc:
             # UGLY: this is a exception-as-flow-control anti-pattern but one of the exceptions is actually helpful:
             # "400: Document already exists" -- model will recover by changing name or switching to overwrite (and returning bool instead is even more ugly)
             if "already exists" in str(e):
-                logger.info(f"Error in pdoc operation: %s", str(e))
+                logger.info("Error in pdoc operation: %s", str(e))
             else:
-                logger.error(f"Error in pdoc operation: %s", exc_info=e)
+                logger.exception("Error in pdoc operation")
             return f"Error: {str(e)}"
 
         return r
@@ -548,24 +548,18 @@ class IntegrationPdoc:
             return await self.fclient.use_http_on_behalf(persona_id, fcall_untrusted_key)
         return await self.fclient.use_http()
 
-    def _auth_vars(self, persona_id: str, fcall_untrusted_key: str) -> dict:
-        r = {"persona_id": persona_id}
-        if fcall_untrusted_key:
-            r["fcall_untrusted_key"] = fcall_untrusted_key
-        return r
-
     async def pdoc_list(self, p: str, persona_id: str, fcall_untrusted_key: str, depth: int = 1) -> List[PdocListItem]:
         http = await self._http(persona_id, fcall_untrusted_key)
         async with http as h:
             result = await h.execute(
                 gql.gql(f"""
-                    query PdocList($fgroup_id: String!, $p: String!, $fcall_untrusted_key: String, $persona_id: String, $depth: Int) {{
-                        policydoc_list(fgroup_id: $fgroup_id, p: $p, fcall_untrusted_key: $fcall_untrusted_key, persona_id: $persona_id, depth: $depth) {{
+                    query PdocList($fgroup_id: String!, $p: String!, $depth: Int) {{
+                        policydoc_list(fgroup_id: $fgroup_id, p: $p, depth: $depth) {{
                             {gql_utils.gql_fields(PdocListItem)}
                         }}
                     }}
                 """),
-                variable_values={"fgroup_id": self.fgroup_id, "p": p, "depth": depth, **self._auth_vars(persona_id, fcall_untrusted_key)},
+                variable_values={"fgroup_id": self.fgroup_id, "p": p, "depth": depth},
             )
             items = result.get("policydoc_list", [])
             return [gql_utils.dataclass_from_dict(item, PdocListItem) for item in items]
@@ -575,13 +569,13 @@ class IntegrationPdoc:
         async with http as h:
             result = await h.execute(
                 gql.gql(f"""
-                    query PdocCat($fgroup_id: String!, $p: String!, $fcall_untrusted_key: String, $persona_id: String, $best_effort_to_find: Boolean) {{
-                        policydoc_cat(fgroup_id: $fgroup_id, p: $p, fcall_untrusted_key: $fcall_untrusted_key, persona_id: $persona_id, best_effort_to_find: $best_effort_to_find) {{
+                    query PdocCat($fgroup_id: String!, $p: String!, $best_effort_to_find: Boolean) {{
+                        policydoc_cat(fgroup_id: $fgroup_id, p: $p, best_effort_to_find: $best_effort_to_find) {{
                             {gql_utils.gql_fields(PdocDocument)}
                         }}
                     }}
                 """),
-                variable_values={"fgroup_id": self.fgroup_id, "p": p, "best_effort_to_find": best_effort_to_find, **self._auth_vars(persona_id, fcall_untrusted_key)},
+                variable_values={"fgroup_id": self.fgroup_id, "p": p, "best_effort_to_find": best_effort_to_find},
             )
             doc = result.get("policydoc_cat")
             if not doc:
@@ -593,11 +587,11 @@ class IntegrationPdoc:
         async with http as h:
             await h.execute(
                 gql.gql("""
-                    mutation PdocCreate($fgroup_id: String!, $p: String!, $text: String!, $fcall_untrusted_key: String, $persona_id: String) {
-                        policydoc_create(fgroup_id: $fgroup_id, p: $p, text: $text, fcall_untrusted_key: $fcall_untrusted_key, persona_id: $persona_id)
+                    mutation PdocCreate($fgroup_id: String!, $p: String!, $text: String!) {
+                        policydoc_create(fgroup_id: $fgroup_id, p: $p, text: $text)
                     }
                 """),
-                variable_values={"fgroup_id": self.fgroup_id, "p": p, "text": text, **self._auth_vars(persona_id, fcall_untrusted_key)},
+                variable_values={"fgroup_id": self.fgroup_id, "p": p, "text": text},
             )
 
     async def pdoc_overwrite(self, p: str, text: str, persona_id: str, fcall_untrusted_key: str) -> None:
@@ -605,11 +599,11 @@ class IntegrationPdoc:
         async with http as h:
             await h.execute(
                 gql.gql("""
-                    mutation PdocOverwrite($fgroup_id: String!, $p: String!, $text: String!, $fcall_untrusted_key: String, $persona_id: String) {
-                        policydoc_overwrite(fgroup_id: $fgroup_id, p: $p, text: $text, fcall_untrusted_key: $fcall_untrusted_key, persona_id: $persona_id)
+                    mutation PdocOverwrite($fgroup_id: String!, $p: String!, $text: String!) {
+                        policydoc_overwrite(fgroup_id: $fgroup_id, p: $p, text: $text)
                     }
                 """),
-                variable_values={"fgroup_id": self.fgroup_id, "p": p, "text": text, **self._auth_vars(persona_id, fcall_untrusted_key)},
+                variable_values={"fgroup_id": self.fgroup_id, "p": p, "text": text},
             )
 
     async def pdoc_update_json_text(self, p: str, json_path: str, text: str, persona_id: str, fcall_untrusted_key: str, expected_md5: str = "") -> PdocUpdateJsonTextResult:
@@ -617,13 +611,13 @@ class IntegrationPdoc:
         async with http as h:
             result = await h.execute(
                 gql.gql(f"""
-                    mutation PdocUpdateJsonText($fgroup_id: String!, $p: String!, $json_path: String!, $text: String!, $fcall_untrusted_key: String, $persona_id: String, $expected_md5: String) {{
-                        policydoc_update_json_text(fgroup_id: $fgroup_id, p: $p, json_path: $json_path, text: $text, fcall_untrusted_key: $fcall_untrusted_key, persona_id: $persona_id, expected_md5: $expected_md5) {{
+                    mutation PdocUpdateJsonText($fgroup_id: String!, $p: String!, $json_path: String!, $text: String!, $expected_md5: String) {{
+                        policydoc_update_json_text(fgroup_id: $fgroup_id, p: $p, json_path: $json_path, text: $text, expected_md5: $expected_md5) {{
                             {gql_utils.gql_fields(PdocUpdateJsonTextResult)}
                         }}
                     }}
                 """),
-                variable_values={"fgroup_id": self.fgroup_id, "p": p, "json_path": json_path, "text": text, "expected_md5": expected_md5, **self._auth_vars(persona_id, fcall_untrusted_key)},
+                variable_values={"fgroup_id": self.fgroup_id, "p": p, "json_path": json_path, "text": text, "expected_md5": expected_md5},
             )
             return gql_utils.dataclass_from_dict(result["policydoc_update_json_text"], PdocUpdateJsonTextResult)
 
@@ -632,11 +626,11 @@ class IntegrationPdoc:
         async with http as h:
             await h.execute(
                 gql.gql("""
-                    mutation PdocCp($fgroup_id: String!, $p1: String!, $p2: String!, $fcall_untrusted_key: String, $persona_id: String) {
-                        policydoc_cp(fgroup_id: $fgroup_id, p1: $p1, p2: $p2, fcall_untrusted_key: $fcall_untrusted_key, persona_id: $persona_id)
+                    mutation PdocCp($fgroup_id: String!, $p1: String!, $p2: String!) {
+                        policydoc_cp(fgroup_id: $fgroup_id, p1: $p1, p2: $p2)
                     }
                 """),
-                variable_values={"fgroup_id": self.fgroup_id, "p1": p1, "p2": p2, **self._auth_vars(persona_id, fcall_untrusted_key)},
+                variable_values={"fgroup_id": self.fgroup_id, "p1": p1, "p2": p2},
             )
 
     async def pdoc_mv(self, p1: str, p2: str, persona_id: str, fcall_untrusted_key: str) -> None:
@@ -644,11 +638,11 @@ class IntegrationPdoc:
         async with http as h:
             await h.execute(
                 gql.gql("""
-                    mutation PdocMv($fgroup_id: String!, $p1: String!, $p2: String!, $fcall_untrusted_key: String, $persona_id: String) {
-                        policydoc_mv(fgroup_id: $fgroup_id, p1: $p1, p2: $p2, fcall_untrusted_key: $fcall_untrusted_key, persona_id: $persona_id)
+                    mutation PdocMv($fgroup_id: String!, $p1: String!, $p2: String!) {
+                        policydoc_mv(fgroup_id: $fgroup_id, p1: $p1, p2: $p2)
                     }
                 """),
-                variable_values={"fgroup_id": self.fgroup_id, "p1": p1, "p2": p2, **self._auth_vars(persona_id, fcall_untrusted_key)},
+                variable_values={"fgroup_id": self.fgroup_id, "p1": p1, "p2": p2},
             )
 
     async def pdoc_rm(self, p: str, persona_id: str, fcall_untrusted_key: str) -> None:
@@ -656,9 +650,9 @@ class IntegrationPdoc:
         async with http as h:
             await h.execute(
                 gql.gql("""
-                    mutation PdocRm($fgroup_id: String!, $p: String!, $fcall_untrusted_key: String, $persona_id: String) {
-                        policydoc_rm(fgroup_id: $fgroup_id, p: $p, fcall_untrusted_key: $fcall_untrusted_key, persona_id: $persona_id)
+                    mutation PdocRm($fgroup_id: String!, $p: String!) {
+                        policydoc_rm(fgroup_id: $fgroup_id, p: $p)
                     }
                 """),
-                variable_values={"fgroup_id": self.fgroup_id, "p": p, **self._auth_vars(persona_id, fcall_untrusted_key)},
+                variable_values={"fgroup_id": self.fgroup_id, "p": p},
             )
