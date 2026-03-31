@@ -84,15 +84,18 @@ async def install(
             prompts_common.SCHED_TASK_SORT_10M,
             prompts_common.SCHED_TODO_5M,
         ],
-        marketable_auth_needed=["google"],
+        marketable_auth_needed=["gmail", "google"],
         marketable_auth_supported=["atlassian"],
         marketable_auth_scopes={
-            "google": [
+            "gmail": [
+                "openid", "email", "profile",
                 "https://www.googleapis.com/auth/gmail.readonly",
                 "https://www.googleapis.com/auth/gmail.compose",
                 "https://www.googleapis.com/auth/gmail.modify",
                 "https://www.googleapis.com/auth/gmail.send",
                 "https://www.googleapis.com/auth/gmail.labels",
+            ],
+            "google": [
                 "https://www.googleapis.com/auth/calendar",
             ],
             "atlassian": [

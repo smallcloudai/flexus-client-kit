@@ -73,7 +73,7 @@ def static_integrations_load(bot_dir: Path, allowlist: list[str], builtin_skills
                 integr_tools=[fi_gmail.GMAIL_TOOL],
                 integr_init=_init_gmail,
                 integr_setup_handlers=lambda obj, rcx: [rcx.on_tool_call("gmail")(obj.called_by_model)],
-                integr_provider="google",
+                integr_provider="gmail",
                 integr_scopes=fi_gmail.GMAIL_SCOPES,
                 integr_prompt=fi_gmail.GMAIL_PROMPT,
             ))

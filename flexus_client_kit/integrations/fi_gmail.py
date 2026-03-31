@@ -144,7 +144,7 @@ class IntegrationGmail:
         self.service = None
 
     def _ensure_service(self) -> bool:
-        auth = self.rcx.external_auth.get("google") or {}
+        auth = self.rcx.external_auth.get("gmail") or {}
         access_token = (auth.get("token") or {}).get("access_token", "")
         if not access_token:
             self.service = None
@@ -182,14 +182,14 @@ class IntegrationGmail:
             r += f"  User: {self.rcx.persona.owner_fuser_id}\n"
             r += f"  Workspace: {self.rcx.persona.ws_id}\n"
             if not authenticated:
-                r += "\n⚠️  Google not connected. Please connect Google in workspace settings.\n"
+                r += "\n⚠️  Gmail not connected. Please connect Gmail in bot Integrations tab.\n"
             return r
 
         if print_help:
             return HELP
 
         if not authenticated:
-            return "Google not connected. Please connect Google in workspace settings."
+            return "Gmail not connected. Please connect Gmail in bot Integrations tab."
 
         try:
             if op == "send":
@@ -233,7 +233,7 @@ class IntegrationGmail:
             if e.resp.status in (401, 403):
                 self.service = None
                 self._last_access_token = None
-                return f"❌ Gmail authentication error: {e.resp.status} - {e.error_details}\n\nPlease reconnect Google in workspace settings."
+                return f"❌ Gmail authentication error: {e.resp.status} - {e.error_details}\n\nPlease reconnect Gmail in bot Integrations tab."
             error_msg = f"Gmail API error: {e.resp.status} - {e.error_details}"
             logger.error(error_msg)
             return f"❌ {error_msg}"
@@ -684,4 +684,4 @@ class IntegrationGmail:
         return f"✅ Thread {thread_id} deleted successfully"
 
 
-GMAIL_SCOPES = ["https://www.googleapis.com/auth/gmail.modify"]
+GMAIL_SCOPES = ["openid", "email", "profile", "https://www.googleapis.com/auth/gmail.modify"]
