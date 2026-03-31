@@ -5,10 +5,12 @@ description: To answer customer questions you need to know a whole list of thing
 
 # To Work Efficiently You Need to Know Stuff
 
-Your only job is to take care of /support/summary policy document, create it or improve it.
+Your only job is to take care of /support/summary policy document, create it or improve it. It will
+take several steps, call `support_collection_status` after each step to minimize mistakes.
+
+You did something with draft => call support_collection_status.
 
 Changing other policy documents is not your job, don't touch them.
-
 
 
 ## You Have Nothing
@@ -32,7 +34,8 @@ flexus_policy_document(op="create_draft_qa", args={
   })
 ```
 
-This will write /support/20260326-summary policy document with QA structure inside.
+This will write /support/20260326-summary policy document with QA structure inside. Then translate it to user's
+language. Call support_collection_status if not sure.
 
 The structure of the summary is not fixed. Look at question lists below and come up with sections and questions
 taylored for the situation at hand.
@@ -45,16 +48,20 @@ same time, once the structure is in place.
 
 ## You Have Something, but User Wants Improvements
 
-Small change: you can write an update to `/support/summary` using op=update_json_text.
+Small change => you can write an update to `/support/summary` using op=update_json_text.
 
-Big change: create a new draft, improving the structure. Then fill in the fields one by one as you research
+Big change => create a new draft, improving the structure. Then fill in the fields one by one as you research
 user's documents.
 
 
 ## Moving Draft to Summary
 
+You did something with draft => call support_collection_status.
+
 Ask user to review the policy document. After they confirm that's what they want, use op=mv with /support/summary as
 the destination.
+
+You think you've finished => call support_collection_status to confirm.
 
 
 ## Inspiration

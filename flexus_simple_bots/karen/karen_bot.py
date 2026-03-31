@@ -44,14 +44,103 @@ KAREN_INTEGRATIONS: list[ckit_integrations_db.IntegrationRecord] = ckit_integrat
     builtin_skills=KAREN_SKILLS,
 )
 
+SUPPORT_STATUS_TOOL = ckit_cloudtool.CloudTool(
+    strict=True,
+    name="support_collection_status",
+    description="Check how complete the support knowledge base is: /support/summary existence, drafts in /support/, answer fill percentage, translation status. No parameters needed.",
+    parameters={
+        "type": "object",
+        "properties": {},
+        "additionalProperties": False,
+    },
+)
+
 TOOLS = [
     fi_repo_reader.REPO_READER_TOOL,
+    SUPPORT_STATUS_TOOL,
     *[t for rec in KAREN_INTEGRATIONS for t in rec.integr_tools],
 ]
+
+
+def _qa_fill_stats(doc: dict) -> dict:
+    total_q = 0
+    filled_q = 0
+    total_a = 0
+    filled_a = 0
+    translated = True
+    for k, v in doc.items():
+        if k == "meta":
+            continue
+        if not isinstance(v, dict):
+            continue
+        for qk, qv in v.items():
+            if not isinstance(qv, dict) or "q" not in qv or "a" not in qv:
+                continue
+            total_q += 1
+            total_a += 1
+            if qv["q"].strip():
+                filled_q += 1
+            else:
+                translated = False
+            if qv["a"].strip():
+                filled_a += 1
+    return {"total_q": total_q, "filled_q": filled_q, "total_a": total_a, "filled_a": filled_a, "translated": translated}
+
+
+_DATE_PREFIX_RE = re.compile(r"^\d{8}-")
+
+
+async def handle_support_status(pdoc: fi_pdoc.IntegrationPdoc, rcx: ckit_bot_exec.RobotContext) -> str:
+    persona_id = rcx.persona.persona_id
+    lines = []
+
+    # check /support/summary
+    summary = await pdoc.pdoc_cat("/support/summary", persona_id=persona_id, fcall_untrusted_key="")
+    if summary:
+        content = summary.pdoc_content
+        top_tag = next((k for k in content if k != "meta"), None) if isinstance(content, dict) else None
+        if top_tag and isinstance(content.get(top_tag), dict):
+            stats = _qa_fill_stats(content[top_tag])
+            pct = (stats["filled_a"] * 100 // stats["total_a"]) if stats["total_a"] else 0
+            lines.append(f"✅ /support/summary exists — {stats['filled_a']}/{stats['total_a']} answers filled ({pct}%)")
+            if not stats["translated"]:
+                lines.append(f"   ⚠️ {stats['total_q'] - stats['filled_q']}/{stats['total_q']} questions not translated yet")
+        else:
+            lines.append("✅ /support/summary exists (not QA format, can't measure fill %)")
+    else:
+        lines.append("❌ /support/summary does not exist — create it using the collect-support-info skill")
+
+    # list drafts in /support/
+    items = await pdoc.pdoc_list("/support/", persona_id=persona_id, fcall_untrusted_key="", depth=1)
+    drafts = [it for it in items if not it.is_folder and it.path != "/support/summary"]
+    if drafts:
+        lines.append(f"\n📋 Drafts in /support/ ({len(drafts)}):")
+        for d in drafts:
+            doc = await pdoc.pdoc_cat(d.path, persona_id=persona_id, fcall_untrusted_key="")
+            if not doc:
+                lines.append(f"  • {d.path} — could not read")
+                continue
+            content = doc.pdoc_content
+            top_tag = next((k for k in content if k != "meta"), None) if isinstance(content, dict) else None
+            if top_tag and isinstance(content.get(top_tag), dict):
+                stats = _qa_fill_stats(content[top_tag])
+                pct = (stats["filled_a"] * 100 // stats["total_a"]) if stats["total_a"] else 0
+                t_status = "translated" if stats["translated"] else f"{stats['total_q'] - stats['filled_q']}/{stats['total_q']} questions untranslated"
+                lines.append(f"  • {d.path} — {stats['filled_a']}/{stats['total_a']} answers ({pct}%), {t_status}")
+                name = d.path.rsplit("/", 1)[-1]
+                if _DATE_PREFIX_RE.match(name) and pct >= 80:
+                    lines.append(f"    💡 Looks ready, ask user if you should: flexus_policy_document(op=\"mv\", args={{\"p1\": \"{d.path}\", \"p2\": \"/support/summary\"}})")
+            else:
+                lines.append(f"  • {d.path} — not QA format")
+    elif not summary:
+        lines.append("\nNo drafts found either. Use the collect-support-info skill to get started.")
+
+    return "\n".join(lines)
 
 async def karen_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.RobotContext) -> None:
     setup = ckit_bot_exec.official_setup_mixing_procedure(KAREN_SETUP_SCHEMA, rcx.persona.persona_setup)
     integrations = await ckit_integrations_db.main_loop_integrations_init(KAREN_INTEGRATIONS, rcx, setup)
+    pdoc_integration: fi_pdoc.IntegrationPdoc = integrations["flexus_policy_document"]
 
     # SAFETY
     # What we are trying to prevent: an outside user via slack/telegram/etc having access to any tools that leak information
@@ -64,6 +153,10 @@ async def karen_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.
     @rcx.on_tool_call(fi_repo_reader.REPO_READER_TOOL.name)
     async def toolcall_repo_reader(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
         return await fi_repo_reader.handle_repo_reader(rcx, toolcall, model_produced_args)
+
+    @rcx.on_tool_call(SUPPORT_STATUS_TOOL.name)
+    async def toolcall_support_status(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
+        return await handle_support_status(pdoc_integration, rcx)
 
     try:
         while not ckit_shutdown.shutdown_event.is_set():
