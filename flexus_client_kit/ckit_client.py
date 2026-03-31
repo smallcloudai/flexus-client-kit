@@ -3,6 +3,7 @@ import asyncio
 import logging
 from dataclasses import dataclass
 from typing import Optional, Any, List
+from typing_extensions import deprecated
 
 import gql
 import re
@@ -67,6 +68,7 @@ class FlexusClient:
             assert not have_api_key.startswith("http:")
         assert not self.base_url_http.startswith("fx-")
 
+    @deprecated("replace with use_http_on_behalf, so the backend knows which persona is making the call, and can trace the original call via fcall_untrusted_key")
     async def use_http(self, execute_timeout: float = 10) -> gql.Client:
         headers = await self._base_headers()
         transport = AIOHTTPTransport(url=self.http_url, headers=headers)
