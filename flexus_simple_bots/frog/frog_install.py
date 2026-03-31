@@ -90,9 +90,10 @@ async def install(
             prompts_common.SCHED_TODO_5M | {"sched_when": "EVERY:2m", "sched_first_question": "Work on the assigned task with enthusiasm!"},
         ],
         marketable_forms=ckit_bot_install.load_form_bundles(__file__),
-        marketable_auth_supported=["google"],
+        marketable_auth_supported=["gmail"],
         marketable_auth_scopes={
-            "google": [
+            "gmail": [
+                "openid", "email", "profile",
                 "https://www.googleapis.com/auth/gmail.readonly",
                 "https://www.googleapis.com/auth/gmail.compose",
                 "https://www.googleapis.com/auth/gmail.modify",
