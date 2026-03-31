@@ -476,7 +476,7 @@ async def telegram_groupmod_main_loop(
             "instruction": "Call telegram_mod_buffer(chat_id=%s) to retrieve messages, then review for violations." % chat_id,
         }
         await ckit_kanban.bot_kanban_post_into_inbox(
-            fclient,
+            await fclient.use_http_on_behalf(rcx.persona.persona_id, ""),
             rcx.persona.persona_id,
             title=title,
             details_json=json.dumps(details, ensure_ascii=False),
@@ -563,7 +563,7 @@ async def telegram_groupmod_main_loop(
             details["attachments"] = f"{len(a.attachments)} files attached"
         title = "%r private message via telegram: %s" % (a.message_author_name, a.message_text)
         await ckit_kanban.bot_kanban_post_into_inprogress(
-            fclient,
+            await fclient.use_http_on_behalf(rcx.persona.persona_id, ""),
             rcx.persona.persona_id,
             title=title,
             human_id="telegram:%d" % a.chat_id,

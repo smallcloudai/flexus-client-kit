@@ -55,7 +55,7 @@ class IntegrationMagicDesk(fi_messenger.FlexusMessenger):
         if already_posted:
             return
         await ckit_kanban.bot_kanban_post_into_inprogress(
-            self.fclient,
+            await self.fclient.use_http_on_behalf(self.rcx.persona.persona_id, ""),
             self.rcx.persona.persona_id,
             title=f"Magic Desk session={a.session_id}\n{a.text}",
             human_id="magic_desk:%s" % a.session_id,
@@ -80,14 +80,14 @@ class IntegrationMagicDesk(fi_messenger.FlexusMessenger):
                 return "Missing session_id parameter\n"
             if self.outside_messages_fexp_name and not toolcall.fcall_fexp_name.endswith("_" + self.outside_messages_fexp_name):
                 return fi_messenger.CAPTURE_WRONG_EXPERT_MSG % self.outside_messages_fexp_name
-            http = await self.fclient.use_http()
+            http = await self.fclient.use_http_on_behalf(self.rcx.persona.persona_id, toolcall.fcall_untrusted_key)
             try:
                 await ckit_ask_model.thread_app_capture_patch(http, toolcall.fcall_ft_id, ft_app_searchable=f"magic_desk/{session_id}")
             except gql.transport.exceptions.TransportQueryError as e:
                 return ckit_cloudtool.gql_error_4xx_to_model_reraise_5xx(e, "magic_desk_capture")
             return fi_messenger.CAPTURE_SUCCESS_MSG % session_id + fi_messenger.CAPTURE_ADVICE_MSG
         if op == "uncapture":
-            http = await self.fclient.use_http()
+            http = await self.fclient.use_http_on_behalf(self.rcx.persona.persona_id, toolcall.fcall_untrusted_key)
             await ckit_ask_model.thread_app_capture_patch(http, toolcall.fcall_ft_id, ft_app_searchable="")
             if fthread := self.rcx.latest_threads.get(toolcall.fcall_ft_id):
                 fthread.thread_fields.ft_app_searchable = ""
@@ -100,7 +100,7 @@ class IntegrationMagicDesk(fi_messenger.FlexusMessenger):
         session_id = emsg.emsg_from.split(":", 1)[1] if ":" in emsg.emsg_from else emsg.emsg_from
         if not text.strip():
             return
-        http = await self.fclient.use_http()
+        http = await self.fclient.use_http_on_behalf(self.rcx.persona.persona_id, "")
         ft_id = await ckit_ask_model.captured_thread_post_user_message(http, self.rcx.persona.persona_id, f"magic_desk/{session_id}", text, ftm_provenance={"system_type": "captured_thread_post", "mdesk_id": emsg.emsg_external_id}, only_to_expert=self.outside_messages_fexp_name)
         if ft_id:
             logger.info("%s magic_desk inbound captured ft_id=%s session=%s: %s", self.rcx.persona.persona_id, ft_id, session_id, text[:120])
@@ -121,7 +121,7 @@ class IntegrationMagicDesk(fi_messenger.FlexusMessenger):
         text = fi_messenger.ftm_content_to_text(msg.ftm_content)
         if not text.strip():
             return False
-        http = await self.fclient.use_http()
+        http = await self.fclient.use_http_on_behalf(self.rcx.persona.persona_id, "")
         async with http as h:
             await h.execute(gql.gql("""
                 mutation MagicDeskConfirmUserMessage($session_id: String!, $text: String!, $ftm_alt: Int!, $ftm_num: Int!, $mdesk_id: String, $persona_id: String) {
@@ -142,7 +142,7 @@ class IntegrationMagicDesk(fi_messenger.FlexusMessenger):
         if "TASK_COMPLETED" in text and len(text) <= len("TASK_COMPLETED") + 6:
             return False
         text = text.replace("TASK_COMPLETED", "")
-        http = await self.fclient.use_http()
+        http = await self.fclient.use_http_on_behalf(self.rcx.persona.persona_id, "")
         async with http as h:
             await h.execute(gql.gql("""
                 mutation MagicDeskDeliverReply($session_id: String!, $text: String!, $ftm_alt: Int!, $ftm_num: Int!, $persona_id: String) {

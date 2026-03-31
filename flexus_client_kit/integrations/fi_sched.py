@@ -60,17 +60,17 @@ class IntegrationSched:
             return HELP
         try:
             if op == "list":
-                return await self._list()
+                return await self._list(toolcall.fcall_untrusted_key)
             if op == "upsert":
-                return await self._upsert(args, model_produced_args)
+                return await self._upsert(args, model_produced_args, toolcall.fcall_untrusted_key)
             if op == "delete":
-                return await self._delete(args, model_produced_args)
+                return await self._delete(args, model_produced_args, toolcall.fcall_untrusted_key)
             return f"Unknown op '{op}'\n\n{HELP}"
         except gql.transport.exceptions.TransportQueryError as e:
             return ckit_cloudtool.gql_error_4xx_to_model_reraise_5xx(e, "sched")
 
-    async def _list(self) -> str:
-        http = await self.rcx.fclient.use_http()
+    async def _list(self, fcall_untrusted_key: str = "") -> str:
+        http = await self.rcx.fclient.use_http_on_behalf(self.rcx.persona.persona_id, fcall_untrusted_key)
         async with http as h:
             result = await h.execute(
                 gql.gql("""
@@ -98,7 +98,7 @@ class IntegrationSched:
             )
         return "\n".join(lines)
 
-    async def _upsert(self, args: Dict[str, Any], model_produced_args: Dict[str, Any]) -> str:
+    async def _upsert(self, args: Dict[str, Any], model_produced_args: Dict[str, Any], fcall_untrusted_key: str = "") -> str:
         def get(k): return ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, k, None)
 
         required = {k: get(k) for k in ("sched_type", "sched_when", "sched_first_question")}
@@ -119,7 +119,7 @@ class IntegrationSched:
         if sched_id := get("sched_id"):
             inp["sched_id"] = sched_id
 
-        http = await self.rcx.fclient.use_http()
+        http = await self.rcx.fclient.use_http_on_behalf(self.rcx.persona.persona_id, fcall_untrusted_key)
         async with http as h:
             result = await h.execute(
                 gql.gql("""
@@ -133,11 +133,11 @@ class IntegrationSched:
         sched_id = result.get("persona_schedule_upsert", {}).get("sched_id", "")
         return f"✅ Schedule {sched_id}"
 
-    async def _delete(self, args: Dict[str, Any], model_produced_args: Dict[str, Any]) -> str:
+    async def _delete(self, args: Dict[str, Any], model_produced_args: Dict[str, Any], fcall_untrusted_key: str = "") -> str:
         sched_id = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "sched_id", "")
         if not sched_id:
             return "Error: sched_id required"
-        http = await self.rcx.fclient.use_http()
+        http = await self.rcx.fclient.use_http_on_behalf(self.rcx.persona.persona_id, fcall_untrusted_key)
         async with http as h:
             await h.execute(
                 gql.gql("""

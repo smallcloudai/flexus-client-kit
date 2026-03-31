@@ -163,7 +163,7 @@ class IntegrationResend:
             return "Missing required: 'from' and 'to'"
         if not a.get("html", "") and not a.get("text", ""):
             return "Provide 'html' and/or 'text'"
-        http = await self.fclient.use_http()
+        http = await self.fclient.use_http_on_behalf(self.rcx.persona.persona_id, toolcall.fcall_untrusted_key)
         try:
             async with http as h:
                 r = await h.execute(gql.gql("""mutation ResendBotSendEmail($input: ResendEmailSendInput!) {
@@ -204,7 +204,7 @@ class IntegrationResend:
             return "domain is required for add"
         if op in ("verify", "status", "delete") and not gql_input.get("domain_id"):
             return "domain_id is required for " + op
-        http = await self.fclient.use_http()
+        http = await self.fclient.use_http_on_behalf(self.rcx.persona.persona_id, toolcall.fcall_untrusted_key)
         try:
             async with http as h:
                 r = await h.execute(gql.gql("""mutation ResendBotSetupDomain($input: ResendSetupDomainInput!) {

@@ -81,7 +81,7 @@ async def persona_kanban_list(
 
 
 async def bot_kanban_post_into_inprogress(
-    client: ckit_client.FlexusClient,
+    http: gql.Client,
     persona_id: str,
     title: str,
     details_json: str,
@@ -90,7 +90,6 @@ async def bot_kanban_post_into_inprogress(
     first_calls: list = [],
     human_id: str = "",
 ) -> None:
-    http = await client.use_http()
     async with http as h:
         await h.execute(gql.gql("""
             mutation KanbanPostInprogress($pid: String!, $title: String!, $human_id: String!, $details: String!, $prov: String!, $fexp: String!, $first_calls: String!) {
@@ -109,7 +108,7 @@ async def bot_kanban_post_into_inprogress(
 
 
 async def bot_kanban_post_into_inbox(
-    client: ckit_client.FlexusClient,
+    http: gql.Client,
     persona_id: str,
     title: str,
     details_json: str,
@@ -118,7 +117,6 @@ async def bot_kanban_post_into_inbox(
     comingup_ts: float = 0.0,
     human_id: str = "",
 ) -> None:
-    http = await client.use_http()
     async with http as h:
         await h.execute(
             gql.gql(
@@ -140,10 +138,9 @@ async def bot_kanban_post_into_inbox(
 
 # XXX remove, bad idea
 async def get_tasks_by_thread(
-    client: ckit_client.FlexusClient,
+    http: gql.Client,
     ft_id: str,
 ) -> List[FPersonaKanbanTaskOutput]:
-    http = await client.use_http()
     async with http as h:
         result = await h.execute(
             gql.gql("""query GetTasksForThread($ft_id: String!) {
@@ -177,11 +174,10 @@ async def get_tasks_by_thread(
 
 
 async def bot_kanban_update_details(
-    client: ckit_client.FlexusClient,
+    http: gql.Client,
     ktask_id: str,
     details: dict,
 ) -> bool:
-    http = await client.use_http()
     async with http as h:
         result = await h.execute(
             gql.gql("""mutation UpdateTaskDetails($ktask_id: String!, $details: String!) {
@@ -197,10 +193,9 @@ async def bot_kanban_update_details(
 
 # XXX remove, bot subscription already sends the tasks
 async def bot_get_all_tasks(
-        client: ckit_client.FlexusClient,
+        http: gql.Client,
         persona_id: str,
 ) -> List[FPersonaKanbanTaskOutput]:
-    http = await client.use_http()
     async with http as h:
         result = await h.execute(
             gql.gql("""query GetAllTasks($persona_id: String!) {

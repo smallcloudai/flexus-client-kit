@@ -476,8 +476,9 @@ class IntegrationShopify:
         if not (domain := (auth.get("url_template_vars") or {}).get("shop_domain") if auth else None):
             self.shop = None
             return
-        shops = await ckit_erp.query_erp_table(
-            self.fclient, "com_shop", self.rcx.persona.ws_id, erp_schema.ComShop,
+        http = await self.fclient.use_http_on_behalf(self.rcx.persona.persona_id, "")
+        shops = await ckit_erp.erp_table_data(
+            http, "com_shop", self.rcx.persona.ws_id, erp_schema.ComShop,
             filters={"AND": ["shop_type:=:SHOPIFY", f"shop_domain:=:{domain}"]},
         )
         self.shop = next(iter(shops), None)
@@ -598,8 +599,9 @@ class IntegrationShopify:
                         if e := await self._upsert(table, ws, key, recs, fk_resolutions=[fk_res]):
                             errors.append(e)
 
-        await ckit_erp.patch_erp_record(
-            self.fclient, "com_shop", ws, self.shop.shop_id,
+        http = await self.fclient.use_http_on_behalf(self.rcx.persona.persona_id, "")
+        await ckit_erp.erp_record_patch(
+            http, "com_shop", ws, self.shop.shop_id,
             {"shop_sync_cursor": datetime.now(timezone.utc).isoformat()},
         )
         if errors:
@@ -608,7 +610,8 @@ class IntegrationShopify:
 
     async def _upsert(self, table: str, ws: str, upsert_key: str, recs: list, fk_resolutions: list = []) -> str:
         try:
-            res = await ckit_erp.erp_table_batch_upsert(self.fclient, table, ws, upsert_key, recs, fk_resolutions=fk_resolutions)
+            http = await self.fclient.use_http_on_behalf(self.rcx.persona.persona_id, "")
+            res = await ckit_erp.erp_batch_insert(http, table, ws, upsert_key, recs, fk_resolutions=fk_resolutions)
             if isinstance(res, dict) and res.get("errors"):
                 return f"{table}: {res['failed']} failed — {res['errors']}"
             return ""
@@ -668,8 +671,9 @@ class IntegrationShopify:
         return f"Unknown operation: {op}\n\nTry shopify(op='help') for usage."
 
     async def _op_connect(self, args: dict, model_produced_args: Optional[dict[str, Any]]) -> str:
-        existing = await ckit_erp.query_erp_table(
-            self.fclient, "com_shop", self.rcx.persona.ws_id, erp_schema.ComShop,
+        http = await self.fclient.use_http_on_behalf(self.rcx.persona.persona_id, "")
+        existing = await ckit_erp.erp_table_data(
+            http, "com_shop", self.rcx.persona.ws_id, erp_schema.ComShop,
             filters="shop_type:=:SHOPIFY",
         )
         shop_domain = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "shop_domain", None)
@@ -726,7 +730,8 @@ class IntegrationShopify:
         except Exception as e:
             return f"Failed to verify shop connection: {e}"
         ws = self.rcx.persona.ws_id
-        await ckit_erp.create_erp_record(self.fclient, "com_shop", ws, {
+        http = await self.fclient.use_http_on_behalf(self.rcx.persona.persona_id, "")
+        await ckit_erp.erp_record_create(http, "com_shop", ws, {
             "ws_id": ws,
             "shop_name": info.get("name", domain),
             "shop_type": "SHOPIFY",
@@ -1075,8 +1080,9 @@ class IntegrationShopify:
         except Exception as e:
             cleanup_err = str(e)
             logger.warning("failed to clean up shop %s: %s", self.shop.shop_id, e)
-        await ckit_erp.patch_erp_record(
-            self.fclient, "com_shop", self.rcx.persona.ws_id, self.shop.shop_id,
+        http = await self.fclient.use_http_on_behalf(self.rcx.persona.persona_id, "")
+        await ckit_erp.erp_record_patch(
+            http, "com_shop", self.rcx.persona.ws_id, self.shop.shop_id,
             {"shop_archived_ts": time.time()},
         )
         if cleanup_err:

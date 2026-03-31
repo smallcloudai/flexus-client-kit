@@ -202,7 +202,7 @@ class IntegrationSlack(fi_messenger.FlexusMessenger):
         human_id = "slack:%s" % a.message_author_id if a.message_author_id else ""
         if a.what_happened == "message/im":
             await ckit_kanban.bot_kanban_post_into_inprogress(
-                self.fclient,
+                await self.fclient.use_http_on_behalf(self.rcx.persona.persona_id, ""),
                 self.rcx.persona.persona_id,
                 title=title,
                 human_id=human_id,
@@ -213,7 +213,7 @@ class IntegrationSlack(fi_messenger.FlexusMessenger):
             )
         else:
             await ckit_kanban.bot_kanban_post_into_inbox(
-                self.fclient,
+                await self.fclient.use_http_on_behalf(self.rcx.persona.persona_id, ""),
                 self.rcx.persona.persona_id,
                 title=title,
                 human_id=human_id,

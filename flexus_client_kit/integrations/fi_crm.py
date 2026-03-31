@@ -3,7 +3,7 @@ from typing import Dict, Any, Optional
 
 import gql.transport.exceptions
 
-from flexus_client_kit import ckit_cloudtool, ckit_client, ckit_erp, erp_schema
+from flexus_client_kit import ckit_cloudtool, ckit_erp, erp_schema
 
 
 LOG_CRM_ACTIVITY_TOOL = ckit_cloudtool.CloudTool(
@@ -61,18 +61,21 @@ MANAGE_CRM_DEAL_TOOL = ckit_cloudtool.CloudTool(
 )
 
 
-async def find_contact_by_platform_id(fclient, ws_id: str, platform: str, identifier: str) -> Optional[str]:
-    contacts = await ckit_erp.query_erp_table(
-        fclient, "crm_contact", ws_id, erp_schema.CrmContact,
+async def find_contact_by_platform_id(http, ws_id: str, platform: str, identifier: str) -> Optional[str]:
+    contacts = await ckit_erp.erp_table_data(
+        http, "crm_contact", ws_id, erp_schema.CrmContact,
         filters=f"contact_platform_ids->{platform}:=:{identifier}", limit=1,
     )
     return contacts[0].contact_id if contacts else None
 
 
 class IntegrationCrm:
-    def __init__(self, fclient: ckit_client.FlexusClient, ws_id: str):
-        self.fclient = fclient
-        self.ws_id = ws_id
+    def __init__(self, rcx):
+        self.rcx = rcx
+        self.ws_id = rcx.persona.ws_id
+
+    async def _http(self, toolcall: ckit_cloudtool.FCloudtoolCall):
+        return await self.rcx.fclient.use_http_on_behalf(self.rcx.persona.persona_id, toolcall.fcall_untrusted_key)
 
     async def handle_manage_crm_contact(self, toolcall: ckit_cloudtool.FCloudtoolCall, args: Dict[str, Any]) -> str:
         op = args.get("op", "")
@@ -82,12 +85,12 @@ class IntegrationCrm:
         contact_id = str(fields.pop("contact_id", "") or "").strip()
         try:
             if op == "create":
-                new_id = await ckit_erp.create_erp_record(self.fclient, "crm_contact", self.ws_id, {"ws_id": self.ws_id, **fields})
+                new_id = await ckit_erp.erp_record_create(await self._http(toolcall), "crm_contact", self.ws_id, {"ws_id": self.ws_id, **fields})
                 return f"✅ Created: {new_id}\n"
             elif op == "patch":
                 if not contact_id:
                     return "❌ contact_id required for patch\n"
-                await ckit_erp.patch_erp_record(self.fclient, "crm_contact", self.ws_id, contact_id, fields)
+                await ckit_erp.erp_record_patch(await self._http(toolcall), "crm_contact", self.ws_id, contact_id, fields)
                 return "✅ Updated\n"
             else:
                 return f"❌ Unknown op: {op}\n"
@@ -102,12 +105,12 @@ class IntegrationCrm:
         deal_id = str(fields.pop("deal_id", "") or "").strip()
         try:
             if op == "create":
-                new_id = await ckit_erp.create_erp_record(self.fclient, "crm_deal", self.ws_id, {"ws_id": self.ws_id, **fields})
+                new_id = await ckit_erp.erp_record_create(await self._http(toolcall), "crm_deal", self.ws_id, {"ws_id": self.ws_id, **fields})
                 return f"✅ Created: {new_id}\n"
             elif op == "patch":
                 if not deal_id:
                     return "❌ deal_id required for patch\n"
-                await ckit_erp.patch_erp_record(self.fclient, "crm_deal", self.ws_id, deal_id, fields)
+                await ckit_erp.erp_record_patch(await self._http(toolcall), "crm_deal", self.ws_id, deal_id, fields)
                 return "✅ Updated\n"
             else:
                 return f"❌ Unknown op: {op}\n"
@@ -122,7 +125,7 @@ class IntegrationCrm:
         if not contact_id or not activity_type or not direction or not title:
             return "❌ contact_id, activity_type, direction, and title are required"
         try:
-            await ckit_erp.create_erp_record(self.fclient, "crm_activity", self.ws_id, {
+            await ckit_erp.erp_record_create(await self._http(toolcall), "crm_activity", self.ws_id, {
                 "ws_id": self.ws_id,
                 "activity_title": title,
                 "activity_type": activity_type,

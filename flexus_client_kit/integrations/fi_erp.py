@@ -5,11 +5,9 @@ import json
 import time
 import logging
 from typing import Dict, Any, Optional, List, Type, Union, get_origin, get_args
-from pymongo.collection import Collection
-
 import gql.transport.exceptions
 
-from flexus_client_kit import ckit_cloudtool, ckit_client, ckit_erp, ckit_mongo
+from flexus_client_kit import ckit_cloudtool, ckit_erp, ckit_mongo
 from flexus_client_kit import erp_schema
 
 logger = logging.getLogger("fi_erp")
@@ -192,15 +190,13 @@ def _convert_csv_value(raw_value: str, field_type: Optional[Type[Any]]) -> Any:
 
 
 class IntegrationErp:
-    def __init__(
-        self,
-        client: ckit_client.FlexusClient,
-        ws_id: str,
-        mongo_collection: Optional[Collection] = None,
-    ):
-        self.client = client
-        self.ws_id = ws_id
-        self.mongo_collection = mongo_collection
+    def __init__(self, rcx):
+        self.rcx = rcx
+        self.ws_id = rcx.persona.ws_id
+        self.mongo_collection = rcx.personal_mongo
+
+    async def _http(self, toolcall: ckit_cloudtool.FCloudtoolCall):
+        return await self.rcx.fclient.use_http_on_behalf(self.rcx.persona.persona_id, toolcall.fcall_untrusted_key)
 
 
     async def handle_erp_meta(self, toolcall: ckit_cloudtool.FCloudtoolCall, args: Dict[str, Any]) -> str:
@@ -275,8 +271,8 @@ class IntegrationErp:
         schema_class = erp_schema.ERP_TABLE_TO_SCHEMA[table_name]
 
         try:
-            rows = await ckit_erp.query_erp_table(
-                self.client,
+            rows = await ckit_erp.erp_table_data(
+                await self._http(toolcall),
                 table_name,
                 self.ws_id,
                 schema_class,
@@ -333,8 +329,8 @@ class IntegrationErp:
                 return "❌ Error: fields parameter required and must be a dict for create operation"
 
             try:
-                new_id = await ckit_erp.create_erp_record(
-                    self.client,
+                new_id = await ckit_erp.erp_record_create(
+                    await self._http(toolcall),
                     table_name,
                     self.ws_id,
                     fields,
@@ -357,8 +353,8 @@ class IntegrationErp:
             record_id = str(record_id)
 
             try:
-                success = await ckit_erp.patch_erp_record(
-                    self.client,
+                success = await ckit_erp.erp_record_patch(
+                    await self._http(toolcall),
                     table_name,
                     self.ws_id,
                     record_id,
@@ -381,8 +377,8 @@ class IntegrationErp:
             record_id = str(record_id)
 
             try:
-                success = await ckit_erp.delete_erp_record(
-                    self.client,
+                success = await ckit_erp.erp_record_delete(
+                    await self._http(toolcall),
                     table_name,
                     self.ws_id,
                     record_id,
@@ -469,7 +465,7 @@ class IntegrationErp:
 
         for i in range(0, len(records), BATCH_SIZE):
             try:
-                result = await ckit_erp.erp_table_batch_upsert(self.client, table_name, self.ws_id, upsert_key or "", records[i:i+BATCH_SIZE])
+                result = await ckit_erp.erp_batch_insert(await self._http(toolcall), table_name, self.ws_id, upsert_key or "", records[i:i+BATCH_SIZE])
                 total_created += result.get("created", 0)
                 total_updated += result.get("updated", 0)
                 total_failed += result.get("failed", 0)

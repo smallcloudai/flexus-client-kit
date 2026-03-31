@@ -289,14 +289,15 @@ class IntegrationGmail:
             if not email:
                 continue
             try:
-                contacts = await ckit_erp.query_erp_table(
-                    self.fclient, "crm_contact", self.rcx.persona.ws_id, erp_schema.CrmContact,
+                http = await self.fclient.use_http_on_behalf(self.rcx.persona.persona_id, "")
+                contacts = await ckit_erp.erp_table_data(
+                    http, "crm_contact", self.rcx.persona.ws_id, erp_schema.CrmContact,
                     filters=f"contact_email:CIEQL:{email}", limit=1,
                 )
                 if not contacts:
                     continue
                 contact = contacts[0]
-                await ckit_erp.create_erp_record(self.fclient, "crm_activity", self.rcx.persona.ws_id, {
+                await ckit_erp.erp_record_create(http, "crm_activity", self.rcx.persona.ws_id, {
                     "ws_id": self.rcx.persona.ws_id,
                     "activity_title": subject,
                     "activity_type": "EMAIL",

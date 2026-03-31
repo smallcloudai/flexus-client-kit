@@ -100,7 +100,7 @@ async def admonster_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_e
         return await experiment_integration.launch_experiment(toolcall, model_produced_args)
 
     # Load existing tasks to track active experiments on startup
-    initial_tasks = await ckit_kanban.bot_get_all_tasks(fclient, rcx.persona.persona_id)
+    initial_tasks = await ckit_kanban.bot_get_all_tasks(await fclient.use_http_on_behalf(rcx.persona.persona_id, ""), rcx.persona.persona_id)
     active_tasks = [t for t in initial_tasks if t.ktask_done_ts == 0]
     for t in active_tasks:
         experiment_integration.track_experiment_task(t)

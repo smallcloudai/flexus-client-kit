@@ -278,8 +278,8 @@ class IntegrationCrmAutomations:
             logger.error(f"Failed to parse crm_automations from setup: {e}")
             return {}
 
-    async def _save_automation(self, automation_name: str, automation_config: Optional[Dict[str, Any]]) -> None:
-        http = await self.client.use_http()
+    async def _save_automation(self, automation_name: str, automation_config: Optional[Dict[str, Any]], fcall_untrusted_key: str = "") -> None:
+        http = await self.client.use_http_on_behalf(self.rcx.persona.persona_id, fcall_untrusted_key)
         async with http as h:
             await h.execute(
                 gql.gql("""mutation PersonaSetupSetKey($persona_id: String!, $set_key: String!, $set_val: String) {
@@ -315,10 +315,10 @@ class IntegrationCrmAutomations:
             "create": self._op_create, "update": self._op_update, "delete": self._op_delete,
         }
         if handler := ops.get(op):
-            return await handler(args, model_args)
+            return await handler(args, model_args, toolcall.fcall_untrusted_key)
         return f"❌ Unknown operation '{op}'. Use: {', '.join(ops.keys())}"
 
-    async def _op_list(self, args: Dict[str, Any], model_args: Dict[str, Any]) -> str:
+    async def _op_list(self, args: Dict[str, Any], model_args: Dict[str, Any], fcall_untrusted_key: str = "") -> str:
         automations = self._load_automations()
         if not automations:
             return "No CRM automations configured."
@@ -329,7 +329,7 @@ class IntegrationCrmAutomations:
             lines.append(f"• {name}: {status}\n  Triggers: {len(cfg.get('triggers', []))}, Actions: {len(cfg.get('actions', []))}\n")
         return "\n".join(lines)
 
-    async def _op_get(self, args: Dict[str, Any], model_args: Dict[str, Any]) -> str:
+    async def _op_get(self, args: Dict[str, Any], model_args: Dict[str, Any], fcall_untrusted_key: str = "") -> str:
         if not (name := str(ckit_cloudtool.try_best_to_find_argument(args, model_args, "automation_name", "")).strip()):
             return "❌ Error: automation_name is required"
         automations = self._load_automations()
@@ -337,7 +337,7 @@ class IntegrationCrmAutomations:
             return f"❌ Error: Automation '{name}' not found"
         return f"Automation: {name}\n\n{json.dumps(automations[name], indent=2)}"
 
-    async def _op_create(self, args: Dict[str, Any], model_args: Dict[str, Any]) -> str:
+    async def _op_create(self, args: Dict[str, Any], model_args: Dict[str, Any], fcall_untrusted_key: str = "") -> str:
         if not (name := str(ckit_cloudtool.try_best_to_find_argument(args, model_args, "automation_name", "")).strip()):
             return "❌ Error: automation_name is required"
         if not (config := ckit_cloudtool.try_best_to_find_argument(args, model_args, "automation_config", {})):
@@ -357,13 +357,13 @@ class IntegrationCrmAutomations:
         if err := validate_automation_config(config, self.available_erp_tables):
             return err
 
-        await self._save_automation(name, config)
+        await self._save_automation(name, config, fcall_untrusted_key)
         result = f"✅ Created automation '{name}'"
         if warnings := get_automation_warnings(config):
             result += "\n\n⚠️ Warnings:\n" + "\n".join(f"• {w}" for w in warnings)
         return result
 
-    async def _op_update(self, args: Dict[str, Any], model_args: Dict[str, Any]) -> str:
+    async def _op_update(self, args: Dict[str, Any], model_args: Dict[str, Any], fcall_untrusted_key: str = "") -> str:
         if not (name := str(ckit_cloudtool.try_best_to_find_argument(args, model_args, "automation_name", "")).strip()):
             return "❌ Error: automation_name is required"
         if not (config := ckit_cloudtool.try_best_to_find_argument(args, model_args, "automation_config", {})):
@@ -378,13 +378,13 @@ class IntegrationCrmAutomations:
         if err := validate_automation_config(config, self.available_erp_tables):
             return err
 
-        await self._save_automation(name, config)
+        await self._save_automation(name, config, fcall_untrusted_key)
         result = f"✅ Updated automation '{name}'"
         if warnings := get_automation_warnings(config):
             result += "\n\n⚠️ Warnings:\n" + "\n".join(f"• {w}" for w in warnings)
         return result
 
-    async def _op_delete(self, args: Dict[str, Any], model_args: Dict[str, Any]) -> str:
+    async def _op_delete(self, args: Dict[str, Any], model_args: Dict[str, Any], fcall_untrusted_key: str = "") -> str:
         if not (name := str(ckit_cloudtool.try_best_to_find_argument(args, model_args, "automation_name", "")).strip()):
             return "❌ Error: automation_name is required"
 
@@ -392,7 +392,7 @@ class IntegrationCrmAutomations:
         if name not in automations:
             return f"❌ Error: Automation '{name}' not found"
 
-        await self._save_automation(name, None)
+        await self._save_automation(name, None, fcall_untrusted_key)
         return f"✅ Deleted automation '{name}'"
 
     def _setup_automation_handlers(self):
@@ -467,7 +467,7 @@ async def _execute_actions(rcx: ckit_bot_exec.RobotContext, actions: List[Dict[s
                 if comingup_raw := action.get("comingup_ts"):
                     comingup_ts = float(_resolve_field_value(comingup_raw, ctx, "comingup_ts"))
                 await ckit_kanban.bot_kanban_post_into_inbox(
-                    rcx.fclient, rcx.persona.persona_id,
+                    await rcx.fclient.use_http_on_behalf(rcx.persona.persona_id, ""), rcx.persona.persona_id,
                     _resolve_template(action.get("title", ""), ctx),
                     json.dumps({k: _resolve_template(v, ctx) if isinstance(v, str) else v for k, v in action.get("details", {}).items()}),
                     _resolve_template(action.get("provenance", "CRM automation"), ctx),
@@ -480,7 +480,8 @@ async def _execute_actions(rcx: ckit_bot_exec.RobotContext, actions: List[Dict[s
                 table = action.get("table")
                 fields = {k: _resolve_field_value(v, ctx, k) for k, v in action.get("fields", {}).items()}
                 fields["ws_id"] = rcx.persona.ws_id
-                new_id = await ckit_erp.create_erp_record(rcx.fclient, table, rcx.persona.ws_id, fields)
+                http = await rcx.fclient.use_http_on_behalf(rcx.persona.persona_id, "")
+                new_id = await ckit_erp.erp_record_create(http, table, rcx.persona.ws_id, fields)
                 logger.info(f"Created ERP record in {table}: {new_id}")
 
             elif action_type == "update_erp_record":
@@ -488,13 +489,15 @@ async def _execute_actions(rcx: ckit_bot_exec.RobotContext, actions: List[Dict[s
                 record_id = _resolve_template(action.get("record_id", ""), ctx)
                 fields = {k: _resolve_field_value(v, ctx, k) for k, v in action.get("fields", {}).items()}
                 logger.info(f"update_erp_record: table={table} record_id={record_id} resolved_fields={fields}")
-                await ckit_erp.patch_erp_record(rcx.fclient, table, rcx.persona.ws_id, record_id, fields)
+                http = await rcx.fclient.use_http_on_behalf(rcx.persona.persona_id, "")
+                await ckit_erp.erp_record_patch(http, table, rcx.persona.ws_id, record_id, fields)
                 logger.info(f"Updated ERP record in {table}: {record_id}")
 
             elif action_type == "delete_erp_record":
                 table = action.get("table")
                 record_id = _resolve_template(action.get("record_id", ""), ctx)
-                await ckit_erp.delete_erp_record(rcx.fclient, table, rcx.persona.ws_id, record_id)
+                http = await rcx.fclient.use_http_on_behalf(rcx.persona.persona_id, "")
+                await ckit_erp.erp_record_delete(http, table, rcx.persona.ws_id, record_id)
                 logger.info(f"Deleted ERP record from {table}: {record_id}")
 
             elif action_type == "move_deal_stage":
@@ -505,8 +508,9 @@ async def _execute_actions(rcx: ckit_bot_exec.RobotContext, actions: List[Dict[s
                 if not contact_id or not pipeline_id or not to_stage_id:
                     logger.info(f"move_deal_stage skipped: missing contact_id/pipeline_id/to_stage_id")
                     continue
-                deals = await ckit_erp.query_erp_table(
-                    rcx.fclient, "crm_deal", rcx.persona.ws_id, erp_schema.CrmDeal,
+                http = await rcx.fclient.use_http_on_behalf(rcx.persona.persona_id, "")
+                deals = await ckit_erp.erp_table_data(
+                    http, "crm_deal", rcx.persona.ws_id, erp_schema.CrmDeal,
                     filters={"AND": [f"deal_contact_id:=:{contact_id}", f"deal_pipeline_id:=:{pipeline_id}"]},
                     sort_by=["deal_modified_ts:DESC"], limit=1,
                 )
@@ -519,7 +523,7 @@ async def _execute_actions(rcx: ckit_bot_exec.RobotContext, actions: List[Dict[s
                 if from_stages and current_stage not in from_stages:
                     logger.info(f"move_deal_stage skipped: deal {deal_id} stage {current_stage} not in from_stages {from_stages}")
                     continue
-                await ckit_erp.patch_erp_record(rcx.fclient, "crm_deal", rcx.persona.ws_id, deal_id, {"deal_stage_id": to_stage_id})
+                await ckit_erp.erp_record_patch(http, "crm_deal", rcx.persona.ws_id, deal_id, {"deal_stage_id": to_stage_id})
                 logger.info(f"Moved deal {deal_id} from stage {current_stage} to {to_stage_id}")
 
             else:

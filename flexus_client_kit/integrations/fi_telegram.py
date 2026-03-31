@@ -375,7 +375,7 @@ class IntegrationTelegram(fi_messenger.FlexusMessenger):
         human_id = "telegram:%d" % a.chat_id
         if a.chat_type == "private":
             await ckit_kanban.bot_kanban_post_into_inprogress(
-                self.fclient,
+                await self.fclient.use_http_on_behalf(self.rcx.persona.persona_id, ""),
                 self.rcx.persona.persona_id,
                 title=title,
                 human_id=human_id,
@@ -386,7 +386,7 @@ class IntegrationTelegram(fi_messenger.FlexusMessenger):
             )
         else:
             await ckit_kanban.bot_kanban_post_into_inbox(
-                self.fclient,
+                await self.fclient.use_http_on_behalf(self.rcx.persona.persona_id, ""),
                 self.rcx.persona.persona_id,
                 title=title,
                 human_id=human_id,

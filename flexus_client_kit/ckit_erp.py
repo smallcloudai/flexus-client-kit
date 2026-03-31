@@ -28,8 +28,8 @@ def dataclass_or_dict_to_dict(x: Any) -> dict:
         raise ValueError(f"must be a dataclass or dict, got {type(x)}")
 
 
-async def query_erp_table(
-    client: ckit_client.FlexusClient,
+async def erp_table_data(
+    http: gql.Client,
     table_name: str,
     ws_id: str,
     result_class: Type[T],
@@ -45,7 +45,6 @@ async def query_erp_table(
         for inc_field in include:
             assert inc_field in result_class.__annotations__, f"Field {inc_field!r} not in {result_class.__name__}"
 
-    http = await client.use_http()
     async with http as h:
         r = await h.execute(
             gql.gql("""query ErpTableQuery(
@@ -87,13 +86,12 @@ async def query_erp_table(
         return [gql_utils.dataclass_from_dict(row, result_class) for row in rows]
 
 
-async def create_erp_record(
-    client: ckit_client.FlexusClient,
+async def erp_record_create(
+    http: gql.Client,
     table_name: str,
     ws_id: str,
     record: Any,
 ) -> int:
-    http = await client.use_http()
     async with http as h:
         r = await h.execute(gql.gql("""
             mutation ErpTableCreate($schema_name: String!, $table_name: String!, $ws_id: String!, $record_json: String!) {
@@ -109,14 +107,13 @@ async def create_erp_record(
         return r["erp_table_create"]
 
 
-async def patch_erp_record(
-    client: ckit_client.FlexusClient,
+async def erp_record_patch(
+    http: gql.Client,
     table_name: str,
     ws_id: str,
     pk_value: str,
     updates: Any,
 ) -> bool:
-    http = await client.use_http()
     async with http as h:
         r = await h.execute(gql.gql("""
             mutation ErpTablePatch($schema_name: String!, $table_name: String!, $ws_id: String!, $pk_value: String!, $updates_json: String!) {
@@ -133,13 +130,12 @@ async def patch_erp_record(
         return r["erp_table_patch"]
 
 
-async def delete_erp_record(
-    client: ckit_client.FlexusClient,
+async def erp_record_delete(
+    http: gql.Client,
     table_name: str,
     ws_id: str,
     pk_value: str,
 ) -> bool:
-    http = await client.use_http()
     async with http as h:
         r = await h.execute(gql.gql("""
             mutation ErpTableDelete($schema_name: String!, $table_name: String!, $ws_id: String!, $pk_value: String!) {
@@ -155,15 +151,14 @@ async def delete_erp_record(
         return r["erp_table_delete"]
 
 
-async def erp_table_batch_upsert(
-    client: ckit_client.FlexusClient,
+async def erp_batch_insert(
+    http: gql.Client,
     table_name: str,
     ws_id: str,
     upsert_key: str,
     records: List[Any],
     fk_resolutions: List[ErpFKResolution] = [],
 ) -> dict:
-    http = await client.use_http()
     async with http as h:
         r = await h.execute(gql.gql("""
             mutation ErpTableBatchUpsert($schema_name: String!, $table_name: String!, $ws_id: String!, $upsert_key: String!, $records_json: String!, $fk_resolutions: [ErpFKResolution!]!) {
@@ -350,7 +345,8 @@ def check_record_matches_filter(record: dict, f: str, col_names: set = None) -> 
 async def test():
     client = ckit_client.FlexusClient("ckit_erp_test")
     ws_id = "solarsystem"
-    products = await query_erp_table(client, "product_product", ws_id, erp_schema.ProductProduct, limit=10, include=["prodt"])
+    http = await client.use_http()
+    products = await erp_table_data(http, "product_product", ws_id, erp_schema.ProductProduct, limit=10, include=["prodt"])
     print(f"Found {len(products)} products:")
     for p in products:
         print(p)

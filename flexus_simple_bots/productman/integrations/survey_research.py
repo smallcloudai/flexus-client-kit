@@ -558,7 +558,7 @@ class IntegrationSurveyResearch:
                 from flexus_client_kit import ckit_kanban
 
                 try:
-                    tasks = await ckit_kanban.get_tasks_by_thread(self.fclient, toolcall.fcall_ft_id)
+                    tasks = await ckit_kanban.get_tasks_by_thread(await self.fclient.use_http_on_behalf(self.pdoc_integration.rcx.persona.persona_id, toolcall.fcall_untrusted_key), toolcall.fcall_ft_id)
 
                     for task in tasks:
                         task_details = task.ktask_details if isinstance(task.ktask_details, dict) else json.loads(task.ktask_details or "{}")
@@ -572,7 +572,7 @@ class IntegrationSurveyResearch:
                             "completed_notified": False
                         }
 
-                        await ckit_kanban.bot_kanban_update_details(self.fclient, task.ktask_id, task_details)
+                        await ckit_kanban.bot_kanban_update_details(await self.fclient.use_http_on_behalf(self.pdoc_integration.rcx.persona.persona_id, toolcall.fcall_untrusted_key), task.ktask_id, task_details)
                         logger.info(f"Updated task {task.ktask_id} with survey tracking info")
                 except Exception as e:
                     logger.error(f"Failed to update task with survey info: {e}")
@@ -838,7 +838,7 @@ class IntegrationSurveyResearch:
                 }
             }
 
-            await ckit_kanban.bot_kanban_update_details(self.fclient, task_id, details)
+            await ckit_kanban.bot_kanban_update_details(await self.fclient.use_http_on_behalf(self.pdoc_integration.rcx.persona.persona_id, ""), task_id, details)
             logger.info(f"Updated task {task_id} survey status: {response_count}/{target_responses} responses, completed={is_completed}")
 
         except aiohttp.ClientError as e:

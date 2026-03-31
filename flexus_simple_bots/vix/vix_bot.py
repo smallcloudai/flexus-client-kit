@@ -88,21 +88,22 @@ async def vix_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.Ro
         try:
             display_name, addr = email.utils.parseaddr(em.from_full)
             addr = addr or em.from_addr
-            contacts = await ckit_erp.query_erp_table(
-                fclient, "crm_contact", rcx.persona.ws_id, erp_schema.CrmContact,
+            http = await fclient.use_http_on_behalf(rcx.persona.persona_id, "")
+            contacts = await ckit_erp.erp_table_data(
+                http, "crm_contact", rcx.persona.ws_id, erp_schema.CrmContact,
                 filters=f"contact_email:CIEQL:{addr}", limit=1,
             )
             if contacts:
                 contact_id = contacts[0].contact_id
             else:
                 parts = display_name.split(None, 1) if display_name else [addr.split("@")[0]]
-                contact_id = await ckit_erp.create_erp_record(fclient, "crm_contact", rcx.persona.ws_id, {
+                contact_id = await ckit_erp.erp_record_create(http, "crm_contact", rcx.persona.ws_id, {
                     "ws_id": rcx.persona.ws_id,
                     "contact_email": addr.lower(),
                     "contact_first_name": parts[0],
                     "contact_last_name": parts[1] if len(parts) > 1 else "(unknown)",
                 })
-            await ckit_erp.create_erp_record(fclient, "crm_activity", rcx.persona.ws_id, {
+            await ckit_erp.erp_record_create(http, "crm_activity", rcx.persona.ws_id, {
                 "ws_id": rcx.persona.ws_id,
                 "activity_title": em.subject,
                 "activity_type": "EMAIL",
@@ -120,7 +121,7 @@ async def vix_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.Ro
         if em.cc_addrs:
             title += " (cc: %s)" % ", ".join(em.cc_addrs)
         await ckit_kanban.bot_kanban_post_into_inbox(
-            fclient,
+            await fclient.use_http_on_behalf(rcx.persona.persona_id, ""),
             rcx.persona.persona_id,
             title=title,
             human_id="email:%s" % em.from_addr,
@@ -161,13 +162,14 @@ async def vix_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.Ro
         details = asdict(a)
         if a.attachments:
             details["attachments"] = f"{len(a.attachments)} files attached"
+        http = await fclient.use_http_on_behalf(rcx.persona.persona_id, "")
         if a.message_text.startswith("/start c_"): # Handle /start c_{contact_id} deep links (e.g. from email campaigns)
             contact_id = a.message_text[9:].strip()
             details["contact_id"] = contact_id
             title = "CRM contact opened Telegram chat, contact_id=%s chat_id=%d" % (contact_id, a.chat_id)
-            await ckit_erp.patch_erp_record(fclient, "crm_contact", rcx.persona.ws_id, contact_id, {"contact_platform_ids": {"telegram": str(a.chat_id)}})
+            await ckit_erp.erp_record_patch(http, "crm_contact", rcx.persona.ws_id, contact_id, {"contact_platform_ids": {"telegram": str(a.chat_id)}})
         else:
-            if contact_id := await fi_crm.find_contact_by_platform_id(fclient, rcx.persona.ws_id, "telegram", str(a.chat_id)):
+            if contact_id := await fi_crm.find_contact_by_platform_id(http, rcx.persona.ws_id, "telegram", str(a.chat_id)):
                 details["contact_id"] = contact_id
             title = "Telegram %s user=%r chat_id=%d\n%s" % (a.chat_type, a.message_author_name, a.chat_id, a.message_text)
             if a.attachments:
@@ -175,7 +177,7 @@ async def vix_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.Ro
         human_id = "telegram:%d" % a.chat_id
         if a.chat_type == "private":
             await ckit_kanban.bot_kanban_post_into_inprogress(
-                fclient,
+                await fclient.use_http_on_behalf(rcx.persona.persona_id, ""),
                 rcx.persona.persona_id,
                 title=title,
                 human_id=human_id,
@@ -186,7 +188,7 @@ async def vix_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.Ro
             )
         else:
             await ckit_kanban.bot_kanban_post_into_inbox(
-                fclient,
+                await fclient.use_http_on_behalf(rcx.persona.persona_id, ""),
                 rcx.persona.persona_id,
                 title=title,
                 human_id=human_id,
@@ -206,7 +208,7 @@ async def vix_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.Ro
         to_capture = (a.channel_id or a.channel_name) + "/" + (a.thread_ts or a.message_ts)
         details["to_capture"] = to_capture
         if a.message_author_id:
-            if contact_id := await fi_crm.find_contact_by_platform_id(fclient, rcx.persona.ws_id, "slack", a.message_author_id):
+            if contact_id := await fi_crm.find_contact_by_platform_id(await fclient.use_http_on_behalf(rcx.persona.persona_id, ""), rcx.persona.ws_id, "slack", a.message_author_id):
                 details["contact_id"] = contact_id
         title = "Slack %s user=%r in #%s\n%s" % (a.what_happened, a.message_author_name, a.channel_name, a.message_text)
         if a.file_contents:
@@ -214,7 +216,7 @@ async def vix_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.Ro
         human_id = "slack:%s" % a.message_author_id if a.message_author_id else ""
         if a.what_happened == "message/im":
             await ckit_kanban.bot_kanban_post_into_inprogress(
-                fclient,
+                await fclient.use_http_on_behalf(rcx.persona.persona_id, ""),
                 rcx.persona.persona_id,
                 title=title,
                 human_id=human_id,
@@ -225,7 +227,7 @@ async def vix_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.Ro
             )
         else:
             await ckit_kanban.bot_kanban_post_into_inbox(
-                fclient,
+                await fclient.use_http_on_behalf(rcx.persona.persona_id, ""),
                 rcx.persona.persona_id,
                 title=title,
                 human_id=human_id,

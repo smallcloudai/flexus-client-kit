@@ -261,14 +261,14 @@ class IntegrationExperimentExecution:
         # 6. Update task details with experiment tracking info
         if toolcall.fcall_ft_id:
             try:
-                tasks = await ckit_kanban.get_tasks_by_thread(self.fclient, toolcall.fcall_ft_id)
+                tasks = await ckit_kanban.get_tasks_by_thread(await self.fclient.use_http_on_behalf(self.pdoc_integration.rcx.persona.persona_id, toolcall.fcall_untrusted_key), toolcall.fcall_ft_id)
                 for task in tasks:
                     task_details = task.ktask_details if isinstance(task.ktask_details, dict) else json.loads(task.ktask_details or "{}")
                     task_details["experiment_id"] = experiment_id
                     task_details["start_ts"] = runtime_inner["start_ts"]
                     task_details["facebook_campaign_ids"] = [c["facebook_id"] for c in created_campaigns]
                     task_details["facebook_adset_ids"] = [a["facebook_id"] for a in created_adsets]
-                    await ckit_kanban.bot_kanban_update_details(self.fclient, task.ktask_id, task_details)
+                    await ckit_kanban.bot_kanban_update_details(await self.fclient.use_http_on_behalf(self.pdoc_integration.rcx.persona.persona_id, toolcall.fcall_untrusted_key), task.ktask_id, task_details)
                     logger.info(f"Updated task {task.ktask_id} with experiment {experiment_id}")
             except Exception as e:
                 logger.warning(f"Failed to update task details: {e}")
