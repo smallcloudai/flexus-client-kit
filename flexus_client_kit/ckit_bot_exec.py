@@ -701,7 +701,8 @@ async def run_happy_trajectory(
 
     expert__scenario = os.path.splitext(os.path.basename(trajectory_yaml_path))[0]
     bot_version = ckit_client.marketplace_version_as_str(scenario.persona.persona_marketable_version)
-    model_name = scenario.explicit_model or scenario.persona.persona_preferred_model
+    assert scenario.explicit_model, "use --model"
+    model_name = scenario.explicit_model
     await ckit_scenario.bot_scenario_result_upsert(
         scenario.fclient,
         ckit_scenario.BotScenarioUpsertInput(

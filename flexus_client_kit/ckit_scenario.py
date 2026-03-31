@@ -181,7 +181,7 @@ async def scenario_generate_tool_result_via_model(
 async def scenario_print_personas(fclient: ckit_client.FlexusClient, fgroup_id: str) -> str:
     lines = []
     for persona in (await ckit_bot_query.persona_list(fclient, fgroup_id)):
-        lines.append(f"    👤{persona.persona_id} name={persona.persona_name!r} marketplace={persona.persona_marketable_name}@{persona.persona_marketable_version} pref_model={persona.persona_preferred_model}")
+        lines.append(f"    👤{persona.persona_id} name={persona.persona_name!r} marketplace={persona.persona_marketable_name}@{persona.persona_marketable_version} pref_model_expensive={persona.persona_preferred_model_expensive} pref_model_cheap={persona.persona_preferred_model_cheap}")
         kanban_tasks = await ckit_kanban.persona_kanban_list(fclient, persona.persona_id)
         if kanban_tasks:
             for task in kanban_tasks:

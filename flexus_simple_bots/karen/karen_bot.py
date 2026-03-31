@@ -1,6 +1,7 @@
 import asyncio
 import json
 import logging
+import re
 from pathlib import Path
 from typing import Dict, Any
 
@@ -11,6 +12,7 @@ from flexus_client_kit import ckit_shutdown
 from flexus_client_kit import ckit_integrations_db
 from flexus_client_kit import ckit_skills
 from flexus_client_kit.integrations import fi_repo_reader
+from flexus_client_kit.integrations import fi_pdoc
 from flexus_client_kit.integrations import fi_discord2
 from flexus_client_kit.integrations import fi_mcp
 from flexus_simple_bots.version_common import SIMPLE_BOTS_COMMON_VERSION

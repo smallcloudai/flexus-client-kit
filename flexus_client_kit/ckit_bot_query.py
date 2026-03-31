@@ -18,7 +18,8 @@ class FPersonaOutput:
     persona_setup: Any
     persona_created_ts: float
     persona_keepalive_ts: float
-    persona_preferred_model: str
+    persona_preferred_model_expensive: str
+    persona_preferred_model_cheap: str
     ws_id: str
     ws_timezone: str
     ws_root_group_id: str

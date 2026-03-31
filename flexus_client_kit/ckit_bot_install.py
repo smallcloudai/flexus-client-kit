@@ -26,7 +26,7 @@ class FMarketplaceExpertInput:
     fexp_inactivity_timeout: int = 0
     fexp_app_capture_tools: str = ""
     fexp_description: str = ""
-    fexp_preferred_model_default: str = ""
+    fexp_preferred_model_class: str = ""
     fexp_subchat_only: bool = False
     fexp_builtin_skills: str = "[]"  # [{"name", "description"}, ...]
 
@@ -70,7 +70,8 @@ async def marketplace_upsert_dev_bot(
     marketable_setup_default: List[Dict[str, Union[str, int, float, bool]]],
     marketable_featured_actions: List[Dict[str, Any]],
     marketable_intro_message: str,
-    marketable_preferred_model_default: str,
+    marketable_preferred_model_expensive: str,
+    marketable_preferred_model_cheap: str,
     marketable_picture_big_b64: str,
     marketable_picture_small_b64: str,
     marketable_experts: List[Tuple[str, FMarketplaceExpertInput]],
@@ -132,7 +133,7 @@ async def marketplace_upsert_dev_bot(
     http = await client.use_http_on_behalf("", "")
     async with http as h:
         r = await h.execute(
-            gql.gql(f"""mutation InstallBot($ws: String!, $name: String!, $ver: String!, $title1: String!, $title2: String!, $author: String!, $accent_color: String!, $occupation: String!, $desc: String!, $typical_group: String!, $repo: String!, $run: String!, $setup: String!, $featured: [FFeaturedActionInput!]!, $intro: String!, $model: String!, $daily: Int!, $inbox: Int!, $experts: [FMarketplaceExpertInput!]!, $schedule: String!, $big: String!, $small: String!, $tags: [String!]!, $forms: String, $required_policydocs: [String!]!, $auth_needed: [String!]!, $auth_supported: [String!]!, $auth_scopes: String, $max_inprogress: Int!, $features: [String!]!) {{
+            gql.gql(f"""mutation InstallBot($ws: String!, $name: String!, $ver: String!, $title1: String!, $title2: String!, $author: String!, $accent_color: String!, $occupation: String!, $desc: String!, $typical_group: String!, $repo: String!, $run: String!, $setup: String!, $featured: [FFeaturedActionInput!]!, $intro: String!, $model_expensive: String!, $model_cheap: String!, $daily: Int!, $inbox: Int!, $experts: [FMarketplaceExpertInput!]!, $schedule: String!, $big: String!, $small: String!, $tags: [String!]!, $forms: String, $required_policydocs: [String!]!, $auth_needed: [String!]!, $auth_supported: [String!]!, $auth_scopes: String, $max_inprogress: Int!, $features: [String!]!) {{
                 marketplace_upsert_dev_bot(
                     ws_id: $ws,
                     marketable_name: $name,
@@ -149,7 +150,8 @@ async def marketplace_upsert_dev_bot(
                     marketable_setup_default: $setup,
                     marketable_featured_actions: $featured,
                     marketable_intro_message: $intro,
-                    marketable_preferred_model_default: $model,
+                    marketable_preferred_model_expensive: $model_expensive,
+                    marketable_preferred_model_cheap: $model_cheap,
                     marketable_daily_budget_default: $daily,
                     marketable_default_inbox_default: $inbox,
                     marketable_experts: $experts,
@@ -184,7 +186,8 @@ async def marketplace_upsert_dev_bot(
                 "setup": json.dumps(marketable_setup_default),
                 "featured": [{"feat_expert": "default", "feat_depends_on_setup": [], **fa} for fa in marketable_featured_actions],
                 "intro": marketable_intro_message,
-                "model": marketable_preferred_model_default,
+                "model_expensive": marketable_preferred_model_expensive,
+                "model_cheap": marketable_preferred_model_cheap,
                 "daily": marketable_daily_budget_default,
                 "inbox": marketable_default_inbox_default,
                 "experts": experts_input,

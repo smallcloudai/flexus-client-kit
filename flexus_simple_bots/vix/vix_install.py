@@ -93,7 +93,7 @@ EXPERTS = [
         fexp_nature="NATURE_SEMI_AUTONOMOUS",
         fexp_inactivity_timeout=600,
         fexp_description="Lightweight expert for automated tasks: sending templated emails, follow-ups, and simple CRM operations.",
-        fexp_preferred_model_default="grok-4-1-fast-reasoning",
+        fexp_preferred_model_class="cheap",
     )),
 ]
 
@@ -128,7 +128,8 @@ async def install(
             {"feat_question": "Help me design a stalled-deal strategy", "feat_expert": "default", "feat_depends_on_setup": []},
         ],
         marketable_intro_message="Hi! I'm Vix, your sales and marketing assistant. I can help with CRM management, email automations, contact imports, and sales conversations. What would you like to work on?",
-        marketable_preferred_model_default="claude-opus-4-6",
+        marketable_preferred_model_expensive="grok-4-1-fast-reasoning",
+        marketable_preferred_model_cheap="gpt-5.4-nano",
         marketable_daily_budget_default=10_000_000,
         marketable_default_inbox_default=1_000_000,
         marketable_max_inprogress=10,
