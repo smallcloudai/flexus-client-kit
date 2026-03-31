@@ -90,12 +90,12 @@ def _qa_fill_stats(doc: dict) -> dict:
 _DATE_PREFIX_RE = re.compile(r"^\d{8}-")
 
 
-async def handle_support_status(pdoc: fi_pdoc.IntegrationPdoc, rcx: ckit_bot_exec.RobotContext) -> str:
+async def handle_support_status(pdoc: fi_pdoc.IntegrationPdoc, rcx: ckit_bot_exec.RobotContext, fcall_untrusted_key: str) -> str:
     persona_id = rcx.persona.persona_id
     lines = []
 
     # check /support/summary
-    summary = await pdoc.pdoc_cat("/support/summary", persona_id=persona_id, fcall_untrusted_key="")
+    summary = await pdoc.pdoc_cat("/support/summary", persona_id=persona_id, fcall_untrusted_key=fcall_untrusted_key)
     if summary:
         content = summary.pdoc_content
         top_tag = next((k for k in content if k != "meta"), None) if isinstance(content, dict) else None
@@ -112,12 +112,12 @@ async def handle_support_status(pdoc: fi_pdoc.IntegrationPdoc, rcx: ckit_bot_exe
     lines.append("")
 
     # list drafts in /support/
-    items = await pdoc.pdoc_list("/support/", persona_id=persona_id, fcall_untrusted_key="", depth=1)
+    items = await pdoc.pdoc_list("/support/", persona_id=persona_id, fcall_untrusted_key=fcall_untrusted_key, depth=1)
     drafts = [it for it in items if not it.is_folder and it.path != "/support/summary"]
     if drafts:
         lines.append(f"Drafts in /support/")
         for d in drafts:
-            doc = await pdoc.pdoc_cat(d.path, persona_id=persona_id, fcall_untrusted_key="")
+            doc = await pdoc.pdoc_cat(d.path, persona_id=persona_id, fcall_untrusted_key=fcall_untrusted_key)
             if not doc:
                 lines.append(f"    {d.path} —- could not read")
                 continue
@@ -161,7 +161,7 @@ async def karen_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.
 
     @rcx.on_tool_call(SUPPORT_STATUS_TOOL.name)
     async def toolcall_support_status(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
-        return await handle_support_status(pdoc_integration, rcx)
+        return await handle_support_status(pdoc_integration, rcx, toolcall.fcall_untrusted_key)
 
     try:
         while not ckit_shutdown.shutdown_event.is_set():
