@@ -66,7 +66,7 @@ async def scenario_generate_human_message(
     fgroup_id: str,
     ft_id: Optional[str] = None,
 ) -> ScenarioHumanMessageOutput:
-    http_client = await client.use_http()
+    http_client = await client.use_http_on_behalf("", "")
     http_client.execute_timeout = 120
     async with http_client as http:
         r = await http.execute(
@@ -98,7 +98,7 @@ async def scenario_judge(
     ft_id: str,
     judge_instructions: str,
 ) -> ScenarioJudgeOutput:
-    http_client = await client.use_http()
+    http_client = await client.use_http_on_behalf("", "")
     http_client.execute_timeout = 120
     async with http_client as http:
         r = await http.execute(
@@ -155,7 +155,7 @@ async def scenario_generate_tool_result_via_model(
     toolcall: ckit_cloudtool.FCloudtoolCall,
     tool_handler_source_code: str,
 ) -> str:
-    http_client = await fclient.use_http(execute_timeout=120)
+    http_client = await fclient.use_http_on_behalf(toolcall.connected_persona_id, toolcall.fcall_untrusted_key, execute_timeout=120)
     async with http_client as http:
         await http.execute(
             gql.gql("""mutation ScenarioGenerateToolResult(
@@ -200,7 +200,7 @@ async def scenario_print_personas(fclient: ckit_client.FlexusClient, fgroup_id: 
 
 
 async def scenario_print_threads(fclient: ckit_client.FlexusClient, fgroup_id: str) -> str:
-    async with (await fclient.use_http()) as http:
+    async with (await fclient.use_http_on_behalf("", "")) as http:
         threads = await http.execute(gql.gql(f"""
             query GetGroupThreads($fgroup_id: String!) {{
                 thread_list(located_fgroup_id: $fgroup_id, skip: 0, limit: 100) {{
@@ -285,7 +285,7 @@ class ScenarioSetup:
         if not self.fclient.ws_id:
             raise RuntimeError("FLEXUS_WORKSPACE environment variable is not set")
 
-        async with (await self.fclient.use_http()) as http:
+        async with (await self.fclient.use_http_on_behalf("", "")) as http:
             ws_query = await http.execute(gql.gql(f"""
                 query GetWorkspace {{
                     query_basic_stuff(want_invitations: false) {{
@@ -341,7 +341,7 @@ class ScenarioSetup:
     async def cleanup(self) -> None:
         if self.fgroup_id:
             try:
-                async with (await self.fclient.use_http()) as http:
+                async with (await self.fclient.use_http_on_behalf("", "")) as http:
                     await http.execute(gql.gql("""mutation($id:String!){group_delete(fgroup_id:$id)}"""), variable_values={"id": self.fgroup_id})
             except Exception as e:
                 logger.warning(f"⚠️ Failed to delete test group {self.fgroup_name}: {e}")
@@ -351,7 +351,7 @@ async def bot_scenario_result_upsert(
     client: ckit_client.FlexusClient,
     input: BotScenarioUpsertInput,
 ) -> bool:
-    http_client = await client.use_http()
+    http_client = await client.use_http_on_behalf("", "")
     async with http_client as http:
         result = await http.execute(
             gql.gql("""mutation BotScenarioResultUpsert($input: BotScenarioUpsertInput!) {

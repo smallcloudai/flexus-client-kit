@@ -82,7 +82,7 @@ class FThreadWithMessages:
 
 
 async def persona_list(fclient: ckit_client.FlexusClient, fgroup_id: str) -> List[FPersonaOutput]:
-    async with (await fclient.use_http()) as http:
+    async with (await fclient.use_http_on_behalf("", "")) as http:
         r = await http.execute(gql.gql(f"""
             query PersonaList($fgroup_id: String!) {{
                 persona_list(located_fgroup_id: $fgroup_id, skip: 0, limit: 100) {{
@@ -93,7 +93,7 @@ async def persona_list(fclient: ckit_client.FlexusClient, fgroup_id: str) -> Lis
 
 
 async def personas_in_ws_list(fclient: ckit_client.FlexusClient, ws_id: str) -> List[FPersonaOutput]:
-    async with (await fclient.use_http()) as http:
+    async with (await fclient.use_http_on_behalf("", "")) as http:
         r = await http.execute(gql.gql(f"""
             query PersonasInWsList($ws_id: String!) {{
                 workspace_personas_list(ws_id: $ws_id, active_only: true) {{

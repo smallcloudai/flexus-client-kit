@@ -126,18 +126,16 @@ async def get_token_from_github_auth_cred(auth_json: dict, repo_name: str) -> Op
     return await exchange_installation_id_to_token(inst_id)
 
 
-async def get_gh_repo_token_from_external_auth(fclient, devenv_id: str, repo_uri: str) -> Optional[GhRepoToken]:
-    http = await fclient.use_http()
-    async with http as h:
-        r = await h.execute(
-            gql.gql(f"""
-                query GetGhRepoTokenFromExternalAuth($devenv_id: String!, $repo_uri: String!) {{
-                    get_gh_repo_token_from_external_auth(devenv_id: $devenv_id, repo_uri: $repo_uri) {{
-                        {gql_utils.gql_fields(GhRepoToken)}
-                    }}
-                }}"""),
-            variable_values={"devenv_id": devenv_id, "repo_uri": repo_uri},
-        )
+async def get_gh_repo_token_from_external_auth(http: gql.Client, devenv_id: str, repo_uri: str) -> Optional[GhRepoToken]:
+    r = await http.execute(
+        gql.gql(f"""
+            query GetGhRepoTokenFromExternalAuth($devenv_id: String!, $repo_uri: String!) {{
+                get_gh_repo_token_from_external_auth(devenv_id: $devenv_id, repo_uri: $repo_uri) {{
+                    {gql_utils.gql_fields(GhRepoToken)}
+                }}
+            }}"""),
+        variable_values={"devenv_id": devenv_id, "repo_uri": repo_uri},
+    )
     if result := r.get("get_gh_repo_token_from_external_auth"):
         return gql_utils.dataclass_from_dict(result, GhRepoToken)
     return None
@@ -145,7 +143,7 @@ async def get_gh_repo_token_from_external_auth(fclient, devenv_id: str, repo_uri
 
 _token_cache: dict[tuple[str, str], GhRepoToken] = {} # (fgroup_id, repo_url)
 
-async def get_github_token_with_cache(fclient, fgroup_id: str, repo_url: str) -> Optional[GhRepoToken]:
+async def get_github_token_with_cache(http: gql.Client, fgroup_id: str, repo_url: str) -> Optional[GhRepoToken]:
     import flexus_client_kit.ckit_devenv as ckit_devenv
     cache_key = (fgroup_id, repo_url)
     if cache_key in _token_cache:
@@ -154,11 +152,11 @@ async def get_github_token_with_cache(fclient, fgroup_id: str, repo_url: str) ->
             return gh_token
     if not (target_repo := extract_repo_path_from_url(repo_url)):
         return None
-    for devenv in await ckit_devenv.dev_environments_list_in_subgroups(fclient, fgroup_id):
+    for devenv in await ckit_devenv.dev_environments_list_in_subgroups(http, fgroup_id):
         if extract_repo_path_from_url(devenv.devenv_repo_uri) == target_repo:
             if not devenv.has_external_auth:
                 return None
-            if not (gh_token := await get_gh_repo_token_from_external_auth(fclient, devenv.devenv_id, repo_url)):
+            if not (gh_token := await get_gh_repo_token_from_external_auth(http, devenv.devenv_id, repo_url)):
                 return None
             _token_cache[cache_key] = gh_token
             return gh_token

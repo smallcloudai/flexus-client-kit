@@ -37,7 +37,7 @@ async def create_mcp(
     mcp_preinstall_script: str = "",
     mcp_env_vars: Optional[dict] = None
 ) -> FMcpServerOutput:
-    async with (await fclient.use_http()) as http:
+    async with (await fclient.use_http_on_behalf("", "")) as http:
         resp = await http.execute(gql.gql(f"""mutation CreateMCP($input: FMcpServerInput!) {{
             mcp_server_create(input: $input) {{ {gql_utils.gql_fields(FMcpServerOutput)} }}
         }}"""), variable_values={"input": {
@@ -52,18 +52,3 @@ async def create_mcp(
         }})
     return gql_utils.dataclass_from_dict(resp["mcp_server_create"], FMcpServerOutput)
 
-
-async def wait_for_mcp(fclient: ckit_client.FlexusClient, mcp_id: str, timeout: int = 600) -> bool:
-    logger.info("Waiting for MCP server to be ready...")
-    start_time = time.time()
-    while time.time() - start_time < timeout:
-        async with (await fclient.use_http()) as http:
-            resp = await http.execute(gql.gql("""query GetMCP($id: String!) {
-                mcp_server_get(id: $id) { mcp_status }
-            }"""), variable_values={"id": mcp_id})
-        if resp["mcp_server_get"]["mcp_status"] == "RUNNING":
-            logger.info("✓ MCP server is ready")
-            return True
-        await asyncio.sleep(2)
-    logger.warning("⚠️ MCP server failed to start within timeout")
-    return False

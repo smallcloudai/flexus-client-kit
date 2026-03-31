@@ -188,7 +188,7 @@ async def query_basic_stuff(
     client: FlexusClient,
     want_invitations: bool = False,
 ) -> BasicStuffOutput:
-    http = await client.use_http()
+    http = await client.use_http_on_behalf("", "")
     async with http as h:
         r = await h.execute(
             gql.gql(f"""query CkitClientTest($w: Boolean!) {{

@@ -241,7 +241,7 @@ async def call_python_function_and_save_result(
         try:
             await cloudtool_confirmation_request(
                 fclient,
-                call.fcall_id,
+                call,
                 e.confirm_setup_key,
                 e.confirm_command,
                 e.confirm_explanation,
@@ -259,27 +259,27 @@ async def call_python_function_and_save_result(
         dollars = 0.0
     if result is not None:
         serialized_result = result if isinstance(result, str) else result.to_serialized()
-        await cloudtool_post_result(fclient, call.fcall_id, call.fcall_untrusted_key, serialized_result, prov, dollars)
+        http_client = await fclient.use_http_on_behalf(call.connected_persona_id, call.fcall_untrusted_key)
+        async with http_client as http:
+            await cloudtool_post_result(http, call, serialized_result, prov, dollars)
 
 
-async def cloudtool_post_result(fclient: ckit_client.FlexusClient, fcall_id: str, fcall_untrusted_key: str, content: str, prov: str, dollars: float = 0.0, as_placeholder: bool = False):
-    http_client = await fclient.use_http()
-    async with http_client as http:
-        await http.execute(
-            gql.gql("""mutation CloudtoolPost($input: CloudtoolResultInput!, $as_placeholder: Boolean!) {
-                cloudtool_post_result(input: $input, as_placeholder: $as_placeholder)
-            }"""),
-            variable_values={
-                "input": {
-                    "fcall_id": fcall_id,
-                    "fcall_untrusted_key": fcall_untrusted_key,
-                    "ftm_content": content,
-                    "ftm_provenance": prov,
-                    "dollars": dollars,
-                },
-                "as_placeholder": as_placeholder,
+async def cloudtool_post_result(http, call: FCloudtoolCall, content: str, prov: str, dollars: float = 0.0, as_placeholder: bool = False):
+    await http.execute(
+        gql.gql("""mutation CloudtoolPost($input: CloudtoolResultInput!, $as_placeholder: Boolean!) {
+            cloudtool_post_result(input: $input, as_placeholder: $as_placeholder)
+        }"""),
+        variable_values={
+            "input": {
+                "fcall_id": call.fcall_id,
+                "fcall_untrusted_key": call.fcall_untrusted_key,
+                "ftm_content": content,
+                "ftm_provenance": prov,
+                "dollars": dollars,
             },
-        )
+            "as_placeholder": as_placeholder,
+        },
+    )
 
 
 class DeltaStreamer:
@@ -335,12 +335,12 @@ class DeltaStreamer:
 
 async def cloudtool_confirmation_request(
     fclient: ckit_client.FlexusClient,
-    fcall_id: str,
+    call: FCloudtoolCall,
     confirm_setup_key: str,
     confirm_command: str,
-    confirm_explanation: str
+    confirm_explanation: str,
 ):
-    http_client = await fclient.use_http()
+    http_client = await fclient.use_http_on_behalf(call.connected_persona_id, call.fcall_untrusted_key)
     async with http_client as http:
         await http.execute(
             gql.gql("""mutation CloudtoolConfirmationRequest(
@@ -357,7 +357,7 @@ async def cloudtool_confirmation_request(
                 )
             }"""),
             variable_values={
-                "fcall_id": fcall_id,
+                "fcall_id": call.fcall_id,
                 "confirm_setup_key": confirm_setup_key,
                 "confirm_command": confirm_command,
                 "confirm_explanation": confirm_explanation,
@@ -377,7 +377,7 @@ async def cloudtool_i_am_still_alive(
         _ = t.openai_style_tool()
     while not ckit_shutdown.shutdown_event.is_set():
         try:
-            http_client = await fclient.use_http()
+            http_client = await fclient.use_http_on_behalf("", "")
             async with http_client as http:
                 for t in tool_list:
                     await http.execute(

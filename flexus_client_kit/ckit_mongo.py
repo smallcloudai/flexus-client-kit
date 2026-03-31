@@ -16,7 +16,7 @@ async def mongo_fetch_creds(
     client: ckit_client.FlexusClient,
     persona_id: str,
 ) -> str:
-    http = await client.use_http()
+    http = await client.use_http_on_behalf(persona_id, "")
     async with http as h:
         r = await h.execute(
             gql.gql("""mutation GetMongoDbCreds($persona_id: String!) {

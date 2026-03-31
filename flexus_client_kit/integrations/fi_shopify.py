@@ -631,7 +631,7 @@ class IntegrationShopify:
         if not op or "help" in op:
             return await self._op_status() + "\n\n" + HELP
         if op == "connect":
-            return await self._op_connect(args, model_produced_args)
+            return await self._op_connect(toolcall, args, model_produced_args)
         if op == "status":
             return await self._op_status()
         if op == "sync":
@@ -670,33 +670,33 @@ class IntegrationShopify:
             return await self._op_disconnect(toolcall)
         return f"Unknown operation: {op}\n\nTry shopify(op='help') for usage."
 
-    async def _op_connect(self, args: dict, model_produced_args: Optional[dict[str, Any]]) -> str:
-        http = await self.fclient.use_http_on_behalf(self.rcx.persona.persona_id, "")
-        existing = await ckit_erp.erp_table_data(
-            http, "com_shop", self.rcx.persona.ws_id, erp_schema.ComShop,
-            filters="shop_type:=:SHOPIFY",
-        )
-        shop_domain = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "shop_domain", None)
-        if not shop_domain:
-            return "Missing required: 'shop_domain' (e.g. mystore.myshopify.com)"
-        s = shop_domain.strip().lower()
-        shop_domain = urllib.parse.urlparse(s if "://" in s else f"https://{s}").hostname or s
-        if "." not in shop_domain:
-            shop_domain += ".myshopify.com"
-        if active := next(iter(existing), None):
-            if active.shop_domain == shop_domain:
-                return f"Already connected: {shop_domain}."
-            return f"Already connected: {active.shop_domain}. Disconnect first with shopify(op='disconnect')."
-        try:
-            auth_url = await ckit_external_auth.start_external_auth_flow(
-                self.fclient, "shopify", self.rcx.persona.ws_id,
-                self.rcx.persona.owner_fuser_id, SHOPIFY_SCOPES,
-                url_template_vars={"shop_domain": shop_domain},
-                persona_id=self.rcx.persona.persona_id,
+    async def _op_connect(self, toolcall: ckit_cloudtool.FCloudtoolCall, args: dict, model_produced_args: Optional[dict[str, Any]]) -> str:
+        async with (await self.fclient.use_http_on_behalf(toolcall.connected_persona_id, toolcall.fcall_untrusted_key)) as http:
+            existing = await ckit_erp.erp_table_data(
+                http, "com_shop", self.rcx.persona.ws_id, erp_schema.ComShop,
+                filters="shop_type:=:SHOPIFY",
             )
-            return f"Please authorize Flexus to access your Shopify store:\n{auth_url}\n\nAfter authorizing, call shopify(op='sync') to complete setup."
-        except gql.transport.exceptions.TransportQueryError as e:
-            return f"Failed to start OAuth: {e}"
+            shop_domain = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "shop_domain", None)
+            if not shop_domain:
+                return "Missing required: 'shop_domain' (e.g. mystore.myshopify.com)"
+            s = shop_domain.strip().lower()
+            shop_domain = urllib.parse.urlparse(s if "://" in s else f"https://{s}").hostname or s
+            if "." not in shop_domain:
+                shop_domain += ".myshopify.com"
+            if active := next(iter(existing), None):
+                if active.shop_domain == shop_domain:
+                    return f"Already connected: {shop_domain}."
+                return f"Already connected: {active.shop_domain}. Disconnect first with shopify(op='disconnect')."
+            try:
+                auth_url = await ckit_external_auth.start_external_auth_flow(
+                    http, "shopify", self.rcx.persona.ws_id,
+                    self.rcx.persona.owner_fuser_id, SHOPIFY_SCOPES,
+                    url_template_vars={"shop_domain": shop_domain},
+                    persona_id=self.rcx.persona.persona_id,
+                )
+                return f"Please authorize Flexus to access your Shopify store:\n{auth_url}\n\nAfter authorizing, call shopify(op='sync') to complete setup."
+            except gql.transport.exceptions.TransportQueryError as e:
+                return f"Failed to start OAuth: {e}"
 
     async def _op_status(self) -> str:
         await self._load_current_shop()

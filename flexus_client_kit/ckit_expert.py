@@ -36,7 +36,7 @@ async def make_sure_have_expert(
     fgroup_id: Optional[str],
     fexp_name: str,
 ) -> str:
-    http = await client.use_http()
+    http = await client.use_http_on_behalf("", "")
     async with http as h:
         r = await h.execute(
             gql.gql(
@@ -66,7 +66,7 @@ async def expert_choice_consequences(
     fexp_id: str,
     inside_fgroup_id: str,
 ) -> FExpertChoiceConsequences:
-    http = await client.use_http()
+    http = await client.use_http_on_behalf("", "")
     async with http as h:
         r = await h.execute(
             gql.gql(

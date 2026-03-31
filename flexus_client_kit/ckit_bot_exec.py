@@ -269,7 +269,7 @@ class RobotContext:
             return
         except ckit_cloudtool.NeedsConfirmation as e:
             logger.info("%s needs human confirmation: %s" % (toolcall.fcall_id, e.confirm_explanation))
-            await ckit_cloudtool.cloudtool_confirmation_request(fclient, toolcall.fcall_id, e.confirm_setup_key, e.confirm_command, e.confirm_explanation)
+            await ckit_cloudtool.cloudtool_confirmation_request(fclient, toolcall, e.confirm_setup_key, e.confirm_command, e.confirm_explanation)
             return
         except gql.transport.exceptions.TransportQueryError as e:
             logger.error("%s The construction of system prompt and tools generally should not produce backend errors, but here's one: %s", toolcall.fcall_id, e, exc_info=e)
@@ -282,7 +282,9 @@ class RobotContext:
         if subchats_list is not None:
             prov_dict["subchats_started"] = subchats_list
         prov = json.dumps(prov_dict)
-        await ckit_cloudtool.cloudtool_post_result(fclient, toolcall.fcall_id, toolcall.fcall_untrusted_key, serialized_result, prov, dollars=dollars, as_placeholder=bool(subchats_list))
+        http_client = await fclient.use_http_on_behalf(toolcall.connected_persona_id, toolcall.fcall_untrusted_key)
+        async with http_client as http:
+            await ckit_cloudtool.cloudtool_post_result(http, toolcall, serialized_result, prov, dollars=dollars, as_placeholder=bool(subchats_list))
 
 
 class BotInstance(NamedTuple):

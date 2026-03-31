@@ -97,28 +97,33 @@ async def _ensure_repo_cached(repo_url: str, branch: Optional[str], github_token
 
 async def handle_repo_reader(
     rcx: ckit_bot_exec.RobotContext,
+    toolcall: ckit_cloudtool.FCloudtoolCall,
     model_produced_args: Dict[str, Any],
 ) -> str:
-    op = model_produced_args.get("op", "")
-    if not op or "help" in op:
-        return HELP + "\n\n" + await ckit_devenv.format_devenv_list(rcx.fclient, rcx.persona.located_fgroup_id)
+    http = await rcx.fclient.use_http_on_behalf(toolcall.connected_persona_id, toolcall.fcall_untrusted_key)
+    async with http as h:
+        op = model_produced_args.get("op", "")
+        if not op or "help" in op:
+            return HELP + "\n\n" + await ckit_devenv.format_devenv_list(h, rcx.persona.located_fgroup_id)
 
-    args, args_error = ckit_cloudtool.sanitize_args(model_produced_args)
-    if args_error:
-        return f"{args_error}\n\n{HELP}"
-    if not (repo_input := ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "repo", "")):
-        return "Error: repo parameter is required\n\n" + HELP + "\n\n" + await ckit_devenv.format_devenv_list(rcx.fclient, rcx.persona.located_fgroup_id)
+        args, args_error = ckit_cloudtool.sanitize_args(model_produced_args)
+        if args_error:
+            return f"{args_error}\n\n{HELP}"
+        if not (repo_input := ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "repo", "")):
+            return "Error: repo parameter is required\n\n" + HELP + "\n\n" + await ckit_devenv.format_devenv_list(h, rcx.persona.located_fgroup_id)
 
-    repo_url = repo_input if repo_input.startswith(("https://", "git@")) else f"https://github.com/{repo_input}"
-    gh_token = await ckit_github.get_github_token_with_cache(rcx.fclient, rcx.persona.located_fgroup_id, repo_url)
+        repo_url = repo_input if repo_input.startswith(("https://", "git@")) else f"https://github.com/{repo_input}"
+        gh_token = await ckit_github.get_github_token_with_cache(h, rcx.persona.located_fgroup_id, repo_url)
     branch = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "branch", None)
     try:
         cache_path = await _ensure_repo_cached(repo_url, branch, gh_token, rcx.persona.persona_id)
     except ValueError as e:
-        return f"{e}\n\n" + await ckit_devenv.format_devenv_list(rcx.fclient, rcx.persona.located_fgroup_id)
+        async with (await rcx.fclient.use_http_on_behalf(toolcall.connected_persona_id, toolcall.fcall_untrusted_key)) as h:
+            return f"{e}\n\n" + await ckit_devenv.format_devenv_list(h, rcx.persona.located_fgroup_id)
     except (RuntimeError, OSError, subprocess.SubprocessError) as e:
         logger.info(f"Could not access repo {repo_url}: {e}", exc_info=True)
-        return f"Error accessing repository: {e}\n\n" + await ckit_devenv.format_devenv_list(rcx.fclient, rcx.persona.located_fgroup_id)
+        async with (await rcx.fclient.use_http_on_behalf(toolcall.connected_persona_id, toolcall.fcall_untrusted_key)) as h:
+            return f"Error accessing repository: {e}\n\n" + await ckit_devenv.format_devenv_list(h, rcx.persona.located_fgroup_id)
 
     # Strip repo-specific args before passing to handle_localfile, and normalize "context" -> "context_lines"
     localfile_args = {k: v for k, v in args.items() if k not in ("repo", "branch") and v is not None}

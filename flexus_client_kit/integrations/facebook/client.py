@@ -151,7 +151,7 @@ class FacebookAdsClient:
 
     async def _prompt_oauth_connection(self) -> str:
         from flexus_client_kit import ckit_client
-        http = await self.fclient.use_http()
+        http = await self.fclient.use_http_on_behalf(self.rcx.persona.persona_id, "")
         async with http as h:
             result = await h.execute(
                 ckit_client.gql.gql("""

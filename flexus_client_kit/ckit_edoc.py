@@ -45,7 +45,7 @@ async def edoc_get_existing_documents_for_eds(
     client: ckit_client.FlexusClient,
     eds_id: str,
 ) -> Dict[str, FEdocOutput]:
-    http = await client.use_http()
+    http = await client.use_http_on_behalf("", "")
     async with http as h:
         r = await h.execute(
             gql.gql(
@@ -72,7 +72,7 @@ async def edoc_delete_batch(
 ) -> None:
     if not edoc_ids:
         return
-    http = await client.use_http()
+    http = await client.use_http_on_behalf("", "")
     sum_deleted_cnt = 0
     async with http as h:
         for i in range(0, len(edoc_ids), MAX_EDOCS_PER_REQ):
@@ -142,7 +142,7 @@ async def edoc_create(
         "edoc_status_graphdb": "",
         "edoc_status_vectordb": "",
     }
-    http_client = await client.use_http()
+    http_client = await client.use_http_on_behalf("", "")
     async with http_client as http:
         result = await http.execute(
             gql.gql(
@@ -161,7 +161,7 @@ async def edoc_patch(
     client: ckit_client.FlexusClient,
     p: Dict[str, Any]
 ) -> bool:
-    http_client = await client.use_http()
+    http_client = await client.use_http_on_behalf("", "")
     async with http_client as http:
         result = await http.execute(
             gql.gql(
@@ -180,7 +180,7 @@ async def edoc_upsert(
     client: ckit_client.FlexusClient,
     p: Dict[str, Any]
 ) -> bool:
-    http_client = await client.use_http()
+    http_client = await client.use_http_on_behalf("", "")
     async with http_client as http:
         result = await http.execute(
             gql.gql(
@@ -211,7 +211,7 @@ async def subscribe_to_eds_types(
             yield subs
 
 async def eds_report_error(fclient: ckit_client.FlexusClient, eds_id: str, error_msg: str):
-    http = await fclient.use_http()
+    http = await fclient.use_http_on_behalf("", "")
     async with http as h:
         await h.execute(
             gql.gql(
@@ -225,7 +225,7 @@ async def eds_report_error(fclient: ckit_client.FlexusClient, eds_id: str, error
 
 
 async def eds_mark_success(fclient: ckit_client.FlexusClient, eds_id: str):
-    http = await fclient.use_http()
+    http = await fclient.use_http_on_behalf("", "")
     async with http as h:
         await h.execute(
             gql.gql(

@@ -345,7 +345,7 @@ def check_record_matches_filter(record: dict, f: str, col_names: set = None) -> 
 async def test():
     client = ckit_client.FlexusClient("ckit_erp_test")
     ws_id = "solarsystem"
-    http = await client.use_http()
+    http = await client.use_http_on_behalf("", "")
     products = await erp_table_data(http, "product_product", ws_id, erp_schema.ProductProduct, limit=10, include=["prodt"])
     print(f"Found {len(products)} products:")
     for p in products:
