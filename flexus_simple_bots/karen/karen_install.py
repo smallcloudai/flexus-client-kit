@@ -74,7 +74,7 @@ if not messages[-1]["tool_calls"]:
 
 EXPERTS = [
     ("default", ckit_bot_install.FMarketplaceExpertInput(
-        fexp_system_prompt=karen_prompts.karen_setup,
+        fexp_system_prompt=karen_prompts.KAREN_DEFAULT,
         fexp_python_kernel="",
         fexp_allow_tools=",".join(TOOL_NAMESET | ckit_cloudtool.CLOUDTOOLS_QUITE_A_LOT),
         fexp_nature="NATURE_INTERACTIVE",
@@ -83,16 +83,16 @@ EXPERTS = [
         fexp_builtin_skills=ckit_skills.read_name_description(karen_bot.KAREN_ROOTDIR, karen_bot.KAREN_SKILLS),
     )),
     ("messages_triage", ckit_bot_install.FMarketplaceExpertInput(
-        fexp_system_prompt=karen_prompts.short_prompt,
+        fexp_system_prompt=karen_prompts.KAREN_DEAL_WITH_INBOX,
         fexp_python_kernel="",
-        fexp_allow_tools=",".join(TOOL_NAMESET | ckit_cloudtool.CLOUDTOOLS_TRIAGE),
+        fexp_allow_tools=",".join(ckit_cloudtool.CLOUDTOOLS_TRIAGE),    # no access to messengers
         fexp_nature="NATURE_NO_TASK",
         fexp_inactivity_timeout=0,
         fexp_description="Deals with messages in the inbox, picks relevant to work on.",
         fexp_builtin_skills=ckit_skills.read_name_description(karen_bot.KAREN_ROOTDIR, karen_bot.KAREN_SKILLS),
     )),
     ("very_limited", ckit_bot_install.FMarketplaceExpertInput(
-        fexp_system_prompt=karen_prompts.very_limited,
+        fexp_system_prompt=karen_prompts.VERY_LIMITED,
         fexp_python_kernel=KAREN_VERY_LIMITED_KERNEL,
         fexp_allow_tools=",".join({"slack", "telegram", "discord", "magic_desk"} | ckit_cloudtool.CLOUDTOOLS_PUBLIC | ckit_cloudtool.CLOUDTOOLS_VECDB | ckit_cloudtool.CLOUDTOOLS_MCP),
         fexp_nature="NATURE_AUTONOMOUS",

@@ -105,6 +105,11 @@ async def marketplace_upsert_dev_bot(
         included_integr = []
         if add_integrations_into_expert_system_prompt:
             for r in add_integrations_into_expert_system_prompt:
+                # Good debugging opportunity 1
+                # has_prompt = bool(r.integr_prompt)
+                # already_in = any(r.integr_prompt in s for s in sections) if has_prompt else False
+                # tool_allowed = any(expert._tool_allowed(t.name) for t in r.integr_tools)
+                # print("Q"*35, [t.name for t in r.integr_tools], f"has_prompt={has_prompt} already_in={already_in} tool_allowed={tool_allowed}")
                 if r.integr_prompt and not any(r.integr_prompt in s for s in sections) and any(expert._tool_allowed(t.name) for t in r.integr_tools):
                     sections.append(r.integr_prompt)
                     included_integr.append(r.integr_name)
@@ -122,7 +127,7 @@ async def marketplace_upsert_dev_bot(
             f"    len(prompt)={len(prompt)}"
         )
         print(summary)
-        # Good debugging opportunity:
+        # Good debugging opportunity 2
         # print(prompt)
         # exit(0)
         prepared = dataclasses.replace(expert, fexp_system_prompt=prompt)
