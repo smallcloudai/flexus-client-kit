@@ -327,7 +327,7 @@ async def i_am_still_alive(
 ) -> None:
     while not ckit_shutdown.shutdown_event.is_set():
         try:
-            http_client = await fclient.use_http()
+            http_client = await fclient.use_http_on_behalf("", "")
             async with http_client as http:
                 # group_id takes priority over ws_id, send only one (not both)
                 use_group_id = fclient.group_id if fclient.group_id else None
@@ -768,7 +768,7 @@ async def run_happy_trajectory(
                 logger.info("human says %0.2fs: %r shaky=%s stop_reason=%r" % (ht2-ht1, result.next_human_message, result.shaky, result.stop_reason))
                 if result.scenario_done:
                     break
-                http = await scenario.fclient.use_http()
+                http = await scenario.fclient.use_http_on_behalf(scenario.persona.persona_id, "")
                 await ckit_ask_model.thread_add_user_message(
                     http=http,
                     ft_id=ft_id,
@@ -942,7 +942,7 @@ async def run_happy_trajectory(
 
 
 async def _emsg_delete_batch(fclient: ckit_client.FlexusClient, batch: List[str]) -> None:
-    async with (await fclient.use_http()) as http:
+    async with (await fclient.use_http_on_behalf("", "")) as http:
         await http.execute(gql.gql("""mutation FlushDeleteEmessages($ids: [String!]!) {
             emessages_delete(emsg_ids: $ids)
         }"""), variable_values={"ids": batch})

@@ -143,7 +143,7 @@ async def bot_activate(
     title = title or (fexp_name + " " + time.strftime("%Y%m%d %H:%M:%S"))
     assert re.match(r'^[a-z0-9_]+$', who_is_asking)
     camel_case_for_logs = "".join(word.capitalize() for word in who_is_asking.split("_"))
-    http = await client.use_http()
+    http = await client.use_http_on_behalf(persona_id, "")
     async with http as h:
         r = await h.execute(
             gql.gql(f"""mutation {camel_case_for_logs}BotActivate($who_is_asking: String!, $persona_id: String!, $fexp_name: String!, $first_question: String!, $first_calls: String!, $title: String!, $sched_id: String!, $fexp_id: String!, $ft_btest_name: String!, $model: String!, $assign_ktask_id: String!, $check_kanban_status: Boolean!) {{
@@ -183,7 +183,7 @@ async def bot_subchat_create_multiple(
 ) -> List[str]:
     assert re.match(r'^[a-z0-9_]+$', who_is_asking)
     camel_case_for_logs = "".join(word.capitalize() for word in who_is_asking.split("_"))
-    http = await client.use_http()
+    http = await client.use_http_on_behalf(persona_id, "")
     async with http as h:
         result = await h.execute(
             gql.gql(f"""mutation {camel_case_for_logs}BotSubchatCreateMultiple($who_is_asking: String!, $persona_id: String!, $first_question: [String!]!, $first_calls: [String!]!, $title: [String!]!, $fcall_id: String!, $fexp_name: String!, $max_tokens: Int, $temperature: Float, $model: String) {{

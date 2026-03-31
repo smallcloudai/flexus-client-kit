@@ -129,7 +129,7 @@ async def marketplace_upsert_dev_bot(
         expert_dict["fexp_name"] = f"{marketable_name}_{expert_name}"
         experts_input.append(expert_dict)
 
-    http = await client.use_http()
+    http = await client.use_http_on_behalf("", "")
     async with http as h:
         r = await h.execute(
             gql.gql(f"""mutation InstallBot($ws: String!, $name: String!, $ver: String!, $title1: String!, $title2: String!, $author: String!, $accent_color: String!, $occupation: String!, $desc: String!, $typical_group: String!, $repo: String!, $run: String!, $setup: String!, $featured: [FFeaturedActionInput!]!, $intro: String!, $model: String!, $daily: Int!, $inbox: Int!, $experts: [FMarketplaceExpertInput!]!, $schedule: String!, $big: String!, $small: String!, $tags: [String!]!, $forms: String, $required_policydocs: [String!]!, $auth_needed: [String!]!, $auth_supported: [String!]!, $auth_scopes: String, $max_inprogress: Int!, $features: [String!]!) {{
@@ -222,7 +222,8 @@ async def bot_install_from_marketplace(
     persona_id: Optional[str] = None,
     specific_version: Optional[int] = None,
 ) -> InstallationResult:
-    http = await client.use_http()
+    # Typically used by scenario to create a tmp bot, with predefined persona_id so it's easier to interact later
+    http = await client.use_http_on_behalf("", "")
     assert isinstance(new_setup, dict)
     async with http as h:
         r = await h.execute(
