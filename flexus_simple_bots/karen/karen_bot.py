@@ -102,38 +102,43 @@ async def handle_support_status(pdoc: fi_pdoc.IntegrationPdoc, rcx: ckit_bot_exe
         if top_tag and isinstance(content.get(top_tag), dict):
             stats = _qa_fill_stats(content[top_tag])
             pct = (stats["filled_a"] * 100 // stats["total_a"]) if stats["total_a"] else 0
-            lines.append(f"✅ /support/summary exists — {stats['filled_a']}/{stats['total_a']} answers filled ({pct}%)")
+            lines.append(f"/support/summary exists — {stats['filled_a']}/{stats['total_a']} answers filled ({pct}%)")
             if not stats["translated"]:
                 lines.append(f"   ⚠️ {stats['total_q'] - stats['filled_q']}/{stats['total_q']} questions not translated yet")
         else:
-            lines.append("✅ /support/summary exists (not QA format, can't measure fill %)")
+            lines.append("/support/summary exists (not QA format, can't measure fill percentage)")
     else:
-        lines.append("❌ /support/summary does not exist — create it using the collect-support-info skill")
+        lines.append("/support/summary does not exist")
+    lines.append("")
 
     # list drafts in /support/
     items = await pdoc.pdoc_list("/support/", persona_id=persona_id, fcall_untrusted_key="", depth=1)
     drafts = [it for it in items if not it.is_folder and it.path != "/support/summary"]
     if drafts:
-        lines.append(f"\n📋 Drafts in /support/ ({len(drafts)}):")
+        lines.append(f"Drafts in /support/")
         for d in drafts:
             doc = await pdoc.pdoc_cat(d.path, persona_id=persona_id, fcall_untrusted_key="")
             if not doc:
-                lines.append(f"  • {d.path} — could not read")
+                lines.append(f"    {d.path} —- could not read")
                 continue
             content = doc.pdoc_content
             top_tag = next((k for k in content if k != "meta"), None) if isinstance(content, dict) else None
             if top_tag and isinstance(content.get(top_tag), dict):
                 stats = _qa_fill_stats(content[top_tag])
                 pct = (stats["filled_a"] * 100 // stats["total_a"]) if stats["total_a"] else 0
-                t_status = "translated" if stats["translated"] else f"{stats['total_q'] - stats['filled_q']}/{stats['total_q']} questions untranslated"
-                lines.append(f"  • {d.path} — {stats['filled_a']}/{stats['total_a']} answers ({pct}%), {t_status}")
+                untranslated = stats['total_q'] - stats['filled_q']
+                if not stats["translated"]:
+                    t_status = f", {untranslated}/{stats['total_q']} questions need translation before user can answer."
+                else:
+                    t_status = ""
+                lines.append(f"    {d.path} —- has {stats['filled_a']}/{stats['total_a']} answers {t_status}")
                 name = d.path.rsplit("/", 1)[-1]
                 if _DATE_PREFIX_RE.match(name) and pct >= 80:
                     lines.append(f"    💡 Looks ready, ask user if you should: flexus_policy_document(op=\"mv\", args={{\"p1\": \"{d.path}\", \"p2\": \"/support/summary\"}})")
             else:
-                lines.append(f"  • {d.path} — not QA format")
-    elif not summary:
-        lines.append("\nNo drafts found either. Use the collect-support-info skill to get started.")
+                lines.append(f"    {d.path} —- not QA format")
+    else:
+        lines.append("No drafts in /support/.")
 
     return "\n".join(lines)
 
