@@ -1,7 +1,10 @@
 import asyncio
+import email.utils
 import json
 import logging
 import re
+import time
+from dataclasses import asdict
 from pathlib import Path
 from typing import Dict, Any
 
@@ -9,8 +12,19 @@ from flexus_client_kit import ckit_client
 from flexus_client_kit import ckit_cloudtool
 from flexus_client_kit import ckit_bot_exec
 from flexus_client_kit import ckit_shutdown
+from flexus_client_kit import ckit_erp
+from flexus_client_kit import ckit_kanban
 from flexus_client_kit import ckit_integrations_db
 from flexus_client_kit import ckit_skills
+from flexus_client_kit import erp_schema
+from flexus_client_kit.integrations import fi_mongo_store
+from flexus_client_kit.integrations import fi_crm_automations
+from flexus_client_kit.integrations import fi_resend
+from flexus_client_kit.integrations import fi_shopify
+from flexus_client_kit.integrations import fi_telegram
+from flexus_client_kit.integrations import fi_slack
+from flexus_client_kit.integrations import fi_crm
+from flexus_client_kit.integrations import fi_sched
 from flexus_client_kit.integrations import fi_repo_reader
 from flexus_client_kit.integrations import fi_pdoc
 from flexus_client_kit.integrations import fi_discord2
@@ -19,27 +33,40 @@ from flexus_simple_bots.version_common import SIMPLE_BOTS_COMMON_VERSION
 
 logger = logging.getLogger("bot_karen")
 
-
 BOT_NAME = "karen"
 BOT_VERSION = SIMPLE_BOTS_COMMON_VERSION
 
 KAREN_ROOTDIR = Path(__file__).parent
-KAREN_SKILLS = ckit_skills.static_skills_find(KAREN_ROOTDIR, shared_skills_allowlist="setting-up-external-knowledge-base")
+KAREN_SKILLS = ckit_skills.static_skills_find(KAREN_ROOTDIR, shared_skills_allowlist="*")
+KAREN_SKILLS_DEFAULT = ["stall-deals", "collect-support-info"]
 KAREN_MCPS = []
+
 KAREN_SETUP_SCHEMA = json.loads((KAREN_ROOTDIR / "setup_schema.json").read_text())
-KAREN_SETUP_SCHEMA += fi_discord2.DISCORD_SETUP_SCHEMA
+KAREN_SETUP_SCHEMA += (
+    fi_shopify.SHOPIFY_SETUP_SCHEMA
+    + fi_crm_automations.CRM_AUTOMATIONS_SETUP_SCHEMA
+    + fi_crm.CRM_SETUP_SCHEMA
+    + fi_resend.RESEND_SETUP_SCHEMA
+    + fi_slack.SLACK_SETUP_SCHEMA
+    + fi_discord2.DISCORD_SETUP_SCHEMA
+)
 KAREN_SETUP_SCHEMA.extend(fi_mcp.mcp_setup_schema(KAREN_MCPS))
+
+ERP_TABLES = ["crm_contact", "crm_activity", "crm_deal", "com_shop", "com_product", "com_product_variant", "com_order", "com_order_item", "com_refund"]
 
 KAREN_INTEGRATIONS: list[ckit_integrations_db.IntegrationRecord] = ckit_integrations_db.static_integrations_load(
     KAREN_ROOTDIR,
     allowlist=[
+        "skills",
         "flexus_policy_document",
         "print_widget",
+        "erp[meta, data, crud, csv_import]",
+        "crm[manage_contact, manage_deal, log_activity, verify_email]",
+        "magic_desk",
         "slack",
         "telegram",
         "discord",
-        "skills",
-        "magic_desk",
+        "resend",
     ],
     builtin_skills=KAREN_SKILLS,
 )
@@ -56,6 +83,11 @@ SUPPORT_STATUS_TOOL = ckit_cloudtool.CloudTool(
 )
 
 TOOLS = [
+    fi_mongo_store.MONGO_STORE_TOOL,
+    fi_crm_automations.CRM_AUTOMATION_TOOL,
+    fi_shopify.SHOPIFY_TOOL,
+    fi_shopify.SHOPIFY_CART_TOOL,
+    fi_sched.SCHED_TOOL,
     fi_repo_reader.REPO_READER_TOOL,
     SUPPORT_STATUS_TOOL,
     *[t for rec in KAREN_INTEGRATIONS for t in rec.integr_tools],
@@ -63,15 +95,9 @@ TOOLS = [
 
 
 def _qa_fill_stats(doc: dict) -> dict:
-    total_q = 0
-    filled_q = 0
-    total_a = 0
-    filled_a = 0
-    translated = True
+    total_q, filled_q, total_a, filled_a, translated = 0, 0, 0, 0, True
     for k, v in doc.items():
-        if k == "meta":
-            continue
-        if not isinstance(v, dict):
+        if k == "meta" or not isinstance(v, dict):
             continue
         for qk, qv in v.items():
             if not isinstance(qv, dict) or "q" not in qv or "a" not in qv:
@@ -94,7 +120,6 @@ async def handle_support_status(pdoc: fi_pdoc.IntegrationPdoc, rcx: ckit_bot_exe
     persona_id = rcx.persona.persona_id
     lines = []
 
-    # check /support/summary
     summary = await pdoc.pdoc_cat("/support/summary", persona_id=persona_id, fcall_untrusted_key="")
     if summary:
         content = summary.pdoc_content
@@ -111,11 +136,10 @@ async def handle_support_status(pdoc: fi_pdoc.IntegrationPdoc, rcx: ckit_bot_exe
         lines.append("/support/summary does not exist")
     lines.append("")
 
-    # list drafts in /support/
     items = await pdoc.pdoc_list("/support/", persona_id=persona_id, fcall_untrusted_key="", depth=1)
     drafts = [it for it in items if not it.is_folder and it.path != "/support/summary"]
     if drafts:
-        lines.append(f"Drafts in /support/")
+        lines.append("Drafts in /support/")
         for d in drafts:
             doc = await pdoc.pdoc_cat(d.path, persona_id=persona_id, fcall_untrusted_key="")
             if not doc:
@@ -127,10 +151,7 @@ async def handle_support_status(pdoc: fi_pdoc.IntegrationPdoc, rcx: ckit_bot_exe
                 stats = _qa_fill_stats(content[top_tag])
                 pct = (stats["filled_a"] * 100 // stats["total_a"]) if stats["total_a"] else 0
                 untranslated = stats['total_q'] - stats['filled_q']
-                if not stats["translated"]:
-                    t_status = f", {untranslated}/{stats['total_q']} questions need translation before user can answer."
-                else:
-                    t_status = ""
+                t_status = f", {untranslated}/{stats['total_q']} questions need translation before user can answer." if not stats["translated"] else ""
                 lines.append(f"    {d.path} —- has {stats['filled_a']}/{stats['total_a']} answers {t_status}")
                 name = d.path.rsplit("/", 1)[-1]
                 if _DATE_PREFIX_RE.match(name) and pct >= 80:
@@ -142,18 +163,91 @@ async def handle_support_status(pdoc: fi_pdoc.IntegrationPdoc, rcx: ckit_bot_exe
 
     return "\n".join(lines)
 
+
 async def karen_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.RobotContext) -> None:
     setup = ckit_bot_exec.official_setup_mixing_procedure(KAREN_SETUP_SCHEMA, rcx.persona.persona_setup)
-    integrations = await ckit_integrations_db.main_loop_integrations_init(KAREN_INTEGRATIONS, rcx, setup)
-    pdoc_integration: fi_pdoc.IntegrationPdoc = integrations["flexus_policy_document"]
 
-    # SAFETY
-    # What we are trying to prevent: an outside user via slack/telegram/etc having access to any tools that leak information
-    # about the company, or do any actions like sending A2A to Boss, that would be really silly.
-    # How: expert 'very_limited' only has allowlist of tools, all messengers informed about the destination expert that they
-    # are allowed to post the outside messages to.
+    integrations = await ckit_integrations_db.main_loop_integrations_init(KAREN_INTEGRATIONS, rcx, setup)
+    automations_integration = fi_crm_automations.IntegrationCrmAutomations(
+        fclient, rcx, setup, available_erp_tables=ERP_TABLES,
+    )
+    pdoc_integration: fi_pdoc.IntegrationPdoc = integrations["flexus_policy_document"]
+    email_respond_to = set(a.strip().lower() for a in setup.get("EMAIL_RESPOND_TO", "").split(",") if a.strip())
+    shopify = fi_shopify.IntegrationShopify(fclient, rcx)
+    sched = fi_sched.IntegrationSched(rcx)
+    slack: fi_slack.IntegrationSlack = integrations["slack"]
+    telegram: fi_telegram.IntegrationTelegram = integrations["telegram"]
+
     for me in rcx.messengers:
-        me.accept_outside_messages_only_to_expert("very_limited")
+        me.accept_outside_messages_only_to_expert("support_and_sales")
+
+    @rcx.on_emessage("EMAIL")
+    async def handle_email(emsg):
+        em = fi_resend.parse_emessage(emsg)
+        body = em.body_text or em.body_html or "(empty)"
+        try:
+            display_name, addr = email.utils.parseaddr(em.from_full)
+            addr = addr or em.from_addr
+            http = await fclient.use_http_on_behalf(rcx.persona.persona_id, "")
+            contacts = await ckit_erp.erp_table_data(
+                http, "crm_contact", rcx.persona.ws_id, erp_schema.CrmContact,
+                filters=f"contact_email:CIEQL:{addr}", limit=1,
+            )
+            if contacts:
+                contact_id = contacts[0].contact_id
+            else:
+                parts = display_name.split(None, 1) if display_name else [addr.split("@")[0]]
+                contact_id = await ckit_erp.erp_record_create(http, "crm_contact", rcx.persona.ws_id, {
+                    "ws_id": rcx.persona.ws_id,
+                    "contact_email": addr.lower(),
+                    "contact_first_name": parts[0],
+                    "contact_last_name": parts[1] if len(parts) > 1 else "(unknown)",
+                })
+            await ckit_erp.erp_record_create(http, "crm_activity", rcx.persona.ws_id, {
+                "ws_id": rcx.persona.ws_id,
+                "activity_title": em.subject,
+                "activity_type": "EMAIL",
+                "activity_direction": "INBOUND",
+                "activity_platform": "RESEND",
+                "activity_contact_id": contact_id,
+                "activity_summary": body[:500],
+                "activity_occurred_ts": time.time(),
+            })
+        except Exception:
+            logger.exception("Failed to create CRM activity for inbound email from %s", em.from_addr)
+        if not email_respond_to.intersection(a.lower() for a in em.to_addrs):
+            return
+        title = "Email from %s: %s" % (em.from_addr, em.subject)
+        if em.cc_addrs:
+            title += " (cc: %s)" % ", ".join(em.cc_addrs)
+        await ckit_kanban.bot_kanban_post_into_inbox(
+            await fclient.use_http_on_behalf(rcx.persona.persona_id, ""),
+            rcx.persona.persona_id,
+            title=title,
+            human_id="email:%s" % em.from_addr,
+            details_json=json.dumps({"from": em.from_addr, "to": em.to_addrs, "cc": em.cc_addrs, "subject": em.subject, "body": body[:2000]}),
+            provenance_message="karen_email_inbound",
+        )
+
+    @rcx.on_tool_call(fi_mongo_store.MONGO_STORE_TOOL.name)
+    async def toolcall_mongo_store(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
+        return await fi_mongo_store.handle_mongo_store(rcx.workdir, rcx.personal_mongo, toolcall, model_produced_args)
+
+    @rcx.on_tool_call(fi_crm_automations.CRM_AUTOMATION_TOOL.name)
+    async def toolcall_crm_automation(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
+        return await automations_integration.handle_crm_automation(toolcall, model_produced_args)
+
+    @rcx.on_tool_call(fi_shopify.SHOPIFY_TOOL.name)
+    async def toolcall_shopify(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
+        return await shopify.called_by_model(toolcall, model_produced_args)
+
+    @rcx.on_tool_call(fi_shopify.SHOPIFY_CART_TOOL.name)
+    async def toolcall_shopify_cart(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
+        return await shopify.handle_cart(toolcall, model_produced_args)
+
+    @rcx.on_tool_call(fi_sched.SCHED_TOOL.name)
+    async def toolcall_sched(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
+        return await sched.called_by_model(toolcall, model_produced_args)
 
     @rcx.on_tool_call(fi_repo_reader.REPO_READER_TOOL.name)
     async def toolcall_repo_reader(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
@@ -163,13 +257,95 @@ async def karen_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.
     async def toolcall_support_status(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
         return await handle_support_status(pdoc_integration, rcx)
 
+    @telegram.on_incoming_activity
+    async def telegram_activity_callback(a: fi_telegram.ActivityTelegram, already_posted: bool):
+        logger.info("%s Telegram %s by @%s: %s", rcx.persona.persona_id, a.chat_type, a.message_author_name, a.message_text[:50])
+        if already_posted:
+            return
+        details = asdict(a)
+        if a.attachments:
+            details["attachments"] = f"{len(a.attachments)} files attached"
+        http = await fclient.use_http_on_behalf(rcx.persona.persona_id, "")
+        if a.message_text.startswith("/start c_"):  # deep links from email campaigns
+            contact_id = a.message_text[9:].strip()
+            details["contact_id"] = contact_id
+            title = "CRM contact opened Telegram chat, contact_id=%s chat_id=%d" % (contact_id, a.chat_id)
+            await ckit_erp.erp_record_patch(http, "crm_contact", rcx.persona.ws_id, contact_id, {"contact_platform_ids": {"telegram": str(a.chat_id)}})
+        else:
+            if contact_id := await fi_crm.find_contact_by_platform_id(http, rcx.persona.ws_id, "telegram", str(a.chat_id)):
+                details["contact_id"] = contact_id
+            title = "Telegram %s user=%r chat_id=%d\n%s" % (a.chat_type, a.message_author_name, a.chat_id, a.message_text)
+            if a.attachments:
+                title += f"\n[{len(a.attachments)} file(s) attached]"
+        human_id = "telegram:%d" % a.chat_id
+        if a.chat_type == "private":
+            await ckit_kanban.bot_kanban_post_into_inprogress(
+                await fclient.use_http_on_behalf(rcx.persona.persona_id, ""),
+                rcx.persona.persona_id,
+                title=title,
+                human_id=human_id,
+                details_json=json.dumps(details),
+                provenance_message="karen_telegram_activity",
+                fexp_name="support_and_sales",
+                first_calls=[{"tool_name": "telegram", "tool_args": {"op": "capture", "args": {"chat_id": a.chat_id}}}],
+            )
+        else:
+            await ckit_kanban.bot_kanban_post_into_inbox(
+                await fclient.use_http_on_behalf(rcx.persona.persona_id, ""),
+                rcx.persona.persona_id,
+                title=title,
+                human_id=human_id,
+                details_json=json.dumps(details),
+                provenance_message="karen_telegram_activity",
+                fexp_name="support_and_sales",
+            )
+
+    @slack.on_incoming_activity
+    async def slack_activity_callback(a: fi_slack.ActivitySlack, already_posted: bool):
+        logger.info("%s Slack %s by @%s: %s", rcx.persona.persona_id, a.what_happened, a.message_author_name, a.message_text[:50])
+        if already_posted:
+            return
+        details = asdict(a)
+        if a.file_contents:
+            details["file_contents"] = f"{len(a.file_contents)} files attached"
+        to_capture = (a.channel_id or a.channel_name) + "/" + (a.thread_ts or a.message_ts)
+        details["to_capture"] = to_capture
+        if a.message_author_id:
+            if contact_id := await fi_crm.find_contact_by_platform_id(await fclient.use_http_on_behalf(rcx.persona.persona_id, ""), rcx.persona.ws_id, "slack", a.message_author_id):
+                details["contact_id"] = contact_id
+        title = "Slack %s user=%r in #%s\n%s" % (a.what_happened, a.message_author_name, a.channel_name, a.message_text)
+        if a.file_contents:
+            title += f"\n[{len(a.file_contents)} file(s) attached]"
+        human_id = "slack:%s" % a.message_author_id if a.message_author_id else ""
+        if a.what_happened == "message/im":
+            await ckit_kanban.bot_kanban_post_into_inprogress(
+                await fclient.use_http_on_behalf(rcx.persona.persona_id, ""),
+                rcx.persona.persona_id,
+                title=title,
+                human_id=human_id,
+                details_json=json.dumps(details),
+                provenance_message="karen_slack_activity",
+                fexp_name="support_and_sales",
+                first_calls=[{"tool_name": "slack", "tool_args": {"op": "capture", "args": {"channel_slash_thread": to_capture}}}],
+            )
+        else:
+            await ckit_kanban.bot_kanban_post_into_inbox(
+                await fclient.use_http_on_behalf(rcx.persona.persona_id, ""),
+                rcx.persona.persona_id,
+                title=title,
+                human_id=human_id,
+                details_json=json.dumps(details),
+                provenance_message="karen_slack_activity",
+                fexp_name="support_and_sales",
+            )
+
     try:
         while not ckit_shutdown.shutdown_event.is_set():
             await rcx.unpark_collected_events(sleep_if_no_work=10.0)
 
     finally:
         await integrations["discord"].close()
-        await integrations["telegram"].close()
+        await telegram.close()
         logger.info("%s exit" % (rcx.persona.persona_id,))
 
 
@@ -185,6 +361,7 @@ def main():
         inprocess_tools=TOOLS,
         scenario_fn=scenario_fn,
         install_func=karen_install.install,
+        subscribe_to_erp_tables=ERP_TABLES,
     ))
 
 
