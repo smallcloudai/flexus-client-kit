@@ -793,7 +793,7 @@ class IntegrationSurveyResearch:
                     message = f"📊 Survey completed!\nSurvey ID: {survey_id}\nTotal responses: {response_count}\nTarget responses: {target_responses}"
 
                     from flexus_client_kit import ckit_ask_model
-                    http = await fclient.use_http()
+                    http = await fclient.use_http_on_behalf(self.pdoc_integration.rcx.persona.persona_id, "")
                     await ckit_ask_model.thread_add_user_message(
                         http=http,
                         ft_id=tracking_info["thread_id"],

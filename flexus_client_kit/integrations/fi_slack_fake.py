@@ -76,7 +76,7 @@ class IntegrationSlackFake(fi_messenger.FlexusMessenger):
         if a.file_contents:
             content.extend(a.file_contents)
         try:
-            http = await self.fclient.use_http()
+            http = await self.fclient.use_http_on_behalf(self.rcx.persona.persona_id, "")
             ft_id = await ckit_ask_model.captured_thread_post_user_message(
                 http,
                 self.rcx.persona.persona_id,
@@ -168,7 +168,7 @@ class IntegrationSlackFake(fi_messenger.FlexusMessenger):
                 file_contents=[],
             )
             await self.activity_callback(activity, True)
-        http = await self.fclient.use_http()
+        http = await self.fclient.use_http_on_behalf(self.rcx.persona.persona_id, "")
         await ckit_ask_model.thread_app_capture_patch(
             http,
             msg.ftm_belongs_to_ft_id,
@@ -238,7 +238,7 @@ class IntegrationSlackFake(fi_messenger.FlexusMessenger):
 
             self.captured = (chan_id, thread)
             self.captured_ft_id = toolcall.fcall_ft_id
-            http = await self.fclient.use_http()
+            http = await self.fclient.use_http_on_behalf(self.rcx.persona.persona_id, toolcall.fcall_untrusted_key)
 
             if all_message_parts:
                 await ckit_ask_model.thread_add_user_message(
@@ -259,7 +259,7 @@ class IntegrationSlackFake(fi_messenger.FlexusMessenger):
 
         if op == "uncapture":
             if self.captured_ft_id:
-                http = await self.fclient.use_http()
+                http = await self.fclient.use_http_on_behalf(self.rcx.persona.persona_id, toolcall.fcall_untrusted_key)
                 await ckit_ask_model.thread_app_capture_patch(
                     http, self.captured_ft_id, ft_app_searchable=""
                 )
@@ -285,7 +285,7 @@ class IntegrationSlackFake(fi_messenger.FlexusMessenger):
             self.users_name2id.setdefault("bot", "bot")
 
             something_id_slash_thread = f"{chan_id}/{thread}" if thread else chan_id
-            http = await self.fclient.use_http()
+            http = await self.fclient.use_http_on_behalf(self.rcx.persona.persona_id, toolcall.fcall_untrusted_key)
             capturing_ft_id = await ckit_ask_model.captured_thread_lookup(
                 http, self.rcx.persona.persona_id, "slack/" + something_id_slash_thread,
             )

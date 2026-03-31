@@ -546,7 +546,7 @@ class IntegrationPdoc:
     async def _http(self, persona_id: str, fcall_untrusted_key: str):
         if fcall_untrusted_key:
             return await self.fclient.use_http_on_behalf(persona_id, fcall_untrusted_key)
-        return await self.fclient.use_http()
+        return await self.fclient.use_http_on_behalf(persona_id, "")
 
     async def pdoc_list(self, p: str, persona_id: str, fcall_untrusted_key: str, depth: int = 1) -> List[PdocListItem]:
         http = await self._http(persona_id, fcall_untrusted_key)

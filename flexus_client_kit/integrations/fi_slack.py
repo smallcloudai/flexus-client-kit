@@ -379,7 +379,7 @@ class IntegrationSlack(fi_messenger.FlexusMessenger):
 
                 something_id_slash_thread = channel_id + ("/" + thread_ts if thread_ts else "")
                 # Or maybe the other thread is captured (other_thread might not be this_thread)
-                http = await self.fclient.use_http()
+                http = await self.fclient.use_http_on_behalf(self.rcx.persona.persona_id, toolcall.fcall_untrusted_key)
                 other_thread_ft_id = await ckit_ask_model.captured_thread_lookup(
                     http, self.rcx.persona.persona_id, "slack/" + something_id_slash_thread,
                 )
@@ -502,7 +502,7 @@ class IntegrationSlack(fi_messenger.FlexusMessenger):
                     all_message_parts.append({"m_type": "text", "m_content": "\n📎 Attached files:\n" + "\n".join(file_summaries)})
                 all_message_parts.extend(image_parts)
 
-                http = await self.fclient.use_http()
+                http = await self.fclient.use_http_on_behalf(self.rcx.persona.persona_id, toolcall.fcall_untrusted_key)
                 try:
                     await ckit_ask_model.thread_app_capture_patch(
                         http,
@@ -532,7 +532,7 @@ class IntegrationSlack(fi_messenger.FlexusMessenger):
 
         elif op == "uncapture":
             try:
-                http = await self.fclient.use_http()
+                http = await self.fclient.use_http_on_behalf(self.rcx.persona.persona_id, toolcall.fcall_untrusted_key)
                 await ckit_ask_model.thread_app_capture_patch(http, toolcall.fcall_ft_id, ft_app_searchable="")
                 r += "Uncaptured successfully. This thread is no longer connected to Slack.\n"
             except Exception as e:
@@ -558,7 +558,7 @@ class IntegrationSlack(fi_messenger.FlexusMessenger):
             content.extend(a.file_contents)
         content = fi_messenger.compact_message_parts(content)
 
-        http = await self.fclient.use_http()
+        http = await self.fclient.use_http_on_behalf(self.rcx.persona.persona_id, "")
         try:
             ft_id = await ckit_ask_model.captured_thread_post_user_message(
                 http,
@@ -629,7 +629,7 @@ class IntegrationSlack(fi_messenger.FlexusMessenger):
             logger.exception("failed to post to slack channel=%s thread_ts=%s", something_id, thread_ts)
             return False
 
-        http = await self.fclient.use_http()
+        http = await self.fclient.use_http_on_behalf(self.rcx.persona.persona_id, "")
         await ckit_ask_model.thread_app_capture_patch(http, msg.ftm_belongs_to_ft_id, ft_app_specific=json.dumps({
             "last_posted_assistant_ts": msg.ftm_created_ts
         }))

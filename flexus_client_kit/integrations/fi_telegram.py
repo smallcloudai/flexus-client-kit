@@ -262,7 +262,7 @@ class IntegrationTelegram(fi_messenger.FlexusMessenger):
             if this_thread and (this_thread.thread_fields.ft_app_searchable or "").startswith("telegram/"):
                 return "Cannot post to captured chat. Your responses are sent automatically.\n"
 
-            http = await self.fclient.use_http()
+            http = await self.fclient.use_http_on_behalf(self.rcx.persona.persona_id, toolcall.fcall_untrusted_key)
             capturing_ft_id = await ckit_ask_model.captured_thread_lookup(
                 http, self.rcx.persona.persona_id, f"telegram/{chat_id}",
             )
@@ -287,7 +287,7 @@ class IntegrationTelegram(fi_messenger.FlexusMessenger):
                 return "Missing chat_id parameter\n"
 
             identifier = str(chat_id)
-            http = await self.fclient.use_http()
+            http = await self.fclient.use_http_on_behalf(self.rcx.persona.persona_id, toolcall.fcall_untrusted_key)
             searchable = f"telegram/{identifier}"
             try:
                 await ckit_ask_model.thread_app_capture_patch(
@@ -303,7 +303,7 @@ class IntegrationTelegram(fi_messenger.FlexusMessenger):
                 TG_MARKUP_HELP
 
         if op == "uncapture":
-            http = await self.fclient.use_http()
+            http = await self.fclient.use_http_on_behalf(self.rcx.persona.persona_id, toolcall.fcall_untrusted_key)
             await ckit_ask_model.thread_app_capture_patch(http, toolcall.fcall_ft_id, ft_app_searchable="")
             if fthread := self.rcx.latest_threads.get(toolcall.fcall_ft_id):
                 fthread.thread_fields.ft_app_searchable = ""
@@ -404,7 +404,7 @@ class IntegrationTelegram(fi_messenger.FlexusMessenger):
         # parts.extend(activity.attachments)
         # parts = fi_messenger.compact_message_parts(parts)
         searchable = f"telegram/{activity.chat_id}"
-        http = await self.fclient.use_http()
+        http = await self.fclient.use_http_on_behalf(self.rcx.persona.persona_id, "")
         ft_id = await ckit_ask_model.captured_thread_post_user_message(
             http,
             self.rcx.persona.persona_id,
@@ -461,7 +461,7 @@ class IntegrationTelegram(fi_messenger.FlexusMessenger):
             logger.warning("Failed to post to Telegram chat %d: %s\n%s", chat_id, e, text)
             return False
 
-        http = await self.fclient.use_http()
+        http = await self.fclient.use_http_on_behalf(self.rcx.persona.persona_id, "")
         await ckit_ask_model.thread_app_capture_patch(
             http,
             msg.ftm_belongs_to_ft_id,

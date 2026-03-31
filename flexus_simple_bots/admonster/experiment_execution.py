@@ -556,7 +556,7 @@ class IntegrationExperimentExecution:
         else:
             message += "\nNo actions needed.\n"
         try:
-            http = await self.fclient.use_http()
+            http = await self.fclient.use_http_on_behalf(self.pdoc_integration.rcx.persona.persona_id, "")
             await ckit_ask_model.thread_add_user_message(
                 http=http,
                 ft_id=tracking.thread_id,

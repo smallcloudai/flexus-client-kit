@@ -295,7 +295,7 @@ async def boss_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.R
         if op == "update_one" and not update_key:
             return "Error: update_key required for update_one"
         if op == "update_one" and not toolcall.confirmed_by_human:
-            http = await fclient.use_http()
+            http = await fclient.use_http_on_behalf(rcx.persona.persona_id, toolcall.fcall_untrusted_key)
             async with http as h:
                 try:
                     prev_val = (await h.execute(gql.gql("""
@@ -318,7 +318,7 @@ async def boss_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.R
                 confirm_command=f"update {bot_name}.{update_key}",
                 confirm_explanation=explanation,
             )
-        http = await fclient.use_http()
+        http = await fclient.use_http_on_behalf(rcx.persona.persona_id, toolcall.fcall_untrusted_key)
         async with http as h:
             try:
                 r = await h.execute(gql.gql("""
@@ -334,7 +334,7 @@ async def boss_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.R
 
     @rcx.on_tool_call(BOSS_TREE_FETCH_TOOL.name)
     async def toolcall_tree_fetch(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
-        http = await fclient.use_http()
+        http = await fclient.use_http_on_behalf(rcx.persona.persona_id, toolcall.fcall_untrusted_key)
         async with http as h:
             try:
                 r = await h.execute(gql.gql("""
@@ -352,7 +352,7 @@ async def boss_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.R
         q = model_produced_args.get("q", "").strip()
         if not q:
             return "Error: q (search query) is required"
-        http = await fclient.use_http()
+        http = await fclient.use_http_on_behalf(rcx.persona.persona_id, toolcall.fcall_untrusted_key)
         async with http as h:
             r = await h.execute(gql.gql("""
                 query BossMarketplaceSearch($q: String!, $ws_id: String!) {
@@ -372,7 +372,7 @@ async def boss_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.R
             return "Error: marketable_names (list of strings) is required"
         if len(names) > 20:
             return "Error: max 20 names at a time"
-        http = await fclient.use_http()
+        http = await fclient.use_http_on_behalf(rcx.persona.persona_id, toolcall.fcall_untrusted_key)
         async with http as h:
             r = await h.execute(gql.gql("""
                 query BossMarketplaceDesc($marketable_names: [String!]!, $ws_id: String!) {
@@ -416,7 +416,7 @@ async def boss_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.R
                 confirm_command=f"{op} {label}",
                 confirm_setup_key="confirm_hire_or_fire",
             )
-        http = await fclient.use_http()
+        http = await fclient.use_http_on_behalf(rcx.persona.persona_id, toolcall.fcall_untrusted_key)
         async with http as h:
             r = await h.execute(gql.gql("""
                 mutation BossHireOrFire($ws_id: String!, $op: String!, $mn: String, $pn: String, $st: String!) {
