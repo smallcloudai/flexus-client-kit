@@ -1,5 +1,5 @@
 ---
-name: collect-support-info
+name: collect-support-knowledge-base
 description: To answer customer questions you need to know a whole list of things. Use this skill to improve your setup.
 ---
 

@@ -38,7 +38,7 @@ BOT_VERSION = SIMPLE_BOTS_COMMON_VERSION
 
 KAREN_ROOTDIR = Path(__file__).parent
 KAREN_SKILLS = ckit_skills.static_skills_find(KAREN_ROOTDIR, shared_skills_allowlist="*")
-KAREN_SKILLS_DEFAULT = ["stall-deals", "collect-support-info"]
+KAREN_SKILLS_DEFAULT = ["stall-deals", "collect-support-knowledge-base"]
 KAREN_MCPS = []
 
 KAREN_SETUP_SCHEMA = json.loads((KAREN_ROOTDIR / "setup_schema.json").read_text())
@@ -179,7 +179,7 @@ async def karen_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.
     telegram: fi_telegram.IntegrationTelegram = integrations["telegram"]
 
     for me in rcx.messengers:
-        me.accept_outside_messages_only_to_expert("support_and_sales")
+        me.accept_outside_messages_only_to_expert("very_limited")
 
     @rcx.on_emessage("EMAIL")
     async def handle_email(emsg):
@@ -227,7 +227,7 @@ async def karen_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.
             human_id="email:%s" % em.from_addr,
             details_json=json.dumps({"from": em.from_addr, "to": em.to_addrs, "cc": em.cc_addrs, "subject": em.subject, "body": body[:2000]}),
             provenance_message="karen_email_inbound",
-            fexp_name="support_and_sales",
+            fexp_name="very_limited",
         )
 
     @rcx.on_tool_call(fi_mongo_store.MONGO_STORE_TOOL.name)
@@ -287,7 +287,7 @@ async def karen_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.
                 human_id=human_id,
                 details_json=json.dumps(details),
                 provenance_message="karen_telegram_activity",
-                fexp_name="support_and_sales",
+                fexp_name="very_limited",
                 first_calls=[{"tool_name": "telegram", "tool_args": {"op": "capture", "args": {"chat_id": a.chat_id}}}],
             )
         else:
@@ -298,7 +298,7 @@ async def karen_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.
                 human_id=human_id,
                 details_json=json.dumps(details),
                 provenance_message="karen_telegram_activity",
-                fexp_name="support_and_sales",
+                fexp_name="very_limited",
             )
 
     @slack.on_incoming_activity
@@ -326,7 +326,7 @@ async def karen_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.
                 human_id=human_id,
                 details_json=json.dumps(details),
                 provenance_message="karen_slack_activity",
-                fexp_name="support_and_sales",
+                fexp_name="very_limited",
                 first_calls=[{"tool_name": "slack", "tool_args": {"op": "capture", "args": {"channel_slash_thread": to_capture}}}],
             )
         else:
@@ -337,7 +337,7 @@ async def karen_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.
                 human_id=human_id,
                 details_json=json.dumps(details),
                 provenance_message="karen_slack_activity",
-                fexp_name="support_and_sales",
+                fexp_name="very_limited",
             )
 
     try:

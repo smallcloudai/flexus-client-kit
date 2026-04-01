@@ -103,7 +103,7 @@ if not messages[-1]["tool_calls"]:
 
 EXPERTS = [
     ("default", ckit_bot_install.FMarketplaceExpertInput(
-        fexp_system_prompt=karen_prompts.karen_prompt_marketing,
+        fexp_system_prompt=karen_prompts.KAREN_DEFAULT,
         fexp_python_kernel="",
         fexp_allow_tools=",".join(TOOLS_DEFAULT),
         fexp_nature="NATURE_INTERACTIVE",
@@ -118,25 +118,24 @@ EXPERTS = [
         fexp_nature="NATURE_NO_TASK",
         fexp_inactivity_timeout=0,
         fexp_description="Deals with messages in the inbox, picks relevant to work on.",
-        fexp_builtin_skills=ckit_skills.read_name_description(karen_bot.KAREN_ROOTDIR, karen_bot.KAREN_SKILLS),
     )),
-    ("support_and_sales", ckit_bot_install.FMarketplaceExpertInput(
-        fexp_system_prompt=karen_prompts.karen_prompt_support_and_sales,
+    ("very_limited", ckit_bot_install.FMarketplaceExpertInput(
+        fexp_system_prompt=karen_prompts.VERY_LIMITED,
         fexp_python_kernel=KAREN_SUPPORT_AND_SALES_KERNEL,
         fexp_allow_tools=",".join(TOOLS_SUPPORT_AND_SALES),
-        fexp_nature="NATURE_SEMI_AUTONOMOUS",
+        fexp_nature="NATURE_AUTONOMOUS",
         fexp_inactivity_timeout=3600,
         fexp_description="Customer-facing expert: answers support questions from knowledge base, conducts sales conversations using C.L.O.S.E.R. framework, qualifies leads with BANT.",
     )),
-    ("nurturing", ckit_bot_install.FMarketplaceExpertInput(
-        fexp_system_prompt=karen_prompts.karen_prompt_nurturing,
-        fexp_python_kernel="",
-        fexp_allow_tools=",".join(TOOLS_NURTURING),
-        fexp_nature="NATURE_SEMI_AUTONOMOUS",
-        fexp_inactivity_timeout=600,
-        fexp_description="Lightweight expert for automated tasks: sending templated emails, follow-ups, stall deal recovery, and simple CRM operations.",
-        fexp_preferred_model_class="cheap",
-    )),
+    # ("nurturing", ckit_bot_install.FMarketplaceExpertInput(
+    #     fexp_system_prompt=karen_prompts.karen_prompt_nurturing,
+    #     fexp_python_kernel="",
+    #     fexp_allow_tools=",".join(TOOLS_NURTURING),
+    #     fexp_nature="NATURE_SEMI_AUTONOMOUS",
+    #     fexp_inactivity_timeout=600,
+    #     fexp_description="Lightweight expert for automated tasks: sending templated emails, follow-ups, stall deal recovery, and simple CRM operations.",
+    #     fexp_preferred_model_class="cheap",
+    # )),
 ]
 
 
@@ -164,11 +163,11 @@ async def install(
         marketable_run_this="python -m flexus_simple_bots.karen.karen_bot",
         marketable_setup_default=karen_bot.KAREN_SETUP_SCHEMA,
         marketable_featured_actions=[
-            {"feat_question": "Set up sales pipeline"},
-            {"feat_question": "Set up support knowledge base"},
-            {"feat_question": "Put widget on my landing page"},
-            {"feat_question": "Set up welcome emails"},
-            {"feat_question": "Work on stalled-deal strategy"},
+            {"feat_question": "Set Up Sales Pipeline"},
+            {"feat_question": "Collect Support Knowledge Base"},
+            {"feat_question": "Put Widget on My Landing Page"},
+            {"feat_question": "Set Up Welcome Emails"},
+            {"feat_question": "Work on Stalled-Deal Strategy"},
         ],
         marketable_intro_message="Hi! I'm Karen — your support, sales, and marketing assistant. I can answer customer questions, manage your CRM, run email automations, import contacts, and handle sales conversations. What would you like to work on?",
         marketable_preferred_model_expensive="grok-4-1-fast-reasoning",
@@ -182,7 +181,7 @@ async def install(
         marketable_picture_small_b64=pic_small,
         marketable_schedule=[
             prompts_common.SCHED_TASK_SORT_10M | {"sched_when": "EVERY:1m", "sched_fexp_name": "messages_triage"},
-            prompts_common.SCHED_TODO_5M | {"sched_when": "EVERY:1m", "sched_fexp_name": "nurturing"},   # That one's funny, scheduler will use fexp_name from the task, and if that is not set then 'nurturing'
+            prompts_common.SCHED_TODO_5M | {"sched_when": "EVERY:1m"},
         ],
         marketable_forms={},
         marketable_auth_supported=["slack", "telegram", "discord_manual", "shopify", "resend"],
