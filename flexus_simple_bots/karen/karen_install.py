@@ -1,4 +1,5 @@
 import asyncio
+import json
 import base64
 
 from flexus_client_kit import ckit_client
@@ -125,6 +126,7 @@ EXPERTS = [
         fexp_nature="NATURE_NO_TASK",
         fexp_description="Subchat expert for researching EDS and URLs, returns sourced findings.",
         fexp_subchat_only=True,
+        fexp_activation_options=json.dumps({"no_policydoc_first_message": True}),
     )),
 ]
 

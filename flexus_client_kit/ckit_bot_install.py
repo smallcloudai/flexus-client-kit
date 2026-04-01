@@ -27,9 +27,10 @@ class FMarketplaceExpertInput:
     fexp_inactivity_timeout: int = 0
     fexp_app_capture_tools: str = ""
     fexp_description: str = ""
-    fexp_preferred_model_class: str = ""
+    fexp_model_class: str = ""
     fexp_subchat_only: bool = False
     fexp_builtin_skills: str = "[]"  # [{"name", "description"}, ...]
+    fexp_activation_options: str = "{}"
 
     def _tool_allowed(self, name: str) -> bool:
         allow = [p.strip() for p in self.fexp_allow_tools.split(",") if p.strip()]
