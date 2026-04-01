@@ -39,7 +39,8 @@ BOT_VERSION = SIMPLE_BOTS_COMMON_VERSION
 
 KAREN_ROOTDIR = Path(__file__).parent
 KAREN_SKILLS = ckit_skills.static_skills_find(KAREN_ROOTDIR, shared_skills_allowlist="*")
-KAREN_SKILLS_DEFAULT = ["stall-deals", "collect-support-knowledge-base"]
+KAREN_SKILLS_DEFAULT = ["stall-deals", "collect-support-knowledge-base", "crm-import-landing-pages", "sales-pipeline-setup", "welcome-email-setup", "crm-automations"]
+KAREN_SKILLS_NURTURING = ["stall-recovery"]
 KAREN_MCPS = []
 
 KAREN_SETUP_SCHEMA = json.loads((KAREN_ROOTDIR / "setup_schema.json").read_text())
