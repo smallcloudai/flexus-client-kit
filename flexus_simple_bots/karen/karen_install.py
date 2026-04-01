@@ -100,7 +100,7 @@ EXPERTS = [
         fexp_allow_tools=",".join(ckit_cloudtool.CLOUDTOOLS_TRIAGE),    # no access to messengers
         fexp_nature="NATURE_NO_TASK",
         fexp_inactivity_timeout=0,
-        fexp_preferred_model_class="cheap",
+        fexp_model_class="cheap",
         fexp_description="Deals with messages in the inbox, picks relevant to work on.",
     )),
     ("very_limited", ckit_bot_install.FMarketplaceExpertInput(
@@ -109,7 +109,7 @@ EXPERTS = [
         fexp_allow_tools=",".join(TOOLS_SUPPORT_AND_SALES),
         fexp_nature="NATURE_AUTONOMOUS",
         fexp_inactivity_timeout=3600,
-        fexp_preferred_model_class="cheap",
+        fexp_model_class="cheap",
         fexp_description="Customer-facing expert: answers support questions from knowledge base, conducts sales conversations using C.L.O.S.E.R. framework, qualifies leads with BANT.",
     )),
     # ("nurturing", ckit_bot_install.FMarketplaceExpertInput(
@@ -128,7 +128,7 @@ EXPERTS = [
         fexp_nature="NATURE_NO_TASK",
         fexp_description="Subchat expert for researching EDS and URLs, returns sourced findings.",
         fexp_subchat_only=True,
-        fexp_preferred_model_class="cheap",
+        fexp_model_class="cheap",
         fexp_activation_options=json.dumps({"no_policydoc_first_message": True}),
     )),
 ]
