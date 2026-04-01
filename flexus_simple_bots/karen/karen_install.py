@@ -111,6 +111,15 @@ EXPERTS = [
         fexp_description="Marketing assistant for CRM management, contact import, automated outreach, company/product setup, and support knowledge base configuration.",
         fexp_builtin_skills=ckit_skills.read_name_description(karen_bot.KAREN_ROOTDIR, karen_bot.KAREN_SKILLS_DEFAULT),
     )),
+    ("messages_triage", ckit_bot_install.FMarketplaceExpertInput(
+        fexp_system_prompt=karen_prompts.KAREN_DEAL_WITH_INBOX,
+        fexp_python_kernel="",
+        fexp_allow_tools=",".join(ckit_cloudtool.CLOUDTOOLS_TRIAGE),    # no access to messengers
+        fexp_nature="NATURE_NO_TASK",
+        fexp_inactivity_timeout=0,
+        fexp_description="Deals with messages in the inbox, picks relevant to work on.",
+        fexp_builtin_skills=ckit_skills.read_name_description(karen_bot.KAREN_ROOTDIR, karen_bot.KAREN_SKILLS),
+    )),
     ("support_and_sales", ckit_bot_install.FMarketplaceExpertInput(
         fexp_system_prompt=karen_prompts.karen_prompt_support_and_sales,
         fexp_python_kernel=KAREN_SUPPORT_AND_SALES_KERNEL,
@@ -144,7 +153,7 @@ async def install(
         ws_id=client.ws_id,
         marketable_name=bot_name,
         marketable_version=bot_version,
-        marketable_accent_color="#524214",
+        marketable_accent_color="#6252A4",
         marketable_title1="Karen",
         marketable_title2="Your 24/7 support, sales & marketing agent — empathetic, accurate, and always closing.",
         marketable_author="Flexus",
@@ -155,10 +164,11 @@ async def install(
         marketable_run_this="python -m flexus_simple_bots.karen.karen_bot",
         marketable_setup_default=karen_bot.KAREN_SETUP_SCHEMA,
         marketable_featured_actions=[
-            {"feat_question": "Help me set up my company and sales pipeline", "feat_expert": "default", "feat_depends_on_setup": []},
-            {"feat_question": "Help me send contacts from my landing page to Flexus", "feat_expert": "default", "feat_depends_on_setup": []},
-            {"feat_question": "Help me set up welcome emails to new contacts", "feat_expert": "default", "feat_depends_on_setup": []},
-            {"feat_question": "Help me design a stalled-deal strategy", "feat_expert": "default", "feat_depends_on_setup": []},
+            {"feat_question": "Set up sales pipeline"},
+            {"feat_question": "Set up support knowledge base"},
+            {"feat_question": "Put widget on my landing page"},
+            {"feat_question": "Set up welcome emails"},
+            {"feat_question": "Work on stalled-deal strategy"},
         ],
         marketable_intro_message="Hi! I'm Karen — your support, sales, and marketing assistant. I can answer customer questions, manage your CRM, run email automations, import contacts, and handle sales conversations. What would you like to work on?",
         marketable_preferred_model_expensive="grok-4-1-fast-reasoning",
@@ -171,8 +181,8 @@ async def install(
         marketable_picture_big_b64=pic_big,
         marketable_picture_small_b64=pic_small,
         marketable_schedule=[
-            prompts_common.SCHED_TASK_SORT_10M | {"sched_when": "EVERY:1m", "sched_fexp_name": "nurturing"},
-            prompts_common.SCHED_TODO_5M | {"sched_when": "EVERY:1m", "sched_fexp_name": "nurturing"},
+            prompts_common.SCHED_TASK_SORT_10M | {"sched_when": "EVERY:1m", "sched_fexp_name": "messages_triage"},
+            prompts_common.SCHED_TODO_5M | {"sched_when": "EVERY:1m", "sched_fexp_name": "nurturing"},   # That one's funny, scheduler will use fexp_name from the task, and if that is not set then 'nurturing'
         ],
         marketable_forms={},
         marketable_auth_supported=["slack", "telegram", "discord_manual", "shopify", "resend"],

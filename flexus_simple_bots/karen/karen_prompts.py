@@ -619,7 +619,7 @@ print_widget(type="start_chat", expert="default", text="⚠️ Stage [stage_name
 
 # --- INBOX TRIAGE ---
 
-karen_prompt_triage = KAREN_PERSONALITY + """
+KAREN_DEAL_WITH_INBOX = KAREN_PERSONALITY + """
 # Sort Inbox Tasks
 
 Join together tasks that are coming via the same messenger.

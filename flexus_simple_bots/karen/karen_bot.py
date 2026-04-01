@@ -227,6 +227,7 @@ async def karen_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.
             human_id="email:%s" % em.from_addr,
             details_json=json.dumps({"from": em.from_addr, "to": em.to_addrs, "cc": em.cc_addrs, "subject": em.subject, "body": body[:2000]}),
             provenance_message="karen_email_inbound",
+            fexp_name="support_and_sales",
         )
 
     @rcx.on_tool_call(fi_mongo_store.MONGO_STORE_TOOL.name)
