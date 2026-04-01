@@ -404,12 +404,13 @@ class IntegrationTelegram(fi_messenger.FlexusMessenger):
         # parts.extend(activity.attachments)
         # parts = fi_messenger.compact_message_parts(parts)
         searchable = f"telegram/{activity.chat_id}"
+        content = [{"m_type": "text", "m_content": f"👤{activity.message_author_name}\n\n{msg_text}"}]
         http = await self.fclient.use_http_on_behalf(self.rcx.persona.persona_id, "")
         ft_id = await ckit_ask_model.captured_thread_post_user_message(
             http,
             self.rcx.persona.persona_id,
             searchable,
-            msg_text,
+            content,
             only_to_expert=self.outside_messages_fexp_name,
             thread_too_old_s=3600,
         )
