@@ -131,7 +131,6 @@ class IntegrationCrm:
 
     async def _http(self, toolcall: ckit_cloudtool.FCloudtoolCall):
         return await self.rcx.fclient.use_http_on_behalf(self.rcx.persona.persona_id, toolcall.fcall_untrusted_key)
-        self.rcx = rcx
 
     async def handle_verify_email(self, toolcall: ckit_cloudtool.FCloudtoolCall, args: Dict[str, Any]) -> str:
         op = args.get("op", "")
@@ -167,18 +166,19 @@ class IntegrationCrm:
             contact_id = None
             if searchable and "/" in searchable:
                 platform, pid = searchable.split("/", 1)
-                contact_id = await find_contact_by_platform_id(self.fclient, self.ws_id, platform, pid)
+                contact_id = await find_contact_by_platform_id(await self._http(toolcall), self.ws_id, platform, pid)
             if not contact_id:
                 return "No verified contact in this chat. Use verify_crm_identity first.\n"
+            http = await self._http(toolcall)
             try:
                 if op == "get_summary":
-                    contacts = await ckit_erp.query_erp_table(self.fclient, "crm_contact", self.ws_id, erp_schema.CrmContact, filters=f"contact_id:=:{contact_id}", limit=1)
+                    contacts = await ckit_erp.erp_table_data(http, "crm_contact", self.ws_id, erp_schema.CrmContact, filters=f"contact_id:=:{contact_id}", limit=1)
                     if not contacts:
                         return f"Contact {contact_id} not found\n"
                     lines = _fmt_contact(contacts[0])
-                    deals = await ckit_erp.query_erp_table(self.fclient, "crm_deal", self.ws_id, erp_schema.CrmDeal, filters=f"deal_contact_id:=:{contact_id}", limit=6)
-                    orders = await ckit_erp.query_erp_table(self.fclient, "com_order", self.ws_id, erp_schema.ComOrder, filters=f"order_contact_id:=:{contact_id}", limit=6)
-                    activities = await ckit_erp.query_erp_table(self.fclient, "crm_activity", self.ws_id, erp_schema.CrmActivity, filters=f"activity_contact_id:=:{contact_id}", limit=6)
+                    deals = await ckit_erp.erp_table_data(http, "crm_deal", self.ws_id, erp_schema.CrmDeal, filters=f"deal_contact_id:=:{contact_id}", limit=6)
+                    orders = await ckit_erp.erp_table_data(http, "com_order", self.ws_id, erp_schema.ComOrder, filters=f"order_contact_id:=:{contact_id}", limit=6)
+                    activities = await ckit_erp.erp_table_data(http, "crm_activity", self.ws_id, erp_schema.CrmActivity, filters=f"activity_contact_id:=:{contact_id}", limit=6)
                     def _cnt(rows):
                         return "5+" if len(rows) == 6 else str(len(rows))
                     if deals: lines += [f"\nDeals ({_cnt(deals)}):"] + [_fmt_deal(d) for d in deals[:2]]
@@ -187,13 +187,13 @@ class IntegrationCrm:
                     lines.append("\nUse get_all_deals/get_all_orders/get_all_activities for full lists.")
                     return "\n".join(lines) + "\n"
                 if op == "get_all_deals":
-                    rows = await ckit_erp.query_erp_table(self.fclient, "crm_deal", self.ws_id, erp_schema.CrmDeal, filters=f"deal_contact_id:=:{contact_id}", limit=50)
+                    rows = await ckit_erp.erp_table_data(http, "crm_deal", self.ws_id, erp_schema.CrmDeal, filters=f"deal_contact_id:=:{contact_id}", limit=50)
                     return "No deals.\n" if not rows else f"Deals ({len(rows)}):\n" + "\n".join(_fmt_deal(d) for d in rows) + "\n"
                 if op == "get_all_orders":
-                    rows = await ckit_erp.query_erp_table(self.fclient, "com_order", self.ws_id, erp_schema.ComOrder, filters=f"order_contact_id:=:{contact_id}", limit=50)
+                    rows = await ckit_erp.erp_table_data(http, "com_order", self.ws_id, erp_schema.ComOrder, filters=f"order_contact_id:=:{contact_id}", limit=50)
                     return "No orders.\n" if not rows else f"Orders ({len(rows)}):\n" + "\n".join(_fmt_order(o) for o in rows) + "\n"
                 if op == "get_all_activities":
-                    rows = await ckit_erp.query_erp_table(self.fclient, "crm_activity", self.ws_id, erp_schema.CrmActivity, filters=f"activity_contact_id:=:{contact_id}", limit=50)
+                    rows = await ckit_erp.erp_table_data(http, "crm_activity", self.ws_id, erp_schema.CrmActivity, filters=f"activity_contact_id:=:{contact_id}", limit=50)
                     return "No activities.\n" if not rows else f"Activities ({len(rows)}):\n" + "\n".join(_fmt_activity(a) for a in rows) + "\n"
             except gql.transport.exceptions.TransportQueryError as e:
                 return ckit_cloudtool.gql_error_4xx_to_model_reraise_5xx(e, op)

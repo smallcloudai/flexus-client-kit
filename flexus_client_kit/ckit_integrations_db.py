@@ -328,7 +328,7 @@ def static_integrations_load(bot_dir: Path, allowlist: list[str], builtin_skills
                 subset = list(tool_map.keys())
             tools_and_methods = [(tool_map[s][0], tool_map[s][1]) for s in subset]
             async def _init_crm(rcx, setup):
-                return fi_crm.IntegrationCrm(rcx.fclient, rcx.persona.ws_id, rcx)
+                return fi_crm.IntegrationCrm(rcx)
             def _setup_crm(obj, rcx, _tam=tools_and_methods):
                 for tool, method_name in _tam:
                     rcx.on_tool_call(tool.name)(getattr(obj, method_name))

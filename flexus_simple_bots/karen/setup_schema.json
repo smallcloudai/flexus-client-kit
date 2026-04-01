@@ -1,5 +1,14 @@
 [
     {
+        "bs_name": "EMAIL_RESPOND_TO",
+        "bs_type": "string_long",
+        "bs_default": "",
+        "bs_group": "Email",
+        "bs_order": 1,
+        "bs_importance": 0,
+        "bs_description": "Email addresses the bot should respond to, comma-separated (e.g. sales@yourdomain.com). All other emails to your domains are logged as CRM activities only."
+    },
+    {
         "bs_name": "escalate_policy",
         "bs_type": "string_multiline",
         "bs_default": "If you can't quite figure out what's going on, ping the person on slack (find them in the settings), describe the question and what you've found so far and ask for help.",

@@ -765,12 +765,16 @@ class IntegrationDiscord(fi_messenger.FlexusMessenger):
         if not msg.ft_app_searchable.startswith("discord/"):
             return False
 
-        if msg.ft_app_specific is not None:
-            already_posted_ts = msg.ft_app_specific.get("last_posted_assistant_ts")
-            if already_posted_ts is None:
-                logger.warning("ft_app_specific without last_posted_assistant_ts: %r", msg.ft_app_specific)
-            elif msg.ftm_created_ts <= already_posted_ts:
-                return False
+        app_specific = msg.ft_app_specific
+        if app_specific is None:
+            t = self.rcx.latest_threads.get(msg.ftm_belongs_to_ft_id)
+            if t:
+                app_specific = t.thread_fields.ft_app_specific
+        last_posted_ts = (app_specific or {}).get("last_posted_assistant_ts")
+        if last_posted_ts is None:
+            logger.warning("discord dedup: no last_posted_assistant_ts ft=%s ft_app_specific=%r", msg.ftm_belongs_to_ft_id, app_specific)
+        elif msg.ftm_created_ts <= last_posted_ts:
+            return False
 
         dedup_key = "%s:%03d:%03d" % (msg.ftm_belongs_to_ft_id, msg.ftm_alt, msg.ftm_num)
         if dedup_key in self._to_discord_dedup_set:

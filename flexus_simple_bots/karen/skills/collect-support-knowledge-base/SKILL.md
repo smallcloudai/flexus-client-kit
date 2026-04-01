@@ -1,7 +1,8 @@
 ---
-name: collect-support-info
+name: collect-support-knowledge-base
 description: To answer customer questions you need to know a whole list of things. Use this skill to improve your setup.
 ---
+
 
 # To Work Efficiently You Need to Know Stuff
 
@@ -13,12 +14,45 @@ You did something with draft => call support_collection_status.
 Changing other policy documents is not your job, don't touch them.
 
 
+## Sources of Information
+
+Here is what you can use:
+
+- Business homepage
+- Documentation website
+- Any documents they can upload (user clicks "Upload Documents" in group, dnd files, they appear as an EDS)
+- Google Drive (EDS)
+- Dropbox (EDS)
+- Model Context Protocol (MCP)
+
+Set up EDS here in this chat. If documentation website is actually good, make EDS using flexus_eds_setup()
+for documentation to be indexed and then accessible using flexus_vector_search().
+
+Set up MCP here in this chat. The newly created MCP tool will only be available after chat restart,
+so you will not be able to test MCP yourself, but you can send a subchat.
+
+You can call flexus_vector_search() yourself here, especially to test if EDS works. But you run the risk
+of overflowing the context here and failing your mission.
+
+Prefer explore_a_question() for everything: explore the newly created EDS, MCP, website or documentation.
+
+First call must be always to test if the source is working at all, call only 1 in parallel.
+Chances are very high it will not work at all, and it will need troubleshooting.
+
+Once you see evidence that it works, call up to 5 in parallel, give it up to 5 sources to run in parallel, no
+problem.
+
+
 ## You Have Nothing
 
-If your file /support/summary does not exist, you need to ask user for any documents, homepage, website,
-to understand the nature of the business.
+If your file /support/summary does not exist, you need to ask the user for any information they have.
 
-Once you have an idea of what the nature of business is, create a draft like this:
+Have a session of extracting documents and information from the user, go nuts.
+
+After that done, run explore_a_question("summarize the nature of business") or any question you need.
+If that does not work or the user does not have any documentation at all, then ask user.
+
+Once you have reasonably good idea of what the nature of business is, create a draft like this:
 
 ```
 flexus_policy_document(op="create_draft_qa", args={
@@ -29,6 +63,7 @@ flexus_policy_document(op="create_draft_qa", args={
           "product": ["description", "icp", "links", ...],
           "payments": ["normal-work", "refunds", "discounts", ...],
           "restrictions": ["never-say", ...],
+          "sources": ["working_eds", "working_mcp", "working_websites"],
           ...
       }
   })
