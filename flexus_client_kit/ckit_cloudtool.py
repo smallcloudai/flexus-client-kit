@@ -408,8 +408,7 @@ async def cloudtool_i_am_still_alive(
                 logger.error("That looks bad, my key doesn't work: %s", e)
             else:
                 logger.info("cloudtool_i_am_still_alive connection problem")
-            if await ckit_shutdown.wait(60):
-                break
+            await ckit_shutdown.wait(60)
 
 
 async def run_cloudtool_service_real(

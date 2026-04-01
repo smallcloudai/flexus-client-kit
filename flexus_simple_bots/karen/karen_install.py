@@ -88,6 +88,7 @@ EXPERTS = [
         fexp_allow_tools=",".join(ckit_cloudtool.CLOUDTOOLS_TRIAGE),    # no access to messengers
         fexp_nature="NATURE_NO_TASK",
         fexp_inactivity_timeout=0,
+        fexp_preferred_model_class="cheap",
         fexp_description="Deals with messages in the inbox, picks relevant to work on.",
         fexp_builtin_skills=ckit_skills.read_name_description(karen_bot.KAREN_ROOTDIR, karen_bot.KAREN_SKILLS),
     )),
@@ -97,6 +98,7 @@ EXPERTS = [
         fexp_allow_tools=",".join({"slack", "telegram", "discord", "magic_desk"} | ckit_cloudtool.CLOUDTOOLS_PUBLIC | ckit_cloudtool.CLOUDTOOLS_VECDB | ckit_cloudtool.CLOUDTOOLS_MCP),
         fexp_nature="NATURE_AUTONOMOUS",
         fexp_inactivity_timeout=600,
+        fexp_preferred_model_class="cheap",
         fexp_description="Customer-facing worker: captures messenger threads, searches knowledge base, responds to users. No access potentially dangerous tools, MCPs only in the same group or subgroup.",
     )),
 ]
