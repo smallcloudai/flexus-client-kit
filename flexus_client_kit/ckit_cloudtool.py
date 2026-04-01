@@ -112,7 +112,7 @@ class FCloudtoolCall:
     fcall_result_ftm_num: int
     fcall_created_ts: float
     fcall_untrusted_key: str
-    connected_persona_id: str
+    connected_persona_id: Optional[str]
     ws_id: str
     confirmed_by_human: Optional[bool] = None
 

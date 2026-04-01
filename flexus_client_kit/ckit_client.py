@@ -74,9 +74,10 @@ class FlexusClient:
         transport = AIOHTTPTransport(url=self.http_url, headers=headers)
         return gql.Client(transport=transport, fetch_schema_from_transport=False, execute_timeout=execute_timeout)
 
-    async def use_http_on_behalf(self, persona_id: str, fcall_untrusted_key: str, execute_timeout: float = 10) -> gql.Client:
+    async def use_http_on_behalf(self, persona_id: Optional[str], fcall_untrusted_key: str, execute_timeout: float = 10) -> gql.Client:
         headers = await self._base_headers()
-        headers["x-flexus-persona-id"] = persona_id
+        if persona_id:
+            headers["x-flexus-persona-id"] = persona_id
         headers["x-flexus-call-untrusted-key"] = fcall_untrusted_key
         transport = AIOHTTPTransport(url=self.http_url, headers=headers)
         return gql.Client(transport=transport, fetch_schema_from_transport=False, execute_timeout=execute_timeout)
@@ -105,9 +106,10 @@ class FlexusClient:
         transport = WebsocketsTransport(url=self.websocket_url, init_payload=payload, keep_alive_timeout=120, ping_interval=30, pong_timeout=10, connect_args={"max_size": 10_485_760})
         return gql.Client(transport=transport, fetch_schema_from_transport=False)
 
-    async def use_ws_on_behalf(self, persona_id: str, fcall_untrusted_key: str) -> gql.Client:
+    async def use_ws_on_behalf(self, persona_id: Optional[str], fcall_untrusted_key: str) -> gql.Client:
         payload = await self._base_ws_payload()
-        payload["x-flexus-persona-id"] = persona_id
+        if persona_id:
+            payload["x-flexus-persona-id"] = persona_id
         payload["x-flexus-call-untrusted-key"] = fcall_untrusted_key
         transport = WebsocketsTransport(url=self.websocket_url, init_payload=payload, keep_alive_timeout=120, ping_interval=30, pong_timeout=10, connect_args={"max_size": 10_485_760})
         return gql.Client(transport=transport, fetch_schema_from_transport=False)
