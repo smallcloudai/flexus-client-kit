@@ -429,6 +429,7 @@ class IntegrationTelegram(fi_messenger.FlexusMessenger):
             return False
 
         app_specific = msg.ft_app_specific
+        # XXX do we really need it?
         if app_specific is None:
             t = self.rcx.latest_threads.get(msg.ftm_belongs_to_ft_id)
             if t:

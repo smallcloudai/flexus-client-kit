@@ -16,10 +16,12 @@ TOOLS_DEFAULT = {
     "crm_automation", "flexus_schedule",
     "shopify", "shopify_cart",
     "erp_table_meta", "erp_table_data", "erp_table_crud", "erp_csv_import",
-    "repo_reader", "support_collection_status",
+    "repo_reader", "support_collection_status", "explore_a_question",
     "slack", "telegram", "discord",
     "email_send", "email_setup_domain",
 } | ckit_cloudtool.CLOUDTOOLS_QUITE_A_LOT
+
+TOOLS_EXPLORE = ckit_cloudtool.CLOUDTOOLS_VECDB | ckit_cloudtool.CLOUDTOOLS_WEB
 
 TOOLS_SUPPORT_AND_SALES = {
     "flexus_policy_document", "mongo_store", "flexus_fetch_skill",
@@ -39,41 +41,7 @@ TOOLS_NURTURING = {
 } | ckit_cloudtool.CLOUDTOOLS_TRIAGE | ckit_cloudtool.CLOUDTOOLS_VECDB | ckit_cloudtool.CLOUDTOOLS_WEB | ckit_cloudtool.CLOUDTOOLS_MCP
 
 
-KAREN_DESC = """
-### Job description
-
-Karen is your all-in-one customer support, sales, and marketing agent. She answers support questions with precision and full context, sells consultatively using the C.L.O.S.E.R. framework, manages your CRM, runs outreach through email, and nurtures leads with automated follow-ups. She qualifies with BANT, reads sentiment to adapt her approach, and knows when to hand off to a human.
-
-### How Karen can help you:
-
-*Support:*
-- Responds to support tickets instantly across Slack, Telegram, Discord, and email
-- Searches your knowledge base to give accurate, sourced answers
-- Escalates to the right person when she can't resolve it
-- Tracks patterns and flags repeated issues
-
-*Marketing:*
-- Manages your CRM and imports contacts from CSV files or landing pages
-- Sends automatic welcome emails to new contacts
-- Runs outreach campaigns through email integration
-- Builds CRM automations with custom triggers and actions
-- Handles company and product setup so your CRM reflects your actual business
-
-*Sales:*
-- Sells consultatively using the C.L.O.S.E.R. Framework
-- Qualifies leads with BANT (Budget, Authority, Need, Timeline)
-- Detects sentiment in conversations and adapts accordingly
-- Executes smart handoffs to human agents when the moment calls for it
-
-*Nurturing:*
-- Runs lightweight automated tasks to keep leads warm between touchpoints
-- Sends emails using pre-built templates for consistent, on-brand communication
-- Triggers follow-ups based on CRM activity so no lead goes cold by accident
-
-*Shopify (optional):*
-- Connects your Shopify store and syncs products, orders, and payments automatically
-- Creates draft orders with checkout links directly from conversations
-"""
+KAREN_DESC = (karen_bot.KAREN_ROOTDIR / "README.md").read_text()
 
 
 KAREN_SUPPORT_AND_SALES_KERNEL = """
@@ -98,6 +66,38 @@ if not messages[-1]["tool_calls"]:
         post_cd_instruction = warn1_text
     elif not warn2_have and coins > budget * 0.5 and not messages[-1]["tool_calls"]:
         post_cd_instruction = warn2_text
+"""
+
+
+KAREN_EXPLORE_KERNEL = """
+steps = sum(1 for m in messages if m["role"] == "assistant")
+msg = messages[-1]
+if msg["role"] == "assistant" and "EXPLORE_RESULT_READY" in str(msg["content"]):
+    subchat_result = str(msg["content"])
+elif steps >= 50:
+    subchat_result = "Forced close after 50 steps. " + str(msg["content"])
+elif steps >= 40 and msg["role"] == "assistant" and not msg["tool_calls"]:
+    post_cd_instruction = "You have used 40+ steps. Wrap up NOW: write your final report with sourced findings and end with EXPLORE_RESULT_READY."
+"""
+
+
+EXPLORE_PROMPT = """You are a research subchat. Your job: answer the question using flexus_vector_search() and flexus_read_original().
+
+## Process
+
+1. Search for relevant documents using flexus_vector_search() with the scopes provided in the question.
+2. When you find promising snippets, read full documents or large ranges (1000-2000 lines) using flexus_read_original().
+3. Try up to 3 different search queries if the first doesn't find what you need.
+4. For URLs, use web() tool to fetch and read the page content.
+
+## Output Format
+
+Write your findings as paragraphs, each ending with a source reference:
+
+Something something something. Sources: flexus_read_original(eds="eds_id_here", p="path/to/doc")
+Something something something else. Sources: flexus_read_original(eds="eds_id_here", p="another/doc")
+
+When done, print EXPLORE_RESULT_READY on its own line at the very end.
 """
 
 
@@ -136,6 +136,14 @@ EXPERTS = [
     #     fexp_description="Lightweight expert for automated tasks: sending templated emails, follow-ups, stall deal recovery, and simple CRM operations.",
     #     fexp_preferred_model_class="cheap",
     # )),
+    ("explore", ckit_bot_install.FMarketplaceExpertInput(
+        fexp_system_prompt=EXPLORE_PROMPT,
+        fexp_python_kernel=KAREN_EXPLORE_KERNEL,
+        fexp_allow_tools=",".join(TOOLS_EXPLORE | ckit_cloudtool.CLOUDTOOLS_WEB),
+        fexp_nature="NATURE_NO_TASK",
+        fexp_description="Subchat expert for researching EDS and URLs, returns sourced findings.",
+        fexp_subchat_only=True,
+    )),
 ]
 
 

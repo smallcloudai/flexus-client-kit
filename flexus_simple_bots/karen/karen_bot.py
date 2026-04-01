@@ -13,6 +13,7 @@ from flexus_client_kit import ckit_cloudtool
 from flexus_client_kit import ckit_bot_exec
 from flexus_client_kit import ckit_shutdown
 from flexus_client_kit import ckit_erp
+from flexus_client_kit import ckit_ask_model
 from flexus_client_kit import ckit_kanban
 from flexus_client_kit import ckit_integrations_db
 from flexus_client_kit import ckit_skills
@@ -71,6 +72,21 @@ KAREN_INTEGRATIONS: list[ckit_integrations_db.IntegrationRecord] = ckit_integrat
     builtin_skills=KAREN_SKILLS,
 )
 
+EXPLORE_A_QUESTION_TOOL = ckit_cloudtool.CloudTool(
+    strict=True,
+    name="explore_a_question",
+    description="Search EDSs or URLs for an answer. Spawns one subchat per entry. Each subchat searches, reads full docs, and returns sourced findings.",
+    parameters={
+        "type": "object",
+        "properties": {
+            "q": {"type": "string", "description": "What to search for, e.g. 'summarize the nature of business' or 'refund policy details'"},
+            "eds": {"type": "array", "items": {"type": "string"}, "description": "List of EDS ids or websites (https://...) to search"},
+        },
+        "required": ["q", "eds"],
+        "additionalProperties": False,
+    },
+)
+
 SUPPORT_STATUS_TOOL = ckit_cloudtool.CloudTool(
     strict=True,
     name="support_collection_status",
@@ -90,6 +106,7 @@ TOOLS = [
     fi_sched.SCHED_TOOL,
     fi_repo_reader.REPO_READER_TOOL,
     SUPPORT_STATUS_TOOL,
+    EXPLORE_A_QUESTION_TOOL,
     *[t for rec in KAREN_INTEGRATIONS for t in rec.integr_tools],
 ]
 
@@ -257,6 +274,39 @@ async def karen_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.
     @rcx.on_tool_call(SUPPORT_STATUS_TOOL.name)
     async def toolcall_support_status(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
         return await handle_support_status(pdoc_integration, rcx)
+
+    @rcx.on_tool_call(EXPLORE_A_QUESTION_TOOL.name)
+    async def toolcall_explore_a_question(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
+        q = model_produced_args["q"]
+        eds_list = model_produced_args["eds"]
+        if not eds_list:
+            return "Error: eds list is empty, provide at least one entry."
+        if len(eds_list) > 10:
+            return "Error: too many entries, max 10."
+        for entry in eds_list:
+            is_url = entry.startswith("http://") or entry.startswith("https://")
+            if not is_url and (len(entry) > 20 or not entry.isascii() or " " in entry):
+                return "Error: EDS ID %r must be ASCII, no spaces, max 20 chars." % entry
+        questions = []
+        titles = []
+        for entry in eds_list:
+            if entry.startswith("http://") or entry.startswith("https://"):
+                questions.append("Fetch and read %s to answer: %s\n\nUse web() tool to fetch the page. Report your findings with sources." % (entry, q))
+                titles.append("Explore: %s (%s)" % (q[:40], entry[:40]))
+            else:
+                questions.append('Search EDS "%s" to answer: %s\n\nUse flexus_vector_search(scopes=["%s"], ...) and flexus_read_original() to find and read relevant documents. Report your findings with sources.' % (entry, q, entry))
+                titles.append("Explore: %s (EDS %s)" % (q[:60], entry))
+        subchats = await ckit_ask_model.bot_subchat_create_multiple(
+            client=fclient,
+            who_is_asking="karen_explore_a_question",
+            persona_id=rcx.persona.persona_id,
+            first_question=questions,
+            first_calls=["null" for _ in eds_list],
+            title=titles,
+            fcall_id=toolcall.fcall_id,
+            fexp_name="explore",
+        )
+        raise ckit_cloudtool.WaitForSubchats(subchats)
 
     @telegram.on_incoming_activity
     async def telegram_activity_callback(a: fi_telegram.ActivityTelegram, already_posted: bool):
