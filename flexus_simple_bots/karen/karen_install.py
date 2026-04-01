@@ -70,7 +70,7 @@ if not messages[-1]["tool_calls"]:
 
 
 KAREN_EXPLORE_KERNEL = """
-steps = sum(1 for m in messages if m["role"] == "assistant")
+steps = len([m for m in messages if m["role"] == "assistant"])
 msg = messages[-1]
 if msg["role"] == "assistant" and "EXPLORE_RESULT_READY" in str(msg["content"]):
     subchat_result = str(msg["content"])
@@ -81,24 +81,6 @@ elif steps >= 40 and msg["role"] == "assistant" and not msg["tool_calls"]:
 """
 
 
-EXPLORE_PROMPT = """You are a research subchat. Your job: answer the question using flexus_vector_search() and flexus_read_original().
-
-## Process
-
-1. Search for relevant documents using flexus_vector_search() with the scopes provided in the question.
-2. When you find promising snippets, read full documents or large ranges (1000-2000 lines) using flexus_read_original().
-3. Try up to 3 different search queries if the first doesn't find what you need.
-4. For URLs, use web() tool to fetch and read the page content.
-
-## Output Format
-
-Write your findings as paragraphs, each ending with a source reference:
-
-Something something something. Sources: flexus_read_original(eds="eds_id_here", p="path/to/doc")
-Something something something else. Sources: flexus_read_original(eds="eds_id_here", p="another/doc")
-
-When done, print EXPLORE_RESULT_READY on its own line at the very end.
-"""
 
 
 EXPERTS = [
@@ -134,10 +116,10 @@ EXPERTS = [
     #     fexp_nature="NATURE_SEMI_AUTONOMOUS",
     #     fexp_inactivity_timeout=600,
     #     fexp_description="Lightweight expert for automated tasks: sending templated emails, follow-ups, stall deal recovery, and simple CRM operations.",
-    #     fexp_preferred_model_class="cheap",
+    #     fexp_model_class="cheap",
     # )),
     ("explore", ckit_bot_install.FMarketplaceExpertInput(
-        fexp_system_prompt=EXPLORE_PROMPT,
+        fexp_system_prompt=karen_prompts.EXPLORE_PROMPT,
         fexp_python_kernel=KAREN_EXPLORE_KERNEL,
         fexp_allow_tools=",".join(TOOLS_EXPLORE | ckit_cloudtool.CLOUDTOOLS_WEB),
         fexp_nature="NATURE_NO_TASK",
