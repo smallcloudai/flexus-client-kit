@@ -44,7 +44,7 @@ class IntegrationGoogleCalendar:
         self.tool_map = {}
 
     async def _ensure_tools_initialized(self) -> bool:
-        google_auth = self.rcx.external_auth.get("google") or {}
+        google_auth = self.rcx.external_auth.get("google_calendar") or {}
         token_obj = google_auth.get("token") or {}
         access_token = token_obj.get("access_token", "")
         if not access_token:
@@ -135,7 +135,7 @@ class IntegrationGoogleCalendar:
 
         if is_auth_error:
             self._last_access_token = None
-            return "❌ Authentication error. Please reconnect Google in workspace settings.\n\nThen retry."
+            return "❌ Authentication error. Please reconnect Google Calendar in Bot Integrations tab.\n\nThen retry."
         return result
 
     def _all_commands_help(self) -> str:
@@ -160,7 +160,7 @@ class IntegrationGoogleCalendar:
             r += f"  Tools loaded: {len(self.tools)}\n"
             r += f"  Available ops: {', '.join(self.tool_map.keys())}\n"
         elif not authenticated:
-            r += "\n❌ Not authenticated. Please connect Google in workspace settings.\n"
+            r += "\n❌ Not authenticated. Please connect Google Calendar in Bot Integrations tab.\n"
 
         return r
 

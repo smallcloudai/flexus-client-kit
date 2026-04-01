@@ -84,7 +84,7 @@ async def install(
             prompts_common.SCHED_TASK_SORT_10M,
             prompts_common.SCHED_TODO_5M,
         ],
-        marketable_auth_needed=["gmail", "google"],
+        marketable_auth_needed=["gmail", "google_calendar"],
         marketable_auth_supported=["atlassian"],
         marketable_auth_scopes={
             "gmail": [
@@ -95,7 +95,7 @@ async def install(
                 "https://www.googleapis.com/auth/gmail.send",
                 "https://www.googleapis.com/auth/gmail.labels",
             ],
-            "google": [
+            "google_calendar": [
                 "https://www.googleapis.com/auth/calendar",
             ],
             "atlassian": [

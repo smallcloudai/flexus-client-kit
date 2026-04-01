@@ -87,7 +87,7 @@ def static_integrations_load(bot_dir: Path, allowlist: list[str], builtin_skills
                 integr_tools=[fi_google_calendar.GOOGLE_CALENDAR_TOOL],
                 integr_init=_init_gcal,
                 integr_setup_handlers=lambda obj, rcx: [rcx.on_tool_call("google_calendar")(obj.called_by_model)],
-                integr_provider="google",
+                integr_provider="google_calendar",
                 integr_scopes=fi_google_calendar.REQUIRED_SCOPES,
                 integr_prompt="",
             ))
