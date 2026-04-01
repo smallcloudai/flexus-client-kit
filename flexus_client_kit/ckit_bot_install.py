@@ -1,6 +1,7 @@
 import base64
 import fnmatch
 import json
+import pprint
 from dataclasses import dataclass
 import dataclasses
 from pathlib import Path
@@ -118,12 +119,13 @@ async def marketplace_upsert_dev_bot(
         prompt = "\n\n\n".join(sections) + "\n"
         skill_names = [s["name"] for s in json.loads(expert.fexp_builtin_skills)]
         tool_names = [t["function"]["name"] for t in json.loads(expert.fexp_app_capture_tools)] if expert.fexp_app_capture_tools else []
+        allow_sorted = sorted(expert.fexp_allow_tools.split(","))
         summary = (
             f"  {marketable_name} expert {expert_name!r}\n"
-            f"    allow={expert.fexp_allow_tools!r} has_a2a={has_a2a}\n"
-            f"    built-in-tools={tool_names}\n"
-            f"    built-in-skills={skill_names}\n"
-            f"    prompt sections from integrations: {', '.join(included_integr)}\n"
+            + _super_nice_list(allow_sorted, "    allow=", f" has_a2a={has_a2a}") + "\n"
+            + _super_nice_list(tool_names, "    built-in-tools=") + "\n"
+            + _super_nice_list(skill_names, "    built-in-skills=") + "\n"
+            + f"    prompt sections from integrations: {', '.join(included_integr)}\n"
             f"    len(prompt)={len(prompt)}"
         )
         print(summary)
@@ -275,3 +277,24 @@ def load_form_bundles_from_dir(forms_dir: Path) -> Dict[str, str]:
 
 def load_form_bundles(install_file: str) -> Dict[str, str]:
     return load_form_bundles_from_dir(Path(install_file).parent / "forms")
+
+
+def _super_nice_list(items, prefix, suffix=""):
+    line = prefix + ", ".join(items) + suffix
+    if len(line) <= 120:
+        return line
+    indent = " " * 6
+    lines = [prefix]
+    cur = indent
+    for i, item in enumerate(items):
+        addition = item + (", " if i < len(items) - 1 else suffix)
+        if cur == indent:
+            cur += addition
+        elif len(cur) + len(addition) > 120:
+            lines.append(cur)
+            cur = indent + addition
+        else:
+            cur += addition
+    if cur.strip():
+        lines.append(cur)
+    return "\n".join(lines)
