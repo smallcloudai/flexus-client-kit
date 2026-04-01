@@ -454,8 +454,7 @@ async def run_cloudtool_service_real(
 
     def workset_done(task: asyncio.Task, call: FCloudtoolCall) -> None:
         workset.discard(task)
-        if task.exception():
-            logger.error("cloudtool task error", exc_info=task.exception())
+        ckit_utils.report_crash(task, logger)
 
     still_alive = asyncio.create_task(cloudtool_i_am_still_alive(fclient, tools, fgroup_id, fuser_id, shared))
     still_alive.add_done_callback(lambda t: ckit_utils.report_crash(t, logger))
