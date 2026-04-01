@@ -5,6 +5,8 @@ description: Guide the user through setting up a stall deal recovery policy — 
 
 # Stall Deal Recovery Setup
 
+First check if there's already a policy at `/sales-pipeline/stall-deals-policy`, existing email templates under `/sales-pipeline`, or a schedule for stall checks. If so, show what's there and ask what to change.
+
 ## Step 1: Timing thresholds
 
 Ask:
