@@ -566,6 +566,7 @@ class IntegrationSlack(fi_messenger.FlexusMessenger):
                 searchable,
                 content,
                 only_to_expert=self.outside_messages_fexp_name,
+                thread_too_old_s=30*86400 if a.thread_ts else 300,
             )
         except gql.transport.exceptions.TransportQueryError as e:
             logger.info("captured_thread_post failed, maybe thread itself already has an error, will uncapture: %s", e)

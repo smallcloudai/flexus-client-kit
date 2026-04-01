@@ -411,6 +411,7 @@ class IntegrationTelegram(fi_messenger.FlexusMessenger):
             searchable,
             msg_text,
             only_to_expert=self.outside_messages_fexp_name,
+            thread_too_old_s=3600,
         )
         if not ft_id:
             return False

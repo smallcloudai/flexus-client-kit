@@ -751,6 +751,7 @@ class IntegrationDiscord(fi_messenger.FlexusMessenger):
                 searchable,
                 parts,
                 only_to_expert=self.outside_messages_fexp_name,
+                thread_too_old_s=30*86400 if activity.thread_id else 300,
             )
         except gql.transport.exceptions.TransportQueryError as e:  # type: ignore[attr-defined]
             logger.info("Discord captured_thread_post_user_message failed: %s", e)
