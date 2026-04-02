@@ -744,8 +744,9 @@ async def run_happy_trajectory(
             if not ft_id:  # step==0: use the first human message directly from the happy path
                 last_human_message = first_human_message
                 logger.info("human says (from happy path): %r" % first_human_message)
+                http = await scenario.fclient.use_http_on_behalf(None, "")
                 ft_id = await ckit_ask_model.bot_activate(
-                    client=scenario.fclient,
+                    http=http,
                     who_is_asking="trajectory_scenario",
                     persona_id=scenario.persona.persona_id,
                     fexp_name=fexp_name,

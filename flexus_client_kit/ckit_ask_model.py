@@ -126,7 +126,7 @@ async def thread_add_user_message(
 
 
 async def bot_activate(
-    client: ckit_client.FlexusClient,
+    http: gql.Client,
     who_is_asking: str,
     persona_id: str,
     fexp_name: str,
@@ -143,7 +143,6 @@ async def bot_activate(
     title = title or (fexp_name + " " + time.strftime("%Y%m%d %H:%M:%S"))
     assert re.match(r'^[a-z0-9_]+$', who_is_asking)
     camel_case_for_logs = "".join(word.capitalize() for word in who_is_asking.split("_"))
-    http = await client.use_http_on_behalf(persona_id, "")
     async with http as h:
         r = await h.execute(
             gql.gql(f"""mutation {camel_case_for_logs}BotActivate($who_is_asking: String!, $persona_id: String!, $fexp_name: String!, $first_question: String!, $first_calls: String!, $title: String!, $sched_id: String!, $fexp_id: String!, $ft_btest_name: String!, $model: String!, $assign_ktask_id: String!, $check_kanban_status: Boolean!) {{
