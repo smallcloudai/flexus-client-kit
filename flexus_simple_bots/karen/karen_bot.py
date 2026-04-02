@@ -18,6 +18,7 @@ from flexus_client_kit import ckit_kanban
 from flexus_client_kit import ckit_integrations_db
 from flexus_client_kit import ckit_skills
 from flexus_client_kit import erp_schema
+from flexus_client_kit import ckit_mongo
 from flexus_client_kit.integrations import fi_mongo_store
 from flexus_client_kit.integrations import fi_crm_automations
 from flexus_client_kit.integrations import fi_resend
@@ -71,6 +72,47 @@ KAREN_INTEGRATIONS: list[ckit_integrations_db.IntegrationRecord] = ckit_integrat
     builtin_skills=KAREN_SKILLS,
 )
 
+CATALOG_TABLES = {"com_product", "com_product_variant", "com_shop"}
+
+PRODUCT_CATALOG_TOOL = ckit_cloudtool.CloudTool(
+    strict=False,
+    name="product_catalog",
+    description=(
+        "Query the product catalog. IMPORTANT: call with just the table name first (no options) to see available columns before filtering. "
+        "Tables: com_product, com_product_variant (price, inventory, SKU), com_shop. "
+        "Operators: =, !=, >, >=, <, <=, LIKE, ILIKE, CIEQL, IN, NOT_IN, IS_NULL, IS_NOT_NULL. "
+        "LIKE/ILIKE use SQL wildcards: % matches any chars. CIEQL: Case Insensitive Equal. "
+        "JSON path: prod_details->color:=:red. "
+        "Relation dot-notation in filters: use relation.field to filter on included relations, "
+        'e.g. filters="variants.pvar_inventory_status:=:IN_STOCK" when including variants. '
+        "Examples: "
+        'filters="prod_category:=:shoes" for single filter, '
+        'filters={"AND": ["prod_category:=:shoes", "prod_tags:contains:summer"]} for multiple AND, '
+        'filters={"OR": ["prod_name:ILIKE:%boot%", "prod_name:ILIKE:%sneaker%"]} for OR.'
+    ),
+    parameters={
+        "type": "object",
+        "properties": {
+            "table": {"type": "string", "enum": ["com_product", "com_product_variant", "com_shop"], "order": 1},
+            "options": {
+                "type": "object",
+                "description": "Query options",
+                "order": 2,
+                "properties": {
+                    "skip": {"type": "integer", "description": "Number of rows to skip (default 0)", "order": 1001},
+                    "limit": {"type": "integer", "description": "Maximum number of rows to return (default 100, max 1000)", "order": 1002},
+                    "sort_by": {"type": "array", "items": {"type": "string"}, "description": 'Sort expressions ["column:ASC", "another:DESC"]', "order": 1003},
+                    "filters": {"oneOf": [{"type": "string"}, {"type": "object"}], "description": 'String or object with AND/OR key, e.g. {"AND": ["col:op:val"]} or {"OR": [...]}', "order": 1004},
+                    "include": {"type": "array", "items": {"type": "string"}, "description": 'Relation names to include, e.g. ["variants"]', "order": 1005},
+                    "include_limit": {"type": "integer", "description": "Max items per included relation total across all rows (defaults to limit).", "order": 1006},
+                },
+            },
+        },
+        "required": ["table"],
+    },
+)
+
+
 EXPLORE_A_QUESTION_TOOL = ckit_cloudtool.CloudTool(
     strict=True,
     name="explore_a_question",
@@ -106,6 +148,7 @@ TOOLS = [
     fi_repo_reader.REPO_READER_TOOL,
     SUPPORT_STATUS_TOOL,
     EXPLORE_A_QUESTION_TOOL,
+    PRODUCT_CATALOG_TOOL,
     *[t for rec in KAREN_INTEGRATIONS for t in rec.integr_tools],
 ]
 
@@ -275,6 +318,41 @@ async def karen_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.
     @rcx.on_tool_call(SUPPORT_STATUS_TOOL.name)
     async def toolcall_support_status(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
         return await handle_support_status(pdoc_integration, rcx, toolcall.fcall_untrusted_key)
+
+    @rcx.on_tool_call(PRODUCT_CATALOG_TOOL.name)
+    async def toolcall_product_catalog(toolcall: ckit_cloudtool.FCloudtoolCall, args: Dict[str, Any]) -> str:
+        table = args.get("table", "")
+        if table not in CATALOG_TABLES:
+            return "❌ table must be one of: %s" % ", ".join(sorted(CATALOG_TABLES))
+        schema_class = erp_schema.ERP_TABLE_TO_SCHEMA[table]
+        opts = args.get("options") or {}
+        if not opts:
+            return ckit_erp.format_table_meta_text(table, schema_class)
+        http = await fclient.use_http_on_behalf(rcx.persona.persona_id, toolcall.fcall_untrusted_key)
+        try:
+            rows = await ckit_erp.erp_table_data(
+                http, table, rcx.persona.ws_id, schema_class,
+                skip=opts.get("skip", 0),
+                limit=min(opts.get("limit", 100), 1000),
+                sort_by=opts.get("sort_by", []),
+                filters=opts.get("filters", {}),
+                include=opts.get("include", []),
+                include_limit=opts.get("include_limit", opts.get("limit", 100)),
+            )
+        except Exception as e:
+            return "❌ Query error: %s" % e
+        from flexus_client_kit.integrations.fi_erp import _rows_to_text
+        display_text, full_json = _rows_to_text(
+            [ckit_erp.dataclass_or_dict_to_dict(r) for r in rows], table,
+        )
+        if full_json and rcx.personal_mongo is not None:
+            mongo_path = "catalog_query/%s_%d.json" % (table, int(time.time()))
+            try:
+                await ckit_mongo.mongo_overwrite(rcx.personal_mongo, mongo_path, full_json.encode("utf-8"), ttl=86400)
+                display_text += "\n\n💾 Full results: mongo_store(op='cat', args={'path': '%s'})" % mongo_path
+            except Exception:
+                pass
+        return display_text
 
     @rcx.on_tool_call(EXPLORE_A_QUESTION_TOOL.name)
     async def toolcall_explore_a_question(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
