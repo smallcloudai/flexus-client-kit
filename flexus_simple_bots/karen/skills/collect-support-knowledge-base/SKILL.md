@@ -71,13 +71,18 @@ flexus_policy_document(op="create_draft_qa", args={
   })
 ```
 
-This will write /support/20260326-summary policy document with QA structure inside. Then translate it to user's
-language. Call support_collection_status if not sure.
+This will write /support/20260326-summary policy document with QA structure inside.
 
-The structure of the summary is not fixed. Look at question lists below and come up with sections and questions
-taylored for the situation at hand.
+After creating the draft:
 
-Once you have the strucutre, fill in fields one by one as you research user's documents.
+1. Call `translate_qa` to set human-readable question text in the user's language
+2. Pre-fill any answers you can derive from what you have gathered so far
+3. Call `support_collection_status` to confirm progress
+4. Then continue filling fields as you research user's documents
+
+The structure of the summary is not fixed. Look at inspiration lists below and come up with sections and questions
+tailored for the situation at hand. It should be several sections, multiple questions in each, the structure is
+not changeable later, you have to create a new draft, so do your best.
 
 The user can participate filling the document, should be no problem working on it together with the user at the
 same time, once the structure is in place.
