@@ -78,10 +78,14 @@ def _validate_skill(path: Path, text: str) -> Dict[str, str]:
     return front
 
 
+_INTEGRATION_SKILLS_DIR = Path(__file__).parent / "integrations" / "skills"
+
+
 def _skill_dirs(bot_root_dir: Path) -> List[Path]:
     return [
         bot_root_dir / "skills",
         bot_root_dir.parents[0] / "shared_skills",
+        _INTEGRATION_SKILLS_DIR,
     ]
 
 
@@ -99,7 +103,7 @@ def static_skills_find(bot_root_dir: Path, shared_skills_allowlist: str) -> List
     found = []
     local_dir = bot_root_dir / "skills"
     shared_dir = bot_root_dir.parents[0] / "shared_skills"
-    for d in [local_dir, shared_dir]:
+    for d in [local_dir, shared_dir, _INTEGRATION_SKILLS_DIR]:
         if not d.is_dir():
             continue
         is_shared = (d == shared_dir)
@@ -109,7 +113,7 @@ def static_skills_find(bot_root_dir: Path, shared_skills_allowlist: str) -> List
                 continue
             _validate_skill(p, p.read_text())
             found.append(name)
-    found.sort()
+    found = sorted(set(found))
     shared_names = {p.parent.name for p in shared_dir.glob("*/SKILL.md")} if shared_dir.is_dir() else set()
     for pat in shared_skills_allowlist.split(","):
         pat = pat.strip()

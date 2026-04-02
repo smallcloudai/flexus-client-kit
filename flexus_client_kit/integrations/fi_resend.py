@@ -43,14 +43,7 @@ RESEND_SETUP_SCHEMA = [
     },
 ]
 
-RESEND_PROMPT = """## Email
-
-Use email_send() to send emails. Use email_setup_domain() to register and manage sending domains, call email_setup_domain(op="help") first.
-Users can configure EMAIL_RESPOND_TO addresses — emails to those addresses are handled as tasks, all others are logged as CRM activities.
-Strongly recommend using a subdomain (e.g. mail.example.com) instead of the main domain, especially for inbound emails.
-If no domain is configured, call email_setup_domain(op="help") to find out the testing domain you can use.
-Never use flexus_my_setup() for email domains — they are saved automatically via email_setup_domain() tool.
-If user wants to use their own Resend account, they should connect it via the Integrations page — the webhook is created automatically on connect."""
+# Email setup guidance lives in integration skill resend-email-setup.
 
 RESEND_SEND_TOOL = ckit_cloudtool.CloudTool(
     strict=True,

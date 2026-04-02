@@ -287,7 +287,7 @@ def static_integrations_load(bot_dir: Path, allowlist: list[str], builtin_skills
                     rcx.on_tool_call("email_setup_domain")(obj.setup_called_by_model),
                 ],
                 integr_provider="resend",
-                integr_prompt=fi_resend.RESEND_PROMPT,
+                integr_prompt="",
             ))
 
         elif name.startswith("erp"):   # "erp[meta, data]" or "erp[meta, data, crud, csv_import]"
