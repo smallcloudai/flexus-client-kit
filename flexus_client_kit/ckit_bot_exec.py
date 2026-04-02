@@ -329,7 +329,7 @@ async def i_am_still_alive(
 ) -> None:
     while not ckit_shutdown.shutdown_event.is_set():
         try:
-            http_client = await fclient.use_http_on_behalf("", "")
+            http_client = await fclient.use_http_on_behalf(None, "")
             async with http_client as http:
                 # group_id takes priority over ws_id, send only one (not both)
                 use_group_id = fclient.group_id if fclient.group_id else None
@@ -671,38 +671,23 @@ async def shutdown_bots(
     logger.info("shutdown_bots success")
 
 
-async def run_happy_trajectory(
+async def _run_scenario_for_model(
     bc: BotsCollection,
     scenario: ckit_scenario.ScenarioSetup,
-    trajectory_yaml_path: str,
+    model_name: str,
+    trajectory_happy: str,
+    trajectory_data: dict,
+    trajectory_happy_messages_only: str,
+    *,
+    scenario_initial_cd_instruction: str,
+    first_human_message: str,
+    first_assistant_calls: Optional[List[dict]],
+    expert__scenario: str,
+    bot_version: str,
 ) -> None:
-    with open(trajectory_yaml_path) as f:
-        trajectory_happy = f.read()
-
-    trajectory_data = yaml.safe_load(trajectory_happy)
     judge_instructions = trajectory_data.get("judge_instructions", "")
-
-    first_calls = None
     messages = trajectory_data["messages"]
-    if messages and len(messages) >= 2:
-        first_assistant = messages[1]
-        if first_assistant["role"] == "assistant" and first_assistant["tool_calls"]:
-            first_calls = []
-            for tc in first_assistant["tool_calls"]:
-                first_calls.append({
-                    "type": tc.get("type", "function"),
-                    "function": {
-                        "name": tc["function"]["name"],
-                        "arguments": tc["function"]["arguments"]
-                    }
-                })
-    logger.info(f"bot_activate() first_calls, taken from the happy path:\n{first_calls}")
-    trajectory_happy_messages_only = ckit_scenario.yaml_dump_with_multiline({"messages": trajectory_data["messages"]})
-
-    expert__scenario = os.path.splitext(os.path.basename(trajectory_yaml_path))[0]
-    bot_version = ckit_client.marketplace_version_as_str(scenario.persona.persona_marketable_version)
-    assert scenario.explicit_model, "use --model"
-    model_name = scenario.explicit_model
+    logger.info("Running scenario %s with model %s", expert__scenario, model_name)
     await ckit_scenario.bot_scenario_result_upsert(
         scenario.fclient,
         ckit_scenario.BotScenarioUpsertInput(
@@ -732,209 +717,247 @@ async def run_happy_trajectory(
     cost_tools = 0
     stop_reason = ""
     last_human_message = ""
-    try:
-        assert "__" in expert__scenario
-        fexp_name = expert__scenario.split("__")[0]
-        assert fexp_name != "default", "the first part before \"__\" in scenario name should be the bot name, not \"default\""
-        if fexp_name == scenario.persona.persona_marketable_name:
-            fexp_name = "default"
-        assert messages and messages[0]["role"] == "user", "happy trajectory must start with a user message"
-        first_human_message = messages[0]["content"]
-        for step in range(max_steps):
-            if not ft_id:  # step==0: use the first human message directly from the happy path
-                last_human_message = first_human_message
-                logger.info("human says (from happy path): %r" % first_human_message)
-                http = await scenario.fclient.use_http_on_behalf(None, "")
-                ft_id = await ckit_ask_model.bot_activate(
-                    http=http,
-                    who_is_asking="trajectory_scenario",
-                    persona_id=scenario.persona.persona_id,
-                    fexp_name=fexp_name,
-                    first_question=first_human_message,
-                    first_calls=first_calls,
-                    title="Trajectory Test",
-                    ft_btest_name=expert__scenario,
-                    model=model_name,
-                )
-                logger.info(f"Scenario thread {ft_id}")
-            else:
-                ht1 = time.time()
-                result = await ckit_scenario.scenario_generate_human_message(
-                    scenario.fclient,
-                    trajectory_happy,
-                    scenario.fgroup_id,
-                    ft_id,
-                )
-                ht2 = time.time()
-                cost_human += result.cost
-                stop_reason = result.stop_reason
-                last_human_message = result.next_human_message
-                logger.info("human says %0.2fs: %r shaky=%s stop_reason=%r" % (ht2-ht1, result.next_human_message, result.shaky, result.stop_reason))
-                if result.scenario_done:
-                    break
-                http = await scenario.fclient.use_http_on_behalf(scenario.persona.persona_id, "")
-                await ckit_ask_model.thread_add_user_message(
-                    http=http,
-                    ft_id=ft_id,
-                    content=result.next_human_message,
-                    who_is_asking="trajectory_scenario",
-                    ftm_alt=100,
-                    ftm_provenance={"who_is_asking": "trajectory_scenario", "shaky": result.shaky},
-                )
-
-            wait_secs = 600  # increased from 160 for subchat scenarios
-            start_time = time.time()
-            while time.time() - start_time < wait_secs:
-                my_bot = bc.bots_running.get(scenario.persona.persona_id, None)
-                if my_bot is None:
-                    logger.info("WAIT for bot to initialize...")
-                    if await ckit_shutdown.wait(1):
-                        break
-                    continue
-                try:
-                    await asyncio.wait_for(my_bot.instance_rcx._parked_anything_new.wait(), timeout=1.0)
-                except asyncio.TimeoutError:
-                    pass
-                if ckit_shutdown.shutdown_event.is_set():
-                    break
-                if not my_bot.instance_rcx._completed_initial_unpark:
-                    logger.info("WAIT for bot to complete initial unpark, it might have crashed or still initializing")
-                    if await ckit_shutdown.wait(1):
-                        break
-                    continue
-                my_thread: Optional[ckit_bot_query.FThreadWithMessages] = my_bot.instance_rcx.latest_threads.get(ft_id, None)
-                if my_thread is None:
-                    logger.info("WAIT for thread to appear in bot's latest_threads...")
-                    continue
-                sorted_messages = sorted(my_thread.thread_messages.values(), key=lambda m: (m.ftm_alt, m.ftm_num))
-                trajectory_msg_count = sum(
-                    1 for k, m in my_thread.thread_messages.items()
-                    if m.ftm_role == "user" and m.ftm_provenance.get("who_is_asking") == "trajectory_scenario"
-                )
-                if trajectory_msg_count < step + 1:
-                    # logger.info("WAIT for the message the human just posted to appear...")
-                    continue
-                # Cool now we can believe my_thread.thread_fields because async notifications sent here are not crazy late (and it's fine
-                # if they are late a little bit, just like the UI works fine based on subscription only)
-                if my_thread.thread_fields.ft_need_user != -1:
-                    if my_thread.thread_fields.ft_need_user != 100:
-                        logger.warning("Whoops my_thread.thread_fields.ft_need_user=%d that's crazy, did the thread branch off under my supposedly controlled conditions?")
-                        return
-                    break
-                continue  # wait for next second, silently (no "WAIT waiting for the actual reponse")
-            else:
-                logger.error("Timeout after %d seconds, no reponse from model or tools :/", wait_secs)
-                stop_reason = "timeout"
-                break
-
-            continue  # post the next human message
-
+    sorted_messages = []
+    my_thread = None
+    assert "__" in expert__scenario
+    fexp_name = expert__scenario.split("__")[0]
+    assert fexp_name != "default", "the first part before \"__\" in scenario name should be the bot name, not \"default\""
+    if fexp_name == scenario.persona.persona_marketable_name:
+        fexp_name = "default"
+    for step in range(max_steps):
+        if not ft_id:  # step==0: use the first human message directly from the happy path
+            last_human_message = first_human_message
+            logger.info("human says (from happy path): %r" % first_human_message)
+            http = await scenario.fclient.use_http_on_behalf(None, "")
+            ft_id = await ckit_ask_model.bot_activate(
+                http=http,
+                who_is_asking="trajectory_scenario",
+                persona_id=scenario.persona.persona_id,
+                fexp_name=fexp_name,
+                scenario_initial_cd_instruction=scenario_initial_cd_instruction,
+                first_question=last_human_message,
+                first_calls=first_assistant_calls,
+                title="Trajectory Test",
+                ft_btest_name=expert__scenario,
+                model=model_name,
+            )
+            logger.info(f"Scenario thread {ft_id}")
         else:
-            logger.info("Scenario did not complete in %d steps, quit", max_steps)
+            ht1 = time.time()
+            result = await ckit_scenario.scenario_generate_human_message(
+                scenario.fclient,
+                trajectory_happy,
+                scenario.fgroup_id,
+                ft_id,
+            )
+            ht2 = time.time()
+            cost_human += result.cost
+            stop_reason = result.stop_reason
+            last_human_message = result.next_human_message
+            logger.info("human says %0.2fs: %r shaky=%s stop_reason=%r" % (ht2-ht1, result.next_human_message, result.shaky, result.stop_reason))
+            if result.scenario_done:
+                break
+            http = await scenario.fclient.use_http_on_behalf(None, "")
+            await ckit_ask_model.thread_add_user_message(
+                http=http,
+                ft_id=ft_id,
+                content=result.next_human_message,
+                who_is_asking="trajectory_scenario",
+                ftm_alt=100,
+                ftm_provenance={"who_is_asking": "trajectory_scenario", "shaky": result.shaky},
+            )
 
+        wait_secs = 600  # increased from 160 for subchat scenarios
+        start_time = time.time()
+        while time.time() - start_time < wait_secs:
+            my_bot = bc.bots_running.get(scenario.persona.persona_id, None)
+            if my_bot is None:
+                logger.info("WAIT for bot to initialize...")
+                if await ckit_shutdown.wait(1):
+                    break
+                continue
+            try:
+                await asyncio.wait_for(my_bot.instance_rcx._parked_anything_new.wait(), timeout=1.0)
+            except asyncio.TimeoutError:
+                pass
+            if ckit_shutdown.shutdown_event.is_set():
+                break
+            if not my_bot.instance_rcx._completed_initial_unpark:
+                logger.info("WAIT for bot to complete initial unpark, it might have crashed or still initializing")
+                if await ckit_shutdown.wait(1):
+                    break
+                continue
+            my_thread = my_bot.instance_rcx.latest_threads.get(ft_id, None)
+            if my_thread is None:
+                logger.info("WAIT for thread to appear in bot's latest_threads...")
+                continue
+            sorted_messages = sorted(my_thread.thread_messages.values(), key=lambda m: (m.ftm_alt, m.ftm_num))
+            trajectory_msg_count = sum(
+                1 for k, m in my_thread.thread_messages.items()
+                if m.ftm_role == "user" and m.ftm_provenance.get("who_is_asking") == "trajectory_scenario"
+            )
+            if trajectory_msg_count < step + 1:
+                continue
+            # Cool now we can believe my_thread.thread_fields because async notifications sent here are not crazy late (and it's fine
+            # if they are late a little bit, just like the UI works fine based on subscription only)
+            if my_thread.thread_fields.ft_need_user != -1:
+                if my_thread.thread_fields.ft_need_user != 100:
+                    logger.warning("Whoops my_thread.thread_fields.ft_need_user=%d that's crazy, did the thread branch off under my supposedly controlled conditions?")
+                    return
+                break
+            continue  # wait for next second, silently (no "WAIT waiting for the actual reponse")
+        else:
+            logger.error("Timeout after %d seconds, no reponse from model or tools :/", wait_secs)
+            stop_reason = "timeout"
+            break
+
+        continue  # post the next human message
+
+    else:
+        logger.info("Scenario did not complete in %d steps, quit", max_steps)
+
+    logger.info("Model %s scenario is over", model_name)
+    threads_output = await ckit_scenario.scenario_print_threads(scenario.fclient, scenario.fgroup_id)
+    logger.info("Model %s scenario threads in fgroup_id=%s:\n%s", model_name, scenario.fgroup_id, threads_output)
+
+    if ft_id and stop_reason != "timeout":
+        judge_result = await ckit_scenario.scenario_judge(
+            scenario.fclient,
+            trajectory_happy_messages_only,
+            ft_id,
+            judge_instructions,
+        )
+        cost_judge += judge_result.cost
+
+        output_dir = os.path.abspath(os.path.join(os.getcwd(), "scenario-dumps"))
+        logger.info(f"Scenario output directory: {output_dir}")
+        os.makedirs(output_dir, exist_ok=True)
+
+        shaky_human = sum(1 for m in sorted_messages if m.ftm_role == "user" and m.ftm_provenance.get("shaky") == True)
+        shaky_tool = sum(1 for m in sorted_messages if m.ftm_role == "tool" and m.ftm_provenance.get("shaky") == True)
+
+        cost_assistant = my_thread.thread_fields.ft_coins
+        for m in sorted_messages:
+            if m.ftm_role == "tool" and m.ftm_usage:
+                cost_tools += m.ftm_usage["coins"]
+
+        cost_stop_output = (
+            f"Happy trajectory rating: \033[93m{judge_result.rating_happy}/10\033[0m\n"
+            f"Happy trajectory feedback: {judge_result.feedback_happy}\n"
+            f"Actual trajectory rating: \033[93m{judge_result.rating_actually}/10\033[0m\n"
+            f"Actual trajectory feedback: {judge_result.feedback_actually}\n"
+            f"    Cost breakdown:\n"
+            f"        judge: \033[93m${('%0.2f' % (cost_judge / 1e6))}\033[0m\n"
+            f"        human: \033[93m${('%0.2f' % (cost_human / 1e6))}\033[0m\n"
+            f"        tools: \033[93m${('%0.2f' % (cost_tools / 1e6))}\033[0m\n"
+            f"        assst: \033[93m${('%0.2f' % (cost_assistant / 1e6))}\033[0m\n"
+            f"    Stop reason: \033[97m{stop_reason}\033[0m\n"
+        )
+        logger.info(f"Summary:\n{cost_stop_output}")
+
+        experiment_suffix = f"-{scenario.experiment}" if scenario.experiment else ""
+        happy_path = os.path.join(output_dir, f"{expert__scenario}-v{bot_version}{experiment_suffix}-{model_name}-happy.yaml")
+        with open(happy_path, "w", encoding="utf-8") as f:
+            f.write("# This is generated file don't edit!\n\n")
+            f.write(trajectory_happy_messages_only)
+        logger.info(f"exported {happy_path}")
+
+        trajectory_actual = ckit_scenario.fmessages_to_yaml(sorted_messages)
+        actual_path = os.path.join(output_dir, f"{expert__scenario}-v{bot_version}{experiment_suffix}-{model_name}-actual.yaml")
+        with open(actual_path, "w", encoding="utf-8") as f:
+            f.write("# This is generated file don't edit!\n\n")
+            f.write(trajectory_actual)
+        logger.info(f"exported {actual_path}")
+
+        score_data = {
+            "happy_rating": judge_result.rating_happy,
+            "happy_feedback": judge_result.feedback_happy,
+            "actual_rating": judge_result.rating_actually,
+            "actual_feedback": judge_result.feedback_actually,
+            "criticism": judge_result.criticism,
+            "shaky_human": shaky_human,
+            "shaky_tool": shaky_tool,
+            "stop_reason": stop_reason,
+            "stop_but_had_it_not_stopped_the_next_human_message_would_be": last_human_message,
+            "cost": {
+                "judge": cost_judge,
+                "human": cost_human,
+                "tools": cost_tools,
+                "assistant": cost_assistant,
+            },
+        }
+        score_yaml = ckit_scenario.yaml_dump_with_multiline(score_data)
+        score_path = os.path.join(output_dir, f"{expert__scenario}-v{bot_version}{experiment_suffix}-{model_name}-score.yaml")
+        with open(score_path, "w", encoding="utf-8") as f:
+            f.write(score_yaml)
+        logger.info(f"exported {score_path}")
+
+        total_cost = cost_judge + cost_human + cost_tools + cost_assistant
+        await ckit_scenario.bot_scenario_result_upsert(
+            scenario.fclient,
+            ckit_scenario.BotScenarioUpsertInput(
+                btest_marketable_name=scenario.persona.persona_marketable_name,
+                btest_marketable_version_str=bot_version,
+                btest_name=expert__scenario,
+                btest_model=model_name,
+                btest_experiment=scenario.experiment or "",
+                btest_trajectory_happy=trajectory_happy,
+                btest_trajectory_actual=trajectory_actual,
+                btest_rating_happy=judge_result.rating_happy,
+                btest_rating_actually=judge_result.rating_actually,
+                btest_feedback_happy=judge_result.feedback_happy,
+                btest_feedback_actually=judge_result.feedback_actually,
+                btest_shaky_human=shaky_human,
+                btest_shaky_tool=shaky_tool,
+                btest_criticism=json.dumps(judge_result.criticism),
+                btest_cost=total_cost,
+            ),
+        )
+        logger.info("Full scenario results saved to database for model %s", model_name)
+
+
+async def run_happy_trajectory(
+    bc: BotsCollection,
+    scenario: ckit_scenario.ScenarioSetup,
+    trajectory_yaml_path: str,
+) -> None:
+    with open(trajectory_yaml_path) as f:
+        trajectory_happy = f.read()
+
+    trajectory_data = yaml.safe_load(trajectory_happy)
+    messages = trajectory_data["messages"]
+    hi = 0
+    scenario_initial_cd_instruction = ""
+    if messages[hi]["role"] == "cd_instruction":
+        scenario_initial_cd_instruction = messages[hi]["content"]
+        hi += 1
+    assert messages[hi]["role"] == "user", "happy trajectory must have a user message after cd_instruction (or first)"
+    first_human_message = messages[hi]["content"]
+    first_calls = None
+    if len(messages) > hi + 1 and messages[hi + 1]["role"] == "assistant" and messages[hi + 1]["tool_calls"]:
+        first_calls = [{"type": tc.get("type", "function"), "function": {"name": tc["function"]["name"], "arguments": tc["function"]["arguments"]}} for tc in messages[hi + 1]["tool_calls"]]
+    logger.info(f"bot_activate() first_calls, taken from the happy path:\n{first_calls}")
+    trajectory_happy_messages_only = ckit_scenario.yaml_dump_with_multiline({"messages": trajectory_data["messages"]})
+
+    expert__scenario = os.path.splitext(os.path.basename(trajectory_yaml_path))[0]
+    bot_version = ckit_client.marketplace_version_as_str(scenario.persona.persona_marketable_version)
+
+    try:
+        for model_name in scenario.explicit_models:
+            await _run_scenario_for_model(
+                bc, scenario, model_name,
+                trajectory_happy,
+                trajectory_data,
+                trajectory_happy_messages_only,
+                scenario_initial_cd_instruction=scenario_initial_cd_instruction,
+                first_human_message=first_human_message,
+                first_assistant_calls=first_calls,
+                expert__scenario=expert__scenario,
+                bot_version=bot_version,
+            )
     except asyncio.exceptions.CancelledError:
         logger.info("Scenario is cancelled")
-
     finally:
-        logger.info("Scenario is over, problem or not")
-        threads_output = await ckit_scenario.scenario_print_threads(scenario.fclient, scenario.fgroup_id)
-        logger.info("Scenario is over, threads in fgroup_id=%s:\n%s", scenario.fgroup_id, threads_output)
-
-        if ft_id and stop_reason != "timeout":
-            judge_result = await ckit_scenario.scenario_judge(
-                scenario.fclient,
-                trajectory_happy_messages_only,
-                ft_id,
-                judge_instructions,
-            )
-            cost_judge += judge_result.cost
-
-            output_dir = os.path.abspath(os.path.join(os.getcwd(), "scenario-dumps"))
-            logger.info(f"Scenario output directory: {output_dir}")
-            os.makedirs(output_dir, exist_ok=True)
-
-            shaky_human = sum(1 for m in sorted_messages if m.ftm_role == "user" and m.ftm_provenance.get("shaky") == True)
-            shaky_tool = sum(1 for m in sorted_messages if m.ftm_role == "tool" and m.ftm_provenance.get("shaky") == True)
-
-            cost_assistant = my_thread.thread_fields.ft_coins
-            for m in sorted_messages:
-                if m.ftm_role == "tool" and m.ftm_usage:
-                    cost_tools += m.ftm_usage["coins"]
-
-            cost_stop_output = (
-                f"Happy trajectory rating: \033[93m{judge_result.rating_happy}/10\033[0m\n"
-                f"Happy trajectory feedback: {judge_result.feedback_happy}\n"
-                f"Actual trajectory rating: \033[93m{judge_result.rating_actually}/10\033[0m\n"
-                f"Actual trajectory feedback: {judge_result.feedback_actually}\n"
-                f"    Cost breakdown:\n"
-                f"        judge: \033[93m${('%0.2f' % (cost_judge / 1e6))}\033[0m\n"
-                f"        human: \033[93m${('%0.2f' % (cost_human / 1e6))}\033[0m\n"
-                f"        tools: \033[93m${('%0.2f' % (cost_tools / 1e6))}\033[0m\n"
-                f"        assst: \033[93m${('%0.2f' % (cost_assistant / 1e6))}\033[0m\n"
-                f"    Stop reason: \033[97m{stop_reason}\033[0m\n"
-            )
-            logger.info(f"Summary:\n{cost_stop_output}")
-
-            experiment_suffix = f"-{scenario.experiment}" if scenario.experiment else ""
-            happy_path = os.path.join(output_dir, f"{expert__scenario}-v{bot_version}{experiment_suffix}-{model_name}-happy.yaml")
-            with open(happy_path, "w", encoding="utf-8") as f:
-                f.write("# This is generated file don't edit!\n\n")
-                f.write(trajectory_happy_messages_only)
-            logger.info(f"exported {happy_path}")
-
-            trajectory_actual = ckit_scenario.fmessages_to_yaml(sorted_messages)
-            actual_path = os.path.join(output_dir, f"{expert__scenario}-v{bot_version}{experiment_suffix}-{model_name}-actual.yaml")
-            with open(actual_path, "w", encoding="utf-8") as f:
-                f.write("# This is generated file don't edit!\n\n")
-                f.write(trajectory_actual)
-            logger.info(f"exported {actual_path}")
-
-            score_data = {
-                "happy_rating": judge_result.rating_happy,
-                "happy_feedback": judge_result.feedback_happy,
-                "actual_rating": judge_result.rating_actually,
-                "actual_feedback": judge_result.feedback_actually,
-                "criticism": judge_result.criticism,
-                "shaky_human": shaky_human,
-                "shaky_tool": shaky_tool,
-                "stop_reason": stop_reason,
-                "stop_but_had_it_not_stopped_the_next_human_message_would_be": last_human_message,
-                "cost": {
-                    "judge": cost_judge,
-                    "human": cost_human,
-                    "tools": cost_tools,
-                    "assistant": cost_assistant,
-                },
-            }
-            score_yaml = ckit_scenario.yaml_dump_with_multiline(score_data)
-            score_path = os.path.join(output_dir, f"{expert__scenario}-v{bot_version}{experiment_suffix}-{model_name}-score.yaml")
-            with open(score_path, "w", encoding="utf-8") as f:
-                f.write(score_yaml)
-            logger.info(f"exported {score_path}")
-
-            total_cost = cost_judge + cost_human + cost_tools + cost_assistant
-            await ckit_scenario.bot_scenario_result_upsert(
-                scenario.fclient,
-                ckit_scenario.BotScenarioUpsertInput(
-                    btest_marketable_name=scenario.persona.persona_marketable_name,
-                    btest_marketable_version_str=bot_version,
-                    btest_name=expert__scenario,
-                    btest_model=model_name,
-                    btest_experiment=scenario.experiment or "",
-                    btest_trajectory_happy=trajectory_happy,
-                    btest_trajectory_actual=trajectory_actual,
-                    btest_rating_happy=judge_result.rating_happy,
-                    btest_rating_actually=judge_result.rating_actually,
-                    btest_feedback_happy=judge_result.feedback_happy,
-                    btest_feedback_actually=judge_result.feedback_actually,
-                    btest_shaky_human=shaky_human,
-                    btest_shaky_tool=shaky_tool,
-                    btest_criticism=json.dumps(judge_result.criticism),
-                    btest_cost=total_cost,
-                ),
-            )
-            logger.info("Full scenario results saved to database")
-
         if scenario.should_cleanup:
             await scenario.cleanup()
             logger.info("Cleanup completed.")
@@ -946,7 +969,7 @@ async def run_happy_trajectory(
 
 
 async def _emsg_delete_batch(fclient: ckit_client.FlexusClient, batch: List[str]) -> None:
-    async with (await fclient.use_http_on_behalf("", "")) as http:
+    async with (await fclient.use_http_on_behalf(None, "")) as http:
         await http.execute(gql.gql("""mutation FlushDeleteEmessages($ids: [String!]!) {
             emessages_delete(emsg_ids: $ids)
         }"""), variable_values={"ids": batch})
@@ -1020,11 +1043,23 @@ async def run_bots_in_this_group(
             running_happy_yaml = f.read()
         running_test_scenario = True
         scenario = ckit_scenario.ScenarioSetup(service_name="trajectory_replay")
+        assert scenario.explicit_models, "use --model (comma-separated list of models)"
         await scenario.create_group_and_hire_bot(
             marketable_name=marketable_name,
             marketable_version=marketable_version,
             persona_setup={},
         )
+        async with (await scenario.fclient.use_http_on_behalf(None, "")) as http:
+            result = await http.execute(gql.gql("""
+                query ValidateModels($fgroup_id: String!) {
+                    models_list(fgroup_id: $fgroup_id) { provm_name }
+                }"""),
+                variable_values={"fgroup_id": scenario.fgroup_id},
+            )
+            available = {m["provm_name"] for m in result["models_list"]}
+            bad = [m for m in scenario.explicit_models if m not in available]
+            assert not bad, "unknown model(s): %s, available: %s" % (", ".join(bad), ", ".join(sorted(available)))
+        logger.info("Validated models: %s", ", ".join(scenario.explicit_models))
         fclient.group_id = scenario.fgroup_id
         # UGLY: we can't really move this code above install_func() call, because hire_bot part will not work without prior installation
         # so this just ignores previous calculation for ws_id_prefix (valid without a scenario) and overwrites it:

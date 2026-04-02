@@ -17,7 +17,7 @@ def bot_launch_argparse():
     parser = argparse.ArgumentParser()
     parser.add_argument("--scenario", type=str, help="Reproduce a happy trajectory emulating human and tools, path to YAML file")
     parser.add_argument("--no-cleanup", action="store_true", help="Skip cleanup of test group")
-    parser.add_argument("--model", type=str, default="")
+    parser.add_argument("--model", type=str, default="", help="Comma-separated list of models to run scenario against")
     parser.add_argument("--experiment", "-E", type=str, default="", help="Experiment name to append to output files")
     return parser
 
@@ -155,7 +155,7 @@ async def scenario_generate_tool_result_via_model(
     toolcall: ckit_cloudtool.FCloudtoolCall,
     tool_handler_source_code: str,
 ) -> str:
-    http_client = await fclient.use_http_on_behalf(toolcall.connected_persona_id, toolcall.fcall_untrusted_key, execute_timeout=120)
+    http_client = await fclient.use_http_on_behalf("", "", execute_timeout=120)
     async with http_client as http:
         await http.execute(
             gql.gql("""mutation ScenarioGenerateToolResult(
@@ -270,7 +270,7 @@ class ScenarioSetup:
         self.persona: Optional[ckit_bot_query.FPersonaOutput] = None
         self.ws: Optional[ckit_client.FWorkspaceOutput] = None
         self.should_cleanup = not args.no_cleanup
-        self.explicit_model = args.model
+        self.explicit_models = [m.strip() for m in args.model.split(",") if m.strip()] if args.model else []
         self.experiment = args.experiment
 
     async def create_group_and_hire_bot(

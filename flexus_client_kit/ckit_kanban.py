@@ -1,7 +1,6 @@
 import json
 from dataclasses import dataclass
-import dataclasses
-from typing import List, Tuple, Optional, Any
+from typing import List, Optional, Any
 
 import gql
 
