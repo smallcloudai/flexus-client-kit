@@ -92,7 +92,7 @@ async def handle_mongo_store(
     if args_error:
         return f"{args_error}\n\n{HELP}"
 
-    path = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "path", "")
+    path = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "path", "").lstrip("/")
 
     if not op or "help" in op:
         return HELP
@@ -234,6 +234,7 @@ def validate_path(path: str, allow_empty: bool = False) -> Optional[str]:
 
 
 async def download_file(mongo_collection, path, local_path):
+    path = path.lstrip("/") if path else path
     if not path:
         raise RuntimeError(f"Error: path parameter required for download operation\n\n{HELP}")
     path_error = validate_path(path)
