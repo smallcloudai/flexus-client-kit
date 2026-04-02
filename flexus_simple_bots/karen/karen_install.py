@@ -12,6 +12,13 @@ from flexus_simple_bots.karen import karen_bot
 from flexus_simple_bots.karen import karen_prompts
 
 
+SKILLS_DEFAULT = [
+    "stall-deals", "collect-support-knowledge-base", "crm-import-landing-pages",
+    "sales-pipeline-setup", "welcome-email-setup", "crm-automations",
+    "resend-email-setup", "store-setup",
+]
+SKILLS_NURTURING = ["stall-recovery"]
+
 TOOLS_DEFAULT = {
     "flexus_policy_document", "mongo_store", "flexus_fetch_skill", "print_widget",
     "crm_automation", "flexus_schedule",
@@ -26,7 +33,7 @@ TOOLS_EXPLORE = ckit_cloudtool.CLOUDTOOLS_VECDB | ckit_cloudtool.CLOUDTOOLS_WEB
 
 TOOLS_SUPPORT_AND_SALES = {
     "flexus_policy_document", "mongo_store", "flexus_fetch_skill",
-    "shopify_cart",
+    "product_catalog", "shopify_cart",
     "manage_crm_contact", "manage_crm_deal", "log_crm_activity", "verify_email",
     "email_reply",
     "magic_desk", "slack", "telegram", "discord",
@@ -92,7 +99,7 @@ EXPERTS = [
         fexp_nature="NATURE_INTERACTIVE",
         fexp_inactivity_timeout=3600,
         fexp_description="Marketing assistant for CRM management, contact import, automated outreach, company/product setup, and support knowledge base configuration.",
-        fexp_builtin_skills=ckit_skills.read_name_description(karen_bot.KAREN_ROOTDIR, karen_bot.KAREN_SKILLS_DEFAULT),
+        fexp_builtin_skills=ckit_skills.read_name_description(karen_bot.KAREN_ROOTDIR, SKILLS_DEFAULT),
     )),
     ("messages_triage", ckit_bot_install.FMarketplaceExpertInput(
         fexp_system_prompt=karen_prompts.KAREN_DEAL_WITH_INBOX,
@@ -120,7 +127,7 @@ EXPERTS = [
         fexp_inactivity_timeout=600,
         fexp_description="Lightweight expert for automated tasks: sending templated emails, follow-ups, stall deal recovery, and simple CRM operations.",
         fexp_model_class="cheap",
-        fexp_builtin_skills=ckit_skills.read_name_description(karen_bot.KAREN_ROOTDIR, karen_bot.KAREN_SKILLS_NURTURING),
+        fexp_builtin_skills=ckit_skills.read_name_description(karen_bot.KAREN_ROOTDIR, SKILLS_NURTURING),
     )),
     ("explore", ckit_bot_install.FMarketplaceExpertInput(
         fexp_system_prompt=karen_prompts.EXPLORE_PROMPT,
