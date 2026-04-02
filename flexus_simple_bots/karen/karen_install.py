@@ -84,7 +84,9 @@ if msg["role"] == "assistant" and "EXPLORE_RESULT_READY" in str(msg["content"]):
     subchat_result = str(msg["content"])
 elif steps >= 50:
     subchat_result = "Forced close after 50 steps. " + str(msg["content"])
-elif steps >= 40 and msg["role"] == "assistant" and not msg["tool_calls"]:
+elif msg["role"] == "assistant" and not msg["tool_calls"]:
+    post_cd_instruction = "Reminder: you need to produce your result. Write your final report with sourced findings and end with EXPLORE_RESULT_READY."
+elif steps >= 40 and msg["role"] == "assistant":
     post_cd_instruction = "You have used 40+ steps. Wrap up NOW: write your final report with sourced findings and end with EXPLORE_RESULT_READY."
 """
 
