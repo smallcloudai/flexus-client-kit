@@ -24,7 +24,7 @@ BOT_NAME = "slonik"
 BOT_VERSION = SIMPLE_BOTS_COMMON_VERSION
 
 SLONIK_ROOTDIR = Path(__file__).parent
-SLONIK_SKILLS = ckit_skills.static_skills_find(SLONIK_ROOTDIR, shared_skills_allowlist="")
+SLONIK_SKILLS = ckit_skills.static_skills_find(SLONIK_ROOTDIR, shared_skills_allowlist="", integration_skills_allowlist="")
 SLONIK_SETUP_SCHEMA = json.loads((SLONIK_ROOTDIR / "setup_schema.json").read_text())
 
 ACCENT_COLOR = "#336791"

@@ -18,7 +18,7 @@ BOT_NAME = "clerkwing"
 BOT_VERSION = SIMPLE_BOTS_COMMON_VERSION
 
 CLERKWING_ROOTDIR = Path(__file__).parent
-CLERKWING_SKILLS = ckit_skills.static_skills_find(CLERKWING_ROOTDIR, shared_skills_allowlist="")
+CLERKWING_SKILLS = ckit_skills.static_skills_find(CLERKWING_ROOTDIR, shared_skills_allowlist="", integration_skills_allowlist="")
 CLERKWING_SETUP_SCHEMA = json.loads((CLERKWING_ROOTDIR / "setup_schema.json").read_text())
 
 CLERKWING_INTEGRATIONS = ckit_integrations_db.static_integrations_load(

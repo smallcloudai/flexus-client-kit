@@ -32,7 +32,7 @@ BOT_NAME = "frog"
 BOT_VERSION = SIMPLE_BOTS_COMMON_VERSION
 
 FROG_ROOTDIR = Path(__file__).parent
-FROG_SKILLS: list[str] = ckit_skills.static_skills_find(FROG_ROOTDIR, shared_skills_allowlist="*")
+FROG_SKILLS: list[str] = ckit_skills.static_skills_find(FROG_ROOTDIR, shared_skills_allowlist="*", integration_skills_allowlist="*")
 FROG_MCPS = ["context7"]
 FROG_SETUP_SCHEMA = json.loads((FROG_ROOTDIR / "setup_schema.json").read_text())
 FROG_SETUP_SCHEMA.extend(fi_mcp.mcp_setup_schema(FROG_MCPS))

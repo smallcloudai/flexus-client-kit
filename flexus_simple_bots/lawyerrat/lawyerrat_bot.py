@@ -25,7 +25,7 @@ BOT_NAME = "lawyerrat"
 BOT_VERSION = SIMPLE_BOTS_COMMON_VERSION
 
 LAWYERRAT_ROOTDIR = Path(__file__).parent
-LAWYERRAT_SKILLS = ckit_skills.static_skills_find(LAWYERRAT_ROOTDIR, shared_skills_allowlist="")
+LAWYERRAT_SKILLS = ckit_skills.static_skills_find(LAWYERRAT_ROOTDIR, shared_skills_allowlist="", integration_skills_allowlist="")
 LAWYERRAT_SETUP_SCHEMA = json.loads((LAWYERRAT_ROOTDIR / "setup_schema.json").read_text())
 
 

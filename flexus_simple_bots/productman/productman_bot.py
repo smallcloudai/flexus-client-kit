@@ -27,7 +27,7 @@ BOT_NAME = "productman"
 BOT_VERSION = SIMPLE_BOTS_COMMON_VERSION
 
 PRODUCTMAN_ROOTDIR = Path(__file__).parent
-PRODUCTMAN_SKILLS = ckit_skills.static_skills_find(PRODUCTMAN_ROOTDIR, shared_skills_allowlist="")
+PRODUCTMAN_SKILLS = ckit_skills.static_skills_find(PRODUCTMAN_ROOTDIR, shared_skills_allowlist="", integration_skills_allowlist="")
 PRODUCTMAN_SETUP_SCHEMA = json.loads((PRODUCTMAN_ROOTDIR / "setup_schema.json").read_text())
 
 PRODUCTMAN_INTEGRATIONS: list[ckit_integrations_db.IntegrationRecord] = ckit_integrations_db.static_integrations_load(

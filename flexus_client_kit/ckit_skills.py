@@ -97,28 +97,30 @@ def _match_allowlist(name: str, allowlist: str) -> bool:
     return False
 
 
-def static_skills_find(bot_root_dir: Path, shared_skills_allowlist: str) -> List[str]:
+def static_skills_find(bot_root_dir: Path, shared_skills_allowlist: str, integration_skills_allowlist: str) -> List[str]:
     # static means designed to save into constant on top level of a bot file
     # logger is not yet initilized here, no logs possible
     found = []
     local_dir = bot_root_dir / "skills"
     shared_dir = bot_root_dir.parents[0] / "shared_skills"
+    allowlists = {shared_dir: shared_skills_allowlist, _INTEGRATION_SKILLS_DIR: integration_skills_allowlist}
     for d in [local_dir, shared_dir, _INTEGRATION_SKILLS_DIR]:
         if not d.is_dir():
             continue
-        is_shared = (d == shared_dir)
+        al = allowlists.get(d)
         for p in d.glob("*/SKILL.md"):
             name = p.parent.name
-            if is_shared and not _match_allowlist(name, shared_skills_allowlist):
+            if al is not None and not _match_allowlist(name, al):
                 continue
             _validate_skill(p, p.read_text())
             found.append(name)
     found = sorted(set(found))
-    shared_names = {p.parent.name for p in shared_dir.glob("*/SKILL.md")} if shared_dir.is_dir() else set()
-    for pat in shared_skills_allowlist.split(","):
-        pat = pat.strip()
-        if pat and not any(fnmatch.fnmatch(n, pat) for n in shared_names):
-            print("WARNING shared skill %r not found in %s" % (pat, shared_dir))
+    for label, d, al in [("shared", shared_dir, shared_skills_allowlist), ("integration", _INTEGRATION_SKILLS_DIR, integration_skills_allowlist)]:
+        names = {p.parent.name for p in d.glob("*/SKILL.md")} if d.is_dir() else set()
+        for pat in al.split(","):
+            pat = pat.strip()
+            if pat and not any(fnmatch.fnmatch(n, pat) for n in names):
+                print("WARNING %s skill %r not found in %s" % (label, pat, d))
     return found
 
 

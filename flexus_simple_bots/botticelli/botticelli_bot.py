@@ -35,7 +35,7 @@ BOT_NAME = "botticelli"
 BOT_VERSION = SIMPLE_BOTS_COMMON_VERSION
 
 BOTTICELLI_ROOTDIR = Path(__file__).parent
-BOTTICELLI_SKILLS = ckit_skills.static_skills_find(BOTTICELLI_ROOTDIR, shared_skills_allowlist="")
+BOTTICELLI_SKILLS = ckit_skills.static_skills_find(BOTTICELLI_ROOTDIR, shared_skills_allowlist="", integration_skills_allowlist="")
 BOTTICELLI_SETUP_SCHEMA = json.loads((BOTTICELLI_ROOTDIR / "setup_schema.json").read_text())
 
 

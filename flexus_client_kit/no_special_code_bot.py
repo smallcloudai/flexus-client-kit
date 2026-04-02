@@ -43,7 +43,7 @@ async def install_from_manifest(m, setup_schema, bot_dir, client, bot_name, bot_
     pic_small = _load_pic_b64(bot_dir, bot_name, "256x256", ".webp") or _load_pic_b64(bot_dir, bot_name, "256x256", ".png")
     readme_path = bot_dir / "README.md"
     description = readme_path.read_text() if readme_path.exists() else m["title2"]
-    skills = ckit_skills.static_skills_find(bot_dir, m.get("shared_skills_allowlist", ""))
+    skills = ckit_skills.static_skills_find(bot_dir, m.get("shared_skills_allowlist", ""), m.get("integration_skills_allowlist", ""))
     experts = ckit_experts_from_files.discover_experts(bot_dir, skills)
     featured = m["featured_actions"]
 
@@ -92,7 +92,7 @@ async def install_from_manifest(m, setup_schema, bot_dir, client, bot_name, bot_
 
 async def bot_main_loop(m, setup_schema, bot_dir, fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.RobotContext) -> None:
     setup = ckit_bot_exec.official_setup_mixing_procedure(setup_schema, rcx.persona.persona_setup)
-    skills = ckit_skills.static_skills_find(bot_dir, m.get("shared_skills_allowlist", ""))
+    skills = ckit_skills.static_skills_find(bot_dir, m.get("shared_skills_allowlist", ""), m.get("integration_skills_allowlist", ""))
     await ckit_integrations_db.main_loop_integrations_init(ckit_integrations_db.static_integrations_load(bot_dir, m["integrations"], builtin_skills=skills), rcx, setup)
 
     try:
@@ -129,7 +129,7 @@ def main():
     bot_dir = _resolve_bot_dir(sys.argv.pop(1))
     manifest, setup_schema = load_manifest_and_setup_schema(bot_dir)
     bot_name = manifest["bot_name"]
-    skills = ckit_skills.static_skills_find(bot_dir, manifest.get("shared_skills_allowlist", ""))
+    skills = ckit_skills.static_skills_find(bot_dir, manifest.get("shared_skills_allowlist", ""), manifest.get("integration_skills_allowlist", ""))
     integrations = ckit_integrations_db.static_integrations_load(bot_dir, manifest["integrations"], builtin_skills=skills)
     all_tools = [t for rec in integrations for t in rec.integr_tools]   # double loop collapses list of lists into one list
     scenario_fn = ckit_bot_exec.parse_bot_args()
