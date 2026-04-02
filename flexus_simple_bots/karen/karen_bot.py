@@ -172,7 +172,7 @@ async def handle_support_status(pdoc: fi_pdoc.IntegrationPdoc, rcx: ckit_bot_exe
                 pct = (stats["filled_a"] * 100 // stats["total_a"]) if stats["total_a"] else 0
                 untranslated = stats['total_q'] - stats['filled_q']
                 t_status = f", {untranslated}/{stats['total_q']} questions need translation before user can answer." if not stats["translated"] else ""
-                lines.append(f"    {d.path} —- has {stats['filled_a']}/{stats['total_a']} answers {t_status}")
+                lines.append(f"    {d.path} —- has {stats['filled_a']}/{stats['total_a']} answers{t_status}")
                 name = d.path.rsplit("/", 1)[-1]
                 if _DATE_PREFIX_RE.match(name) and pct >= 80:
                     lines.append(f"    💡 Looks ready, ask user if you should: flexus_policy_document(op=\"mv\", args={{\"p1\": \"{d.path}\", \"p2\": \"/support/summary\"}})")

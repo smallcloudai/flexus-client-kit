@@ -26,8 +26,10 @@ class MockPdocIntegration:
         self.storage: Dict[str, Dict[str, Any]] = {}
         self.list_items: Dict[str, List[MockPdocItem]] = {}
 
-    async def pdoc_overwrite(self, path: str, content: str, persona_id: str, fcall_untrusted_key: str):
+    async def pdoc_overwrite(self, path: str, content: str, persona_id: str, fcall_untrusted_key: str, expected_md5: str = ""):
         self.storage[path] = json.loads(content)
+        from flexus_client_kit.integrations.fi_pdoc import PdocOverwriteResult
+        return PdocOverwriteResult(md5_before="", md5_after="", changes_saved=True)
 
     async def pdoc_cat(self, path: str, persona_id: str, fcall_untrusted_key: str) -> MockPdocDocument:
         if path not in self.storage:

@@ -124,6 +124,13 @@ class PdocDocument:
 
 
 @dataclass
+class PdocOverwriteResult:
+    md5_before: str
+    md5_after: str
+    changes_saved: bool
+
+
+@dataclass
 class PdocUpdateJsonTextResult:
     latest_text: str
     md5_requested: str
@@ -464,28 +471,25 @@ class IntegrationPdoc:
                 content = doc_obj.pdoc_content
                 if not isinstance(content, dict):
                     return f"Error: document content is not a dict"
-                found_md5 = _pdoc_md5(content)
-                if expected_md5 and found_md5 != expected_md5:
+                bad = []
+                for pair in translation:
+                    if not isinstance(pair, list) or len(pair) != 2:
+                        bad.append(str(pair))
+                        continue
+                    dot_path, text = pair
+                    if not _set_by_dot_path(content, dot_path, text):
+                        bad.append(dot_path)
+                text_to_save = json.dumps(content, ensure_ascii=False)
+                ow = await self.pdoc_overwrite(p, text_to_save, persona_id=self.rcx.persona.persona_id, fcall_untrusted_key=toolcall.fcall_untrusted_key, expected_md5=expected_md5)
+                if not ow.changes_saved:
                     r += f"📄 {p}\n"
                     r += f"md5_requested={expected_md5}\n"
-                    r += f"md5_found={found_md5}\n"
+                    r += f"md5_found={ow.md5_before}\n"
                     r += f"changes_saved=false\n\n"
-                    r += f"Try calling this function again. Here's the document text as found on disk md5={found_md5}\n\n"
-                    r += json.dumps(content, indent=2, ensure_ascii=False)
+                    r += f"Try calling this function again with expected_md5={ow.md5_before}\n"
                 else:
-                    bad = []
-                    for pair in translation:
-                        if not isinstance(pair, list) or len(pair) != 2:
-                            bad.append(str(pair))
-                            continue
-                        dot_path, text = pair
-                        if not _set_by_dot_path(content, dot_path, text):
-                            bad.append(dot_path)
-                    text_to_save = json.dumps(content, ensure_ascii=False)
-                    await self.pdoc_overwrite(p, text_to_save, persona_id=self.rcx.persona.persona_id, fcall_untrusted_key=toolcall.fcall_untrusted_key)
-                    new_md5 = _pdoc_md5(content)
                     empty = _collect_empty_qa_questions(content)
-                    r += f"✍️ {p}\nmd5={new_md5}\n\n"
+                    r += f"✍️ {p}\nmd5={ow.md5_after}\n\n"
                     if bad:
                         r += f"⚠️ Could not apply {len(bad)} paths: {', '.join(bad)}\n"
                     r += f"✓ Applied {len(translation) - len(bad)}/{len(translation)} translations\n"
@@ -594,17 +598,20 @@ class IntegrationPdoc:
                 variable_values={"fgroup_id": self.fgroup_id, "p": p, "text": text},
             )
 
-    async def pdoc_overwrite(self, p: str, text: str, persona_id: str, fcall_untrusted_key: str) -> None:
+    async def pdoc_overwrite(self, p: str, text: str, persona_id: str, fcall_untrusted_key: str, expected_md5: str = "") -> PdocOverwriteResult:
         http = await self._http(persona_id, fcall_untrusted_key)
         async with http as h:
-            await h.execute(
+            r = await h.execute(
                 gql.gql("""
-                    mutation PdocOverwrite($fgroup_id: String!, $p: String!, $text: String!) {
-                        policydoc_overwrite(fgroup_id: $fgroup_id, p: $p, text: $text)
+                    mutation PdocOverwrite($fgroup_id: String!, $p: String!, $text: String!, $expected_md5: String) {
+                        policydoc_overwrite(fgroup_id: $fgroup_id, p: $p, text: $text, expected_md5: $expected_md5) {
+                            md5_before md5_after changes_saved
+                        }
                     }
                 """),
-                variable_values={"fgroup_id": self.fgroup_id, "p": p, "text": text},
+                variable_values={"fgroup_id": self.fgroup_id, "p": p, "text": text, "expected_md5": expected_md5},
             )
+            return gql_utils.dataclass_from_dict(r["policydoc_overwrite"], PdocOverwriteResult)
 
     async def pdoc_update_json_text(self, p: str, json_path: str, text: str, persona_id: str, fcall_untrusted_key: str, expected_md5: str = "") -> PdocUpdateJsonTextResult:
         http = await self._http(persona_id, fcall_untrusted_key)
