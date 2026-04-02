@@ -16,6 +16,13 @@ from flexus_client_kit.format_utils import format_cat_output
 from flexus_client_kit.integrations import fi_messenger
 
 logger = logging.getLogger("teleg")
+INTEGRATION_METADATA = {
+    "provider": "telegram",
+    "auth_kind": "api_key",
+    "env_keys": ['TELEGRAM_BOT_TOKEN'],
+    "supports_ping": False,
+}
+
 
 
 # Testing telegram with webhook on localhost:

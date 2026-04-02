@@ -7,6 +7,13 @@ from flexus_client_kit import ckit_bot_exec, ckit_cloudtool, ckit_client
 
 
 logger = logging.getLogger("fi_github")
+INTEGRATION_METADATA = {
+    "provider": "github",
+    "auth_kind": "api_key",
+    "env_keys": ['GITHUB_TOKEN'],
+    "supports_ping": False,
+}
+
 
 TIMEOUT_S = 15.0
 

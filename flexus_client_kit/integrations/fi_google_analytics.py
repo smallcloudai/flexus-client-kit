@@ -14,6 +14,13 @@ from flexus_client_kit import ckit_cloudtool
 from flexus_client_kit import ckit_client
 
 logger = logging.getLogger("google_analytics")
+INTEGRATION_METADATA = {
+    "provider": "google_analytics",
+    "auth_kind": "oauth2",
+    "env_keys": [],
+    "supports_ping": False,
+}
+
 
 GOOGLE_ANALYTICS_TOOL = ckit_cloudtool.CloudTool(
     strict=False,

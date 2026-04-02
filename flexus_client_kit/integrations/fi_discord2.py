@@ -33,6 +33,13 @@ from flexus_client_kit.integrations import fi_messenger
 from flexus_client_kit.integrations.fi_mongo_store import download_file, validate_path
 
 logger = logging.getLogger("discord")
+INTEGRATION_METADATA = {
+    "provider": "discord",
+    "auth_kind": "api_key",
+    "env_keys": ['DISCORD_BOT_TOKEN'],
+    "supports_ping": False,
+}
+
 
 
 DISCORD_TOOL = ckit_cloudtool.CloudTool(

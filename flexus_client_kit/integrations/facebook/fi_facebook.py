@@ -18,6 +18,13 @@ if TYPE_CHECKING:
     from flexus_client_kit import ckit_client, ckit_bot_exec
 
 logger = logging.getLogger("facebook")
+INTEGRATION_METADATA = {
+    "provider": "facebook",
+    "auth_kind": "oauth2",
+    "env_keys": [],
+    "supports_ping": False,
+}
+
 
 FACEBOOK_TOOL = ckit_cloudtool.CloudTool(
     strict=False,

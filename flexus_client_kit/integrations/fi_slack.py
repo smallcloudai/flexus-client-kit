@@ -32,6 +32,13 @@ from slack_sdk.errors import SlackApiError
 from flexus_client_kit.integrations.fi_mongo_store import validate_path, download_file
 
 logger = logging.getLogger("slack")
+INTEGRATION_METADATA = {
+    "provider": "slack",
+    "auth_kind": "api_key",
+    "env_keys": ['SLACK_BOT_TOKEN'],
+    "supports_ping": False,
+}
+
 
 # 15 messages per minute:
 # https://api.slack.com/changelog/2025-05-terms-rate-limit-update-and-faq

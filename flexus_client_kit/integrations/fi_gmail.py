@@ -21,6 +21,13 @@ from flexus_client_kit import ckit_erp
 from flexus_client_kit import erp_schema
 
 logger = logging.getLogger("gmail")
+INTEGRATION_METADATA = {
+    "provider": "gmail",
+    "auth_kind": "oauth2",
+    "env_keys": [],
+    "supports_ping": False,
+}
+
 
 GMAIL_PROMPT = """
 ## Gmail Integration

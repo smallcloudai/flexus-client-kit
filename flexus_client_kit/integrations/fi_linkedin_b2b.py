@@ -9,6 +9,13 @@ from flexus_client_kit import ckit_cloudtool
 
 
 logger = logging.getLogger("linkedin_b2b")
+INTEGRATION_METADATA = {
+    "provider": "linkedin_b2b",
+    "auth_kind": "oauth2",
+    "env_keys": [],
+    "supports_ping": False,
+}
+
 
 PROVIDER_NAME = "linkedin_b2b"
 METHOD_IDS = [

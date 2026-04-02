@@ -8,11 +8,19 @@ from typing import Any, Dict, Optional
 import httpx
 
 from flexus_client_kit import ckit_cloudtool
+from flexus_client_kit.integrations import ping_utils
 
 logger = logging.getLogger("newsapi")
 
 PROVIDER_NAME = "newsapi"
 _BASE_URL = "https://newsapi.org/v2"
+
+INTEGRATION_METADATA = {
+    "provider": "newsapi",
+    "auth_kind": "api_key",
+    "env_keys": ["NEWSAPI_API_KEY", "NEWSAPI_KEY"],
+    "supports_ping": True,
+}
 
 _METHOD_SPECS = {
     "newsapi.everything.v1": {
@@ -92,6 +100,20 @@ class IntegrationNewsapi:
             "has_api_key": bool(api_key),
             "method_count": len(METHOD_IDS),
         }, indent=2, ensure_ascii=False)
+
+    async def ping(self) -> dict:
+        api_key = self._get_api_key()
+        if not api_key:
+            return ping_utils.ping_result(False, "missing_credentials", False, "Missing NewsAPI key", 0)
+        result, data = await ping_utils.ping_http_get_json(
+            _BASE_URL + "/top-headlines/sources",
+            headers={"X-Api-Key": api_key, "Accept": "application/json"},
+            timeout_s=15.0,
+        )
+        if not result["ok"]:
+            return result
+        result["note"] = f"Connected, sources={len(data.get('sources', []))}"
+        return result
 
     def _help(self) -> str:
         return (

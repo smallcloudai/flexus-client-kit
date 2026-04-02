@@ -7,6 +7,7 @@ from typing import Dict, Any, List, Optional
 import gql
 
 from flexus_client_kit import ckit_bot_exec, ckit_bot_query, ckit_client, ckit_cloudtool
+from flexus_client_kit.integrations import ping_utils
 
 logger = logging.getLogger("resend")
 
@@ -23,6 +24,13 @@ logger = logging.getLogger("resend")
 # => reconnect Resend in Integrations to register the webhook
 
 RESEND_BASE = "https://api.resend.com"
+
+INTEGRATION_METADATA = {
+    "provider": "resend",
+    "auth_kind": "api_key",
+    "env_keys": ["RESEND_API_KEY"],
+    "supports_ping": True,
+}
 
 
 def resend_testing_domain() -> str:
@@ -169,6 +177,24 @@ class IntegrationResend:
         self.fclient = fclient
         self.rcx = rcx
         self.domains = domains  # {"domain.com": "resend_domain_id"}
+
+    def _get_api_key(self) -> str:
+        auth = self.rcx.external_auth.get("resend") or {}
+        return str(auth.get("api_key", "") or auth.get("token", "") or os.environ.get("RESEND_API_KEY", "")).strip()
+
+    async def ping(self) -> dict:
+        api_key = self._get_api_key()
+        if not api_key:
+            return ping_utils.ping_result(False, "missing_credentials", False, "Missing Resend API key", 0)
+        result, data = await ping_utils.ping_http_get_json(
+            RESEND_BASE + "/domains",
+            headers={"Authorization": f"Bearer {api_key}", "Accept": "application/json"},
+            timeout_s=15.0,
+        )
+        if not result["ok"]:
+            return result
+        result["note"] = f"Connected, domains={len(data.get('data', []))}"
+        return result
 
     async def send_called_by_model(self, toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Optional[Dict[str, Any]]):
         if not model_produced_args:

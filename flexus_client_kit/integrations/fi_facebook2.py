@@ -8,6 +8,13 @@ from flexus_client_kit.ckit_bunch_of_functions import BunchOfPythonFunctions
 from flexus_client_kit.integrations.facebook.client import FacebookAdsClient
 
 logger = logging.getLogger("fb")
+INTEGRATION_METADATA = {
+    "provider": "facebook",
+    "auth_kind": "oauth2",
+    "env_keys": [],
+    "supports_ping": False,
+}
+
 
 ALL_FACEBOOK_GROUPS = ["account", "campaign", "adset", "ad"]
 

@@ -18,6 +18,13 @@ from flexus_client_kit import ckit_erp
 from flexus_client_kit import erp_schema
 
 logger = logging.getLogger("shopify")
+INTEGRATION_METADATA = {
+    "provider": "shopify",
+    "auth_kind": "none",
+    "env_keys": [],
+    "supports_ping": False,
+}
+
 
 # Testing Shopify OAuth and webhooks on localhost:
 #

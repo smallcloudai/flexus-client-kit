@@ -17,6 +17,13 @@ from flexus_client_kit import ckit_client
 from flexus_client_kit.integrations import langchain_adapter
 
 logger = logging.getLogger("jira")
+INTEGRATION_METADATA = {
+    "provider": "jira",
+    "auth_kind": "oauth2",
+    "env_keys": [],
+    "supports_ping": False,
+}
+
 
 REQUIRED_SCOPES = [
     "read:jira-work",

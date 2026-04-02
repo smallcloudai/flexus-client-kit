@@ -15,6 +15,13 @@ from flexus_client_kit import ckit_client
 from flexus_client_kit.integrations import langchain_adapter
 
 logger = logging.getLogger("google_sheets")
+INTEGRATION_METADATA = {
+    "provider": "google_sheets",
+    "auth_kind": "oauth2",
+    "env_keys": [],
+    "supports_ping": False,
+}
+
 
 REQUIRED_SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
 
