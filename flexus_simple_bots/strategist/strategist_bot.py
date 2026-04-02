@@ -20,7 +20,7 @@ BOT_NAME = "strategist"
 BOT_VERSION = SIMPLE_BOTS_COMMON_VERSION
 
 STRATEGIST_ROOTDIR = BOT_DIR
-STRATEGIST_SKILLS = ckit_skills.static_skills_find(STRATEGIST_ROOTDIR, shared_skills_allowlist="")
+STRATEGIST_SKILLS = ckit_skills.static_skills_find(STRATEGIST_ROOTDIR, shared_skills_allowlist="", integration_skills_allowlist="")
 STRATEGIST_SETUP_SCHEMA = json.loads((STRATEGIST_ROOTDIR / "setup_schema.json").read_text())
 STRATEGIST_INTEGRATIONS: list[ckit_integrations_db.IntegrationRecord] = ckit_integrations_db.static_integrations_load(
     STRATEGIST_ROOTDIR,

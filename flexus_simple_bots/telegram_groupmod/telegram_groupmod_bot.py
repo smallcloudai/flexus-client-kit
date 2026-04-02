@@ -29,7 +29,7 @@ BOT_NAME = "telegram_groupmod"
 BOT_VERSION = SIMPLE_BOTS_COMMON_VERSION
 
 TELEGRAM_GROUPMOD_ROOTDIR = Path(__file__).parent
-TELEGRAM_GROUPMOD_SKILLS = ckit_skills.static_skills_find(TELEGRAM_GROUPMOD_ROOTDIR, shared_skills_allowlist="")
+TELEGRAM_GROUPMOD_SKILLS = ckit_skills.static_skills_find(TELEGRAM_GROUPMOD_ROOTDIR, shared_skills_allowlist="", integration_skills_allowlist="")
 TELEGRAM_GROUPMOD_SETUP_SCHEMA = json.loads((TELEGRAM_GROUPMOD_ROOTDIR / "setup_schema.json").read_text())
 TELEGRAM_GROUPMOD_INTEGRATIONS: list[ckit_integrations_db.IntegrationRecord] = ckit_integrations_db.static_integrations_load(
     TELEGRAM_GROUPMOD_ROOTDIR,

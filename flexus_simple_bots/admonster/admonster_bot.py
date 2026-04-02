@@ -30,7 +30,7 @@ BOT_VERSION_INT = ckit_client.marketplace_version_as_int(BOT_VERSION)
 ACCENT_COLOR = "#0077B5"
 
 ADMONSTER_ROOTDIR = Path(__file__).parent
-ADMONSTER_SKILLS = ckit_skills.static_skills_find(ADMONSTER_ROOTDIR, shared_skills_allowlist="")
+ADMONSTER_SKILLS = ckit_skills.static_skills_find(ADMONSTER_ROOTDIR, shared_skills_allowlist="", integration_skills_allowlist="")
 ADMONSTER_SETUP_SCHEMA = json.loads((ADMONSTER_ROOTDIR / "setup_schema.json").read_text())
 
 ADMONSTER_INTEGRATIONS: list[ckit_integrations_db.IntegrationRecord] = ckit_integrations_db.static_integrations_load(

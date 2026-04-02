@@ -20,7 +20,7 @@ BOT_NAME = "researcher"
 BOT_VERSION = SIMPLE_BOTS_COMMON_VERSION
 
 RESEARCHER_ROOTDIR = Path(__file__).parent
-RESEARCHER_SKILLS = ckit_skills.static_skills_find(RESEARCHER_ROOTDIR, shared_skills_allowlist="")
+RESEARCHER_SKILLS = ckit_skills.static_skills_find(RESEARCHER_ROOTDIR, shared_skills_allowlist="", integration_skills_allowlist="")
 RESEARCHER_SETUP_SCHEMA = json.loads((RESEARCHER_ROOTDIR / "setup_schema.json").read_text())
 
 RESEARCHER_INTEGRATIONS: list[ckit_integrations_db.IntegrationRecord] = ckit_integrations_db.static_integrations_load(

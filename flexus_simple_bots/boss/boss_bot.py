@@ -24,7 +24,7 @@ BOT_NAME = "boss"
 BOT_VERSION = SIMPLE_BOTS_COMMON_VERSION
 
 BOSS_ROOTDIR = Path(__file__).parent
-BOSS_SKILLS = ckit_skills.static_skills_find(BOSS_ROOTDIR, shared_skills_allowlist="")
+BOSS_SKILLS = ckit_skills.static_skills_find(BOSS_ROOTDIR, shared_skills_allowlist="", integration_skills_allowlist="")
 BOSS_SETUP_SCHEMA = json.loads((BOSS_ROOTDIR / "setup_schema.json").read_text())
 BOSS_SETUP_SCHEMA += fi_slack.SLACK_SETUP_SCHEMA
 

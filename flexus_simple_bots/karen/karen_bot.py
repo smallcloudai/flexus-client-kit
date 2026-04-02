@@ -39,7 +39,7 @@ BOT_NAME = "karen"
 BOT_VERSION = SIMPLE_BOTS_COMMON_VERSION
 
 KAREN_ROOTDIR = Path(__file__).parent
-KAREN_SKILLS = ckit_skills.static_skills_find(KAREN_ROOTDIR, shared_skills_allowlist="*")
+KAREN_SKILLS = ckit_skills.static_skills_find(KAREN_ROOTDIR, shared_skills_allowlist="*", integration_skills_allowlist="*")
 KAREN_MCPS = []
 
 KAREN_SETUP_SCHEMA = json.loads((KAREN_ROOTDIR / "setup_schema.json").read_text())

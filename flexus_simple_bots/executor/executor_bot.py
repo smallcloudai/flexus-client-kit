@@ -24,7 +24,7 @@ BOT_VERSION = SIMPLE_BOTS_COMMON_VERSION
 
 EXECUTOR_ROOTDIR = Path(__file__).parent
 EXECUTOR_SKILLS = [
-    s for s in ckit_skills.static_skills_find(EXECUTOR_ROOTDIR, shared_skills_allowlist="")
+    s for s in ckit_skills.static_skills_find(EXECUTOR_ROOTDIR, shared_skills_allowlist="", integration_skills_allowlist="")
     if s != "botticelli"
 ]
 EXECUTOR_SETUP_SCHEMA = json.loads((EXECUTOR_ROOTDIR / "setup_schema.json").read_text())
