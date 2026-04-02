@@ -11,6 +11,13 @@ from flexus_client_kit.format_utils import DEFAULT_SAFETY_VALVE, format_cat_outp
 
 logger = logging.getLogger("mongo_store")
 
+# XXX needs improvements:
+# make it an integration object
+# save rcx
+# fake calls in scenario like this:
+#     if rcx.running_test_scenario:
+#         return await ckit_scenario.scenario_generate_tool_result_via_model(...)
+
 
 MONGO_STORE_TOOL = ckit_cloudtool.CloudTool(
     strict=True,

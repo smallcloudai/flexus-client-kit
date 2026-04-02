@@ -7,7 +7,7 @@ messages:
   - function:
       arguments: '{"op": "status", "id": null, "resolution": null, "details_json": null,
         "restart_summary": null}'
-      name: flexus_bot_kanban
+      name: flexus_kanban_triage
     id: fakecall_e6VRYDKvFDXLORrc
     type: function
 - role: tool
@@ -30,7 +30,6 @@ messages:
     Done:
     [
     ]
-    and 16 more
 
 
     No current task assigned to this chat
@@ -39,7 +38,7 @@ messages:
   - function:
       arguments: '{"op": "inbox_to_todo", "ids": ["yFhI8Vln2w", "OP50IQgZG3"], "search": null,
         "resolution": null}'
-      name: flexus_advanced_kanban
+      name: flexus_kanban_triage
     id: call_png0lJ7RnhARUSI8qPzdXOMp
     type: function
 - role: tool

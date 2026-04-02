@@ -29,6 +29,7 @@ from flexus_client_kit.integrations import fi_crm
 from flexus_client_kit.integrations import fi_sched
 from flexus_client_kit.integrations import fi_repo_reader
 from flexus_client_kit.integrations import fi_pdoc
+from flexus_client_kit import ckit_scenario
 from flexus_client_kit.integrations import fi_discord2
 from flexus_client_kit.integrations import fi_mcp
 from flexus_simple_bots.version_common import SIMPLE_BOTS_COMMON_VERSION
@@ -293,6 +294,8 @@ async def karen_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.
 
     @rcx.on_tool_call(fi_mongo_store.MONGO_STORE_TOOL.name)
     async def toolcall_mongo_store(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
+        if rcx.running_test_scenario:
+            return await ckit_scenario.scenario_generate_tool_result_via_model(rcx.fclient, toolcall, open(fi_mongo_store.__file__).read())
         return await fi_mongo_store.handle_mongo_store(rcx.workdir, rcx.personal_mongo, toolcall, model_produced_args)
 
     @rcx.on_tool_call(fi_crm_automations.CRM_AUTOMATION_TOOL.name)
@@ -317,6 +320,8 @@ async def karen_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.
 
     @rcx.on_tool_call(SUPPORT_STATUS_TOOL.name)
     async def toolcall_support_status(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
+        if rcx.running_test_scenario:
+            return await ckit_scenario.scenario_generate_tool_result_via_model(rcx.fclient, toolcall, open(__file__).read())
         return await handle_support_status(pdoc_integration, rcx, toolcall.fcall_untrusted_key)
 
     @rcx.on_tool_call(PRODUCT_CATALOG_TOOL.name)
