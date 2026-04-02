@@ -81,7 +81,7 @@ def _validate_skill(path: Path, text: str) -> Dict[str, str]:
 def _skill_dirs(bot_root_dir: Path) -> List[Path]:
     return [
         bot_root_dir / "skills",
-        bot_root_dir.parents[1] / "shared_skills",
+        bot_root_dir.parents[0] / "shared_skills",
     ]
 
 
@@ -98,7 +98,7 @@ def static_skills_find(bot_root_dir: Path, shared_skills_allowlist: str) -> List
     # logger is not yet initilized here, no logs possible
     found = []
     local_dir = bot_root_dir / "skills"
-    shared_dir = bot_root_dir.parents[1] / "shared_skills"
+    shared_dir = bot_root_dir.parents[0] / "shared_skills"
     for d in [local_dir, shared_dir]:
         if not d.is_dir():
             continue
