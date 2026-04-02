@@ -361,6 +361,8 @@ async def karen_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.
 
     @rcx.on_tool_call(EXPLORE_A_QUESTION_TOOL.name)
     async def toolcall_explore_a_question(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
+        if rcx.running_test_scenario:
+            return await ckit_scenario.scenario_generate_tool_result_via_model(rcx.fclient, toolcall, "")
         q = model_produced_args["q"]
         eds_list = model_produced_args["eds"]
         if not eds_list:
