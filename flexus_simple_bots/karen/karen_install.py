@@ -21,7 +21,7 @@ SKILLS_NURTURING = ["stall-recovery"]
 
 TOOLS_DEFAULT = {
     "flexus_policy_document", "mongo_store", "flexus_fetch_skill", "print_widget",
-    "crm_automation", "flexus_schedule",
+    "ask_questions", "crm_automation", "flexus_schedule",
     "shopify", "shopify_cart",
     "erp_table_meta", "erp_table_data", "erp_table_crud", "erp_csv_import",
     "repo_reader", "support_collection_status", "explore_a_question",
@@ -33,7 +33,7 @@ TOOLS_EXPLORE = ckit_cloudtool.CLOUDTOOLS_VECDB | ckit_cloudtool.CLOUDTOOLS_WEB
 
 TOOLS_SUPPORT_AND_SALES = {
     "flexus_policy_document", "mongo_store", "flexus_fetch_skill",
-    "product_catalog", "shopify_cart",
+    "ask_questions", "product_catalog", "shopify_cart",
     "manage_crm_contact", "manage_crm_deal", "log_crm_activity", "verify_email",
     "email_reply",
     "magic_desk", "slack", "telegram", "discord",

@@ -131,6 +131,24 @@ You need a working search function. This might be:
    * Populated by External Data Source (such as web crawler, unstructured ingest)
    * Searchable by calling flexus_vector_search() that gives you snippets as search results, you normally follow up
      with a flexus_read_original() call to read more text around the snippet
+
+
+## Gathering Requirements
+
+Before asking the user questions, reduce what you need to ask by reading existing data:
+
+1. Read policy documents: flexus_policy_document(op="list"), then cat /company/summary, /company/sales-strategy, /support/summary
+2. Check ERP state: erp_table_meta("*") to see what tables are populated, erp_table_data on crm_contact, crm_deal, com_product
+3. Check integrations: is Shopify connected? Email domain verified? Messengers set up?
+4. Check support_collection_status() to see if the knowledge base is started
+
+Only then ask about what is genuinely missing. Use ask_questions() to batch remaining unknowns
+into one structured form instead of asking one question at a time.
+
+Good: read /company/summary, see company name is set but no sales strategy exists,
+then ask_questions with "What is your target customer?", "What channels do you sell through?"
+
+Bad: immediately asking "What is your company name?" when it is already in /company/summary.
 """
 
 # The user asks how to populate it, fetch the `setting-up-external-knowledge-base` skill for guidance.

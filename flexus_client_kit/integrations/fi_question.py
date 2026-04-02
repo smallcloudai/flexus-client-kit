@@ -2,6 +2,23 @@ from typing import Dict, Any, Optional, List
 from flexus_client_kit import ckit_cloudtool
 
 
+ASK_QUESTIONS_PROMPT = """
+## Asking Questions
+
+When asking the user to choose from options, use `ask_questions` instead of numbered lists. This renders interactive UI.
+
+All questions appear together with a single "Send" button.
+Do not call multiple `ask_questions` and try not to mix with other actions and tools.
+
+Bad usage (don't do this):
+- Single yes/no question like "Does this match what you want?"
+
+Good usage:
+- Initial requirements gathering (multiple questions at once)
+- Collecting several configuration options together
+"""
+
+
 ASK_QUESTIONS_TOOL = ckit_cloudtool.CloudTool(
     strict=False,
     name="ask_questions",
