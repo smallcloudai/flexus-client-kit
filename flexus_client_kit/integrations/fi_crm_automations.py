@@ -25,8 +25,7 @@ CRM_AUTOMATIONS_SETUP_SCHEMA = [
 ]
 
 
-# To add CRM automations to a bot, add the "crm-automations" skill to its builtin skills.
-# Reference implementation: flexus_simple_bots/karen/skills/crm-automations/SKILL.md
+# To add CRM automations to a bot, add the "crm-automations" integration skill to its builtin skills.
 
 
 CRM_AUTOMATION_TOOL = ckit_cloudtool.CloudTool(
