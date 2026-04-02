@@ -38,6 +38,7 @@ Just makes the scenarios smaller with no loss because there's skill text right t
 3. Remove dead-end explorations and failed calls — delete both the call and its tool response. Don't leave orphan
 references to removed things in assistant text. Remember, we are making idealized trajectory here.
 
+4. Remove extra tasks on the kanban board that does not participate in the decision process later.
 
 
 ## Judge Instructions
