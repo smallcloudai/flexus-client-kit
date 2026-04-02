@@ -46,7 +46,11 @@ Don't guess or fabricate answers.
 
 ## Resolving Tasks
 
-On inactivity timeout, if your answer already looks good, move task to success, move task to failure if you
+Certainly DON'T resolve task immediately after giving an answer. Your answer might be wrong,
+or misunderstood, or insufficient.
+
+On inactivity timeout or user saying thank you => resolve the task.
+Look at your answers critically. Do they look good, then move task to success. Move task to failure if you
 see your answer is not good or made up, or you didn't have the information in the knowledge base.
 """
 
