@@ -57,12 +57,7 @@ SHOPIFY_TOOL = ckit_cloudtool.CloudTool(
     },
 )
 
-SHOPIFY_PROMPT = """## Shopify
-
-Use shopify() tool to connect Shopify stores and manage products/orders. Call shopify(op="help") first.
-Connected stores sync products, orders, payments, refunds, and shipments automatically.
-You can create/update/delete products, manage collections, set discounts, adjust inventory,
-and create draft orders (carts with checkout links) for customers."""
+# Shopify setup guidance lives in karen's store-setup skill (recommend to personalize per bot), not as an embeddable prompt.
 
 SHOPIFY_CART_TOOL = ckit_cloudtool.CloudTool(
     strict=False,
@@ -86,11 +81,7 @@ SHOPIFY_CART_TOOL = ckit_cloudtool.CloudTool(
     },
 )
 
-SHOPIFY_SALES_PROMPT = """## Shopify Products & Cart
-
-Products are in com_product / com_product_variant ERP tables. Use pvar_external_id as variant_id in cart operations.
-
-Recommend products naturally, build the cart incrementally, share the checkout link when ready."""
+# Cart/sales guidance lives in karen's store-setup skill, not as an embeddable prompt.
 
 HELP = """Help:
 
@@ -671,32 +662,33 @@ class IntegrationShopify:
         return f"Unknown operation: {op}\n\nTry shopify(op='help') for usage."
 
     async def _op_connect(self, toolcall: ckit_cloudtool.FCloudtoolCall, args: dict, model_produced_args: Optional[dict[str, Any]]) -> str:
-        async with (await self.fclient.use_http_on_behalf(toolcall.connected_persona_id, toolcall.fcall_untrusted_key)) as http:
-            existing = await ckit_erp.erp_table_data(
-                http, "com_shop", self.rcx.persona.ws_id, erp_schema.ComShop,
-                filters="shop_type:=:SHOPIFY",
-            )
-            shop_domain = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "shop_domain", None)
-            if not shop_domain:
-                return "Missing required: 'shop_domain' (e.g. mystore.myshopify.com)"
-            s = shop_domain.strip().lower()
-            shop_domain = urllib.parse.urlparse(s if "://" in s else f"https://{s}").hostname or s
-            if "." not in shop_domain:
-                shop_domain += ".myshopify.com"
-            if active := next(iter(existing), None):
-                if active.shop_domain == shop_domain:
-                    return f"Already connected: {shop_domain}."
-                return f"Already connected: {active.shop_domain}. Disconnect first with shopify(op='disconnect')."
-            try:
+        http = await self.fclient.use_http_on_behalf(toolcall.connected_persona_id, toolcall.fcall_untrusted_key)
+        existing = await ckit_erp.erp_table_data(
+            http, "com_shop", self.rcx.persona.ws_id, erp_schema.ComShop,
+            filters="shop_type:=:SHOPIFY",
+        )
+        shop_domain = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "shop_domain", None)
+        if not shop_domain:
+            return "Missing required: 'shop_domain' (e.g. mystore.myshopify.com)"
+        s = shop_domain.strip().lower()
+        shop_domain = urllib.parse.urlparse(s if "://" in s else f"https://{s}").hostname or s
+        if "." not in shop_domain:
+            shop_domain += ".myshopify.com"
+        if active := next(iter(existing), None):
+            if active.shop_domain == shop_domain:
+                return f"Already connected: {shop_domain}."
+            return f"Already connected: {active.shop_domain}. Disconnect first with shopify(op='disconnect')."
+        try:
+            async with http as h:
                 auth_url = await ckit_external_auth.start_external_auth_flow(
-                    http, "shopify", self.rcx.persona.ws_id,
+                    h, "shopify", self.rcx.persona.ws_id,
                     self.rcx.persona.owner_fuser_id, SHOPIFY_SCOPES,
                     url_template_vars={"shop_domain": shop_domain},
                     persona_id=self.rcx.persona.persona_id,
                 )
-                return f"Please authorize Flexus to access your Shopify store:\n{auth_url}\n\nAfter authorizing, call shopify(op='sync') to complete setup."
-            except gql.transport.exceptions.TransportQueryError as e:
-                return f"Failed to start OAuth: {e}"
+            return f"Please authorize Flexus to access your Shopify store:\n{auth_url}\n\nAfter authorizing, call shopify(op='sync') to complete setup."
+        except gql.transport.exceptions.TransportQueryError as e:
+            return f"Failed to start OAuth: {e}"
 
     async def _op_status(self) -> str:
         await self._load_current_shop()
