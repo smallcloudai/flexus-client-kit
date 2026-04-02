@@ -51,4 +51,4 @@ async def handle_print_widget(
     if widget_type in []:  # none needs it so far, some widgets in Bob need it
         wait_for_user = "⏸️WAIT_FOR_USER\n\n"
 
-    return wait_for_user + "Printing UI widget: {widget_type}"
+    return wait_for_user + f"Printing UI widget: {widget_type}"
