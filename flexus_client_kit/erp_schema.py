@@ -325,6 +325,21 @@ ERP_TABLE_TO_SCHEMA: Dict[str, Type] = {
     "com_shop": ComShop,
 }
 
+ERP_TABLE_LABELS: Dict[str, str] = {
+    "crm_activity": "CRM Activity",
+    "crm_contact": "CRM Contact",
+    "crm_deal": "CRM Deal",
+    "crm_pipeline": "CRM Pipeline",
+    "crm_pipeline_stage": "CRM Pipeline Stage",
+    "com_order": "Order",
+    "com_order_item": "Order Item",
+    "com_payment": "Payment",
+    "com_product": "Product",
+    "com_product_variant": "Product Variant",
+    "com_refund": "Refund",
+    "com_shop": "Shop",
+}
+
 ERP_DISPLAY_NAME_CONFIGS: Dict[str, str] = {
     "crm_activity": "{activity_title}",
     "crm_contact": "{contact_first_name} {contact_last_name}",
