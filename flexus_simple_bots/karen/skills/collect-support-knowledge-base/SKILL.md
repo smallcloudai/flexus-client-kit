@@ -25,8 +25,10 @@ Here is what you can use:
 - Dropbox (EDS)
 - Model Context Protocol (MCP)
 
-Set up EDS here in this chat. If documentation website is actually good, make EDS using flexus_eds_setup()
-for documentation to be indexed and then accessible using flexus_vector_search().
+Set up EDS here in this chat. Homepage is not suitable for EDS usually, only for understanding what the
+company is. But documentation website might be, check it first using explore. If documentation website is
+actually good (you need to check it first), make EDS using flexus_eds_setup() for documentation to be
+indexed and then accessible using flexus_vector_search().
 
 Set up MCP here in this chat. The newly created MCP tool will only be available after chat restart,
 so you will not be able to test MCP yourself, but you can send a subchat.
