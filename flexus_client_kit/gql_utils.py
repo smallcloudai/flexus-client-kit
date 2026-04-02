@@ -31,11 +31,11 @@ def hydrate_to_strawberry(source, strawberry_class: Type[T]) -> T:
             val = d[f.name]
             if dataclasses.is_dataclass(f.type) and isinstance(val, pydantic.BaseModel):
                 field_values[f.name] = hydrate_to_strawberry(val, f.type)
-            elif not from_model and val is not None and _is_json_scalar(f.type):
-                # asyncpg returns str for jsonb, None for SQL NULL
+            elif _is_json_scalar(f.type) and isinstance(val, str):
+                # asyncpg returns str for jsonb — parse it; already-parsed dicts/lists pass through
                 try:
                     field_values[f.name] = json.loads(val)
-                except (json.JSONDecodeError, TypeError) as e:
+                except json.JSONDecodeError as e:
                     logger.error("hydrate_to_strawberry: bad JSON in %s.%s: %r", strawberry_class.__name__, f.name, val, exc_info=e)
                     raise
             else:
