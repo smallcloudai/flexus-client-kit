@@ -30,7 +30,7 @@ TOOLS_SUPPORT_AND_SALES = {
     "manage_crm_contact", "manage_crm_deal", "log_crm_activity", "verify_email",
     "email_reply",
     "magic_desk", "slack", "telegram", "discord",
-} | ckit_cloudtool.CLOUDTOOLS_PUBLIC | ckit_cloudtool.CLOUDTOOLS_VECDB | ckit_cloudtool.CLOUDTOOLS_WEB | ckit_cloudtool.CLOUDTOOLS_MCP
+} | ckit_cloudtool.CLOUDTOOLS_PUBLIC | ckit_cloudtool.CLOUDTOOLS_VECDB | ckit_cloudtool.CLOUDTOOLS_MCP
 
 TOOLS_NURTURING = {
     "flexus_policy_document", "mongo_store", "flexus_fetch_skill",
