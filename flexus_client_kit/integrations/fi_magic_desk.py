@@ -103,7 +103,15 @@ class IntegrationMagicDesk(fi_messenger.FlexusMessenger):
         if not text.strip():
             return
         http = await self.fclient.use_http_on_behalf(self.rcx.persona.persona_id, "")
-        ft_id = await ckit_ask_model.captured_thread_post_user_message(http, self.rcx.persona.persona_id, f"magic_desk/{session_id}", text, ftm_provenance={"system_type": "captured_thread_post", "mdesk_id": emsg.emsg_external_id}, only_to_expert=self.outside_messages_fexp_name)
+        ft_id = await ckit_ask_model.captured_thread_post_user_message(
+            http,
+            self.rcx.persona.persona_id,
+            f"magic_desk/{session_id}",
+            text,
+            ftm_provenance={"system_type": "captured_thread_post", "mdesk_id": emsg.emsg_external_id},
+            only_to_expert=self.outside_messages_fexp_name,
+            thread_too_old_s=3600,
+        )
         if ft_id:
             logger.info("%s magic_desk inbound captured ft_id=%s session=%s: %s", self.rcx.persona.persona_id, ft_id, session_id, text[:120])
         else:
