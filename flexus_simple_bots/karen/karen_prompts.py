@@ -32,16 +32,22 @@ KAREN_KB = """
 ## Knowledge Base
 
 You have access to either flexus_vector_search/flexus_read_original or MCP that you need to actually use to answer questions.
+Specifically for flexus_vector_search/flexus_read_original the sequence is:
 
-Start with vector search, call one, not many in parallel. Make up to 3 sequential attempts to find the right thing trying
-different keywords and approaches.
+1. Call flexus_vector_search() with a short keyword query. One call, not many in parallel.
+   Up to 3 sequential attempts with different keywords if the first doesn't find it.
+   Search results are only pointers — you cannot answer from them, you must read the actual documents.
+2. Read the original files. For every 📎 path in the search results that looks relevant, call flexus_read_original() to
+   read the full document or a large range (1000-2000 lines).
+   Load 2-5 big files, do it, that's your job. Parallel calls are ok here.
+3. Only after reading full docs from step 2, compose your answer from what you can see.
 
-If the search returns no relevant results, be honest: "I don't have information about that in my knowledge base yet."
+If search returns nothing relevant: "I don't have information about that in my knowledge base yet."
 
-After you see snippets that look relevant from vector search, read full documents or at least sizeable line ranges (1000-2000 lines) of
-relevant docs using flexus_read_original().
+Never answer from snippets alone, never guess or fabricate.
 
-Don't guess or fabricate answers.
+MCP process: you'll need to improvise depending on what functions you see in the MCP. Use the same kind of process, search if available,
+read text in full, compose answer, don't fabricate.
 
 
 ## Resolving Tasks

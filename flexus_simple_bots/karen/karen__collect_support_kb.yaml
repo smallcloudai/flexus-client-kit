@@ -1,7 +1,7 @@
 messages:
 - role: cd_instruction
   content: |-
-    📎/company/summary
+    📄/company/summary
     {
       "stage": "Pre-launch (waitlist)",
       "mission": "Helping people conquer their mornings",
@@ -11,10 +11,10 @@ messages:
       "company_name": "Ejector Bed Inc."
     }
 
-    📎/company/sales-strategy
+    📄/company/sales-strategy
     does not exist yet
 
-    📎/support/summary
+    📄/support/summary
     does not exist yet
 - role: user
   content: Collect Support Knowledge Base

@@ -1,8 +1,12 @@
-judge_instructions: No additional instructions
+judge_instructions: |
+  Heavily penalize if the assistant skips calling flexus_read_original() after vector search returns relevant snippets.
+  The system prompt says to read full documents, not answer from snippets alone. In this scenario
+  /code.claude.com/docs/en/fast-mode.md /code.claude.com/docs/en/costs.md are relevant and both must be read before answering.
+
 messages:
 - role: cd_instruction
   content: |-
-    📎/company/summary
+    📄/company/summary
     {
       "stage": "Growth",
       "faq_url": "https://cloudpipe.ai/faq",
@@ -13,10 +17,10 @@ messages:
       "company_name": "CloudPipe AI"
     }
 
-    📎/company/sales-strategy
+    📄/company/sales-strategy
     does not exist yet
 
-    📎/support/summary
+    📄/support/summary
     {
       "support-policy": {
         "meta": {
