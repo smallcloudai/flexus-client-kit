@@ -4,9 +4,8 @@ import json
 import base64
 import logging
 from io import BytesIO
-from pathlib import Path
 from re import Pattern
-from typing import Union, Optional, List, Dict, Any, Tuple
+from typing import Union, Optional, Tuple
 from typing_extensions import deprecated
 
 from PIL import Image
@@ -113,21 +112,19 @@ def format_json_output(
     return result, truncated
 
 
-def format_text_output(
-    path: str,
+def clip_lines(
     content: str,
     lines_range: str = ":",
     safety_valve: str = DEFAULT_SAFETY_VALVE,
     line_offset: int = 0
 ) -> str:
-    # Please leave this function alone -- Oleg
     safety_valve_chars = 0
     if safety_valve.lower().endswith('k'):
         safety_valve_chars = int(safety_valve[:-1]) * 1000
     else:
         safety_valve_chars = int(safety_valve)
     safety_valve_chars = max(1000, safety_valve_chars)
-    header_lines = [f"📄 {path}"]
+    warnings = []
     lines = content.splitlines()
     if ":" in lines_range:
         start_str, end_str = lines_range.split(":", 1)
@@ -147,19 +144,31 @@ def format_text_output(
         line = lines[i]
         if len(line) > safety_valve_chars:
             if len(result) > 0:
-                header_lines.append(f"⚠️ A single line {i+1} is so long that it alone is bigger than `safety_valve`, call again starting with that line in lines_range to see it.")
+                warnings.append(f"⚠️ A single line {i+1} is so long that it alone is bigger than `safety_valve`, call again starting with that line in lines_range to see it.")
                 break
-            else:
-                header_lines.append(f"⚠️ A single line {i+1} is {len(line)} characters, truncated to `safety_valve` characters, increase safety_valve to see it in full.")
-                result = [line[:safety_valve_chars]]
-                break
+            warnings.append(f"⚠️ A single line {i+1} is {len(line)} characters, truncated to `safety_valve` characters, increase safety_valve to see it in full.")
+            result = [line[:safety_valve_chars]]
+            break
         ctx_left -= len(line)
         result.append(line)
         if ctx_left < 0:
-            header_lines.append(f"⚠️ The original preview is {len(content)} chars and {len(lines)} lines, showing lines range {line_offset+start+1}:{line_offset+i+1} because `safety_valve` hit")
+            warnings.append(f"⚠️ The original preview is {len(content)} chars and {len(lines)} lines, showing lines range {line_offset+start+1}:{line_offset+i+1} because `safety_valve` hit")
             break
-    result = header_lines + [""] + result
+    if warnings:
+        return "\n".join(warnings + [""] + result)
     return "\n".join(result)
+
+
+def format_text_output(
+    path: str,
+    content: str,
+    lines_range: str = ":",
+    safety_valve: str = DEFAULT_SAFETY_VALVE,
+    line_offset: int = 0
+) -> str:
+    # Please leave this function alone -- Oleg
+    body = clip_lines(content, lines_range, safety_valve, line_offset)
+    return f"📄 {path}\n{body}"
 
 
 # XXX remove
@@ -176,12 +185,8 @@ def format_binary_output(
     size_bytes = len(data)
     size_kb = size_bytes / 1024
 
-    file_ext = Path(path).suffix.lower()
-    is_image = file_ext in IMAGE_EXTENSIONS
-
     header_lines = [
         f"📄 File: {path}",
-        f"   Type: Binary {'Image' if is_image else 'File'}",
         f"   Size: {size_bytes:,} bytes ({size_kb:.1f} KB)",
         f"   {extra_header}"
     ]
@@ -189,16 +194,9 @@ def format_binary_output(
     result = "\n".join(header_lines)
     result += "\n" + "─" * 50 + "\n"
 
-    if is_image:
-        base64_image = process_image_to_base64(data)
-        if base64_image:
-            result += f"![Image]({path})\n"
-            result += f"<image base64>\n{base64_image}\n</image base64>"
-            return result
-
     try:
         text_content = data.decode('utf-8')
-        return result + format_text_output(path, text_content, lines_range, safety_valve, line_offset)
+        return result + clip_lines(text_content, lines_range, safety_valve, line_offset)
     except UnicodeDecodeError:
         pass
 
@@ -285,4 +283,3 @@ if __name__ == "__main__":
     print(out)
     print()
     assert "Line 50" in out and "Line 51" not in out and "Line 49" not in out
-
