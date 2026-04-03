@@ -38,16 +38,21 @@ TOOLS_EXPLORE = ckit_cloudtool.CLOUDTOOLS_VECDB | ckit_cloudtool.CLOUDTOOLS_WEB
 TOOLS_SUPPORT_AND_SALES = {
     "flexus_policy_document", "mongo_store", "flexus_fetch_skill",
     "product_catalog", "shopify_cart",
-    "manage_crm_contact", "manage_crm_deal", "log_crm_activity", "verify_email",
+    "crm_contact_info", "verify_email",
     "email_reply",
     "magic_desk", "slack", "telegram", "discord",
 } | ckit_cloudtool.KANBAN_PUBLIC | ckit_cloudtool.CLOUDTOOLS_VECDB | ckit_cloudtool.CLOUDTOOLS_MCP
+
+TOOLS_POST_CONVERSATION = {
+    "flexus_fetch_skill", "flexus_read_linked_thread",
+    "erp_table_meta", "erp_table_data", "erp_table_crud",
+} | ckit_cloudtool.CLOUDTOOLS_SAFE
 
 TOOLS_NURTURING = {
     "flexus_policy_document", "mongo_store", "flexus_fetch_skill",
     "shopify_cart",
     "erp_table_meta", "erp_table_data", "erp_table_crud",
-    "manage_crm_contact", "manage_crm_deal", "log_crm_activity",
+    "crm_contact_info",
     "email_send",
     "magic_desk", "slack", "telegram", "discord",
 } | ckit_cloudtool.KANBAN_TRIAGE | ckit_cloudtool.CLOUDTOOLS_VECDB | ckit_cloudtool.CLOUDTOOLS_WEB | ckit_cloudtool.CLOUDTOOLS_MCP
@@ -132,6 +137,16 @@ EXPERTS = [
         fexp_model_class="cheap",
         fexp_description="Customer-facing expert: answers support questions from knowledge base, conducts sales conversations using C.L.O.S.E.R. framework, qualifies leads with BANT.",
     )),
+    ("post_conversation", ckit_bot_install.FMarketplaceExpertInput(
+        fexp_system_prompt=karen_prompts.KAREN_POST_CONVERSATION,
+        fexp_python_kernel="",
+        fexp_allow_tools=",".join(TOOLS_POST_CONVERSATION),
+        fexp_nature="NATURE_AUTONOMOUS",
+        fexp_inactivity_timeout=300,
+        fexp_model_class="cheap",
+        fexp_description="Runs after customer conversations to log CRM activities, create/update contacts, and record BANT scores.",
+        fexp_builtin_skills=ckit_skills.read_name_description(karen_bot.KAREN_ROOTDIR, SKILLS_POST_CONVERSATION),
+    )),
     ("nurturing", ckit_bot_install.FMarketplaceExpertInput(
         fexp_system_prompt=karen_prompts.KAREN_NURTURING,
         fexp_python_kernel="",
@@ -141,7 +156,8 @@ EXPERTS = [
         fexp_description="Lightweight expert for automated tasks: sending templated emails, follow-ups, stall deal recovery, and simple CRM operations.",
         fexp_model_class="cheap",
         fexp_builtin_skills=ckit_skills.read_name_description(karen_bot.KAREN_ROOTDIR, [
-            "stall-recovery"
+            "stall-recovery",
+            "log-crm-activity",
         ]),
     )),
     ("explore", ckit_bot_install.FMarketplaceExpertInput(
@@ -153,6 +169,9 @@ EXPERTS = [
         fexp_subchat_only=True,
         fexp_model_class="cheap",
         fexp_activation_options=json.dumps({"no_policydoc_first_message": True}),
+        fexp_builtin_skills=ckit_skills.read_name_description(karen_bot.KAREN_ROOTDIR, [
+            "log-crm-activity",
+        ]),
     )),
 ]
 
@@ -203,6 +222,7 @@ async def install(client: ckit_client.FlexusClient):
         },
         marketable_required_policydocs=["/company/summary", "/company/sales-strategy", "/support/summary"],
         marketable_features=["magic_desk"],
+        add_integrations_into_expert_system_prompt=karen_bot.KAREN_INTEGRATIONS,
     )
     return r.marketable_version
 
