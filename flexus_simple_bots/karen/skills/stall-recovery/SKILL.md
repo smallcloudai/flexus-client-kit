@@ -20,7 +20,7 @@ erp_table_data(table_name="crm_deal", options={
 ```
 3. Per deal, look up its stage in stage_actions:
    - **skip**: stage is below outreach cutoff — do nothing
-   - **email**: send follow-up only if the contact has prior engagement (stage >= cutoff) AND this stage's follow-up hasn't been sent yet (check `deal_details.last_followup_stage`). Load the template from `template_path` in the stage_actions entry (cat that policy document); if absent, use a short generic follow-up. After sending, record `last_followup_stage` in deal_details to prevent duplicates. Use email_send() tool to do it, and log_crm_activity() after.
+   - **email**: send follow-up only if the contact has prior engagement (stage >= cutoff) AND this stage's follow-up hasn't been sent yet (check `deal_details.last_followup_stage`). Load the template from `template_path` in the stage_actions entry (cat that policy document); if absent, use a short generic follow-up. After sending, record `last_followup_stage` in deal_details to prevent duplicates. Use email_send() tool to do it, and log the activity after (fetch log-crm-activity skill for details).
 4. If inactivity >= archive_days (contact_last_outbound_ts < now - archive_days x 86400): set deal_lost_reason and move deal to Lost stage.
 5. Summarize: how many emailed, closed as Lost, skipped — and why skipped. If any deal is in a stage that is at or after the cutoff but has no entry in stage_actions, print a widget to start a chat about it:
 ```python
