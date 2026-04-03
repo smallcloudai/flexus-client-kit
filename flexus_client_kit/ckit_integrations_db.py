@@ -364,13 +364,12 @@ def static_integrations_load(bot_dir: Path, allowlist: list[str], builtin_skills
                 integr_need_mongo=True,
             ))
 
-        elif name.startswith("crm"):   # "crm[manage_contact, manage_deal, log_activity]"
+        elif name.startswith("crm"):   # "crm[contact_info, manage_deal, verify_email]"
             from flexus_client_kit.integrations import fi_crm
             subset = _parse_bracket_list(name)
             tool_map = {
-                "manage_contact": (fi_crm.MANAGE_CRM_CONTACT_TOOL, "handle_manage_crm_contact"),
+                "contact_info": (fi_crm.CRM_CONTACT_INFO_TOOL, "handle_crm_contact_info"),
                 "manage_deal": (fi_crm.MANAGE_CRM_DEAL_TOOL, "handle_manage_crm_deal"),
-                "log_activity": (fi_crm.LOG_CRM_ACTIVITY_TOOL, "handle_log_crm_activity"),
                 "verify_email": (fi_crm.VERIFY_EMAIL_TOOL, "handle_verify_email"),
             }
             if subset is None:
@@ -386,7 +385,7 @@ def static_integrations_load(bot_dir: Path, allowlist: list[str], builtin_skills
                 integr_tools=[t for t, _ in tools_and_methods],
                 integr_init=_init_crm,
                 integr_setup_handlers=_setup_crm,
-                integr_prompt=fi_crm.LOG_CRM_ACTIVITIES_PROMPT if "log_activity" in subset else "",
+                integr_prompt="",
             ))
 
         else:

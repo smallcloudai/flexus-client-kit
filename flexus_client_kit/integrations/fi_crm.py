@@ -1,5 +1,4 @@
 import logging
-import time
 from typing import Dict, Any, Optional, TYPE_CHECKING
 
 import gql
@@ -13,43 +12,17 @@ if TYPE_CHECKING:
 logger = logging.getLogger("fi_crm")
 
 
-LOG_CRM_ACTIVITY_TOOL = ckit_cloudtool.CloudTool(
-    strict=False,
-    name="log_crm_activity",
-    description="Log a CRM activity (conversation, email, call, etc.) for a contact.",
+CRM_CONTACT_INFO_TOOL = ckit_cloudtool.CloudTool(
+    strict=True,
+    name="crm_contact_info",
+    description="Look up CRM contact for the current chat: get_summary (with latest 2 deals/orders/activities), get_all_deals, get_all_orders, get_all_activities.",
     parameters={
         "type": "object",
         "properties": {
-            "contact_id": {"type": "string", "order": 1},
-            "activity_type": {"type": "string", "enum": ["WEB_CHAT", "MESSENGER_CHAT", "EMAIL", "CALL", "MEETING"], "order": 2},
-            "direction": {"type": "string", "enum": ["INBOUND", "OUTBOUND"], "order": 3},
-            "platform": {"type": "string", "description": "e.g. TELEGRAM, EMAIL, PHONE", "order": 4},
-            "title": {"type": "string", "order": 5},
-            "summary": {"type": "string", "order": 6},
-        },
-        "required": ["contact_id", "activity_type", "direction", "title"],
-    },
-)
-
-
-LOG_CRM_ACTIVITIES_PROMPT = (
-    "After the conversation has ended on a messenger platform (not after each message), "
-    "or after sending an outbound message or email, call log_crm_activity with contact_id, type, direction, and a brief summary. "
-    "Do this before finishing the task."
-)
-
-
-MANAGE_CRM_CONTACT_TOOL = ckit_cloudtool.CloudTool(
-    strict=False,
-    name="manage_crm_contact",
-    description="Manage CRM contact for the current chat: create/patch, get_summary (with latest 2 deals/orders/activities), get_all_deals, get_all_orders, get_all_activities.",
-    parameters={
-        "type": "object",
-        "properties": {
-            "op": {"type": "string", "enum": ["create", "patch", "get_summary", "get_all_deals", "get_all_orders", "get_all_activities"], "order": 1},
-            "args": {"type": "object", "description": "Contact fields: contact_first_name, contact_last_name, contact_email, contact_phone, contact_tags (array), contact_bant_score (int 0-4), contact_notes. Include contact_id for patch.", "order": 2},
+            "op": {"type": "string", "enum": ["get_summary", "get_all_deals", "get_all_orders", "get_all_activities"], "order": 1},
         },
         "required": ["op"],
+        "additionalProperties": False,
     },
 )
 
@@ -93,7 +66,7 @@ async def find_contact_by_platform_id(http, ws_id: str, platform: str, identifie
 
 
 def _fmt_deal(d) -> str:
-    return f"  {d.deal_id}: {d.deal_title} stage={d.deal_stage} value={d.deal_value} {d.deal_currency}"
+    return f"  {d.deal_id}: {d.deal_name} stage={d.deal_stage} value={d.deal_value} {d.deal_currency}"
 
 def _fmt_order(o) -> str:
     return f"  {o.order_number or o.order_id}: {o.order_total} {o.order_currency} financial={o.order_financial_status} fulfillment={o.order_fulfillment_status}"
@@ -157,68 +130,45 @@ class IntegrationCrm:
             return ckit_cloudtool.gql_error_4xx_to_model_reraise_5xx(e, op)
         return f"❌ Unknown op: {op}\n"
 
-    async def handle_manage_crm_contact(self, toolcall: ckit_cloudtool.FCloudtoolCall, args: Dict[str, Any]) -> str:
+    async def handle_crm_contact_info(self, toolcall: ckit_cloudtool.FCloudtoolCall, args: Dict[str, Any]) -> str:
         op = args.get("op", "")
-
-        if op.startswith("get_"):
-            t = self.rcx.latest_threads.get(toolcall.fcall_ft_id)
-            searchable = t.thread_fields.ft_app_searchable if t and t.thread_fields.ft_app_searchable else None
-            contact_id = None
-            if searchable and "/" in searchable:
-                platform, pid = searchable.split("/", 1)
-                contact_id = await find_contact_by_platform_id(await self._http(toolcall), self.ws_id, platform, pid)
-            if not contact_id:
-                return "No verified contact in this chat. Use verify_crm_identity first.\n"
-            http = await self._http(toolcall)
-            try:
-                if op == "get_summary":
-                    contacts = await ckit_erp.erp_table_data(http, "crm_contact", self.ws_id, erp_schema.CrmContact, filters=f"contact_id:=:{contact_id}", limit=1)
-                    if not contacts:
-                        return f"Contact {contact_id} not found\n"
-                    lines = _fmt_contact(contacts[0])
-                    deals = await ckit_erp.erp_table_data(http, "crm_deal", self.ws_id, erp_schema.CrmDeal, filters=f"deal_contact_id:=:{contact_id}", limit=6)
-                    orders = await ckit_erp.erp_table_data(http, "com_order", self.ws_id, erp_schema.ComOrder, filters=f"order_contact_id:=:{contact_id}", limit=6)
-                    activities = await ckit_erp.erp_table_data(http, "crm_activity", self.ws_id, erp_schema.CrmActivity, filters=f"activity_contact_id:=:{contact_id}", limit=6)
-                    def _cnt(rows):
-                        return "5+" if len(rows) == 6 else str(len(rows))
-                    if deals: lines += [f"\nDeals ({_cnt(deals)}):"] + [_fmt_deal(d) for d in deals[:2]]
-                    if orders: lines += [f"\nOrders ({_cnt(orders)}):"] + [_fmt_order(o) for o in orders[:2]]
-                    if activities: lines += [f"\nActivities ({_cnt(activities)}):"] + [_fmt_activity(a) for a in activities[:2]]
-                    lines.append("\nUse get_all_deals/get_all_orders/get_all_activities for full lists.")
-                    return "\n".join(lines) + "\n"
-                if op == "get_all_deals":
-                    rows = await ckit_erp.erp_table_data(http, "crm_deal", self.ws_id, erp_schema.CrmDeal, filters=f"deal_contact_id:=:{contact_id}", limit=50)
-                    return "No deals.\n" if not rows else f"Deals ({len(rows)}):\n" + "\n".join(_fmt_deal(d) for d in rows) + "\n"
-                if op == "get_all_orders":
-                    rows = await ckit_erp.erp_table_data(http, "com_order", self.ws_id, erp_schema.ComOrder, filters=f"order_contact_id:=:{contact_id}", limit=50)
-                    return "No orders.\n" if not rows else f"Orders ({len(rows)}):\n" + "\n".join(_fmt_order(o) for o in rows) + "\n"
-                if op == "get_all_activities":
-                    rows = await ckit_erp.erp_table_data(http, "crm_activity", self.ws_id, erp_schema.CrmActivity, filters=f"activity_contact_id:=:{contact_id}", limit=50)
-                    return "No activities.\n" if not rows else f"Activities ({len(rows)}):\n" + "\n".join(_fmt_activity(a) for a in rows) + "\n"
-            except gql.transport.exceptions.TransportQueryError as e:
-                return ckit_cloudtool.gql_error_4xx_to_model_reraise_5xx(e, op)
-            return f"❌ Unknown op: {op}\n"
-
-        fields = args.get("args", {})
-        contact_id = str(fields.pop("contact_id", "") or "").strip()
-        if "contact_email" in fields:
-            t = self.rcx.latest_threads.get(toolcall.fcall_ft_id)
-            verified = (t.thread_fields.ft_app_specific or {}).get("verified_email", "") if t else ""
-            if fields["contact_email"].lower() != verified:
-                return "❌ Email verification is required to store a contact email. Please ask the user to verify their email first.\n"
+        t = self.rcx.latest_threads.get(toolcall.fcall_ft_id)
+        searchable = t.thread_fields.ft_app_searchable if t and t.thread_fields.ft_app_searchable else None
+        contact_id = None
+        if searchable and "/" in searchable:
+            platform, pid = searchable.split("/", 1)
+            contact_id = await find_contact_by_platform_id(await self._http(toolcall), self.ws_id, platform, pid)
+        if not contact_id:
+            return "No verified contact in this chat. Use verify_crm_identity first.\n"
+        http = await self._http(toolcall)
         try:
-            if op == "create":
-                new_id = await ckit_erp.erp_record_create(await self._http(toolcall), "crm_contact", self.ws_id, {"ws_id": self.ws_id, **fields})
-                return f"✅ Created: {new_id}\n"
-            elif op == "patch":
-                if not contact_id:
-                    return "❌ contact_id required for patch\n"
-                await ckit_erp.erp_record_patch(await self._http(toolcall), "crm_contact", self.ws_id, contact_id, fields)
-                return "✅ Updated\n"
-            else:
-                return f"❌ Unknown op: {op}\n"
+            if op == "get_summary":
+                contacts = await ckit_erp.erp_table_data(http, "crm_contact", self.ws_id, erp_schema.CrmContact, filters=f"contact_id:=:{contact_id}", limit=1)
+                if not contacts:
+                    return f"Contact {contact_id} not found\n"
+                lines = _fmt_contact(contacts[0])
+                deals = await ckit_erp.erp_table_data(http, "crm_deal", self.ws_id, erp_schema.CrmDeal, filters=f"deal_contact_id:=:{contact_id}", limit=6)
+                orders = await ckit_erp.erp_table_data(http, "com_order", self.ws_id, erp_schema.ComOrder, filters=f"order_contact_id:=:{contact_id}", limit=6)
+                activities = await ckit_erp.erp_table_data(http, "crm_activity", self.ws_id, erp_schema.CrmActivity, filters=f"activity_contact_id:=:{contact_id}", limit=6)
+                def _cnt(rows):
+                    return "5+" if len(rows) == 6 else str(len(rows))
+                if deals: lines += [f"\nDeals ({_cnt(deals)}):"] + [_fmt_deal(d) for d in deals[:2]]
+                if orders: lines += [f"\nOrders ({_cnt(orders)}):"] + [_fmt_order(o) for o in orders[:2]]
+                if activities: lines += [f"\nActivities ({_cnt(activities)}):"] + [_fmt_activity(a) for a in activities[:2]]
+                lines.append("\nUse get_all_deals/get_all_orders/get_all_activities for full lists.")
+                return "\n".join(lines) + "\n"
+            if op == "get_all_deals":
+                rows = await ckit_erp.erp_table_data(http, "crm_deal", self.ws_id, erp_schema.CrmDeal, filters=f"deal_contact_id:=:{contact_id}", limit=50)
+                return "No deals.\n" if not rows else f"Deals ({len(rows)}):\n" + "\n".join(_fmt_deal(d) for d in rows) + "\n"
+            if op == "get_all_orders":
+                rows = await ckit_erp.erp_table_data(http, "com_order", self.ws_id, erp_schema.ComOrder, filters=f"order_contact_id:=:{contact_id}", limit=50)
+                return "No orders.\n" if not rows else f"Orders ({len(rows)}):\n" + "\n".join(_fmt_order(o) for o in rows) + "\n"
+            if op == "get_all_activities":
+                rows = await ckit_erp.erp_table_data(http, "crm_activity", self.ws_id, erp_schema.CrmActivity, filters=f"activity_contact_id:=:{contact_id}", limit=50)
+                return "No activities.\n" if not rows else f"Activities ({len(rows)}):\n" + "\n".join(_fmt_activity(a) for a in rows) + "\n"
         except gql.transport.exceptions.TransportQueryError as e:
-            return ckit_cloudtool.gql_error_4xx_to_model_reraise_5xx(e, "fi_crm")
+            return ckit_cloudtool.gql_error_4xx_to_model_reraise_5xx(e, op)
+        return f"❌ Unknown op: {op}\n"
 
     async def handle_manage_crm_deal(self, toolcall: ckit_cloudtool.FCloudtoolCall, args: Dict[str, Any]) -> str:
         op = args.get("op", "")
@@ -240,25 +190,3 @@ class IntegrationCrm:
         except gql.transport.exceptions.TransportQueryError as e:
             return ckit_cloudtool.gql_error_4xx_to_model_reraise_5xx(e, "fi_crm")
 
-    async def handle_log_crm_activity(self, toolcall: ckit_cloudtool.FCloudtoolCall, args: Dict[str, Any]) -> str:
-        contact_id = args.get("contact_id", "").strip()
-        activity_type = args.get("activity_type", "").strip()
-        direction = args.get("direction", "").strip()
-        title = args.get("title", "").strip()
-        if not contact_id or not activity_type or not direction or not title:
-            return "❌ contact_id, activity_type, direction, and title are required"
-        try:
-            await ckit_erp.erp_record_create(await self._http(toolcall), "crm_activity", self.ws_id, {
-                "ws_id": self.ws_id,
-                "activity_title": title,
-                "activity_type": activity_type,
-                "activity_direction": direction,
-                "activity_platform": args.get("platform", ""),
-                "activity_contact_id": contact_id,
-                "activity_ft_id": toolcall.fcall_ft_id,
-                "activity_summary": args.get("summary", ""),
-                "activity_occurred_ts": time.time(),
-            })
-            return "✅ Activity logged\n"
-        except gql.transport.exceptions.TransportQueryError as e:
-            return ckit_cloudtool.gql_error_4xx_to_model_reraise_5xx(e, "fi_crm")
