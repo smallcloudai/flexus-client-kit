@@ -11,7 +11,7 @@ from typing import Any, Awaitable, Callable, Dict, List, Optional
 import telegram
 import telegram.ext
 
-from flexus_client_kit import ckit_ask_model, ckit_bot_exec, ckit_bot_query, ckit_client, ckit_cloudtool, ckit_kanban, gql_utils
+from flexus_client_kit import ckit_ask_model, ckit_bot_exec, ckit_bot_query, ckit_client, ckit_cloudtool, ckit_kanban, ckit_scenario, gql_utils
 from flexus_client_kit.format_utils import format_cat_output
 from flexus_client_kit.integrations import fi_messenger
 
@@ -163,6 +163,7 @@ class IntegrationTelegram(fi_messenger.FlexusMessenger):
         rcx: ckit_bot_exec.RobotContext,
     ):
         super().__init__(fclient, rcx)
+        self.is_fake = rcx.running_test_scenario
         tg_auth = rcx.external_auth.get("telegram") or {}
         self.bot_token = tg_auth.get("api_key", "").strip()
         self.webhook_secret = tg_auth.get("webhook_secret", "")
@@ -227,6 +228,9 @@ class IntegrationTelegram(fi_messenger.FlexusMessenger):
         args, args_error = ckit_cloudtool.sanitize_args(model_produced_args)
         if args_error:
             return args_error
+
+        if self.is_fake:
+            return await ckit_scenario.scenario_generate_tool_result_via_model(self.fclient, toolcall, open(__file__).read())
 
         if not self.tg_app:
             return "Problems:\n" + "\n".join(f"  {p}" for p in self.problems_accumulator) + "\n"

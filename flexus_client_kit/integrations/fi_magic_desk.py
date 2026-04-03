@@ -5,7 +5,7 @@ from typing import Any, Awaitable, Callable, Dict, Optional
 
 import gql
 
-from flexus_client_kit import ckit_ask_model, ckit_bot_exec, ckit_bot_query, ckit_client, ckit_cloudtool, ckit_kanban
+from flexus_client_kit import ckit_ask_model, ckit_bot_exec, ckit_bot_query, ckit_client, ckit_cloudtool, ckit_kanban, ckit_scenario
 from flexus_client_kit.integrations import fi_messenger
 
 logger = logging.getLogger("mdesk")
@@ -45,6 +45,7 @@ class IntegrationMagicDesk(fi_messenger.FlexusMessenger):
 
     def __init__(self, fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.RobotContext):
         super().__init__(fclient, rcx)
+        self.is_fake = rcx.running_test_scenario
         self._activity_callback: Callable[[ActivityMagicDesk, bool], Awaitable[None]] = self.default_activity_to_inbox
 
     def on_incoming_activity(self, handler: Callable[[ActivityMagicDesk, bool], Awaitable[None]]):
@@ -71,6 +72,8 @@ class IntegrationMagicDesk(fi_messenger.FlexusMessenger):
         args, args_error = ckit_cloudtool.sanitize_args(model_produced_args)
         if args_error:
             return args_error
+        if self.is_fake:
+            return await ckit_scenario.scenario_generate_tool_result_via_model(self.fclient, toolcall, open(__file__).read())
         if not op or "help" in op or "status" in op:
             return HELP
         if op == "capture":
