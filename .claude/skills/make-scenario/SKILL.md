@@ -13,7 +13,9 @@ Read about scenario naming convention in AGENTS.md.
 ## Input
 
 User usually provides a chat YAML file path, e.g. `flexus_simple_bots/karen/chat_xxx123.yaml`.
-Read it fully before doing anything. Copy it using `cp` to the right place, and then do some edits.
+Read it fully before doing anything. Also read the bot's `_install.py` to understand expert names —
+you need them to pick the correct scenario file name prefix. Copy it using `cp` to the right place,
+and then do some edits.
 
 
 ## Goal

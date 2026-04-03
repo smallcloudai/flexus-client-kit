@@ -1,0 +1,307 @@
+judge_instructions: No additional instructions
+messages:
+- role: cd_instruction
+  content: |-
+    📎/company/summary
+    {
+      "stage": "Growth",
+      "faq_url": "https://cloudpipe.ai/faq",
+      "mission": "Making Claude API accessible to teams of any size",
+      "tagline": "Claude API, simplified",
+      "website": "https://cloudpipe.ai",
+      "industry": "AI Infrastructure / API Services",
+      "company_name": "CloudPipe AI"
+    }
+
+    📎/company/sales-strategy
+    does not exist yet
+
+    📎/support/summary
+    {
+      "support-policy": {
+        "meta": {
+          "created_at": "2026-03-15T10:30:00.000000+00:00"
+        },
+        "section01-product": {
+          "title": "Product",
+          "question02-features": {
+            "a": "Usage dashboard, team API key management, spend alerts, rate limit pooling, prompt caching proxy, SSO",
+            "q": "What are the key features?"
+          },
+          "question01-description": {
+            "a": "CloudPipe AI is a managed proxy and billing layer for the Claude API. Customers get a single account with team management, usage analytics, and consolidated billing instead of dealing with Anthropic API keys directly. We resell all Claude models at a small markup and add value through tooling.",
+            "q": "What is the product?"
+          },
+          "question04-preorder-waitlist": {
+            "a": "",
+            "q": "How does the waitlist/preorder work?"
+          },
+          "question03-ideal-customer-profile": {
+            "a": "Dev teams 5-50 people who want Claude API without procurement overhead. Agencies managing multiple client projects. Startups that need usage visibility before committing to Anthropic enterprise.",
+            "q": "Who is the ideal customer (ICP)?"
+          }
+        },
+        "section03-support": {
+          "title": "Support",
+          "question01-channels": {
+            "a": "Telegram, email support@cloudpipe.ai",
+            "q": "Support channels (email, chat, etc.)?"
+          },
+          "question02-escalation": {
+            "a": "Billing disputes, outages, account lockouts",
+            "q": "When to escalate to human?"
+          }
+        },
+        "section05-sources": {
+          "title": "Sources",
+          "question01-eds-list": {
+            "a": "",
+            "q": "Working EDS IDs?"
+          },
+          "question02-websites": {
+            "a": "https://docs.anthropic.com, https://cloudpipe.ai/docs",
+            "q": "Key websites for support info?"
+          }
+        },
+        "section02-future-ops": {
+          "title": "Billing & Accounts",
+          "question02-returns": {
+            "a": "No refunds on consumed API tokens. Unused prepaid credits refundable within 30 days.",
+            "q": "Refund policy?"
+          },
+          "question01-shipping": {
+            "a": "",
+            "q": "Shipping methods, costs, times?"
+          },
+          "question03-warranty": {
+            "a": "",
+            "q": "Warranty details?"
+          },
+          "question04-payments": {
+            "a": "Monthly billing via Stripe. Pay-as-you-go or prepaid credits at 5% discount. Pricing is Anthropic list price + 15% markup.",
+            "q": "Payment options & pricing?"
+          }
+        },
+        "section04-restrictions": {
+          "title": "Restrictions",
+          "question01-never-say": {
+            "a": "Never share internal Anthropic API keys. Never promise specific uptime SLA unless on Enterprise plan.",
+            "q": "What should support NEVER say?"
+          }
+        }
+      }
+    }
+- role: user
+  content: |-
+    Telegram private user='Vasya Pupkin' chat_id=149315030
+    hi
+- role: assistant
+  tool_calls:
+    - id: fakecall_DX8c4k6aOnn44ieE
+      type: function
+      function:
+        name: flexus_kanban_public
+        arguments: '{"op": "status_public", "search": null, "resolution": null, "details_json": null, "restart_summary": null}'
+- role: tool
+  content: |
+    The current task with details:
+    {
+      "id": "dG8JD1LAaY",
+      "title": "Telegram private user='Vasya Pupkin' chat_id=149315030\nhi",
+      "details": {
+        "chat_id": 149315030,
+        "chat_type": "private",
+        "message_id": 410,
+        "attachments": [],
+        "message_text": "hi",
+        "message_author_id": 149315030,
+        "message_author_name": "Vasya Pupkin"
+      }
+    }
+
+    Inbox:
+    [
+    ]
+
+    Todo:
+    [
+    ]
+
+    In Progress:
+    [
+    {"id": "dG8JD1LAaY", "title": "Telegram private user='Vasya Pupkin' chat_id=149315030\nhi", "human": "telegram:149315030"},
+    ]
+
+    Done:
+    [
+    ]
+  call_id: fakecall_DX8c4k6aOnn44ieE
+- role: title
+  content: "[telegram] [vasya] [greeting] Telegram private: Vasya Pupkin (chat_id=149315030) — hi"
+- role: assistant
+  tool_calls:
+    - id: call_ch7YyZE8d9jZWDqrVhE4wcqU
+      type: function
+      function:
+        name: telegram
+        arguments: '{"op": "capture", "args": {"chat_id": 149315030}}'
+- role: tool
+  content: |
+    📌CAPTURED
+
+    The next thing you write will be visible. Don't comment on that fact and think about what do you want to say in '149315030'.
+    Don't use op=post because now anything you say is visible automatically.
+
+    Reminder: after this point telegram MarkdownV2 markup rules are in effect for your output, there are no tables! Here's markup help for you again.
+
+
+    Telegram uses MarkdownV2 markup:
+    *bold*  _italic_  __underline__  ~strikethrough~
+    `inline code`
+    ```python
+    code block
+    ```
+    [link text](https://example.com)
+    ||spoiler||
+
+    > blockquote
+    > each line must start with >
+
+    No bullet lists or tables.
+  call_id: call_ch7YyZE8d9jZWDqrVhE4wcqU
+- role: assistant
+  content: Hi Vasya! I'm Karen, support assistant for CloudPipe AI. What can I help you with?
+- role: user
+  content:
+    - m_type: text
+      m_content: |-
+        👤Vasya Pupkin
+
+        help me with Opus pricing
+- role: assistant
+  tool_calls:
+    - id: call_in4SzlVQsFZnqiu5e9f8IP35
+      type: function
+      function:
+        name: flexus_vector_search
+        arguments: '{"eds": "", "query": "Opus pricing"}'
+- role: tool
+  content: |+
+    For your query 'Opus pricing' found 3 chunks, in database of 7088 chunks across 182 indexed documents.
+    IMPORTANT: These are only snippets. You must call flexus_read_original(eds="eds_id", op="cat", p="/path") to read the full document before answering.
+
+    at eds_id=GewoenvkaD found chunk 0
+    📎/code.claude.com/docs/en/fast-mode.md:61-82
+    ```
+    # Speed up responses with fast mode
+    Fast mode is a high-speed configuration for Claude Opus 4.6, making the model
+    2.5x faster at a higher cost per token.
+    What to know:
+    * Fast mode for Opus 4.6 pricing is $30/150 MTok.
+    * Available to all Claude Code users on subscription plans (Pro/Max/Team/Enterprise) and Claude Console.
+    ```
+
+    at eds_id=GewoenvkaD found chunk 2
+    📎/code.claude.com/docs/en/model-config.md:235-260
+    ```
+    The behavior of `default` depends on your account type:
+    * **Max and Team Premium** : defaults to Opus 4.6
+    * **Pro and Team Standard** : defaults to Sonnet 4.6
+    * **Enterprise** : Opus 4.6 is available but not the default
+    Claude Code may automatically fall back to Sonnet if you hit a usage threshold
+    with Opus.
+    ```
+
+    at eds_id=GewoenvkaD found chunk 3
+    📎/code.claude.com/docs/en/costs.md:69-82
+    ```
+    # Manage costs effectively
+    Claude Code consumes tokens for each interaction. Costs vary based on codebase
+    size, query complexity, and conversation length. The average cost is $6 per
+    developer per day, with daily costs remaining below $12 for 90% of users. For
+    team usage, Claude Code charges by API token consumption. On average, Claude
+    Code costs ~$100-200/developer per month with Sonnet 4.6 though there is large
+    variance depending on how many instances users are running and whether they're
+    using it in automation.
+    ```
+
+  call_id: call_in4SzlVQsFZnqiu5e9f8IP35
+- role: assistant
+  tool_calls:
+    - id: call_EeeZHGhjQD7eUo9U0lqpnAAF
+      type: function
+      function:
+        name: flexus_read_original
+        arguments: '{"eds": "GewoenvkaD", "op": "cat", "p": "/code.claude.com/docs/en/fast-mode.md", "skip": 61, "take": 120, "safety_valve": "20k"}'
+    - id: call_R2kqPvNx8mLWf1cDjYbTaS3e
+      type: function
+      function:
+        name: flexus_read_original
+        arguments: '{"eds": "GewoenvkaD", "op": "cat", "p": "/code.claude.com/docs/en/costs.md", "skip": 69, "take": 50, "safety_valve": "20k"}'
+- role: tool
+  content: |-
+    📄 File: code.claude.com/docs/en/fast-mode.md
+
+    # Speed up responses with fast mode
+
+    Fast mode is a high-speed configuration for Claude Opus 4.6, making the model
+    2.5x faster at a higher cost per token. Toggle it on with `/fast` when you
+    need speed for interactive work like rapid iteration or live debugging, and
+    toggle it off when cost matters more than latency. Fast mode is not a
+    different model. It uses the same Opus 4.6 with a different API configuration
+    that prioritizes speed over cost efficiency. You get identical quality and
+    capabilities, just faster responses.
+
+    What to know:
+      * Fast mode for Opus 4.6 pricing is $30/150 MTok.
+      * Available to all Claude Code users on subscription plans (Pro/Max/Team/Enterprise) and Claude Console.
+
+    Mode| Input (MTok)| Output (MTok)
+    ---|---|---
+    Fast mode on Opus 4.6| $30| $150
+
+    Fast mode pricing is flat across the full 1M token context window.
+  call_id: call_EeeZHGhjQD7eUo9U0lqpnAAF
+- role: tool
+  content: |-
+    📄 File: code.claude.com/docs/en/costs.md
+
+    # Manage costs effectively
+
+    Claude Code consumes tokens for each interaction. Costs vary based on codebase
+    size, query complexity, and conversation length. The average cost is $6 per
+    developer per day, with daily costs remaining below $12 for 90% of users. For
+    team usage, Claude Code charges by API token consumption. On average, Claude
+    Code costs ~$100-200/developer per month with Sonnet 4.6 though there is large
+    variance depending on how many instances users are running and whether they're
+    using it in automation.
+  call_id: call_R2kqPvNx8mLWf1cDjYbTaS3e
+- role: assistant
+  content: |-
+    Opus fast mode: $30 per 1M input tokens, $150 per 1M output tokens. Same model, just faster.
+
+    For real\-world costs: average Claude Code usage runs ~$6/dev/day, under $12 for 90% of users. With Sonnet that's ~$100\-200/dev/month — Opus will be higher depending on volume.
+
+    Through CloudPipe that's plus our 15% markup. Want me to help estimate for your team size?
+- role: user
+  content:
+    - m_type: text
+      m_content: |-
+        👤Vasya Pupkin
+
+        ok thanks
+- role: assistant
+  tool_calls:
+    - id: call_GBLCjRLNzwnzmdFOL0f3yvt3
+      type: function
+      function:
+        name: flexus_kanban_public
+        arguments: '{"op": "resolve", "search": null, "resolution": {"code": "SUCCESS", "summary": "Answered Vasya Pupkin on Telegram about Opus pricing. Looked up Claude Code docs and replied that Opus fast mode costs $30/1M input, $150/1M output tokens — same model, faster latency.", "humanhours": 0.2, "uncapture": true, "pdoc_paths": []}, "details_json": null, "restart_summary": null}'
+- role: tool
+  content: |-
+    Moved to done dG8JD1LAaY
+
+    Uncaptured the chat, no one can see your messages now, all left to do is to say TASK_COMPLETED
+  call_id: call_GBLCjRLNzwnzmdFOL0f3yvt3
+- role: assistant
+  content: TASK_COMPLETED
