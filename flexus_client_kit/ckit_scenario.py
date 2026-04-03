@@ -175,7 +175,7 @@ async def scenario_generate_tool_result_via_model(
                 "tool_handler_source_code": tool_handler_source_code,
             },
         )
-    raise ckit_cloudtool.AlreadyPostedResult()
+    raise ckit_cloudtool.AlreadyFakedResult()
 
 
 async def scenario_print_personas(fclient: ckit_client.FlexusClient, fgroup_id: str) -> str:

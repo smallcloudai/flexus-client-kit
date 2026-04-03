@@ -59,11 +59,6 @@ class WaitForSubchats(Exception):
         super().__init__(f"Waiting for subchats: {subchats}")
 
 
-class AlreadyPostedResult(Exception):
-    def __init__(self):
-        super().__init__("Result already posted")
-
-
 class AlreadyFakedResult(Exception):
     def __init__(self):
         super().__init__("Result already faked in scenario")

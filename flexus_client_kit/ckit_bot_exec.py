@@ -264,8 +264,8 @@ class RobotContext:
         except ckit_cloudtool.WaitForSubchats as e:
             serialized_result = json.dumps("WAIT_SUBCHATS")
             subchats_list = e.subchats
-        except ckit_cloudtool.AlreadyPostedResult:
-            logger.info("call %s result already posted (or faked for scenario)" % toolcall.fcall_id)
+        except ckit_cloudtool.AlreadyFakedResult:
+            logger.info("call %s result already faked for scenario" % toolcall.fcall_id)
             return
         except ckit_cloudtool.NeedsConfirmation as e:
             logger.info("%s needs human confirmation: %s" % (toolcall.fcall_id, e.confirm_explanation))
