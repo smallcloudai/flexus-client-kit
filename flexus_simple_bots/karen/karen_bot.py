@@ -1,4 +1,5 @@
 import asyncio
+from collections import deque
 import email.utils
 import json
 import logging
@@ -32,6 +33,7 @@ from flexus_client_kit import ckit_scenario
 from flexus_client_kit.integrations import fi_discord2
 from flexus_client_kit.integrations import fi_mcp
 from flexus_client_kit import ckit_bot_version
+import gql.transport.exceptions
 
 logger = logging.getLogger("bot_karen")
 
@@ -59,7 +61,7 @@ KAREN_INTEGRATIONS: list[ckit_integrations_db.IntegrationRecord] = ckit_integrat
         "flexus_policy_document",
         "print_widget",
         "erp[meta, data, crud, csv_import]",
-        "crm[manage_contact, manage_deal, log_activity, verify_email]",
+        "crm[contact_info, manage_deal, verify_email]",
         "magic_desk",
         "slack",
         "telegram",
@@ -274,8 +276,8 @@ async def karen_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.
                 "activity_summary": body[:500],
                 "activity_occurred_ts": time.time(),
             })
-        except Exception:
-            logger.exception("Failed to create CRM activity for inbound email from %s", em.from_addr)
+        except gql.transport.exceptions.TransportQueryError as e:
+            ckit_cloudtool.gql_error_4xx_to_model_reraise_5xx(e, "CRM activity for inbound email from %s" % em.from_addr)
         if not email_respond_to.intersection(a.lower() for a in em.to_addrs):
             return
         title = "Email from %s: %s" % (em.from_addr, em.subject)
@@ -343,8 +345,8 @@ async def karen_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.
                 include=opts.get("include", []),
                 include_limit=opts.get("include_limit", opts.get("limit", 100)),
             )
-        except Exception as e:
-            return "❌ Query error: %s" % e
+        except gql.transport.exceptions.TransportQueryError as e:
+            return ckit_cloudtool.gql_error_4xx_to_model_reraise_5xx(e, "product_catalog")
         from flexus_client_kit.integrations.fi_erp import _rows_to_text
         display_text, full_json = _rows_to_text(
             [ckit_erp.dataclass_or_dict_to_dict(r) for r in rows], table,
@@ -392,6 +394,36 @@ async def karen_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.
             fexp_name="explore",
         )
         raise ckit_cloudtool.WaitForSubchats(subchats)
+
+    _seen_done_deque = deque(maxlen=1000)
+    _seen_done_set = set()
+
+    @rcx.on_updated_task
+    async def on_task_update(task: ckit_kanban.FPersonaKanbanTaskOutput):
+        if task.ktask_done_ts > 0:
+            if task.ktask_id in _seen_done_set:
+                return
+            if len(_seen_done_deque) == _seen_done_deque.maxlen:
+                _seen_done_set.discard(_seen_done_deque[0])
+            _seen_done_deque.append(task.ktask_id)
+            _seen_done_set.add(task.ktask_id)
+        if not rcx._completed_initial_unpark:
+            return
+        if task.ktask_done_ts > 0 and task.ktask_human_id and task.ktask_fexp_name == "very_limited":
+            await ckit_kanban.bot_kanban_post_into_inbox(
+                await fclient.use_http_on_behalf(rcx.persona.persona_id, ""),
+                rcx.persona.persona_id,
+                title="Read linked thread, find/create contact, log activity, score BANT: %s" % task.ktask_title[:60],
+                human_id=task.ktask_human_id,
+                details_json=json.dumps({
+                    "spawned_from_ktask_id": task.ktask_id,
+                    "spawned_from_title": task.ktask_title,
+                    "from_thread_id": task.ktask_inprogress_ft_id,
+                    "human_id": task.ktask_human_id,
+                }),
+                provenance_message="karen_post_conversation",
+                fexp_name="post_conversation",
+            )
 
     @telegram.on_incoming_activity
     async def telegram_activity_callback(a: fi_telegram.ActivityTelegram, already_posted: bool):
