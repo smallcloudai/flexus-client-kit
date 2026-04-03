@@ -62,7 +62,6 @@ class IntegrationMagicDesk(fi_messenger.FlexusMessenger):
             details_json=json.dumps({"session_id": a.session_id, "text": a.text}),
             provenance_message="magic_desk_inbound",
             fexp_name=self.outside_messages_fexp_name,
-            first_calls=[{"tool_name": "magic_desk", "tool_args": {"op": "capture", "args": {"session_id": a.session_id}}}],
         )
 
     async def called_by_model(self, toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Optional[Dict[str, Any]]) -> str:

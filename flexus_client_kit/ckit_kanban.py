@@ -86,13 +86,12 @@ async def bot_kanban_post_into_inprogress(
     details_json: str,
     provenance_message: str,
     fexp_name: str = "",
-    first_calls: list = [],
     human_id: str = "",
 ) -> None:
     async with http as h:
         await h.execute(gql.gql("""
-            mutation KanbanPostInprogress($pid: String!, $title: String!, $human_id: String!, $details: String!, $prov: String!, $fexp: String!, $first_calls: String!) {
-                bot_kanban_post_into_inprogress(persona_id: $pid, title: $title, human_id: $human_id, details_json: $details, provenance_message: $prov, fexp_name: $fexp, first_calls: $first_calls) { ktask_id }
+            mutation KanbanPostInprogress($pid: String!, $title: String!, $human_id: String!, $details: String!, $prov: String!, $fexp: String!) {
+                bot_kanban_post_into_inprogress(persona_id: $pid, title: $title, human_id: $human_id, details_json: $details, provenance_message: $prov, fexp_name: $fexp) { ktask_id }
             }"""),
             variable_values={
                 "pid": persona_id,
@@ -101,7 +100,6 @@ async def bot_kanban_post_into_inprogress(
                 "details": details_json,
                 "prov": provenance_message,
                 "fexp": fexp_name,
-                "first_calls": json.dumps(first_calls),
             },
         )
 

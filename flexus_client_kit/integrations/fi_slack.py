@@ -209,7 +209,6 @@ class IntegrationSlack(fi_messenger.FlexusMessenger):
                 details_json=json.dumps(details),
                 provenance_message="slack_inbound",
                 fexp_name=self.outside_messages_fexp_name,
-                first_calls=[{"tool_name": "slack", "tool_args": {"op": "capture", "args": {"channel_slash_thread": to_capture}}}],
             )
         else:
             await ckit_kanban.bot_kanban_post_into_inbox(

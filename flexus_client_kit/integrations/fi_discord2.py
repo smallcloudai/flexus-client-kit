@@ -200,7 +200,6 @@ class IntegrationDiscord(fi_messenger.FlexusMessenger):
                 details_json=json.dumps(details),
                 provenance_message="discord_inbound",
                 fexp_name=self.outside_messages_fexp_name,
-                first_calls=[{"tool_name": "discord", "tool_args": {"op": "capture", "args": {"target": to_capture}}}],
             )
         else:
             await ckit_kanban.bot_kanban_post_into_inbox(

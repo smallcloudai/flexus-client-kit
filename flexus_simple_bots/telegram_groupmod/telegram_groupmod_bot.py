@@ -570,7 +570,6 @@ async def telegram_groupmod_main_loop(
             details_json=json.dumps(details),
             provenance_message="telegram_private_message",
             fexp_name="talk_in_dm",
-            first_calls=[{"tool_name": "telegram", "tool_args": {"op": "capture", "args": {"chat_id": a.chat_id}}}],
         )
 
     await tg.initialize()

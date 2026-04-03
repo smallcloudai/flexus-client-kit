@@ -424,7 +424,6 @@ async def karen_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.
                 details_json=json.dumps(details),
                 provenance_message="karen_telegram_activity",
                 fexp_name="very_limited",
-                first_calls=[{"tool_name": "telegram", "tool_args": {"op": "capture", "args": {"chat_id": a.chat_id}}}],
             )
         else:
             await ckit_kanban.bot_kanban_post_into_inbox(
@@ -463,7 +462,6 @@ async def karen_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.
                 details_json=json.dumps(details),
                 provenance_message="karen_slack_activity",
                 fexp_name="very_limited",
-                first_calls=[{"tool_name": "slack", "tool_args": {"op": "capture", "args": {"channel_slash_thread": to_capture}}}],
             )
         else:
             await ckit_kanban.bot_kanban_post_into_inbox(
