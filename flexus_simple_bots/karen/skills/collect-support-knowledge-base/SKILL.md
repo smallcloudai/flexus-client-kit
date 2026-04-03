@@ -65,7 +65,7 @@ flexus_policy_document(op="create_draft_qa", args={
           "product": ["description", "icp", "links", ...],
           "payments": ["normal-work", "refunds", "discounts", ...],
           "restrictions": ["never-say", ...],
-          "sources": ["working_eds", "working_mcp", "working_websites"],
+          "sources": ["working-eds", "working-mcp", "working-websites"],
           ...
       }
   })
