@@ -1,7 +1,6 @@
 judge_instructions: |
-  Heavily penalize if the assistant skips calling flexus_read_original() after vector search returns relevant snippets.
-  The system prompt says to read full documents, not answer from snippets alone. In this scenario
-  /code.claude.com/docs/en/fast-mode.md /code.claude.com/docs/en/costs.md are relevant and both must be read before answering.
+  The assistant should use flexus_vector_search() to find relevant information and compose an answer from the results.
+  Penalize if the assistant fabricates information that does not exist in the search result.
 
 messages:
 - role: cd_instruction

@@ -380,7 +380,7 @@ async def karen_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.
                 questions.append("Fetch and read %s to answer: %s\n\nUse web() tool to fetch the page. Report your findings with sources." % (entry, q))
                 titles.append("Explore: %s (%s)" % (q[:40], entry[:40]))
             else:
-                questions.append('Search EDS "%s" to answer: %s\n\nUse flexus_vector_search(scopes=["%s"], ...) and flexus_read_original() to find and read relevant documents. Report your findings with sources.' % (entry, q, entry))
+                questions.append('Search EDS "%s" to answer: %s\n\nUse flexus_vector_search(scopes=["%s"], ...) to find relevant documents. Report your findings with sources.' % (entry, q, entry))
                 titles.append("Explore: %s (EDS %s)" % (q[:60], entry))
         subchats = await ckit_ask_model.bot_subchat_create_multiple(
             client=fclient,

@@ -3,6 +3,7 @@
 import json
 import base64
 import logging
+from dataclasses import dataclass, field
 from io import BytesIO
 from pathlib import Path
 from re import Pattern
@@ -17,6 +18,19 @@ logger = logging.getLogger(__name__)
 IMAGE_EXTENSIONS = {'.png', '.jpg', '.jpeg', '.gif', '.bmp', '.webp'}
 
 DEFAULT_SAFETY_VALVE = "10k"
+
+
+@dataclass
+class TextOutputResult:
+    lines: List[str]
+    line1: int        # 1-based first line shown
+    line2: int        # 1-based last line shown (inclusive)
+    safety_valve_hit: bool
+    header: str
+    warnings: List[str] = field(default_factory=list)
+
+    def __str__(self):
+        return "\n".join([self.header] + self.warnings + [""] + self.lines)
 
 
 # XXX remove, bad idea
@@ -119,15 +133,15 @@ def format_text_output(
     lines_range: str = ":",
     safety_valve: str = DEFAULT_SAFETY_VALVE,
     line_offset: int = 0
-) -> str:
-    # Please leave this function alone -- Oleg
+) -> TextOutputResult:
     safety_valve_chars = 0
     if safety_valve.lower().endswith('k'):
         safety_valve_chars = int(safety_valve[:-1]) * 1000
     else:
         safety_valve_chars = int(safety_valve)
     safety_valve_chars = max(1000, safety_valve_chars)
-    header_lines = [f"📄 {path}"]
+    header = f"📄 {path}"
+    warnings = []
     lines = content.splitlines()
     if ":" in lines_range:
         start_str, end_str = lines_range.split(":", 1)
@@ -143,23 +157,35 @@ def format_text_output(
     end = min(len(lines), end)
     result = []
     ctx_left = safety_valve_chars
+    hit = False
+    actual_end = start
     for i in range(start, end):
         line = lines[i]
         if len(line) > safety_valve_chars:
-            if len(result) > 0:
-                header_lines.append(f"⚠️ A single line {i+1} is so long that it alone is bigger than `safety_valve`, call again starting with that line in lines_range to see it.")
+            hit = True
+            if result:
+                warnings.append(f"⚠️ A single line {i+1} is so long that it alone is bigger than `safety_valve`, call flexus_read_original again starting with that line in lines_range to see it.")
                 break
             else:
-                header_lines.append(f"⚠️ A single line {i+1} is {len(line)} characters, truncated to `safety_valve` characters, increase safety_valve to see it in full.")
+                warnings.append(f"⚠️ A single line {i+1} is {len(line)} characters, truncated to `safety_valve` characters, increase safety_valve to see it in full.")
                 result = [line[:safety_valve_chars]]
+                actual_end = i
                 break
         ctx_left -= len(line)
         result.append(line)
+        actual_end = i
         if ctx_left < 0:
-            header_lines.append(f"⚠️ The original preview is {len(content)} chars and {len(lines)} lines, showing lines range {line_offset+start+1}:{line_offset+i+1} because `safety_valve` hit")
+            hit = True
+            warnings.append(f"⚠️ The original preview is {len(content)} chars and {len(lines)} lines, showing lines range {line_offset+start+1}:{line_offset+actual_end+1} because `safety_valve` hit")
             break
-    result = header_lines + [""] + result
-    return "\n".join(result)
+    return TextOutputResult(
+        lines=result,
+        line1=line_offset + start + 1,
+        line2=line_offset + actual_end + 1,
+        safety_valve_hit=hit,
+        header=header,
+        warnings=warnings,
+    )
 
 
 # XXX remove
@@ -198,7 +224,7 @@ def format_binary_output(
 
     try:
         text_content = data.decode('utf-8')
-        return result + format_text_output(path, text_content, lines_range, safety_valve, line_offset)
+        return result + str(format_text_output(path, text_content, lines_range, safety_valve, line_offset))
     except UnicodeDecodeError:
         pass
 
@@ -265,24 +291,32 @@ if __name__ == "__main__":
     print("1:10", "10k")
     print(out)
     print()
-    assert "Line 1" in out and "Line 10" in out and "Line 11" not in out
+    s = str(out)
+    assert "Line 1" in s and "Line 10" in s and "Line 11" not in s
+    assert out.line1 == 1 and out.line2 == 10 and not out.safety_valve_hit
 
     long_line = "a" * 5000
     out = format_text_output("test.txt", long_line, "1:", "2k")
     print("1:", "2k")
     print(out)
     print()
-    assert "truncated" in out and len(out) < 3000
+    s = str(out)
+    assert "truncated" in s and len(s) < 3000
+    assert out.safety_valve_hit
 
     out = format_text_output("test.txt", content, "1:", "2k")
     print("1:", "2k")
     print(out)
     print()
-    assert "hit" in out
+    s = str(out)
+    assert "hit" in s
+    assert out.safety_valve_hit
 
     out = format_text_output("test.txt", content, "50", "10k")
     print("50", "10k")
     print(out)
     print()
-    assert "Line 50" in out and "Line 51" not in out and "Line 49" not in out
+    s = str(out)
+    assert "Line 50" in s and "Line 51" not in s and "Line 49" not in s
+    assert out.line1 == 50 and out.line2 == 50 and not out.safety_valve_hit
 
