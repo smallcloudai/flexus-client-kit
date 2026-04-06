@@ -18,6 +18,7 @@ import googleapiclient.errors
 from flexus_client_kit import ckit_cloudtool
 from flexus_client_kit import ckit_client
 from flexus_client_kit import ckit_erp
+from flexus_client_kit import ckit_integrations_db
 from flexus_client_kit import erp_schema
 
 logger = logging.getLogger("gmail")
@@ -684,4 +685,4 @@ class IntegrationGmail:
         return f"✅ Thread {thread_id} deleted successfully"
 
 
-GMAIL_SCOPES = ["openid", "email", "profile", "https://www.googleapis.com/auth/gmail.modify"]
+GMAIL_SCOPES = ckit_integrations_db.GOOGLE_OAUTH_BASE_SCOPES + ["https://www.googleapis.com/auth/gmail.modify"]

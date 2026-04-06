@@ -43,6 +43,8 @@ FROG_INTEGRATIONS: list[ckit_integrations_db.IntegrationRecord] = ckit_integrati
         "flexus_policy_document",
         "print_widget",
         "gmail",
+        "google_business",
+        "google_ads",
         "telegram",
         "slack",
         "skills"

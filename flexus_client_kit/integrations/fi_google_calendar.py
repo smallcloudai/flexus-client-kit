@@ -9,11 +9,12 @@ import langchain_google_community.calendar.toolkit
 
 from flexus_client_kit import ckit_cloudtool
 from flexus_client_kit import ckit_client
+from flexus_client_kit import ckit_integrations_db
 from flexus_client_kit.integrations import langchain_adapter
 
 logger = logging.getLogger("google_calendar")
 
-REQUIRED_SCOPES = ["https://www.googleapis.com/auth/calendar"]
+REQUIRED_SCOPES = ckit_integrations_db.GOOGLE_OAUTH_BASE_SCOPES + ["https://www.googleapis.com/auth/calendar"]
 
 
 GOOGLE_CALENDAR_TOOL = ckit_cloudtool.CloudTool(

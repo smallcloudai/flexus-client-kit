@@ -4,6 +4,7 @@ import base64
 from flexus_client_kit import ckit_client
 from flexus_client_kit import ckit_bot_install
 from flexus_client_kit import ckit_cloudtool
+from flexus_client_kit import ckit_integrations_db
 from flexus_client_kit import ckit_skills
 
 from flexus_simple_bots import prompts_common
@@ -90,16 +91,21 @@ async def install(
             prompts_common.SCHED_TODO_5M | {"sched_when": "EVERY:2m", "sched_first_question": "Work on the assigned task with enthusiasm!"},
         ],
         marketable_forms=ckit_bot_install.load_form_bundles(__file__),
-        marketable_auth_supported=["gmail"],
+        marketable_auth_supported=["gmail", "google_business", "google_ads"],
         marketable_auth_scopes={
-            "gmail": [
-                "openid", "email", "profile",
+            "gmail": ckit_integrations_db.GOOGLE_OAUTH_BASE_SCOPES + [
                 "https://www.googleapis.com/auth/gmail.readonly",
                 "https://www.googleapis.com/auth/gmail.compose",
                 "https://www.googleapis.com/auth/gmail.modify",
                 "https://www.googleapis.com/auth/gmail.send",
                 "https://www.googleapis.com/auth/gmail.labels",
-            ]
+            ],
+            "google_business": ckit_integrations_db.GOOGLE_OAUTH_BASE_SCOPES + [
+                "https://www.googleapis.com/auth/business.manage",
+            ],
+            "google_ads": ckit_integrations_db.GOOGLE_OAUTH_BASE_SCOPES + [
+                "https://www.googleapis.com/auth/adwords",
+            ],
         },
     )
 
