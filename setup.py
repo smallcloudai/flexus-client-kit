@@ -61,6 +61,7 @@ setup(
         "xai-sdk",
         "mcp",
         "python-telegram-bot>=20.0",
+        "google-ads",
     ],
     extras_require={
         "dev": [
