@@ -24,8 +24,8 @@ GOOGLE_ADS_TOOL = ckit_cloudtool.CloudTool(
     parameters={
         "type": "object",
         "properties": {
-            "op": {"type": "string", "description": "Start with 'help' for usage"},
-            "args": {"type": "object"},
+            "op": {"type": "string", "description": "Start with 'help' for usage", "order": 0},
+            "args": {"type": "object", "order": 1},
         },
         "required": [],
     },
