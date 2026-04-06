@@ -3,12 +3,15 @@ import logging
 from typing import Dict, Any, Optional
 
 import google.oauth2.credentials
+import grpc
+from google.ads.googleads.client import GoogleAdsClient
+from google.ads.googleads.errors import GoogleAdsException
 
 from flexus_client_kit import ckit_cloudtool
 from flexus_client_kit import ckit_client
 from flexus_client_kit import ckit_integrations_db
 
-logger = logging.getLogger("google_ads")
+logger = logging.getLogger("goads")
 
 GOOGLE_ADS_SCOPES = ckit_integrations_db.GOOGLE_OAUTH_BASE_SCOPES + [
     "https://www.googleapis.com/auth/adwords",
@@ -121,22 +124,16 @@ class IntegrationGoogleAds:
             return False
         if access_token == self._last_access_token and self._client:
             return True
-        try:
-            from google.ads.googleads.client import GoogleAdsClient
-            creds = google.oauth2.credentials.Credentials(token=access_token)
-            self._client = GoogleAdsClient(
-                credentials=creds,
-                developer_token=self.developer_token,
-                login_customer_id=self.login_customer_id or None,
-                use_proto_plus=True,
-            )
-            self._last_access_token = access_token
-            logger.info("Google Ads client initialized for customer %s, login_customer_id=%s", self.customer_id, self.login_customer_id or "(none)")
-            return True
-        except Exception as e:
-            logger.error("Failed to initialize Google Ads client: %s", e)
-            self._client = None
-            return False
+        creds = google.oauth2.credentials.Credentials(token=access_token)
+        self._client = GoogleAdsClient(
+            credentials=creds,
+            developer_token=self.developer_token,
+            login_customer_id=self.login_customer_id or None,
+            use_proto_plus=True,
+        )
+        self._last_access_token = access_token
+        logger.info("Google Ads client initialized for customer %s, login_customer_id=%s", self.customer_id, self.login_customer_id or "(none)")
+        return True
 
     async def called_by_model(
         self,
@@ -216,14 +213,14 @@ class IntegrationGoogleAds:
             else:
                 return f"❌ Unknown operation: {op}\n\nTry google_ads(op='help') for usage."
 
-        except Exception as e:
-            err_str = str(e)
-            if "AUTHENTICATION_ERROR" in err_str or "AuthorizationError" in err_str:
+        except GoogleAdsException as ex:
+            if ex.error.code() in (grpc.StatusCode.UNAUTHENTICATED, grpc.StatusCode.PERMISSION_DENIED):
                 self._client = None
                 self._last_access_token = None
-                return f"❌ Authentication error: {err_str[:300]}\n\nPlease reconnect Google Ads in bot Integrations tab."
-            logger.error("Google Ads API error: %s", e)
-            return f"❌ Google Ads API error: {err_str[:500]}"
+                return f"❌ Authentication error (request_id={ex.request_id})\n\nPlease reconnect Google Ads in bot Integrations tab."
+            logger.error("Google Ads API error request_id=%s: %r", ex.request_id, ex.failure)
+            return f"❌ Google Ads API error (request_id={ex.request_id}): {ex.failure}"
+    
     async def _run_gaql(self, query: str) -> list:
         def _search():
             service = self._client.get_service("GoogleAdsService")
@@ -243,6 +240,7 @@ class IntegrationGoogleAds:
         if len(rows) > 100:
             lines.append(f"\n... and {len(rows) - 100} more rows (truncated)")
         return "\n".join(lines)
+    
     async def _list_campaigns(self, args: Dict[str, Any]) -> str:
         status_filter = args.get("status", "")
         query = (
@@ -263,6 +261,7 @@ class IntegrationGoogleAds:
             lines.append(f"{i}. [{c.status.name}] {c.name}")
             lines.append(f"   ID: {c.id}  Type: {c.advertising_channel_type.name}  Budget: {budget}/day")
         return "\n".join(lines)
+    
     async def _get_campaign(self, args: Dict[str, Any]) -> str:
         campaign_id = args.get("campaignId", "")
         if not campaign_id:
@@ -288,6 +287,7 @@ class IntegrationGoogleAds:
             f"Budget: {_format_micros(b.amount_micros)}/day",
         ]
         return "\n".join(lines)
+    
     async def _set_campaign_status(self, args: Dict[str, Any], toolcall: ckit_cloudtool.FCloudtoolCall, target_status: str) -> str:
         campaign_id = args.get("campaignId", "")
         if not campaign_id:
@@ -312,6 +312,7 @@ class IntegrationGoogleAds:
 
         await asyncio.to_thread(_mutate)
         return f"✅ Campaign {campaign_id} set to {target_status}"
+    
     async def _list_ad_groups(self, args: Dict[str, Any]) -> str:
         campaign_id = args.get("campaignId", "")
         if not campaign_id:
@@ -329,6 +330,7 @@ class IntegrationGoogleAds:
             ag = row.ad_group
             lines.append(f"{i}. [{ag.status.name}] {ag.name}  (ID: {ag.id}, Type: {ag.type_.name})")
         return "\n".join(lines)
+    
     async def _list_keywords(self, args: Dict[str, Any]) -> str:
         ad_group_id = args.get("adGroupId", "")
         if not ad_group_id:
@@ -351,6 +353,7 @@ class IntegrationGoogleAds:
             lines.append(f"{i}. [{kw.status.name}] {kw.keyword.text} ({kw.keyword.match_type.name}) "
                          f"Bid: {bid}  CriterionID: {kw.criterion_id}")
         return "\n".join(lines)
+    
     async def _add_keyword(self, args: Dict[str, Any]) -> str:
         ad_group_id = args.get("adGroupId", "")
         text = args.get("text", "")
@@ -372,6 +375,7 @@ class IntegrationGoogleAds:
 
         await asyncio.to_thread(_mutate)
         return f"✅ Keyword '{text}' ({match_type}) added to ad group {ad_group_id}"
+    
     async def _pause_keyword(self, args: Dict[str, Any], toolcall: ckit_cloudtool.FCloudtoolCall) -> str:
         ad_group_id = args.get("adGroupId", "")
         criterion_id = args.get("criterionId", "")
@@ -397,6 +401,7 @@ class IntegrationGoogleAds:
 
         await asyncio.to_thread(_mutate)
         return f"✅ Keyword {criterion_id} paused in ad group {ad_group_id}"
+    
     async def _update_keyword_bid(self, args: Dict[str, Any], toolcall: ckit_cloudtool.FCloudtoolCall) -> str:
         ad_group_id = args.get("adGroupId", "")
         criterion_id = args.get("criterionId", "")
@@ -423,6 +428,7 @@ class IntegrationGoogleAds:
 
         await asyncio.to_thread(_mutate)
         return f"✅ Keyword {criterion_id} bid updated to {_format_micros(bid_micros)}"
+    
     async def _list_budgets(self, args: Dict[str, Any]) -> str:
         query = (
             "SELECT campaign_budget.id, campaign_budget.name, "
@@ -439,6 +445,7 @@ class IntegrationGoogleAds:
             lines.append(f"{i}. {b.name or '(unnamed)'}  ID: {b.id}  "
                          f"Amount: {_format_micros(b.amount_micros)}/day  Status: {b.status.name}")
         return "\n".join(lines)
+    
     async def _update_budget(self, args: Dict[str, Any], toolcall: ckit_cloudtool.FCloudtoolCall) -> str:
         budget_id = args.get("budgetId", "")
         amount_micros = args.get("amountMicros", 0)
@@ -464,6 +471,7 @@ class IntegrationGoogleAds:
 
         await asyncio.to_thread(_mutate)
         return f"✅ Budget {budget_id} updated to {_format_micros(amount_micros)}/day"
+    
     async def _get_performance(self, args: Dict[str, Any]) -> str:
         entity = args.get("entity", "campaign")
         date_range = args.get("dateRange", "LAST_30_DAYS")
@@ -506,33 +514,30 @@ class IntegrationGoogleAds:
 
 def _row_to_str(row) -> str:
     parts = []
-    try:
-        if hasattr(row, 'campaign') and row.campaign.name:
-            parts.append(f"Campaign: {row.campaign.name}")
-            if row.campaign.status:
-                parts.append(f"[{row.campaign.status.name}]")
-        if hasattr(row, 'ad_group') and row.ad_group.name:
-            parts.append(f"AdGroup: {row.ad_group.name}")
-        if hasattr(row, 'ad_group_criterion') and row.ad_group_criterion.keyword.text:
-            kw = row.ad_group_criterion
-            parts.append(f"Keyword: {kw.keyword.text} ({kw.keyword.match_type.name})")
-        if hasattr(row, 'campaign_budget') and row.campaign_budget.amount_micros:
-            parts.append(f"Budget: {_format_micros(row.campaign_budget.amount_micros)}/day")
-        if hasattr(row, 'metrics'):
-            m = row.metrics
-            metric_parts = []
-            if m.impressions:
-                metric_parts.append(f"Impr: {m.impressions:,}")
-            if m.clicks:
-                metric_parts.append(f"Clicks: {m.clicks:,}")
-            if m.cost_micros:
-                metric_parts.append(f"Cost: {_format_micros(m.cost_micros)}")
-            if m.conversions:
-                metric_parts.append(f"Conv: {m.conversions:.1f}")
-            if m.ctr:
-                metric_parts.append(f"CTR: {m.ctr:.2%}")
-            if metric_parts:
-                parts.append(" | ".join(metric_parts))
-    except Exception:
-        parts.append(str(row))
-    return "  ".join(parts) if parts else str(row)
+    if hasattr(row, 'campaign') and row.campaign.name:
+        parts.append(f"Campaign: {row.campaign.name}")
+        if row.campaign.status:
+            parts.append(f"[{row.campaign.status.name}]")
+    if hasattr(row, 'ad_group') and row.ad_group.name:
+        parts.append(f"AdGroup: {row.ad_group.name}")
+    if hasattr(row, 'ad_group_criterion') and row.ad_group_criterion.keyword.text:
+        kw = row.ad_group_criterion
+        parts.append(f"Keyword: {kw.keyword.text} ({kw.keyword.match_type.name})")
+    if hasattr(row, 'campaign_budget') and row.campaign_budget.amount_micros:
+        parts.append(f"Budget: {_format_micros(row.campaign_budget.amount_micros)}/day")
+    if hasattr(row, 'metrics'):
+        m = row.metrics
+        metric_parts = []
+        if m.impressions:
+            metric_parts.append(f"Impr: {m.impressions:,}")
+        if m.clicks:
+            metric_parts.append(f"Clicks: {m.clicks:,}")
+        if m.cost_micros:
+            metric_parts.append(f"Cost: {_format_micros(m.cost_micros)}")
+        if m.conversions:
+            metric_parts.append(f"Conv: {m.conversions:.1f}")
+        if m.ctr:
+            metric_parts.append(f"CTR: {m.ctr:.2%}")
+        if metric_parts:
+            parts.append(" | ".join(metric_parts))
+    return "  ".join(parts) if parts else repr(row)
