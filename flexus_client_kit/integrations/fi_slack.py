@@ -159,7 +159,7 @@ class IntegrationSlack(fi_messenger.FlexusMessenger):
             self.oops_a_problem("Slack is not connected, ask user to connect it in bot Integrations", dont_print=True)
         else:
             self.web_client = AsyncWebClient(token=token)
-        self.activity_callback: Callable[[ActivitySlack, bool], Awaitable[None]] = self.default_activity_to_inbox
+        self.activity_callback: Callable[[ActivitySlack, bool], Awaitable[None]] = self.inbound_activity_to_task
         self.channels_id2name = {}
         self.channels_name2id = {}
         self.users_id2name = {}
@@ -191,37 +191,31 @@ class IntegrationSlack(fi_messenger.FlexusMessenger):
     def set_activity_callback(self, cb: Callable[[ActivitySlack, bool], Awaitable[None]]):
         self.activity_callback = cb
 
-    async def default_activity_to_inbox(self, a: ActivitySlack, already_posted_to_captured_thread: bool):
+    async def inbound_activity_to_task(self, a: ActivitySlack, already_posted_to_captured_thread: bool, extra_details: dict = None, provenance: str = None):
         logger.info("%s Slack %s by @%s in %s: %s", self.rcx.persona.persona_id, a.what_happened, a.message_author_name, a.channel_name, a.message_text[:50])
         if already_posted_to_captured_thread:
             return
         title = "Slack %s user=%r in #%s\n%s" % (a.what_happened, a.message_author_name, a.channel_name, a.message_text)
+        if a.file_contents:
+            title += f"\n[{len(a.file_contents)} file(s) attached]"
         details = asdict(a)
         to_capture = (a.channel_id or a.channel_name) + "/" + (a.thread_ts or a.message_ts)
         details["to_capture"] = to_capture
         if a.file_contents:
             details["file_contents"] = f"{len(a.file_contents)} files attached"
+        if extra_details:
+            details.update(extra_details)
         human_id = "slack:%s" % a.message_author_id if a.message_author_id else ""
-        if a.what_happened == "message/im":
-            await ckit_kanban.bot_kanban_post_into_inprogress(
-                await self.fclient.use_http_on_behalf(self.rcx.persona.persona_id, ""),
-                self.rcx.persona.persona_id,
-                title=title,
-                human_id=human_id,
-                details_json=json.dumps(details),
-                provenance_message="slack_inbound",
-                fexp_name=self.outside_messages_fexp_name,
-            )
-        else:
-            await ckit_kanban.bot_kanban_post_into_inbox(
-                await self.fclient.use_http_on_behalf(self.rcx.persona.persona_id, ""),
-                self.rcx.persona.persona_id,
-                title=title,
-                human_id=human_id,
-                details_json=json.dumps(details),
-                provenance_message="slack_inbound",
-                fexp_name=self.outside_messages_fexp_name,
-            )
+        post_fn = ckit_kanban.bot_kanban_post_into_inprogress if a.what_happened == "message/im" else ckit_kanban.bot_kanban_post_into_inbox
+        await post_fn(
+            await self.fclient.use_http_on_behalf(self.rcx.persona.persona_id, ""),
+            self.rcx.persona.persona_id,
+            title=title,
+            human_id=human_id,
+            details_json=json.dumps(details),
+            provenance_message=provenance or "slack_inbound",
+            fexp_name=self.outside_messages_fexp_name,
+        )
 
     async def handle_emessage(self, emsg: ckit_bot_query.FExternalMessageOutput) -> None:
         payload = emsg.emsg_payload if isinstance(emsg.emsg_payload, dict) else json.loads(emsg.emsg_payload)

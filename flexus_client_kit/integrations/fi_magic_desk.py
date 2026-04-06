@@ -46,13 +46,13 @@ class IntegrationMagicDesk(fi_messenger.FlexusMessenger):
     def __init__(self, fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.RobotContext):
         super().__init__(fclient, rcx)
         self.is_fake = rcx.running_test_scenario
-        self._activity_callback: Callable[[ActivityMagicDesk, bool], Awaitable[None]] = self.default_activity_to_inbox
+        self._activity_callback: Callable[[ActivityMagicDesk, bool], Awaitable[None]] = self.inbound_activity_to_task
 
     def on_incoming_activity(self, handler: Callable[[ActivityMagicDesk, bool], Awaitable[None]]):
         self._activity_callback = handler
         return handler
 
-    async def default_activity_to_inbox(self, a: ActivityMagicDesk, already_posted: bool):
+    async def inbound_activity_to_task(self, a: ActivityMagicDesk, already_posted: bool):
         if already_posted:
             return
         await ckit_kanban.bot_kanban_post_into_inprogress(

@@ -175,7 +175,7 @@ class IntegrationTelegram(fi_messenger.FlexusMessenger):
 
         self.tg_app: Optional[telegram.ext.Application] = None
 
-        self._activity_callback: Callable[[ActivityTelegram, bool], Awaitable[None]] = self.default_activity_to_inbox
+        self._activity_callback: Callable[[ActivityTelegram, bool], Awaitable[None]] = self.inbound_activity_to_task
         # See fi_slack.py for explanation of deque+set dedup pattern
         self._from_tg_dedup = deque(maxlen=50000)
         self._from_tg_dedup_set = set()
@@ -368,36 +368,31 @@ class IntegrationTelegram(fi_messenger.FlexusMessenger):
         self._activity_callback = handler
         return handler
 
-    async def default_activity_to_inbox(self, a: ActivityTelegram, already_posted: bool):
+    async def inbound_activity_to_task(self, a: ActivityTelegram, already_posted: bool, extra_details: dict = None, provenance: str = None, title: str = None):
         logger.info("%s Telegram %s by @%s: %s", self.rcx.persona.persona_id, a.chat_type, a.message_author_name, a.message_text[:50])
         if already_posted:
             return
         details = asdict(a)
-        details["to_capture"] = a.chat_id
+        details["to_capture"] = "tele" a.chat_id
         if a.attachments:
             details["attachments"] = f"{len(a.attachments)} files attached"
-        title = "Telegram %s user=%r chat_id=%d\n%s" % (a.chat_type, a.message_author_name, a.chat_id, a.message_text)
+        if extra_details:
+            details.update(extra_details)
+        if not title:
+            title = "Telegram %s user=%r chat_id=%d\n%s" % (a.chat_type, a.message_author_name, a.chat_id, a.message_text)
+            if a.attachments:
+                title += f"\n[{len(a.attachments)} file(s) attached]"
         human_id = "telegram:%d" % a.chat_id
-        if a.chat_type == "private":
-            await ckit_kanban.bot_kanban_post_into_inprogress(
-                await self.fclient.use_http_on_behalf(self.rcx.persona.persona_id, ""),
-                self.rcx.persona.persona_id,
-                title=title,
-                human_id=human_id,
-                details_json=json.dumps(details),
-                provenance_message="telegram_inbound",
-                fexp_name=self.outside_messages_fexp_name,
-            )
-        else:
-            await ckit_kanban.bot_kanban_post_into_inbox(
-                await self.fclient.use_http_on_behalf(self.rcx.persona.persona_id, ""),
-                self.rcx.persona.persona_id,
-                title=title,
-                human_id=human_id,
-                details_json=json.dumps(details),
-                provenance_message="telegram_inbound",
-                fexp_name=self.outside_messages_fexp_name,
-            )
+        post_fn = ckit_kanban.bot_kanban_post_into_inprogress if a.chat_type == "private" else ckit_kanban.bot_kanban_post_into_inbox
+        await post_fn(
+            await self.fclient.use_http_on_behalf(self.rcx.persona.persona_id, ""),
+            self.rcx.persona.persona_id,
+            title=title,
+            human_id=human_id,
+            details_json=json.dumps(details),
+            provenance_message=provenance or "telegram_inbound",
+            fexp_name=self.outside_messages_fexp_name,
+        )
 
     async def post_into_captured_thread_as_user(self, activity: ActivityTelegram) -> bool:
         msg_text = activity.message_text

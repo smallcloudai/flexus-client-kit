@@ -4,7 +4,6 @@ import json
 import logging
 import re
 import time
-from dataclasses import asdict
 from pathlib import Path
 from typing import Dict, Any
 
@@ -396,83 +395,30 @@ async def karen_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.
 
     @telegram.on_incoming_activity
     async def telegram_activity_callback(a: fi_telegram.ActivityTelegram, already_posted: bool):
-        logger.info("%s Telegram %s by @%s: %s", rcx.persona.persona_id, a.chat_type, a.message_author_name, a.message_text[:50])
         if already_posted:
             return
-        details = asdict(a)
-        if a.attachments:
-            details["attachments"] = f"{len(a.attachments)} files attached"
+        extra = {}
+        title = None
         http = await fclient.use_http_on_behalf(rcx.persona.persona_id, "")
         if a.message_text.startswith("/start c_"):  # deep links from email campaigns
             contact_id = a.message_text[9:].strip()
-            details["contact_id"] = contact_id
+            extra["contact_id"] = contact_id
             title = "CRM contact opened Telegram chat, contact_id=%s chat_id=%d" % (contact_id, a.chat_id)
             await ckit_erp.erp_record_patch(http, "crm_contact", rcx.persona.ws_id, contact_id, {"contact_platform_ids": {"telegram": str(a.chat_id)}})
         else:
             if contact_id := await fi_crm.find_contact_by_platform_id(http, rcx.persona.ws_id, "telegram", str(a.chat_id)):
-                details["contact_id"] = contact_id
-            title = "Telegram %s user=%r chat_id=%d\n%s" % (a.chat_type, a.message_author_name, a.chat_id, a.message_text)
-            if a.attachments:
-                title += f"\n[{len(a.attachments)} file(s) attached]"
-        human_id = "telegram:%d" % a.chat_id
-        if a.chat_type == "private":
-            await ckit_kanban.bot_kanban_post_into_inprogress(
-                await fclient.use_http_on_behalf(rcx.persona.persona_id, ""),
-                rcx.persona.persona_id,
-                title=title,
-                human_id=human_id,
-                details_json=json.dumps(details),
-                provenance_message="karen_telegram_activity",
-                fexp_name="very_limited",
-            )
-        else:
-            await ckit_kanban.bot_kanban_post_into_inbox(
-                await fclient.use_http_on_behalf(rcx.persona.persona_id, ""),
-                rcx.persona.persona_id,
-                title=title,
-                human_id=human_id,
-                details_json=json.dumps(details),
-                provenance_message="karen_telegram_activity",
-                fexp_name="very_limited",
-            )
+                extra["contact_id"] = contact_id
+        await telegram.inbound_activity_to_task(a, already_posted=False, extra_details=extra, provenance="karen_telegram_activity", title=title)
 
     @slack.on_incoming_activity
     async def slack_activity_callback(a: fi_slack.ActivitySlack, already_posted: bool):
-        logger.info("%s Slack %s by @%s: %s", rcx.persona.persona_id, a.what_happened, a.message_author_name, a.message_text[:50])
         if already_posted:
             return
-        details = asdict(a)
-        if a.file_contents:
-            details["file_contents"] = f"{len(a.file_contents)} files attached"
-        to_capture = (a.channel_id or a.channel_name) + "/" + (a.thread_ts or a.message_ts)
-        details["to_capture"] = to_capture
+        extra = {}
         if a.message_author_id:
             if contact_id := await fi_crm.find_contact_by_platform_id(await fclient.use_http_on_behalf(rcx.persona.persona_id, ""), rcx.persona.ws_id, "slack", a.message_author_id):
-                details["contact_id"] = contact_id
-        title = "Slack %s user=%r in #%s\n%s" % (a.what_happened, a.message_author_name, a.channel_name, a.message_text)
-        if a.file_contents:
-            title += f"\n[{len(a.file_contents)} file(s) attached]"
-        human_id = "slack:%s" % a.message_author_id if a.message_author_id else ""
-        if a.what_happened == "message/im":
-            await ckit_kanban.bot_kanban_post_into_inprogress(
-                await fclient.use_http_on_behalf(rcx.persona.persona_id, ""),
-                rcx.persona.persona_id,
-                title=title,
-                human_id=human_id,
-                details_json=json.dumps(details),
-                provenance_message="karen_slack_activity",
-                fexp_name="very_limited",
-            )
-        else:
-            await ckit_kanban.bot_kanban_post_into_inbox(
-                await fclient.use_http_on_behalf(rcx.persona.persona_id, ""),
-                rcx.persona.persona_id,
-                title=title,
-                human_id=human_id,
-                details_json=json.dumps(details),
-                provenance_message="karen_slack_activity",
-                fexp_name="very_limited",
-            )
+                extra["contact_id"] = contact_id
+        await slack.inbound_activity_to_task(a, already_posted=False, extra_details=extra, provenance="karen_slack_activity")
 
     try:
         while not ckit_shutdown.shutdown_event.is_set():

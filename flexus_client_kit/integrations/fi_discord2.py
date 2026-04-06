@@ -139,7 +139,7 @@ class IntegrationDiscord(fi_messenger.FlexusMessenger):
         self.bot_token = (rcx.external_auth.get("discord_manual") or rcx.external_auth.get("discord") or {}).get("api_key", "").strip()
 
         self.mongo_collection = mongo_collection
-        self.activity_callback: Callable[[ActivityDiscord, bool], Awaitable[None]] = self.default_activity_to_inbox
+        self.activity_callback: Callable[[ActivityDiscord, bool], Awaitable[None]] = self.inbound_activity_to_task
         self.user_id2name: Dict[int, str] = {}
         self.user_name2id: Dict[str, int] = {}
         self.channel_id2name: Dict[int, str] = {}
@@ -182,37 +182,31 @@ class IntegrationDiscord(fi_messenger.FlexusMessenger):
     def set_activity_callback(self, cb: Callable[[ActivityDiscord, bool], Awaitable[None]]):
         self.activity_callback = cb
 
-    async def default_activity_to_inbox(self, a: ActivityDiscord, already_posted_to_captured_thread: bool):
+    async def inbound_activity_to_task(self, a: ActivityDiscord, already_posted_to_captured_thread: bool, extra_details: dict = None, provenance: str = None):
         logger.info("%s Discord %s by @%s in %s: %s", self.rcx.persona.persona_id, "message", a.message_author_name, a.channel_name, a.message_text[:50])
         if already_posted_to_captured_thread:
             return
         title = "Discord user=%r in %s\n%s" % (a.message_author_name, a.channel_name, a.message_text)
+        if a.attachments:
+            title += f"\n[{len(a.attachments)} file(s) attached]"
         details = dataclasses.asdict(a)
         to_capture = str(a.channel_id) + ("/" + str(a.thread_id) if a.thread_id else "")
         details["to_capture"] = to_capture
         if a.attachments:
             details["attachments"] = f"{len(a.attachments)} files attached"
+        if extra_details:
+            details.update(extra_details)
         human_id = "discord:%d" % a.message_author_id if a.message_author_id else ""
-        if a.is_dm:
-            await ckit_kanban.bot_kanban_post_into_inprogress(
-                await self.fclient.use_http_on_behalf(self.rcx.persona.persona_id, ""),
-                self.rcx.persona.persona_id,
-                title=title,
-                human_id=human_id,
-                details_json=json.dumps(details),
-                provenance_message="discord_inbound",
-                fexp_name=self.outside_messages_fexp_name,
-            )
-        else:
-            await ckit_kanban.bot_kanban_post_into_inbox(
-                await self.fclient.use_http_on_behalf(self.rcx.persona.persona_id, ""),
-                self.rcx.persona.persona_id,
-                title=title,
-                human_id=human_id,
-                details_json=json.dumps(details),
-                provenance_message="discord_inbound",
-                fexp_name=self.outside_messages_fexp_name,
-            )
+        post_fn = ckit_kanban.bot_kanban_post_into_inprogress if a.is_dm else ckit_kanban.bot_kanban_post_into_inbox
+        await post_fn(
+            await self.fclient.use_http_on_behalf(self.rcx.persona.persona_id, ""),
+            self.rcx.persona.persona_id,
+            title=title,
+            human_id=human_id,
+            details_json=json.dumps(details),
+            provenance_message=provenance or "discord_inbound",
+            fexp_name=self.outside_messages_fexp_name,
+        )
 
     async def handle_emessage(self, emsg: ckit_bot_query.FExternalMessageOutput) -> None:
         pass  # Discord uses persistent websocket, not webhook emessages
