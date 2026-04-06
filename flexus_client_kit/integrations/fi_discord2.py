@@ -123,6 +123,29 @@ def _parse_channel_reference(ref: str) -> Tuple[Optional[str], Optional[str]]:
     return channel or None, thread or None
 
 
+def discord_bot_api_key_from_external_auth(ext: Dict[str, Any]) -> str:
+    for provider_key in ("discord_manual", "discord"):
+        auth = ext.get(provider_key) or {}
+        if not isinstance(auth, dict):
+            continue
+        tok = (auth.get("api_key") or "").strip()
+        if tok:
+            return tok
+    return ""
+
+
+def discord_guild_id_from_external_auth(ext: Dict[str, Any], setup: Optional[Dict[str, Any]] = None) -> Optional[int]:
+    discord_auth = ext.get("discord") or {}
+    guild = (discord_auth.get("raw_token_response") or {}).get("guild") or {}
+    gid_str = str(guild.get("id", "")).strip()
+    if gid_str and gid_str.isdigit():
+        return int(gid_str)
+    fallback = str(setup.get("dc_guild_id", "")).strip() if setup else ""
+    if fallback and fallback.isdigit():
+        return int(fallback)
+    return None
+
+
 class IntegrationDiscord(fi_messenger.FlexusMessenger):
     platform_name = "discord"
     emessage_type = "DISCORD"
@@ -136,7 +159,7 @@ class IntegrationDiscord(fi_messenger.FlexusMessenger):
     ):
         super().__init__(fclient, rcx)
         self.is_fake = rcx.running_test_scenario
-        self.bot_token = (rcx.external_auth.get("discord_manual") or rcx.external_auth.get("discord") or {}).get("api_key", "").strip()
+        self.bot_token = discord_bot_api_key_from_external_auth(rcx.external_auth)
 
         self.mongo_collection = mongo_collection
         self.activity_callback: Callable[[ActivityDiscord, bool], Awaitable[None]] = self.inbound_activity_to_task
