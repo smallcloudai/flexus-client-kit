@@ -4,6 +4,7 @@ import base64
 from flexus_client_kit import ckit_client
 from flexus_client_kit import ckit_bot_install
 from flexus_client_kit import ckit_cloudtool
+from flexus_client_kit import ckit_integrations_db
 
 from flexus_simple_bots import prompts_common
 from flexus_simple_bots.clerkwing import clerkwing_bot
@@ -87,8 +88,7 @@ async def install(
         marketable_auth_needed=["gmail", "google_calendar"],
         marketable_auth_supported=["atlassian"],
         marketable_auth_scopes={
-            "gmail": [
-                "openid", "email", "profile",
+            "gmail": ckit_integrations_db.GOOGLE_OAUTH_BASE_SCOPES + [
                 "https://www.googleapis.com/auth/gmail.readonly",
                 "https://www.googleapis.com/auth/gmail.compose",
                 "https://www.googleapis.com/auth/gmail.modify",

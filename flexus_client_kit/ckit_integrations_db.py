@@ -7,6 +7,8 @@ from typing import Any, Awaitable, Callable
 
 from flexus_client_kit import ckit_ask_model, ckit_bot_exec, ckit_cloudtool
 
+GOOGLE_OAUTH_BASE_SCOPES = ["openid", "email", "profile"]
+
 
 @dataclass
 class IntegrationRecord:
@@ -90,6 +92,40 @@ def static_integrations_load(bot_dir: Path, allowlist: list[str], builtin_skills
                 integr_provider="google_calendar",
                 integr_scopes=fi_google_calendar.REQUIRED_SCOPES,
                 integr_prompt="",
+            ))
+
+        elif name == "google_business":
+            from flexus_client_kit.integrations import fi_google_business
+            async def _init_gb(rcx, setup):
+                return fi_google_business.IntegrationGoogleBusiness(rcx.fclient, rcx)
+            result.append(IntegrationRecord(
+                integr_name=name,
+                integr_tools=[fi_google_business.GOOGLE_BUSINESS_TOOL],
+                integr_init=_init_gb,
+                integr_setup_handlers=lambda obj, rcx: [rcx.on_tool_call("google_business")(obj.called_by_model)],
+                integr_provider="google_business",
+                integr_scopes=fi_google_business.GOOGLE_BUSINESS_SCOPES,
+                integr_prompt=fi_google_business.GOOGLE_BUSINESS_PROMPT,
+            ))
+
+        elif name == "google_ads":
+            from flexus_client_kit.integrations import fi_google_ads
+            async def _init_gads(rcx, setup):
+                auth = rcx.external_auth.get("google_ads") or {}
+                cf = auth.get("connect_fields") or {}
+                return fi_google_ads.IntegrationGoogleAds(
+                    rcx.fclient, rcx,
+                    developer_token=cf.get("developer_token", ""),
+                    customer_id=cf.get("customer_id", ""),
+                    login_customer_id=cf.get("login_customer_id", ""),
+                )
+            result.append(IntegrationRecord(
+                integr_name=name,
+                integr_tools=[fi_google_ads.GOOGLE_ADS_TOOL],
+                integr_init=_init_gads,
+                integr_setup_handlers=lambda obj, rcx: [rcx.on_tool_call("google_ads")(obj.called_by_model)],
+                integr_provider="google_ads",
+                integr_scopes=fi_google_ads.GOOGLE_ADS_SCOPES,
             ))
 
         elif name == "jira":
