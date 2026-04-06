@@ -350,7 +350,7 @@ class IntegrationSlack(fi_messenger.FlexusMessenger):
             attach_file = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "path", None)
             something_name, thread_ts = parse_channel_slash_thread(channel_slash_thread)
             if not something_name:
-                return "Missing or invalid 'channel_slash_thread' parameter\n"
+                return "Missing or invalid 'channel_slash_thread' parameter. If this slack thread is already captured, you don't need to call post — just type your message normally and it will appear in Slack automatically.\n"
             try:
                 if something_name.startswith('@'):
                     username = something_name.lstrip('@')

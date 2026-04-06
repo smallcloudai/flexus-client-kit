@@ -190,8 +190,8 @@ class IntegrationDiscord(fi_messenger.FlexusMessenger):
         if a.attachments:
             title += f"\n[{len(a.attachments)} file(s) attached]"
         details = dataclasses.asdict(a)
-        to_capture = str(a.channel_id) + ("/" + str(a.thread_id) if a.thread_id else "")
-        details["to_capture"] = to_capture
+        target = str(a.channel_id) + ("/" + str(a.thread_id) if a.thread_id else "")
+        details["to_capture"] = "discord(op=\"capture\", args={\"target\": %r})" % target
         if a.attachments:
             details["attachments"] = f"{len(a.attachments)} files attached"
         if extra_details:

@@ -373,7 +373,7 @@ class IntegrationTelegram(fi_messenger.FlexusMessenger):
         if already_posted:
             return
         details = asdict(a)
-        details["to_capture"] = a.chat_id
+        details["to_capture"] = "telegram(op=\"capture\", args={\"chat_id\": %r})" % a.chat_id
         if a.attachments:
             details["attachments"] = f"{len(a.attachments)} files attached"
         if extra_details:
