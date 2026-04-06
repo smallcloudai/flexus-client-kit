@@ -765,11 +765,9 @@ class IntegrationDiscord(fi_messenger.FlexusMessenger):
         if not msg.ft_app_searchable.startswith("discord/"):
             return False
 
-        app_specific = msg.ft_app_specific
-        if app_specific is None:
-            t = self.rcx.latest_threads.get(msg.ftm_belongs_to_ft_id)
-            if t:
-                app_specific = t.thread_fields.ft_app_specific
+        # msg-level ft_app_specific is stale; thread-level has the latest last_posted_assistant_ts
+        t = self.rcx.latest_threads.get(msg.ftm_belongs_to_ft_id)
+        app_specific = (t.thread_fields.ft_app_specific if t else None) or msg.ft_app_specific
         last_posted_ts = (app_specific or {}).get("last_posted_assistant_ts")
         if last_posted_ts is None:
             logger.warning("discord dedup: no last_posted_assistant_ts ft=%s ft_app_specific=%r", msg.ftm_belongs_to_ft_id, app_specific)
