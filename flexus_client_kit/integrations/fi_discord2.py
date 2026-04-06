@@ -742,6 +742,7 @@ class IntegrationDiscord(fi_messenger.FlexusMessenger):
         parts = fi_messenger.compact_message_parts(parts)
 
         http = await self.fclient.use_http_on_behalf(self.rcx.persona.persona_id, "")
+        logger.info("captured_thread_post searchable=%s msg=%s", searchable, text[:200])
         try:
             ft_id = await ckit_ask_model.captured_thread_post_user_message(
                 http,

@@ -140,7 +140,6 @@ def format_text_output(
     else:
         safety_valve_chars = int(safety_valve)
     safety_valve_chars = max(1000, safety_valve_chars)
-    header = f"📄 {path}"
     warnings = []
     lines = content.splitlines()
     if ":" in lines_range:
@@ -176,8 +175,9 @@ def format_text_output(
         actual_end = i
         if ctx_left < 0:
             hit = True
-            warnings.append(f"⚠️ The original preview is {len(content)} chars and {len(lines)} lines, showing lines range {line_offset+start+1}:{line_offset+actual_end+1} because `safety_valve` hit")
+            warnings.append(f"⚠️ The original file is {len(content)} chars, showing lines range {line_offset+start+1}-{line_offset+actual_end+1} because `safety_valve` hit")
             break
+    header = "📄%s:%d-%d total lines %d" % (path, line_offset + start + 1, line_offset + actual_end + 1, len(lines))
     return TextOutputResult(
         lines=result,
         line1=line_offset + start + 1,

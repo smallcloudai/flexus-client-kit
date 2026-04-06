@@ -103,6 +103,7 @@ class IntegrationMagicDesk(fi_messenger.FlexusMessenger):
         if not text.strip():
             return
         http = await self.fclient.use_http_on_behalf(self.rcx.persona.persona_id, "")
+        logger.info("captured_thread_post searchable=magic_desk/%s msg=%s", session_id, text[:200])
         ft_id = await ckit_ask_model.captured_thread_post_user_message(
             http,
             self.rcx.persona.persona_id,

@@ -200,7 +200,7 @@ class IntegrationSlack(fi_messenger.FlexusMessenger):
             title += f"\n[{len(a.file_contents)} file(s) attached]"
         details = asdict(a)
         to_capture = (a.channel_id or a.channel_name) + "/" + (a.thread_ts or a.message_ts)
-        details["to_capture"] = to_capture
+        details["to_capture"] = "slack(op=\"capture\", args={\"channel_slash_thread\": %r})" % to_capture
         if a.file_contents:
             details["file_contents"] = f"{len(a.file_contents)} files attached"
         if extra_details:
@@ -557,6 +557,7 @@ class IntegrationSlack(fi_messenger.FlexusMessenger):
         content = fi_messenger.compact_message_parts(content)
 
         http = await self.fclient.use_http_on_behalf(self.rcx.persona.persona_id, "")
+        logger.info("captured_thread_post searchable=%s msg=%s", searchable, a.message_text[:200])
         try:
             ft_id = await ckit_ask_model.captured_thread_post_user_message(
                 http,

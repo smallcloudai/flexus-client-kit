@@ -418,7 +418,7 @@ async def karen_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.
         if a.message_author_id:
             if contact_id := await fi_crm.find_contact_by_platform_id(await fclient.use_http_on_behalf(rcx.persona.persona_id, ""), rcx.persona.ws_id, "slack", a.message_author_id):
                 extra["contact_id"] = contact_id
-        await slack.inbound_activity_to_task(a, already_posted=False, extra_details=extra, provenance="karen_slack_activity")
+        await slack.inbound_activity_to_task(a, already_posted_to_captured_thread=False, extra_details=extra, provenance="karen_slack_activity")
 
     try:
         while not ckit_shutdown.shutdown_event.is_set():

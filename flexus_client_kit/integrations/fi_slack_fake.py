@@ -75,6 +75,7 @@ class IntegrationSlackFake(fi_messenger.FlexusMessenger):
         content = [{"m_type": "text", "m_content": f"👤{a.message_author_name}\n\n{a.message_text}"}]
         if a.file_contents:
             content.extend(a.file_contents)
+        logger.info("captured_thread_post searchable=%s msg=%s", searchable, a.message_text[:200])
         try:
             http = await self.fclient.use_http_on_behalf(self.rcx.persona.persona_id, "")
             ft_id = await ckit_ask_model.captured_thread_post_user_message(
