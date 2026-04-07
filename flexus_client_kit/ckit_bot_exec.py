@@ -14,7 +14,7 @@ import gql.transport.exceptions
 
 from flexus_client_kit import ckit_client, gql_utils, ckit_service_exec, ckit_kanban, ckit_cloudtool
 from flexus_client_kit import ckit_ask_model, ckit_shutdown, ckit_utils, ckit_bot_query, ckit_scenario
-from flexus_client_kit import ckit_passwords
+from flexus_client_kit import ckit_passwords, ckit_messages
 from flexus_client_kit import erp_schema
 
 
@@ -862,7 +862,7 @@ async def _run_scenario_for_model(
             f.write(trajectory_happy_messages_only)
         logger.info(f"exported {happy_path}")
 
-        trajectory_actual = ckit_scenario.fmessages_to_yaml(sorted_messages)
+        trajectory_actual = ckit_messages.fmessages_to_yaml(sorted_messages)
         actual_path = os.path.join(output_dir, f"{expert__scenario}-v{bot_version}{experiment_suffix}-{model_name}-actual.yaml")
         with open(actual_path, "w", encoding="utf-8") as f:
             f.write("# This is generated file don't edit!\n\n")
@@ -886,7 +886,7 @@ async def _run_scenario_for_model(
                 "assistant": cost_assistant,
             },
         }
-        score_yaml = ckit_scenario.yaml_dump_with_multiline(score_data)
+        score_yaml = ckit_messages.yaml_dump_with_multiline(score_data)
         score_path = os.path.join(output_dir, f"{expert__scenario}-v{bot_version}{experiment_suffix}-{model_name}-score.yaml")
         with open(score_path, "w", encoding="utf-8") as f:
             f.write(score_yaml)
@@ -937,7 +937,7 @@ async def run_happy_trajectory(
     if len(messages) > hi + 1 and messages[hi + 1]["role"] == "assistant" and messages[hi + 1]["tool_calls"]:
         first_calls = [{"type": tc.get("type", "function"), "function": {"name": tc["function"]["name"], "arguments": tc["function"]["arguments"]}} for tc in messages[hi + 1]["tool_calls"]]
     logger.info(f"bot_activate() first_calls, taken from the happy path:\n{first_calls}")
-    trajectory_happy_messages_only = ckit_scenario.yaml_dump_with_multiline({"messages": trajectory_data["messages"]})
+    trajectory_happy_messages_only = ckit_messages.yaml_dump_with_multiline({"messages": trajectory_data["messages"]})
 
     expert__scenario = os.path.splitext(os.path.basename(trajectory_yaml_path))[0]
     bot_version = ckit_client.marketplace_version_as_str(scenario.persona.persona_marketable_version)
