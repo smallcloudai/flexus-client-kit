@@ -125,25 +125,16 @@ def _parse_channel_reference(ref: str) -> Tuple[Optional[str], Optional[str]]:
 
 def discord_bot_api_key_from_external_auth(ext: Dict[str, Any]) -> str:
     for provider_key in ("discord_manual", "discord"):
-        auth = ext.get(provider_key) or {}
-        if not isinstance(auth, dict):
+        raw = ext.get(provider_key)
+        if raw is None:
             continue
-        tok = (auth.get("api_key") or "").strip()
+        if not isinstance(raw, dict):
+            logger.warning("discord_bot_api_key_from_external_auth: provider %r value is not a dict, skipping", provider_key)
+            continue
+        tok = (raw.get("api_key") or "").strip()
         if tok:
             return tok
     return ""
-
-
-def discord_guild_id_from_external_auth(ext: Dict[str, Any], setup: Optional[Dict[str, Any]] = None) -> Optional[int]:
-    discord_auth = ext.get("discord") or {}
-    guild = (discord_auth.get("raw_token_response") or {}).get("guild") or {}
-    gid_str = str(guild.get("id", "")).strip()
-    if gid_str and gid_str.isdigit():
-        return int(gid_str)
-    fallback = str(setup.get("dc_guild_id", "")).strip() if setup else ""
-    if fallback and fallback.isdigit():
-        return int(fallback)
-    return None
 
 
 class IntegrationDiscord(fi_messenger.FlexusMessenger):
