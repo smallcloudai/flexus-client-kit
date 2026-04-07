@@ -1,7 +1,6 @@
 import uuid
 import logging
 import argparse
-import yaml
 import dataclasses
 from dataclasses import dataclass
 from typing import Optional
@@ -122,32 +121,6 @@ async def scenario_judge(
             },
         )
     return gql_utils.dataclass_from_dict(r["scenario_judge"], ScenarioJudgeOutput)
-
-
-def _represent_multiline_str(dumper, data):
-    if '\n' in data:
-        return dumper.represent_scalar('tag:yaml.org,2002:str', data, style='|')
-    return dumper.represent_scalar('tag:yaml.org,2002:str', data)
-
-
-def yaml_dump_with_multiline(data: dict) -> str:
-    dumper = yaml.Dumper
-    dumper.add_representer(str, _represent_multiline_str)
-    return yaml.dump(data, Dumper=dumper, default_flow_style=False, allow_unicode=True, width=100, sort_keys=False)
-
-
-def fmessages_to_yaml(messages: list) -> str:
-    export_messages = []
-    for msg in messages:
-        m = {"role": msg.ftm_role}
-        if msg.ftm_content:
-            m["content"] = msg.ftm_content
-        if msg.ftm_tool_calls and msg.ftm_tool_calls not in ("null", "[]"):
-            m["tool_calls"] = msg.ftm_tool_calls
-        if msg.ftm_call_id:
-            m["call_id"] = msg.ftm_call_id
-        export_messages.append(m)
-    return yaml_dump_with_multiline({"messages": export_messages})
 
 
 async def scenario_generate_tool_result_via_model(
