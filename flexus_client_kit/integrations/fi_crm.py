@@ -66,7 +66,8 @@ async def find_contact_by_platform_id(http, ws_id: str, platform: str, identifie
 
 
 def _fmt_deal(d) -> str:
-    return f"  {d.deal_id}: {d.deal_name} stage={d.deal_stage} value={d.deal_value} {d.deal_currency}"
+    stage = d.stage.stage_name if d.stage else d.deal_stage_id
+    return f"  {d.deal_id}: {d.deal_name} stage={stage} value={d.deal_value} {d.deal_currency}"
 
 def _fmt_order(o) -> str:
     return f"  {o.order_number or o.order_id}: {o.order_total} {o.order_currency} financial={o.order_financial_status} fulfillment={o.order_fulfillment_status}"
@@ -147,7 +148,7 @@ class IntegrationCrm:
                 if not contacts:
                     return f"Contact {contact_id} not found\n"
                 lines = _fmt_contact(contacts[0])
-                deals = await ckit_erp.erp_table_data(http, "crm_deal", self.ws_id, erp_schema.CrmDeal, filters=f"deal_contact_id:=:{contact_id}", limit=6)
+                deals = await ckit_erp.erp_table_data(http, "crm_deal", self.ws_id, erp_schema.CrmDeal, filters=f"deal_contact_id:=:{contact_id}", limit=6, include=["stage"])
                 orders = await ckit_erp.erp_table_data(http, "com_order", self.ws_id, erp_schema.ComOrder, filters=f"order_contact_id:=:{contact_id}", limit=6)
                 activities = await ckit_erp.erp_table_data(http, "crm_activity", self.ws_id, erp_schema.CrmActivity, filters=f"activity_contact_id:=:{contact_id}", limit=6)
                 def _cnt(rows):
@@ -158,7 +159,7 @@ class IntegrationCrm:
                 lines.append("\nUse get_all_deals/get_all_orders/get_all_activities for full lists.")
                 return "\n".join(lines) + "\n"
             if op == "get_all_deals":
-                rows = await ckit_erp.erp_table_data(http, "crm_deal", self.ws_id, erp_schema.CrmDeal, filters=f"deal_contact_id:=:{contact_id}", limit=50)
+                rows = await ckit_erp.erp_table_data(http, "crm_deal", self.ws_id, erp_schema.CrmDeal, filters=f"deal_contact_id:=:{contact_id}", limit=50, include=["stage"])
                 return "No deals.\n" if not rows else f"Deals ({len(rows)}):\n" + "\n".join(_fmt_deal(d) for d in rows) + "\n"
             if op == "get_all_orders":
                 rows = await ckit_erp.erp_table_data(http, "com_order", self.ws_id, erp_schema.ComOrder, filters=f"order_contact_id:=:{contact_id}", limit=50)
