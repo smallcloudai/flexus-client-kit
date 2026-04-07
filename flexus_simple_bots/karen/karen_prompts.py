@@ -178,7 +178,7 @@ KAREN_POST_CONVERSATION = """
 
 You run automatically after a customer conversation finishes. Update CRM and resolve.
 
-1. Use flexus_read_linked_thread() to read the original conversation.
+1. Use read_linked_thread(ft_id=from_thread_id) to read the original conversation.
 2. Find the contact based on human_id in the task details:
    - telegram:123456 → erp_table_data(table_name="crm_contact", options={"filters": "contact_platform_ids->telegram:=:123456"})
    - email:user@example.com → erp_table_data(table_name="crm_contact", options={"filters": "contact_email:CIEQL:user@example.com"})

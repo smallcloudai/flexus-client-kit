@@ -29,7 +29,8 @@ from flexus_client_kit.integrations import fi_crm
 from flexus_client_kit.integrations import fi_sched
 from flexus_client_kit.integrations import fi_repo_reader
 from flexus_client_kit.integrations import fi_pdoc
-from flexus_client_kit import ckit_scenario
+from flexus_client_kit import ckit_scenario, ckit_messages
+from flexus_client_kit import gql_utils
 from flexus_client_kit.integrations import fi_discord2
 from flexus_client_kit.integrations import fi_mcp
 from flexus_client_kit import ckit_bot_version
@@ -127,6 +128,20 @@ EXPLORE_A_QUESTION_TOOL = ckit_cloudtool.CloudTool(
     },
 )
 
+READ_LINKED_THREAD_TOOL = ckit_cloudtool.CloudTool(
+    strict=True,
+    name="read_linked_thread",
+    description="Read conversation transcript from a thread. Use from_thread_id from your kanban task details.",
+    parameters={
+        "type": "object",
+        "properties": {
+            "ft_id": {"type": "string", "description": "Thread ID (from_thread_id from task details)", "order": 1},
+        },
+        "required": ["ft_id"],
+        "additionalProperties": False,
+    },
+)
+
 SUPPORT_STATUS_TOOL = ckit_cloudtool.CloudTool(
     strict=True,
     name="support_collection_status",
@@ -148,6 +163,7 @@ TOOLS = [
     SUPPORT_STATUS_TOOL,
     EXPLORE_A_QUESTION_TOOL,
     PRODUCT_CATALOG_TOOL,
+    READ_LINKED_THREAD_TOOL,
     *[t for rec in KAREN_INTEGRATIONS for t in rec.integr_tools],
 ]
 
@@ -394,6 +410,22 @@ async def karen_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.
             fexp_name="explore",
         )
         raise ckit_cloudtool.WaitForSubchats(subchats)
+
+    @rcx.on_tool_call(READ_LINKED_THREAD_TOOL.name)
+    async def toolcall_read_linked_thread(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
+        if rcx.running_test_scenario:
+            return await ckit_scenario.scenario_generate_tool_result_via_model(rcx.fclient, toolcall, "")
+        ft_id = model_produced_args["ft_id"]
+        http = await fclient.use_http_on_behalf(rcx.persona.persona_id, "")
+        r = await http.execute_async(gql.gql(f"""
+            query ReadLinkedThread($ft_id: String!) {{
+                thread_messages_list(ft_id: $ft_id) {{ {gql_utils.gql_fields(ckit_ask_model.FThreadMessageOutput)} }}
+            }}"""),
+            variable_values={"ft_id": ft_id},
+        )
+        msgs = [gql_utils.dataclass_from_dict(m, ckit_ask_model.FThreadMessageOutput) for m in r["thread_messages_list"]]
+        msgs = [m for m in msgs if m.ftm_role != "system"]
+        return ckit_messages.fmessages_to_yaml(msgs, limits={"assistant": 5000, "tool": 1000, "tool_args": 300})
 
     _seen_done_deque = deque(maxlen=1000)
     _seen_done_set = set()
