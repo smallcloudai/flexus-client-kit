@@ -207,6 +207,18 @@ class RobotContext:
             if c.fcall_name not in self._handler_per_tool:
                 logger.error("%s tool call %s for %s has no handler. Available handlers: %r", self.persona.persona_id, c.fcall_id, c.fcall_name, list(self._handler_per_tool.keys()))
                 continue
+            if self.running_test_scenario:
+                # In scenario mode, bypass local tool handlers — let the backend fake results
+                # via scenario_generate_tool_result_via_model using the tool handler source code
+                try:
+                    handler = self._handler_per_tool[c.fcall_name]
+                    source = open(handler.__code__.co_filename).read()
+                    await ckit_scenario.scenario_generate_tool_result_via_model(self.fclient, c, source)
+                except ckit_cloudtool.AlreadyFakedResult:
+                    logger.info("call %s result faked for scenario (bypass)" % c.fcall_id)
+                except Exception as e:
+                    logger.error("%s scenario tool fake failed: %s" % (c.fcall_id, e))
+                continue
             if c.fcall_name not in turn_tool_calls_into_bg_tasks:
                 try:
                     await self._local_tool_call(self.fclient, c)
@@ -282,6 +294,7 @@ class RobotContext:
         if subchats_list is not None:
             prov_dict["subchats_started"] = subchats_list
         prov = json.dumps(prov_dict)
+
         http_client = await fclient.use_http_on_behalf(toolcall.connected_persona_id, toolcall.fcall_untrusted_key)
         async with http_client as http:
             await ckit_cloudtool.cloudtool_post_result(http, toolcall, serialized_result, prov, dollars=dollars, as_placeholder=bool(subchats_list))
@@ -783,10 +796,14 @@ async def _run_scenario_for_model(
             if ckit_shutdown.shutdown_event.is_set():
                 break
             if not my_bot.instance_rcx._completed_initial_unpark:
-                logger.info("WAIT for bot to complete initial unpark, it might have crashed or still initializing")
-                if await ckit_shutdown.wait(1):
-                    break
-                continue
+                if time.time() - start_time < 30:
+                    logger.info("WAIT for bot to complete initial unpark, it might have crashed or still initializing")
+                    if await ckit_shutdown.wait(1):
+                        break
+                    continue
+                else:
+                    logger.info("Skipping _completed_initial_unpark wait (>30s)")
+                    my_bot.instance_rcx._completed_initial_unpark = True
             my_thread = my_bot.instance_rcx.latest_threads.get(ft_id, None)
             if my_thread is None:
                 logger.info("WAIT for thread to appear in bot's latest_threads...")
