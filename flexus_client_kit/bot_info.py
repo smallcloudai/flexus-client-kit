@@ -28,7 +28,6 @@ class BotInfoEntry:
     marketable_name: str
     runtime_start_cmd: str
     publish_install_cmd: str
-    marketable_install_cmd: str
     runtime_entry_path: str
     avatar_path_small: str
     avatar_candidates: list[str]
@@ -103,7 +102,6 @@ _CAPTURE_KEYS = [
     "bot_name",
     "marketable_name",
     "marketable_run_this",
-    "marketable_install_cmd",
     "marketable_setup_default",
     "marketable_featured_actions",
     "marketable_auth_supported",
@@ -222,12 +220,15 @@ def _capture_install_metadata_here(install_file: Path, bot_name: str) -> dict[st
 
 
 def _capture_code_install_metadata_subprocess(workdir: Path, install_py: Path, bot_name: str) -> tuple[dict[str, Any] | None, str]:
+    env = dict(os.environ)
+    env["PYTHONSAFEPATH"] = "1"
     proc = subprocess.run(
         [sys.executable, "-m", "flexus_client_kit.bot_info", "capture-install-meta", "--install-file", str(install_py), "--bot-name", bot_name],
         cwd=str(workdir),
         capture_output=True,
         text=True,
         timeout=45,
+        env=env,
     )
     merged = proc.stdout + "\n" + proc.stderr
     payload = _extract_last_json_obj(merged)
@@ -336,7 +337,6 @@ def _code_metadata_summary(captured: dict[str, Any], bot_name: str) -> dict[str,
     for key in [
         "marketable_name",
         "marketable_run_this",
-        "marketable_install_cmd",
         "marketable_setup_default",
         "marketable_featured_actions",
         "marketable_auth_supported",
@@ -378,8 +378,7 @@ def _manifest_entry(workdir: Path, bot_abs: Path, root_installable: bool, root_i
 
     manifest_file_path = f"{bot_dir}/manifest.json"
     runtime_start_cmd = f"cd /workspace && python3 -u -m flexus_client_kit.no_special_code_bot {shlex.quote(bot_dir)}"
-    marketable_install_cmd = ""
-    publish_install_cmd = _join_publish_install_cmd(marketable_install_cmd)
+    publish_install_cmd = _join_publish_install_cmd("")
     avatar_candidates = _avatar_candidates_manifest(workdir, bot_abs, marketable_name)
     avatar_path_small = avatar_candidates[0] if avatar_candidates else ""
 
@@ -389,7 +388,6 @@ def _manifest_entry(workdir: Path, bot_abs: Path, root_installable: bool, root_i
         marketable_name=marketable_name,
         runtime_start_cmd=runtime_start_cmd,
         publish_install_cmd=publish_install_cmd,
-        marketable_install_cmd=marketable_install_cmd,
         runtime_entry_path=manifest_file_path,
         avatar_path_small=avatar_path_small,
         avatar_candidates=avatar_candidates,
@@ -427,11 +425,7 @@ def _code_entry(workdir: Path, bot_abs: Path, bot_py: Path, install_py: Path, ro
     entry_install_py = _normalize_rel_path(str(install_py.relative_to(workdir)))
     runtime_start_cmd = _normalize_workspace_cmd(captured["marketable_run_this"])
 
-    if "marketable_install_cmd" not in captured or not isinstance(captured["marketable_install_cmd"], str) or not captured["marketable_install_cmd"].strip():
-        return _InspectResult(bot_dir=bot_dir, supported=False, reason="install capture missing marketable_install_cmd")
-
-    marketable_install_cmd = captured["marketable_install_cmd"].strip()
-    publish_install_cmd = _join_publish_install_cmd(marketable_install_cmd)
+    publish_install_cmd = _join_publish_install_cmd("")
     avatar_candidates = _avatar_candidates_code(workdir, bot_abs, install_py, folder_name)
     avatar_path_small = avatar_candidates[0] if avatar_candidates else ""
 
@@ -441,7 +435,6 @@ def _code_entry(workdir: Path, bot_abs: Path, bot_py: Path, install_py: Path, ro
         marketable_name=captured["marketable_name"],
         runtime_start_cmd=runtime_start_cmd,
         publish_install_cmd=publish_install_cmd,
-        marketable_install_cmd=marketable_install_cmd,
         runtime_entry_path=entry_bot_py,
         avatar_path_small=avatar_path_small,
         avatar_candidates=avatar_candidates,
@@ -647,23 +640,6 @@ def _run_install_here(workdir: Path, bot_dir: str, bump: str | None) -> dict[str
         return {"ok": False, "error": "pip install failed", "output": "\n".join(logs)}
     logs.append("Package installed")
 
-    marketable_install_cmd = entry["marketable_install_cmd"] if entry["marketable_install_cmd"].strip() else ""
-    stripped_install_cmd = _strip_workspace_prefix(marketable_install_cmd)
-    if stripped_install_cmd and stripped_install_cmd not in ("python -m pip install -e .", "python3 -m pip install -e ."):
-        if not os.environ.get("FLEXUS_WORKSPACE", ""):
-            logs.append("---\nFLEXUS_WORKSPACE not set, skipping marketable_install_cmd")
-        else:
-            logs.append(f"---\nRunning marketable_install_cmd: {marketable_install_cmd}")
-            r = subprocess.run(marketable_install_cmd, capture_output=True, text=True, shell=True)
-            if r.stdout:
-                logs.append(r.stdout.rstrip())
-            if r.stderr:
-                logs.append(r.stderr.rstrip())
-            if r.returncode != 0:
-                logs.append(f"marketable_install_cmd failed with code {r.returncode}")
-                return {"ok": False, "error": "marketable_install_cmd failed", "output": "\n".join(logs)}
-            logs.append("Install command completed")
-
     logs.append("---\nInstall complete")
     return {"ok": True, "output": "\n".join(logs), "entry": entry}
 
@@ -703,10 +679,6 @@ def build_install_cmd(entry: dict[str, Any], bump: str | None = None) -> tuple[s
         ]
         cmds.append(" ".join(shlex.quote(x) for x in bump_args) + " >/tmp/flexus_bot_install_bump.log 2>&1 || (cat /tmp/flexus_bot_install_bump.log; exit 1)")
     cmds.append("cd /workspace && python3 -m pip install -e .")
-    install_cmd = _strip_workspace_prefix(entry["marketable_install_cmd"])
-    if install_cmd:
-        if install_cmd not in ("python -m pip install -e .", "python3 -m pip install -e ."):
-            cmds.append(install_cmd)
     return " && ".join(cmds) + " 2>&1", ""
 
 
