@@ -66,6 +66,18 @@ def static_integrations_load(bot_dir: Path, allowlist: list[str], builtin_skills
                 integr_prompt=fi_widget.PRINT_WIDGET_PROMPT,
             ))
 
+        elif name == "ask_questions":
+            from flexus_client_kit.integrations import fi_question
+            async def _init_question(rcx, setup):
+                return None
+            result.append(IntegrationRecord(
+                integr_name=name,
+                integr_tools=[fi_question.ASK_QUESTIONS_TOOL],
+                integr_init=_init_question,
+                integr_setup_handlers=lambda obj, rcx: [rcx.on_tool_call("ask_questions")(fi_question.handle_ask_questions)],
+                integr_prompt=fi_question.ASK_QUESTIONS_PROMPT,
+            ))
+
         elif name == "gmail":
             from flexus_client_kit.integrations import fi_gmail
             async def _init_gmail(rcx, setup):
