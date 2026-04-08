@@ -109,7 +109,7 @@ class IntegrationMagicDesk(fi_messenger.FlexusMessenger):
             self.rcx.persona.persona_id,
             f"magic_desk/{session_id}",
             text,
-            ftm_provenance={"system_type": "captured_thread_post", "mdesk_id": emsg.emsg_external_id},
+            ftm_provenance={"system_type": "captured_thread_post", "mdesk_msg_id": emsg.emsg_external_id},
             only_to_expert=self.outside_messages_fexp_name,
             thread_too_old_s=3600,
         )
@@ -135,10 +135,10 @@ class IntegrationMagicDesk(fi_messenger.FlexusMessenger):
         http = await self.fclient.use_http_on_behalf(self.rcx.persona.persona_id, "")
         async with http as h:
             await h.execute(gql.gql("""
-                mutation MagicDeskConfirmUserMessage($session_id: String!, $text: String!, $ftm_alt: Int!, $ftm_num: Int!, $mdesk_id: String, $persona_id: String) {
-                    magic_desk_deliver_reply(session_id: $session_id, text: $text, role: "user", ftm_alt: $ftm_alt, ftm_num: $ftm_num, mdesk_id: $mdesk_id, persona_id: $persona_id)
+                mutation MagicDeskConfirmUserMessage($session_id: String!, $text: String!, $ftm_alt: Int!, $ftm_num: Int!, $ftm_belongs_to_ft_id: String!, $mdesk_msg_id: String, $persona_id: String!) {
+                    magic_desk_deliver_reply(session_id: $session_id, text: $text, role: "user", ftm_alt: $ftm_alt, ftm_num: $ftm_num, ftm_belongs_to_ft_id: $ftm_belongs_to_ft_id, mdesk_msg_id: $mdesk_msg_id, persona_id: $persona_id)
                 }"""),
-                variable_values={"session_id": session_id, "text": text, "ftm_alt": msg.ftm_alt, "ftm_num": msg.ftm_num, "mdesk_id": prov.get("mdesk_id"), "persona_id": self.rcx.persona.persona_id},
+                variable_values={"session_id": session_id, "text": text, "ftm_alt": msg.ftm_alt, "ftm_num": msg.ftm_num, "ftm_belongs_to_ft_id": msg.ftm_belongs_to_ft_id, "mdesk_msg_id": prov.get("mdesk_msg_id"), "persona_id": self.rcx.persona.persona_id},
             )
         return True
 
@@ -156,10 +156,10 @@ class IntegrationMagicDesk(fi_messenger.FlexusMessenger):
         http = await self.fclient.use_http_on_behalf(self.rcx.persona.persona_id, "")
         async with http as h:
             await h.execute(gql.gql("""
-                mutation MagicDeskDeliverReply($session_id: String!, $text: String!, $ftm_alt: Int!, $ftm_num: Int!, $persona_id: String) {
-                    magic_desk_deliver_reply(session_id: $session_id, text: $text, ftm_alt: $ftm_alt, ftm_num: $ftm_num, persona_id: $persona_id)
+                mutation MagicDeskDeliverReply($session_id: String!, $text: String!, $ftm_alt: Int!, $ftm_num: Int!, $ftm_belongs_to_ft_id: String!, $persona_id: String!) {
+                    magic_desk_deliver_reply(session_id: $session_id, text: $text, ftm_alt: $ftm_alt, ftm_num: $ftm_num, ftm_belongs_to_ft_id: $ftm_belongs_to_ft_id, persona_id: $persona_id)
                 }"""),
-                variable_values={"session_id": session_id, "text": text, "ftm_alt": msg.ftm_alt, "ftm_num": msg.ftm_num, "persona_id": self.rcx.persona.persona_id},
+                variable_values={"session_id": session_id, "text": text, "ftm_alt": msg.ftm_alt, "ftm_num": msg.ftm_num, "ftm_belongs_to_ft_id": msg.ftm_belongs_to_ft_id, "persona_id": self.rcx.persona.persona_id},
             )
         logger.info("%s magic_desk reply to session=%s: %s", self.rcx.persona.persona_id, session_id, text[:80])
         return True
