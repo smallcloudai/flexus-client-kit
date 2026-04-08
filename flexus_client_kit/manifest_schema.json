@@ -13,7 +13,6 @@
         "integrations",
         "featured_actions",
         "intro_message",
-        "preferred_model_default",
         "daily_budget_default",
         "default_inbox_default",
         "tags"
@@ -91,8 +90,18 @@
         },
         "preferred_model_default": {
             "type": "string",
-            "title": "Preferred Model",
-            "description": "Default LLM model used for this bot's chat completions. Example: 'grok-4-1-fast-non-reasoning', 'grok-4-1-fast-reasoning'."
+            "title": "Preferred Model (legacy)",
+            "description": "Legacy single-model field. Use preferred_model_expensive + preferred_model_cheap instead. Example: 'grok-4-1-fast-non-reasoning'."
+        },
+        "preferred_model_expensive": {
+            "type": "string",
+            "title": "Preferred Expensive Model",
+            "description": "LLM model used for expensive (deep reasoning) tasks. Example: 'grok-4-1-fast-reasoning'."
+        },
+        "preferred_model_cheap": {
+            "type": "string",
+            "title": "Preferred Cheap Model",
+            "description": "LLM model used for fast/cheap tasks. Example: 'grok-4-1-fast-non-reasoning'."
         },
         "daily_budget_default": {
             "type": "integer",
