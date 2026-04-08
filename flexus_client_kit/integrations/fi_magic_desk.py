@@ -49,15 +49,14 @@ class IntegrationMagicDesk(fi_messenger.FlexusMessenger):
         super().__init__(fclient, rcx)
         self.is_fake = rcx.running_test_scenario
         self._activity_callback: Callable[[ActivityMagicDesk, bool], Awaitable[None]] = self.inbound_activity_to_task
-        # Inbound dedup needed: bot receives emessages starting up, handled_emsg_ids delete fails for whatever reason, bot starts up again
-        # Outbound dedup needed: bot receives a stray update on existing message (via news mechanism) before it can get an updated last_posted_assistant_ts
+        # See fi_slack.py for explanation of deque+set dedup pattern
         self._from_mdesk_dedup = deque(maxlen=10000)
         self._from_mdesk_dedup_set: set = set()
         self._to_mdesk_dedup = deque(maxlen=10000)
         self._to_mdesk_dedup_set: set = set()
         # Buffer messages before capture, in case people write multiple message in a row before bot responds
-        self._precapture_order = deque(maxlen=500)
-        self._precapture_msgs: Dict[str, tuple[float, list]] = {}  # session_id -> (buffered_ts, [(text, ext_id), ...])
+        self._precapture_buffer: Dict[str, tuple[float, list]] = {}  # session_id -> (buffered_ts, [(text, ext_id), ...])
+        self._precapture_buffer_deque = deque(maxlen=500)
 
     def on_incoming_activity(self, handler: Callable[[ActivityMagicDesk, bool], Awaitable[None]]):
         self._activity_callback = handler
@@ -98,7 +97,7 @@ class IntegrationMagicDesk(fi_messenger.FlexusMessenger):
                 await ckit_ask_model.thread_app_capture_patch(http, toolcall.fcall_ft_id, ft_app_searchable=f"magic_desk/{session_id}")
             except gql.transport.exceptions.TransportQueryError as e:
                 return ckit_cloudtool.gql_error_4xx_to_model_reraise_5xx(e, "magic_desk_capture")
-            buf_ts, buf_msgs = self._precapture_msgs.pop(session_id, (0, []))
+            buf_ts, buf_msgs = self._precapture_buffer.pop(session_id, (0, []))
             if buf_msgs and time.monotonic() - buf_ts > 600:
                 logger.info("%s magic_desk capture discarding %d stale buffered msgs for session=%s", self.rcx.persona.persona_id, len(buf_msgs), session_id)
                 buf_msgs = []
@@ -123,14 +122,12 @@ class IntegrationMagicDesk(fi_messenger.FlexusMessenger):
         session_id = emsg.emsg_from.split(":", 1)[1] if ":" in emsg.emsg_from else emsg.emsg_from
         if not text.strip():
             return
-        dedup_key = emsg.emsg_external_id or ""
-        if dedup_key and dedup_key in self._from_mdesk_dedup_set:
+        if emsg.emsg_external_id in self._from_mdesk_dedup_set:
             return
-        if dedup_key:
-            if len(self._from_mdesk_dedup) == self._from_mdesk_dedup.maxlen:
-                self._from_mdesk_dedup_set.discard(self._from_mdesk_dedup[0])
-            self._from_mdesk_dedup.append(dedup_key)
-            self._from_mdesk_dedup_set.add(dedup_key)
+        if len(self._from_mdesk_dedup) == self._from_mdesk_dedup.maxlen:
+            self._from_mdesk_dedup_set.discard(self._from_mdesk_dedup[0])
+        self._from_mdesk_dedup.append(emsg.emsg_external_id)
+        self._from_mdesk_dedup_set.add(emsg.emsg_external_id)
         http = await self.fclient.use_http_on_behalf(self.rcx.persona.persona_id, "")
         logger.info("captured_thread_post searchable=magic_desk/%s msg=%s", session_id, text[:200])
         ft_id = await ckit_ask_model.captured_thread_post_user_message(
@@ -146,14 +143,14 @@ class IntegrationMagicDesk(fi_messenger.FlexusMessenger):
             logger.info("%s magic_desk inbound captured ft_id=%s session=%s: %s", self.rcx.persona.persona_id, ft_id, session_id, text[:120])
         else:
             logger.info("%s magic_desk inbound session=%s no capture: %s", self.rcx.persona.persona_id, session_id, text[:120])
-            if session_id in self._precapture_msgs:
-                self._precapture_msgs[session_id][1].append((text, emsg.emsg_external_id))
-                logger.info("%s magic_desk buffered msg #%d for session=%s", self.rcx.persona.persona_id, len(self._precapture_msgs[session_id][1]), session_id)
+            if session_id in self._precapture_buffer:
+                self._precapture_buffer[session_id][1].append((text, emsg.emsg_external_id))
+                logger.info("%s magic_desk buffered msg #%d for session=%s", self.rcx.persona.persona_id, len(self._precapture_buffer[session_id][1]), session_id)
                 return
-            if len(self._precapture_order) == self._precapture_order.maxlen:
-                self._precapture_msgs.pop(self._precapture_order[0], None)
-            self._precapture_order.append(session_id)
-            self._precapture_msgs[session_id] = (time.monotonic(), [])
+            if len(self._precapture_buffer_deque) == self._precapture_buffer_deque.maxlen:
+                self._precapture_buffer.pop(self._precapture_buffer_deque[0], None)
+            self._precapture_buffer_deque.append(session_id)
+            self._precapture_buffer[session_id] = (time.monotonic(), [])
         await self._activity_callback(ActivityMagicDesk(session_id=session_id, text=text), bool(ft_id))
 
     async def look_user_message_got_confirmed(self, msg: ckit_ask_model.FThreadMessageOutput) -> bool:
