@@ -67,8 +67,8 @@ def _strip_workspace_prefix(command: str) -> str:
 
 def _join_publish_install_cmd(marketable_install_cmd: str) -> str:
     cmd = _strip_workspace_prefix(marketable_install_cmd)
-    base = "cd /workspace && python -m pip install -e ."
-    if not cmd or cmd == "python -m pip install -e .":
+    base = "cd /workspace && python3 -m pip install -e ."
+    if not cmd or cmd == "python3 -m pip install -e ." or cmd == "python -m pip install -e .":
         return base
     return f"{base} && {cmd}"
 
@@ -371,7 +371,7 @@ def _manifest_entry(workdir: Path, bot_abs: Path, root_installable: bool, root_i
         return _InspectResult(bot_dir=bot_dir, supported=False, reason=f"name mismatch: folder {folder_name} != manifest.bot_name {marketable_name}")
 
     manifest_file_path = f"{bot_dir}/manifest.json"
-    runtime_start_cmd = f"cd /workspace && python -u -m flexus_client_kit.no_special_code_bot {shlex.quote(bot_dir)}"
+    runtime_start_cmd = f"cd /workspace && python3 -u -m flexus_client_kit.no_special_code_bot {shlex.quote(bot_dir)}"
     marketable_install_cmd = ""
     publish_install_cmd = _join_publish_install_cmd(marketable_install_cmd)
     avatar_candidates = _avatar_candidates_manifest(workdir, bot_abs, marketable_name)
@@ -643,7 +643,7 @@ def _run_install_here(workdir: Path, bot_dir: str, bump: str | None) -> dict[str
 
     marketable_install_cmd = entry["marketable_install_cmd"] if entry["marketable_install_cmd"].strip() else ""
     stripped_install_cmd = _strip_workspace_prefix(marketable_install_cmd)
-    if stripped_install_cmd and stripped_install_cmd != "python -m pip install -e .":
+    if stripped_install_cmd and stripped_install_cmd not in ("python -m pip install -e .", "python3 -m pip install -e ."):
         if not os.environ.get("FLEXUS_WORKSPACE", ""):
             logs.append("---\nFLEXUS_WORKSPACE not set, skipping marketable_install_cmd")
         else:
@@ -696,10 +696,10 @@ def build_install_cmd(entry: dict[str, Any], bump: str | None = None) -> tuple[s
             bump,
         ]
         cmds.append(" ".join(shlex.quote(x) for x in bump_args) + " >/tmp/flexus_bot_install_bump.log 2>&1 || (cat /tmp/flexus_bot_install_bump.log; exit 1)")
-    cmds.append("cd /workspace && python -m pip install -e .")
+    cmds.append("cd /workspace && python3 -m pip install -e .")
     install_cmd = _strip_workspace_prefix(entry["marketable_install_cmd"])
     if install_cmd:
-        if install_cmd != "python -m pip install -e .":
+        if install_cmd not in ("python -m pip install -e .", "python3 -m pip install -e ."):
             cmds.append(install_cmd)
     return " && ".join(cmds) + " 2>&1", ""
 
