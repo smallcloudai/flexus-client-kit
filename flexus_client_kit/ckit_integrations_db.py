@@ -128,6 +128,19 @@ def static_integrations_load(bot_dir: Path, allowlist: list[str], builtin_skills
                 integr_scopes=fi_google_ads.GOOGLE_ADS_SCOPES,
             ))
 
+        elif name == "google_sheets":
+            from flexus_client_kit.integrations import fi_google_sheets
+            async def _init_gsheets(rcx, setup):
+                return fi_google_sheets.IntegrationGoogleSheets(rcx.fclient, rcx)
+            result.append(IntegrationRecord(
+                integr_name=name,
+                integr_tools=[fi_google_sheets.GOOGLE_SHEETS_TOOL],
+                integr_init=_init_gsheets,
+                integr_setup_handlers=lambda obj, rcx: [rcx.on_tool_call("google_sheets")(obj.called_by_model)],
+                integr_provider="google",
+                integr_scopes=fi_google_sheets.REQUIRED_SCOPES,
+            ))
+
         elif name == "jira":
             from flexus_client_kit.integrations import fi_jira
             async def _init_jira(rcx, setup):
