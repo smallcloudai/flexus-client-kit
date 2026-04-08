@@ -5,12 +5,15 @@ import json
 import logging
 import os
 import random
+import re
 import tempfile
 import time
 from collections import deque
 import dataclasses
 from dataclasses import dataclass, field
 from typing import Any, Awaitable, Callable, Dict, List, Optional, Tuple
+
+import aiohttp
 
 import discord
 import gql
@@ -25,6 +28,7 @@ from flexus_client_kit import (
     ckit_bot_query,
     ckit_cloudtool,
     ckit_client,
+    ckit_job_queue,
     ckit_kanban,
     ckit_scenario,
     ckit_utils,
@@ -755,6 +759,15 @@ class IntegrationDiscord(fi_messenger.FlexusMessenger):
             return False
         parts = fi_messenger.compact_message_parts(parts)
 
+        provenance = {
+            "source": "discord",
+            "discord_author_id": str(activity.message_author_id),
+            "discord_author_name": activity.message_author_name,
+            "discord_channel_id": str(activity.channel_id),
+            "discord_message_id": activity.message_id,
+            "is_dm": activity.is_dm,
+        }
+
         http = await self.fclient.use_http_on_behalf(self.rcx.persona.persona_id, "")
         logger.info("captured_thread_post searchable=%s msg=%s", searchable, text[:200])
         try:
@@ -764,6 +777,7 @@ class IntegrationDiscord(fi_messenger.FlexusMessenger):
                 searchable,
                 parts,
                 only_to_expert=self.outside_messages_fexp_name,
+                ftm_provenance=provenance,
                 thread_too_old_s=30*86400 if activity.thread_id else 300,
             )
         except gql.transport.exceptions.TransportQueryError as e:  # type: ignore[attr-defined]
@@ -872,3 +886,263 @@ class IntegrationDiscord(fi_messenger.FlexusMessenger):
         if isinstance(parsed, dict):
             return parsed.get("m_content", str(parsed))
         return str(parsed)
+
+
+# ---------------------------------------------------------------------------
+# Community-bot utilities (consolidated from fi_discord_community)
+# ---------------------------------------------------------------------------
+
+COL_ONBOARDING = "dc_onboarding_state"
+COL_MOD_EVENTS = "dc_mod_events"
+COL_ACTIVITY = "dc_member_activity"
+COL_FAQ_RATE = "dc_faq_rate"
+COL_MOD_RATELIMIT = "dc_mod_ratelimit_window"
+
+COL_JOBS = ckit_job_queue.COL_JOBS
+JobHandler = ckit_job_queue.JobHandler
+
+
+def setup_truthy(raw: Any) -> bool:
+    if raw is True:
+        return True
+    if raw is False or raw is None:
+        return False
+    s = str(raw).strip().lower()
+    return s in ("1", "true", "yes", "on")
+
+
+def build_intents() -> discord.Intents:
+    intents = discord.Intents.default()
+    intents.message_content = True
+    intents.members = True
+    intents.guilds = True
+    intents.dm_messages = True
+    intents.guild_messages = True
+    intents.guild_reactions = True
+    return intents
+
+
+def parse_snowflake(raw: str) -> Optional[int]:
+    if not raw or not isinstance(raw, str):
+        return None
+    s = raw.strip()
+    if not s or not s.isdigit():
+        return None
+    return int(s)
+
+
+def guild_matches(guild: Optional[discord.Guild], want_id: Optional[int]) -> bool:
+    if want_id is None:
+        return True
+    if guild is None:
+        return False
+    return int(guild.id) == int(want_id)
+
+
+def truncate_message(text: str, limit: int = 2000) -> str:
+    if len(text) <= limit:
+        return text
+    return text[: limit - 20] + "\n...(truncated)"
+
+
+def log_ctx(persona_id: str, guild_id: Optional[int], msg: str, *args: Any) -> None:
+    gid = str(guild_id) if guild_id is not None else "-"
+    logger.info("[%s guild=%s] " + msg, persona_id, gid, *args)
+
+
+async def safe_send(
+    channel: discord.abc.Messageable,
+    persona_id: str,
+    content: str,
+) -> Optional[discord.Message]:
+    t = truncate_message(content)
+    g = getattr(channel, "guild", None)
+    gid = int(g.id) if g is not None else None
+    delay = 1.0
+    for attempt in range(5):
+        try:
+            return await channel.send(t)
+        except discord.errors.HTTPException as e:
+            if e.status == 429 and attempt < 4:
+                ra = getattr(e, "retry_after", None)
+                wait = float(ra) if ra is not None else delay
+                wait = max(0.5, min(wait, 30.0))
+                log_ctx(persona_id, gid, "safe_send 429 backoff %.1fs", wait)
+                await asyncio.sleep(wait)
+                delay = min(delay * 2.0, 16.0)
+                continue
+            log_ctx(persona_id, gid, "safe_send HTTP %s", e.status)
+            return None
+        except DiscordException as e:
+            log_ctx(persona_id, gid, "safe_send failed: %s %s", type(e).__name__, e)
+            return None
+        except aiohttp.ClientError as e:
+            log_ctx(persona_id, gid, "safe_send network: %s %s", type(e).__name__, e)
+            return None
+    return None
+
+
+async def safe_dm(
+    client: discord.Client,
+    user: discord.abc.User,
+    persona_id: str,
+    content: str,
+) -> bool:
+    try:
+        ch = user.dm_channel or await user.create_dm()
+    except DiscordException as e:
+        log_ctx(persona_id, None, "create_dm failed for user=%s: %s %s", getattr(user, "id", "?"), type(e).__name__, e)
+        return False
+    except aiohttp.ClientError as e:
+        log_ctx(
+            persona_id,
+            None,
+            "create_dm network for user=%s: %s %s",
+            getattr(user, "id", "?"),
+            type(e).__name__,
+            e,
+        )
+        return False
+    m = await safe_send(ch, persona_id, content)
+    return m is not None
+
+
+def compile_url_patterns(lines: str) -> List[re.Pattern[str]]:
+    out: List[re.Pattern[str]] = []
+    for line in (lines or "").splitlines():
+        pat = line.strip()
+        if not pat:
+            continue
+        try:
+            out.append(re.compile(pat, re.I))
+        except re.error:
+            logger.warning("bad url regex ignored: %r", pat[:80])
+    return out
+
+
+DISCORD_INVITE_RE = re.compile(
+    r"(discord\.gg/|discordapp\.com/invite/|discord\.com/invite/)[a-zA-Z0-9_-]+",
+    re.I,
+)
+
+
+def message_has_invite(content: str) -> bool:
+    return bool(DISCORD_INVITE_RE.search(content or ""))
+
+
+def match_blocked_url(content: str, patterns: List[re.Pattern[str]]) -> bool:
+    for p in patterns:
+        if p.search(content or ""):
+            return True
+    return False
+
+
+async def start_discord_client(
+    token: str,
+    persona_id: str,
+    register: Callable[[discord.Client], None],
+) -> Tuple[discord.Client, asyncio.Task]:
+    client = discord.Client(intents=build_intents())
+    register(client)
+
+    async def _runner() -> None:
+        try:
+            await client.start(token)
+        except asyncio.CancelledError:
+            raise
+        except DiscordException as e:
+            logger.error("[%s] discord client died: %s %s", persona_id, type(e).__name__, e)
+
+    t = asyncio.create_task(_runner())
+    return client, t
+
+
+async def close_discord_client(client: Optional[discord.Client], task: Optional[asyncio.Task]) -> None:
+    if task and not task.done():
+        task.cancel()
+        try:
+            await task
+        except asyncio.CancelledError:
+            pass
+    if client and not client.is_closed():
+        await client.close()
+
+
+def _perm_gaps_basic(perms: discord.Permissions) -> List[str]:
+    miss: List[str] = []
+    if not perms.view_channel:
+        miss.append("view_channel")
+    if not perms.send_messages:
+        miss.append("send_messages")
+    if not perms.read_message_history:
+        miss.append("read_message_history")
+    return miss
+
+
+def _perm_gaps_mod(perms: discord.Permissions) -> List[str]:
+    miss = _perm_gaps_basic(perms)
+    if not perms.manage_messages:
+        miss.append("manage_messages")
+    return miss
+
+
+def preflight_text_channels(
+    guild: discord.Guild,
+    bot_user: discord.ClientUser,
+    persona_id: str,
+    bot_label: str,
+    channels: Dict[str, Tuple[Optional[int], str]],
+    *,
+    warn_manage_roles: bool = False,
+) -> None:
+    me = guild.get_member(bot_user.id)
+    if not me:
+        log_ctx(persona_id, guild.id, "preflight %s: bot not in guild member cache", bot_label)
+        return
+    for label, (cid, level) in channels.items():
+        if not cid:
+            continue
+        ch = guild.get_channel(int(cid))
+        if not isinstance(ch, discord.TextChannel):
+            log_ctx(persona_id, guild.id, "preflight %s: %s id=%s missing or not text", bot_label, label, cid)
+            continue
+        perms = ch.permissions_for(me)
+        if level == "mod":
+            miss = _perm_gaps_mod(perms)
+        else:
+            miss = _perm_gaps_basic(perms)
+        if miss:
+            log_ctx(
+                persona_id,
+                guild.id,
+                "preflight %s: %s ch=%s missing %s",
+                bot_label,
+                label,
+                cid,
+                ",".join(miss),
+            )
+    if warn_manage_roles and not me.guild_permissions.manage_roles:
+        log_ctx(
+            persona_id,
+            guild.id,
+            "preflight %s: guild.manage_roles false (assign roles only below bot role)",
+            bot_label,
+        )
+
+
+async def enqueue_job(
+    db: Any,
+    kind: str,
+    run_at_ts: float,
+    payload: Dict[str, Any],
+) -> None:
+    return await ckit_job_queue.enqueue_job(db, kind, run_at_ts, payload)
+
+
+async def drain_due_jobs(
+    db: Any,
+    persona_id: str,
+    handlers: Dict[str, JobHandler],
+    limit: int = 50,
+) -> int:
+    return await ckit_job_queue.drain_due_jobs(db, persona_id, handlers, limit=limit)

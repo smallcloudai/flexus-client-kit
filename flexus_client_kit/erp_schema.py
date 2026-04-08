@@ -310,12 +310,130 @@ class ComRefund:
     order: Optional[ComOrder] = field(default=None, metadata={"fk_field": "refund_order_id", "description": "included via include=['order']"})
 
 
+@dataclass
+class CrmPerson:
+    ws_id: str
+    person_id: str = field(default="", metadata={"pkey": True, "display_name": "Person ID"})
+    person_label: str = field(default="", metadata={"importance": 1, "display_name": "Label"})
+    person_details: dict = field(default_factory=dict, metadata={"display_name": "Details", "description": "Custom JSON attributes for this person"})
+    person_created_ts: float = field(default=0.0, metadata={"importance": 1, "display_name": "Created at"})
+    person_modified_ts: float = field(default=0.0, metadata={"display_name": "Modified at"})
+    person_archived_ts: float = field(default=0.0, metadata={"display_name": "Archived at"})
+
+    identities: Optional[List["CrmPersonIdentity"]] = field(default=None, metadata={"inbound_fk_table": "crm_person_identity", "inbound_fk_col": "person_id"})
+    applications: Optional[List["CrmApplication"]] = field(default=None, metadata={"inbound_fk_table": "crm_application", "inbound_fk_col": "person_id"})
+
+
+@dataclass
+class CrmPersonIdentity:
+    ws_id: str
+    person_id: str = field(metadata={"importance": 1, "display_name": "Person"})
+    identity_platform: str = field(metadata={"importance": 1, "display_name": "Platform", "description": "e.g. discord, slack, telegram, email, github"})
+    identity_external_user_id: str = field(metadata={"importance": 1, "display_name": "External User ID"})
+    identity_id: str = field(default="", metadata={"pkey": True, "display_name": "Identity ID"})
+    identity_external_endpoint: str = field(default="", metadata={"importance": 1, "display_name": "Endpoint", "description": "Channel ID, DM endpoint, webhook URL, etc."})
+    identity_status: str = field(default="linked", metadata={"importance": 1, "display_name": "Status", "enum": [
+        {"value": "linked", "label": "Linked"},
+        {"value": "verified", "label": "Verified"},
+        {"value": "revoked", "label": "Revoked"},
+    ]})
+    identity_details: dict = field(default_factory=dict, metadata={"display_name": "Details"})
+    identity_created_ts: float = field(default=0.0, metadata={"display_name": "Created at"})
+    identity_modified_ts: float = field(default=0.0, metadata={"display_name": "Modified at"})
+    identity_archived_ts: float = field(default=0.0, metadata={"display_name": "Archived at"})
+
+    person: Optional[CrmPerson] = field(default=None, metadata={"fk_field": "person_id", "description": "included via include=['person']"})
+
+
+@dataclass
+class CrmApplication:
+    ws_id: str
+    application_id: str = field(default="", metadata={"pkey": True, "display_name": "Application ID"})
+    person_id: Optional[str] = field(default=None, metadata={"importance": 1, "display_name": "Person"})
+    contact_id: Optional[str] = field(default=None, metadata={"importance": 1, "display_name": "Contact"})
+    application_source: str = field(default="", metadata={"importance": 1, "display_name": "Source", "description": "Originating channel/system, e.g. discord_onboarding"})
+    application_platform: str = field(default="", metadata={"importance": 1, "display_name": "Platform", "enum": [
+        {"value": "discord", "label": "Discord"},
+        {"value": "slack", "label": "Slack"},
+        {"value": "web", "label": "Web"},
+        {"value": "email", "label": "Email"},
+        {"value": "telegram", "label": "Telegram"},
+    ]})
+    application_status: str = field(default="PENDING", metadata={"importance": 1, "display_name": "Status", "enum": [
+        {"value": "PENDING", "label": "Pending"},
+        {"value": "REVIEWING", "label": "Reviewing"},
+        {"value": "DECIDED", "label": "Decided"},
+        {"value": "CLOSED", "label": "Closed"},
+    ]})
+    application_decision: str = field(default="", metadata={"importance": 1, "display_name": "Decision", "enum": [
+        {"value": "", "label": "—"},
+        {"value": "APPROVED", "label": "Approved"},
+        {"value": "REJECTED", "label": "Rejected"},
+        {"value": "WAITLISTED", "label": "Waitlisted"},
+    ]})
+    application_payload: dict = field(default_factory=dict, metadata={"display_name": "Payload", "description": "Raw inbound data from the originating event"})
+    application_details: dict = field(default_factory=dict, metadata={"display_name": "Details", "description": "Enriched/processed data and bot annotations"})
+    application_created_ts: float = field(default=0.0, metadata={"importance": 1, "display_name": "Created at"})
+    application_modified_ts: float = field(default=0.0, metadata={"display_name": "Modified at"})
+    application_archived_ts: float = field(default=0.0, metadata={"display_name": "Archived at"})
+    application_decision_ts: float = field(default=0.0, metadata={"importance": 1, "display_name": "Decided at"})
+
+    person: Optional[CrmPerson] = field(default=None, metadata={"fk_field": "person_id", "description": "included via include=['person']"})
+
+
+@dataclass
+class CrmThreadParticipationPolicy:
+    ws_id: str
+    ft_id: str = field(metadata={"importance": 1, "display_name": "Thread ID"})
+    policy_id: str = field(default="", metadata={"pkey": True, "display_name": "Policy ID"})
+    persona_id: Optional[str] = field(default=None, metadata={"importance": 1, "display_name": "Persona"})
+    person_id: Optional[str] = field(default=None, metadata={"importance": 1, "display_name": "Person"})
+    policy_mode: str = field(default="ACTIVE", metadata={"importance": 1, "display_name": "Mode", "enum": [
+        {"value": "ACTIVE", "label": "Active"},
+        {"value": "PAUSED", "label": "Paused"},
+        {"value": "TAKEOVER", "label": "Takeover"},
+        {"value": "CLOSED", "label": "Closed"},
+    ]})
+    policy_active: bool = field(default=True, metadata={"importance": 1, "display_name": "Active"})
+    policy_timeout_ts: float = field(default=0.0, metadata={"display_name": "Timeout at", "description": "Epoch timestamp when mode should auto-expire; 0 = no timeout"})
+    policy_last_actor: str = field(default="", metadata={"display_name": "Last Actor", "description": "fuser_id, persona_id, or 'system'"})
+    policy_details: dict = field(default_factory=dict, metadata={"display_name": "Details"})
+    policy_created_ts: float = field(default=0.0, metadata={"display_name": "Created at"})
+    policy_modified_ts: float = field(default=0.0, metadata={"display_name": "Modified at"})
+
+
+@dataclass
+class CrmExternalConnection:
+    ws_id: str
+    connection_provider: str = field(metadata={"importance": 1, "display_name": "Provider", "description": "e.g. discord, slack, github, google"})
+    connection_id: str = field(default="", metadata={"pkey": True, "display_name": "Connection ID"})
+    persona_id: Optional[str] = field(default=None, metadata={"importance": 1, "display_name": "Persona"})
+    auth_id: Optional[str] = field(default=None, metadata={"display_name": "Auth ID"})
+    connection_platform: str = field(default="", metadata={"importance": 1, "display_name": "Platform", "description": "Sub-platform or environment hint"})
+    connection_resource_type: str = field(default="", metadata={"importance": 1, "display_name": "Resource Type", "description": "e.g. guild, channel, workspace, dm, repo"})
+    connection_external_id: str = field(default="", metadata={"importance": 1, "display_name": "External ID"})
+    connection_status: str = field(default="active", metadata={"importance": 1, "display_name": "Status", "enum": [
+        {"value": "active", "label": "Active"},
+        {"value": "revoked", "label": "Revoked"},
+        {"value": "error", "label": "Error"},
+    ]})
+    connection_details: dict = field(default_factory=dict, metadata={"display_name": "Details"})
+    connection_created_ts: float = field(default=0.0, metadata={"display_name": "Created at"})
+    connection_modified_ts: float = field(default=0.0, metadata={"display_name": "Modified at"})
+    connection_archived_ts: float = field(default=0.0, metadata={"display_name": "Archived at"})
+
+
 ERP_TABLE_TO_SCHEMA: Dict[str, Type] = {
     "crm_activity": CrmActivity,
+    "crm_application": CrmApplication,
     "crm_contact": CrmContact,
     "crm_deal": CrmDeal,
+    "crm_external_connection": CrmExternalConnection,
+    "crm_person": CrmPerson,
+    "crm_person_identity": CrmPersonIdentity,
     "crm_pipeline": CrmPipeline,
     "crm_pipeline_stage": CrmPipelineStage,
+    "crm_thread_participation_policy": CrmThreadParticipationPolicy,
     "com_order": ComOrder,
     "com_order_item": ComOrderItem,
     "com_payment": ComPayment,
@@ -342,10 +460,15 @@ ERP_TABLE_LABELS: Dict[str, str] = {
 
 ERP_DISPLAY_NAME_CONFIGS: Dict[str, str] = {
     "crm_activity": "{activity_title}",
+    "crm_application": "{application_platform} {application_status}",
     "crm_contact": "{contact_first_name} {contact_last_name}",
     "crm_deal": "{deal_name}",
+    "crm_external_connection": "{connection_provider} {connection_resource_type}",
+    "crm_person": "{person_label}",
+    "crm_person_identity": "{identity_platform} {identity_external_user_id}",
     "crm_pipeline": "{pipeline_name}",
     "crm_pipeline_stage": "{stage_name}",
+    "crm_thread_participation_policy": "{ft_id} {policy_mode}",
     "com_order": "{order_number}",
     "com_order_item": "{oitem_name}",
     "com_payment": "{pay_id}",

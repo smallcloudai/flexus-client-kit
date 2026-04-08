@@ -1,0 +1,128 @@
+[
+    {
+        "bs_name": "dc_guild_id",
+        "bs_type": "string_short",
+        "bs_default": "",
+        "bs_group": "Discord",
+        "bs_order": 1,
+        "bs_importance": 1,
+        "bs_description": "Target guild snowflake ID (digits only). Bot ignores other guilds."
+    },
+    {
+        "bs_name": "welcome_dm_body",
+        "bs_type": "string_multiline",
+        "bs_default": "Welcome to our server! Read #start-here and say hi in #introductions.",
+        "bs_group": "Welcome",
+        "bs_order": 1,
+        "bs_importance": 1,
+        "bs_description": "DM sent when a member joins (may fail if user blocks DMs)."
+    },
+    {
+        "bs_name": "welcome_channel_id",
+        "bs_type": "string_short",
+        "bs_default": "",
+        "bs_group": "Welcome",
+        "bs_order": 2,
+        "bs_importance": 0,
+        "bs_description": "Optional channel ID for a public welcome message (empty to skip)."
+    },
+    {
+        "bs_name": "intro_channel_id",
+        "bs_type": "string_short",
+        "bs_default": "",
+        "bs_group": "Intro Reminder",
+        "bs_order": 1,
+        "bs_importance": 1,
+        "bs_description": "Channel ID where members post their intro. Used by intro reminder automation to detect whether a member has introduced themselves."
+    },
+    {
+        "bs_name": "followup_dm_body",
+        "bs_type": "string_multiline",
+        "bs_default": "Hi! Just checking in -- need help getting started? Reply in #help any time.",
+        "bs_group": "Intro Reminder",
+        "bs_order": 3,
+        "bs_importance": 1,
+        "bs_description": "Follow-up DM body when there was no guild text activity since join."
+    },
+    {
+        "bs_name": "checklist_channel_id",
+        "bs_type": "string_short",
+        "bs_default": "",
+        "bs_group": "Welcome",
+        "bs_order": 4,
+        "bs_importance": 0,
+        "bs_description": "Channel ID where the bot posts the start-here checklist once (empty to skip)."
+    },
+    {
+        "bs_name": "checklist_message_body",
+        "bs_type": "string_multiline",
+        "bs_default": "## Start here\n- [ ] Read rules\n- [ ] Introduce yourself\n- [ ] Pick roles below this message",
+        "bs_group": "Welcome",
+        "bs_order": 5,
+        "bs_importance": 0,
+        "bs_description": "Checklist content (markdown)."
+    },
+    {
+        "bs_name": "pin_checklist",
+        "bs_type": "bool",
+        "bs_default": false,
+        "bs_group": "Welcome",
+        "bs_order": 6,
+        "bs_importance": 0,
+        "bs_description": "If enabled, try to pin the checklist message (needs Manage Messages)."
+    },
+    {
+        "bs_name": "reaction_roles_json",
+        "bs_type": "string_multiline",
+        "bs_default": "[]",
+        "bs_group": "Welcome",
+        "bs_order": 7,
+        "bs_importance": 0,
+        "bs_description": "JSON array: [{\"message_id\":\"\",\"emoji\":\"\",\"role_id\":\"\"}] for reaction roles (message must exist)."
+    },
+    {
+        "bs_name": "mod_role_ids",
+        "bs_type": "string_long",
+        "bs_default": "",
+        "bs_group": "Announcements",
+        "bs_order": 1,
+        "bs_importance": 0,
+        "bs_description": "Comma-separated role IDs allowed to use !announce in guild."
+    },
+    {
+        "bs_name": "announce_ping_role_ids",
+        "bs_type": "string_long",
+        "bs_default": "",
+        "bs_group": "Announcements",
+        "bs_order": 2,
+        "bs_importance": 0,
+        "bs_description": "Comma-separated role IDs pinged after each !announce line (optional)."
+    },
+    {
+        "bs_name": "disable_checklist_auto_post",
+        "bs_type": "bool",
+        "bs_default": false,
+        "bs_group": "Flags",
+        "bs_order": 3,
+        "bs_importance": 0,
+        "bs_description": "If enabled, do not post the start-here checklist on startup."
+    },
+    {
+        "bs_name": "disable_reaction_roles",
+        "bs_type": "bool",
+        "bs_default": false,
+        "bs_group": "Flags",
+        "bs_order": 4,
+        "bs_importance": 0,
+        "bs_description": "If enabled, ignore reaction add/remove for role assignment."
+    },
+    {
+        "bs_name": "automation_rules",
+        "bs_type": "string_multiline",
+        "bs_default": "",
+        "bs_group": "Automation",
+        "bs_order": 1,
+        "bs_importance": 0,
+        "bs_description": "Published automation rules document (JSON). Managed by the automation editor; do not edit manually."
+    }
+]

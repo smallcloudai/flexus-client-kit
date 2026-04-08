@@ -25,7 +25,6 @@ class TextOutputResult:
     lines: List[str]
     line1: int        # 1-based first line shown
     line2: int        # 1-based last line shown (inclusive)
-    total_lines: int
     safety_valve_hit: bool
     header: str
     warnings: List[str] = field(default_factory=list)
@@ -185,7 +184,6 @@ def format_text_output(
         lines=result,
         line1=line_offset + start + 1,
         line2=line_offset + actual_end + 1,
-        total_lines=len(lines),
         safety_valve_hit=hit,
         header=header,
         warnings=warnings,

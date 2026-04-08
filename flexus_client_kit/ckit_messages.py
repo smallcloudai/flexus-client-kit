@@ -1,8 +1,22 @@
+"""
+Thread YAML helpers for bot exec / scenarios, plus Discord discovery message persistence (dc_messages collection).
+"""
+
+from __future__ import annotations
+
 import json
+import logging
+from typing import Any, Optional, TypeVar
+
 import yaml
-from typing import Optional, TypeVar
+from pymongo.errors import PyMongoError
 
 _M = TypeVar("_M")
+
+logger = logging.getLogger(__name__)
+
+# Mongo collection name for ingested platform messages (Discord discovery).
+COL_MESSAGES = "dc_messages"
 
 
 def linearize_thread_messages(messages: list[_M], target_alt: int, target_num: int) -> list[_M]:
@@ -101,3 +115,77 @@ def fmessages_to_yaml(messages: list, *, limits: Optional[dict[str, int]] = None
             m["call_id"] = msg.ftm_call_id
         out.append(m)
     return yaml_dump_with_multiline({"messages": out})
+
+
+async def ensure_message_indexes(db: Any) -> None:
+    try:
+        coll = db[COL_MESSAGES]
+        await coll.create_index(
+            [("server_id", 1), ("channel_id", 1), ("timestamp", 1)],
+            unique=False,
+        )
+    except PyMongoError as e:
+        logger.error("ensure_message_indexes: MongoDB index creation failed", exc_info=e)
+        raise
+
+
+async def store_message(
+    db: Any,
+    *,
+    server_id: str,
+    channel_id: str,
+    user_id: str,
+    platform: str,
+    content: str,
+    timestamp: float,
+    message_id: str,
+) -> None:
+    try:
+        coll = db[COL_MESSAGES]
+        doc = {
+            "server_id": server_id,
+            "channel_id": channel_id,
+            "user_id": user_id,
+            "platform": platform,
+            "content": content,
+            "timestamp": timestamp,
+            "message_id": message_id,
+        }
+        await coll.insert_one(doc)
+    except PyMongoError as e:
+        logger.error(
+            "store_message: server_id=%s channel_id=%s message_id=%s failed",
+            server_id,
+            channel_id,
+            message_id,
+            exc_info=e,
+        )
+        raise
+
+
+async def get_channel_messages(
+    db: Any,
+    server_id: str,
+    channel_id: str,
+    *,
+    limit: int = 100,
+    before_ts: float | None = None,
+) -> list[dict]:
+    try:
+        coll = db[COL_MESSAGES]
+        flt: dict[str, Any] = {
+            "server_id": server_id,
+            "channel_id": channel_id,
+        }
+        if before_ts is not None:
+            flt["timestamp"] = {"$lt": before_ts}
+        cursor = coll.find(flt).sort("timestamp", -1).limit(limit)
+        return await cursor.to_list(length=limit)
+    except PyMongoError as e:
+        logger.error(
+            "get_channel_messages: server_id=%s channel_id=%s failed",
+            server_id,
+            channel_id,
+            exc_info=e,
+        )
+        raise
