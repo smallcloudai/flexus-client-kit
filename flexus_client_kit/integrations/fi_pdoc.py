@@ -36,7 +36,7 @@ POLICY_DOCUMENT_TOOL = ckit_cloudtool.CloudTool(
     parameters={
         "type": "object",
         "properties": {
-            "op": {"type": "string", "enum": ["help", "list", "cat", "activate", "create", "create_draft_qa", "create_draft_from_template", "overwrite", "update_json_text", "translate_qa", "cp", "mv", "rm"]},
+            "op": {"type": "string", "enum": ["help", "list", "cat", "activate", "create", "create_draft_qa", "create_draft_from_template", "overwrite", "update_at_location", "translate_qa", "cp", "mv", "rm"]},
             "args": {"type": "object"},   # model guesses p= to write here quite well for some reason, without help, must be something in prompt
         },
     },
@@ -71,15 +71,15 @@ flexus_policy_document(op="create_draft_from_template", args={"output_dir": "/pl
     Create a new policy document from a known template. Automatically prepends current date between
     output_dir and slug, e.g. /plans/20260325-my-thing. Fails if the document already exists.
 
-flexus_policy_document(op="update_json_text", args={"p": "/folder/file", "json_path": "section1.field", "text": "new value", "expected_md5": "abc123"})
-    Update a specific field in a document using json_path with dot notation.
-    Example: "operations_overview.governance" updates doc["operations_overview"]["governance"]
-    Pass expected_md5 (from a previous cat/update) to avoid overwriting concurrent changes.
-    If md5 doesn't match, changes are not saved and latest content is returned so you can retry.
+flexus_policy_document(op="update_at_location", args={"p": "/folder/file", "expected_md5": "abc123", "updates": [["toptag.section1.field1", "value1"], ["toptag.section1.field2", "value2"]]})
+    Update fields in a document using dot notation for path. This normally updates strings, but you can try to set
+    any structure or number, if schema in available in the document.
+    NEVER call this tool in parallel, backend will serialize calls and only the first will pass md5 gate.
+    Instead use "updates" array to set multiple fields at once.
 
 flexus_policy_document(op="translate_qa", args={"p": "/folder/file", "expected_md5": "abc123", "translation": [["top-tag.section01-product.question01-description.q", "Translated text"], ...]})
     Batch-update question texts in a QA document, typically for translation.
-    Each entry in translation is [json_path, text] where json_path uses dot notation (same as update_json_text).
+    Each entry in translation is [json_path, text] where json_path uses dot notation (same as update_at_location).
     Pass expected_md5 to avoid overwriting concurrent changes.
     Returns list of still-empty "q" and "a" fields and the new md5.
 
@@ -425,19 +425,27 @@ class IntegrationPdoc:
                     raise
                 r += f"✍️ {p}\nmd5={_pdoc_md5(doc)}\n\n✓ Created from template '{template}'"
 
-            elif op == "update_json_text":
+            elif op == "update_at_location":
                 p = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "p", "")
                 p = p or ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "path", "")
-                json_path = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "json_path", "")
-                text = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "text", "")
                 expected_md5 = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "expected_md5", "")
-                if not p or not json_path or not text:
-                    return f"Error: p, json_path, and text parameters required\n\n{HELP}"
+                # batch: updates=[[json_path, text], ...] or single: json_path= text=
+                updates_raw = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "updates", None)
+                if updates_raw and isinstance(updates_raw, list):
+                    updates = [{"json_path": u[0], "text": u[1]} for u in updates_raw]
+                else:
+                    json_path = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "json_path", "")
+                    text = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "text", "")
+                    if not json_path or not text:
+                        return f"Error: provide json_path+text or updates list\n\n{HELP}"
+                    updates = [{"json_path": json_path, "text": text}]
+                if not p:
+                    return f"Error: p parameter required\n\n{HELP}"
 
                 if self.is_fake:
                     return await ckit_scenario.scenario_generate_tool_result_via_model(self.fclient, toolcall, open(__file__).read())
 
-                upd = await self.pdoc_update_json_text(p, json_path, text, persona_id=self.rcx.persona.persona_id, fcall_untrusted_key=toolcall.fcall_untrusted_key, expected_md5=expected_md5)
+                upd = await self.pdoc_update_at_location(p, updates, persona_id=self.rcx.persona.persona_id, fcall_untrusted_key=toolcall.fcall_untrusted_key, expected_md5=expected_md5)
                 if upd.changes_saved:
                     r += f"✍️ {p}\n"
                     r += f"changes_saved=true\n\n"
@@ -613,20 +621,20 @@ class IntegrationPdoc:
             )
             return gql_utils.dataclass_from_dict(r["policydoc_overwrite"], PdocOverwriteResult)
 
-    async def pdoc_update_json_text(self, p: str, json_path: str, text: str, persona_id: str, fcall_untrusted_key: str, expected_md5: str = "") -> PdocUpdateJsonTextResult:
+    async def pdoc_update_at_location(self, p: str, updates: list, persona_id: str, fcall_untrusted_key: str, expected_md5: str = "") -> PdocUpdateJsonTextResult:
         http = await self._http(persona_id, fcall_untrusted_key)
         async with http as h:
             result = await h.execute(
                 gql.gql(f"""
-                    mutation PdocUpdateJsonText($fgroup_id: String!, $p: String!, $json_path: String!, $text: String!, $expected_md5: String) {{
-                        policydoc_update_json_text(fgroup_id: $fgroup_id, p: $p, json_path: $json_path, text: $text, expected_md5: $expected_md5) {{
+                    mutation PdocUpdateAtPath($fgroup_id: String!, $p: String!, $updates: [PolicyDocJsonUpdate!]!, $expected_md5: String) {{
+                        policydoc_update_at_location(fgroup_id: $fgroup_id, p: $p, updates: $updates, expected_md5: $expected_md5) {{
                             {gql_utils.gql_fields(PdocUpdateJsonTextResult)}
                         }}
                     }}
                 """),
-                variable_values={"fgroup_id": self.fgroup_id, "p": p, "json_path": json_path, "text": text, "expected_md5": expected_md5},
+                variable_values={"fgroup_id": self.fgroup_id, "p": p, "updates": updates, "expected_md5": expected_md5},
             )
-            return gql_utils.dataclass_from_dict(result["policydoc_update_json_text"], PdocUpdateJsonTextResult)
+            return gql_utils.dataclass_from_dict(result["policydoc_update_at_location"], PdocUpdateJsonTextResult)
 
     async def pdoc_cp(self, p1: str, p2: str, persona_id: str, fcall_untrusted_key: str) -> None:
         http = await self._http(persona_id, fcall_untrusted_key)
