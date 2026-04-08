@@ -1,6 +1,5 @@
-import asyncio
+import ast
 import argparse
-import importlib.util
 import json
 import os
 import re
@@ -14,7 +13,6 @@ from typing import Any
 from flexus_client_kit import ckit_experts_from_files
 from flexus_client_kit import ckit_integrations_db
 from flexus_client_kit import ckit_skills
-from flexus_client_kit import ckit_bot_install
 from flexus_client_kit import no_special_code_bot
 
 _BOT_DIR_RE = re.compile(r"^[A-Za-z0-9_][A-Za-z0-9._\-]*/[A-Za-z0-9_][A-Za-z0-9._\-]*$")
@@ -84,22 +82,7 @@ def _check_root_installable(workdir: Path) -> tuple[bool, str]:
     return False, "repo root must contain setup.py or pyproject.toml"
 
 
-def _extract_last_json_obj(text: str) -> dict[str, Any] | None:
-    for line in reversed(text.splitlines()):
-        s = line.strip()
-        if not s:
-            continue
-        try:
-            obj = json.loads(s)
-        except json.JSONDecodeError:
-            continue
-        if isinstance(obj, dict):
-            return obj
-    return None
-
-
 _CAPTURE_KEYS = [
-    "bot_name",
     "marketable_name",
     "marketable_run_this",
     "marketable_setup_default",
@@ -131,120 +114,240 @@ def _jsonable(value):
     return repr(value)
 
 
-class _StopCapture(Exception):
-    pass
+@dataclass
+class _AstModule:
+    path: Path
+    bindings: dict[str, ast.AST]
+    imports: dict[str, str]
 
 
-async def _capture_marketplace_upsert_dev_bot(*args, **kwargs):
-    payload = {}
-    for key in _CAPTURE_KEYS:
-        if key in kwargs:
-            payload[key] = _jsonable(kwargs[key])
-    raise _StopCapture(payload)
+@dataclass(frozen=True)
+class _ModuleRef:
+    module_name: str
 
 
-class _DummyClient:
-    ws_id = "capture"
+_UNRESOLVED = object()
+_AST_MODULE_CACHE: dict[Path, _AstModule] = {}
 
 
-def _load_module(install_file: Path):
-    spec = importlib.util.spec_from_file_location("_bot_install_capture_module", str(install_file))
-    if spec is None or spec.loader is None:
-        raise RuntimeError(f"failed to load module spec for {install_file}")
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
+def _module_file_from_import(workdir: Path, module_name: str) -> Path | None:
+    rel = Path(*module_name.split("."))
+    py_path = workdir / f"{rel}.py"
+    if py_path.is_file():
+        return py_path
+    init_path = workdir / rel / "__init__.py"
+    if init_path.is_file():
+        return init_path
+    return None
+
+
+def _load_ast_module(path: Path) -> _AstModule:
+    path = path.resolve()
+    if path in _AST_MODULE_CACHE:
+        return _AST_MODULE_CACHE[path]
+    tree = ast.parse(path.read_text(), filename=str(path))
+    bindings: dict[str, ast.AST] = {}
+    imports: dict[str, str] = {}
+    for stmt in tree.body:
+        if isinstance(stmt, ast.ImportFrom) and stmt.module:
+            for alias in stmt.names:
+                imports[alias.asname or alias.name] = f"{stmt.module}.{alias.name}"
+        elif isinstance(stmt, ast.Import):
+            for alias in stmt.names:
+                if alias.asname:
+                    imports[alias.asname] = alias.name
+                elif "." not in alias.name:
+                    imports[alias.name] = alias.name
+        elif isinstance(stmt, ast.Assign):
+            for target in stmt.targets:
+                if isinstance(target, ast.Name):
+                    bindings[target.id] = stmt.value
+        elif isinstance(stmt, ast.AnnAssign) and isinstance(stmt.target, ast.Name) and stmt.value is not None:
+            bindings[stmt.target.id] = stmt.value
+    mod = _AstModule(path=path, bindings=bindings, imports=imports)
+    _AST_MODULE_CACHE[path] = mod
     return mod
 
 
+def _eval_ast_node(workdir: Path, mod: _AstModule, node: ast.AST, special_names: dict[str, Any], seen: set[tuple[Path, str]]) -> Any:
+    if isinstance(node, ast.Constant):
+        return node.value
+
+    if isinstance(node, ast.Name):
+        if node.id in special_names:
+            return special_names[node.id]
+        if node.id in mod.bindings:
+            key = (mod.path, node.id)
+            if key in seen:
+                return _UNRESOLVED
+            return _eval_ast_node(workdir, mod, mod.bindings[node.id], special_names, seen | {key})
+        if node.id in mod.imports:
+            return _ModuleRef(mod.imports[node.id])
+        return _UNRESOLVED
+
+    if isinstance(node, ast.Attribute):
+        base = _eval_ast_node(workdir, mod, node.value, special_names, seen)
+        if isinstance(base, _ModuleRef):
+            target_path = _module_file_from_import(workdir, base.module_name)
+            if target_path is None:
+                return _UNRESOLVED
+            target_mod = _load_ast_module(target_path)
+            if node.attr not in target_mod.bindings:
+                return _UNRESOLVED
+            key = (target_mod.path, node.attr)
+            if key in seen:
+                return _UNRESOLVED
+            return _eval_ast_node(workdir, target_mod, target_mod.bindings[node.attr], special_names, seen | {key})
+        return _UNRESOLVED
+
+    if isinstance(node, ast.List):
+        items = []
+        for elt in node.elts:
+            value = _eval_ast_node(workdir, mod, elt, special_names, seen)
+            if value is _UNRESOLVED:
+                return _UNRESOLVED
+            items.append(value)
+        return items
+
+    if isinstance(node, ast.Tuple):
+        items = []
+        for elt in node.elts:
+            value = _eval_ast_node(workdir, mod, elt, special_names, seen)
+            if value is _UNRESOLVED:
+                return _UNRESOLVED
+            items.append(value)
+        return items
+
+    if isinstance(node, ast.Set):
+        items = []
+        for elt in node.elts:
+            value = _eval_ast_node(workdir, mod, elt, special_names, seen)
+            if value is _UNRESOLVED:
+                return _UNRESOLVED
+            items.append(value)
+        return items
+
+    if isinstance(node, ast.Dict):
+        out: dict[str, Any] = {}
+        for key_node, value_node in zip(node.keys, node.values):
+            if key_node is None:
+                extra = _eval_ast_node(workdir, mod, value_node, special_names, seen)
+                if not isinstance(extra, dict):
+                    return _UNRESOLVED
+                for k, v in extra.items():
+                    out[str(k)] = v
+                continue
+            key = _eval_ast_node(workdir, mod, key_node, special_names, seen)
+            value = _eval_ast_node(workdir, mod, value_node, special_names, seen)
+            if key is _UNRESOLVED or value is _UNRESOLVED:
+                return _UNRESOLVED
+            out[str(key)] = value
+        return out
+
+    if isinstance(node, ast.JoinedStr):
+        parts: list[str] = []
+        for value_node in node.values:
+            if isinstance(value_node, ast.Constant) and isinstance(value_node.value, str):
+                parts.append(value_node.value)
+                continue
+            if isinstance(value_node, ast.FormattedValue):
+                value = _eval_ast_node(workdir, mod, value_node.value, special_names, seen)
+                if value is _UNRESOLVED:
+                    return _UNRESOLVED
+                parts.append(str(value))
+                continue
+            return _UNRESOLVED
+        return "".join(parts)
+
+    if isinstance(node, ast.BinOp):
+        left = _eval_ast_node(workdir, mod, node.left, special_names, seen)
+        right = _eval_ast_node(workdir, mod, node.right, special_names, seen)
+        if left is _UNRESOLVED or right is _UNRESOLVED:
+            return _UNRESOLVED
+        if isinstance(node.op, ast.Add):
+            if isinstance(left, list) and isinstance(right, list):
+                return left + right
+            if isinstance(left, str) and isinstance(right, str):
+                return left + right
+            if isinstance(left, (int, float)) and isinstance(right, (int, float)):
+                return left + right
+        if isinstance(node.op, ast.BitOr) and isinstance(left, dict) and isinstance(right, dict):
+            return left | right
+        return _UNRESOLVED
+
+    if isinstance(node, ast.UnaryOp):
+        value = _eval_ast_node(workdir, mod, node.operand, special_names, seen)
+        if value is _UNRESOLVED:
+            return _UNRESOLVED
+        if isinstance(node.op, ast.USub) and isinstance(value, (int, float)):
+            return -value
+        if isinstance(node.op, ast.UAdd) and isinstance(value, (int, float)):
+            return +value
+        return _UNRESOLVED
+
+    return _UNRESOLVED
+
+
+def _marketplace_upsert_call(tree: ast.AST) -> ast.Call | None:
+    calls = []
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Call):
+            continue
+        func = node.func
+        if isinstance(func, ast.Name) and func.id == "marketplace_upsert_dev_bot":
+            calls.append(node)
+        elif isinstance(func, ast.Attribute) and func.attr == "marketplace_upsert_dev_bot":
+            calls.append(node)
+    if not calls:
+        return None
+    return max(calls, key=lambda x: sum(1 for kw in x.keywords if kw.arg in _CAPTURE_KEYS))
+
+
+def _bot_name_from_bot_file(bot_file: Path) -> tuple[str | None, str | None]:
+    try:
+        mod = _load_ast_module(bot_file)
+    except Exception as e:
+        return None, f"bot parse failed: {type(e).__name__}: {e}"
+    if "BOT_NAME" not in mod.bindings:
+        return None, f"{bot_file.name}: BOT_NAME must be non-empty string"
+    value = _eval_ast_node(bot_file.parent.parent.parent.resolve(), mod, mod.bindings["BOT_NAME"], {}, set())
+    if not isinstance(value, str) or not value.strip():
+        return None, f"{bot_file.name}: BOT_NAME must be non-empty string"
+    return value, None
+
+
+def _capture_install_metadata_ast(workdir: Path, install_file: Path, bot_name: str) -> dict[str, Any]:
+    try:
+        mod = _load_ast_module(install_file)
+    except Exception as e:
+        return {"ok": False, "error": f"parse failed: {type(e).__name__}: {e}"}
+
+    call = _marketplace_upsert_call(ast.parse(install_file.read_text(), filename=str(install_file)))
+    if call is None:
+        return {"ok": False, "error": "marketplace_upsert_dev_bot() call not found"}
+
+    payload = {}
+    for kw in call.keywords:
+        if kw.arg not in _CAPTURE_KEYS:
+            continue
+        value = _eval_ast_node(workdir, mod, kw.value, {"bot_name": bot_name}, set())
+        if value is not _UNRESOLVED:
+            payload[kw.arg] = _jsonable(value)
+    return {"ok": True, "captured": payload}
+
+
 def _capture_install_metadata_here(install_file: Path, bot_name: str) -> dict[str, Any]:
-    ckit_bot_install.marketplace_upsert_dev_bot = _capture_marketplace_upsert_dev_bot
-    ckit_bot_install.FMarketplaceExpertInput.filter_tools = lambda self, tools: self
-    try:
-        mod = _load_module(install_file)
-    except Exception as e:
-        return {"ok": False, "error": f"load failed: {type(e).__name__}: {e}"}
-    if not hasattr(mod, "install"):
-        return {"ok": False, "error": "install() not found"}
-
-    bot_mod = install_file.name.removesuffix("_install.py") + "_bot.py"
-    bot_file = install_file.parent / bot_mod
-    if not bot_file.is_file():
-        return {"ok": False, "error": f"matching bot file not found: {bot_mod}"}
-
-    async def _run_capture():
-        r = await mod.install(_DummyClient(), bot_name=bot_name, bot_version="0.0.0", tools=[])
-        return r
-
-    try:
-        asyncio.run(_run_capture())
-    except _StopCapture as captured:
-        payload = captured.args[0] if captured.args else {}
-        try:
-            bot_mod_spec = importlib.util.spec_from_file_location("_bot_capture_module", str(bot_file))
-            if bot_mod_spec is None or bot_mod_spec.loader is None:
-                return {"ok": False, "error": f"failed to load bot module spec for {bot_file}"}
-            bot_mod_obj = importlib.util.module_from_spec(bot_mod_spec)
-            bot_mod_spec.loader.exec_module(bot_mod_obj)
-            if not hasattr(bot_mod_obj, "BOT_NAME") or not isinstance(bot_mod_obj.BOT_NAME, str) or not bot_mod_obj.BOT_NAME.strip():
-                return {"ok": False, "error": f"{bot_file.name}: BOT_NAME must be non-empty string"}
-            payload["bot_name"] = bot_mod_obj.BOT_NAME
-        except Exception as e:
-            return {"ok": False, "error": f"bot load failed: {type(e).__name__}: {e}"}
-        return {"ok": True, "captured": payload}
-    except TypeError:
-        async def _run_capture_positional():
-            r = await mod.install(_DummyClient(), bot_name, "0.0.0", [])
-            return r
-        try:
-            asyncio.run(_run_capture_positional())
-        except _StopCapture as captured:
-            payload = captured.args[0] if captured.args else {}
-            try:
-                bot_mod_spec = importlib.util.spec_from_file_location("_bot_capture_module", str(bot_file))
-                if bot_mod_spec is None or bot_mod_spec.loader is None:
-                    return {"ok": False, "error": f"failed to load bot module spec for {bot_file}"}
-                bot_mod_obj = importlib.util.module_from_spec(bot_mod_spec)
-                bot_mod_spec.loader.exec_module(bot_mod_obj)
-                if not hasattr(bot_mod_obj, "BOT_NAME") or not isinstance(bot_mod_obj.BOT_NAME, str) or not bot_mod_obj.BOT_NAME.strip():
-                    return {"ok": False, "error": f"{bot_file.name}: BOT_NAME must be non-empty string"}
-                payload["bot_name"] = bot_mod_obj.BOT_NAME
-            except Exception as e:
-                return {"ok": False, "error": f"bot load failed: {type(e).__name__}: {e}"}
-            return {"ok": True, "captured": payload}
-        except Exception as e:
-            return {"ok": False, "error": f"run failed: {type(e).__name__}: {e}"}
-    except Exception as e:
-        return {"ok": False, "error": f"run failed: {type(e).__name__}: {e}"}
-
-    return {"ok": False, "error": "install() finished without marketplace_upsert_dev_bot"}
+    return _capture_install_metadata_ast(install_file.parent.parent.parent.resolve(), install_file.resolve(), bot_name)
 
 
-def _capture_code_install_metadata_subprocess(workdir: Path, install_py: Path, bot_name: str) -> tuple[dict[str, Any] | None, str]:
-    env = dict(os.environ)
-    env["PYTHONSAFEPATH"] = "1"
-    proc = subprocess.run(
-        [sys.executable, "-m", "flexus_client_kit.bot_info", "capture-install-meta", "--install-file", str(install_py), "--bot-name", bot_name],
-        cwd=str(workdir),
-        capture_output=True,
-        text=True,
-        timeout=45,
-        env=env,
-    )
-    merged = proc.stdout + "\n" + proc.stderr
-    payload = _extract_last_json_obj(merged)
-    if payload is None:
-        tail = merged[-500:].strip()
-        return None, f"metadata capture failed for {install_py.name}: {tail or 'no output'}"
+def _capture_code_install_metadata(workdir: Path, install_py: Path, bot_name: str) -> tuple[dict[str, Any] | None, str]:
+    payload = _capture_install_metadata_ast(workdir.resolve(), install_py.resolve(), bot_name)
     if "ok" not in payload or not payload["ok"]:
         err = payload["error"] if "error" in payload else "unknown capture error"
         return None, f"metadata capture failed for {install_py.name}: {err}"
     if "captured" not in payload or not isinstance(payload["captured"], dict):
         return None, f"metadata capture failed for {install_py.name}: missing captured payload"
     return payload["captured"], ""
-
-
-def _capture_code_install_metadata(workdir: Path, install_py: Path, bot_name: str) -> tuple[dict[str, Any] | None, str]:
-    return _capture_code_install_metadata_subprocess(workdir, install_py, bot_name)
 
 
 def _existing_avatar_candidates(workdir: Path, bot_abs: Path, rel_candidates: list[str]) -> list[str]:
@@ -408,10 +511,11 @@ def _code_entry(workdir: Path, bot_abs: Path, bot_py: Path, install_py: Path, ro
     if capture_error:
         return _InspectResult(bot_dir=bot_dir, supported=False, reason=capture_error)
 
-    if "bot_name" not in captured or not isinstance(captured["bot_name"], str) or not captured["bot_name"].strip():
-        return _InspectResult(bot_dir=bot_dir, supported=False, reason="install capture missing bot_name")
-    if captured["bot_name"] != folder_name:
-        return _InspectResult(bot_dir=bot_dir, supported=False, reason=f"name mismatch: folder {folder_name} != BOT_NAME {captured['bot_name']}")
+    bot_name_from_file, bot_name_error = _bot_name_from_bot_file(bot_py)
+    if bot_name_error:
+        return _InspectResult(bot_dir=bot_dir, supported=False, reason=bot_name_error)
+    if bot_name_from_file != folder_name:
+        return _InspectResult(bot_dir=bot_dir, supported=False, reason=f"name mismatch: folder {folder_name} != BOT_NAME {bot_name_from_file}")
 
     if "marketable_name" not in captured or not isinstance(captured["marketable_name"], str):
         return _InspectResult(bot_dir=bot_dir, supported=False, reason="install capture missing marketable_name")
@@ -438,7 +542,7 @@ def _code_entry(workdir: Path, bot_abs: Path, bot_py: Path, install_py: Path, ro
         runtime_entry_path=entry_bot_py,
         avatar_path_small=avatar_path_small,
         avatar_candidates=avatar_candidates,
-        metadata_summary=_code_metadata_summary(captured, captured["bot_name"]),
+        metadata_summary=_code_metadata_summary(captured, bot_name_from_file),
         install_entry_path=entry_install_py,
     )
     return _InspectResult(bot_dir=bot_dir, supported=True, entry=entry)
