@@ -47,7 +47,7 @@ MANAGE_CRM_CONTACT_TOOL = ckit_cloudtool.CloudTool(
         "type": "object",
         "properties": {
             "op": {"type": "string", "enum": ["create", "patch", "get_summary", "get_all_deals", "get_all_orders", "get_all_activities"], "order": 1},
-            "args": {"type": "object", "description": "Contact fields; include contact_id for patch", "order": 2},
+            "args": {"type": "object", "description": "Contact fields: contact_first_name, contact_last_name, contact_email, contact_phone, contact_tags (array), contact_bant_score (int 0-4), contact_notes. Include contact_id for patch.", "order": 2},
         },
         "required": ["op"],
     },
