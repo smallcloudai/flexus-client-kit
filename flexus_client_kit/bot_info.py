@@ -51,6 +51,12 @@ def _normalize_rel_path(path: str) -> str:
 
 def _normalize_workspace_cmd(command: str) -> str:
     cmd = command.strip()
+    if cmd.startswith("python -m pip"):
+        cmd = "python3 -m pip" + cmd[len("python -m pip"):]
+    elif cmd.startswith("python -u -m"):
+        cmd = "python3 -u -m" + cmd[len("python -u -m"):]
+    elif cmd.startswith("python -m"):
+        cmd = "python3 -m" + cmd[len("python -m"):]
     if cmd.startswith("cd /workspace"):
         return cmd
     return f"cd /workspace && {cmd}"
