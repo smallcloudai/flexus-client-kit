@@ -994,15 +994,15 @@ async def flush_handled_emsg_ids(fclient: ckit_client.FlexusClient, bc: BotsColl
 async def run_bots_in_this_group(
     fclient: ckit_client.FlexusClient,
     *,
-    marketable_name: str,
     inprocess_tools: List[ckit_cloudtool.CloudTool],
     bot_main_loop: Callable[[ckit_client.FlexusClient, RobotContext], Awaitable[None]],
     scenario_fn: str,
-    install_func: Callable[[ckit_client.FlexusClient, str, list], Awaitable[int]],
+    install_func: Callable[[ckit_client.FlexusClient, list], Awaitable[int]],
     subscribe_to_erp_tables: List[str] = [],
 ) -> None:
-    # version might get bumped during install, service_name has the pre-bump version
-    marketable_version = int(fclient.service_name.rsplit("_", 1)[1])
+    # name and version might get bumped during install, service_name has the pre-bump version
+    marketable_name, ver_str = fclient.service_name.rsplit("_", 1)
+    marketable_version = int(ver_str)
 
     if fclient.ws_id and fclient.group_id:
         raise ValueError("Both ws_id and group_id are set, only one is allowed")
@@ -1022,7 +1022,7 @@ async def run_bots_in_this_group(
             return
         if fclient.ws_id:
             logger.info("Installing %s into workspace %s", marketable_name, fclient.ws_id)
-            installed_version = await install_func(fclient, marketable_name, inprocess_tools)
+            installed_version = await install_func(fclient, inprocess_tools)
             if installed_version:
                 marketable_version = int(installed_version)
                 # UGLY: service_name was built with pre-bump version, fix it after install

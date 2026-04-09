@@ -28,7 +28,7 @@ from flexus_client_kit import ckit_bot_version
 logger = logging.getLogger("bot_frog")
 
 
-BOT_NAME = "frog"
+BOT_NAME = ckit_bot_version.bot_name_from_file(__file__)
 
 FROG_ROOTDIR = Path(__file__).parent
 FROG_SKILLS: list[str] = ckit_skills.static_skills_find(FROG_ROOTDIR, shared_skills_allowlist="*", integration_skills_allowlist="*")
@@ -257,7 +257,6 @@ def main():
 
     asyncio.run(ckit_bot_exec.run_bots_in_this_group(
         fclient,
-        marketable_name=BOT_NAME,
         bot_main_loop=frog_main_loop,
         inprocess_tools=TOOLS,
         scenario_fn=scenario_fn,

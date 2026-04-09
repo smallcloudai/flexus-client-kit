@@ -1,5 +1,6 @@
 import asyncio
 import base64
+from pathlib import Path
 
 from flexus_client_kit import ckit_bot_install, ckit_bot_version, ckit_client, ckit_cloudtool
 from flexus_simple_bots import prompts_common
@@ -64,16 +65,16 @@ EXPERTS = [
 
 async def install(
     client: ckit_client.FlexusClient,
-    bot_name: str,
     tools: list[ckit_cloudtool.CloudTool],
 ):
+    bot_name = telegram_groupmod_bot.BOT_NAME
     pic_big = base64.b64encode((telegram_groupmod_bot.TELEGRAM_GROUPMOD_ROOTDIR / f"{bot_name}-1024x1536.webp").read_bytes()).decode("ascii")
     pic_small = base64.b64encode((telegram_groupmod_bot.TELEGRAM_GROUPMOD_ROOTDIR / f"{bot_name}-256x256.webp").read_bytes()).decode("ascii")
 
     r = await ckit_bot_install.marketplace_upsert_dev_bot(
         client,
         ws_id=client.ws_id,
-        marketable_name=bot_name,
+        bot_dir=Path(__file__).parent,
         version_file=ckit_bot_version.version_file_path(__file__),
         marketable_accent_color="#ff66ae",
         marketable_title1="Telegram Group Mod",
@@ -108,8 +109,4 @@ async def install(
 
 if __name__ == "__main__":
     client = ckit_client.FlexusClient("telegram_groupmod_install")
-    asyncio.run(install(
-        client,
-        bot_name=telegram_groupmod_bot.BOT_NAME,
-        tools=telegram_groupmod_bot.TOOLS_ALL,
-    ))
+    asyncio.run(install(client, tools=telegram_groupmod_bot.TOOLS_ALL))

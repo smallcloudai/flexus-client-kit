@@ -16,8 +16,6 @@ from flexus_client_kit import ckit_bot_version
 logger = logging.getLogger("bot_strategist")
 
 BOT_DIR = Path(__file__).parent
-BOT_NAME = "strategist"
-
 STRATEGIST_ROOTDIR = BOT_DIR
 STRATEGIST_SKILLS = ckit_skills.static_skills_find(STRATEGIST_ROOTDIR, shared_skills_allowlist="", integration_skills_allowlist="")
 STRATEGIST_SETUP_SCHEMA = json.loads((STRATEGIST_ROOTDIR / "setup_schema.json").read_text())
@@ -101,10 +99,9 @@ def main():
     from flexus_simple_bots.strategist import strategist_install
     scenario_fn = ckit_bot_exec.parse_bot_args()
     bot_version = ckit_bot_version.read_version_file(__file__)
-    fclient = ckit_client.FlexusClient(ckit_client.bot_service_name(BOT_NAME, bot_version), endpoint="/v1/jailed-bot")
+    fclient = ckit_client.FlexusClient(ckit_client.bot_service_name(ckit_bot_version.bot_name_from_file(__file__), bot_version), endpoint="/v1/jailed-bot")
     asyncio.run(ckit_bot_exec.run_bots_in_this_group(
         fclient,
-        marketable_name=BOT_NAME,
         bot_main_loop=strategist_main_loop,
         inprocess_tools=TOOLS,
         scenario_fn=scenario_fn,

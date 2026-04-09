@@ -38,7 +38,8 @@ def load_manifest_and_setup_schema(bot_dir: Path) -> tuple[dict, list]:
     return m, setup_schema
 
 
-async def install_from_manifest(m, setup_schema, bot_dir, client, bot_name, bot_version, tools):
+async def install_from_manifest(m, setup_schema, bot_dir, client, tools):
+    bot_name = bot_dir.name
     pic_big = _load_pic_b64(bot_dir, bot_name, "1024x1536", ".webp")
     pic_small = _load_pic_b64(bot_dir, bot_name, "256x256", ".webp") or _load_pic_b64(bot_dir, bot_name, "256x256", ".png")
     readme_path = bot_dir / "README.md"
@@ -60,8 +61,8 @@ async def install_from_manifest(m, setup_schema, bot_dir, client, bot_name, bot_
     await ckit_bot_install.marketplace_upsert_dev_bot(
         client,
         ws_id=client.ws_id,
-        marketable_name=bot_name,
-        marketable_version=bot_version,
+        bot_dir=bot_dir,
+        version_file=ckit_bot_version.version_file_path(str(bot_dir / "x")),
         marketable_accent_color=m["accent_color"],
         marketable_title1=m["title1"],
         marketable_title2=m["title2"],
@@ -128,20 +129,19 @@ def main():
         sys.exit(1)
     bot_dir = _resolve_bot_dir(sys.argv.pop(1))
     manifest, setup_schema = load_manifest_and_setup_schema(bot_dir)
-    bot_name = manifest["bot_name"]
+    bot_name = bot_dir.name
     skills = ckit_skills.static_skills_find(bot_dir, manifest.get("shared_skills_allowlist", ""), manifest.get("integration_skills_allowlist", ""))
     integrations = ckit_integrations_db.static_integrations_load(bot_dir, manifest["integrations"], builtin_skills=skills)
     all_tools = [t for rec in integrations for t in rec.integr_tools]   # double loop collapses list of lists into one list
     scenario_fn = ckit_bot_exec.parse_bot_args()
-    fclient = ckit_client.FlexusClient(ckit_client.bot_service_name(bot_name, ckit_bot_version.read_version_file(str(bot_dir))), endpoint="/v1/jailed-bot")
+    bot_version = ckit_bot_version.read_version_file(str(bot_dir / "x"))
+    fclient = ckit_client.FlexusClient(ckit_client.bot_service_name(bot_name, bot_version), endpoint="/v1/jailed-bot")
     asyncio.run(ckit_bot_exec.run_bots_in_this_group(
         fclient,
-        marketable_name=bot_name,
-        marketable_version_str=ckit_bot_version.read_version_file(str(bot_dir)),
         bot_main_loop=lambda fc, rcx: bot_main_loop(manifest, setup_schema, bot_dir, fc, rcx),
         inprocess_tools=all_tools,
         scenario_fn=scenario_fn,
-        install_func=lambda client, bn, bv, t: install_from_manifest(manifest, setup_schema, bot_dir, client, bn, bv, t),
+        install_func=lambda client, t: install_from_manifest(manifest, setup_schema, bot_dir, client, t),
     ))
 
 

@@ -62,7 +62,7 @@ class FMarketplaceExpertInput:
 async def marketplace_upsert_dev_bot(
     client: ckit_client.FlexusClient,
     ws_id: str,
-    marketable_name: str,
+    bot_dir: Path,
     version_file: Path,
     marketable_title1: str,
     marketable_title2: str,
@@ -96,6 +96,7 @@ async def marketplace_upsert_dev_bot(
 ) -> FBotInstallOutput:
     assert ws_id, "Set FLEXUS_WORKSPACE environment variable to your workspace ID"
     assert not ws_id.startswith("fx-"), "You can find workspace id in the browser address bar, when visiting for example the statistics page"
+    marketable_name = bot_dir.name
     marketable_version = version_file.read_text().strip()
 
     experts_input = []

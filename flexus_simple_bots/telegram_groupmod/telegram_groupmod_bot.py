@@ -25,7 +25,7 @@ from flexus_client_kit import ckit_bot_version
 
 logger = logging.getLogger("telegram_groupmod")
 
-BOT_NAME = "telegram_groupmod"
+BOT_NAME = ckit_bot_version.bot_name_from_file(__file__)
 
 TELEGRAM_GROUPMOD_ROOTDIR = Path(__file__).parent
 TELEGRAM_GROUPMOD_SKILLS = ckit_skills.static_skills_find(TELEGRAM_GROUPMOD_ROOTDIR, shared_skills_allowlist="", integration_skills_allowlist="")
@@ -600,7 +600,6 @@ def main():
     )
     asyncio.run(ckit_bot_exec.run_bots_in_this_group(
         fclient,
-        marketable_name=BOT_NAME,
         bot_main_loop=telegram_groupmod_main_loop,
         inprocess_tools=TOOLS_ALL,
         scenario_fn=scenario_fn,

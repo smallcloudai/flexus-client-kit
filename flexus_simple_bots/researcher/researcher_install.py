@@ -1,5 +1,6 @@
 import asyncio
 import base64
+from pathlib import Path
 
 from flexus_client_kit import ckit_bot_install
 from flexus_client_kit import ckit_bot_version
@@ -27,7 +28,6 @@ EXPERTS = [
 
 async def install(
     client: ckit_client.FlexusClient,
-    bot_name: str,
     tools: list[ckit_cloudtool.CloudTool],
 ):
     pic_big = base64.b64encode((researcher_bot.RESEARCHER_ROOTDIR / "researcher-1024x1536.webp").read_bytes()).decode("ascii")
@@ -35,7 +35,7 @@ async def install(
     r = await ckit_bot_install.marketplace_upsert_dev_bot(
         client,
         ws_id=client.ws_id,
-        marketable_name=bot_name,
+        bot_dir=Path(__file__).parent,
         version_file=ckit_bot_version.version_file_path(__file__),
         marketable_accent_color="#0F766E",
         marketable_title1="Researcher",
@@ -79,4 +79,4 @@ async def install(
 
 if __name__ == "__main__":
     client = ckit_client.FlexusClient("researcher_install")
-    asyncio.run(install(client, bot_name=researcher_bot.BOT_NAME, tools=researcher_bot.TOOLS))
+    asyncio.run(install(client, tools=researcher_bot.TOOLS))
