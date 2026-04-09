@@ -50,6 +50,7 @@ class FPersonaKanbanSubs:
     news_action: str
     news_payload_id: str
     news_payload_task: Optional[FPersonaKanbanTaskOutput]
+    news_payload_task_old: Optional[FPersonaKanbanTaskOutput] = None
 
 
 async def persona_kanban_list(

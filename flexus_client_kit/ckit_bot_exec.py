@@ -73,7 +73,7 @@ class RobotContext:
     def __init__(self, fclient: ckit_client.FlexusClient, p: ckit_bot_query.FPersonaOutput, shared_handled_emsg_ids: List[str], external_auth: Optional[Dict[str, Any]] = None):
         self._handler_updated_message: Optional[Callable[[ckit_ask_model.FThreadMessageOutput], Awaitable[None]]] = None
         self._handler_upd_thread: Optional[Callable[[ckit_ask_model.FThreadOutput], Awaitable[None]]] = None
-        self._handler_updated_task: Optional[Callable[[ckit_kanban.FPersonaKanbanTaskOutput], Awaitable[None]]] = None
+        self._handler_updated_task: Optional[Callable[[str, Optional[ckit_kanban.FPersonaKanbanTaskOutput], Optional[ckit_kanban.FPersonaKanbanTaskOutput]], Awaitable[None]]] = None
         self._handler_per_tool: Dict[str, Callable[[Dict[str, Any]], Awaitable[str]]] = {}
         self._handler_per_erp_table_change: Dict[str, Callable[[str, Optional[Any], Optional[Any]], Awaitable[None]]] = {}
         self._handler_per_emsg_type: Dict[str, Callable[[ckit_bot_query.FExternalMessageOutput], Awaitable[None]]] = {}
@@ -82,7 +82,7 @@ class RobotContext:
         self._completed_initial_unpark = False
         self._parked_messages: Dict[str, ckit_ask_model.FThreadMessageOutput] = {}
         self._parked_threads: Dict[str, ckit_ask_model.FThreadOutput] = {}
-        self._parked_tasks: Dict[str, ckit_kanban.FPersonaKanbanTaskOutput] = {}
+        self._parked_tasks: Dict[str, tuple[str, Optional[ckit_kanban.FPersonaKanbanTaskOutput], Optional[ckit_kanban.FPersonaKanbanTaskOutput]]] = {}
         self._parked_toolcalls: List[ckit_cloudtool.FCloudtoolCall] = []
         self._parked_erp_changes: Dict[tuple, tuple[str, str, Optional[Dict[str, Any]], Optional[Dict[str, Any]]]] = {}
         self._parked_emessages: Dict[str, ckit_bot_query.FExternalMessageOutput] = {}
@@ -111,7 +111,7 @@ class RobotContext:
         self._handler_upd_thread = handler
         return handler
 
-    def on_updated_task(self, handler: Callable[[ckit_kanban.FPersonaKanbanTaskOutput], Awaitable[None]]):
+    def on_updated_task(self, handler: Callable[[str, Optional[ckit_kanban.FPersonaKanbanTaskOutput], Optional[ckit_kanban.FPersonaKanbanTaskOutput]], Awaitable[None]]):
         self._handler_updated_task = handler
         return handler
 
@@ -164,25 +164,25 @@ class RobotContext:
 
         todo = list(self._parked_tasks.keys())
         for k in todo:
-            task = self._parked_tasks.pop(k)
+            action, old_task, new_task = self._parked_tasks.pop(k)
             did_anything = True
             if self._handler_updated_task:
                 try:
-                    await self._handler_updated_task(task)
+                    await self._handler_updated_task(action, old_task, new_task)
                 except Exception as e:
                     logger.error("%s error in on_updated_task handler: %s\n%s", self.persona.persona_id, type(e).__name__, e, exc_info=e)
 
         erp_changes = list(self._parked_erp_changes.values())
         self._parked_erp_changes.clear()
-        for table_name, action, new_record_dict, old_record_dict in erp_changes:
+        for table_name, action, old_record_dict, new_record_dict in erp_changes:
             did_anything = True
             handler = self._handler_per_erp_table_change.get(table_name)
             if handler:
                 try:
                     dataclass_type = erp_schema.ERP_TABLE_TO_SCHEMA[table_name]
-                    new_record = gql_utils.dataclass_from_dict(new_record_dict, dataclass_type) if new_record_dict else None
                     old_record = gql_utils.dataclass_from_dict(old_record_dict, dataclass_type) if old_record_dict else None
-                    await handler(action, new_record, old_record)
+                    new_record = gql_utils.dataclass_from_dict(new_record_dict, dataclass_type) if new_record_dict else None
+                    await handler(action, old_record, new_record)
                 except Exception as e:
                     logger.error("%s error in on_erp_change(%r) handler: %s\n%s", self.persona.persona_id, table_name, type(e).__name__, e, exc_info=e)
 
@@ -583,19 +583,29 @@ async def subscribe_and_produce_callbacks(
             elif upd.news_about == "flexus_kanban_task":
                 if upd.news_action in ["INSERT", "UPDATE"]:
                     handled = True
-                    task = upd.news_payload_task
-                    persona_id = task.persona_id
+                    new_task = upd.news_payload_task
+                    old_task = upd.news_payload_task_old
+                    persona_id = new_task.persona_id
                     if persona_id in bc.bots_running:
-                        bc.bots_running[persona_id].instance_rcx.latest_tasks[task.ktask_id] = task
-                        bc.bots_running[persona_id].instance_rcx._parked_tasks[task.ktask_id] = task
-                        bc.bots_running[persona_id].instance_rcx._parked_anything_new.set()
+                        rcx = bc.bots_running[persona_id].instance_rcx
+                        rcx.latest_tasks[new_task.ktask_id] = new_task
+                        prev = rcx._parked_tasks.get(new_task.ktask_id)
+                        if prev and prev[0] == "INSERT":
+                            rcx._parked_tasks[new_task.ktask_id] = ("INSERT", None, new_task)
+                        elif prev:
+                            rcx._parked_tasks[new_task.ktask_id] = (upd.news_action, prev[1], new_task)
+                        else:
+                            rcx._parked_tasks[new_task.ktask_id] = (upd.news_action, old_task, new_task)
+                        rcx._parked_anything_new.set()
                     else:
-                        logger.info("Task %s is about persona=%s which is not running here." % (task.ktask_id, persona_id))
+                        logger.info("Task %s is about persona=%s which is not running here." % (new_task.ktask_id, persona_id))
                 elif upd.news_action == "DELETE":
                     handled = True
                     for p in bc.bots_running.values():
-                        if upd.news_payload_id in p.instance_rcx.latest_tasks:
-                            del p.instance_rcx.latest_tasks[upd.news_payload_id]
+                        old_task = p.instance_rcx.latest_tasks.pop(upd.news_payload_id, None)
+                        if old_task is not None:
+                            p.instance_rcx._parked_tasks[upd.news_payload_id] = ("DELETE", old_task, None)
+                            p.instance_rcx._parked_anything_new.set()
 
             elif upd.news_about.startswith("erp."):
                 table_name = upd.news_about[4:]
@@ -604,7 +614,7 @@ async def subscribe_and_produce_callbacks(
                     new_record = upd.news_payload_erp_record_new
                     old_record = upd.news_payload_erp_record_old
                     for bot in bc.bots_running.values():
-                        bot.instance_rcx._parked_erp_changes[(table_name, upd.news_payload_id)] = (table_name, upd.news_action, new_record, old_record)
+                        bot.instance_rcx._parked_erp_changes[(table_name, upd.news_payload_id)] = (table_name, upd.news_action, old_record, new_record)
                         bot.instance_rcx._parked_anything_new.set()
 
             elif upd.news_about == "flexus_persona_external_message":

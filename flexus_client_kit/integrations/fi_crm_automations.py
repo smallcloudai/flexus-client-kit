@@ -198,7 +198,7 @@ class IntegrationCrmAutomations:
 
         def make_handler(table_name):
             pk_field = erp_schema.get_pkey_field(erp_schema.ERP_TABLE_TO_SCHEMA[table_name])
-            async def handler(operation: str, new_record: Any, old_record: Any):
+            async def handler(operation: str, old_record: Any, new_record: Any):
                 if not (automations_dict := self._load_automations()):
                     return
                 if not (rid := ckit_erp.dataclass_or_dict_to_dict(new_record or old_record).get(pk_field)):
