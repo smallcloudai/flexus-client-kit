@@ -2,7 +2,6 @@ import asyncio
 import sys
 import json
 import logging
-import base64
 from pathlib import Path
 from typing import Dict, Any
 
@@ -24,11 +23,6 @@ MANIFEST_SCHEMA = json.loads((Path(__file__).parent / "manifest_schema.json").re
 SETUP_SCHEMA_SCHEMA = json.loads((Path(__file__).parent / "setup_schema_schema.json").read_text())
 
 
-def _load_pic_b64(bot_dir: Path, bot_name: str, size: str, ext: str):
-    p = bot_dir / f"{bot_name}-{size}{ext}"
-    return base64.b64encode(p.read_bytes()).decode("ascii") if p.exists() else None
-
-
 def load_manifest_and_setup_schema(bot_dir: Path) -> tuple[dict, list]:
     m = json.loads((bot_dir / "manifest.json").read_text())
     jsonschema.validate(m, MANIFEST_SCHEMA)
@@ -40,8 +34,6 @@ def load_manifest_and_setup_schema(bot_dir: Path) -> tuple[dict, list]:
 
 async def install_from_manifest(m, setup_schema, bot_dir, tools, client):
     bot_name = bot_dir.name
-    pic_big = _load_pic_b64(bot_dir, bot_name, "1024x1536", ".webp")
-    pic_small = _load_pic_b64(bot_dir, bot_name, "256x256", ".webp") or _load_pic_b64(bot_dir, bot_name, "256x256", ".png")
     readme_path = bot_dir / "README.md"
     description = readme_path.read_text() if readme_path.exists() else m["title2"]
     skills = ckit_skills.static_skills_find(bot_dir, m.get("shared_skills_allowlist", ""), m.get("integration_skills_allowlist", ""))
@@ -81,8 +73,6 @@ async def install_from_manifest(m, setup_schema, bot_dir, tools, client):
         marketable_experts=[(name, exp.filter_tools(tools)) for name, exp in experts],
         add_integrations_into_expert_system_prompt=integrations_records,
         marketable_tags=m["tags"],
-        marketable_picture_big_b64=pic_big,
-        marketable_picture_small_b64=pic_small,
         marketable_schedule=[prompts_common.SCHED_PICK_ONE_5M],
         marketable_forms={},
         marketable_auth_supported=auth_supported,

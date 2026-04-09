@@ -1,6 +1,4 @@
 import asyncio
-import base64
-
 from flexus_client_kit import ckit_client, ckit_bot_install, ckit_cloudtool
 from flexus_simple_bots import prompts_common
 from flexus_simple_bots.productman import productman_bot
@@ -65,8 +63,6 @@ EXPERTS = [
 
 
 async def install(client: ckit_client.FlexusClient):
-    pic_big = base64.b64encode((productman_bot.PRODUCTMAN_ROOTDIR / "productman-1024x1536.webp").read_bytes()).decode("ascii")
-    pic_small = base64.b64encode((productman_bot.PRODUCTMAN_ROOTDIR / "productman-256x256.webp").read_bytes()).decode("ascii")
     r = await ckit_bot_install.marketplace_upsert_dev_bot(
         client,
         ws_id=client.ws_id,
@@ -90,8 +86,6 @@ async def install(client: ckit_client.FlexusClient):
         marketable_preferred_model_cheap="gpt-5.4-nano",
         marketable_experts=[(name, exp.filter_tools(productman_bot.TOOLS_ALL)) for name, exp in EXPERTS],
         marketable_tags=["Product Management", "Hypothesis Testing"],
-        marketable_picture_big_b64=pic_big,
-        marketable_picture_small_b64=pic_small,
         marketable_schedule=[
             # NOTE: After first use, Productman will formulate modifications to company's strategy, this will require a weekly scheduled task or something
             prompts_common.SCHED_TASK_SORT_10M,

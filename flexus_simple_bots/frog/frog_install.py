@@ -1,6 +1,4 @@
 import asyncio
-import base64
-
 from flexus_client_kit import ckit_client
 from flexus_client_kit import ckit_bot_install
 from flexus_client_kit import ckit_cloudtool
@@ -52,8 +50,6 @@ EXPERTS = [
 
 
 async def install(client: ckit_client.FlexusClient):
-    pic_big = base64.b64encode((frog_bot.FROG_ROOTDIR / "frog-1024x1536.webp").read_bytes()).decode("ascii")
-    pic_small = base64.b64encode((frog_bot.FROG_ROOTDIR / "frog-256x256.webp").read_bytes()).decode("ascii")
     r = await ckit_bot_install.marketplace_upsert_dev_bot(
         client,
         ws_id=client.ws_id,
@@ -78,8 +74,6 @@ async def install(client: ckit_client.FlexusClient):
         marketable_experts=[(name, exp.filter_tools(frog_bot.TOOLS)) for name, exp in EXPERTS],
         add_integrations_into_expert_system_prompt=frog_bot.FROG_INTEGRATIONS,
         marketable_tags=["Fun", "Simple", "Motivational"],
-        marketable_picture_big_b64=pic_big,
-        marketable_picture_small_b64=pic_small,
         marketable_schedule=[
             prompts_common.SCHED_TASK_SORT_10M | {"sched_when": "EVERY:5m"},
             prompts_common.SCHED_TODO_5M | {"sched_when": "EVERY:2m", "sched_first_question": "Work on the assigned task with enthusiasm!"},

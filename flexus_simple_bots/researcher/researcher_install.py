@@ -1,6 +1,4 @@
 import asyncio
-import base64
-
 from flexus_client_kit import ckit_bot_install
 from flexus_client_kit import ckit_client
 from flexus_client_kit import ckit_cloudtool
@@ -25,8 +23,6 @@ EXPERTS = [
 
 
 async def install(client: ckit_client.FlexusClient):
-    pic_big = base64.b64encode((researcher_bot.RESEARCHER_ROOTDIR / "researcher-1024x1536.webp").read_bytes()).decode("ascii")
-    pic_small = base64.b64encode((researcher_bot.RESEARCHER_ROOTDIR / "researcher-256x256.webp").read_bytes()).decode("ascii")
     r = await ckit_bot_install.marketplace_upsert_dev_bot(
         client,
         ws_id=client.ws_id,
@@ -59,8 +55,6 @@ async def install(client: ckit_client.FlexusClient):
         add_integrations_into_expert_system_prompt=researcher_bot.RESEARCHER_INTEGRATIONS,
         marketable_tags=["GTM", "Research", "Discovery", "Signals", "ICP"],
         marketable_schedule=[prompts_common.SCHED_PICK_ONE_5M],
-        marketable_picture_big_b64=pic_big,
-        marketable_picture_small_b64=pic_small,
         marketable_forms={},
         marketable_auth_supported=["linkedin", "google"],
         marketable_auth_scopes={

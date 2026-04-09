@@ -1,6 +1,4 @@
 import asyncio
-import base64
-
 from flexus_client_kit import ckit_client
 from flexus_client_kit import ckit_bot_install
 from flexus_client_kit import ckit_cloudtool
@@ -59,8 +57,6 @@ EXPERTS = [
 
 
 async def install(client: ckit_client.FlexusClient):
-    pic_big = base64.b64encode((botticelli_bot.BOTTICELLI_ROOTDIR / "botticelli-1024x1536.webp").read_bytes()).decode("ascii")
-    pic_small = base64.b64encode((botticelli_bot.BOTTICELLI_ROOTDIR / "botticelli-256x256.webp").read_bytes()).decode("ascii")
     r = await ckit_bot_install.marketplace_upsert_dev_bot(
         client,
         ws_id=client.ws_id,
@@ -81,8 +77,6 @@ async def install(client: ckit_client.FlexusClient):
         marketable_preferred_model_cheap="gpt-5.4-nano",
         marketable_experts=[(name, exp.filter_tools(botticelli_bot.TOOLS)) for name, exp in EXPERTS],
         marketable_tags=["Marketing", "Ads", "Creative", "Meta", "Facebook", "Instagram"],
-        marketable_picture_big_b64=pic_big,
-        marketable_picture_small_b64=pic_small,
         marketable_forms=ckit_bot_install.load_form_bundles(__file__),
         marketable_schedule=[
             prompts_common.SCHED_TASK_SORT_10M | {"sched_when": "EVERY:5m"},

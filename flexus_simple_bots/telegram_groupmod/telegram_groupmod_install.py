@@ -1,6 +1,4 @@
 import asyncio
-import base64
-
 from flexus_client_kit import ckit_bot_install, ckit_client, ckit_cloudtool
 from flexus_simple_bots import prompts_common
 from flexus_simple_bots.telegram_groupmod import telegram_groupmod_bot
@@ -63,10 +61,6 @@ EXPERTS = [
 
 
 async def install(client: ckit_client.FlexusClient):
-    bot_name = telegram_groupmod_bot.BOT_NAME
-    pic_big = base64.b64encode((telegram_groupmod_bot.TELEGRAM_GROUPMOD_ROOTDIR / f"{bot_name}-1024x1536.webp").read_bytes()).decode("ascii")
-    pic_small = base64.b64encode((telegram_groupmod_bot.TELEGRAM_GROUPMOD_ROOTDIR / f"{bot_name}-256x256.webp").read_bytes()).decode("ascii")
-
     r = await ckit_bot_install.marketplace_upsert_dev_bot(
         client,
         ws_id=client.ws_id,
@@ -90,8 +84,6 @@ async def install(client: ckit_client.FlexusClient):
         marketable_preferred_model_cheap="gpt-5.4-nano",
         marketable_experts=[(name, exp.filter_tools(telegram_groupmod_bot.TOOLS_ALL)) for name, exp in EXPERTS],
         marketable_tags=["Moderation", "Telegram"],
-        marketable_picture_big_b64=pic_big,
-        marketable_picture_small_b64=pic_small,
         marketable_schedule=[
             prompts_common.SCHED_TASK_SORT_10M | {"sched_when": "EVERY:1m"},
             prompts_common.SCHED_TODO_5M | {"sched_when": "EVERY:1m"},

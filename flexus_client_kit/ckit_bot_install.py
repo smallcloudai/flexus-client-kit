@@ -78,8 +78,6 @@ async def marketplace_upsert_dev_bot(
     marketable_intro_message: str,
     marketable_preferred_model_expensive: str,
     marketable_preferred_model_cheap: str,
-    marketable_picture_big_b64: str,
-    marketable_picture_small_b64: str,
     marketable_experts: List[Tuple[str, FMarketplaceExpertInput]],
     marketable_tags: List[str] = [],
     marketable_daily_budget_default: int = 1_000_000,  # one dollar in microdollars, serves as a guardrail against overspending, user can change later
@@ -95,6 +93,8 @@ async def marketplace_upsert_dev_bot(
 ) -> FBotInstallOutput:
     assert ws_id, "Set FLEXUS_WORKSPACE environment variable to your workspace ID"
     assert not ws_id.startswith("fx-"), "You can find workspace id in the browser address bar, when visiting for example the statistics page"
+    marketable_picture_small_b64 = ""
+    marketable_picture_big_b64 = ""
     for w in list(bot_dir.glob("*-*x*.webp")):
         if not marketable_picture_small_b64 and "-256x256" in w.name:
             marketable_picture_small_b64 = base64.b64encode(w.read_bytes()).decode("ascii")

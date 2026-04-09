@@ -1,6 +1,4 @@
 import asyncio
-import base64
-
 from flexus_client_kit import ckit_client
 from flexus_client_kit import ckit_bot_install
 from flexus_client_kit import ckit_cloudtool
@@ -34,9 +32,6 @@ EXPERTS = [
 
 
 async def install(client: ckit_client.FlexusClient):
-    pic_big = base64.b64encode((boss_bot.BOSS_ROOTDIR / "boss-896x1152.webp").read_bytes()).decode("ascii")
-    pic_small = base64.b64encode((boss_bot.BOSS_ROOTDIR / "boss-256x256.webp").read_bytes()).decode("ascii")
-
     r = await ckit_bot_install.marketplace_upsert_dev_bot(
         client,
         ws_id=client.ws_id,
@@ -60,8 +55,6 @@ async def install(client: ckit_client.FlexusClient):
         marketable_experts=[(name, exp.filter_tools(boss_bot.TOOLS)) for name, exp in EXPERTS],
         add_integrations_into_expert_system_prompt=boss_bot.BOSS_INTEGRATIONS,
         marketable_tags=["management", "orchestration"],
-        marketable_picture_big_b64=pic_big,
-        marketable_picture_small_b64=pic_small,
         marketable_schedule=[
             prompts_common.SCHED_PICK_ONE_5M | {"sched_when": "EVERY:2m"},
         ]

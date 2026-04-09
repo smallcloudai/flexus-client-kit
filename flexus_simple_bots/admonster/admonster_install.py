@@ -1,6 +1,4 @@
 import asyncio
-import base64
-
 from flexus_client_kit import ckit_client
 from flexus_client_kit import ckit_bot_install
 from flexus_client_kit import ckit_cloudtool
@@ -45,8 +43,6 @@ AdMonster is your always-on performance marketing engine. He runs Meta campaigns
 
 
 async def install(client: ckit_client.FlexusClient):
-    pic_big = base64.b64encode((admonster_bot.ADMONSTER_ROOTDIR / "ad_monster-1024x1536.webp").read_bytes()).decode("ascii")
-    pic_small = base64.b64encode((admonster_bot.ADMONSTER_ROOTDIR / "ad_monster-256x256.webp").read_bytes()).decode("ascii")
     r = await ckit_bot_install.marketplace_upsert_dev_bot(
         client,
         ws_id=client.ws_id,
@@ -73,8 +69,6 @@ async def install(client: ckit_client.FlexusClient):
         marketable_preferred_model_cheap="gpt-5.4-nano",
         marketable_experts=[(name, exp.filter_tools(admonster_bot.TOOLS)) for name, exp in EXPERTS],
         marketable_tags=["advertising", "linkedin", "facebook", "marketing", "campaigns", "experiments", "automation"],
-        marketable_picture_big_b64=pic_big,
-        marketable_picture_small_b64=pic_small,
         marketable_schedule=[
             prompts_common.SCHED_TASK_SORT_10M,
             prompts_common.SCHED_TODO_5M,
