@@ -96,6 +96,11 @@ async def marketplace_upsert_dev_bot(
 ) -> FBotInstallOutput:
     assert ws_id, "Set FLEXUS_WORKSPACE environment variable to your workspace ID"
     assert not ws_id.startswith("fx-"), "You can find workspace id in the browser address bar, when visiting for example the statistics page"
+    for w in list(bot_dir.glob("*-*x*.webp")):
+        if not marketable_picture_small_b64 and "-256x256" in w.name:
+            marketable_picture_small_b64 = base64.b64encode(w.read_bytes()).decode("ascii")
+        elif not marketable_picture_big_b64 and any(f"-{bw}x{bh}" in w.name for bw, bh in [(1024, 1536), (832, 1248), (896, 1152)]):
+            marketable_picture_big_b64 = base64.b64encode(w.read_bytes()).decode("ascii")
     marketable_name = bot_dir.name
     marketable_version = version_file.read_text().strip()
 
