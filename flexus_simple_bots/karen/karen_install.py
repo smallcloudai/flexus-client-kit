@@ -10,21 +10,27 @@ from flexus_simple_bots.karen import karen_bot
 from flexus_simple_bots.karen import karen_prompts
 
 
-SKILLS_DEFAULT = [
-    "stall-deals", "collect-support-knowledge-base", "crm-import-landing-pages",
-    "sales-pipeline-setup", "welcome-email-setup", "crm-automations",
-    "resend-email-setup", "store-setup",
-]
-SKILLS_NURTURING = ["stall-recovery"]
-
 TOOLS_DEFAULT = {
-    "flexus_policy_document", "mongo_store", "flexus_fetch_skill", "print_widget",
-    "crm_automation", "flexus_schedule",
-    "shopify", "shopify_cart",
-    "erp_table_meta", "erp_table_data", "erp_table_crud", "erp_csv_import",
-    "repo_reader", "support_collection_status", "explore_a_question",
-    "slack", "telegram", "discord",
-    "email_send", "email_setup_domain",
+    "flexus_policy_document",
+    "mongo_store",
+    "flexus_fetch_skill",
+    "print_widget",
+    "crm_automation",
+    "flexus_schedule",
+    "shopify",
+    "shopify_cart",
+    "erp_table_meta",
+    "erp_table_data",
+    "erp_table_crud",
+    "erp_csv_import",
+    "repo_reader",
+    "support_collection_status",
+    "explore_a_question",
+    "slack",
+    "telegram",
+    "discord",
+    "email_send",
+    "email_setup_domain",
 } | ckit_cloudtool.CLOUDTOOLS_QUITE_A_LOT
 
 TOOLS_EXPLORE = ckit_cloudtool.CLOUDTOOLS_VECDB | ckit_cloudtool.CLOUDTOOLS_WEB
@@ -89,8 +95,6 @@ elif steps >= 40 and msg["role"] == "assistant":
 """
 
 
-
-
 EXPERTS = [
     ("default", ckit_bot_install.FMarketplaceExpertInput(
         fexp_system_prompt=karen_prompts.KAREN_DEFAULT,
@@ -99,7 +103,16 @@ EXPERTS = [
         fexp_nature="NATURE_INTERACTIVE",
         fexp_inactivity_timeout=3600,
         fexp_description="Marketing assistant for CRM management, contact import, automated outreach, company/product setup, and support knowledge base configuration.",
-        fexp_builtin_skills=ckit_skills.read_name_description(karen_bot.KAREN_ROOTDIR, SKILLS_DEFAULT),
+        fexp_builtin_skills=ckit_skills.read_name_description(karen_bot.KAREN_ROOTDIR, [
+            "stall-deals",
+            "collect-support-knowledge-base",
+            "store-setup",
+            "welcome-email-setup",
+            "resend-email-setup",
+            "sales-pipeline-setup",
+            "crm-import-landing-pages",
+            "crm-automations",
+        ]),
     )),
     ("messages_triage", ckit_bot_install.FMarketplaceExpertInput(
         fexp_system_prompt=karen_prompts.KAREN_DEAL_WITH_INBOX,
@@ -127,7 +140,9 @@ EXPERTS = [
         fexp_inactivity_timeout=600,
         fexp_description="Lightweight expert for automated tasks: sending templated emails, follow-ups, stall deal recovery, and simple CRM operations.",
         fexp_model_class="cheap",
-        fexp_builtin_skills=ckit_skills.read_name_description(karen_bot.KAREN_ROOTDIR, SKILLS_NURTURING),
+        fexp_builtin_skills=ckit_skills.read_name_description(karen_bot.KAREN_ROOTDIR, [
+            "stall-recovery"
+        ]),
     )),
     ("explore", ckit_bot_install.FMarketplaceExpertInput(
         fexp_system_prompt=karen_prompts.EXPLORE_PROMPT,
