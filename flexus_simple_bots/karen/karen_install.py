@@ -44,7 +44,7 @@ TOOLS_SUPPORT_AND_SALES = {
 } | ckit_cloudtool.KANBAN_PUBLIC | ckit_cloudtool.CLOUDTOOLS_VECDB | ckit_cloudtool.CLOUDTOOLS_MCP
 
 TOOLS_POST_CONVERSATION = {
-    "flexus_fetch_skill", "read_linked_thread",
+    "flexus_fetch_skill", "thread_read",
     "erp_table_meta", "erp_table_data", "erp_table_crud",
 } | ckit_cloudtool.KANBAN_SAFE
 
