@@ -12,7 +12,6 @@ from flexus_client_kit import ckit_bot_exec
 from flexus_client_kit import ckit_shutdown
 from flexus_client_kit import ckit_ask_model
 from flexus_client_kit import ckit_mongo
-from flexus_client_kit import ckit_kanban
 from flexus_client_kit import ckit_integrations_db
 from flexus_client_kit import ckit_skills
 from flexus_client_kit.integrations import fi_mongo_store
@@ -116,11 +115,6 @@ async def lawyerrat_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_e
     mongo_conn_str = await ckit_mongo.mongo_fetch_creds(fclient, rcx.persona.persona_id)
     mongo = AsyncMongoClient(mongo_conn_str)
     personal_mongo = mongo[rcx.persona.persona_id + "_db"]["personal_mongo"]
-
-    @rcx.on_updated_task
-    async def updated_task_in_db(t: ckit_kanban.FPersonaKanbanTaskOutput):
-        logger.info(f"LawyerRat task: {t}")
-        pass
 
     @rcx.on_tool_call(LEGAL_RESEARCH_TOOL.name)
     async def toolcall_legal_research(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:

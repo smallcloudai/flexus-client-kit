@@ -147,11 +147,11 @@ async def frog_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.R
         pass
 
     @rcx.on_updated_task
-    async def updated_task_in_db(t: ckit_kanban.FPersonaKanbanTaskOutput):
-        pass
+    async def updated_task_in_db(action: str, old_task: Optional[ckit_kanban.FPersonaKanbanTaskOutput], new_task: Optional[ckit_kanban.FPersonaKanbanTaskOutput]):
+        logger.info(f"Ribbit! task {action}: old={old_task} new={new_task}")
 
     @rcx.on_erp_change("crm_contact")
-    async def on_contact_change(action: str, new_record: Optional[erp_schema.CrmContact], old_record: Optional[erp_schema.CrmContact]):
+    async def on_contact_change(action: str, old_record: Optional[erp_schema.CrmContact], new_record: Optional[erp_schema.CrmContact]):
         if action == "INSERT":
             logger.info(f"Ribbit! Yay, we have a new contact: {new_record.contact_first_name}!")
         elif action == "UPDATE":

@@ -19,7 +19,6 @@ from flexus_client_kit import ckit_cloudtool
 from flexus_client_kit import ckit_bot_exec
 from flexus_client_kit import ckit_shutdown
 from flexus_client_kit import ckit_ask_model
-from flexus_client_kit import ckit_kanban
 from flexus_client_kit import ckit_mongo
 from flexus_client_kit import ckit_skills
 from flexus_client_kit import ckit_integrations_db
@@ -287,10 +286,6 @@ async def botticelli_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_
                 if error:
                     return error
         return ""
-
-    @rcx.on_updated_task
-    async def updated_task_in_db(t: ckit_kanban.FPersonaKanbanTaskOutput):
-        pass
 
     @rcx.on_tool_call(STYLEGUIDE_TEMPLATE_TOOL.name)
     async def toolcall_styleguide_template(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:

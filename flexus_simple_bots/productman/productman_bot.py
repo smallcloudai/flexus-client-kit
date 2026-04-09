@@ -3,7 +3,7 @@ import logging
 import json
 import os
 import time
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 from pathlib import Path
 
 from flexus_client_kit import ckit_client, ckit_kanban
@@ -205,8 +205,9 @@ async def productman_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_
     )
 
     @rcx.on_updated_task
-    async def updated_task_in_db(t: ckit_kanban.FPersonaKanbanTaskOutput):
-        survey_research_integration.track_survey_task(t)
+    async def updated_task_in_db(action: str, old_task: Optional[ckit_kanban.FPersonaKanbanTaskOutput], new_task: Optional[ckit_kanban.FPersonaKanbanTaskOutput]):
+        if action != "DELETE":
+            survey_research_integration.track_survey_task(new_task)
 
     def validate_idea_structure(provided: Dict, expected: Dict, path: str = "root") -> str:
         if type(provided) != type(expected):

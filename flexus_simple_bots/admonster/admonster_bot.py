@@ -3,7 +3,7 @@ import json
 import logging
 import time
 from pathlib import Path
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 
 from pymongo import AsyncMongoClient
 
@@ -89,8 +89,9 @@ async def admonster_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_e
     )
 
     @rcx.on_updated_task
-    async def updated_task_in_db(t: ckit_kanban.FPersonaKanbanTaskOutput):
-        experiment_integration.track_experiment_task(t)
+    async def updated_task_in_db(action: str, old_task: Optional[ckit_kanban.FPersonaKanbanTaskOutput], new_task: Optional[ckit_kanban.FPersonaKanbanTaskOutput]):
+        if action != "DELETE":
+            experiment_integration.track_experiment_task(new_task)
 
     @rcx.on_tool_call(experiment_execution.LAUNCH_EXPERIMENT_TOOL.name)
     async def toolcall_launch_experiment(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
