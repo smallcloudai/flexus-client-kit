@@ -1,8 +1,6 @@
 import asyncio
 import base64
-from pathlib import Path
 
-from flexus_client_kit import ckit_bot_version
 from flexus_client_kit import ckit_client
 from flexus_client_kit import ckit_bot_install
 from flexus_client_kit import ckit_cloudtool
@@ -35,18 +33,14 @@ EXPERTS = [
 ]
 
 
-async def install(
-    client: ckit_client.FlexusClient,
-    tools: list[ckit_cloudtool.CloudTool],
-):
+async def install(client: ckit_client.FlexusClient):
     pic_big = base64.b64encode((boss_bot.BOSS_ROOTDIR / "boss-896x1152.webp").read_bytes()).decode("ascii")
     pic_small = base64.b64encode((boss_bot.BOSS_ROOTDIR / "boss-256x256.webp").read_bytes()).decode("ascii")
 
     r = await ckit_bot_install.marketplace_upsert_dev_bot(
         client,
         ws_id=client.ws_id,
-        bot_dir=Path(__file__).parent,
-        version_file=ckit_bot_version.version_file_path(__file__),
+        bot_dir=boss_bot.BOSS_ROOTDIR,
         marketable_accent_color="#645ff6",
         marketable_title1="Boss",
         marketable_title2="The Boss manages your bot army - keeps them focused, productive, and on-strategy",
@@ -63,7 +57,7 @@ async def install(
         marketable_intro_message="Hi! I'm Boss, a Chief Orchestration Officer, I review and improve other bot's work to ensure quality and alignment with your goals.",
         marketable_preferred_model_expensive="grok-4-1-fast-reasoning",
         marketable_preferred_model_cheap="gpt-5.4-nano",
-        marketable_experts=[(name, exp.filter_tools(tools)) for name, exp in EXPERTS],
+        marketable_experts=[(name, exp.filter_tools(boss_bot.TOOLS)) for name, exp in EXPERTS],
         add_integrations_into_expert_system_prompt=boss_bot.BOSS_INTEGRATIONS,
         marketable_tags=["management", "orchestration"],
         marketable_picture_big_b64=pic_big,
@@ -77,4 +71,4 @@ async def install(
 
 if __name__ == "__main__":
     client = ckit_client.FlexusClient("boss_install")
-    asyncio.run(install(client, tools=boss_bot.TOOLS))
+    asyncio.run(install(client))

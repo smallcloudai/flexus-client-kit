@@ -2,7 +2,6 @@
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "type": "object",
     "required": [
-        "bot_name",
         "accent_color",
         "title1",
         "title2",
@@ -13,19 +12,14 @@
         "integrations",
         "featured_actions",
         "intro_message",
-        "preferred_model_default",
+        "preferred_model_expensive",
+        "preferred_model_cheap",
         "daily_budget_default",
         "default_inbox_default",
         "tags"
     ],
     "additionalProperties": false,
     "properties": {
-        "bot_name": {
-            "type": "string",
-            "title": "Bot Name",
-            "pattern": "^[a-z][a-z0-9_]*$",
-            "description": "Unique bot identifier used internally and in API calls. Lowercase letters, digits, and underscores only, must start with a letter. Example: 'productman', 'owl_strategist'."
-        },
         "accent_color": {
             "type": "string",
             "title": "Accent Color",
@@ -89,10 +83,15 @@
             "title": "Intro Message",
             "description": "First message the bot sends when a user opens a new chat. Should briefly introduce the bot and its capabilities."
         },
-        "preferred_model_default": {
+        "preferred_model_expensive": {
             "type": "string",
-            "title": "Preferred Model",
-            "description": "Default LLM model used for this bot's chat completions. Example: 'grok-4-1-fast-non-reasoning', 'grok-4-1-fast-reasoning'."
+            "title": "Preferred Model (Expensive)",
+            "description": "LLM model for complex tasks requiring stronger reasoning. Example: 'grok-4-1-fast-reasoning'."
+        },
+        "preferred_model_cheap": {
+            "type": "string",
+            "title": "Preferred Model (Cheap)",
+            "description": "LLM model for simple tasks where cost efficiency matters. Example: 'gpt-5.4-nano'."
         },
         "daily_budget_default": {
             "type": "integer",

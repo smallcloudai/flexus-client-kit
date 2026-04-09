@@ -1,5 +1,4 @@
 {
-    "bot_name": "otter",
     "accent_color": "#6B8E6B",
     "title1": "Otter",
     "title2": "Reframes setbacks into next moves.",
@@ -15,7 +14,8 @@
         {"feat_question": "Help me reframe this problem", "feat_expert": "default"}
     ],
     "intro_message": "Hey! I'm Otter. Tell me what's on your mind -- I'll help you find the angle that gets you unstuck.",
-    "preferred_model_default": "grok-4-1-fast-non-reasoning",
+    "preferred_model_expensive": "grok-4-1-fast-reasoning",
+    "preferred_model_cheap": "gpt-5.4-nano",
     "daily_budget_default": 100000,
     "default_inbox_default": 10000,
     "tags": ["Motivation", "Reframing", "Simple"]

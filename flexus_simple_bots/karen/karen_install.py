@@ -1,9 +1,7 @@
 import asyncio
 import json
 import base64
-from pathlib import Path
 
-from flexus_client_kit import ckit_bot_version
 from flexus_client_kit import ckit_client
 from flexus_client_kit import ckit_bot_install
 from flexus_client_kit import ckit_cloudtool
@@ -146,17 +144,13 @@ EXPERTS = [
 ]
 
 
-async def install(
-    client: ckit_client.FlexusClient,
-    tools: list[ckit_cloudtool.CloudTool],
-):
+async def install(client: ckit_client.FlexusClient):
     pic_big = base64.b64encode((karen_bot.KAREN_ROOTDIR / "karen-1024x1536.webp").read_bytes()).decode("ascii")
     pic_small = base64.b64encode((karen_bot.KAREN_ROOTDIR / "karen-256x256.webp").read_bytes()).decode("ascii")
     r = await ckit_bot_install.marketplace_upsert_dev_bot(
         client,
         ws_id=client.ws_id,
-        bot_dir=Path(__file__).parent,
-        version_file=ckit_bot_version.version_file_path(__file__),
+        bot_dir=karen_bot.KAREN_ROOTDIR,
         marketable_accent_color="#6252A4",
         marketable_title1="Karen",
         marketable_title2="Your 24/7 support, sales & marketing agent — empathetic, accurate, and always closing.",
@@ -180,7 +174,7 @@ async def install(
         marketable_daily_budget_default=10_000_000,
         marketable_default_inbox_default=1_000_000,
         marketable_max_inprogress=10,
-        marketable_experts=[(name, exp.filter_tools(tools)) for name, exp in EXPERTS],
+        marketable_experts=[(name, exp.filter_tools(karen_bot.TOOLS)) for name, exp in EXPERTS],
         marketable_tags=["Customer Support", "Sales", "Marketing", "CRM", "Email", "Automation", "Shopify", "E-commerce"],
         marketable_picture_big_b64=pic_big,
         marketable_picture_small_b64=pic_small,
@@ -208,4 +202,4 @@ async def install(
 
 if __name__ == "__main__":
     client = ckit_client.FlexusClient("karen_install")
-    asyncio.run(install(client, tools=karen_bot.TOOLS))
+    asyncio.run(install(client))

@@ -1,8 +1,6 @@
 import asyncio
 import base64
-from pathlib import Path
 
-from flexus_client_kit import ckit_bot_version
 from flexus_client_kit import ckit_client
 from flexus_client_kit import ckit_bot_install
 from flexus_client_kit import ckit_cloudtool
@@ -47,18 +45,14 @@ EXPERTS = [
 ]
 
 
-async def install(
-    client: ckit_client.FlexusClient,
-    tools: list[ckit_cloudtool.CloudTool],
-):
+async def install(client: ckit_client.FlexusClient):
     pic_big = base64.b64encode((clerkwing_bot.CLERKWING_ROOTDIR / "clerkwing-1024x1536.webp").read_bytes()).decode("ascii")
     pic_small = base64.b64encode((clerkwing_bot.CLERKWING_ROOTDIR / "clerkwing-256x256.webp").read_bytes()).decode("ascii")
 
     r = await ckit_bot_install.marketplace_upsert_dev_bot(
         client,
         ws_id=client.ws_id,
-        bot_dir=Path(__file__).parent,
-        version_file=ckit_bot_version.version_file_path(__file__),
+        bot_dir=clerkwing_bot.CLERKWING_ROOTDIR,
         marketable_accent_color="#41b949",
         marketable_title1="Clerkwing",
         marketable_title2="Your helpful secretary robot for email, calendar, and Jira management.",
@@ -77,7 +71,7 @@ async def install(
         marketable_intro_message="Hello! I'm Clerkwing, your secretary robot. I can help you manage your email, calendar, and Jira tasks. What would you like me to help with today?",
         marketable_preferred_model_expensive="grok-4-1-fast-reasoning",
         marketable_preferred_model_cheap="gpt-5.4-nano",
-        marketable_experts=[(name, exp.filter_tools(tools)) for name, exp in EXPERTS],
+        marketable_experts=[(name, exp.filter_tools(clerkwing_bot.TOOLS)) for name, exp in EXPERTS],
         marketable_tags=["Productivity", "Email", "Calendar", "Jira"],
         marketable_picture_big_b64=pic_big,
         marketable_picture_small_b64=pic_small,
@@ -112,4 +106,4 @@ async def install(
 
 if __name__ == "__main__":
     client = ckit_client.FlexusClient("clerkwing_install")
-    asyncio.run(install(client, tools=clerkwing_bot.TOOLS))
+    asyncio.run(install(client))

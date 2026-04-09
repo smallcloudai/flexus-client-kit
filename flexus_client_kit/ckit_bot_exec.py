@@ -997,7 +997,7 @@ async def run_bots_in_this_group(
     inprocess_tools: List[ckit_cloudtool.CloudTool],
     bot_main_loop: Callable[[ckit_client.FlexusClient, RobotContext], Awaitable[None]],
     scenario_fn: str,
-    install_func: Callable[[ckit_client.FlexusClient, list], Awaitable[int]],
+    install_func: Callable[[ckit_client.FlexusClient], Awaitable[int]],
     subscribe_to_erp_tables: List[str] = [],
 ) -> None:
     # name and version might get bumped during install, service_name has the pre-bump version
@@ -1022,7 +1022,7 @@ async def run_bots_in_this_group(
             return
         if fclient.ws_id:
             logger.info("Installing %s into workspace %s", marketable_name, fclient.ws_id)
-            installed_version = await install_func(fclient, inprocess_tools)
+            installed_version = await install_func(fclient)
             if installed_version:
                 marketable_version = int(installed_version)
                 # UGLY: service_name was built with pre-bump version, fix it after install

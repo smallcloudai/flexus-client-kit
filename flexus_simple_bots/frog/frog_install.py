@@ -1,8 +1,6 @@
 import asyncio
 import base64
-from pathlib import Path
 
-from flexus_client_kit import ckit_bot_version
 from flexus_client_kit import ckit_client
 from flexus_client_kit import ckit_bot_install
 from flexus_client_kit import ckit_cloudtool
@@ -53,17 +51,13 @@ EXPERTS = [
 ]
 
 
-async def install(
-    client: ckit_client.FlexusClient,
-    tools: list[ckit_cloudtool.CloudTool],
-):
+async def install(client: ckit_client.FlexusClient):
     pic_big = base64.b64encode((frog_bot.FROG_ROOTDIR / "frog-1024x1536.webp").read_bytes()).decode("ascii")
     pic_small = base64.b64encode((frog_bot.FROG_ROOTDIR / "frog-256x256.webp").read_bytes()).decode("ascii")
     r = await ckit_bot_install.marketplace_upsert_dev_bot(
         client,
         ws_id=client.ws_id,
-        bot_dir=Path(__file__).parent,
-        version_file=ckit_bot_version.version_file_path(__file__),
+        bot_dir=frog_bot.FROG_ROOTDIR,
         marketable_accent_color="#228B22",
         marketable_title1="Frog",
         marketable_title2="A cheerful frog bot that brings joy and positivity to your workspace.",
@@ -81,7 +75,7 @@ async def install(
         marketable_intro_message="Ribbit! Hi there! I'm Frog, your cheerful workspace companion. I'm here to bring joy and keep your spirits high. What can I do for you today?",
         marketable_preferred_model_expensive="grok-4-1-fast-reasoning",
         marketable_preferred_model_cheap="gpt-5.4-nano",
-        marketable_experts=[(name, exp.filter_tools(tools)) for name, exp in EXPERTS],
+        marketable_experts=[(name, exp.filter_tools(frog_bot.TOOLS)) for name, exp in EXPERTS],
         add_integrations_into_expert_system_prompt=frog_bot.FROG_INTEGRATIONS,
         marketable_tags=["Fun", "Simple", "Motivational"],
         marketable_picture_big_b64=pic_big,
@@ -116,4 +110,4 @@ async def install(
 
 if __name__ == "__main__":
     client = ckit_client.FlexusClient("frog_install")
-    asyncio.run(install(client, tools=frog_bot.TOOLS))
+    asyncio.run(install(client))

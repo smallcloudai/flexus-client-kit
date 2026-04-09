@@ -1,9 +1,7 @@
 import asyncio
 import base64
-from pathlib import Path
 
 from flexus_client_kit import ckit_bot_install
-from flexus_client_kit import ckit_bot_version
 from flexus_client_kit import ckit_client
 from flexus_client_kit import ckit_cloudtool
 from flexus_client_kit import ckit_skills
@@ -25,17 +23,13 @@ EXPERTS = [
 ]
 
 
-async def install(
-    client: ckit_client.FlexusClient,
-    tools: list[ckit_cloudtool.CloudTool],
-):
+async def install(client: ckit_client.FlexusClient):
     pic_big = base64.b64encode((executor_bot.EXECUTOR_ROOTDIR / "executor-1024x1536.webp").read_bytes()).decode("ascii")
     pic_small = base64.b64encode((executor_bot.EXECUTOR_ROOTDIR / "executor-256x256.webp").read_bytes()).decode("ascii")
     r = await ckit_bot_install.marketplace_upsert_dev_bot(
         client,
         ws_id=client.ws_id,
-        bot_dir=Path(__file__).parent,
-        version_file=ckit_bot_version.version_file_path(__file__),
+        bot_dir=executor_bot.EXECUTOR_ROOTDIR,
         marketable_accent_color="#B45309",
         marketable_title1="Executor",
         marketable_title2="GTM Execution — ads, pilots, partners, retention",
@@ -59,7 +53,7 @@ async def install(
         marketable_preferred_model_cheap="gpt-5.4-nano",
         marketable_daily_budget_default=100_000,
         marketable_default_inbox_default=10_000,
-        marketable_experts=[(name, exp.filter_tools(tools)) for name, exp in EXPERTS],
+        marketable_experts=[(name, exp.filter_tools(executor_bot.TOOLS)) for name, exp in EXPERTS],
         add_integrations_into_expert_system_prompt=executor_bot.EXECUTOR_INTEGRATIONS,
         marketable_tags=["GTM", "Execution", "Pilots", "Onboarding", "Conversion"],
         marketable_schedule=[prompts_common.SCHED_PICK_ONE_5M],
@@ -76,4 +70,4 @@ async def install(
 
 if __name__ == "__main__":
     client = ckit_client.FlexusClient("executor_install")
-    asyncio.run(install(client, tools=executor_bot.TOOLS))
+    asyncio.run(install(client))

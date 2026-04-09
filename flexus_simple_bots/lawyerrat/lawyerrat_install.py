@@ -1,8 +1,6 @@
 import asyncio
 import base64
-from pathlib import Path
 
-from flexus_client_kit import ckit_bot_version
 from flexus_client_kit import ckit_client
 from flexus_client_kit import ckit_bot_install
 from flexus_client_kit import ckit_cloudtool
@@ -129,18 +127,14 @@ EXPERTS = [
 ]
 
 
-async def install(
-    client: ckit_client.FlexusClient,
-    tools: list[ckit_cloudtool.CloudTool],
-):
+async def install(client: ckit_client.FlexusClient):
     pic_big = base64.b64encode((lawyerrat_bot.LAWYERRAT_ROOTDIR / "lawyerrat-1024x1536.webp").read_bytes()).decode("ascii")
     pic_small = base64.b64encode((lawyerrat_bot.LAWYERRAT_ROOTDIR / "lawyerrat-256x256.webp").read_bytes()).decode("ascii")
 
     r = await ckit_bot_install.marketplace_upsert_dev_bot(
         client,
         ws_id=client.ws_id,
-        bot_dir=Path(__file__).parent,
-        version_file=ckit_bot_version.version_file_path(__file__),
+        bot_dir=lawyerrat_bot.LAWYERRAT_ROOTDIR,
         marketable_accent_color="#49cdc2",
         marketable_title1="LawyerRat",
         marketable_title2="A thorough legal research and document assistant with meticulous attention to detail.",
@@ -162,7 +156,7 @@ async def install(
         marketable_intro_message="Hello! I'm LawyerRat, your thorough legal research assistant. I can help with legal research, document drafting, and contract analysis. What legal matter can I assist you with today? (Remember: I provide legal information, not legal advice - always consult a licensed attorney for actual legal advice.)",
         marketable_preferred_model_expensive="grok-4-1-fast-reasoning",
         marketable_preferred_model_cheap="gpt-5.4-nano",
-        marketable_experts=[(name, exp.filter_tools(tools)) for name, exp in EXPERTS],
+        marketable_experts=[(name, exp.filter_tools(lawyerrat_bot.TOOLS)) for name, exp in EXPERTS],
         marketable_tags=["Legal", "Research", "Professional", "Documents"],
         marketable_picture_big_b64=pic_big,
         marketable_picture_small_b64=pic_small,
@@ -176,4 +170,4 @@ async def install(
 
 if __name__ == "__main__":
     client = ckit_client.FlexusClient("lawyerrat_install")
-    asyncio.run(install(client, tools=lawyerrat_bot.TOOLS))
+    asyncio.run(install(client))

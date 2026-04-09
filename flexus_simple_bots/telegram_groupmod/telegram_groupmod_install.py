@@ -1,8 +1,7 @@
 import asyncio
 import base64
-from pathlib import Path
 
-from flexus_client_kit import ckit_bot_install, ckit_bot_version, ckit_client, ckit_cloudtool
+from flexus_client_kit import ckit_bot_install, ckit_client, ckit_cloudtool
 from flexus_simple_bots import prompts_common
 from flexus_simple_bots.telegram_groupmod import telegram_groupmod_bot
 from flexus_simple_bots.telegram_groupmod import telegram_groupmod_prompts
@@ -63,10 +62,7 @@ EXPERTS = [
 ]
 
 
-async def install(
-    client: ckit_client.FlexusClient,
-    tools: list[ckit_cloudtool.CloudTool],
-):
+async def install(client: ckit_client.FlexusClient):
     bot_name = telegram_groupmod_bot.BOT_NAME
     pic_big = base64.b64encode((telegram_groupmod_bot.TELEGRAM_GROUPMOD_ROOTDIR / f"{bot_name}-1024x1536.webp").read_bytes()).decode("ascii")
     pic_small = base64.b64encode((telegram_groupmod_bot.TELEGRAM_GROUPMOD_ROOTDIR / f"{bot_name}-256x256.webp").read_bytes()).decode("ascii")
@@ -74,8 +70,7 @@ async def install(
     r = await ckit_bot_install.marketplace_upsert_dev_bot(
         client,
         ws_id=client.ws_id,
-        bot_dir=Path(__file__).parent,
-        version_file=ckit_bot_version.version_file_path(__file__),
+        bot_dir=telegram_groupmod_bot.TELEGRAM_GROUPMOD_ROOTDIR,
         marketable_accent_color="#ff66ae",
         marketable_title1="Telegram Group Mod",
         marketable_title2="Moderate Telegram groups: filter messages, manage members, enforce rules.",
@@ -93,7 +88,7 @@ async def install(
         marketable_intro_message="Add me as admin to your Telegram group, I'll pick it up!",
         marketable_preferred_model_expensive="grok-4-1-fast-reasoning",
         marketable_preferred_model_cheap="gpt-5.4-nano",
-        marketable_experts=[(name, exp.filter_tools(tools)) for name, exp in EXPERTS],
+        marketable_experts=[(name, exp.filter_tools(telegram_groupmod_bot.TOOLS_ALL)) for name, exp in EXPERTS],
         marketable_tags=["Moderation", "Telegram"],
         marketable_picture_big_b64=pic_big,
         marketable_picture_small_b64=pic_small,
@@ -109,4 +104,4 @@ async def install(
 
 if __name__ == "__main__":
     client = ckit_client.FlexusClient("telegram_groupmod_install")
-    asyncio.run(install(client, tools=telegram_groupmod_bot.TOOLS_ALL))
+    asyncio.run(install(client))

@@ -63,7 +63,6 @@ async def marketplace_upsert_dev_bot(
     client: ckit_client.FlexusClient,
     ws_id: str,
     bot_dir: Path,
-    version_file: Path,
     marketable_title1: str,
     marketable_title2: str,
     marketable_author: str,
@@ -102,6 +101,7 @@ async def marketplace_upsert_dev_bot(
         elif not marketable_picture_big_b64 and any(f"-{bw}x{bh}" in w.name for bw, bh in [(1024, 1536), (832, 1248), (896, 1152)]):
             marketable_picture_big_b64 = base64.b64encode(w.read_bytes()).decode("ascii")
     marketable_name = bot_dir.name
+    version_file = bot_dir.parent / "VERSION"
     marketable_version = version_file.read_text().strip()
 
     experts_input = []

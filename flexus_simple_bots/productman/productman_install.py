@@ -1,8 +1,6 @@
 import asyncio
 import base64
-from pathlib import Path
 
-from flexus_client_kit import ckit_bot_version
 from flexus_client_kit import ckit_client, ckit_bot_install, ckit_cloudtool
 from flexus_simple_bots import prompts_common
 from flexus_simple_bots.productman import productman_bot
@@ -66,17 +64,13 @@ EXPERTS = [
 ]
 
 
-async def install(
-    client: ckit_client.FlexusClient,
-    tools: list[ckit_cloudtool.CloudTool],
-):
+async def install(client: ckit_client.FlexusClient):
     pic_big = base64.b64encode((productman_bot.PRODUCTMAN_ROOTDIR / "productman-1024x1536.webp").read_bytes()).decode("ascii")
     pic_small = base64.b64encode((productman_bot.PRODUCTMAN_ROOTDIR / "productman-256x256.webp").read_bytes()).decode("ascii")
     r = await ckit_bot_install.marketplace_upsert_dev_bot(
         client,
         ws_id=client.ws_id,
-        bot_dir=Path(__file__).parent,
-        version_file=ckit_bot_version.version_file_path(__file__),
+        bot_dir=productman_bot.PRODUCTMAN_ROOTDIR,
         marketable_accent_color="#49cdc2",
         marketable_title1="Productman",
         marketable_title2="Discovery Agent. Understand what to sell and to whom, validated by market logic.",
@@ -94,7 +88,7 @@ async def install(
         marketable_intro_message="Hi! I'm Productman, your Discovery Agent. I help you understand what to sell and to whom, validated by market logic before spending money.",
         marketable_preferred_model_expensive="grok-4-1-fast-reasoning",
         marketable_preferred_model_cheap="gpt-5.4-nano",
-        marketable_experts=[(name, exp.filter_tools(tools)) for name, exp in EXPERTS],
+        marketable_experts=[(name, exp.filter_tools(productman_bot.TOOLS_ALL)) for name, exp in EXPERTS],
         marketable_tags=["Product Management", "Hypothesis Testing"],
         marketable_picture_big_b64=pic_big,
         marketable_picture_small_b64=pic_small,
@@ -110,4 +104,4 @@ async def install(
 
 if __name__ == "__main__":
     client = ckit_client.FlexusClient("productman_install")
-    asyncio.run(install(client, tools=productman_bot.TOOLS_ALL))
+    asyncio.run(install(client))

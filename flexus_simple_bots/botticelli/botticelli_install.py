@@ -1,10 +1,8 @@
 import asyncio
 import base64
-from pathlib import Path
 
 from flexus_client_kit import ckit_client
 from flexus_client_kit import ckit_bot_install
-from flexus_client_kit import ckit_bot_version
 from flexus_client_kit import ckit_cloudtool
 
 from flexus_simple_bots import prompts_common
@@ -60,17 +58,13 @@ EXPERTS = [
 ]
 
 
-async def install(
-    client: ckit_client.FlexusClient,
-    tools: list[ckit_cloudtool.CloudTool],
-):
+async def install(client: ckit_client.FlexusClient):
     pic_big = base64.b64encode((botticelli_bot.BOTTICELLI_ROOTDIR / "botticelli-1024x1536.webp").read_bytes()).decode("ascii")
     pic_small = base64.b64encode((botticelli_bot.BOTTICELLI_ROOTDIR / "botticelli-256x256.webp").read_bytes()).decode("ascii")
     r = await ckit_bot_install.marketplace_upsert_dev_bot(
         client,
         ws_id=client.ws_id,
-        bot_dir=Path(__file__).parent,
-        version_file=ckit_bot_version.version_file_path(__file__),
+        bot_dir=botticelli_bot.BOTTICELLI_ROOTDIR,
         marketable_accent_color="#49cdc2",
         marketable_title1="Botticelli",
         marketable_title2="I create high-converting Meta Ads creatives with cognitive bias optimization",
@@ -85,7 +79,7 @@ async def install(
         marketable_intro_message="Hello, I am Botticelli. I create high-converting Meta Ads creatives optimized with cognitive biases. Ready to generate stunning FB/IG ad campaigns?",
         marketable_preferred_model_expensive="grok-4-1-fast-reasoning",
         marketable_preferred_model_cheap="gpt-5.4-nano",
-        marketable_experts=[(name, exp.filter_tools(tools)) for name, exp in EXPERTS],
+        marketable_experts=[(name, exp.filter_tools(botticelli_bot.TOOLS)) for name, exp in EXPERTS],
         marketable_tags=["Marketing", "Ads", "Creative", "Meta", "Facebook", "Instagram"],
         marketable_picture_big_b64=pic_big,
         marketable_picture_small_b64=pic_small,
@@ -100,4 +94,4 @@ async def install(
 
 if __name__ == "__main__":
     client = ckit_client.FlexusClient("botticelli_install")
-    asyncio.run(install(client, tools=botticelli_bot.TOOLS))
+    asyncio.run(install(client))

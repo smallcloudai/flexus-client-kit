@@ -38,7 +38,7 @@ def load_manifest_and_setup_schema(bot_dir: Path) -> tuple[dict, list]:
     return m, setup_schema
 
 
-async def install_from_manifest(m, setup_schema, bot_dir, client, tools):
+async def install_from_manifest(m, setup_schema, bot_dir, tools, client):
     bot_name = bot_dir.name
     pic_big = _load_pic_b64(bot_dir, bot_name, "1024x1536", ".webp")
     pic_small = _load_pic_b64(bot_dir, bot_name, "256x256", ".webp") or _load_pic_b64(bot_dir, bot_name, "256x256", ".png")
@@ -62,7 +62,6 @@ async def install_from_manifest(m, setup_schema, bot_dir, client, tools):
         client,
         ws_id=client.ws_id,
         bot_dir=bot_dir,
-        version_file=ckit_bot_version.version_file_path(str(bot_dir / "x")),
         marketable_accent_color=m["accent_color"],
         marketable_title1=m["title1"],
         marketable_title2=m["title2"],
@@ -141,7 +140,7 @@ def main():
         bot_main_loop=lambda fc, rcx: bot_main_loop(manifest, setup_schema, bot_dir, fc, rcx),
         inprocess_tools=all_tools,
         scenario_fn=scenario_fn,
-        install_func=lambda client, t: install_from_manifest(manifest, setup_schema, bot_dir, client, t),
+        install_func=lambda client: install_from_manifest(manifest, setup_schema, bot_dir, all_tools, client),
     ))
 
 
