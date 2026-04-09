@@ -1,0 +1,408 @@
+judge_instructions: |
+  The assistant should follow the C.L.O.S.E.R. sales framework: Clarify the prospect's problem,
+  Label it back, Overview what they've tried, Sell the outcome, Explain through objections, Reinforce the close.
+  The assistant must use flexus_vector_search() before quoting pricing, feature specifics, or integration details.
+  Penalize if the assistant fabricates pricing tiers, feature capabilities, or competitor comparisons not grounded in search results.
+  The assistant must use CRM tools (manage_crm_contact, manage_crm_deal, log_crm_activity) to log the lead
+  and score BANT accurately before resolving. BANT should be 3 (Need=1 urgent OTA dependency, Authority=1 GM is decision-maker, Timeline=1 wants to act before peak season, Budget=0 not explicitly confirmed).
+  Penalize if the assistant pressures on price or dismisses the OTA/switching-cost objection without addressing it substantively.
+  Penalize if the assistant ignores the prospect's frustration about past vendor (OpenTable/Cloudbeds) experience.
+  Don't penalize for minor wording differences, greeting variations, or tool call ordering.
+
+messages:
+- role: cd_instruction
+  content: |-
+    📄/company/summary
+    {
+      "stage": "Growth",
+      "mission": "Give independent hotels pricing power back",
+      "tagline": "Revenue intelligence for boutique hospitality",
+      "website": "https://revpilot.io",
+      "industry": "Hospitality Technology / Revenue Management SaaS",
+      "company_name": "RevPilot"
+    }
+
+    📄/company/sales-strategy
+    {
+      "approach": "consultative",
+      "icp": "Independent and boutique hotel groups (2-20 properties, 30-300 rooms each) that rely heavily on OTAs and lack dynamic pricing or direct-booking strategy",
+      "objection_playbook": {
+        "price": "The platform typically pays for itself within 60 days by shifting 8-15% of bookings from OTA to direct, saving $4-8 per room-night in commission. We charge per room per month, not per booking, so cost is predictable.",
+        "complexity": "PMS integration takes 1-2 days. We support Opera, Mews, Cloudbeds, and 20+ others. No hardware, no on-site install. Your front desk team gets a 30-minute training session.",
+        "trust": "60-day pilot with your real data. No contract, cancel anytime. We publish a live RevPAR lift dashboard so you can see ROI in real-time.",
+        "switching_cost": "We run alongside your existing setup during the pilot — no disruption. Your current PMS stays, we just layer intelligence on top."
+      },
+      "trial": {
+        "duration_days": 60,
+        "credit_card_required": false,
+        "includes": "Full platform, all properties, PMS integration, onboarding call, RevPAR benchmarking report"
+      }
+    }
+
+    📄/support/summary
+    {
+      "support-policy": {
+        "meta": {
+          "created_at": "2026-03-25T11:00:00.000000+00:00"
+        },
+        "section01-product": {
+          "title": "Product",
+          "question01-description": {
+            "a": "RevPilot is an AI-powered revenue management platform for independent and boutique hotels. It connects to your PMS, analyzes booking patterns, competitor rates, local events, and demand signals to recommend optimal room pricing in real-time. It also powers a direct-booking engine that reduces OTA dependency by converting website visitors into direct guests with dynamic pricing and personalized offers.",
+            "q": "What is the product?"
+          },
+          "question02-features": {
+            "a": "Dynamic pricing engine (updates rates every 15 minutes based on demand, competitor rates, and events), OTA commission tracker (shows exactly how much you're paying Booking.com/Expedia per booking), direct-booking conversion tools (rate parity alerts, best-price guarantee widget, abandoned-search retargeting), RevPAR benchmarking against comp set, group/event demand forecasting, PMS integrations (Opera, Mews, Cloudbeds, Little Hotelier, Hotelogix, and 20+ others), channel manager sync.",
+            "q": "What are the key features?"
+          },
+          "question03-ideal-customer-profile": {
+            "a": "Independent and boutique hotel operators (2-20 properties) who are over-reliant on OTAs (paying 15-25% commissions), don't have a revenue manager on staff, and want to increase direct bookings and RevPAR without hiring a full-time RM specialist.",
+            "q": "Who is the ideal customer (ICP)?"
+          }
+        },
+        "section02-future-ops": {
+          "title": "Pricing & Billing",
+          "question01-shipping": {
+            "a": "",
+            "q": "Shipping methods, costs, times?"
+          },
+          "question04-payments": {
+            "a": "Per-room-per-month pricing. Starter: $6/room/month (1-50 rooms). Growth: $4.50/room/month (51-200 rooms). Enterprise: custom (200+ rooms). Annual contracts get 20% discount. Stripe billing. No per-booking fees ever.",
+            "q": "Payment options & pricing?"
+          },
+          "question02-returns": {
+            "a": "60-day pilot is free. Monthly contracts can be cancelled anytime with 30-day notice. Annual contracts: pro-rated refund within first 90 days.",
+            "q": "Refund policy?"
+          }
+        },
+        "section03-support": {
+          "title": "Support",
+          "question01-channels": {
+            "a": "Telegram @revpilot_support, email support@revpilot.io, in-app chat",
+            "q": "Support channels (email, chat, etc.)?"
+          },
+          "question02-escalation": {
+            "a": "Enterprise pricing requests, custom PMS integrations, data migration, revenue strategy consulting requests",
+            "q": "When to escalate to human?"
+          }
+        },
+        "section04-restrictions": {
+          "title": "Restrictions",
+          "question01-never-say": {
+            "a": "Never guarantee specific RevPAR lift percentages unless quoting published case studies. Never share other hotels' pricing or booking data. Never promise custom PMS integrations without engineering review. Never disparage OTAs or competitors by name — focus on what RevPilot offers.",
+            "q": "What should support NEVER say?"
+          }
+        }
+      }
+    }
+- role: user
+  content: |-
+    Telegram private user='Marco Tessari' chat_id=51847293
+    hi — I run a small hotel group and I'm looking at revenue management tools. do you do anything for boutique hotels?
+- role: assistant
+  tool_calls:
+    - id: call_hr_01
+      type: function
+      function:
+        name: flexus_kanban_public
+        arguments: '{"op": "status_public", "search": null, "resolution": null, "details_json": null, "restart_summary": null}'
+- role: tool
+  content: |
+    The current task with details:
+    {
+      "id": "qN8wK3mRtX",
+      "title": "Telegram private user='Marco Tessari' chat_id=51847293\nhi — I run a small hotel group and I'm looking at revenue management tools. do you do anything for boutique hotels?",
+      "details": {
+        "chat_id": 51847293,
+        "chat_type": "private",
+        "message_id": 2710,
+        "attachments": [],
+        "message_text": "hi — I run a small hotel group and I'm looking at revenue management tools. do you do anything for boutique hotels?",
+        "message_author_id": 51847293,
+        "message_author_name": "Marco Tessari"
+      }
+    }
+
+    Inbox:
+    [
+    ]
+
+    Todo:
+    [
+    ]
+
+    In Progress:
+    [
+    {"id": "qN8wK3mRtX", "title": "Telegram private user='Marco Tessari' chat_id=51847293\nhi — I run a small hotel group and I'm looking at revenue management tools. do you do anything for boutique hotels?", "human": "telegram:51847293"},
+    ]
+
+    Done:
+    [
+    ]
+  call_id: call_hr_01
+- role: title
+  content: "[telegram] [marco] [sales] Marco Tessari — boutique hotel revenue management"
+- role: assistant
+  tool_calls:
+    - id: call_hr_02
+      type: function
+      function:
+        name: telegram
+        arguments: '{"op": "capture", "args": {"chat_id": 51847293}}'
+- role: tool
+  content: |
+    📌CAPTURED
+
+    The next thing you write will be visible. Don't comment on that fact and think about what do you want to say in '51847293'.
+    Don't use op=post because now anything you say is visible automatically.
+
+    Reminder: after this point telegram MarkdownV2 markup rules are in effect for your output, there are no tables! Here's markup help for you again.
+
+
+    Telegram uses MarkdownV2 markup:
+    *bold*  _italic_  __underline__  ~strikethrough~
+    `inline code`
+    ```python
+    code block
+    ```
+    [link text](https://example.com)
+    ||spoiler||
+
+    > blockquote
+    > each line must start with >
+
+    No bullet lists or tables.
+  call_id: call_hr_02
+- role: assistant
+  content: "Hey Marco\\! I'm Karen, AI assistant at RevPilot\\. Boutique hotels are literally our sweet spot — how many properties are you running, and what's the main thing driving you to look at RM tools right now?"
+- role: user
+  content:
+    - m_type: text
+      m_content: |-
+        👤Marco Tessari
+
+        we have 3 boutique hotels in coastal Portugal, 45 rooms each. our OTA commissions are killing us — last year we paid Booking.com and Expedia about 22% on average. that's almost a quarter of our revenue just gone. I need to figure out how to get more direct bookings but I don't have a revenue manager on staff
+- role: assistant
+  content: "22% commission on 135 rooms — that's a serious chunk of margin\\. So the core issue is OTA dependency eating into your revenue, and you don't have a dedicated RM person to optimize rates and push direct bookings?"
+- role: user
+  content:
+    - m_type: text
+      m_content: |-
+        👤Marco Tessari
+
+        exactly. I tried Cloudbeds last year for the channel manager side and it was fine for distribution but it doesn't actually help with pricing strategy. I was still guessing on rates, just guessing across more channels. and their "revenue management" add-on was basically a spreadsheet with colors
+- role: assistant
+  tool_calls:
+    - id: call_hr_03
+      type: function
+      function:
+        name: flexus_vector_search
+        arguments: '{"eds": "", "query": "dynamic pricing engine competitor rates demand signals real-time rate optimization"}'
+- role: tool
+  content: |+
+    For your query 'dynamic pricing engine competitor rates demand signals real-time rate optimization' found 3 results in database of 1800 chunks across 40 indexed documents.
+
+    <original_text>
+    RevPilot's dynamic pricing engine updates room rates every 15 minutes based on three real-time signals: (1) competitor rates from your comp set (scraped from OTAs and metasearch), (2) local demand indicators (events, flights, weather, holidays), and (3) your own booking pace and historical patterns. The engine outputs rate recommendations per room type per channel, or auto-publishes if you enable autopilot mode.
+    </original_text>
+
+    <original_text>
+    Unlike channel managers that simply distribute a rate you set, RevPilot calculates the optimal rate. Average RevPAR lift for independent hotels in the first 90 days: 12-18%. The system learns your property's demand curve within 2-3 weeks of historical data ingestion.
+    </original_text>
+
+  call_id: call_hr_03
+- role: assistant
+  content: |-
+    Makes sense — a channel manager pushes your rate everywhere, but it doesn't tell you what the rate should be\. That's the gap\.
+
+    RevPilot is different: it's a pricing engine\. It updates your rates every 15 minutes based on competitor pricing, local demand signals \(events, flights, weather\), and your own booking patterns\. You either approve the recommendations or let it auto\-publish in autopilot mode\.
+
+    Independent hotels typically see a 12\-18% RevPAR lift in the first 90 days — and that's before counting the direct\-booking shift\.
+
+    Does Cloudbeds still handle your PMS side, or have you moved off it?
+- role: user
+  content:
+    - m_type: text
+      m_content: |-
+        👤Marco Tessari
+
+        still on Cloudbeds for PMS yeah. my concern is — if I add another tool, that's another system my front desk has to learn, another integration that can break. we already have Cloudbeds + Booking.com extranet + our website booking engine. I don't want to add complexity
+- role: assistant
+  tool_calls:
+    - id: call_hr_04
+      type: function
+      function:
+        name: flexus_vector_search
+        arguments: '{"eds": "", "query": "Cloudbeds PMS integration setup onboarding front desk training"}'
+- role: tool
+  content: |+
+    For your query 'Cloudbeds PMS integration setup onboarding front desk training' found 3 results in database of 1800 chunks across 40 indexed documents.
+
+    <original_text>
+    RevPilot integrates with 20+ PMS platforms including Opera, Mews, Cloudbeds, Little Hotelier, and Hotelogix. The Cloudbeds integration uses their official API — bi-directional sync for rates, availability, and reservations. Setup takes 1-2 days with our onboarding team. No hardware or on-site installation required.
+    </original_text>
+
+    <original_text>
+    RevPilot runs alongside your existing PMS and channel manager — it layers pricing intelligence on top, it doesn't replace anything. Front desk teams typically need one 30-minute training session to understand the dashboard. In autopilot mode, front desk interaction is zero — rates update automatically.
+    </original_text>
+
+  call_id: call_hr_04
+- role: assistant
+  content: |-
+    Totally valid concern — the last thing you need is another dashboard nobody looks at\.
+
+    Here's the thing though: RevPilot doesn't replace Cloudbeds or anything else\. It plugs into Cloudbeds via their API and layers pricing intelligence on top\. Your PMS stays, your channel manager stays, your workflow stays\.
+
+    In autopilot mode your front desk doesn't interact with it at all — rates update automatically\. If you want manual approval, it's one dashboard with accept/reject\. Training is a 30\-minute session\.
+
+    Setup takes 1\-2 days with our team handling the integration\. No hardware, nothing on\-site\.
+- role: user
+  content:
+    - m_type: text
+      m_content: |-
+        👤Marco Tessari
+
+        ok that's better than I expected. what does it cost? with 3 properties I need to know the math works before peak season hits in June
+- role: assistant
+  tool_calls:
+    - id: call_hr_05
+      type: function
+      function:
+        name: flexus_vector_search
+        arguments: '{"eds": "", "query": "pricing per room per month boutique hotel group cost"}'
+- role: tool
+  content: |+
+    For your query 'pricing per room per month boutique hotel group cost' found 3 results in database of 1800 chunks across 40 indexed documents.
+
+    <original_text>
+    Per-room-per-month pricing:
+    - Starter: $6/room/month (1-50 rooms)
+    - Growth: $4.50/room/month (51-200 rooms)
+    - Enterprise: custom (200+ rooms)
+
+    Annual contracts receive a 20% discount. No per-booking fees. Stripe billing.
+    </original_text>
+
+    <original_text>
+    ROI benchmark: the platform typically pays for itself within 60 days. Hotels shifting 8-15% of bookings from OTA to direct save $4-8 per room-night in commission costs. For a 100-room hotel at 70% occupancy, that's $8,400-16,800/year in saved commissions alone — before counting RevPAR lift from dynamic pricing.
+    </original_text>
+
+  call_id: call_hr_05
+- role: assistant
+  content: |-
+    With 135 rooms across 3 properties, you'd be on the Growth tier: $4\.50/room/month\. That's $607\.50/month total for all three hotels\.
+
+    Now the math on the other side: hotels like yours that shift even 8\-15% of bookings from OTA to direct save $4\-8 per room\-night in commissions\. At 70% occupancy across 135 rooms, that's roughly $10,000\-18,000/year in saved commissions — before counting the RevPAR lift from better pricing\.
+
+    So $607\.50/month in, $800\-1,500/month back in commission savings alone\. The platform typically pays for itself within 60 days\.
+
+    You mentioned June — if you started a pilot now, you'd have 8 weeks of data and tuning before peak season kicks in\.
+- role: user
+  content:
+    - m_type: text
+      m_content: |-
+        👤Marco Tessari
+
+        the ROI math is compelling. I guess my last worry is — what if I set it up and the pricing engine makes weird rate suggestions? we're boutique, our guests expect a certain experience. I can't have rates swinging wildly or undercutting our positioning
+- role: assistant
+  tool_calls:
+    - id: call_hr_06
+      type: function
+      function:
+        name: flexus_vector_search
+        arguments: '{"eds": "", "query": "rate floor ceiling guardrails pricing controls boutique brand positioning"}'
+- role: tool
+  content: |+
+    For your query 'rate floor ceiling guardrails pricing controls boutique brand positioning' found 2 results in database of 1800 chunks across 40 indexed documents.
+
+    <original_text>
+    Rate guardrails: hoteliers set a floor and ceiling price per room type. The pricing engine never recommends below the floor or above the ceiling. Additional controls include: maximum rate change per day (e.g., no more than 15% swing in 24 hours), blackout dates where rates are locked, and comp set exclusions (remove properties you don't consider true competitors from benchmarking).
+    </original_text>
+
+    <original_text>
+    RevPilot learns your property's positioning within 2-3 weeks. The system accounts for star rating, review scores, amenity set, and location tier when benchmarking. Boutique hotels are compared against similar boutique properties, not chain hotels in the same city.
+    </original_text>
+
+  call_id: call_hr_06
+- role: assistant
+  content: |-
+    Great question — you're absolutely right to protect your positioning\.
+
+    You set floor and ceiling prices per room type, and the engine never goes outside those guardrails\. You can also cap how much the rate changes in 24 hours \(say, no more than 15% swing\), lock rates for blackout dates, and exclude properties from your comp set that aren't actually competitors\.
+
+    The system also learns your hotel's positioning within 2\-3 weeks — it benchmarks you against similar boutique properties, not chains\. So it understands that your EUR 180 room and a Holiday Inn's EUR 95 room are completely different products\.
+
+    And during the pilot you can run in manual mode — review every recommendation before it goes live\. Switch to autopilot only when you trust it\.
+- role: user
+  content:
+    - m_type: text
+      m_content: |-
+        👤Marco Tessari
+
+        alright you've sold me on trying it. let's do the pilot. I'm the GM and owner so I make the call. we need to be set up before June though — is that realistic if we start this week?
+- role: assistant
+  tool_calls:
+    - id: call_hr_07
+      type: function
+      function:
+        name: manage_crm_contact
+        arguments: '{"op": "create", "args": {"contact_first_name": "Marco", "contact_last_name": "Tessari", "contact_notes": "GM and owner of 3 boutique hotels in coastal Portugal, 45 rooms each (135 total). Pain: 22% average OTA commission (Booking.com + Expedia) eating margins, no revenue manager on staff. Previously tried Cloudbeds — fine for channel management, but no real pricing intelligence. Still on Cloudbeds PMS. Concerns addressed: complexity (RevPilot layers on top of existing PMS, 30-min training), pricing wild swings (rate guardrails, manual mode, boutique-aware comp set). Pricing discussed: Growth tier $4.50/room/month ($607.50/mo total). Committed to 60-day pilot, wants setup before June peak season. Sole decision-maker.", "contact_tags": ["lead", "hotel-group", "pilot", "cloudbeds"], "contact_bant_score": 3}}'
+    - id: call_hr_08
+      type: function
+      function:
+        name: manage_crm_deal
+        arguments: '{"op": "create", "args": {"deal_name": "Marco Tessari — 3x Boutique Hotel Revenue Pilot", "deal_stage": "TRIAL"}}'
+- role: tool
+  content: |-
+    ✅ Created: cnt_Wm5pL9kT
+  call_id: call_hr_07
+- role: tool
+  content: |-
+    ✅ Created: deal_Yq2nR7vX
+  call_id: call_hr_08
+- role: assistant
+  tool_calls:
+    - id: call_hr_09
+      type: function
+      function:
+        name: log_crm_activity
+        arguments: '{"contact_id": "cnt_Wm5pL9kT", "activity_type": "MESSENGER_CHAT", "direction": "INBOUND", "platform": "TELEGRAM", "title": "Sales qualification — boutique hotel revenue management pilot", "summary": "Marco Tessari (GM/owner, 3 boutique hotels in coastal Portugal, 135 rooms, Cloudbeds PMS) evaluated RevPilot. Pain: 22% OTA commissions, no revenue manager on staff. Previously tried Cloudbeds RM add-on — insufficient for pricing strategy. Addressed objections: complexity (layers on existing PMS, 30-min training), rate control (floor/ceiling guardrails, manual approval mode, boutique-aware benchmarking). Pricing: Growth tier $4.50/room/mo ($607.50/mo total). ROI: $10-18K/yr in commission savings. Committed to 60-day pilot, needs setup before June peak season. BANT: Budget=0 (not explicitly confirmed, said ROI is compelling), Authority=1 (sole decision-maker, GM and owner), Need=1 (22% OTA commissions, no RM staff), Timeline=1 (wants setup this week, peak season in June)."}'
+- role: tool
+  content: |-
+    ✅ Activity logged
+  call_id: call_hr_09
+- role: assistant
+  content: |-
+    Absolutely realistic\. Cloudbeds integration takes 1\-2 days, the pricing engine starts learning from your historical data immediately, and you'll have tuned recommendations within 2\-3 weeks\. That gives you a solid month of optimization before June\.
+
+    Here's the plan:
+
+    *60\-day pilot* — no contract, no credit card, all 3 properties, full platform\.
+
+    [Start your pilot here](https://revpilot.io/pilot)
+
+    After signup, our onboarding team will reach out within 24 hours to connect Cloudbeds and run your first comp set analysis\. I'd recommend starting in manual approval mode for the first 2 weeks so you build confidence in the recommendations\.
+
+    Any questions before you jump in?
+- role: user
+  content:
+    - m_type: text
+      m_content: |-
+        👤Marco Tessari
+
+        no that's perfect. signing up now. thanks Karen, this was really helpful
+- role: assistant
+  tool_calls:
+    - id: call_hr_10
+      type: function
+      function:
+        name: flexus_kanban_public
+        arguments: '{"op": "resolve", "resolution": {"code": "SUCCESS", "summary": "Sales qualification: Marco Tessari, GM/owner of 3 boutique hotels in coastal Portugal (135 rooms total, Cloudbeds PMS). Pain: 22% OTA commissions, no revenue manager. Tried Cloudbeds RM — inadequate pricing intelligence. Addressed switching-cost/complexity objection (layers on existing PMS), rate-control concern (guardrails, manual mode, boutique-aware benchmarking). Growth tier $4.50/room/mo ($607.50/mo total). Committed to 60-day pilot, needs setup before June peak season. BANT 3/4 (Budget not explicitly confirmed). CRM contact + deal + activity logged.", "humanhours": 0.2, "uncapture": true, "pdoc_paths": []}}'
+- role: tool
+  content: |-
+    Moved to done qN8wK3mRtX
+
+    Uncaptured the chat, no one can see your messages now, all left to do is to say TASK_COMPLETED
+  call_id: call_hr_10
+- role: assistant
+  content: TASK_COMPLETED

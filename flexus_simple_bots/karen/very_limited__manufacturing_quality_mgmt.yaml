@@ -1,0 +1,384 @@
+judge_instructions: |
+  The assistant should follow the C.L.O.S.E.R. sales framework: Clarify the prospect's problem,
+  Label it back, Overview what they've tried, Sell the outcome, Explain through objections, Reinforce the close.
+  The assistant must use flexus_vector_search() before quoting pricing, feature specifics, or integration details.
+  Penalize if the assistant fabricates pricing tiers, feature capabilities, or competitor comparisons not grounded in search results.
+  The assistant must use CRM tools (manage_crm_contact, manage_crm_deal, log_crm_activity) to log the lead
+  and score BANT accurately before resolving. BANT should be 3 (Need=1, Authority=1 sole decision-maker, Timeline=1, Budget=0 not confirmed).
+  Penalize if the assistant dismisses the ERP integration concern without searching first.
+  Penalize if the assistant promises specific ISO audit outcomes or certification guarantees.
+  Don't penalize for minor wording differences, greeting variations, or tool call ordering.
+
+messages:
+- role: cd_instruction
+  content: |-
+    📄/company/summary
+    {
+      "stage": "Growth",
+      "mission": "Turn every production line into a self-improving system",
+      "tagline": "Real-time quality intelligence for discrete manufacturing",
+      "website": "https://forgeline.io",
+      "industry": "Manufacturing Technology / Quality Management SaaS",
+      "company_name": "ForgeLine"
+    }
+
+    📄/company/sales-strategy
+    {
+      "approach": "consultative",
+      "icp": "Mid-size discrete manufacturers (50-500 employees) running 1-3 production lines who rely on paper-based quality checks, spreadsheets, or disconnected legacy QMS for defect tracking and traceability",
+      "objection_playbook": {
+        "price": "Average customer reduces scrap rate by 30-40% within 90 days. At typical scrap costs of $15-25 per unit, the platform pays for itself within the first quarter. We price per production line, not per user, so your whole team gets access.",
+        "complexity": "We deploy alongside your existing line — no equipment changes, no downtime. Operators use a tablet interface designed for gloved hands. Average rollout is 2 weeks including training.",
+        "trust": "60-day pilot on one production line — real data, no contract. We handle SOC 2 and ITAR compliance. Your data stays on-prem if needed.",
+        "erp_integration": "We integrate with SAP, Oracle, Epicor, and IQMS out of the box via certified connectors. For other ERPs we have a REST API and flat-file import. Integration typically takes 3-5 days with our team.",
+        "operator_adoption": "The tablet UI was designed with input from floor operators at 12 manufacturing plants. Big buttons, visual workflows, barcode/QR scan — no typing. Average adoption time is 3 shifts."
+      },
+      "trial": {
+        "duration_days": 60,
+        "credit_card_required": false,
+        "includes": "Full platform on one production line, unlimited users, SPC dashboards, API access, onboarding and operator training"
+      }
+    }
+
+    📄/support/summary
+    {
+      "support-policy": {
+        "meta": {
+          "created_at": "2026-03-15T10:00:00.000000+00:00"
+        },
+        "section01-product": {
+          "title": "Product",
+          "question01-description": {
+            "a": "ForgeLine is a real-time quality management platform for discrete manufacturing. It captures inspection data at every station via tablets or IoT sensors, runs SPC analysis in real time, traces defects to root cause (machine, shift, material lot), and generates audit-ready reports for ISO 9001, IATF 16949, and AS9100.",
+            "q": "What is the product?"
+          },
+          "question02-features": {
+            "a": "In-line digital inspection (tablet + barcode/QR), real-time SPC charts (Xbar-R, Cpk, Ppk), automated defect traceability (machine, operator, shift, material lot), root cause analysis with Pareto/Ishikawa, non-conformance (NCR) workflow with CAPA tracking, ERP integrations (SAP, Oracle, Epicor, IQMS), IoT sensor ingestion (temperature, torque, vibration), audit-ready report generation (ISO 9001, IATF 16949, AS9100), customer portal for supplier quality scorecards, SOC 2 Type II and ITAR compliant.",
+            "q": "What are the key features?"
+          },
+          "question03-ideal-customer-profile": {
+            "a": "Mid-size discrete manufacturers (50-500 employees) with 1-3 production lines who need digital quality management but lack the IT resources to build or maintain a custom MES/QMS. Also: Tier 2/3 automotive and aerospace suppliers facing customer-mandated digital traceability requirements.",
+            "q": "Who is the ideal customer (ICP)?"
+          }
+        },
+        "section02-future-ops": {
+          "title": "Pricing & Billing",
+          "question01-shipping": {
+            "a": "",
+            "q": "Shipping methods, costs, times?"
+          },
+          "question04-payments": {
+            "a": "Per-production-line pricing. Starter: $1,200/mo per line (1 line, up to 50 users). Growth: $950/mo per line (2-5 lines, volume discount). Enterprise: custom (6+ lines, on-prem option, dedicated CSM). Annual contracts get 20% discount. Net-30 invoicing available.",
+            "q": "Payment options & pricing?"
+          },
+          "question02-returns": {
+            "a": "60-day pilot is free on one line. Monthly contracts can be cancelled anytime with 30-day notice. Annual contracts: pro-rated refund within first 90 days.",
+            "q": "Refund policy?"
+          }
+        },
+        "section03-support": {
+          "title": "Support",
+          "question01-channels": {
+            "a": "Telegram @forgeline_support, email support@forgeline.io, in-app chat, phone support for Enterprise tier",
+            "q": "Support channels (email, chat, etc.)?"
+          },
+          "question02-escalation": {
+            "a": "Enterprise pricing requests, custom ERP integrations, ITAR/compliance questions, on-premises deployment requests, data migration from legacy QMS",
+            "q": "When to escalate to human?"
+          }
+        },
+        "section04-restrictions": {
+          "title": "Restrictions",
+          "question01-never-say": {
+            "a": "Never guarantee specific scrap rate reduction percentages as outcomes — only quote published averages. Never promise ISO certification as a result of using ForgeLine. Never share other customers' quality data or defect rates. Never promise custom sensor integrations without engineering review.",
+            "q": "What should support NEVER say?"
+          }
+        }
+      }
+    }
+- role: user
+  content: |-
+    Telegram private user='Dave Kowalski' chat_id=91247503
+    hi — we're a stamping shop doing metal brackets for automotive, and our biggest customer just told us we need digital traceability for ISO 9001 or they'll pull the contract. do you guys do that?
+- role: assistant
+  tool_calls:
+    - id: call_mfg_01
+      type: function
+      function:
+        name: flexus_kanban_public
+        arguments: '{"op": "status_public", "search": null, "resolution": null, "details_json": null, "restart_summary": null}'
+- role: tool
+  content: |
+    The current task with details:
+    {
+      "id": "qT4vN8xKjW",
+      "title": "Telegram private user='Dave Kowalski' chat_id=91247503\nhi — we're a stamping shop doing metal brackets for automotive, and our biggest customer just told us we need digital traceability for ISO 9001 or they'll pull the contract. do you guys do that?",
+      "details": {
+        "chat_id": 91247503,
+        "chat_type": "private",
+        "message_id": 5802,
+        "attachments": [],
+        "message_text": "hi — we're a stamping shop doing metal brackets for automotive, and our biggest customer just told us we need digital traceability for ISO 9001 or they'll pull the contract. do you guys do that?",
+        "message_author_id": 91247503,
+        "message_author_name": "Dave Kowalski"
+      }
+    }
+
+    Inbox:
+    [
+    ]
+
+    Todo:
+    [
+    ]
+
+    In Progress:
+    [
+    {"id": "qT4vN8xKjW", "title": "Telegram private user='Dave Kowalski' chat_id=91247503\nhi — we're a stamping shop doing metal brackets for automotive, and our biggest customer just told us we need digital traceability for ISO 9001 or they'll pull the contract. do you guys do that?", "human": "telegram:91247503"},
+    ]
+
+    Done:
+    [
+    ]
+  call_id: call_mfg_01
+- role: title
+  content: "[telegram] [dave] [sales] Dave Kowalski — ISO 9001 digital traceability for stamping shop"
+- role: assistant
+  tool_calls:
+    - id: call_mfg_02
+      type: function
+      function:
+        name: telegram
+        arguments: '{"op": "capture", "args": {"chat_id": 91247503}}'
+- role: tool
+  content: |
+    📌CAPTURED
+
+    The next thing you write will be visible. Don't comment on that fact and think about what do you want to say in '91247503'.
+    Don't use op=post because now anything you say is visible automatically.
+
+    Reminder: after this point telegram MarkdownV2 markup rules are in effect for your output, there are no tables! Here's markup help for you again.
+
+
+    Telegram uses MarkdownV2 markup:
+    *bold*  _italic_  __underline__  ~strikethrough~
+    `inline code`
+    ```python
+    code block
+    ```
+    [link text](https://example.com)
+    ||spoiler||
+
+    > blockquote
+    > each line must start with >
+
+    No bullet lists or tables.
+  call_id: call_mfg_02
+- role: assistant
+  tool_calls:
+    - id: call_mfg_03
+      type: function
+      function:
+        name: flexus_vector_search
+        arguments: '{"eds": "", "query": "ISO 9001 digital traceability audit-ready reports"}'
+- role: tool
+  content: |+
+    For your query 'ISO 9001 digital traceability audit-ready reports' found 3 results in database of 1800 chunks across 38 indexed documents.
+
+    <original_text>
+    ForgeLine generates audit-ready reports for ISO 9001, IATF 16949, and AS9100. Every inspection record is timestamped and linked to the specific machine, operator, shift, and material lot. Reports can be exported as PDF or accessed in real-time by auditors via a read-only portal. Full traceability from raw material receipt through final inspection.
+    </original_text>
+
+    <original_text>
+    Digital traceability means every quality check is recorded electronically with who performed it, when, on which machine, using which material lot. ForgeLine replaces paper travelers and inspection sheets with tablet-based data capture at each station. Barcode or QR scanning links each part to its full production history.
+    </original_text>
+
+  call_id: call_mfg_03
+- role: assistant
+  content: "Hey Dave\\! I'm Karen, AI assistant at ForgeLine\\. Short answer: yes, that's exactly what we do\\.\n\nBefore I get into details though — can you tell me more about how you're handling quality checks right now? Paper travelers, spreadsheets, something else?"
+- role: user
+  content:
+    - m_type: text
+      m_content: |-
+        👤Dave Kowalski
+
+        all paper. we've got clipboards at every press with inspection sheets, operators measure parts and write it down. end of shift someone collects the sheets and files them in binders. if there's a quality escape we spend days digging through paper trying to figure out which press or which coil caused it
+- role: assistant
+  content: "So you're running entirely on paper — clipboards at each press, manual filing, and when something goes wrong you're buried in binders trying to trace it back\\. That sounds like the traceability gap your customer is calling out, right?"
+- role: user
+  content:
+    - m_type: text
+      m_content: |-
+        👤Dave Kowalski
+
+        yeah exactly. and it's not just the audit thing — our scrap rate is around 8% and I honestly can't tell you if it's a tooling issue, a material issue, or operator error because the data is scattered across paper sheets nobody cross-references
+- role: assistant
+  tool_calls:
+    - id: call_mfg_04
+      type: function
+      function:
+        name: flexus_vector_search
+        arguments: '{"eds": "", "query": "scrap rate reduction defect root cause analysis SPC"}'
+- role: tool
+  content: |+
+    For your query 'scrap rate reduction defect root cause analysis SPC' found 3 results in database of 1800 chunks across 38 indexed documents.
+
+    <original_text>
+    ForgeLine's root cause analysis module links every defect to machine, operator, shift, and material lot automatically. Pareto charts show top defect types and sources. Ishikawa (fishbone) diagrams help teams drill into contributing factors. Average customer reduces scrap rate by 30-40% within 90 days by identifying and eliminating the top 2-3 root causes.
+    </original_text>
+
+    <original_text>
+    Real-time SPC (Statistical Process Control) charts — Xbar-R, Cpk, Ppk — alert operators and supervisors the moment a process drifts out of spec. This catches quality issues before they become scrap, reducing defect escape rates by up to 60%.
+    </original_text>
+
+  call_id: call_mfg_04
+- role: assistant
+  content: "8% scrap with no way to pinpoint the cause — that's a real blind spot\\. So you've got two problems: the customer demanding digital traceability for ISO 9001, and internally you're bleeding money on scrap you can't diagnose\\.\n\nHere's what ForgeLine does for shops like yours: operators capture inspection data on a tablet at each press instead of paper\\. Every measurement gets linked to the specific press, material lot, and shift automatically\\. Real\\-time SPC charts catch drift before it becomes scrap\\. And root cause analysis breaks down your defects by machine, operator, and material — Pareto charts show you the top 2\\-3 causes right away\\.\n\nOur average customer cuts scrap 30\\-40% in the first 90 days just by finding those top causes\\. On the audit side, every record is timestamped and traceable — audit\\-ready reports for ISO 9001 come out of the box\\."
+- role: user
+  content:
+    - m_type: text
+      m_content: |-
+        👤Dave Kowalski
+
+        ok that sounds like exactly what we need. but here's my concern — we run Epicor for everything, purchasing, scheduling, inventory. whatever quality system we use has to talk to Epicor or it's a non-starter. and honestly my operators are old school, half of them barely use a phone. a tablet on the floor is going to be a hard sell
+- role: assistant
+  tool_calls:
+    - id: call_mfg_05
+      type: function
+      function:
+        name: flexus_vector_search
+        arguments: '{"eds": "", "query": "Epicor ERP integration connector"}'
+    - id: call_mfg_06
+      type: function
+      function:
+        name: flexus_vector_search
+        arguments: '{"eds": "", "query": "operator adoption tablet interface shop floor gloves"}'
+- role: tool
+  content: |+
+    For your query 'Epicor ERP integration connector' found 2 results in database of 1800 chunks across 38 indexed documents.
+
+    <original_text>
+    ForgeLine integrates with SAP, Oracle, Epicor, and IQMS out of the box via certified connectors. The Epicor connector syncs work orders, part numbers, BOMs, and inspection results bi-directionally. Quality holds in ForgeLine automatically create quality alerts in Epicor. Setup takes 3-5 days with our integration team.
+    </original_text>
+
+  call_id: call_mfg_05
+- role: tool
+  content: |+
+    For your query 'operator adoption tablet interface shop floor gloves' found 2 results in database of 1800 chunks across 38 indexed documents.
+
+    <original_text>
+    The ForgeLine tablet UI was designed with input from floor operators at 12 manufacturing plants. Large buttons, visual pass/fail workflows, barcode and QR scanning to eliminate typing. Operators wear gloves — the interface works with capacitive glove-compatible screens. Average time for a full inspection entry: 45 seconds. Average operator adoption: 3 shifts to full comfort.
+    </original_text>
+
+    <original_text>
+    Onboarding includes hands-on operator training on the shop floor. We run a 2-hour session per shift, covering tablet basics, scan-and-inspect workflow, and what to do when a measurement is out of spec. Supervisors get a separate 4-hour session on dashboards, SPC alerts, and NCR workflows.
+    </original_text>
+
+  call_id: call_mfg_06
+- role: assistant
+  content: "Both fair concerns\\. Let me address them\\.\n\n*Epicor*: we have a certified Epicor connector out of the box\\. It syncs work orders, part numbers, BOMs, and inspection results bi\\-directionally\\. If ForgeLine puts a quality hold on a part, Epicor gets the alert automatically\\. Integration takes about 3\\-5 days with our team\\.\n\n*Operators*: this is actually the objection we hear most, and it's the one we spent the most time solving\\. The tablet interface was designed with input from operators at 12 plants\\. Big buttons, visual pass/fail workflows, barcode scanning — almost no typing\\. It works with gloves on\\. Average operator goes from zero to comfortable in about 3 shifts\\. We also come on\\-site and do hands\\-on training, 2 hours per shift right at the press\\.\n\nThe operators who push back hardest usually come around fastest once they see it's less work than filling out the paper sheets\\."
+- role: user
+  content:
+    - m_type: text
+      m_content: |-
+        👤Dave Kowalski
+
+        alright that's good to hear about Epicor. what does this cost? we've got 2 stamping lines
+- role: assistant
+  tool_calls:
+    - id: call_mfg_07
+      type: function
+      function:
+        name: flexus_vector_search
+        arguments: '{"eds": "", "query": "pricing per production line growth tier discount"}'
+- role: tool
+  content: |+
+    For your query 'pricing per production line growth tier discount' found 2 results in database of 1800 chunks across 38 indexed documents.
+
+    <original_text>
+    Per-production-line pricing tiers:
+    - Starter: $1,200/mo per line (1 line, up to 50 users)
+    - Growth: $950/mo per line (2-5 lines, volume discount, unlimited users)
+    - Enterprise: custom (6+ lines, on-prem deployment option, dedicated CSM)
+
+    Annual contracts receive a 20% discount. All tiers include full platform access, SPC dashboards, API access, and standard support.
+    </original_text>
+
+  call_id: call_mfg_07
+- role: assistant
+  content: "With 2 lines you'd be on the Growth tier: $950/mo per line, so $1,900/mo total\\. Unlimited users — your whole team gets access, operators through management\\. Annual commitment drops it 20% to $1,520/mo\\.\n\nFor context: if your scrap rate is 8% and you're running, say, a few thousand brackets a day, even a 2\\-3 point improvement in scrap pays for the platform several times over\\.\n\nWe also have a 60\\-day pilot: one line, full platform, no contract, no credit card\\. Good way to prove it out before committing both lines\\."
+- role: user
+  content:
+    - m_type: text
+      m_content: |-
+        👤Dave Kowalski
+
+        $1,900 a month is doable, especially if we actually cut scrap like you're saying. and we need to move on this — our customer's audit is in about 10 weeks. I make the call on quality systems, I don't need to run it up the chain. can we start with the pilot on line 1 and get the Epicor integration going at the same time?
+- role: assistant
+  tool_calls:
+    - id: call_mfg_08
+      type: function
+      function:
+        name: manage_crm_contact
+        arguments: '{"op": "create", "args": {"contact_first_name": "Dave", "contact_last_name": "Kowalski", "contact_notes": "Quality director at a metal stamping shop (automotive brackets), 2 stamping lines, runs Epicor ERP. Pain: 8% scrap rate with no root cause visibility (paper-based inspection, clipboards at each press, binders). Biggest customer mandated digital traceability for ISO 9001 — audit in ~10 weeks, contract at risk. Previously: all paper, no prior QMS. Concerned about Epicor integration (addressed — certified connector, 3-5 day setup) and operator adoption (addressed — glove-friendly tablet UI, 3-shift ramp). Pricing discussed: Growth tier $950/mo per line, $1,900/mo for 2 lines. Dave is sole decision-maker on quality systems. Wants to start 60-day pilot on line 1 with Epicor integration in parallel. BANT: Budget=0 (said doable but not formally confirmed), Authority=1 (sole decision-maker), Need=1 (customer audit in 10 weeks, contract at risk), Timeline=1 (immediate, 10-week deadline).", "contact_tags": ["lead", "manufacturing", "stamping", "automotive-t2", "epicor"], "contact_bant_score": 3}}'
+    - id: call_mfg_09
+      type: function
+      function:
+        name: manage_crm_deal
+        arguments: '{"op": "create", "args": {"deal_name": "Dave Kowalski — Stamping Shop QMS Pilot (2 lines, Epicor)", "deal_stage": "QUALIFICATION"}}'
+- role: tool
+  content: |-
+    ✅ Created: cnt_Wj5mR9xL
+  call_id: call_mfg_08
+- role: tool
+  content: |-
+    ✅ Created: deal_Bn7kQ3vP
+  call_id: call_mfg_09
+- role: assistant
+  tool_calls:
+    - id: call_mfg_10
+      type: function
+      function:
+        name: log_crm_activity
+        arguments: '{"contact_id": "cnt_Wj5mR9xL", "activity_type": "MESSENGER_CHAT", "direction": "INBOUND", "platform": "TELEGRAM", "title": "Sales qualification — QMS for stamping shop, ISO 9001 deadline", "summary": "Dave Kowalski (quality director, metal stamping, automotive brackets, 2 lines, Epicor ERP) evaluated ForgeLine. Pain: 8% scrap rate, no root cause visibility, paper-based quality system. Customer mandated digital traceability for ISO 9001 audit in ~10 weeks — contract at risk. Discussed Growth tier pricing ($950/line, $1,900/mo for 2 lines), Epicor certified connector (3-5 day integration), operator tablet UI (designed for gloves, 3-shift adoption). Dave is sole decision-maker. Wants to start 60-day pilot on line 1 immediately with Epicor integration in parallel. BANT: Budget=0 (said doable, not confirmed), Authority=1 (sole decision-maker), Need=1 (urgent, customer contract at risk), Timeline=1 (10-week audit deadline)."}'
+- role: tool
+  content: |-
+    ✅ Activity logged
+  call_id: call_mfg_10
+- role: assistant
+  content: "Absolutely\\. Here's the plan:\n\n*60\\-day pilot on Line 1* — full platform, SPC, traceability, audit\\-ready reports\\. No contract, no credit card\\.\n\n*Epicor integration* runs in parallel — our team sets up the certified connector in 3\\-5 days so work orders and part numbers sync from day one\\.\n\n*Operator training* — we'll schedule a 2\\-hour hands\\-on session per shift right at the press\\.\n\nWith 10 weeks to your customer's audit, that gives you plenty of runway to have digital traceability running and generating ISO 9001 reports before they walk in\\.\n\nI'll have our onboarding team reach out to schedule kickoff\\. What's the best email to send the pilot details to?"
+- role: user
+  content:
+    - m_type: text
+      m_content: |-
+        👤Dave Kowalski
+
+        dave.kowalski@precisionstampinginc.com — thanks Karen, this is exactly what I was looking for. talk soon
+- role: assistant
+  tool_calls:
+    - id: call_mfg_11
+      type: function
+      function:
+        name: manage_crm_contact
+        arguments: '{"op": "patch", "args": {"contact_id": "cnt_Wj5mR9xL", "contact_email": "dave.kowalski@precisionstampinginc.com"}}'
+- role: tool
+  content: |-
+    ✅ Updated: cnt_Wj5mR9xL
+  call_id: call_mfg_11
+- role: assistant
+  content: "You're all set, Dave\\. Expect an email from our onboarding team shortly at that address\\. Looking forward to getting Line 1 up and running\\. Talk soon\\!"
+- role: assistant
+  tool_calls:
+    - id: call_mfg_12
+      type: function
+      function:
+        name: flexus_kanban_public
+        arguments: '{"op": "resolve", "resolution": {"code": "SUCCESS", "summary": "Sales qualification: Dave Kowalski, quality director at Precision Stamping Inc (automotive brackets, 2 stamping lines, Epicor ERP). Pain: 8% scrap rate with zero root cause visibility, all paper-based quality checks. Customer mandated digital traceability for ISO 9001 — audit in 10 weeks, contract at risk. Discussed Growth tier ($950/line, $1,900/mo for 2 lines), Epicor certified connector (3-5 days), operator tablet UI (3-shift adoption), 60-day pilot on line 1. Dave is sole decision-maker, wants to start immediately. Objections addressed: Epicor integration (certified connector), operator adoption (glove-friendly UI, on-site training). Email captured. BANT 3/4. CRM contact + deal + activity logged.", "humanhours": 0.3, "uncapture": true, "pdoc_paths": []}}'
+- role: tool
+  content: |-
+    Moved to done qT4vN8xKjW
+
+    Uncaptured the chat, no one can see your messages now, all left to do is to say TASK_COMPLETED
+  call_id: call_mfg_12
+- role: assistant
+  content: TASK_COMPLETED

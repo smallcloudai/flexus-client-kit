@@ -1,0 +1,309 @@
+judge_instructions: |
+  The assistant must search the knowledge base for refund/credit policy, then REASON about the
+  specific situation: $500 prepaid minus $150 consumed = $350 refundable, within the 30-day window.
+  Penalize if the assistant just quotes the policy without calculating the specific refundable amount.
+  Penalize if the assistant fabricates policy terms not in the search results.
+  The assistant should recognize the actual refund processing requires escalation (per very_limited rules:
+  "Escalate to a human on: cancellation/refund requests") and hand off appropriately.
+  Don't penalize for extra search attempts or minor wording differences.
+
+messages:
+- role: cd_instruction
+  content: |-
+    📄/company/summary
+    {
+      "stage": "Growth",
+      "faq_url": "https://cloudpipe.ai/faq",
+      "mission": "Making Claude API accessible to teams of any size",
+      "tagline": "Claude API, simplified",
+      "website": "https://cloudpipe.ai",
+      "industry": "AI Infrastructure / API Services",
+      "company_name": "CloudPipe AI"
+    }
+
+    📄/company/sales-strategy
+    does not exist yet
+
+    📄/support/summary
+    {
+      "support-policy": {
+        "meta": {
+          "created_at": "2026-03-15T10:30:00.000000+00:00"
+        },
+        "section01-product": {
+          "title": "Product",
+          "question02-features": {
+            "a": "Usage dashboard, team API key management, spend alerts, rate limit pooling, prompt caching proxy, SSO",
+            "q": "What are the key features?"
+          },
+          "question01-description": {
+            "a": "CloudPipe AI is a managed proxy and billing layer for the Claude API. Customers get a single account with team management, usage analytics, and consolidated billing instead of dealing with Anthropic API keys directly. We resell all Claude models at a small markup and add value through tooling.",
+            "q": "What is the product?"
+          },
+          "question03-ideal-customer-profile": {
+            "a": "Dev teams 5-50 people who want Claude API without procurement overhead. Agencies managing multiple client projects. Startups that need usage visibility before committing to Anthropic enterprise.",
+            "q": "Who is the ideal customer (ICP)?"
+          }
+        },
+        "section02-future-ops": {
+          "title": "Billing & Accounts",
+          "question02-returns": {
+            "a": "No refunds on consumed API tokens. Unused prepaid credits refundable within 30 days of purchase. Refund requests are processed by the billing team within 3 business days.",
+            "q": "Refund policy?"
+          },
+          "question04-payments": {
+            "a": "Monthly billing via Stripe. Pay-as-you-go or prepaid credits at 5% discount. Pricing is Anthropic list price + 15% markup.",
+            "q": "Payment options & pricing?"
+          }
+        },
+        "section03-support": {
+          "title": "Support",
+          "question01-channels": {
+            "a": "Telegram, email support@cloudpipe.ai",
+            "q": "Support channels (email, chat, etc.)?"
+          },
+          "question02-escalation": {
+            "a": "Billing disputes, outages, account lockouts, refund requests",
+            "q": "When to escalate to human?"
+          }
+        },
+        "section04-restrictions": {
+          "title": "Restrictions",
+          "question01-never-say": {
+            "a": "Never share internal Anthropic API keys. Never promise specific uptime SLA unless on Enterprise plan. Never process refunds directly — always route to billing team.",
+            "q": "What should support NEVER say?"
+          }
+        },
+        "section05-sources": {
+          "title": "Sources",
+          "question01-eds-list": {
+            "a": "",
+            "q": "Working EDS IDs?"
+          },
+          "question02-websites": {
+            "a": "https://docs.anthropic.com, https://cloudpipe.ai/docs",
+            "q": "Key websites for support info?"
+          }
+        }
+      }
+    }
+- role: user
+  content: |-
+    Telegram private user='Alex Chen' chat_id=503221187
+    hey, I need help with my account
+- role: assistant
+  tool_calls:
+    - id: call_ref_01
+      type: function
+      function:
+        name: flexus_kanban_public
+        arguments: '{"op": "status_public", "search": null, "resolution": null, "details_json": null, "restart_summary": null}'
+- role: tool
+  content: |
+    The current task with details:
+    {
+      "id": "pR4nXw7kLm",
+      "title": "Telegram private user='Alex Chen' chat_id=503221187\nhey, I need help with my account",
+      "details": {
+        "chat_id": 503221187,
+        "chat_type": "private",
+        "message_id": 1204,
+        "attachments": [],
+        "message_text": "hey, I need help with my account",
+        "message_author_id": 503221187,
+        "message_author_name": "Alex Chen"
+      }
+    }
+
+    Inbox:
+    [
+    ]
+
+    Todo:
+    [
+    ]
+
+    In Progress:
+    [
+    {"id": "pR4nXw7kLm", "title": "Telegram private user='Alex Chen' chat_id=503221187\nhey, I need help with my account", "human": "telegram:503221187"},
+    ]
+
+    Done:
+    [
+    ]
+  call_id: call_ref_01
+- role: title
+  content: "[telegram] [alex] [account] Alex Chen — account help"
+- role: assistant
+  tool_calls:
+    - id: call_ref_02
+      type: function
+      function:
+        name: telegram
+        arguments: '{"op": "capture", "args": {"chat_id": 503221187}}'
+- role: tool
+  content: |
+    📌CAPTURED
+
+    The next thing you write will be visible. Don't comment on that fact and think about what do you want to say in '503221187'.
+    Don't use op=post because now anything you say is visible automatically.
+
+    Reminder: after this point telegram MarkdownV2 markup rules are in effect for your output, there are no tables! Here's markup help for you again.
+
+
+    Telegram uses MarkdownV2 markup:
+    *bold*  _italic_  __underline__  ~strikethrough~
+    `inline code`
+    ```python
+    code block
+    ```
+    [link text](https://example.com)
+    ||spoiler||
+
+    > blockquote
+    > each line must start with >
+
+    No bullet lists or tables.
+  call_id: call_ref_02
+- role: assistant
+  content: "Hey Alex\\! I'm Karen, AI support assistant for CloudPipe AI\\. What's going on with your account?"
+- role: user
+  content:
+    - m_type: text
+      m_content: |-
+        👤Alex Chen
+
+        I prepaid $500 in credits about a week ago but my team decided to switch to a different solution. I've used roughly $150 in API calls so far. Can I get the rest back?
+- role: assistant
+  tool_calls:
+    - id: call_ref_03
+      type: function
+      function:
+        name: flexus_vector_search
+        arguments: '{"eds": "", "query": "refund policy prepaid credits"}'
+- role: tool
+  content: |+
+    For your query 'refund policy prepaid credits' found 2 chunks, in database of 4521 chunks across 98 indexed documents.
+    IMPORTANT: These are only snippets. You must call flexus_read_original(eds="eds_id", op="cat", p="/path") to read the full document before answering.
+
+    at eds_id=Hk3wPnvQaB found chunk 0
+    📎/cloudpipe.ai/docs/billing/credits.md:14-30
+    ```
+    ## Prepaid Credits
+
+    Purchase credits in advance and get a 5% discount on all API usage. Credits never expire
+    as long as your account is active.
+
+    ### Refunds
+
+    - Consumed API tokens are non-refundable.
+    - Unused prepaid credits can be refunded within 30 days of the original purchase date.
+    - Refund requests are processed by the billing team within 3 business days.
+    - To request a refund, contact support@cloudpipe.ai or reach out via Telegram.
+    ```
+
+    at eds_id=Hk3wPnvQaB found chunk 1
+    📎/cloudpipe.ai/docs/billing/pricing.md:5-18
+    ```
+    ## Pricing
+
+    CloudPipe pricing is Anthropic's list price + 15% markup. Prepaid credits come at a 5%
+    discount off this rate.
+
+    | Plan        | Billing     | Discount |
+    |-------------|-------------|----------|
+    | Pay-as-you-go | Monthly   | None     |
+    | Prepaid     | Upfront     | 5%       |
+    | Enterprise  | Annual      | Custom   |
+    ```
+
+  call_id: call_ref_03
+- role: assistant
+  tool_calls:
+    - id: call_ref_04
+      type: function
+      function:
+        name: flexus_read_original
+        arguments: '{"eds": "Hk3wPnvQaB", "op": "cat", "p": "/cloudpipe.ai/docs/billing/credits.md", "skip": 14, "take": 40, "safety_valve": "20k"}'
+- role: tool
+  content: |-
+    📄 File: cloudpipe.ai/docs/billing/credits.md
+
+    ## Prepaid Credits
+
+    Purchase credits in advance and get a 5% discount on all API usage. Credits never expire
+    as long as your account is active.
+
+    ### Refunds
+
+    - Consumed API tokens are non-refundable.
+    - Unused prepaid credits can be refunded within 30 days of the original purchase date.
+    - Refund requests are processed by the billing team within 3 business days.
+    - To request a refund, contact support@cloudpipe.ai or reach out via Telegram.
+
+    ### Credit Balance
+
+    Your current credit balance is visible on the Usage Dashboard under Billing > Credits.
+    When credits run out, you automatically switch to pay-as-you-go billing.
+  call_id: call_ref_04
+- role: assistant
+  content: |-
+    Here's the situation based on our refund policy\:
+
+    Out of your $500 in prepaid credits, the ~$150 you've already used in API calls is non\-refundable\. The remaining ~$350 in unused credits *is* refundable since you purchased them about a week ago \(well within the 30\-day window\)\.
+
+    The billing team processes refund requests within 3 business days\. Want me to get that started for you?
+- role: user
+  content:
+    - m_type: text
+      m_content: |-
+        👤Alex Chen
+
+        yes please, let's do it
+- role: assistant
+  tool_calls:
+    - id: call_ref_05
+      type: function
+      function:
+        name: manage_crm_contact
+        arguments: '{"op": "create", "args": {"contact_first_name": "Alex", "contact_last_name": "Chen", "contact_notes": "Requested refund of ~$350 unused prepaid credits ($500 purchased ~1 week ago, ~$150 consumed). Team switching to different solution. Via Telegram.", "contact_tags": ["refund-request", "telegram"]}}'
+    - id: call_ref_06
+      type: function
+      function:
+        name: log_crm_activity
+        arguments: '{"contact_id": "pending", "activity_type": "MESSENGER_CHAT", "direction": "INBOUND", "platform": "TELEGRAM", "title": "Refund request: ~$350 unused prepaid credits", "summary": "Alex Chen prepaid $500 ~1 week ago, consumed ~$150, requesting refund of remaining ~$350. Team switching solutions. Escalating to billing."}'
+- role: tool
+  content: |-
+    ✅ Created: cnt_Qn7rT2vW
+  call_id: call_ref_05
+- role: tool
+  content: |-
+    ✅ Activity logged
+  call_id: call_ref_06
+- role: assistant
+  content: |-
+    I've logged everything\. I'll pass this to our billing team now — they handle the actual refund processing and should have it sorted within 3 business days\.
+
+    They may reach out to confirm your payment method for the return\. Anything else I can help with?
+- role: user
+  content:
+    - m_type: text
+      m_content: |-
+        👤Alex Chen
+
+        nope, that's it. thanks!
+- role: assistant
+  tool_calls:
+    - id: call_ref_07
+      type: function
+      function:
+        name: flexus_kanban_public
+        arguments: '{"op": "resolve", "resolution": {"code": "SUCCESS", "summary": "Alex Chen requested refund of ~$350 in unused prepaid credits ($500 purchased 1 week ago, ~$150 consumed). Confirmed eligible per 30-day refund policy. CRM contact created, activity logged. ESCALATION NEEDED: billing team to process the refund.", "humanhours": 0.2, "uncapture": true, "pdoc_paths": []}}'
+- role: tool
+  content: |-
+    Moved to done pR4nXw7kLm
+
+    Uncaptured the chat, no one can see your messages now, all left to do is to say TASK_COMPLETED
+  call_id: call_ref_07
+- role: assistant
+  content: TASK_COMPLETED

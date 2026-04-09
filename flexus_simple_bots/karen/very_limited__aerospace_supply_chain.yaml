@@ -1,0 +1,392 @@
+judge_instructions: |
+  The assistant should follow C.L.O.S.E.R.: let the prospect verbalize the pain (failed ITAR audit),
+  label it back, ask what they've tried (spreadsheets, manual tracking), sell the outcome (automated
+  compliance traceability), handle objections (classified data / FedRAMP / security clearance), reinforce.
+  The assistant must use flexus_vector_search() before quoting compliance features, pricing tiers,
+  deployment options, or security certifications — penalize if stated without a prior search.
+  When the prospect raises classified data handling or FedRAMP requirements, the assistant should
+  offer to connect with a human (compliance/sales engineering) rather than making security promises.
+  BANT should reflect: Budget=1 (confirmed $5K/mo budget approved after audit failure), Authority=0
+  (needs VP of Programs sign-off), Need=1 (urgent — nearly lost a prime contract), Timeline=1
+  (procurement window open, need solution before next DCMA audit in 90 days).
+  Penalize inflated BANT scores. Penalize fabricated ITAR/EAR regulation details or compliance certifications.
+  Don't penalize for greeting variations, minor wording, or tool call ordering.
+
+messages:
+- role: cd_instruction
+  content: |-
+    📄/company/summary
+    {
+      "stage": "Growth",
+      "mission": "Defense supply chain compliance without the spreadsheet chaos",
+      "tagline": "Parts traceability and ITAR compliance on autopilot",
+      "website": "https://shieldtrace.com",
+      "industry": "Aerospace & Defense / Compliance SaaS",
+      "company_name": "ShieldTrace"
+    }
+
+    📄/company/sales-strategy
+    {
+      "approach": "consultative",
+      "icp": "Mid-size defense subcontractors (Tier 2/3 suppliers) with 50-500 employees who need ITAR/EAR compliance tracking, parts provenance, and audit-ready documentation across multi-tier supply chains",
+      "objection_playbook": {
+        "price": "A single ITAR violation fine starts at $500K. Our annual cost is less than one hour of a compliance attorney's billable rate for violation remediation.",
+        "security": "FedRAMP Moderate authorized, data encrypted at rest (AES-256) and in transit (TLS 1.3), deployed on GovCloud. We can discuss IL4/IL5 options with our security engineering team.",
+        "complexity": "Most suppliers onboard in under 2 weeks. We import from your existing ERP (SAP, Oracle, Epicor) and map parts automatically. No rip-and-replace.",
+        "trust": "200+ defense subcontractors on the platform. DCMA-accepted audit reports. References from Tier 2 suppliers in similar verticals available on request."
+      },
+      "trial": {
+        "duration_days": 0,
+        "credit_card_required": false,
+        "includes": "No free trial (ITAR data handling restrictions). Instead: 30-day proof of concept with a dedicated solutions engineer, using your actual parts data in an isolated sandbox. 60-day money-back guarantee."
+      }
+    }
+
+    📄/support/summary
+    {
+      "support-policy": {
+        "meta": {
+          "created_at": "2026-03-15T09:00:00.000000+00:00"
+        },
+        "section01-product": {
+          "title": "Product",
+          "question01-description": {
+            "a": "ShieldTrace is a supply chain compliance platform purpose-built for defense subcontractors. We automate ITAR/EAR classification tracking, parts provenance across multi-tier supply chains, end-use monitoring, and audit-ready documentation. The platform maintains a live compliance graph linking every part to its origin, classification, and export control status across your entire supplier network.",
+            "q": "What is the product?"
+          },
+          "question02-features": {
+            "a": "Automated ITAR/EAR classification engine, multi-tier supplier parts traceability, real-time compliance dashboard, DCMA audit-ready report generation, ERP integration (SAP, Oracle, Epicor, Costpoint), automated DDTC registration tracking, end-use certificate management, supplier risk scoring, change-order compliance impact analysis, FedRAMP Moderate authorized.",
+            "q": "What are the key features?"
+          },
+          "question03-ideal-customer-profile": {
+            "a": "Tier 2/3 defense subcontractors (50-500 employees), aerospace MRO shops needing parts traceability, defense primes looking to push compliance visibility down their supply chain, companies undergoing DCMA audits or recovering from compliance findings.",
+            "q": "Who is the ideal customer (ICP)?"
+          }
+        },
+        "section02-future-ops": {
+          "title": "Pricing & Billing",
+          "question01-shipping": {
+            "a": "",
+            "q": "Shipping methods, costs, times?"
+          },
+          "question04-payments": {
+            "a": "Annual subscription, priced by supplier-tier count and part volume. Essentials: $3,000/month (up to 5,000 tracked parts, 20 suppliers). Professional: $6,000/month (up to 25,000 parts, 100 suppliers, includes ERP integration). Enterprise: custom pricing (unlimited parts/suppliers, dedicated CSM, IL4/IL5 deployment options). All plans include compliance dashboard and DCMA audit reports. ACH or wire transfer. Net-30 terms available for government contractors.",
+            "q": "Payment options & pricing?"
+          },
+          "question02-returns": {
+            "a": "60-day money-back guarantee on subscription fees for new customers. Pro-rated refund if canceling mid-term after the guarantee period.",
+            "q": "Refund policy?"
+          }
+        },
+        "section03-support": {
+          "title": "Support",
+          "question01-channels": {
+            "a": "Telegram @shieldtrace_support, email support@shieldtrace.com, phone (Professional/Enterprise): +1-703-555-0238",
+            "q": "Support channels (email, chat, etc.)?"
+          },
+          "question02-escalation": {
+            "a": "Classified data handling questions, FedRAMP/IL4/IL5 deployment, ITAR violation remediation, government contract requirements, enterprise pricing, security clearance discussions",
+            "q": "When to escalate to human?"
+          }
+        },
+        "section04-restrictions": {
+          "title": "Restrictions",
+          "question01-never-say": {
+            "a": "Never provide legal interpretations of ITAR/EAR regulations — always recommend consulting export control counsel. Never guarantee specific audit outcomes. Never claim to handle classified (CUI/FOUO/Secret) data unless the customer is on an IL4/IL5 deployment — always search first. Never promise compliance certifications not yet obtained. Never discuss other customers' defense programs or contracts.",
+            "q": "What should support NEVER say?"
+          }
+        }
+      }
+    }
+- role: user
+  content: |-
+    Telegram private user='Megan Torres' chat_id=72839156
+    hi — we almost lost our Raytheon subcontract last quarter because of an ITAR compliance gap. looking for something better than spreadsheets
+- role: assistant
+  tool_calls:
+    - id: call_as_01
+      type: function
+      function:
+        name: flexus_kanban_public
+        arguments: '{"op": "status_public", "search": null, "resolution": null, "details_json": null, "restart_summary": null}'
+- role: tool
+  content: |
+    The current task with details:
+    {
+      "id": "kT9rW4nPmB",
+      "title": "Telegram private user='Megan Torres' chat_id=72839156\nhi \u2014 we almost lost our Raytheon subcontract last quarter because of an ITAR compliance gap. looking for something better than spreadsheets",
+      "details": {
+        "chat_id": 72839156,
+        "chat_type": "private",
+        "message_id": 3407,
+        "attachments": [],
+        "message_text": "hi \u2014 we almost lost our Raytheon subcontract last quarter because of an ITAR compliance gap. looking for something better than spreadsheets",
+        "message_author_id": 72839156,
+        "message_author_name": "Megan Torres"
+      }
+    }
+
+    Inbox:
+    [
+    ]
+
+    Todo:
+    [
+    ]
+
+    In Progress:
+    [
+    {"id": "kT9rW4nPmB", "title": "Telegram private user='Megan Torres' chat_id=72839156\nhi \u2014 we almost lost our Raytheon subcontract last quarter because of an ITAR compliance gap. looking for something better than spreadsheets", "human": "telegram:72839156"},
+    ]
+
+    Done:
+    [
+    ]
+  call_id: call_as_01
+- role: title
+  content: "[telegram] [megan] [sales] Megan Torres — ITAR compliance gap, nearly lost Raytheon subcontract"
+- role: assistant
+  tool_calls:
+    - id: call_as_02
+      type: function
+      function:
+        name: telegram
+        arguments: '{"op": "capture", "args": {"chat_id": 72839156}}'
+- role: tool
+  content: |
+    📌CAPTURED
+
+    The next thing you write will be visible. Don't comment on that fact and think about what do you want to say in '72839156'.
+    Don't use op=post because now anything you say is visible automatically.
+
+    Reminder: after this point telegram MarkdownV2 markup rules are in effect for your output, there are no tables! Here's markup help for you again.
+
+
+    Telegram uses MarkdownV2 markup:
+    *bold*  _italic_  __underline__  ~strikethrough~
+    `inline code`
+    ```python
+    code block
+    ```
+    [link text](https://example.com)
+    ||spoiler||
+
+    > blockquote
+    > each line must start with >
+
+    No bullet lists or tables.
+  call_id: call_as_02
+- role: assistant
+  content: "Hey Megan\\. I'm Karen, AI assistant at ShieldTrace\\. Almost losing a prime contract over compliance — that's a rough spot to be in\\. Can you tell me more about what happened? What did the auditors flag?"
+- role: user
+  content:
+    - m_type: text
+      m_content: |-
+        👤Megan Torres
+
+        we're a Tier 2 supplier, about 180 people. we make avionics housings and connectors. the DCMA auditor found that we couldn't trace the origin of 3 titanium alloy lots back through our sub-suppliers. it took us 6 weeks of scrambling through emails and spreadsheets to reconstruct the chain. Raytheon put us on probation
+- role: assistant
+  content: "6 weeks to trace 3 lots — and that's with your team dropping everything to do it\\. I can see why spreadsheets aren't cutting it anymore\\. How many suppliers are you tracking parts through right now?"
+- role: user
+  content:
+    - m_type: text
+      m_content: |-
+        👤Megan Torres
+
+        about 40 direct suppliers but some of those source from their own subs so the real number is probably 80+. we have no visibility past tier 1 honestly. that's what killed us — the titanium came from a tier 3 supplier in a country that wasn't on our approved list and nobody caught it
+- role: assistant
+  tool_calls:
+    - id: call_as_03
+      type: function
+      function:
+        name: flexus_vector_search
+        arguments: '{"eds": "", "query": "multi-tier supplier traceability parts provenance origin tracking"}'
+- role: tool
+  content: |+
+    For your query 'multi-tier supplier traceability parts provenance origin tracking' found 3 results in database of 2400 chunks across 52 indexed documents.
+
+    <original_text>
+    ShieldTrace maintains a live compliance graph linking every part to its origin, classification, and export control status across your entire supplier network — not just Tier 1, but all the way down. When a supplier onboards a new sub-supplier or sources from a new country, the system flags it automatically against your approved country list and ITAR/EAR classifications.
+    </original_text>
+
+    <original_text>
+    Supplier onboarding: ShieldTrace sends automated questionnaires to your sub-suppliers, collecting origin data, certifications, and end-use declarations. Most Tier 1 suppliers complete onboarding in 3-5 days. Tier 2/3 visibility builds automatically as suppliers add their own sources.
+    </original_text>
+
+  call_id: call_as_03
+- role: assistant
+  content: |-
+    That's exactly the gap that burns people — Tier 1 looks clean, but the exposure is two levels down where you have zero visibility\.
+
+    So here's what ShieldTrace does: we build a live compliance graph across your entire supplier network — not just your direct 40, but their subs too\. Every part is linked to its origin, ITAR/EAR classification, and export control status\. If a Tier 3 supplier sources from a non\-approved country, the system flags it automatically *before* it becomes a finding\.
+
+    Your suppliers get automated onboarding questionnaires — most Tier 1s complete it in 3\-5 days, and the deeper tiers build out from there\.
+
+    Would that have caught the titanium issue?
+- role: user
+  content:
+    - m_type: text
+      m_content: |-
+        👤Megan Torres
+
+        yes that would have caught it months earlier. ok but here's my concern — we deal with ITAR-controlled technical data. some of our drawings are export-controlled. where does your platform actually store this data? I can't have defense technical data sitting on some shared cloud
+- role: assistant
+  tool_calls:
+    - id: call_as_04
+      type: function
+      function:
+        name: flexus_vector_search
+        arguments: '{"eds": "", "query": "FedRAMP GovCloud data security ITAR technical data storage encryption"}'
+- role: tool
+  content: |+
+    For your query 'FedRAMP GovCloud data security ITAR technical data storage encryption' found 3 results in database of 2400 chunks across 52 indexed documents.
+
+    <original_text>
+    ShieldTrace is FedRAMP Moderate authorized and deployed on AWS GovCloud (US). All data is encrypted at rest (AES-256) and in transit (TLS 1.3). ITAR-controlled technical data is stored in isolated, US-person-only accessible environments. Platform access requires US person verification for any ITAR-restricted workspace.
+    </original_text>
+
+    <original_text>
+    For customers requiring higher security postures (CUI, IL4/IL5), ShieldTrace offers dedicated deployment options with additional access controls and network isolation. Contact our security engineering team for IL4/IL5 requirements.
+    </original_text>
+
+  call_id: call_as_04
+- role: assistant
+  content: |-
+    Good question — this is non\-negotiable in defense, so let me be specific\.
+
+    ShieldTrace is FedRAMP Moderate authorized, deployed on AWS GovCloud\. All data encrypted at rest \(AES\-256\) and in transit \(TLS 1\.3\)\. ITAR\-controlled workspaces are isolated and restricted to US persons only\.
+
+    That said — if you're dealing with anything that falls under CUI or you need IL4/IL5 level controls, I'd want to connect you with our security engineering team rather than me guessing at your classification levels\. They can walk through your specific data types and make sure the deployment matches\. Want me to set that up?
+- role: user
+  content:
+    - m_type: text
+      m_content: |-
+        👤Megan Torres
+
+        FedRAMP Moderate on GovCloud is fine for what we need right now. we're not handling classified, just ITAR controlled unclassified. what does this cost? we got budget approval after the audit mess — my boss signed off on up to $5K/month for a compliance tool
+- role: assistant
+  tool_calls:
+    - id: call_as_05
+      type: function
+      function:
+        name: flexus_vector_search
+        arguments: '{"eds": "", "query": "pricing plans subscription cost per month parts suppliers"}'
+- role: tool
+  content: |+
+    For your query 'pricing plans subscription cost per month parts suppliers' found 2 results in database of 2400 chunks across 52 indexed documents.
+
+    <original_text>
+    Pricing tiers (annual subscription):
+    - Essentials: $3,000/month (up to 5,000 tracked parts, 20 suppliers). Includes compliance dashboard and DCMA audit reports.
+    - Professional: $6,000/month (up to 25,000 parts, 100 suppliers). Includes ERP integration (SAP, Oracle, Epicor, Costpoint), advanced supplier risk scoring, and change-order compliance impact analysis.
+    - Enterprise: custom pricing (unlimited parts/suppliers, dedicated CSM, IL4/IL5 deployment options).
+    All plans billed annually. Net-30 terms available for government contractors.
+    </original_text>
+
+  call_id: call_as_05
+- role: assistant
+  content: |-
+    With 40\+ direct suppliers and likely thousands of tracked parts, here's what fits:
+
+    *Essentials*: $3,000/month — up to 5,000 parts, 20 suppliers\. Includes compliance dashboard and DCMA audit\-ready reports\.
+
+    *Professional*: $6,000/month — up to 25,000 parts, 100 suppliers\. Adds ERP integration, supplier risk scoring, and change\-order compliance impact analysis\.
+
+    At 40 direct suppliers \(and 80\+ total\), you'd need Professional to get full multi\-tier coverage\. That's above your $5K approval, but it includes the ERP integration — what system are you on now?
+- role: user
+  content:
+    - m_type: text
+      m_content: |-
+        👤Megan Torres
+
+        we're on Epicor. and yeah $6K is above what I got approved. the Essentials plan won't cover our supplier count either. I'd need to go back to my VP of Programs to get the extra budget approved. she's supportive after the Raytheon scare but I need to show her something concrete
+- role: assistant
+  content: |-
+    Makes sense — after what happened with Raytheon, the business case practically writes itself: one ITAR violation fine starts at $500K\. A $6K/month tool is insurance\.
+
+    Here's what I'd suggest: we can set up a 30\-day proof of concept with a dedicated solutions engineer\. They'll import a subset of your Epicor data into an isolated sandbox and build out traceability for a few of your critical programs\. Your VP gets to see real results with your actual parts data before committing\.
+
+    No charge for the POC\. If it doesn't prove the value, you walk away\.
+
+    Would that give your VP what she needs to greenlight it?
+- role: user
+  content:
+    - m_type: text
+      m_content: |-
+        👤Megan Torres
+
+        a POC with our actual Epicor data would be exactly what she'd want to see. when can we start? our next DCMA audit is in about 90 days and I do NOT want a repeat of last time
+- role: assistant
+  tool_calls:
+    - id: call_as_06
+      type: function
+      function:
+        name: manage_crm_contact
+        arguments: '{"op": "create", "args": {"contact_first_name": "Megan", "contact_last_name": "Torres", "contact_notes": "Compliance officer at Tier 2 defense subcontractor (~180 employees). Manufactures avionics housings and connectors. Nearly lost Raytheon subcontract after DCMA auditor found untraceable titanium alloy lots from non-approved Tier 3 country. Currently tracking 40+ direct suppliers (80+ total) via spreadsheets. On Epicor ERP. Budget approved for $5K/mo after audit failure, needs VP of Programs sign-off for $6K Professional plan. DCMA audit in ~90 days. Wants 30-day POC with actual Epicor data.", "contact_tags": ["lead", "defense", "tier-2-supplier", "itar", "compliance-recovery"], "contact_bant_score": 3}}'
+    - id: call_as_07
+      type: function
+      function:
+        name: manage_crm_deal
+        arguments: '{"op": "create", "args": {"deal_name": "Megan Torres / Avionics Supplier — ITAR Compliance Platform (Professional)", "deal_stage": "QUALIFICATION"}}'
+- role: tool
+  content: |-
+    ✅ Created: cnt_Rm8nK3pW
+  call_id: call_as_06
+- role: tool
+  content: |-
+    ✅ Created: deal_Bv6tJ2xN
+  call_id: call_as_07
+- role: assistant
+  tool_calls:
+    - id: call_as_08
+      type: function
+      function:
+        name: log_crm_activity
+        arguments: '{"contact_id": "cnt_Rm8nK3pW", "activity_type": "MESSENGER_CHAT", "direction": "INBOUND", "platform": "TELEGRAM", "title": "Sales qualification — ITAR compliance platform after Raytheon audit finding", "summary": "Megan Torres, compliance officer at Tier 2 defense subcontractor (180 people, avionics housings/connectors). Nearly lost Raytheon subcontract — DCMA auditor found 3 titanium alloy lots untraceable through Tier 3 supply chain from non-approved country. 6 weeks to reconstruct provenance manually. 40+ direct suppliers (80+ total), zero visibility past Tier 1. On Epicor ERP. Addressed: multi-tier traceability, auto-flagging of non-approved origins, FedRAMP Moderate/GovCloud security. Pricing: Professional plan ($6K/mo) needed for supplier count — above $5K/mo approved budget. VP of Programs must approve delta. Proposed 30-day POC with actual Epicor data. Next DCMA audit in ~90 days. BANT: Budget=1 ($5K approved, $6K needed — small delta, strong business case post-audit), Authority=0 (needs VP of Programs sign-off), Need=1 (urgent — nearly lost prime contract, audit in 90 days), Timeline=1 (active procurement, 90-day deadline). ESCALATION: solutions engineering for POC setup + Epicor integration."}'
+- role: tool
+  content: |-
+    ✅ Activity logged
+  call_id: call_as_08
+- role: assistant
+  content: |-
+    Good timing — let's get ahead of that audit\.
+
+    Here's the plan:
+    1\. I'm connecting you with our solutions engineering team to kick off the POC\. They'll coordinate the Epicor data import and sandbox setup\.
+    2\. POC runs 30 days — your VP sees real traceability on your actual programs\.
+    3\. If it proves out, you're live well before the 90\-day audit window\.
+
+    Can you share your email so the solutions team can reach out directly?
+- role: user
+  content:
+    - m_type: text
+      m_content: |-
+        👤Megan Torres
+
+        megan.torres@aerolinkcorp.com — and thanks Karen, this is the first tool I've looked at that actually understands what defense suppliers deal with. talk soon
+- role: assistant
+  tool_calls:
+    - id: call_as_09
+      type: function
+      function:
+        name: manage_crm_contact
+        arguments: '{"op": "patch", "args": {"contact_id": "cnt_Rm8nK3pW", "contact_email": "megan.torres@aerolinkcorp.com"}}'
+- role: tool
+  content: |-
+    ✅ Updated: cnt_Rm8nK3pW
+  call_id: call_as_09
+- role: assistant
+  tool_calls:
+    - id: call_as_10
+      type: function
+      function:
+        name: flexus_kanban_public
+        arguments: '{"op": "resolve", "resolution": {"code": "SUCCESS", "summary": "Sales qualification: Megan Torres, compliance officer at AeroLink Corp (Tier 2 defense subcontractor, 180 employees, avionics housings/connectors). Nearly lost Raytheon subcontract after DCMA finding — untraceable titanium lots from non-approved Tier 3 country. 40+ direct suppliers, 80+ total, zero visibility past Tier 1. On Epicor ERP. Addressed multi-tier traceability, auto-flagging, FedRAMP Moderate/GovCloud security. Professional plan ($6K/mo) above $5K approved — needs VP of Programs sign-off. Proposed 30-day POC with Epicor data. Next DCMA audit in ~90 days. BANT 3/4 (Budget=1, Authority=0, Need=1, Timeline=1). ESCALATION: solutions engineering for POC setup. Email: megan.torres@aerolinkcorp.com. CRM contact + deal + activity logged.", "humanhours": 0.3, "uncapture": true, "pdoc_paths": []}}'
+- role: tool
+  content: |-
+    Moved to done kT9rW4nPmB
+
+    Uncaptured the chat, no one can see your messages now, all left to do is to say TASK_COMPLETED
+  call_id: call_as_10
+- role: assistant
+  content: TASK_COMPLETED
