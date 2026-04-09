@@ -61,10 +61,11 @@ def dataclass_from_dict(data: Dict[str, Any], cls: Type[T]) -> T:
     Most of the code in this project is server side, but chat advancer and some other isolated services are
     client side, meaning they use GraphQL to communicate with the server.
     """
-    filtered_data = {k: v for k, v in data.items() if k in cls.__annotations__}
+    hints = get_type_hints(cls)
+    filtered_data = {k: v for k, v in data.items() if k in hints}
     for field_name, field_value in filtered_data.items():
-        if field_value is not None and field_name in cls.__annotations__:
-            field_type = cls.__annotations__[field_name]
+        if field_value is not None:
+            field_type = hints[field_name]
             if hasattr(field_type, "__origin__") and field_type.__origin__ is Union:
                 inner_types = [arg for arg in field_type.__args__ if arg is not type(None)]
                 if inner_types:
