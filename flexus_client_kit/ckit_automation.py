@@ -6,10 +6,20 @@ import logging
 from pathlib import Path
 from typing import Any, Optional
 
+import aiohttp
+import gql
+import gql.transport.exceptions
 import jsonschema
-from pymongo.errors import PyMongoError
+
+from flexus_client_kit import ckit_client
 
 logger = logging.getLogger(__name__)
+
+_GQL_DISABLED_RULES = gql.gql(
+    """query AutomationDisabledRulesRuntime($persona_id: String!) {
+        automation_disabled_rules(persona_id: $persona_id)
+    }"""
+)
 
 # Loaded by set_automation_schema_dict() from ckit_automation_v1_schema_build (authoritative) or
 # set_automation_schema(path) for tests / offline fixtures.
@@ -113,8 +123,18 @@ def validate_automation_json(data: dict) -> list[str]:
 
 
 class DisabledRulesCache:
-    def __init__(self, mongo_db: Any, interval: float = 30.0):
-        self._mongo_db = mongo_db
+    """
+    In-memory cache of disabled automation rule IDs for a persona, refreshed periodically
+    from the backend GraphQL automation_disabled_rules endpoint.
+
+    Polling at 5 s so that rule enable/disable toggles made in the UI propagate to the
+    runtime within a few seconds without requiring a bot restart.  The GQL query is cheap
+    (returns only a list of IDs), so the extra request frequency is negligible.
+    """
+
+    def __init__(self, fclient: ckit_client.FlexusClient, persona_id: str, interval: float = 5.0):
+        self._fclient = fclient
+        self._persona_id = persona_id
         self._interval = interval
         self._disabled: set = set()
         self._task: Optional[asyncio.Task] = None
@@ -136,15 +156,19 @@ class DisabledRulesCache:
 
     async def _refresh(self) -> None:
         try:
-            doc = await self._mongo_db["bot_runtime_config"].find_one({"_id": "disabled_rule_ids"})
-            if doc and isinstance(doc.get("ids"), list):
-                self._disabled = {str(x) for x in doc["ids"] if x}
-            else:
-                self._disabled = set()
-        except PyMongoError as e:
-            logger.warning("DisabledRulesCache refresh failed (mongo), keeping last known state: %s %s", type(e).__name__, e)
-        except (TypeError, ValueError) as e:
-            logger.warning("DisabledRulesCache refresh failed (bad doc), keeping last known state: %s %s", type(e).__name__, e)
+            async with (await self._fclient.use_http_on_behalf(self._persona_id, "")) as http:
+                result = await http.execute(
+                    _GQL_DISABLED_RULES,
+                    variable_values={"persona_id": self._persona_id},
+                )
+            ids = result.get("automation_disabled_rules") or []
+            self._disabled = {str(x) for x in ids if x}
+        except gql.transport.exceptions.TransportError as e:
+            logger.warning("DisabledRulesCache refresh failed (backend), keeping last known state: %s %s", type(e).__name__, e)
+        except aiohttp.ClientError as e:
+            logger.warning("DisabledRulesCache refresh failed (network), keeping last known state: %s %s", type(e).__name__, e)
+        except (TypeError, ValueError, KeyError) as e:
+            logger.warning("DisabledRulesCache refresh failed (bad response), keeping last known state: %s %s", type(e).__name__, e)
 
     async def _loop(self) -> None:
         while True:

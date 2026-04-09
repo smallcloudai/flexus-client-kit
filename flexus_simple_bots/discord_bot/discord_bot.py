@@ -403,7 +403,7 @@ async def discord_bot_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot
     await ckit_crm_members.migrate_legacy_collections(mongo_db)
     await ckit_crm_members.ensure_member_indexes(mongo_db)
 
-    disabled_cache = DisabledRulesCache(mongo_db)
+    disabled_cache = DisabledRulesCache(fclient, rcx.persona.persona_id)
     await disabled_cache.start()
 
     rules = ckit_automation_engine.load_rules(persona_setup_raw)
