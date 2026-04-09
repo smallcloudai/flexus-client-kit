@@ -55,6 +55,9 @@ class IntegrationMagicDesk(fi_messenger.FlexusMessenger):
         self._to_mdesk_dedup = deque(maxlen=10000)
         self._to_mdesk_dedup_set: set = set()
         # Buffer messages before capture, in case people write multiple message in a row before bot responds
+        #
+        # XXX: How can we really treat this case of people writing multiple messages before capture in a better way?
+        # Also needs to be applied to fi_telegram, fi_slack and other messengers
         self._precapture_buffer: Dict[str, tuple[float, list]] = {}  # session_id -> (buffered_ts, [(text, ext_id), ...])
         self._precapture_buffer_deque = deque(maxlen=500)
 
