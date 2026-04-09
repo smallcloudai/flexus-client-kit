@@ -1,11 +1,8 @@
 import ast
 import argparse
 import json
-import os
 import re
 import shlex
-import subprocess
-import sys
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
@@ -25,7 +22,6 @@ class BotInfoEntry:
     bot_family: str
     marketable_name: str
     runtime_start_cmd: str
-    publish_install_cmd: str
     runtime_entry_path: str
     avatar_path_small: str
     avatar_candidates: list[str]
@@ -46,6 +42,25 @@ def _normalize_rel_path(path: str) -> str:
     return path.replace("\\", "/").strip("/")
 
 
+def _placeholder_entry(workdir: Path, bot_abs: Path, manifest_file_path: Path, code_bot_files: list[Path], code_install_files: list[Path]) -> BotInfoEntry:
+    bot_dir = _normalize_rel_path(str(bot_abs.relative_to(workdir)))
+    runtime_entry_path = _normalize_rel_path(str(code_bot_files[0].relative_to(workdir))) if len(code_bot_files) == 1 else ""
+    install_entry_path = _normalize_rel_path(str(code_install_files[0].relative_to(workdir))) if len(code_install_files) == 1 else ""
+    manifest_rel = _normalize_rel_path(str(manifest_file_path.relative_to(workdir))) if manifest_file_path.is_file() else ""
+    return BotInfoEntry(
+        bot_dir=bot_dir,
+        bot_family="manifest" if manifest_rel else "code",
+        marketable_name=bot_abs.name,
+        runtime_start_cmd="",
+        runtime_entry_path=runtime_entry_path or manifest_rel,
+        avatar_path_small="",
+        avatar_candidates=[],
+        metadata_summary={},
+        install_entry_path=install_entry_path,
+        manifest_file_path=manifest_rel,
+    )
+
+
 def _normalize_workspace_cmd(command: str) -> str:
     cmd = command.strip()
     if cmd.startswith("python -m pip"):
@@ -57,23 +72,6 @@ def _normalize_workspace_cmd(command: str) -> str:
     if cmd.startswith("cd /workspace"):
         return cmd
     return f"cd /workspace && {cmd}"
-
-
-def _strip_workspace_prefix(command: str) -> str:
-    cmd = command.strip()
-    if cmd.startswith("cd /workspace &&"):
-        return cmd[len("cd /workspace &&"):].strip()
-    if cmd.startswith("cd /workspace;"):
-        return cmd[len("cd /workspace;"):].strip()
-    return cmd
-
-
-def _join_publish_install_cmd(marketable_install_cmd: str) -> str:
-    cmd = _strip_workspace_prefix(marketable_install_cmd)
-    base = "cd /workspace && python3 -m pip install -e ."
-    if not cmd or cmd == "python3 -m pip install -e ." or cmd == "python -m pip install -e .":
-        return base
-    return f"{base} && {cmd}"
 
 
 def _check_root_installable(workdir: Path) -> tuple[bool, str]:
@@ -481,7 +479,6 @@ def _manifest_entry(workdir: Path, bot_abs: Path, root_installable: bool, root_i
 
     manifest_file_path = f"{bot_dir}/manifest.json"
     runtime_start_cmd = f"cd /workspace && python3 -u -m flexus_client_kit.no_special_code_bot {shlex.quote(bot_dir)}"
-    publish_install_cmd = _join_publish_install_cmd("")
     avatar_candidates = _avatar_candidates_manifest(workdir, bot_abs, marketable_name)
     avatar_path_small = avatar_candidates[0] if avatar_candidates else ""
 
@@ -490,7 +487,6 @@ def _manifest_entry(workdir: Path, bot_abs: Path, root_installable: bool, root_i
         bot_family="manifest",
         marketable_name=marketable_name,
         runtime_start_cmd=runtime_start_cmd,
-        publish_install_cmd=publish_install_cmd,
         runtime_entry_path=manifest_file_path,
         avatar_path_small=avatar_path_small,
         avatar_candidates=avatar_candidates,
@@ -517,28 +513,25 @@ def _code_entry(workdir: Path, bot_abs: Path, bot_py: Path, install_py: Path, ro
     if bot_name_from_file != folder_name:
         return _InspectResult(bot_dir=bot_dir, supported=False, reason=f"name mismatch: folder {folder_name} != BOT_NAME {bot_name_from_file}")
 
-    if "marketable_name" not in captured or not isinstance(captured["marketable_name"], str):
-        return _InspectResult(bot_dir=bot_dir, supported=False, reason="install capture missing marketable_name")
-    if captured["marketable_name"] != folder_name:
-        return _InspectResult(bot_dir=bot_dir, supported=False, reason=f"name mismatch: folder {folder_name} != install marketable_name {captured['marketable_name']}")
-
     if "marketable_run_this" not in captured or not isinstance(captured["marketable_run_this"], str) or not captured["marketable_run_this"].strip():
         return _InspectResult(bot_dir=bot_dir, supported=False, reason="install capture missing marketable_run_this")
+
+    marketable_name = captured["marketable_name"] if "marketable_name" in captured and isinstance(captured["marketable_name"], str) and captured["marketable_name"].strip() else bot_name_from_file or folder_name
+    if marketable_name != folder_name:
+        return _InspectResult(bot_dir=bot_dir, supported=False, reason=f"name mismatch: folder {folder_name} != install marketable_name {marketable_name}")
 
     entry_bot_py = _normalize_rel_path(str(bot_py.relative_to(workdir)))
     entry_install_py = _normalize_rel_path(str(install_py.relative_to(workdir)))
     runtime_start_cmd = _normalize_workspace_cmd(captured["marketable_run_this"])
 
-    publish_install_cmd = _join_publish_install_cmd("")
     avatar_candidates = _avatar_candidates_code(workdir, bot_abs, install_py, folder_name)
     avatar_path_small = avatar_candidates[0] if avatar_candidates else ""
 
     entry = BotInfoEntry(
         bot_dir=bot_dir,
         bot_family="code",
-        marketable_name=captured["marketable_name"],
+        marketable_name=marketable_name,
         runtime_start_cmd=runtime_start_cmd,
-        publish_install_cmd=publish_install_cmd,
         runtime_entry_path=entry_bot_py,
         avatar_path_small=avatar_path_small,
         avatar_candidates=avatar_candidates,
@@ -550,32 +543,41 @@ def _code_entry(workdir: Path, bot_abs: Path, bot_py: Path, install_py: Path, ro
 
 def _inspect_bot_dir(workdir: Path, bot_abs: Path, root_installable: bool, root_install_error: str) -> _InspectResult:
     bot_dir = _normalize_rel_path(str(bot_abs.relative_to(workdir)))
-    if not _BOT_DIR_RE.match(bot_dir):
-        return _InspectResult(bot_dir=bot_dir, supported=False, reason="bot_dir must be folder1/bot1")
-
     manifest_file_path = bot_abs / "manifest.json"
     code_bot_files = sorted([x for x in bot_abs.glob("*_bot.py") if x.is_file()])
     code_install_files = sorted([x for x in bot_abs.glob("*_install.py") if x.is_file()])
+    if not manifest_file_path.is_file() and len(code_bot_files) == 0 and len(code_install_files) == 0:
+        return _InspectResult(bot_dir=bot_dir, supported=False)
+    placeholder = _placeholder_entry(workdir, bot_abs, manifest_file_path, code_bot_files, code_install_files)
+
+    if not _BOT_DIR_RE.match(bot_dir):
+        return _InspectResult(bot_dir=bot_dir, supported=False, reason="bot_dir must be folder1/bot1", entry=placeholder)
 
     if manifest_file_path.is_file() and code_bot_files:
-        return _InspectResult(bot_dir=bot_dir, supported=False, reason="manifest bot must not have *_bot.py")
+        return _InspectResult(bot_dir=bot_dir, supported=False, reason="manifest bot must not have *_bot.py", entry=placeholder)
 
     if manifest_file_path.is_file():
         if code_install_files:
-            return _InspectResult(bot_dir=bot_dir, supported=False, reason="manifest bot must not have *_install.py")
-        return _manifest_entry(workdir, bot_abs, root_installable, root_install_error)
+            return _InspectResult(bot_dir=bot_dir, supported=False, reason="manifest bot must not have *_install.py", entry=placeholder)
+        result = _manifest_entry(workdir, bot_abs, root_installable, root_install_error)
+        if result.entry is None:
+            result.entry = placeholder
+        return result
 
     if len(code_bot_files) != 1:
-        return _InspectResult(bot_dir=bot_dir, supported=False, reason="code bot must have exactly one *_bot.py")
+        return _InspectResult(bot_dir=bot_dir, supported=False, reason="code bot must have exactly one *_bot.py", entry=placeholder)
     if len(code_install_files) != 1:
-        return _InspectResult(bot_dir=bot_dir, supported=False, reason="code bot must have exactly one *_install.py")
+        return _InspectResult(bot_dir=bot_dir, supported=False, reason="code bot must have exactly one *_install.py", entry=placeholder)
 
     bot_stem = code_bot_files[0].name[:-len("_bot.py")]
     install_stem = code_install_files[0].name[:-len("_install.py")]
     if bot_stem != install_stem:
-        return _InspectResult(bot_dir=bot_dir, supported=False, reason=f"code bot mismatch: {code_bot_files[0].name} vs {code_install_files[0].name}")
+        return _InspectResult(bot_dir=bot_dir, supported=False, reason=f"code bot mismatch: {code_bot_files[0].name} vs {code_install_files[0].name}", entry=placeholder)
 
-    return _code_entry(workdir, bot_abs, code_bot_files[0], code_install_files[0], root_installable, root_install_error)
+    result = _code_entry(workdir, bot_abs, code_bot_files[0], code_install_files[0], root_installable, root_install_error)
+    if result.entry is None:
+        result.entry = placeholder
+    return result
 
 
 def repo_summary(workdir: str | Path) -> dict[str, Any]:
@@ -608,18 +610,21 @@ def repo_summary(workdir: str | Path) -> dict[str, Any]:
     unsupported_entries: list[dict[str, str]] = []
     for top_name, rows in by_top.items():
         for row in rows:
+            if not row.supported and not row.reason and row.entry is None:
+                continue
             if row.supported and row.entry:
-                if top_name == bots_root_dir:
-                    bots.append(asdict(row.entry))
-                else:
-                    unsupported_entries.append({
-                        "bot_dir": row.bot_dir,
-                        "reason": f"outside selected bots_root_dir={bots_root_dir}",
-                    })
+                bots.append(asdict(row.entry))
                 continue
             unsupported_entries.append({
                 "bot_dir": row.bot_dir,
                 "reason": row.reason,
+                "marketable_name": row.entry.marketable_name if row.entry else row.bot_dir.rsplit("/", 1)[-1],
+                "bot_family": row.entry.bot_family if row.entry else "code",
+                "runtime_entry_path": row.entry.runtime_entry_path if row.entry else "",
+                "install_entry_path": row.entry.install_entry_path if row.entry else "",
+                "manifest_file_path": row.entry.manifest_file_path if row.entry else "",
+                "avatar_path_small": row.entry.avatar_path_small if row.entry else "",
+                "metadata_summary": row.entry.metadata_summary if row.entry else {},
             })
 
     bots.sort(key=lambda x: x["bot_dir"])
@@ -645,6 +650,9 @@ def bot_entry(workdir: str | Path, bot_dir: str) -> dict[str, Any]:
     for entry in summary["bots"]:
         if entry["bot_dir"] == normalized:
             return {"ok": True, "entry": entry, "summary": summary}
+    for entry in summary["unsupported_entries"]:
+        if entry["bot_dir"] == normalized:
+            return {"ok": False, "error": entry["reason"], "summary": summary}
     return {"ok": False, "error": f"bot_dir not found: {normalized}", "summary": summary}
 
 
@@ -709,45 +717,6 @@ def _bump_code_bot_version(entry_bot_py: Path, bump_type: str) -> tuple[bool, st
     version_file.write_text(new_content)
     return True, f"Version: {old_version} -> {new_version}\nUpdated {version_var} in {version_file}"
 
-
-def _run_install_here(workdir: Path, bot_dir: str, bump: str | None) -> dict[str, Any]:
-    info = bot_entry(workdir, bot_dir)
-    if not info["ok"]:
-        return info
-    entry = info["entry"]
-    os.chdir(workdir)
-
-    if not ((workdir / "setup.py").exists() or (workdir / "pyproject.toml").exists()):
-        return {"ok": False, "error": "root setup.py or pyproject.toml is required"}
-
-    logs: list[str] = []
-    if entry["bot_family"] == "manifest":
-        manifest_path = workdir / entry["manifest_file_path"]
-        if not manifest_path.exists():
-            return {"ok": False, "error": f"manifest.json not found in {bot_dir}"}
-    else:
-        entry_bot_py = workdir / entry["runtime_entry_path"]
-        if not entry_bot_py.exists():
-            return {"ok": False, "error": f"Bot file not found: {entry['runtime_entry_path']}"}
-        ok, msg = _bump_code_bot_version(entry_bot_py, bump or "")
-        if not ok:
-            return {"ok": False, "error": msg}
-        if msg:
-            logs.append(msg)
-
-    logs.append("---\nInstalling package from repo root...")
-    r = subprocess.run([sys.executable, "-m", "pip", "install", "-e", "."], capture_output=True, text=True)
-    out = (r.stdout + r.stderr).strip().split("\n") if (r.stdout or r.stderr) else []
-    logs.extend([x for x in out[-20:] if x])
-    if r.returncode != 0:
-        logs.append(f"pip install failed with code {r.returncode}")
-        return {"ok": False, "error": "pip install failed", "output": "\n".join(logs)}
-    logs.append("Package installed")
-
-    logs.append("---\nInstall complete")
-    return {"ok": True, "output": "\n".join(logs), "entry": entry}
-
-
 def _bump_version_here(workdir: Path, bot_dir: str, bump: str | None) -> dict[str, Any]:
     info = bot_entry(workdir, bot_dir)
     if not info["ok"]:
@@ -762,46 +731,6 @@ def _bump_version_here(workdir: Path, bot_dir: str, bump: str | None) -> dict[st
     if not ok:
         return {"ok": False, "error": msg}
     return {"ok": True, "output": msg, "entry": entry}
-
-
-def build_install_cmd(entry: dict[str, Any], bump: str | None = None) -> tuple[str, str]:
-    if "bot_family" not in entry or "bot_dir" not in entry:
-        return "", "bad entry payload"
-    cmds: list[str] = []
-    if entry["bot_family"] == "code" and bump in ("patch", "minor", "major"):
-        bump_args = [
-            sys.executable,
-            "-m",
-            "flexus_client_kit.bot_info",
-            "bump-version",
-            "--workdir",
-            "/workspace",
-            "--bot-dir",
-            entry["bot_dir"],
-            "--bump",
-            bump,
-        ]
-        cmds.append(" ".join(shlex.quote(x) for x in bump_args) + " >/tmp/flexus_bot_install_bump.log 2>&1 || (cat /tmp/flexus_bot_install_bump.log; exit 1)")
-    cmds.append("cd /workspace && python3 -m pip install -e .")
-    return " && ".join(cmds) + " 2>&1", ""
-
-
-def install_cmd(workdir: str | Path, bot_dir: str, bump: str | None = None) -> dict[str, Any]:
-    info = bot_entry(workdir, bot_dir)
-    if not info["ok"]:
-        return info
-    entry = info["entry"]
-    cmd, err = build_install_cmd(entry, bump)
-    if err:
-        return {"ok": False, "error": err}
-    return {
-        "ok": True,
-        "bot_dir": entry["bot_dir"],
-        "marketable_name": entry["marketable_name"],
-        "install_cmd": cmd,
-        "entry": entry,
-    }
-
 
 def _print_json(payload: dict[str, Any]) -> None:
     print(json.dumps(payload, ensure_ascii=False))
@@ -818,19 +747,9 @@ def main() -> int:
     p_entry.add_argument("--workdir", default="/workspace")
     p_entry.add_argument("--bot-dir", required=True)
 
-    p_install = sub.add_parser("install-cmd")
-    p_install.add_argument("--workdir", default="/workspace")
-    p_install.add_argument("--bot-dir", required=True)
-    p_install.add_argument("--bump", default="")
-
     p_capture = sub.add_parser("capture-install-meta")
     p_capture.add_argument("--install-file", required=True)
     p_capture.add_argument("--bot-name", required=True)
-
-    p_run_install = sub.add_parser("run-install")
-    p_run_install.add_argument("--workdir", default="/workspace")
-    p_run_install.add_argument("--bot-dir", required=True)
-    p_run_install.add_argument("--bump", default="")
 
     p_bump_version = sub.add_parser("bump-version")
     p_bump_version.add_argument("--workdir", default="/workspace")
@@ -847,18 +766,8 @@ def main() -> int:
         _print_json(bot_entry(args.workdir, args.bot_dir))
         return 0
 
-    if args.op == "install-cmd":
-        bump = args.bump if args.bump in ("patch", "minor", "major") else None
-        _print_json(install_cmd(args.workdir, args.bot_dir, bump=bump))
-        return 0
-
     if args.op == "capture-install-meta":
         _print_json(_capture_install_metadata_here(Path(args.install_file).resolve(), args.bot_name))
-        return 0
-
-    if args.op == "run-install":
-        bump = args.bump if args.bump in ("patch", "minor", "major") else None
-        _print_json(_run_install_here(Path(args.workdir).resolve(), args.bot_dir, bump))
         return 0
 
     if args.op == "bump-version":
