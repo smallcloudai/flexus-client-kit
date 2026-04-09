@@ -546,7 +546,7 @@ def _inspect_bot_dir(workdir: Path, bot_abs: Path, root_installable: bool, root_
     manifest_file_path = bot_abs / "manifest.json"
     code_bot_files = sorted([x for x in bot_abs.glob("*_bot.py") if x.is_file()])
     code_install_files = sorted([x for x in bot_abs.glob("*_install.py") if x.is_file()])
-    if not manifest_file_path.is_file() and len(code_bot_files) == 0 and len(code_install_files) == 0:
+    if not manifest_file_path.is_file() and len(code_bot_files) == 0:
         return _InspectResult(bot_dir=bot_dir, supported=False)
     placeholder = _placeholder_entry(workdir, bot_abs, manifest_file_path, code_bot_files, code_install_files)
 
