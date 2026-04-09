@@ -1,12 +1,11 @@
 import asyncio
-from collections import deque
 import email.utils
 import json
 import logging
 import re
 import time
 from pathlib import Path
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 
 from flexus_client_kit import ckit_client
 from flexus_client_kit import ckit_cloudtool
@@ -427,35 +426,26 @@ async def karen_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.
         msgs = [m for m in msgs if m.ftm_role != "system"]
         return ckit_messages.fmessages_to_yaml(msgs, limits={"assistant": 5000, "tool": 1000, "tool_args": 300})
 
-    _seen_done_deque = deque(maxlen=1000)
-    _seen_done_set = set()
-
     @rcx.on_updated_task
-    async def on_task_update(task: ckit_kanban.FPersonaKanbanTaskOutput):
-        if task.ktask_done_ts > 0:
-            if task.ktask_id in _seen_done_set:
-                return
-            if len(_seen_done_deque) == _seen_done_deque.maxlen:
-                _seen_done_set.discard(_seen_done_deque[0])
-            _seen_done_deque.append(task.ktask_id)
-            _seen_done_set.add(task.ktask_id)
-        if not rcx._completed_initial_unpark:
+    async def on_task_update(action: str, old_task: Optional[ckit_kanban.FPersonaKanbanTaskOutput], new_task: Optional[ckit_kanban.FPersonaKanbanTaskOutput]):
+        if action == "DELETE":
             return
-        if task.ktask_done_ts > 0 and task.ktask_human_id and task.ktask_fexp_name == "very_limited":
-            await ckit_kanban.bot_kanban_post_into_inbox(
-                await fclient.use_http_on_behalf(rcx.persona.persona_id, ""),
-                rcx.persona.persona_id,
-                title="Read linked thread, find/create contact, log activity, score BANT: %s" % task.ktask_title[:60],
-                human_id=task.ktask_human_id,
-                details_json=json.dumps({
-                    "spawned_from_ktask_id": task.ktask_id,
-                    "spawned_from_title": task.ktask_title,
-                    "from_thread_id": task.ktask_inprogress_ft_id,
-                    "human_id": task.ktask_human_id,
-                }),
-                provenance_message="karen_post_conversation",
-                fexp_name="post_conversation",
-            )
+        if new_task.ktask_done_ts > 0 and old_task and old_task.ktask_done_ts == 0 and \
+            new_task.ktask_human_id and new_task.ktask_fexp_name == "very_limited":
+                await ckit_kanban.bot_kanban_post_into_inbox(
+                    await fclient.use_http_on_behalf(rcx.persona.persona_id, ""),
+                    rcx.persona.persona_id,
+                    title="Read linked thread, find/create contact, log activity, score BANT: %s" % new_task.ktask_title[:60],
+                    human_id=new_task.ktask_human_id,
+                    details_json=json.dumps({
+                        "spawned_from_ktask_id": new_task.ktask_id,
+                        "spawned_from_title": new_task.ktask_title,
+                        "from_thread_id": new_task.ktask_inprogress_ft_id,
+                        "human_id": new_task.ktask_human_id,
+                    }),
+                    provenance_message="karen_post_conversation",
+                    fexp_name="post_conversation",
+                )
 
     @telegram.on_incoming_activity
     async def telegram_activity_callback(a: fi_telegram.ActivityTelegram, already_posted: bool):

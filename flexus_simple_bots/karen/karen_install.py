@@ -46,7 +46,7 @@ TOOLS_SUPPORT_AND_SALES = {
 TOOLS_POST_CONVERSATION = {
     "flexus_fetch_skill", "read_linked_thread",
     "erp_table_meta", "erp_table_data", "erp_table_crud",
-} | ckit_cloudtool.CLOUDTOOLS_SAFE
+} | ckit_cloudtool.KANBAN_SAFE
 
 TOOLS_NURTURING = {
     "flexus_policy_document", "mongo_store", "flexus_fetch_skill",
@@ -145,7 +145,9 @@ EXPERTS = [
         fexp_inactivity_timeout=300,
         fexp_model_class="cheap",
         fexp_description="Runs after customer conversations to log CRM activities, create/update contacts, and record BANT scores.",
-        fexp_builtin_skills=ckit_skills.read_name_description(karen_bot.KAREN_ROOTDIR, SKILLS_POST_CONVERSATION),
+        fexp_builtin_skills=ckit_skills.read_name_description(karen_bot.KAREN_ROOTDIR, [
+            "log-crm-activity",
+        ]),
     )),
     ("nurturing", ckit_bot_install.FMarketplaceExpertInput(
         fexp_system_prompt=karen_prompts.KAREN_NURTURING,
