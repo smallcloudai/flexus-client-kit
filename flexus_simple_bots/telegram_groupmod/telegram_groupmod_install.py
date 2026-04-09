@@ -44,7 +44,7 @@ EXPERTS = [
     ("review_messages", ckit_bot_install.FMarketplaceExpertInput(
         fexp_system_prompt=telegram_groupmod_prompts.prompt_groupmod_review_messages,
         fexp_python_kernel=REVIEWER_LARK,
-        fexp_allow_tools=",".join(ckit_cloudtool.CLOUDTOOLS_SAFE),
+        fexp_allow_tools=",".join(ckit_cloudtool.KANBAN_SAFE),
         fexp_nature="NATURE_AUTONOMOUS",
         fexp_inactivity_timeout=600,
         fexp_description="Reviews collected messages for offtopic, spam, and rule violations.",
@@ -52,7 +52,7 @@ EXPERTS = [
     ("talk_in_dm", ckit_bot_install.FMarketplaceExpertInput(
         fexp_system_prompt=telegram_groupmod_prompts.prompt_groupmod_talk_in_dm,
         fexp_python_kernel="",
-        fexp_allow_tools=",".join(ckit_cloudtool.CLOUDTOOLS_SAFE | ckit_cloudtool.CLOUDTOOLS_VECDB | {"telegram", "flexus_policy_document"}),
+        fexp_allow_tools=",".join(ckit_cloudtool.KANBAN_SAFE | ckit_cloudtool.CLOUDTOOLS_VECDB | {"telegram", "flexus_policy_document"}),
         fexp_nature="NATURE_SEMI_AUTONOMOUS",
         fexp_inactivity_timeout=600,
         fexp_description="Talks to people in Telegram DMs, answers questions, explains rules.",

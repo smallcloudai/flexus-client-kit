@@ -41,7 +41,7 @@ EXPERTS = [
     ("huntmode", ckit_bot_install.FMarketplaceExpertInput(
         fexp_system_prompt=frog_prompts.frog_prompt,
         fexp_python_kernel=FROG_SUBCHAT_LARK,
-        fexp_allow_tools=",".join(ckit_cloudtool.CLOUDTOOLS_SAFE | {"ribbit", "flexus_policy_document", "mongo_store", "make_pond_report"}),
+        fexp_allow_tools=",".join(ckit_cloudtool.KANBAN_SAFE | {"ribbit", "flexus_policy_document", "mongo_store", "make_pond_report"}),
         fexp_nature="NATURE_NO_TASK",
         fexp_description="Subchat expert for catching insects, respecting tongue_capacity limit.",
         fexp_subchat_only=True,

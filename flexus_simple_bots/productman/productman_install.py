@@ -47,14 +47,14 @@ EXPERTS = [
     ("criticize_idea", ckit_bot_install.FMarketplaceExpertInput(
         fexp_system_prompt=productman_prompts.productman_prompt_criticize_idea,
         fexp_python_kernel=PRODUCTMAN_CRITICIZE_LARK,
-        fexp_allow_tools=",".join(ckit_cloudtool.CLOUDTOOLS_SAFE),
+        fexp_allow_tools=",".join(ckit_cloudtool.KANBAN_SAFE),
         fexp_nature="NATURE_NO_TASK",
         fexp_description="Critically reviews idea documents, rating each answer as PASS, PASS-WITH-WARNINGS, or FAIL.",
     )),
     ("survey", ckit_bot_install.FMarketplaceExpertInput(
         fexp_system_prompt=productman_skill_survey.prompt,
         fexp_python_kernel=(productman_bot.PRODUCTMAN_ROOTDIR / "lark/survey_skill_kernel.lark").read_text(),
-        fexp_allow_tools=",".join(ckit_cloudtool.CLOUDTOOLS_SAFE),
+        fexp_allow_tools=",".join(ckit_cloudtool.KANBAN_SAFE),
         fexp_nature="NATURE_AUTONOMOUS",
         fexp_inactivity_timeout=600,
         fexp_description="Executes survey campaigns to validate hypotheses with real customer feedback.",
