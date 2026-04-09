@@ -61,8 +61,6 @@ async def install(client: ckit_client.FlexusClient):
         marketable_occupation="Motivational Assistant",
         marketable_description=(frog_bot.FROG_ROOTDIR / "README.md").read_text(),
         marketable_typical_group="Fun / Testing",
-        marketable_github_repo="https://github.com/smallcloudai/flexus-client-kit.git",
-        marketable_run_this="python -m flexus_simple_bots.frog.frog_bot",
         marketable_setup_default=frog_bot.FROG_SETUP_SCHEMA,
         marketable_featured_actions=[
             {"feat_question": "Ribbit! Tell me something fun", "feat_expert": "default", "feat_depends_on_setup": []},

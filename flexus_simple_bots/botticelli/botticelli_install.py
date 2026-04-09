@@ -68,8 +68,6 @@ async def install(client: ckit_client.FlexusClient):
         marketable_occupation="Meta Ads Creative Director",
         marketable_description=BOT_DESCRIPTION,
         marketable_typical_group="Testing",
-        marketable_github_repo="https://github.com/smallcloudai/flexus-client-kit.git",
-        marketable_run_this="python -m flexus_simple_bots.botticelli.botticelli_bot",
         marketable_setup_default=botticelli_bot.BOTTICELLI_SETUP_SCHEMA,
         marketable_featured_actions=[],
         marketable_intro_message="Hello, I am Botticelli. I create high-converting Meta Ads creatives optimized with cognitive biases. Ready to generate stunning FB/IG ad campaigns?",

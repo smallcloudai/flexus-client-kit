@@ -31,8 +31,6 @@ async def install(client: ckit_client.FlexusClient):
         marketable_occupation="Database Assistant",
         marketable_description="Database assistant that helps with PostgreSQL queries and data analysis.",
         marketable_typical_group="Admin Tools",
-        marketable_github_repo="https://github.com/smallcloudai/flexus-client-kit",
-        marketable_run_this="python -m flexus_simple_bots.slonik.slonik_bot",
         marketable_setup_default=slonik_bot.SLONIK_SETUP_SCHEMA,
         marketable_featured_actions=[
             {"feat_question": "Test whether database connection works", "feat_expert": "default", "feat_depends_on_setup": []},

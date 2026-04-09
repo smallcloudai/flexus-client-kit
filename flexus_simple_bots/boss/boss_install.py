@@ -43,8 +43,6 @@ async def install(client: ckit_client.FlexusClient):
         marketable_occupation="Chief of Bots",
         marketable_description=(boss_bot.BOSS_ROOTDIR / "README.md").read_text(),
         marketable_typical_group="/",  # install at root
-        marketable_github_repo="https://github.com/smallcloudai/flexus-client-kit.git",
-        marketable_run_this="python -m flexus_simple_bots.boss.boss_bot",
         marketable_setup_default=boss_bot.BOSS_SETUP_SCHEMA,
         marketable_featured_actions=[
             # {"feat_question": "Review recent task approvals", "feat_expert": "default", "feat_depends_on_setup": []},

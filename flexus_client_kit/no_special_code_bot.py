@@ -61,8 +61,6 @@ async def install_from_manifest(m, setup_schema, bot_dir, tools, client):
         marketable_occupation=m["occupation"],
         marketable_description=description,
         marketable_typical_group=m["typical_group"],
-        marketable_github_repo=m["github_repo"],
-        marketable_run_this="python -m flexus_client_kit.no_special_code_bot " + str(bot_dir),
         marketable_setup_default=setup_schema,
         marketable_featured_actions=featured,
         marketable_intro_message=m["intro_message"],

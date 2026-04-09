@@ -36,8 +36,6 @@ async def install(client: ckit_client.FlexusClient):
             "into a single execution operator. Load a skill to activate the relevant workflow."
         ),
         marketable_typical_group="GTM / Execution",
-        marketable_github_repo="https://github.com/smallcloudai/flexus-client-kit.git",
-        marketable_run_this="python -m flexus_simple_bots.executor.executor_bot",
         marketable_setup_default=executor_bot.EXECUTOR_SETUP_SCHEMA,
         marketable_featured_actions=[
             {"feat_question": "Prepare a pilot kickoff plan with the right stakeholders and milestones", "feat_expert": "default", "feat_depends_on_setup": []},

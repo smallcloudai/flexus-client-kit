@@ -72,8 +72,6 @@ async def install(client: ckit_client.FlexusClient):
         marketable_occupation="Telegram Group Moderator",
         marketable_description=BOT_DESCRIPTION,
         marketable_typical_group="Moderation",
-        marketable_github_repo="https://github.com/smallcloudai/flexus-client-kit.git",
-        marketable_run_this="python -m flexus_simple_bots.telegram_groupmod.telegram_groupmod_bot",
         marketable_setup_default=telegram_groupmod_bot.TELEGRAM_GROUPMOD_SETUP_SCHEMA,
         marketable_featured_actions=[
             {"feat_question": "Show moderation stats for today", "feat_expert": "default", "feat_depends_on_setup": []},

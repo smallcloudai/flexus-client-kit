@@ -154,8 +154,6 @@ async def install(client: ckit_client.FlexusClient):
         marketable_occupation="Support, Sales & Marketing",
         marketable_description=KAREN_DESC,
         marketable_typical_group="Sales",
-        marketable_github_repo="https://github.com/smallcloudai/flexus-client-kit.git",
-        marketable_run_this="python -m flexus_simple_bots.karen.karen_bot",
         marketable_setup_default=karen_bot.KAREN_SETUP_SCHEMA,
         marketable_featured_actions=[
             {"feat_question": "Set Up Sales Pipeline"},

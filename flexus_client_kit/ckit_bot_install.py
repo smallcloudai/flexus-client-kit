@@ -4,6 +4,7 @@ import json
 import logging
 import pprint
 import re
+import subprocess
 from dataclasses import dataclass
 import dataclasses
 from pathlib import Path
@@ -70,8 +71,6 @@ async def marketplace_upsert_dev_bot(
     marketable_occupation: str,
     marketable_description: str,
     marketable_typical_group: str,
-    marketable_github_repo: str,
-    marketable_run_this: str,
     marketable_schedule: List[Dict[str, Any]],
     marketable_setup_default: List[Dict[str, Union[str, int, float, bool]]],
     marketable_featured_actions: List[Dict[str, Any]],
@@ -103,6 +102,19 @@ async def marketplace_upsert_dev_bot(
     marketable_name = bot_dir.name
     version_file = bot_dir.parent / "VERSION"
     marketable_version = version_file.read_text().strip()
+    marketable_github_repo = subprocess.check_output(
+        ["git", "remote", "get-url", "origin"], cwd=bot_dir, text=True,
+    ).strip()
+    git_root = Path(subprocess.check_output(
+        ["git", "rev-parse", "--show-toplevel"], cwd=bot_dir, text=True,
+    ).strip())
+    bot_files = list(bot_dir.glob("*_bot.py"))
+    if bot_files:
+        bot_module = str(bot_files[0].relative_to(git_root)).replace("/", ".").removesuffix(".py")
+        marketable_run_this = f"python -m {bot_module}"
+    else:
+        rel = bot_dir.relative_to(git_root)
+        marketable_run_this = f"python -m flexus_client_kit.no_special_code_bot {rel}"
 
     experts_input = []
     for expert_name, expert in marketable_experts:

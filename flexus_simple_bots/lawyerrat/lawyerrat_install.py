@@ -137,8 +137,6 @@ async def install(client: ckit_client.FlexusClient):
         marketable_occupation="Legal Research Assistant",
         marketable_description=BOT_DESCRIPTION,
         marketable_typical_group="Legal / Professional",
-        marketable_github_repo="https://github.com/smallcloudai/flexus-client-kit.git",
-        marketable_run_this="python -m flexus_simple_bots.lawyerrat.lawyerrat_bot",
         marketable_setup_default=lawyerrat_bot.LAWYERRAT_SETUP_SCHEMA,
         marketable_featured_actions=[
             {"feat_question": "Research contract law basics", "feat_expert": "default", "feat_depends_on_setup": []},

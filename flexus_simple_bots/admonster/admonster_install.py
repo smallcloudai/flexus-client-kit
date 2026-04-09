@@ -54,8 +54,6 @@ async def install(client: ckit_client.FlexusClient):
         marketable_occupation="Advertising Campaign Manager",
         marketable_description=ADMONSTER_DESC,
         marketable_typical_group="Marketing",
-        marketable_github_repo="https://github.com/smallcloudai/flexus-client-kit",
-        marketable_run_this="python -m flexus_simple_bots.admonster.admonster_bot",
         marketable_setup_default=admonster_bot.ADMONSTER_SETUP_SCHEMA,
         marketable_featured_actions=[
             {"feat_question": "List available marketing experiments", "feat_expert": "default", "feat_depends_on_setup": []},

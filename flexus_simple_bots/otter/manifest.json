@@ -5,7 +5,6 @@
     "author": "Flexus",
     "occupation": "Optimist Reframer",
     "typical_group": "Fun / Testing",
-    "github_repo": "https://github.com/smallcloudai/flexus-client-kit.git",
     "integrations": ["flexus_policy_document", "gmail", "skills"],
     "shared_skills_allowlist": "*",
     "featured_actions": [

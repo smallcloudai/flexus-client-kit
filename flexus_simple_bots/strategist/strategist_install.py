@@ -37,8 +37,6 @@ async def install(client: ckit_client.FlexusClient):
             "into a single strategy operator. Load a skill to activate the relevant workflow."
         ),
         marketable_typical_group="GTM / Strategy",
-        marketable_github_repo="https://github.com/smallcloudai/flexus-client-kit.git",
-        marketable_run_this="python -m flexus_simple_bots.strategist.strategist_bot",
         marketable_setup_default=strategist_bot.STRATEGIST_SETUP_SCHEMA,
         marketable_featured_actions=[
             {"feat_question": "Create strategy for my hypothesis", "feat_expert": "default", "feat_depends_on_setup": []},

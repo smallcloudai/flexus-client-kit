@@ -74,8 +74,6 @@ async def install(client: ckit_client.FlexusClient):
         marketable_occupation="Product Manager",
         marketable_description=BOT_DESCRIPTION,
         marketable_typical_group="Product / Research",
-        marketable_github_repo="https://github.com/smallcloudai/flexus-client-kit.git",
-        marketable_run_this="python -m flexus_simple_bots.productman.productman_bot",
         marketable_setup_default=productman_bot.PRODUCTMAN_SETUP_SCHEMA,
         marketable_featured_actions=[
             {"feat_question": "A1: Challenge my product idea", "feat_expert": "default", "feat_depends_on_setup": []},
