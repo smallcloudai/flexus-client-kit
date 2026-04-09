@@ -786,10 +786,13 @@ async def _run_scenario_for_model(
                 if await ckit_shutdown.wait(1):
                     break
                 continue
-            try:
-                await asyncio.wait_for(my_bot.instance_rcx._parked_anything_new.wait(), timeout=1.0)
-            except asyncio.TimeoutError:
-                pass
+            if my_bot.instance_rcx._parked_anything_new.is_set():
+                await asyncio.sleep(0.1)
+            else:
+                try:
+                    await asyncio.wait_for(my_bot.instance_rcx._parked_anything_new.wait(), timeout=1.0)
+                except asyncio.TimeoutError:
+                    pass
             if ckit_shutdown.shutdown_event.is_set():
                 break
             if not my_bot.instance_rcx._completed_initial_unpark:
