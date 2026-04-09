@@ -5,9 +5,27 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Awaitable, Callable
 
-from flexus_client_kit import ckit_ask_model, ckit_bot_exec, ckit_cloudtool
+from flexus_client_kit import ckit_ask_model, ckit_bot_exec, ckit_cloudtool, ckit_scenario
 
 GOOGLE_OAUTH_BASE_SCOPES = ["openid", "email", "profile"]
+
+
+def _should_fake_in_scenario(integr_name: str, integr_provider: str = "") -> bool:
+    return bool(integr_provider) or integr_name in {"erp", "crm"}
+
+
+def _register_tool_handler(
+    rcx,
+    tool_name: str,
+    handler,
+    fake_in_scenario: bool = False,
+):
+    async def _wrapped(toolcall, *args, **kwargs):
+        if fake_in_scenario and rcx.running_test_scenario:
+            source = Path(p).read_text() if (p := inspect.getsourcefile(handler)) else ""
+            return await ckit_scenario.scenario_generate_tool_result_via_model(rcx.fclient, toolcall, source)
+        return await handler(toolcall, *args, **kwargs)
+    return rcx.on_tool_call(tool_name)(_wrapped)
 
 
 @dataclass
@@ -74,7 +92,7 @@ def static_integrations_load(bot_dir: Path, allowlist: list[str], builtin_skills
                 integr_name=name,
                 integr_tools=[fi_gmail.GMAIL_TOOL],
                 integr_init=_init_gmail,
-                integr_setup_handlers=lambda obj, rcx: [rcx.on_tool_call("gmail")(obj.called_by_model)],
+                integr_setup_handlers=lambda obj, rcx: [_register_tool_handler(rcx, "gmail", obj.called_by_model, fake_in_scenario=True)],
                 integr_provider="gmail",
                 integr_scopes=fi_gmail.GMAIL_SCOPES,
                 integr_prompt=fi_gmail.GMAIL_PROMPT,
@@ -88,7 +106,7 @@ def static_integrations_load(bot_dir: Path, allowlist: list[str], builtin_skills
                 integr_name=name,
                 integr_tools=[fi_google_calendar.GOOGLE_CALENDAR_TOOL],
                 integr_init=_init_gcal,
-                integr_setup_handlers=lambda obj, rcx: [rcx.on_tool_call("google_calendar")(obj.called_by_model)],
+                integr_setup_handlers=lambda obj, rcx: [_register_tool_handler(rcx, "google_calendar", obj.called_by_model, fake_in_scenario=True)],
                 integr_provider="google_calendar",
                 integr_scopes=fi_google_calendar.REQUIRED_SCOPES,
                 integr_prompt="",
@@ -102,7 +120,7 @@ def static_integrations_load(bot_dir: Path, allowlist: list[str], builtin_skills
                 integr_name=name,
                 integr_tools=[fi_google_business.GOOGLE_BUSINESS_TOOL],
                 integr_init=_init_gb,
-                integr_setup_handlers=lambda obj, rcx: [rcx.on_tool_call("google_business")(obj.called_by_model)],
+                integr_setup_handlers=lambda obj, rcx: [_register_tool_handler(rcx, "google_business", obj.called_by_model, fake_in_scenario=True)],
                 integr_provider="google_business",
                 integr_scopes=fi_google_business.GOOGLE_BUSINESS_SCOPES,
                 integr_prompt=fi_google_business.GOOGLE_BUSINESS_PROMPT,
@@ -123,7 +141,7 @@ def static_integrations_load(bot_dir: Path, allowlist: list[str], builtin_skills
                 integr_name=name,
                 integr_tools=[fi_google_ads.GOOGLE_ADS_TOOL],
                 integr_init=_init_gads,
-                integr_setup_handlers=lambda obj, rcx: [rcx.on_tool_call("google_ads")(obj.called_by_model)],
+                integr_setup_handlers=lambda obj, rcx: [_register_tool_handler(rcx, "google_ads", obj.called_by_model, fake_in_scenario=True)],
                 integr_provider="google_ads",
                 integr_scopes=fi_google_ads.GOOGLE_ADS_SCOPES,
             ))
@@ -136,7 +154,7 @@ def static_integrations_load(bot_dir: Path, allowlist: list[str], builtin_skills
                 integr_name=name,
                 integr_tools=[fi_google_sheets.GOOGLE_SHEETS_TOOL],
                 integr_init=_init_gsheets,
-                integr_setup_handlers=lambda obj, rcx: [rcx.on_tool_call("google_sheets")(obj.called_by_model)],
+                integr_setup_handlers=lambda obj, rcx: [_register_tool_handler(rcx, "google_sheets", obj.called_by_model, fake_in_scenario=True)],
                 integr_provider="google",
                 integr_scopes=fi_google_sheets.REQUIRED_SCOPES,
             ))
@@ -150,7 +168,7 @@ def static_integrations_load(bot_dir: Path, allowlist: list[str], builtin_skills
                 integr_name=name,
                 integr_tools=[fi_jira.JIRA_TOOL],
                 integr_init=_init_jira,
-                integr_setup_handlers=lambda obj, rcx: [rcx.on_tool_call("jira")(obj.called_by_model)],
+                integr_setup_handlers=lambda obj, rcx: [_register_tool_handler(rcx, "jira", obj.called_by_model, fake_in_scenario=True)],
                 integr_provider="atlassian",
                 integr_scopes=fi_jira.REQUIRED_SCOPES,
                 integr_prompt="",
@@ -168,7 +186,7 @@ def static_integrations_load(bot_dir: Path, allowlist: list[str], builtin_skills
                 integr_name="facebook",
                 integr_tools=[fb_tool],
                 integr_init=_init_facebook,
-                integr_setup_handlers=lambda obj, rcx, _t=fb_tool: [rcx.on_tool_call(_t.name)(obj.called_by_model)],
+                integr_setup_handlers=lambda obj, rcx, _t=fb_tool: [_register_tool_handler(rcx, _t.name, obj.called_by_model, fake_in_scenario=True)],
                 integr_provider="facebook",
                 integr_prompt="",
             ))
@@ -181,7 +199,7 @@ def static_integrations_load(bot_dir: Path, allowlist: list[str], builtin_skills
                 integr_name=name,
                 integr_tools=[fi_linkedin.LINKEDIN_TOOL],
                 integr_init=_init_linkedin,
-                integr_setup_handlers=lambda obj, rcx: [rcx.on_tool_call("linkedin")(obj.called_by_model)],
+                integr_setup_handlers=lambda obj, rcx: [_register_tool_handler(rcx, "linkedin", obj.called_by_model, fake_in_scenario=True)],
                 integr_provider="linkedin",
                 integr_scopes=[
                     "openid",
@@ -205,7 +223,7 @@ def static_integrations_load(bot_dir: Path, allowlist: list[str], builtin_skills
                 integr_name=name,
                 integr_tools=[fi_linkedin_b2b.LINKEDIN_B2B_TOOL],
                 integr_init=_init_linkedin_b2b,
-                integr_setup_handlers=lambda obj, rcx: [rcx.on_tool_call("linkedin_b2b")(obj.called_by_model)],
+                integr_setup_handlers=lambda obj, rcx: [_register_tool_handler(rcx, "linkedin_b2b", obj.called_by_model, fake_in_scenario=True)],
                 integr_provider="linkedin",
                 integr_scopes=[
                     "r_ads",
@@ -236,7 +254,7 @@ def static_integrations_load(bot_dir: Path, allowlist: list[str], builtin_skills
                 integr_name=name,
                 integr_tools=[fi_github.GITHUB_TOOL],
                 integr_init=_init_github,
-                integr_setup_handlers=lambda obj, rcx: [rcx.on_tool_call("github")(obj.called_by_model)],
+                integr_setup_handlers=lambda obj, rcx: [_register_tool_handler(rcx, "github", obj.called_by_model, fake_in_scenario=True)],
                 integr_provider="github",
                 integr_prompt="",
             ))
@@ -259,7 +277,7 @@ def static_integrations_load(bot_dir: Path, allowlist: list[str], builtin_skills
                 integr_name=name,
                 integr_tools=[fi_slack.SLACK_TOOL],
                 integr_init=_init_slack,
-                integr_setup_handlers=lambda obj, rcx: [rcx.on_tool_call("slack")(obj.called_by_model)],
+                integr_setup_handlers=lambda obj, rcx: [_register_tool_handler(rcx, "slack", obj.called_by_model, fake_in_scenario=True)],
                 integr_provider="slack",
                 integr_is_messenger=True,
                 integr_scopes=[
@@ -283,7 +301,7 @@ def static_integrations_load(bot_dir: Path, allowlist: list[str], builtin_skills
                 integr_name=name,
                 integr_tools=[fi_telegram.TELEGRAM_TOOL],
                 integr_init=_init_telegram,
-                integr_setup_handlers=lambda obj, rcx: [rcx.on_tool_call("telegram")(obj.called_by_model)],
+                integr_setup_handlers=lambda obj, rcx: [_register_tool_handler(rcx, "telegram", obj.called_by_model, fake_in_scenario=True)],
                 integr_provider="telegram",
                 integr_is_messenger=True,
                 integr_prompt=fi_messenger.MESSENGER_PROMPT,
@@ -302,7 +320,7 @@ def static_integrations_load(bot_dir: Path, allowlist: list[str], builtin_skills
                 integr_name=name,
                 integr_tools=[fi_discord2.DISCORD_TOOL],
                 integr_init=_init_discord,
-                integr_setup_handlers=lambda obj, rcx: [rcx.on_tool_call("discord")(obj.called_by_model)],
+                integr_setup_handlers=lambda obj, rcx: [_register_tool_handler(rcx, "discord", obj.called_by_model, fake_in_scenario=True)],
                 integr_provider="discord_manual",
                 integr_is_messenger=True,
                 integr_prompt=fi_messenger.MESSENGER_PROMPT,
@@ -331,9 +349,9 @@ def static_integrations_load(bot_dir: Path, allowlist: list[str], builtin_skills
                 integr_tools=[fi_resend.RESEND_SEND_TOOL, fi_resend.RESEND_REPLY_TOOL, fi_resend.RESEND_SETUP_TOOL],
                 integr_init=_init_resend,
                 integr_setup_handlers=lambda obj, rcx: [
-                    rcx.on_tool_call("email_send")(obj.send_called_by_model),
-                    rcx.on_tool_call("email_reply")(obj.reply_called_by_model),
-                    rcx.on_tool_call("email_setup_domain")(obj.setup_called_by_model),
+                    _register_tool_handler(rcx, "email_send", obj.send_called_by_model, fake_in_scenario=True),
+                    _register_tool_handler(rcx, "email_reply", obj.reply_called_by_model, fake_in_scenario=True),
+                    _register_tool_handler(rcx, "email_setup_domain", obj.setup_called_by_model, fake_in_scenario=True),
                 ],
                 integr_provider="resend",
                 integr_prompt="",
@@ -355,7 +373,7 @@ def static_integrations_load(bot_dir: Path, allowlist: list[str], builtin_skills
                 return fi_erp.IntegrationErp(rcx)
             def _setup_erp(obj, rcx, _tam=tools_and_methods):
                 for tool, method_name in _tam:
-                    rcx.on_tool_call(tool.name)(getattr(obj, method_name))
+                    _register_tool_handler(rcx, tool.name, getattr(obj, method_name), fake_in_scenario=True)
             result.append(IntegrationRecord(
                 integr_name="erp",
                 integr_tools=[t for t, _ in tools_and_methods],
@@ -379,7 +397,7 @@ def static_integrations_load(bot_dir: Path, allowlist: list[str], builtin_skills
                 return fi_crm.IntegrationCrm(rcx)
             def _setup_crm(obj, rcx, _tam=tools_and_methods):
                 for tool, method_name in _tam:
-                    rcx.on_tool_call(tool.name)(getattr(obj, method_name))
+                    _register_tool_handler(rcx, tool.name, getattr(obj, method_name), fake_in_scenario=True)
             result.append(IntegrationRecord(
                 integr_name="crm",
                 integr_tools=[t for t, _ in tools_and_methods],
@@ -441,8 +459,8 @@ def static_integrations_load(bot_dir: Path, allowlist: list[str], builtin_skills
                 integr_init=_make_generic_init(integration_class),
                 # _t=generic_tool captures the current tool into the lambda for the same reason
                 # as _make_generic_init above: without it all lambdas would share the last tool.
-                integr_setup_handlers=lambda obj, rcx, _t=generic_tool: [
-                    rcx.on_tool_call(_t.name)(obj.called_by_model)
+                integr_setup_handlers=lambda obj, rcx, _t=generic_tool, _f=_should_fake_in_scenario(provider_name): [
+                    _register_tool_handler(rcx, _t.name, obj.called_by_model, fake_in_scenario=_f)
                 ],
             ))
     return result

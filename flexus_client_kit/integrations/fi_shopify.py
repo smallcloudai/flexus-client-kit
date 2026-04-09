@@ -15,6 +15,7 @@ from flexus_client_kit import ckit_cloudtool
 from flexus_client_kit import ckit_client
 from flexus_client_kit import ckit_external_auth
 from flexus_client_kit import ckit_erp
+from flexus_client_kit import ckit_scenario
 from flexus_client_kit import erp_schema
 
 logger = logging.getLogger("shopify")
@@ -615,6 +616,8 @@ class IntegrationShopify:
     async def called_by_model(self, toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Optional[dict[str, Any]]) -> str:
         if not model_produced_args:
             return HELP
+        if self.rcx.running_test_scenario:
+            return await ckit_scenario.scenario_generate_tool_result_via_model(self.fclient, toolcall, open(__file__).read())
         op = model_produced_args.get("op", "")
         args, err = ckit_cloudtool.sanitize_args(model_produced_args)
         if err:
@@ -1084,6 +1087,8 @@ class IntegrationShopify:
     async def handle_cart(self, toolcall: ckit_cloudtool.FCloudtoolCall, args: Optional[dict[str, Any]]) -> str:
         if not args or not args.get("op"):
             return "Missing 'op'. Use: create, add, remove, view."
+        if self.rcx.running_test_scenario:
+            return await ckit_scenario.scenario_generate_tool_result_via_model(self.fclient, toolcall, open(__file__).read())
         await self._load_current_shop()
         if not self.shop:
             return "No Shopify store connected. Use shopify(op='connect') first."
@@ -1167,4 +1172,3 @@ class IntegrationShopify:
         if d.get("invoice_url"):
             lines.append(f"Checkout: {d['invoice_url']}")
         return "\n".join(lines)
-
