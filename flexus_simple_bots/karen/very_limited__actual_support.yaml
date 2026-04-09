@@ -1,5 +1,6 @@
 judge_instructions: |
-  The assistant should use flexus_vector_search() to find relevant information and compose an answer from the results.
+  Telegram capture might go after op=help or immediately, both fine.
+  But if fails to capture -- that's mission failed.
   Penalize if the assistant fabricates information that does not exist in the search result.
 
 messages:
@@ -96,8 +97,8 @@ messages:
     }
 - role: user
   content: |-
-    Telegram private user='Vasya Pupkin' chat_id=149315030
-    hi
+    Telegram private user='Cándido' chat_id=14931503
+    hola
 - role: assistant
   tool_calls:
     - id: fakecall_DX8c4k6aOnn44ieE
@@ -110,15 +111,15 @@ messages:
     The current task with details:
     {
       "id": "dG8JD1LAaY",
-      "title": "Telegram private user='Vasya Pupkin' chat_id=149315030\nhi",
+      "title": "Telegram private user='Cándido' chat_id=14931503\nhola",
       "details": {
-        "chat_id": 149315030,
+        "chat_id": 14931503,
         "chat_type": "private",
         "message_id": 410,
         "attachments": [],
-        "message_text": "hi",
-        "message_author_id": 149315030,
-        "message_author_name": "Vasya Pupkin"
+        "message_text": "hola",
+        "message_author_id": 14931503,
+        "message_author_name": "Cándido"
       }
     }
 
@@ -132,7 +133,7 @@ messages:
 
     In Progress:
     [
-    {"id": "dG8JD1LAaY", "title": "Telegram private user='Vasya Pupkin' chat_id=149315030\nhi", "human": "telegram:149315030"},
+    {"id": "dG8JD1LAaY", "title": "Telegram private user='Cándido' chat_id=14931503\nhola", "human": "telegram:14931503"},
     ]
 
     Done:
@@ -140,19 +141,57 @@ messages:
     ]
   call_id: fakecall_DX8c4k6aOnn44ieE
 - role: title
-  content: "[telegram] [vasya] [greeting] Telegram private: Vasya Pupkin (chat_id=149315030) — hi"
+  content: "[telegram] [candido] [greeting] Telegram private: Cándido (chat_id=14931503) — hola"
+- role: assistant
+  tool_calls:
+    - id: call_dsmSbHjhvgldJcqWQgVW0Rok
+      type: function
+      function:
+        name: telegram
+        arguments: '{"op": "help"}'
+- role: tool
+  content: |
+    Help:
+
+    telegram(op="status")
+
+    telegram(op="capture", args={"chat_id": 123456789})
+        Capture a Telegram chat. Messages will appear here and your responses will be sent back.
+        You can only capture chats where the bot is a member.
+
+    telegram(op="uncapture")
+        Stop capturing this Telegram chat. Do this at the end when you're done talking.
+
+    telegram(op="post", args={"chat_id": 123456789, "text": "Hello!"})
+        Post a message to a Telegram chat. Don't use this for captured chats. Remember to use MarkdownV2 markup.
+
+    Telegram uses MarkdownV2 markup:
+
+    *bold*  _italic_  __underline__  ~strikethrough~
+    `inline code`
+    ```python
+    code block
+    ```
+    [link text](https://example.com)
+    ||spoiler||
+
+    > blockquote
+    > each line must start with >
+
+    No bullet lists or tables.
+  call_id: call_dsmSbHjhvgldJcqWQgVW0Rok
 - role: assistant
   tool_calls:
     - id: call_ch7YyZE8d9jZWDqrVhE4wcqU
       type: function
       function:
         name: telegram
-        arguments: '{"op": "capture", "args": {"chat_id": 149315030}}'
+        arguments: '{"op": "capture", "args": {"chat_id": 14931503}}'
 - role: tool
   content: |
     📌CAPTURED
 
-    The next thing you write will be visible. Don't comment on that fact and think about what do you want to say in '149315030'.
+    The next thing you write will be visible. Don't comment on that fact and think about what do you want to say in '14931503'.
     Don't use op=post because now anything you say is visible automatically.
 
     Reminder: after this point telegram MarkdownV2 markup rules are in effect for your output, there are no tables! Here's markup help for you again.
@@ -173,14 +212,14 @@ messages:
     No bullet lists or tables.
   call_id: call_ch7YyZE8d9jZWDqrVhE4wcqU
 - role: assistant
-  content: Hi Vasya! I'm Karen, support assistant for CloudPipe AI. What can I help you with?
+  content: "Hola Cándido, soy Karen, asistente de soporte de CloudPipe AI. ¿En qué puedo ayudarte?"
 - role: user
   content:
     - m_type: text
       m_content: |-
-        👤Vasya Pupkin
+        👤Cándido
 
-        help me with Opus pricing
+        cuánto cuesta Opus?
 - role: assistant
   tool_calls:
     - id: call_in4SzlVQsFZnqiu5e9f8IP35
@@ -190,35 +229,12 @@ messages:
         arguments: '{"eds": "", "query": "Opus pricing"}'
 - role: tool
   content: |+
-    For your query 'Opus pricing' found 3 chunks, in database of 7088 chunks across 182 indexed documents.
-    IMPORTANT: These are only snippets. You must call flexus_read_original(eds="eds_id", op="cat", p="/path") to read the full document before answering.
+    For your query 'Opus pricing' found 5 results in database of 7088 chunks across 182 indexed documents. Each document text is enclosed in <original_text>...</original_text>
 
-    at eds_id=GewoenvkaD found chunk 0
-    📎/code.claude.com/docs/en/fast-mode.md:61-82
-    ```
-    # Speed up responses with fast mode
-    Fast mode is a high-speed configuration for Claude Opus 4.6, making the model
-    2.5x faster at a higher cost per token.
-    What to know:
-    * Fast mode for Opus 4.6 pricing is $30/150 MTok.
-    * Available to all Claude Code users on subscription plans (Pro/Max/Team/Enterprise) and Claude Console.
-    ```
-
-    at eds_id=GewoenvkaD found chunk 2
-    📎/code.claude.com/docs/en/model-config.md:235-260
-    ```
-    The behavior of `default` depends on your account type:
-    * **Max and Team Premium** : defaults to Opus 4.6
-    * **Pro and Team Standard** : defaults to Sonnet 4.6
-    * **Enterprise** : Opus 4.6 is available but not the default
-    Claude Code may automatically fall back to Sonnet if you hit a usage threshold
-    with Opus.
-    ```
-
-    at eds_id=GewoenvkaD found chunk 3
-    📎/code.claude.com/docs/en/costs.md:69-82
-    ```
+    call flexus_read_original(eds="GewoenvkaD", op="cat", p="/code.claude.com/docs/en/costs.md", line1=1, line2=283) to reproduce, total lines 477
+    <original_text>
     # Manage costs effectively
+
     Claude Code consumes tokens for each interaction. Costs vary based on codebase
     size, query complexity, and conversation length. The average cost is $6 per
     developer per day, with daily costs remaining below $12 for 90% of users. For
@@ -226,34 +242,14 @@ messages:
     Code costs ~$100-200/developer per month with Sonnet 4.6 though there is large
     variance depending on how many instances users are running and whether they're
     using it in automation.
-    ```
+    </original_text>
 
-  call_id: call_in4SzlVQsFZnqiu5e9f8IP35
-- role: assistant
-  tool_calls:
-    - id: call_EeeZHGhjQD7eUo9U0lqpnAAF
-      type: function
-      function:
-        name: flexus_read_original
-        arguments: '{"eds": "GewoenvkaD", "op": "cat", "p": "/code.claude.com/docs/en/fast-mode.md", "skip": 61, "take": 120, "safety_valve": "20k"}'
-    - id: call_R2kqPvNx8mLWf1cDjYbTaS3e
-      type: function
-      function:
-        name: flexus_read_original
-        arguments: '{"eds": "GewoenvkaD", "op": "cat", "p": "/code.claude.com/docs/en/costs.md", "skip": 69, "take": 50, "safety_valve": "20k"}'
-- role: tool
-  content: |-
-    📄 File: code.claude.com/docs/en/fast-mode.md
-
+    call flexus_read_original(eds="GewoenvkaD", op="cat", p="/code.claude.com/docs/en/fast-mode.md", line1=1, line2=301) to reproduce, total lines 331
+    <original_text>
     # Speed up responses with fast mode
 
     Fast mode is a high-speed configuration for Claude Opus 4.6, making the model
-    2.5x faster at a higher cost per token. Toggle it on with `/fast` when you
-    need speed for interactive work like rapid iteration or live debugging, and
-    toggle it off when cost matters more than latency. Fast mode is not a
-    different model. It uses the same Opus 4.6 with a different API configuration
-    that prioritizes speed over cost efficiency. You get identical quality and
-    capabilities, just faster responses.
+    2.5x faster at a higher cost per token.
 
     What to know:
       * Fast mode for Opus 4.6 pricing is $30/150 MTok.
@@ -264,42 +260,40 @@ messages:
     Fast mode on Opus 4.6| $30| $150
 
     Fast mode pricing is flat across the full 1M token context window.
-  call_id: call_EeeZHGhjQD7eUo9U0lqpnAAF
-- role: tool
-  content: |-
-    📄 File: code.claude.com/docs/en/costs.md
+    </original_text>
 
-    # Manage costs effectively
+    call flexus_read_original(eds="GewoenvkaD", op="cat", p="/code.claude.com/docs/en/model-config.md", line1=1, line2=312) to reproduce, total lines 655
+    <original_text>
+    The behavior of `default` depends on your account type:
+    * **Max and Team Premium** : defaults to Opus 4.6
+    * **Pro and Team Standard** : defaults to Sonnet 4.6
+    * **Enterprise** : Opus 4.6 is available but not the default
+    Claude Code may automatically fall back to Sonnet if you hit a usage threshold
+    with Opus.
+    </original_text>
 
-    Claude Code consumes tokens for each interaction. Costs vary based on codebase
-    size, query complexity, and conversation length. The average cost is $6 per
-    developer per day, with daily costs remaining below $12 for 90% of users. For
-    team usage, Claude Code charges by API token consumption. On average, Claude
-    Code costs ~$100-200/developer per month with Sonnet 4.6 though there is large
-    variance depending on how many instances users are running and whether they're
-    using it in automation.
-  call_id: call_R2kqPvNx8mLWf1cDjYbTaS3e
+  call_id: call_in4SzlVQsFZnqiu5e9f8IP35
 - role: assistant
   content: |-
-    Opus fast mode: $30 per 1M input tokens, $150 per 1M output tokens. Same model, just faster.
+    Opus fast mode: $30 por 1M tokens de entrada, $150 por 1M tokens de salida\. Mismo modelo, solo más rápido\.
 
-    For real\-world costs: average Claude Code usage runs ~$6/dev/day, under $12 for 90% of users. With Sonnet that's ~$100\-200/dev/month — Opus will be higher depending on volume.
+    En costos reales: el uso promedio de Claude Code es \~$6/dev/día, menos de $12 para el 90% de usuarios\. Con Sonnet son \~$100\-200/dev/mes — con Opus será más según el volumen\.
 
-    Through CloudPipe that's plus our 15% markup. Want me to help estimate for your team size?
+    A través de CloudPipe se suma nuestro 15% de markup\. ¿Quieres que te ayude a estimar para el tamaño de tu equipo?
 - role: user
   content:
     - m_type: text
       m_content: |-
-        👤Vasya Pupkin
+        👤Cándido
 
-        ok thanks
+        ok gracias
 - role: assistant
   tool_calls:
     - id: call_GBLCjRLNzwnzmdFOL0f3yvt3
       type: function
       function:
         name: flexus_kanban_public
-        arguments: '{"op": "resolve", "search": null, "resolution": {"code": "SUCCESS", "summary": "Answered Vasya Pupkin on Telegram about Opus pricing. Looked up Claude Code docs and replied that Opus fast mode costs $30/1M input, $150/1M output tokens — same model, faster latency.", "humanhours": 0.2, "uncapture": true, "pdoc_paths": []}, "details_json": null, "restart_summary": null}'
+        arguments: '{"op": "resolve", "search": null, "resolution": {"code": "SUCCESS", "summary": "Answered Cándido on Telegram (in Spanish) about Opus pricing. Looked up Claude Code docs and replied that Opus fast mode costs $30/1M input, $150/1M output tokens, plus CloudPipe 15% markup.", "humanhours": 0.2, "uncapture": true, "pdoc_paths": []}, "details_json": null, "restart_summary": null}'
 - role: tool
   content: |-
     Moved to done dG8JD1LAaY
