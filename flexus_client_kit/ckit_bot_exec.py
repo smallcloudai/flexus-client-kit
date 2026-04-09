@@ -1001,7 +1001,11 @@ async def run_bots_in_this_group(
     subscribe_to_erp_tables: List[str] = [],
 ) -> None:
     # name and version might get bumped during install, service_name has the pre-bump version
-    marketable_name, ver_str = fclient.service_name.rsplit("_", 1)
+    sname = fclient.service_name
+    if fclient.inside_radix_process:
+        # strip _r_{ws_id} suffix added by FlexusClient.__init__
+        sname = sname[:sname.index("_r_")]
+    marketable_name, ver_str = sname.rsplit("_", 1)
     marketable_version = int(ver_str)
 
     if fclient.ws_id and fclient.group_id:
