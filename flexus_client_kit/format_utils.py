@@ -148,6 +148,8 @@ def format_text_output(
         start = int(start_str) if start_str else 1
         end = int(end_str) if end_str else len(lines)
         start = max(1, start) - 1
+        if end <= 0:
+            end = len(lines)
         end = max(0, end)
     else:
         start = int(lines_range)
