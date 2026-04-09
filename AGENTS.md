@@ -17,11 +17,65 @@ What Files Define a Bot?
 NAME_bot.py         -- the file to run a bot
 NAME_prompts.py     -- prompts live in a separate file
 NAME_install.py     -- installation script, uses _bot and _prompts to construct a marketplace record
-NAME-1024x1536.webp -- detailed marketplace picture under 0.3M
-NAME-256x256.webp   -- small avatar picture with transparent background
+NAME-1024x1536.webp -- detailed marketplace picture under 0.3M (auto-detected by marketplace_upsert_dev_bot)
+NAME-256x256.webp   -- small avatar picture with transparent background (auto-detected)
 forms/              -- optional directory with custom HTML forms for policy documents
+VERSION             -- one file per Python package (e.g. flexus_simple_bots/VERSION), shared by all bots in it;
+                       marketplace_upsert_dev_bot() reads bot_dir.parent/VERSION for the version string
 
 In repositories separate from flexus-client-kit, create setup.py that installs flexus_NAME module.
+
+
+Writing NAME_install.py
+-----------------------
+
+The install function signature is:
+
+    async def install(client: ckit_client.FlexusClient):
+
+Pass bot_dir to marketplace_upsert_dev_bot() and it auto-derives:
+- marketable_name          from bot_dir.name
+- marketable_version       from bot_dir.parent/VERSION  (bumped automatically on version conflict)
+- marketable_github_repo   from git remote get-url origin
+- marketable_run_this      from the first *_bot.py found in bot_dir
+- pictures                 from NAME-256x256.webp and NAME-NNNxNNN.webp in bot_dir
+
+Do NOT pass these as separate arguments. The removed parameters are:
+  marketable_name, marketable_version, marketable_github_repo, marketable_run_this,
+  marketable_picture_big_b64, marketable_picture_small_b64
+
+Model selection uses two tiers:
+  marketable_preferred_model_expensive  -- default tier
+  marketable_preferred_model_cheap      -- cheap tier, selected per expert via fexp_model_class="cheap"
+The old single marketable_preferred_model_default parameter is removed.
+
+Minimal example:
+
+    async def install(client: ckit_client.FlexusClient):
+        await ckit_bot_install.marketplace_upsert_dev_bot(
+            client,
+            ws_id=client.ws_id,
+            bot_dir=MY_ROOTDIR,
+            marketable_title1="My Bot",
+            marketable_title2="Does something useful",
+            marketable_author="Flexus",
+            marketable_occupation="...",
+            marketable_description="...",
+            marketable_typical_group="...",
+            marketable_setup_default=[],
+            marketable_preferred_model_expensive="gpt-5-mini",
+            marketable_preferred_model_cheap="gpt-5-mini",
+            marketable_experts=[(name, exp.filter_tools(my_bot.TOOLS)) for name, exp in EXPERTS],
+            marketable_schedule=[...],
+            marketable_accent_color="#aabbcc",
+            marketable_featured_actions=[],
+            marketable_intro_message="...",
+        )
+
+    if __name__ == "__main__":
+        from flexus_simple_bots.my import my_bot
+        client = ckit_client.FlexusClient(f"{my_bot.BOT_NAME}_install")
+        asyncio.run(install(client))
 
 
 Kanban Board
