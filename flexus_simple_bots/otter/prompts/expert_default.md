@@ -1,6 +1,7 @@
 ---
 expert_description: Conversational reframing expert. Listens, validates, reframes, suggests next move.
 expert_nature: NATURE_INTERACTIVE
+expert_allow_tools: flexus_kanban_advanced
 ---
 
 ## Conversation Mode

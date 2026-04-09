@@ -123,7 +123,7 @@ def main():
     integrations = ckit_integrations_db.static_integrations_load(bot_dir, manifest["integrations"], builtin_skills=skills)
     all_tools = [t for rec in integrations for t in rec.integr_tools]   # double loop collapses list of lists into one list
     scenario_fn = ckit_bot_exec.parse_bot_args()
-    bot_version = ckit_bot_version.read_version_file(str(bot_dir / "x"))
+    bot_version = ckit_bot_version.read_version_file(str(bot_dir / "fake_bot.py"))
     fclient = ckit_client.FlexusClient(ckit_client.bot_service_name(bot_name, bot_version), endpoint="/v1/jailed-bot")
     asyncio.run(ckit_bot_exec.run_bots_in_this_group(
         fclient,
