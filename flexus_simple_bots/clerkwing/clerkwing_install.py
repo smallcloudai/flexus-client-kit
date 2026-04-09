@@ -1,6 +1,7 @@
 import asyncio
 import base64
 
+from flexus_client_kit import ckit_bot_version
 from flexus_client_kit import ckit_client
 from flexus_client_kit import ckit_bot_install
 from flexus_client_kit import ckit_cloudtool
@@ -48,17 +49,16 @@ EXPERTS = [
 async def install(
     client: ckit_client.FlexusClient,
     bot_name: str,
-    bot_version: str,
     tools: list[ckit_cloudtool.CloudTool],
 ):
     pic_big = base64.b64encode((clerkwing_bot.CLERKWING_ROOTDIR / "clerkwing-1024x1536.webp").read_bytes()).decode("ascii")
     pic_small = base64.b64encode((clerkwing_bot.CLERKWING_ROOTDIR / "clerkwing-256x256.webp").read_bytes()).decode("ascii")
 
-    await ckit_bot_install.marketplace_upsert_dev_bot(
+    r = await ckit_bot_install.marketplace_upsert_dev_bot(
         client,
         ws_id=client.ws_id,
         marketable_name=bot_name,
-        marketable_version=bot_version,
+        version_file=ckit_bot_version.version_file_path(__file__),
         marketable_accent_color="#41b949",
         marketable_title1="Clerkwing",
         marketable_title2="Your helpful secretary robot for email, calendar, and Jira management.",
@@ -107,8 +107,9 @@ async def install(
             ],
         },
     )
+    return r.marketable_version
 
 
 if __name__ == "__main__":
     client = ckit_client.FlexusClient("clerkwing_install")
-    asyncio.run(install(client, bot_name=clerkwing_bot.BOT_NAME, bot_version=clerkwing_bot.BOT_VERSION, tools=clerkwing_bot.TOOLS))
+    asyncio.run(install(client, bot_name=clerkwing_bot.BOT_NAME, tools=clerkwing_bot.TOOLS))

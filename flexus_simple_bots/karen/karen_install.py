@@ -2,6 +2,7 @@ import asyncio
 import json
 import base64
 
+from flexus_client_kit import ckit_bot_version
 from flexus_client_kit import ckit_client
 from flexus_client_kit import ckit_bot_install
 from flexus_client_kit import ckit_cloudtool
@@ -147,16 +148,15 @@ EXPERTS = [
 async def install(
     client: ckit_client.FlexusClient,
     bot_name: str,
-    bot_version: str,
     tools: list[ckit_cloudtool.CloudTool],
 ):
     pic_big = base64.b64encode((karen_bot.KAREN_ROOTDIR / "karen-1024x1536.webp").read_bytes()).decode("ascii")
     pic_small = base64.b64encode((karen_bot.KAREN_ROOTDIR / "karen-256x256.webp").read_bytes()).decode("ascii")
-    await ckit_bot_install.marketplace_upsert_dev_bot(
+    r = await ckit_bot_install.marketplace_upsert_dev_bot(
         client,
         ws_id=client.ws_id,
         marketable_name=bot_name,
-        marketable_version=bot_version,
+        version_file=ckit_bot_version.version_file_path(__file__),
         marketable_accent_color="#6252A4",
         marketable_title1="Karen",
         marketable_title2="Your 24/7 support, sales & marketing agent — empathetic, accurate, and always closing.",
@@ -203,8 +203,9 @@ async def install(
         marketable_required_policydocs=["/company/summary", "/company/sales-strategy", "/support/summary"],
         marketable_features=["magic_desk"],
     )
+    return r.marketable_version
 
 
 if __name__ == "__main__":
     client = ckit_client.FlexusClient("karen_install")
-    asyncio.run(install(client, bot_name=karen_bot.BOT_NAME, bot_version=karen_bot.BOT_VERSION, tools=karen_bot.TOOLS))
+    asyncio.run(install(client, bot_name=karen_bot.BOT_NAME, tools=karen_bot.TOOLS))

@@ -1,6 +1,7 @@
 import asyncio
 import base64
 
+from flexus_client_kit import ckit_bot_version
 from flexus_client_kit import ckit_client, ckit_bot_install, ckit_cloudtool
 from flexus_simple_bots import prompts_common
 from flexus_simple_bots.productman import productman_bot
@@ -67,16 +68,15 @@ EXPERTS = [
 async def install(
     client: ckit_client.FlexusClient,
     bot_name: str,
-    bot_version: str,
     tools: list[ckit_cloudtool.CloudTool],
 ):
     pic_big = base64.b64encode((productman_bot.PRODUCTMAN_ROOTDIR / "productman-1024x1536.webp").read_bytes()).decode("ascii")
     pic_small = base64.b64encode((productman_bot.PRODUCTMAN_ROOTDIR / "productman-256x256.webp").read_bytes()).decode("ascii")
-    await ckit_bot_install.marketplace_upsert_dev_bot(
+    r = await ckit_bot_install.marketplace_upsert_dev_bot(
         client,
         ws_id=client.ws_id,
         marketable_name=bot_name,
-        marketable_version=bot_version,
+        version_file=ckit_bot_version.version_file_path(__file__),
         marketable_accent_color="#49cdc2",
         marketable_title1="Productman",
         marketable_title2="Discovery Agent. Understand what to sell and to whom, validated by market logic.",
@@ -105,8 +105,9 @@ async def install(
         ],
         marketable_forms=ckit_bot_install.load_form_bundles(__file__),
     )
+    return r.marketable_version
 
 
 if __name__ == "__main__":
     client = ckit_client.FlexusClient("productman_install")
-    asyncio.run(install(client, bot_name=productman_bot.BOT_NAME, bot_version=productman_bot.BOT_VERSION, tools=productman_bot.TOOLS_ALL))
+    asyncio.run(install(client, bot_name=productman_bot.BOT_NAME, tools=productman_bot.TOOLS_ALL))

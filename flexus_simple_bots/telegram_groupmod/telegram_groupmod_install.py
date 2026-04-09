@@ -1,7 +1,7 @@
 import asyncio
 import base64
 
-from flexus_client_kit import ckit_bot_install, ckit_client, ckit_cloudtool
+from flexus_client_kit import ckit_bot_install, ckit_bot_version, ckit_client, ckit_cloudtool
 from flexus_simple_bots import prompts_common
 from flexus_simple_bots.telegram_groupmod import telegram_groupmod_bot
 from flexus_simple_bots.telegram_groupmod import telegram_groupmod_prompts
@@ -65,17 +65,16 @@ EXPERTS = [
 async def install(
     client: ckit_client.FlexusClient,
     bot_name: str,
-    bot_version: str,
     tools: list[ckit_cloudtool.CloudTool],
 ):
     pic_big = base64.b64encode((telegram_groupmod_bot.TELEGRAM_GROUPMOD_ROOTDIR / f"{bot_name}-1024x1536.webp").read_bytes()).decode("ascii")
     pic_small = base64.b64encode((telegram_groupmod_bot.TELEGRAM_GROUPMOD_ROOTDIR / f"{bot_name}-256x256.webp").read_bytes()).decode("ascii")
 
-    await ckit_bot_install.marketplace_upsert_dev_bot(
+    r = await ckit_bot_install.marketplace_upsert_dev_bot(
         client,
         ws_id=client.ws_id,
         marketable_name=bot_name,
-        marketable_version=bot_version,
+        version_file=ckit_bot_version.version_file_path(__file__),
         marketable_accent_color="#ff66ae",
         marketable_title1="Telegram Group Mod",
         marketable_title2="Moderate Telegram groups: filter messages, manage members, enforce rules.",
@@ -104,6 +103,7 @@ async def install(
         marketable_forms=ckit_bot_install.load_form_bundles(__file__),
         marketable_auth_needed=["telegram"],
     )
+    return r.marketable_version
 
 
 if __name__ == "__main__":
@@ -111,6 +111,5 @@ if __name__ == "__main__":
     asyncio.run(install(
         client,
         bot_name=telegram_groupmod_bot.BOT_NAME,
-        bot_version=telegram_groupmod_bot.BOT_VERSION,
         tools=telegram_groupmod_bot.TOOLS_ALL,
     ))

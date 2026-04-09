@@ -1,6 +1,7 @@
 import asyncio
 import base64
 
+from flexus_client_kit import ckit_bot_version
 from flexus_client_kit import ckit_client
 from flexus_client_kit import ckit_bot_install
 from flexus_client_kit import ckit_cloudtool
@@ -24,17 +25,16 @@ EXPERTS = [
 async def install(
     client: ckit_client.FlexusClient,
     bot_name: str,
-    bot_version: str,
     tools: list[ckit_cloudtool.CloudTool],
 ):
     pic_big = base64.b64encode((slonik_bot.SLONIK_ROOTDIR / "slonik-1024x1536.webp").read_bytes()).decode("ascii")
     pic_small = base64.b64encode((slonik_bot.SLONIK_ROOTDIR / "slonik-256x256.webp").read_bytes()).decode("ascii")
 
-    await ckit_bot_install.marketplace_upsert_dev_bot(
+    r = await ckit_bot_install.marketplace_upsert_dev_bot(
         client,
         ws_id=client.ws_id,
         marketable_name=bot_name,
-        marketable_version=bot_version,
+        version_file=ckit_bot_version.version_file_path(__file__),
         marketable_accent_color="#336791",
         marketable_title1="Slonik",
         marketable_title2="Database assistant for PostgreSQL operations.",
@@ -59,8 +59,9 @@ async def install(
         marketable_picture_small_b64=pic_small,
         marketable_schedule=[]
     )
+    return r.marketable_version
 
 
 if __name__ == "__main__":
     client = ckit_client.FlexusClient("slonik_install")
-    asyncio.run(install(client, bot_name=slonik_bot.BOT_NAME, bot_version=slonik_bot.BOT_VERSION, tools=slonik_bot.TOOLS))
+    asyncio.run(install(client, bot_name=slonik_bot.BOT_NAME, tools=slonik_bot.TOOLS))

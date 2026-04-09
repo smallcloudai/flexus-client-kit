@@ -16,13 +16,12 @@ from flexus_client_kit import ckit_kanban
 from flexus_client_kit import ckit_integrations_db
 from flexus_client_kit import ckit_skills
 from flexus_client_kit.integrations import fi_mongo_store
-from flexus_simple_bots.version_common import SIMPLE_BOTS_COMMON_VERSION
+from flexus_client_kit import ckit_bot_version
 
 logger = logging.getLogger("bot_lawyerrat")
 
 
 BOT_NAME = "lawyerrat"
-BOT_VERSION = SIMPLE_BOTS_COMMON_VERSION
 
 LAWYERRAT_ROOTDIR = Path(__file__).parent
 LAWYERRAT_SKILLS = ckit_skills.static_skills_find(LAWYERRAT_ROOTDIR, shared_skills_allowlist="", integration_skills_allowlist="")
@@ -323,12 +322,12 @@ Provide a structured risk assessment including:
 def main():
     from flexus_simple_bots.lawyerrat import lawyerrat_install
     scenario_fn = ckit_bot_exec.parse_bot_args()
-    fclient = ckit_client.FlexusClient(ckit_client.bot_service_name(BOT_NAME, BOT_VERSION), endpoint="/v1/jailed-bot")
+    bot_version = ckit_bot_version.read_version_file(__file__)
+    fclient = ckit_client.FlexusClient(ckit_client.bot_service_name(BOT_NAME, bot_version), endpoint="/v1/jailed-bot")
 
     asyncio.run(ckit_bot_exec.run_bots_in_this_group(
         fclient,
         marketable_name=BOT_NAME,
-        marketable_version_str=BOT_VERSION,
         bot_main_loop=lawyerrat_main_loop,
         inprocess_tools=TOOLS,
         scenario_fn=scenario_fn,

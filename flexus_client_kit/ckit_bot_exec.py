@@ -410,7 +410,7 @@ async def subscribe_and_produce_callbacks(
         use_group_id = fclient.group_id if fclient.group_id else None
         use_ws_id_prefix = None if use_group_id else fclient.ws_id
         async for r in ws.subscribe(
-            gql.gql(f"""subscription KarenThreads(
+            gql.gql(f"""subscription BotSubs(
                 $marketable_name: String!,
                 $marketable_version: Int!,
                 $inprocess_tool_names: [String!]!,
@@ -995,14 +995,14 @@ async def run_bots_in_this_group(
     fclient: ckit_client.FlexusClient,
     *,
     marketable_name: str,
-    marketable_version_str: str,
     inprocess_tools: List[ckit_cloudtool.CloudTool],
     bot_main_loop: Callable[[ckit_client.FlexusClient, RobotContext], Awaitable[None]],
     scenario_fn: str,
-    install_func: Callable[[ckit_client.FlexusClient, str, str, list], Awaitable[None]],
+    install_func: Callable[[ckit_client.FlexusClient, str, list], Awaitable[int]],
     subscribe_to_erp_tables: List[str] = [],
 ) -> None:
-    marketable_version = ckit_client.marketplace_version_as_int(marketable_version_str)
+    # version might get bumped during install, service_name has the pre-bump version
+    marketable_version = int(fclient.service_name.rsplit("_", 1)[1])
 
     if fclient.ws_id and fclient.group_id:
         raise ValueError("Both ws_id and group_id are set, only one is allowed")
@@ -1021,8 +1021,12 @@ async def run_bots_in_this_group(
             logger.info("Please set FLEXUS_WORKSPACE or FLEXUS_GROUP to one of the above")
             return
         if fclient.ws_id:
-            logger.info("Installing %s:%s into workspace %s", marketable_name, marketable_version_str, fclient.ws_id)
-            await install_func(fclient, marketable_name, marketable_version_str, inprocess_tools)
+            logger.info("Installing %s into workspace %s", marketable_name, fclient.ws_id)
+            installed_version = await install_func(fclient, marketable_name, inprocess_tools)
+            if installed_version:
+                marketable_version = int(installed_version)
+                # UGLY: service_name was built with pre-bump version, fix it after install
+                fclient.service_name = "%s_%d" % (marketable_name, marketable_version)
         ws_id_prefix = fclient.ws_id  # None if using group_id
 
     elif fclient.inside_radix_process:

@@ -2,6 +2,7 @@ import asyncio
 import base64
 
 from flexus_client_kit import ckit_bot_install
+from flexus_client_kit import ckit_bot_version
 from flexus_client_kit import ckit_client
 from flexus_client_kit import ckit_cloudtool
 from flexus_client_kit import ckit_skills
@@ -26,16 +27,15 @@ EXPERTS = [
 async def install(
     client: ckit_client.FlexusClient,
     bot_name: str,
-    bot_version: str,
     tools: list[ckit_cloudtool.CloudTool],
-) -> None:
+):
     pic_big = base64.b64encode((strategist_bot.STRATEGIST_ROOTDIR / "strategist-1024x1536.webp").read_bytes()).decode("ascii")
     pic_small = base64.b64encode((strategist_bot.STRATEGIST_ROOTDIR / "strategist-256x256.webp").read_bytes()).decode("ascii")
-    await ckit_bot_install.marketplace_upsert_dev_bot(
+    r = await ckit_bot_install.marketplace_upsert_dev_bot(
         client,
         ws_id=client.ws_id,
         marketable_name=bot_name,
-        marketable_version=bot_version,
+        version_file=ckit_bot_version.version_file_path(__file__),
         marketable_accent_color="#8B4513",
         marketable_title1="Strategist",
         marketable_title2="GTM Strategy — from hypothesis to experiment to launch",
@@ -72,8 +72,9 @@ async def install(
             "linkedin": ["r_profile_basicinfo", "email", "w_member_social"],
         },
     )
+    return r.marketable_version
 
 
 if __name__ == "__main__":
     client = ckit_client.FlexusClient("strategist_install")
-    asyncio.run(install(client, bot_name=strategist_bot.BOT_NAME, bot_version=strategist_bot.BOT_VERSION, tools=strategist_bot.TOOLS))
+    asyncio.run(install(client, bot_name=strategist_bot.BOT_NAME, tools=strategist_bot.TOOLS))

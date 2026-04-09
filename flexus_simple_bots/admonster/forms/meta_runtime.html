@@ -601,7 +601,7 @@
           credentials: 'include',
           body: JSON.stringify({
             query: `mutation DashboardWritePdoc($fgroup_id: String!, $p: String!, $text: String!) {
-              policydoc_overwrite(fgroup_id: $fgroup_id, p: $p, text: $text)
+              policydoc_overwrite(fgroup_id: $fgroup_id, p: $p, text: $text) { changes_saved }
             }`,
             variables: { fgroup_id: fgroupId, p: path, text: JSON.stringify(content) }
           })

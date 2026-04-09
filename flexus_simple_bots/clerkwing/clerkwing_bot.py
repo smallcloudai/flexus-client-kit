@@ -10,12 +10,11 @@ from flexus_client_kit import ckit_ask_model
 from flexus_client_kit import ckit_kanban
 from flexus_client_kit import ckit_integrations_db
 from flexus_client_kit import ckit_skills
-from flexus_simple_bots.version_common import SIMPLE_BOTS_COMMON_VERSION
+from flexus_client_kit import ckit_bot_version
 
 logger = logging.getLogger("clerk")
 
 BOT_NAME = "clerkwing"
-BOT_VERSION = SIMPLE_BOTS_COMMON_VERSION
 
 CLERKWING_ROOTDIR = Path(__file__).parent
 CLERKWING_SKILLS = ckit_skills.static_skills_find(CLERKWING_ROOTDIR, shared_skills_allowlist="", integration_skills_allowlist="")
@@ -53,12 +52,12 @@ async def clerkwing_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_e
 def main():
     from flexus_simple_bots.clerkwing import clerkwing_install
     scenario_fn = ckit_bot_exec.parse_bot_args()
-    fclient = ckit_client.FlexusClient(ckit_client.bot_service_name(BOT_NAME, BOT_VERSION), endpoint="/v1/jailed-bot")
+    bot_version = ckit_bot_version.read_version_file(__file__)
+    fclient = ckit_client.FlexusClient(ckit_client.bot_service_name(BOT_NAME, bot_version), endpoint="/v1/jailed-bot")
 
     asyncio.run(ckit_bot_exec.run_bots_in_this_group(
         fclient,
         marketable_name=BOT_NAME,
-        marketable_version_str=BOT_VERSION,
         bot_main_loop=clerkwing_main_loop,
         inprocess_tools=TOOLS,
         scenario_fn=scenario_fn,

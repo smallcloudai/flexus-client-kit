@@ -20,13 +20,11 @@ from flexus_client_kit.integrations import fi_linkedin
 from flexus_client_kit.integrations import fi_pdoc
 from flexus_client_kit.integrations.facebook.fi_facebook import IntegrationFacebook, FACEBOOK_TOOL
 from flexus_simple_bots.admonster import experiment_execution
-from flexus_simple_bots.version_common import SIMPLE_BOTS_COMMON_VERSION
+from flexus_client_kit import ckit_bot_version
 
 logger = logging.getLogger("bot_admonster")
 
 BOT_NAME = "admonster"
-BOT_VERSION = SIMPLE_BOTS_COMMON_VERSION
-BOT_VERSION_INT = ckit_client.marketplace_version_as_int(BOT_VERSION)
 ACCENT_COLOR = "#0077B5"
 
 ADMONSTER_ROOTDIR = Path(__file__).parent
@@ -124,12 +122,12 @@ async def admonster_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_e
 def main():
     from flexus_simple_bots.admonster import admonster_install
     scenario_fn = ckit_bot_exec.parse_bot_args()
-    fclient = ckit_client.FlexusClient(ckit_client.bot_service_name(BOT_NAME, BOT_VERSION), endpoint="/v1/jailed-bot")
+    bot_version = ckit_bot_version.read_version_file(__file__)
+    fclient = ckit_client.FlexusClient(ckit_client.bot_service_name(BOT_NAME, bot_version), endpoint="/v1/jailed-bot")
 
     asyncio.run(ckit_bot_exec.run_bots_in_this_group(
         fclient,
         marketable_name=BOT_NAME,
-        marketable_version_str=BOT_VERSION,
         bot_main_loop=admonster_main_loop,
         inprocess_tools=TOOLS,
         scenario_fn=scenario_fn,

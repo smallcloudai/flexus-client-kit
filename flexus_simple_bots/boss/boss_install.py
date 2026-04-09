@@ -1,6 +1,7 @@
 import asyncio
 import base64
 
+from flexus_client_kit import ckit_bot_version
 from flexus_client_kit import ckit_client
 from flexus_client_kit import ckit_bot_install
 from flexus_client_kit import ckit_cloudtool
@@ -36,17 +37,16 @@ EXPERTS = [
 async def install(
     client: ckit_client.FlexusClient,
     bot_name: str,
-    bot_version: str,
     tools: list[ckit_cloudtool.CloudTool],
 ):
     pic_big = base64.b64encode((boss_bot.BOSS_ROOTDIR / "boss-896x1152.webp").read_bytes()).decode("ascii")
     pic_small = base64.b64encode((boss_bot.BOSS_ROOTDIR / "boss-256x256.webp").read_bytes()).decode("ascii")
 
-    await ckit_bot_install.marketplace_upsert_dev_bot(
+    r = await ckit_bot_install.marketplace_upsert_dev_bot(
         client,
         ws_id=client.ws_id,
         marketable_name=bot_name,
-        marketable_version=bot_version,
+        version_file=ckit_bot_version.version_file_path(__file__),
         marketable_accent_color="#645ff6",
         marketable_title1="Boss",
         marketable_title2="The Boss manages your bot army - keeps them focused, productive, and on-strategy",
@@ -72,8 +72,9 @@ async def install(
             prompts_common.SCHED_PICK_ONE_5M | {"sched_when": "EVERY:2m"},
         ]
     )
+    return r.marketable_version
 
 
 if __name__ == "__main__":
     client = ckit_client.FlexusClient("boss_install")
-    asyncio.run(install(client, bot_name=boss_bot.BOT_NAME, bot_version=boss_bot.BOT_VERSION, tools=boss_bot.TOOLS))
+    asyncio.run(install(client, bot_name=boss_bot.BOT_NAME, tools=boss_bot.TOOLS))

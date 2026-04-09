@@ -1,15 +1,20 @@
 import base64
 import fnmatch
 import json
+import logging
 import pprint
+import re
 from dataclasses import dataclass
 import dataclasses
 from pathlib import Path
 from typing import Dict, Union, Optional, List, Any, Tuple
 import gql
+import gql.transport.exceptions
 
 from flexus_simple_bots import prompts_common
 from flexus_client_kit import ckit_client, ckit_cloudtool, ckit_integrations_db, ckit_skills, gql_utils
+
+logger = logging.getLogger("btins")
 
 
 @dataclass
@@ -58,7 +63,7 @@ async def marketplace_upsert_dev_bot(
     client: ckit_client.FlexusClient,
     ws_id: str,
     marketable_name: str,
-    marketable_version: str,
+    version_file: Path,
     marketable_title1: str,
     marketable_title2: str,
     marketable_author: str,
@@ -91,6 +96,7 @@ async def marketplace_upsert_dev_bot(
 ) -> FBotInstallOutput:
     assert ws_id, "Set FLEXUS_WORKSPACE environment variable to your workspace ID"
     assert not ws_id.startswith("fx-"), "You can find workspace id in the browser address bar, when visiting for example the statistics page"
+    marketable_version = version_file.read_text().strip()
 
     experts_input = []
     for expert_name, expert in marketable_experts:
@@ -138,82 +144,92 @@ async def marketplace_upsert_dev_bot(
         expert_dict["fexp_name"] = f"{marketable_name}_{expert_name}"
         experts_input.append(expert_dict)
 
+    mutation = gql.gql(f"""mutation InstallBot($ws: String!, $name: String!, $ver: String!, $title1: String!, $title2: String!, $author: String!, $accent_color: String!, $occupation: String!, $desc: String!, $typical_group: String!, $repo: String!, $run: String!, $setup: String!, $featured: [FFeaturedActionInput!]!, $intro: String!, $model_expensive: String!, $model_cheap: String!, $daily: Int!, $inbox: Int!, $experts: [FMarketplaceExpertInput!]!, $schedule: String!, $big: String!, $small: String!, $tags: [String!]!, $forms: String, $required_policydocs: [String!]!, $auth_needed: [String!]!, $auth_supported: [String!]!, $auth_scopes: String, $max_inprogress: Int!, $features: [String!]!) {{
+        marketplace_upsert_dev_bot(
+            ws_id: $ws,
+            marketable_name: $name,
+            marketable_version: $ver,
+            marketable_title1: $title1,
+            marketable_title2: $title2,
+            marketable_author: $author,
+            marketable_accent_color: $accent_color,
+            marketable_occupation: $occupation,
+            marketable_description: $desc,
+            marketable_typical_group: $typical_group,
+            marketable_github_repo: $repo,
+            marketable_run_this: $run,
+            marketable_setup_default: $setup,
+            marketable_featured_actions: $featured,
+            marketable_intro_message: $intro,
+            marketable_preferred_model_expensive: $model_expensive,
+            marketable_preferred_model_cheap: $model_cheap,
+            marketable_daily_budget_default: $daily,
+            marketable_default_inbox_default: $inbox,
+            marketable_experts: $experts,
+            marketable_schedule: $schedule,
+            marketable_picture_big_b64: $big,
+            marketable_picture_small_b64: $small,
+            marketable_tags: $tags,
+            marketable_forms: $forms,
+            marketable_required_policydocs: $required_policydocs,
+            marketable_auth_needed: $auth_needed,
+            marketable_auth_supported: $auth_supported,
+            marketable_auth_scopes: $auth_scopes,
+            marketable_max_inprogress: $max_inprogress,
+            marketable_features: $features
+        ) {{
+            {gql_utils.gql_fields(FBotInstallOutput)}
+        }}
+    }}""")
+    variables = {
+        "ws": ws_id,
+        "name": marketable_name,
+        "ver": marketable_version,
+        "title1": marketable_title1,
+        "title2": marketable_title2,
+        "author": marketable_author,
+        "accent_color": marketable_accent_color,
+        "occupation": marketable_occupation,
+        "desc": marketable_description,
+        "typical_group": marketable_typical_group,
+        "repo": marketable_github_repo,
+        "run": marketable_run_this,
+        "setup": json.dumps(marketable_setup_default),
+        "featured": [{"feat_expert": "default", "feat_depends_on_setup": [], **fa} for fa in marketable_featured_actions],
+        "intro": marketable_intro_message,
+        "model_expensive": marketable_preferred_model_expensive,
+        "model_cheap": marketable_preferred_model_cheap,
+        "daily": marketable_daily_budget_default,
+        "inbox": marketable_default_inbox_default,
+        "experts": experts_input,
+        "schedule": json.dumps(marketable_schedule),
+        "tags": marketable_tags,
+        "big": marketable_picture_big_b64,
+        "small": marketable_picture_small_b64,
+        "forms": json.dumps(marketable_forms or {}),
+        "required_policydocs": marketable_required_policydocs,
+        "auth_needed": marketable_auth_needed,
+        "auth_supported": marketable_auth_supported,
+        "auth_scopes": json.dumps(marketable_auth_scopes) if marketable_auth_scopes else None,
+        "max_inprogress": marketable_max_inprogress,
+        "features": marketable_features,
+    }
     http = await client.use_http_on_behalf("", "")
     async with http as h:
-        r = await h.execute(
-            gql.gql(f"""mutation InstallBot($ws: String!, $name: String!, $ver: String!, $title1: String!, $title2: String!, $author: String!, $accent_color: String!, $occupation: String!, $desc: String!, $typical_group: String!, $repo: String!, $run: String!, $setup: String!, $featured: [FFeaturedActionInput!]!, $intro: String!, $model_expensive: String!, $model_cheap: String!, $daily: Int!, $inbox: Int!, $experts: [FMarketplaceExpertInput!]!, $schedule: String!, $big: String!, $small: String!, $tags: [String!]!, $forms: String, $required_policydocs: [String!]!, $auth_needed: [String!]!, $auth_supported: [String!]!, $auth_scopes: String, $max_inprogress: Int!, $features: [String!]!) {{
-                marketplace_upsert_dev_bot(
-                    ws_id: $ws,
-                    marketable_name: $name,
-                    marketable_version: $ver,
-                    marketable_title1: $title1,
-                    marketable_title2: $title2,
-                    marketable_author: $author,
-                    marketable_accent_color: $accent_color,
-                    marketable_occupation: $occupation,
-                    marketable_description: $desc,
-                    marketable_typical_group: $typical_group,
-                    marketable_github_repo: $repo,
-                    marketable_run_this: $run,
-                    marketable_setup_default: $setup,
-                    marketable_featured_actions: $featured,
-                    marketable_intro_message: $intro,
-                    marketable_preferred_model_expensive: $model_expensive,
-                    marketable_preferred_model_cheap: $model_cheap,
-                    marketable_daily_budget_default: $daily,
-                    marketable_default_inbox_default: $inbox,
-                    marketable_experts: $experts,
-                    marketable_schedule: $schedule,
-                    marketable_picture_big_b64: $big,
-                    marketable_picture_small_b64: $small,
-                    marketable_tags: $tags,
-                    marketable_forms: $forms,
-                    marketable_required_policydocs: $required_policydocs,
-                    marketable_auth_needed: $auth_needed,
-                    marketable_auth_supported: $auth_supported,
-                    marketable_auth_scopes: $auth_scopes,
-                    marketable_max_inprogress: $max_inprogress,
-                    marketable_features: $features
-                ) {{
-                    {gql_utils.gql_fields(FBotInstallOutput)}
-                }}
-            }}"""),
-            variable_values={
-                "ws": ws_id,
-                "name": marketable_name,
-                "ver": marketable_version,
-                "title1": marketable_title1,
-                "title2": marketable_title2,
-                "author": marketable_author,
-                "accent_color": marketable_accent_color,
-                "occupation": marketable_occupation,
-                "desc": marketable_description,
-                "typical_group": marketable_typical_group,
-                "repo": marketable_github_repo,
-                "run": marketable_run_this,
-                "setup": json.dumps(marketable_setup_default),
-                "featured": [{"feat_expert": "default", "feat_depends_on_setup": [], **fa} for fa in marketable_featured_actions],
-                "intro": marketable_intro_message,
-                "model_expensive": marketable_preferred_model_expensive,
-                "model_cheap": marketable_preferred_model_cheap,
-                "daily": marketable_daily_budget_default,
-                "inbox": marketable_default_inbox_default,
-                "experts": experts_input,
-                "schedule": json.dumps(marketable_schedule),
-                "tags": marketable_tags,
-                "big": marketable_picture_big_b64,
-                "small": marketable_picture_small_b64,
-                "forms": json.dumps(marketable_forms or {}),
-                "required_policydocs": marketable_required_policydocs,
-                "auth_needed": marketable_auth_needed,
-                "auth_supported": marketable_auth_supported,
-                "auth_scopes": json.dumps(marketable_auth_scopes) if marketable_auth_scopes else None,
-                "max_inprogress": marketable_max_inprogress,
-                "features": marketable_features,
-            },
-        )
+        try:
+            r = await h.execute(mutation, variable_values=variables)
+        except gql.transport.exceptions.TransportQueryError as e:
+            m = re.search(r"must be higher than existing version (\d+)", str(e))
+            if not m:
+                raise
+            existing_int = int(m.group(1))
+            old_version = marketable_version
+            marketable_version = ckit_client.marketplace_version_as_str(existing_int + 1)
+            variables["ver"] = marketable_version
+            version_file.write_text(marketable_version + "\n")
+            logger.info("Version conflict, bumped %s -> %s", old_version, marketable_version)
+            r = await h.execute(mutation, variable_values=variables)
         return gql_utils.dataclass_from_dict(r["marketplace_upsert_dev_bot"], FBotInstallOutput)
-
 
 
 @dataclass

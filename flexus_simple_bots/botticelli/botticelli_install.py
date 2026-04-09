@@ -3,6 +3,7 @@ import base64
 
 from flexus_client_kit import ckit_client
 from flexus_client_kit import ckit_bot_install
+from flexus_client_kit import ckit_bot_version
 from flexus_client_kit import ckit_cloudtool
 
 from flexus_simple_bots import prompts_common
@@ -61,16 +62,15 @@ EXPERTS = [
 async def install(
     client: ckit_client.FlexusClient,
     bot_name: str,
-    bot_version: str,
     tools: list[ckit_cloudtool.CloudTool],
 ):
     pic_big = base64.b64encode((botticelli_bot.BOTTICELLI_ROOTDIR / "botticelli-1024x1536.webp").read_bytes()).decode("ascii")
     pic_small = base64.b64encode((botticelli_bot.BOTTICELLI_ROOTDIR / "botticelli-256x256.webp").read_bytes()).decode("ascii")
-    await ckit_bot_install.marketplace_upsert_dev_bot(
+    r = await ckit_bot_install.marketplace_upsert_dev_bot(
         client,
         ws_id=client.ws_id,
         marketable_name=bot_name,
-        marketable_version=bot_version,
+        version_file=ckit_bot_version.version_file_path(__file__),
         marketable_accent_color="#49cdc2",
         marketable_title1="Botticelli",
         marketable_title2="I create high-converting Meta Ads creatives with cognitive bias optimization",
@@ -95,8 +95,9 @@ async def install(
             prompts_common.SCHED_TODO_5M | {"sched_when": "EVERY:2m"},
         ]
     )
+    return r.marketable_version
 
 
 if __name__ == "__main__":
     client = ckit_client.FlexusClient("botticelli_install")
-    asyncio.run(install(client, bot_name=botticelli_bot.BOT_NAME, bot_version=botticelli_bot.BOT_VERSION, tools=botticelli_bot.TOOLS))
+    asyncio.run(install(client, bot_name=botticelli_bot.BOT_NAME, tools=botticelli_bot.TOOLS))

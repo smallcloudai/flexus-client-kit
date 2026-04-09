@@ -14,7 +14,7 @@ from flexus_client_kit import ckit_kanban   # TODO add default reactions to mess
 from flexus_client_kit import ckit_experts_from_files
 from flexus_client_kit import ckit_integrations_db
 from flexus_client_kit import ckit_skills
-from flexus_simple_bots.version_common import SIMPLE_BOTS_COMMON_VERSION
+from flexus_client_kit import ckit_bot_version
 from flexus_simple_bots import prompts_common
 import jsonschema
 
@@ -133,11 +133,11 @@ def main():
     integrations = ckit_integrations_db.static_integrations_load(bot_dir, manifest["integrations"], builtin_skills=skills)
     all_tools = [t for rec in integrations for t in rec.integr_tools]   # double loop collapses list of lists into one list
     scenario_fn = ckit_bot_exec.parse_bot_args()
-    fclient = ckit_client.FlexusClient(ckit_client.bot_service_name(bot_name, SIMPLE_BOTS_COMMON_VERSION), endpoint="/v1/jailed-bot")
+    fclient = ckit_client.FlexusClient(ckit_client.bot_service_name(bot_name, ckit_bot_version.read_version_file(str(bot_dir))), endpoint="/v1/jailed-bot")
     asyncio.run(ckit_bot_exec.run_bots_in_this_group(
         fclient,
         marketable_name=bot_name,
-        marketable_version_str=SIMPLE_BOTS_COMMON_VERSION,
+        marketable_version_str=ckit_bot_version.read_version_file(str(bot_dir)),
         bot_main_loop=lambda fc, rcx: bot_main_loop(manifest, setup_schema, bot_dir, fc, rcx),
         inprocess_tools=all_tools,
         scenario_fn=scenario_fn,
