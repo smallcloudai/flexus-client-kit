@@ -50,7 +50,7 @@ EXPERTS = [
     ("meta_ads_creative", ckit_bot_install.FMarketplaceExpertInput(
         fexp_system_prompt=botticelli_prompts.meta_ads_creative_prompt,
         fexp_python_kernel=META_ADS_LARK_KERNEL,
-        fexp_allow_tools=",".join(ckit_cloudtool.CLOUDTOOLS_SAFE),
+        fexp_allow_tools=",".join(ckit_cloudtool.KANBAN_SAFE),
         fexp_nature="NATURE_NO_TASK",
     )),
 ]
