@@ -41,7 +41,7 @@ TOOLS_SUPPORT_AND_SALES = {
     "manage_crm_contact", "manage_crm_deal", "log_crm_activity", "verify_email",
     "email_reply",
     "magic_desk", "slack", "telegram", "discord",
-} | ckit_cloudtool.CLOUDTOOLS_PUBLIC | ckit_cloudtool.CLOUDTOOLS_VECDB | ckit_cloudtool.CLOUDTOOLS_MCP
+} | ckit_cloudtool.KANBAN_PUBLIC | ckit_cloudtool.CLOUDTOOLS_VECDB | ckit_cloudtool.CLOUDTOOLS_MCP
 
 TOOLS_NURTURING = {
     "flexus_policy_document", "mongo_store", "flexus_fetch_skill",
@@ -50,7 +50,7 @@ TOOLS_NURTURING = {
     "manage_crm_contact", "manage_crm_deal", "log_crm_activity",
     "email_send",
     "magic_desk", "slack", "telegram", "discord",
-} | ckit_cloudtool.CLOUDTOOLS_TRIAGE | ckit_cloudtool.CLOUDTOOLS_VECDB | ckit_cloudtool.CLOUDTOOLS_WEB | ckit_cloudtool.CLOUDTOOLS_MCP
+} | ckit_cloudtool.KANBAN_TRIAGE | ckit_cloudtool.CLOUDTOOLS_VECDB | ckit_cloudtool.CLOUDTOOLS_WEB | ckit_cloudtool.CLOUDTOOLS_MCP
 
 
 KAREN_DESC = (karen_bot.KAREN_ROOTDIR / "README.md").read_text()
@@ -117,7 +117,7 @@ EXPERTS = [
     ("messages_triage", ckit_bot_install.FMarketplaceExpertInput(
         fexp_system_prompt=karen_prompts.KAREN_DEAL_WITH_INBOX,
         fexp_python_kernel="",
-        fexp_allow_tools=",".join(ckit_cloudtool.CLOUDTOOLS_TRIAGE),    # no access to messengers
+        fexp_allow_tools=",".join(ckit_cloudtool.KANBAN_TRIAGE),    # no access to messengers
         fexp_nature="NATURE_NO_TASK",
         fexp_inactivity_timeout=0,
         fexp_model_class="cheap",

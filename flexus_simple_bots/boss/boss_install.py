@@ -15,7 +15,7 @@ EXPERTS = [
     ("default", ckit_bot_install.FMarketplaceExpertInput(
         fexp_system_prompt=boss_prompts.boss_default,
         fexp_python_kernel="",
-        fexp_allow_tools=",".join(TOOL_NAMESET | ckit_cloudtool.CLOUDTOOLS_QUITE_A_LOT),
+        fexp_allow_tools=",".join(TOOL_NAMESET | ckit_cloudtool.KANBAN_BOSS | ckit_cloudtool.CLOUDTOOLS_NOT_KANBAN),
         fexp_nature="NATURE_INTERACTIVE",
         fexp_description="Helps hire bots and create tasks to accomplish goals, ensuring work aligns with company strategy and vision.",
         fexp_builtin_skills=ckit_skills.read_name_description(boss_bot.BOSS_ROOTDIR, boss_bot.BOSS_SKILLS),
@@ -23,7 +23,7 @@ EXPERTS = [
     ("uihelp", ckit_bot_install.FMarketplaceExpertInput(
         fexp_system_prompt=boss_prompts.boss_uihelp,
         fexp_python_kernel="",
-        fexp_allow_tools=",".join(TOOL_NAMESET | ckit_cloudtool.CLOUDTOOLS_QUITE_A_LOT),
+        fexp_allow_tools=",".join(TOOL_NAMESET | ckit_cloudtool.KANBAN_BOSS | ckit_cloudtool.CLOUDTOOLS_NOT_KANBAN),
         fexp_nature="NATURE_INTERACTIVE",
         fexp_description="Assists users in navigating Flexus UI, including highlighting elements, document uploads, EDS, and MCP configuration.",
         fexp_builtin_skills=ckit_skills.read_name_description(boss_bot.BOSS_ROOTDIR, boss_bot.BOSS_SKILLS),
