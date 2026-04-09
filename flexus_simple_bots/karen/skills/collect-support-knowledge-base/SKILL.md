@@ -71,7 +71,7 @@ flexus_policy_document(op="create_draft_qa", args={
   })
 ```
 
-This will write /support/20260326-summary policy document with QA structure inside.
+This will write /support/YYYYMMDD-DRAFT-summary policy document with QA structure inside.
 
 After creating the draft:
 

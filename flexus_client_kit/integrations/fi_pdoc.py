@@ -63,13 +63,13 @@ flexus_policy_document(op="overwrite", args={"p": "/folder/file", "text": '{"str
     Only use "overwrite" when you mean it.
 
 flexus_policy_document(op="create_draft_qa", args={"output_dir": "/support/", "slug": "summary", "top_tag": "support-policy", "sections": {"product": ["description", "icp"], "payments": ["normal-work", "refunds"]}})
-    Create a QA-format document. Date is prepended to slug automatically.
+    Create a QA-format document. Date and DRAFT are prepended to slug automatically, e.g. /support/20260326-DRAFT-summary.
     Sections and questions are kebab-case names, will be auto-numbered (section01-product, question01-description, etc) with q="" a="" on each question.
     Fails if document already exists.
 
 flexus_policy_document(op="create_draft_from_template", args={"output_dir": "/plans", "slug": "my-thing", "template": "plan"})
-    Create a new policy document from a known template. Automatically prepends current date between
-    output_dir and slug, e.g. /plans/20260325-my-thing. Fails if the document already exists.
+    Create a new policy document from a known template. Automatically prepends current date and DRAFT between
+    output_dir and slug, e.g. /plans/20260325-DRAFT-my-thing. Fails if the document already exists.
 
 flexus_policy_document(op="update_at_location", args={"p": "/folder/file", "expected_md5": "abc123", "updates": [["toptag.section1.field1", "value1"], ["toptag.section1.field2", "value2"]]})
     Update fields in a document using dot notation for path. This normally updates strings, but you can try to set
@@ -361,7 +361,7 @@ class IntegrationPdoc:
                 output_dir = "/" + output_dir.strip().strip("/")
                 tz = ZoneInfo(self.rcx.persona.ws_timezone)
                 date_prefix = datetime.datetime.now(tz).strftime("%Y%m%d")
-                p = f"{output_dir}/{date_prefix}-{slug}"
+                p = f"{output_dir}/{date_prefix}-DRAFT-{slug}"
                 doc = _build_qa_doc(top_tag, sections)
                 text = json.dumps(doc, ensure_ascii=False)
                 await self.pdoc_create(p, text, persona_id=self.rcx.persona.persona_id, fcall_untrusted_key=toolcall.fcall_untrusted_key)
@@ -403,7 +403,7 @@ class IntegrationPdoc:
                     return await ckit_scenario.scenario_generate_tool_result_via_model(self.fclient, toolcall, open(__file__).read())
                 tz = ZoneInfo(self.rcx.persona.ws_timezone)
                 date_prefix = datetime.datetime.now(tz).strftime("%Y%m%d")
-                p = f"{output_dir}/{date_prefix}-{slug}"
+                p = f"{output_dir}/{date_prefix}-DRAFT-{slug}"
                 keys = list(schema.keys())
                 data = {keys[0]: _empty_value_for_field(schema[keys[0]])}
                 for k in keys[1:]:
