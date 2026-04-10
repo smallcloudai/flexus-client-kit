@@ -290,7 +290,10 @@ class IntegrationTelegram(fi_messenger.FlexusMessenger):
             chat_id = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "chat_id", None)
             if not chat_id:
                 return "Missing chat_id parameter\n"
-
+            try:
+                int(str(chat_id).lstrip("-"))
+            except ValueError:
+                return f"chat_id must be a numeric Telegram chat id, got {chat_id!r}\n"
             identifier = str(chat_id)
             http = await self.fclient.use_http_on_behalf(self.rcx.persona.persona_id, toolcall.fcall_untrusted_key)
             searchable = f"telegram/{identifier}"
@@ -443,7 +446,10 @@ class IntegrationTelegram(fi_messenger.FlexusMessenger):
         if dedup_key in self._to_tg_dedup_set:
             return False
 
-        chat_id = int(searchable[len("telegram/"):])
+        try:
+            chat_id = int(searchable[len("telegram/"):])
+        except ValueError:
+            return False
         if not isinstance(msg.ftm_content, str):
             logger.warning("telegram look_assistant_might_have_posted_something: ftm_content is not a string: %r" % msg.ftm_content)
             return False

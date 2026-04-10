@@ -410,7 +410,6 @@ async def karen_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.
                     await fclient.use_http_on_behalf(rcx.persona.persona_id, ""),
                     rcx.persona.persona_id,
                     title="Read linked thread, find/create contact, log activity, score BANT: %s" % new_task.ktask_title[:60],
-                    human_id=new_task.ktask_human_id,
                     details_json=json.dumps({
                         "spawned_from_ktask_id": new_task.ktask_id,
                         "spawned_from_title": new_task.ktask_title,
