@@ -219,6 +219,9 @@ async def handle_support_status(pdoc: fi_pdoc.IntegrationPdoc, rcx: ckit_bot_exe
     else:
         lines.append("No drafts in /support/.")
 
+    lines.append("")
+    lines.append("To see if you have any External Data Sources set up to answer questions, run flexus_read_original(eds=null, op=null)")
+
     return "\n".join(lines)
 
 
@@ -444,3 +447,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
