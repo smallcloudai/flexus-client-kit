@@ -105,6 +105,22 @@ async def marketplace_upsert_dev_bot(
     marketable_github_repo = subprocess.check_output(
         ["git", "remote", "get-url", "origin"], cwd=bot_dir, text=True,
     ).strip()
+    # convert SSH to HTTPS: git@github.com:owner/repo.git -> https://github.com/owner/repo.git
+    if marketable_github_repo.startswith("git@github.com:"):
+        marketable_github_repo = marketable_github_repo.replace("git@github.com:", "https://github.com/")
+    # strip any embedded credentials (e.g. https://ghp_xxx@github.com/...) — the backend
+    # stores this as-is and templates it into build scripts; leaking a token here poisons
+    # the marketplace record forever and also produces a malformed clone URL.
+    m = re.match(r'^(https?://)([^/@\s]+)@', marketable_github_repo)
+    if m:
+        creds = m.group(2)
+        masked = creds[:4] + "***" if len(creds) > 4 else "***"
+        logger.warning(
+            "origin URL for %s contains embedded credentials (%s@...) — stripping before "
+            "upload. Fix your local clone: `git remote set-url origin %s`",
+            bot_dir.name, masked, re.sub(r'^(https?://)[^/@\s]+@', r'\1', marketable_github_repo),
+        )
+        marketable_github_repo = re.sub(r'^(https?://)[^/@\s]+@', r'\1', marketable_github_repo)
     git_root = Path(subprocess.check_output(
         ["git", "rev-parse", "--show-toplevel"], cwd=bot_dir, text=True,
     ).strip())
