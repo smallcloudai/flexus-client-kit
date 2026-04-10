@@ -8,6 +8,7 @@ from flexus_client_kit import ckit_skills
 from flexus_simple_bots import prompts_common
 from flexus_simple_bots.karen import karen_bot
 from flexus_simple_bots.karen import karen_prompts
+from flexus_client_kit.integrations import fi_memory
 
 
 TOOLS_DEFAULT = {
@@ -162,6 +163,15 @@ EXPERTS = [
             "log-crm-activity",
         ]),
     )),
+    ("memory", ckit_bot_install.FMarketplaceExpertInput(
+        fexp_system_prompt=fi_memory.MEMORY_PROMPT,
+        fexp_python_kernel="",
+        fexp_allow_tools=",".join(fi_memory.TOOLS_MEMORY),
+        fexp_nature="NATURE_AUTONOMOUS",
+        fexp_inactivity_timeout=300,
+        fexp_model_class="cheap",
+        fexp_description="Daily extraction of reusable Q&A knowledge from completed customer conversations into /memory/ policy documents.",
+    )),
     ("explore", ckit_bot_install.FMarketplaceExpertInput(
         fexp_system_prompt=karen_prompts.EXPLORE_PROMPT,
         fexp_python_kernel=KAREN_EXPLORE_KERNEL,
@@ -209,6 +219,7 @@ async def install(client: ckit_client.FlexusClient):
         marketable_schedule=[
             prompts_common.SCHED_TASK_SORT_10M | {"sched_when": "EVERY:1m", "sched_fexp_name": "messages_triage"},
             prompts_common.SCHED_TODO_5M | {"sched_when": "EVERY:1m"},
+            fi_memory.SCHED_MEMORY_DAILY,
         ],
         marketable_forms={},
         marketable_auth_supported=["slack", "telegram", "discord_manual", "shopify", "resend"],
