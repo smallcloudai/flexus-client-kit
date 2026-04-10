@@ -66,6 +66,8 @@ async def install_from_manifest(m, setup_schema, bot_dir, tools, client):
         marketable_intro_message=m["intro_message"],
         marketable_preferred_model_expensive=m["preferred_model_expensive"],
         marketable_preferred_model_cheap=m["preferred_model_cheap"],
+        marketable_preferred_model_expensive_reasoning_effort=m.get("preferred_model_expensive_reasoning_effort"),
+        marketable_preferred_model_cheap_reasoning_effort=m.get("preferred_model_cheap_reasoning_effort"),
         marketable_daily_budget_default=m["daily_budget_default"],
         marketable_default_inbox_default=m["default_inbox_default"],
         marketable_experts=[(name, exp.filter_tools(tools)) for name, exp in experts],
