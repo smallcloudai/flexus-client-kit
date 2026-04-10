@@ -583,7 +583,7 @@ async def subscribe_and_produce_callbacks(
             elif upd.news_about == "flexus_kanban_task":
                 if upd.news_action in ["INSERT", "UPDATE"]:
                     handled = True
-                    new_task = upd.news_payload_task
+                    new_task = upd.news_payload_task_new
                     old_task = upd.news_payload_task_old
                     persona_id = new_task.persona_id
                     if persona_id in bc.bots_running:
