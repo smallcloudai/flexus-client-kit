@@ -24,3 +24,5 @@ Guide the user through:
    - When a proposal is sent?
    - After N days without activity (follow-up)?
    Set up move_deal_stage automations based on their answers.
+
+Check existing pipelines and stages first, then ask whether to modify one or create a new one.
