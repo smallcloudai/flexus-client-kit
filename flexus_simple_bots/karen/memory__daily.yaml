@@ -1,0 +1,259 @@
+judge_instructions: |-
+  Penalize if the assistant:
+  - creates too many Q&A entries (e.g. one per activity instead of merging) — the goal is a small, high-signal set
+  - fails to merge similar questions across conversations (the two EU shipping ones from Germany and France should become one merged question, possibly two if returns are split out)
+  - keeps trivial items not worth memorizing: yes/no answers (mobile app), basic UI navigation (email change steps), questions answerable from the landing page ("what do you sell?"), or questions whose answer is just a link to the FAQ (EU delivery in waitlist mode)
+  - keeps items that change too fast to be useful (payment methods list, stock availability, promos)
+  - misses any of the four substantive topics: EU shipping, Shopify integration, webhook retry policy, annual plan refund
+  - creates zero Q&A pairs when substantive material is clearly present
+  - leaves real names, emails, phone numbers, or platform IDs in the saved Q&A instead of anonymizing
+  Reward concise, well-grouped Q&A documents that anonymize PII and skip noise.
+
+messages:
+  - role: cd_instruction
+    content: |-
+      Policy documents you need to know about:
+
+
+
+      📄/company/summary
+      {
+        "faq_url": "https://ejectorbed.lovable.app/#faq",
+        "mission": "Eliminating the snooze button through physics-powered wake-up technology",
+        "website": "https://ejectorbed.lovable.app/",
+        "industry": "Sleep Technology / Smart Home",
+        "company_name": "Ejector Bed"
+      }
+
+      📄/company/sales-strategy
+      {
+        "guarantees": "Safety-tested with 10,000+ launches, zero injuries. Soft-landing foam pads included with every unit.",
+        "competitors": {
+          "ejector_bed_advantage": "The ONLY solution that physically removes you from bed — 100% wake rate",
+          "traditional_alarm_clocks": "Easy to snooze, no physical enforcement",
+          "smart_alarms_sunrise_lamps": "Still rely on willpower"
+        },
+        "sales_stage": "Waitlist / early bird pricing model. Collecting signups via landing page, converting to buyers.",
+        "key_features": [
+          "Pneumatic launch system: 0.3 seconds to vertical",
+          "Smart companion app: control time, intensity (1-10 scale), trajectory angle",
+          "Built-in sleep tracking with optimal REM-timed launch",
+          "Safety system: soft-landing foam pads, motion sensors, emergency stop",
+          "Customizable victory fanfare sounds",
+          "Premium memory foam mattress"
+        ],
+        "social_proof": {
+          "wake_rate": "100%",
+          "test_launches": "10,000+ with zero injuries",
+          "early_adopters": "2,847+",
+          "snooze_buttons": "Zero"
+        },
+        "target_customers": [
+          "Chronic oversleepers and heavy snooze-button users",
+          "Productivity-focused professionals who struggle with mornings",
+          "Early adopters of smart home / sleep tech gadgets",
+          "People who've tried every alarm and still can't wake up"
+        ],
+        "value_proposition": "It's physics, not willpower. The Ejector Bed is the only wake-up solution that physically launches you out of bed using a pneumatic system — making snoozing impossible.",
+        "escalation_contacts": "To be configured",
+        "can_promise_without_approval": [
+          "Waitlist signup",
+          "Product information and specs",
+          "Early bird pricing details (once set)"
+        ]
+      }
+
+      📄/support/summary
+      does not exist yet
+  - role: user
+    content: Work on the assigned task.
+  - role: assistant
+    tool_calls:
+      - id: fakecall_status
+        type: function
+        function:
+          name: flexus_kanban_safe
+          arguments: '{"op": "status_safe", "search": null, "resolution": null, "details_json": null,
+            "restart_summary": null}'
+  - role: tool
+    content: |-
+      The current task with details:
+      {
+        "id": "yOEVpobh3H",
+        "title": "Run daily memory collection.",
+        "details": {}
+      }
+
+      No current task, cannot determine human_id for safe scope
+    call_id: fakecall_status
+  - role: title
+    content: Work on assigned task
+  - role: assistant
+    tool_calls:
+      - id: toolu_list_memory
+        type: function
+        function:
+          name: flexus_policy_document
+          arguments: '{"op": "list", "args": {"p": "/memory/"}}'
+  - role: tool
+    content: |
+      Listing /memory/
+
+
+      0 documents and 0 folders
+    call_id: toolu_list_memory
+  - role: assistant
+    content: No previous memory documents found. I'll use `since_ts = 0` (no prior checkpoint). Now let
+      me query recent inbound CRM activities.
+    tool_calls:
+      - id: toolu_meta
+        type: function
+        function:
+          name: erp_table_meta
+          arguments: '{"table_name": "crm_activity"}'
+  - role: tool
+    content: |
+      Table: erp.crm_activity
+
+      Columns:
+        • ws_id: str
+        • activity_title: str — Title
+        • activity_type: str — Type
+            enum: WEB_CHAT, MESSENGER_CHAT, EMAIL, CALL, MEETING
+        • activity_direction: str — Direction
+            enum: INBOUND, OUTBOUND
+        • activity_contact_id: str — Contact
+        • activity_id: str [PRIMARY KEY] — Activity ID
+        • activity_platform: str — Channel (e.g. TELEGRAM, WHATSAPP, EMAIL, SLACK, DISCORD, PHONE, WEB)
+        • activity_ft_id: Optional[str] — Thread
+        • activity_summary: str — Summary
+        • activity_details: dict — Details
+        • activity_occurred_ts: float — Occurred at
+        • activity_created_ts: float — Created at
+        • activity_modified_ts: float — Modified at
+        • contact: Optional[CrmContact] (included via include=['contact'])
+    call_id: toolu_meta
+  - role: assistant
+    tool_calls:
+      - id: toolu_query1
+        type: function
+        function:
+          name: erp_table_data
+          arguments: '{"table_name": "crm_activity", "options": {"filters": {"AND":
+            ["activity_direction:=:INBOUND", "activity_occurred_ts:>:0"]}, "sort_by":
+            ["activity_occurred_ts:ASC"], "limit": 100, "safety_valve": "10k"}}'
+  - role: tool
+    content: |-
+      Table: crm_activity
+      ⚠️ 20 rows total, showing rows 1:15. Full result saved to mongo.
+
+      {"ws_id": "solarsystem", "activity_title": "Inquiry about refund policy", "activity_type": "MESSENGER_CHAT", "activity_direction": "INBOUND", "activity_contact_id": "Akgd75ekPL", "activity_id": "AFeiiDHyJ0", "activity_platform": "SLACK", "activity_ft_id": "NmHBy0Vveq", "activity_summary": "Customer sent a Slack message asking about the refund policy. No further details or name provided. Conversation handled inconclusively due to Slack integration issues. Thread ID: NmHBy0Vveq", "activity_details": {}, "activity_occurred_ts": 1712742484.0, "activity_created_ts": 1775820871.611863, "activity_modified_ts": 1775820871.611863}
+      {"ws_id": "solarsystem", "activity_title": "Telegram inquiry: What do you sell?", "activity_type": "MESSENGER_CHAT", "activity_direction": "INBOUND", "activity_contact_id": "hSA8ejmtaa", "activity_id": "ZlAg64DfrD", "activity_platform": "TELEGRAM", "activity_ft_id": "aHz7eGXt1k", "activity_summary": "Alex Kim initiated conversation asking 'Hi Karen, what do you sell?'. Likely responded with product info.", "activity_details": {"human_id": "telegram:107392579"}, "activity_occurred_ts": 1746757736.0, "activity_created_ts": 1775660620.608307, "activity_modified_ts": 1775660620.608307}
+      {"ws_id": "solarsystem", "activity_title": "EU shipping inquiry", "activity_type": "MESSENGER_CHAT", "activity_direction": "INBOUND", "activity_contact_id": "6BU3kU21pS", "activity_id": "Ums7UOYIAH", "activity_platform": "DISCORD", "activity_ft_id": "lo0Xi5pVko", "activity_summary": "Diego Ramirez asked about delivery times and costs for EU orders. Informed that product is in waitlist stage, no shipping yet; referred to FAQ.", "activity_details": {}, "activity_occurred_ts": 1762782680.0, "activity_created_ts": 1775821114.409843, "activity_modified_ts": 1775821114.409843}
+      {"ws_id": "solarsystem", "activity_title": "Shipping inquiry - Ejector Bed", "activity_type": "MESSENGER_CHAT", "activity_direction": "INBOUND", "activity_contact_id": "B3cAlcMZ2G", "activity_id": "e1x75y83uA", "activity_platform": "TELEGRAM", "activity_ft_id": "ltig73X551", "activity_summary": "Jack Brown asked about ejector bed shipping status via Telegram. No order found in system. Informed him we're in waitlist/early-bird stage and asked for clarification on what he signed up for. No response received before timeout (1 hour).", "activity_details": {}, "activity_occurred_ts": 1774268777.3174386, "activity_created_ts": 1774268777.326091, "activity_modified_ts": 1774268777.326091}
+      {"ws_id": "solarsystem", "activity_title": "Jack Brown asked what we sell, wants double-sized Ejector Bed", "activity_type": "MESSENGER_CHAT", "activity_direction": "INBOUND", "activity_contact_id": "B3cAlcMZ2G", "activity_id": "FDswds9nKs", "activity_platform": "TELEGRAM", "activity_ft_id": "5T7paXwgKJ", "activity_summary": "Jack Brown (telegram:55512345) initiated chat asking what we sell. Explained the Ejector Bed product. He immediately expressed interest in a double-sized unit. Informed him we're in waitlist/early-bird stage. Asked qualifying questions but he went inactive after 1 hour. BANT updated: Need=1, rest unknown.", "activity_details": {}, "activity_occurred_ts": 1774275791.3729887, "activity_created_ts": 1774275791.381588, "activity_modified_ts": 1774275791.381588}
+      {"ws_id": "solarsystem", "activity_title": "Re: Test Email from Solar System Workspace", "activity_type": "EMAIL", "activity_direction": "INBOUND", "activity_contact_id": "RLrrEQxAKe", "activity_id": "C2VXowVUY9", "activity_platform": "RESEND", "activity_summary": "Test email reply confirming email delivery is working in both directions. Numbered messages back and forth to verify domain test1.yusta.eu.", "activity_details": {}, "activity_occurred_ts": 1774278825.139372, "activity_created_ts": 1774278825.146214, "activity_modified_ts": 1774278825.146214}
+      {"ws_id": "solarsystem", "activity_title": "Double Ejector Bed purchase via Telegram", "activity_type": "MESSENGER_CHAT", "activity_direction": "INBOUND", "activity_contact_id": "a0EK0WSOs2", "activity_id": "s5mFyhLLCU", "activity_platform": "TELEGRAM", "activity_summary": "Jane Doe asked what Ejector Bed sells. Expressed interest in a Double Ejector Bed. Karen looked up the product catalog, found the Double variant, low stock. Created a Shopify draft order with checkout link. Jane confirmed the purchase. Conversation ended successfully.", "activity_details": {}, "activity_occurred_ts": 1775240848.50033, "activity_created_ts": 1775240848.50033, "activity_modified_ts": 1775240848.50033}
+      {"ws_id": "solarsystem", "activity_title": "Brief check-in", "activity_type": "MESSENGER_CHAT", "activity_direction": "INBOUND", "activity_contact_id": "a0EK0WSOs2", "activity_id": "HpfsdXLA2m", "activity_platform": "TELEGRAM", "activity_summary": "Jane Doe sent a brief message on Telegram asking 'Hi Karen, u there?' — a quick check-in. No new purchase intent, product questions, or support issues raised.", "activity_details": {}, "activity_occurred_ts": 1775473883.12973, "activity_created_ts": 1775473883.12973, "activity_modified_ts": 1775473883.12973}
+      {"ws_id": "solarsystem", "activity_title": "Magic Desk anonymous inquiry", "activity_type": "WEB_CHAT", "activity_direction": "INBOUND", "activity_contact_id": "3f8EXOlwik", "activity_id": "7nnrhU5fVP", "activity_platform": "WEB", "activity_ft_id": "KKJ7VZ3AkL", "activity_summary": "Brief web chat session. User greeted, asked what we sell, requested image link. No personal details shared.", "activity_details": {}, "activity_occurred_ts": 1775489848.459841, "activity_created_ts": 1775489848.459841, "activity_modified_ts": 1775489848.459841}
+      {"ws_id": "solarsystem", "activity_title": "Maria Schmidt asks about Ejector Bed, purchases Queen size", "activity_type": "MESSENGER_CHAT", "activity_direction": "INBOUND", "activity_contact_id": "cIAPep6yOP", "activity_id": "r7Wx0o8SMH", "activity_platform": "TELEGRAM", "activity_summary": "Maria Schmidt reached out on Telegram asking what Ejector Bed sells. Karen explained the product. Maria expressed interest in a Double bed. Double was out of stock, so she agreed to a Queen instead. A Shopify draft order was created and Maria confirmed the purchase.", "activity_details": {}, "activity_occurred_ts": 1775593866.337991, "activity_created_ts": 1775593866.337991, "activity_modified_ts": 1775593866.337991}
+      {"ws_id": "solarsystem", "activity_title": "How to request a refund on annual plan", "activity_type": "MESSENGER_CHAT", "activity_direction": "INBOUND", "activity_contact_id": "Akgd75ekPL", "activity_id": "9hYv6kTDr9", "activity_platform": "SLACK", "activity_ft_id": "t_refund", "activity_summary": "Tom Wilson on annual plan asked how to get a refund. Explained 30-day money-back guarantee. Refund form at /billing/refund, processed within 5 business days to original payment method. Tom submitted the form successfully.", "activity_details": {}, "activity_occurred_ts": 1775828178.9248166, "activity_created_ts": 1775835378.930105, "activity_modified_ts": 1775835378.930105}
+      {"ws_id": "solarsystem", "activity_title": "Webhook failures and retry policy", "activity_type": "EMAIL", "activity_direction": "INBOUND", "activity_contact_id": "hTyP7L0WB3", "activity_id": "PclpHwHDiI", "activity_platform": "EMAIL", "activity_ft_id": "t_webhook", "activity_summary": "Priya Patel from a partner integration reported webhooks failing silently. Explained retry policy: 3 retries with exponential backoff (1min, 5min, 30min). After 3 failures webhook auto-disables, admin gets email. Re-enable in Settings > Webhooks. Endpoint must return 2xx within 10 seconds. Priya found her endpoint was timing out at 12s, fixed it.", "activity_details": {}, "activity_occurred_ts": 1775828778.9248166, "activity_created_ts": 1775835378.940034, "activity_modified_ts": 1775835378.940034}
+      {"ws_id": "solarsystem", "activity_title": "How to connect Shopify store", "activity_type": "WEB_CHAT", "activity_direction": "INBOUND", "activity_contact_id": "a0EK0WSOs2", "activity_id": "NXeTXl5Qgk", "activity_platform": "WEB", "activity_ft_id": "t_shopify", "activity_summary": "New merchant Jane Doe asked how to integrate Shopify. Steps: Settings > Integrations > Shopify, enter store URL (mystore.myshopify.com), click Authorize, approve permissions in Shopify admin. Initial sync 5-15 min. Webhooks auto-configured for inventory and order updates. Jane connected on first try.", "activity_details": {}, "activity_occurred_ts": 1775829378.9248166, "activity_created_ts": 1775835378.949284, "activity_modified_ts": 1775835378.949284}
+      {"ws_id": "solarsystem", "activity_title": "Shipping to Germany", "activity_type": "MESSENGER_CHAT", "activity_direction": "INBOUND", "activity_contact_id": "KhPmI7V8GX", "activity_id": "E5Lztt1dBe", "activity_platform": "DISCORD", "activity_ft_id": "t_ship_de", "activity_summary": "Lukas Müller in Germany asked about delivery. EU orders ship from Amsterdam warehouse, standard 2-3 business days free over 50 EUR, express 1 day at 9.99 EUR flat. Tracking emailed within 24h.", "activity_details": {}, "activity_occurred_ts": 1775829978.9248166, "activity_created_ts": 1775835378.959169, "activity_modified_ts": 1775835378.959169}
+      {"ws_id": "solarsystem", "activity_title": "Shipping cost to France and return policy", "activity_type": "MESSENGER_CHAT", "activity_direction": "INBOUND", "activity_contact_id": "N00WF513Of", "activity_id": "UQdewabyF0", "activity_platform": "TELEGRAM", "activity_ft_id": "t_ship_fr", "activity_summary": "Pierre Martin in France asked about shipping and returns. Same EU shipping from Amsterdam: standard 2-3 days free over 50 EUR, express 1 day 9.99 EUR. Returns accepted within 14 days per EU consumer protection, free return label provided.", "activity_details": {}, "activity_occurred_ts": 1775830578.9248166, "activity_created_ts": 1775835378.968901, "activity_modified_ts": 1775835378.968901}
+
+      💾 Full results stored in mongo at: erp_query_results/crm_activity_p1.json
+      Use mongo_store(op='cat', args={'path': 'erp_query_results/crm_activity_p1.json'}) to view full results.
+    call_id: toolu_query1
+  - role: assistant
+    content: Let me get the remaining activities.
+    tool_calls:
+      - id: toolu_query2
+        type: function
+        function:
+          name: erp_table_data
+          arguments: '{"table_name": "crm_activity", "options": {"filters": {"AND":
+            ["activity_direction:=:INBOUND", "activity_occurred_ts:>:0"]}, "sort_by":
+            ["activity_occurred_ts:ASC"], "limit": 100, "skip": 15, "safety_valve": "10k"}}'
+  - role: tool
+    content: |-
+      Table: crm_activity
+      5 rows
+
+      {"ws_id": "solarsystem", "activity_title": "Sam Lee asking if we have a mobile app", "activity_type": "MESSENGER_CHAT", "activity_direction": "INBOUND", "activity_contact_id": "Tf6cbcSS0y", "activity_id": "sTAbBWrjZK", "activity_platform": "TELEGRAM", "activity_ft_id": "t_app", "activity_summary": "Sam Lee asked if there's a mobile app. No app currently, told them web dashboard works on mobile browsers. They said ok.", "activity_details": {}, "activity_occurred_ts": 1775831178.9248166, "activity_created_ts": 1775835378.978699, "activity_modified_ts": 1775835378.978699}
+      {"ws_id": "solarsystem", "activity_title": "User asked what payment methods we accept", "activity_type": "WEB_CHAT", "activity_direction": "INBOUND", "activity_contact_id": "a0EK0WSOs2", "activity_id": "XJ7l2iAnCB", "activity_platform": "WEB", "activity_ft_id": "t_payment", "activity_summary": "Jane Doe asked about payment options. We accept Visa, Mastercard, Amex, and PayPal. No crypto. She said thanks.", "activity_details": {}, "activity_occurred_ts": 1775831778.9248166, "activity_created_ts": 1775835378.988119, "activity_modified_ts": 1775835378.988119}
+      {"ws_id": "solarsystem", "activity_title": "Can I change my email address", "activity_type": "MESSENGER_CHAT", "activity_direction": "INBOUND", "activity_contact_id": "Akgd75ekPL", "activity_id": "6C1GpZOe6M", "activity_platform": "SLACK", "activity_ft_id": "t_email", "activity_summary": "Tom Wilson wanted to change account email. Directed to Settings > Profile > Email, click change, verify new address. Done in 2 minutes.", "activity_details": {}, "activity_occurred_ts": 1775832378.9248166, "activity_created_ts": 1775835378.997754, "activity_modified_ts": 1775835378.997754}
+      {"ws_id": "solarsystem", "activity_title": "Hi there", "activity_type": "MESSENGER_CHAT", "activity_direction": "INBOUND", "activity_contact_id": "N00WF513Of", "activity_id": "iRmiD6e1aA", "activity_platform": "TELEGRAM", "activity_ft_id": "t_hi", "activity_summary": "Pierre Martin said hi. Responded with welcome message. No question asked.", "activity_details": {}, "activity_occurred_ts": 1775832978.9248166, "activity_created_ts": 1775835379.007174, "activity_modified_ts": 1775835379.007174}
+      {"ws_id": "solarsystem", "activity_title": "Test message", "activity_type": "MESSENGER_CHAT", "activity_direction": "INBOUND", "activity_contact_id": "KhPmI7V8GX", "activity_id": "9Ah60GWr7C", "activity_platform": "DISCORD", "activity_ft_id": "t_test", "activity_summary": "Lukas Müller sent '123 test'. Responded asking how we can help. No follow-up, timed out.", "activity_details": {}, "activity_occurred_ts": 1775833578.9248166, "activity_created_ts": 1775835379.016061, "activity_modified_ts": 1775835379.016061}
+    call_id: toolu_query2
+  - role: assistant
+    content: |-
+      I've reviewed all 20 inbound activities. The maximum `activity_occurred_ts` is `1775833578.93`. I identified the 4 substantive Q&A conversations:
+
+      1. **EU Shipping (Germany)** + **EU Shipping (France) with returns** → merge into 2 EU shipping questions
+      2. **Shopify integration** steps
+      3. **Webhook retry policy**
+      4. **Annual plan refund**
+
+      Skipping: greetings, test pings, "what do u sell" chitchat, Ejector Bed waitlist conversations, mobile app (trivial yes/no), payment methods (changes fast), email change (trivial single-fact).
+
+      Now let me create the memory document.
+    tool_calls:
+      - id: toolu_create_doc
+        type: function
+        function:
+          name: flexus_policy_document
+          arguments: '{"op": "create", "args": {"p": "/memory/20260410-daily", "text":
+            "{\"faq\":{\"meta\":{\"author\":\"memory-expert\",\"created\":\"20260410\",\"processed_from_ts\":0,\"processed_until_ts\":1775833578.93},\"section01-shipping\":{\"title\":\"EU
+            Shipping & Returns\",\"question01-eu-delivery\":{\"q\":\"What are EU shipping options
+            and times?\",\"a\":\"EU orders ship from the Amsterdam warehouse. Standard: 2-3 business
+            days, free over 50 EUR. Express: 1 business day, 9.99 EUR flat. Tracking emailed within
+            24h.\"},\"question02-eu-returns\":{\"q\":\"What is the EU returns
+            policy?\",\"a\":\"Returns accepted within 14 days under EU consumer protection. A free
+            return label is provided.\"}},\"section02-integrations\":{\"title\":\"Shopify
+            Integration\",\"question01-connect-shopify\":{\"q\":\"How do I connect a Shopify
+            store?\",\"a\":\"Settings > Integrations > Shopify, enter the store URL
+            (mystore.myshopify.com), click Authorize, approve permissions in the Shopify admin.
+            Initial sync takes 5-15 minutes. Webhooks for inventory and order updates are
+            auto-configured.\"}},\"section03-webhooks\":{\"title\":\"Webhook Retry
+            Policy\",\"question01-retry-policy\":{\"q\":\"What happens when a webhook delivery
+            fails?\",\"a\":\"3 retries with exponential backoff (1 min, 5 min, 30 min). After 3
+            failures the webhook auto-disables and the admin gets an email. Re-enable in Settings >
+            Webhooks. Endpoints must return 2xx within 10
+            seconds.\"}},\"section04-billing\":{\"title\":\"Refunds\",\"question01-annual-refund\":{\"q\":\"How
+            do I request a refund on an annual plan?\",\"a\":\"30-day money-back guarantee. Submit
+            the refund form at /billing/refund \u2014 processed within 5 business days back to the
+            original payment method.\"}}}}"}}'
+  - role: tool
+    content: |-
+      ✍️ /memory/20260410-daily
+      md5=d7c1f1d2
+
+      ✓ Policy document created
+    call_id: toolu_create_doc
+  - role: assistant
+    content: Document created successfully. Let me resolve the task.
+    tool_calls:
+      - id: toolu_resolve
+        type: function
+        function:
+          name: flexus_kanban_safe
+          arguments: "{\"op\": \"resolve\", \"search\": null, \"resolution\": {\"code\": \"SUCCESS\",
+            \"summary\": \"Ran daily memory collection for 2026-04-10. Listed /memory/ folder
+            (empty, no prior docs). Queried all 20 inbound CRM activities (since_ts=0). Skipped
+            greetings, test pings, waitlist chitchat, trivial single-fact items (email change,
+            mobile app, payment methods). Extracted 4 substantive Q&A pairs across 4 topics: EU
+            Shipping & Returns (2 questions merged from Germany and France conversations), Shopify
+            Integration setup steps, Webhook retry policy, and annual plan refund process. Created
+            /memory/20260410-daily with processed_until_ts=1775833578.93.\", \"humanhours\": 0.5,
+            \"uncapture\": false, \"pdoc_paths\": [\"/memory/20260410-daily\"]}, \"details_json\":
+            null, \"restart_summary\": null}"
+  - role: tool
+    content: |
+      Moved to done yOEVpobh3H
+    call_id: toolu_resolve
+  - role: assistant
+    content: Daily memory collection complete. Reviewed 20 inbound activities, kept 4 substantive Q&As
+      across shipping, integrations, webhooks, and billing. The memory document is saved at
+      `/memory/20260410-daily`.
