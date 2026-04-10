@@ -69,7 +69,7 @@ class FBotThreadsCallsTasks:
     news_payload_thread: Optional[ckit_ask_model.FThreadOutput]
     news_payload_persona: Optional[FPersonaOutput]
     news_payload_toolcall: Optional[ckit_cloudtool.FCloudtoolCall]
-    news_payload_task: Optional[ckit_kanban.FPersonaKanbanTaskOutput]
+    news_payload_task_new: Optional[ckit_kanban.FPersonaKanbanTaskOutput] = None
     news_payload_task_old: Optional[ckit_kanban.FPersonaKanbanTaskOutput] = None
     news_payload_erp_record_new: Optional[Dict[str, Any]] = None
     news_payload_erp_record_old: Optional[Dict[str, Any]] = None
