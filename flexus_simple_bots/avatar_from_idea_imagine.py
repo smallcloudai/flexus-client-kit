@@ -110,7 +110,9 @@ async def generate_avatar_assets_from_idea(
         avatar_refs: list[bytes],
         api_key: str,
 ) -> list[dict]:
-    def _image_to_data_url(image_bytes: bytes, mime: str = "image/png") -> str:
+    def _image_to_data_url(image_bytes: bytes) -> str:
+        with Image.open(io.BytesIO(image_bytes)) as im:
+            mime = f"image/{(im.format or 'png').lower()}"
         return f"data:{mime};base64,{base64.b64encode(image_bytes).decode('utf-8')}"
 
     if not description or not description.strip():
@@ -151,3 +153,43 @@ async def generate_avatar_assets_from_idea(
         "avatar_webp_256": avatar_webp_256,
         "avatar_size_256": avatar_size_256,
     }]
+
+
+async def _cli_main():
+    import os, sys
+    if len(sys.argv) < 2:
+        print("Usage: %s path/to/image.jpg [description]" % sys.argv[0])
+        sys.exit(1)
+    input_path = sys.argv[1]
+    description = sys.argv[2] if len(sys.argv) > 2 else "A character variation"
+    api_key = os.environ.get("XAI_API_KEY", "")
+    if not api_key:
+        print("Set XAI_API_KEY environment variable")
+        sys.exit(1)
+    with Image.open(input_path) as im:
+        buf = io.BytesIO()
+        im.save(buf, "WEBP", quality=80)
+        ref_bytes = buf.getvalue()
+    out_dir = os.path.dirname(input_path) or "."
+    base_name = os.path.splitext(os.path.basename(input_path))[0]
+    results = await generate_avatar_assets_from_idea(
+        description=description,
+        fullsize_refs=[ref_bytes],
+        avatar_refs=[ref_bytes],
+        api_key=api_key,
+    )
+    for r in results:
+        fn_full = os.path.join(out_dir, f"{base_name}-1024x1536.webp")
+        fn_avatar = os.path.join(out_dir, f"{base_name}-256x256.webp")
+        with open(fn_full, "wb") as f:
+            f.write(r["fullsize_webp"])
+        print(f"Saved {fn_full} ({len(r['fullsize_webp'])} bytes)")
+        with open(fn_avatar, "wb") as f:
+            f.write(r["avatar_webp_256"])
+        print(f"Saved {fn_avatar} ({len(r['avatar_webp_256'])} bytes)")
+    print("Done!")
+
+
+if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO)
+    asyncio.run(_cli_main())
