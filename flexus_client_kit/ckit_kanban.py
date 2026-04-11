@@ -49,7 +49,7 @@ class FPersonaKanbanTaskOutput:
 class FPersonaKanbanSubs:
     news_action: str
     news_payload_id: str
-    news_payload_task: Optional[FPersonaKanbanTaskOutput]
+    news_payload_task_new: Optional[FPersonaKanbanTaskOutput]
     news_payload_task_old: Optional[FPersonaKanbanTaskOutput] = None
 
 
@@ -65,7 +65,7 @@ async def persona_kanban_list(
                 persona_kanban_subs(persona_id: $persona_id, limit_inbox: 100, limit_done: 100) {{
                     news_action
                     news_payload_id
-                    news_payload_task {{ {gql_utils.gql_fields(FPersonaKanbanTaskOutput)} }}
+                    news_payload_task_new {{ {gql_utils.gql_fields(FPersonaKanbanTaskOutput)} }}
                 }}
             }}"""),
             variable_values={"persona_id": persona_id}
@@ -73,8 +73,8 @@ async def persona_kanban_list(
             upd = r["persona_kanban_subs"]
             if upd["news_action"] == "INITIAL_UPDATES_OVER":
                 break
-            if upd["news_payload_task"]:
-                task = gql_utils.dataclass_from_dict(upd["news_payload_task"], FPersonaKanbanTaskOutput)
+            if upd["news_payload_task_new"]:
+                task = gql_utils.dataclass_from_dict(upd["news_payload_task_new"], FPersonaKanbanTaskOutput)
                 tasks[upd["news_payload_id"]] = task
 
     bucket_order = {"inbox": 0, "todo": 1, "inprogress": 2, "done": 3}
