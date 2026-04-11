@@ -5,14 +5,11 @@ import time
 from pathlib import Path
 from typing import Dict, Any, Optional
 
-from pymongo import AsyncMongoClient
-
 from flexus_client_kit import ckit_client
 from flexus_client_kit import ckit_cloudtool
 from flexus_client_kit import ckit_bot_exec
 from flexus_client_kit import ckit_shutdown
 from flexus_client_kit import ckit_ask_model
-from flexus_client_kit import ckit_mongo
 from flexus_client_kit import ckit_kanban
 
 from flexus_client_kit import erp_schema
@@ -49,7 +46,7 @@ FROG_INTEGRATIONS: list[ckit_integrations_db.IntegrationRecord] = ckit_integrati
         "slack",
         "skills"
     ],
-    builtin_skills=FROG_SKILLS
+    builtin_skills=FROG_SKILLS,
 )
 
 RIBBIT_TOOL = ckit_cloudtool.CloudTool(
@@ -125,16 +122,11 @@ TOOLS = [
 
 async def frog_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.RobotContext) -> None:
     setup = ckit_bot_exec.official_setup_mixing_procedure(FROG_SETUP_SCHEMA, rcx.persona.persona_setup)
-    integr_objects = await ckit_integrations_db.main_loop_integrations_init(FROG_INTEGRATIONS, rcx, setup)
+    integr_objects = await ckit_integrations_db.main_loop_integrations_init(FROG_INTEGRATIONS, rcx, setup, need_mongo=True)
     pdoc_integration: fi_pdoc.IntegrationPdoc = integr_objects["flexus_policy_document"]
     tg: fi_telegram.IntegrationTelegram = integr_objects["telegram"]
     sl: fi_slack.IntegrationSlack = integr_objects["slack"]
     await fi_mcp.mcp_launch(FROG_MCPS, rcx, setup)
-
-    # Mongo store needs custom setup (bot-specific collection)
-    mongo_conn_str = await ckit_mongo.mongo_fetch_creds(fclient, rcx.persona.persona_id)
-    mongo = AsyncMongoClient(mongo_conn_str)
-    personal_mongo = mongo[rcx.persona.persona_id + "_db"]["personal_mongo"]
 
     tongue_capacity_used = {}
 
@@ -233,12 +225,7 @@ async def frog_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.R
 
     @rcx.on_tool_call(fi_mongo_store.MONGO_STORE_TOOL.name)
     async def toolcall_mongo_store(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
-        return await fi_mongo_store.handle_mongo_store(
-            rcx.workdir,
-            personal_mongo,
-            toolcall,
-            model_produced_args,
-        )
+        return await fi_mongo_store.handle_mongo_store(rcx, toolcall, model_produced_args)
 
     try:
         while not ckit_shutdown.shutdown_event.is_set():

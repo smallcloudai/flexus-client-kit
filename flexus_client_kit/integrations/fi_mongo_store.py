@@ -4,20 +4,11 @@ import logging
 import re
 from typing import Dict, Any, Optional
 from flexus_client_kit.integrations.fi_localfile import _validate_file_security
-from pymongo.collection import Collection
 
 from flexus_client_kit import ckit_cloudtool, ckit_mongo
 from flexus_client_kit.format_utils import DEFAULT_SAFETY_VALVE, format_cat_output, grep_output
 
 logger = logging.getLogger("mongo_store")
-
-# XXX needs improvements:
-# make it an integration object
-# save rcx
-# fake calls in scenario like this:
-#     if rcx.running_test_scenario:
-#         return await ckit_scenario.scenario_generate_tool_result_via_model(...)
-
 
 MONGO_STORE_TOOL = ckit_cloudtool.CloudTool(
     strict=True,
@@ -86,14 +77,17 @@ Examples:
 
 
 async def handle_mongo_store(
-    workdir: str,
-    mongo_collection: Collection,
+    rcx,
     toolcall: ckit_cloudtool.FCloudtoolCall,
     model_produced_args: Optional[Dict[str, Any]],
 ) -> str:
+    if rcx.running_test_scenario:
+        from flexus_client_kit import ckit_scenario
+        return await ckit_scenario.scenario_generate_tool_result_via_model(rcx.fclient, toolcall, open(__file__).read())
     if not model_produced_args:
         return HELP
 
+    mongo_collection = rcx.personal_mongo
     op = model_produced_args.get("op", "")
     args, args_error = ckit_cloudtool.sanitize_args(model_produced_args)
     if args_error:
@@ -125,7 +119,7 @@ async def handle_mongo_store(
     elif op == "upload":
         if not path:
             return f"Error: path parameter required for upload operation\n\n{HELP}"
-        realpath = os.path.join(workdir, path)
+        realpath = os.path.join(rcx.workdir, path)
         if not os.path.exists(realpath):
             return f"Error: File {path} does not exist"
         with open(realpath, 'rb') as f:

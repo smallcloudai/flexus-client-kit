@@ -114,7 +114,7 @@ async def lawyerrat_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_e
 
     mongo_conn_str = await ckit_mongo.mongo_fetch_creds(fclient, rcx.persona.persona_id)
     mongo = AsyncMongoClient(mongo_conn_str)
-    personal_mongo = mongo[rcx.persona.persona_id + "_db"]["personal_mongo"]
+    rcx.personal_mongo = mongo[rcx.persona.persona_id + "_db"]["personal_mongo"]
 
     @rcx.on_tool_call(LEGAL_RESEARCH_TOOL.name)
     async def toolcall_legal_research(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
@@ -296,12 +296,7 @@ Provide a structured risk assessment including:
 
     @rcx.on_tool_call(fi_mongo_store.MONGO_STORE_TOOL.name)
     async def toolcall_mongo_store(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
-        return await fi_mongo_store.handle_mongo_store(
-            rcx.workdir,
-            personal_mongo,
-            toolcall,
-            model_produced_args,
-        )
+        return await fi_mongo_store.handle_mongo_store(rcx, toolcall, model_produced_args)
 
     try:
         while not ckit_shutdown.shutdown_event.is_set():

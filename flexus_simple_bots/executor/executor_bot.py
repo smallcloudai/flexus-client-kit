@@ -71,11 +71,11 @@ async def executor_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_ex
 
     mongo_conn_str = await ckit_mongo.mongo_fetch_creds(fclient, rcx.persona.persona_id)
     mongo = AsyncMongoClient(mongo_conn_str)
-    personal_mongo = mongo[rcx.persona.persona_id + "_db"]["personal_mongo"]
+    rcx.personal_mongo = mongo[rcx.persona.persona_id + "_db"]["personal_mongo"]
 
     @rcx.on_tool_call(fi_mongo_store.MONGO_STORE_TOOL.name)
     async def _h_mongo(toolcall, args):
-        return await fi_mongo_store.handle_mongo_store(rcx.workdir, personal_mongo, toolcall, args)
+        return await fi_mongo_store.handle_mongo_store(rcx, toolcall, args)
 
     @rcx.on_tool_call(WRITE_ARTIFACT_TOOL.name)
     async def _h_write_artifact(toolcall: ckit_cloudtool.FCloudtoolCall, args: Dict[str, Any]) -> str:

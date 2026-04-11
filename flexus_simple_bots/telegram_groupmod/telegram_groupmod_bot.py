@@ -198,6 +198,7 @@ async def telegram_groupmod_main_loop(
     mongo_conn_str = await ckit_mongo.mongo_fetch_creds(fclient, rcx.persona.persona_id)
     mongo = AsyncMongoClient(mongo_conn_str)
     db = mongo[rcx.persona.persona_id + "_db"]
+    rcx.personal_mongo = db["personal_mongo"]
     coll_warnings = db["warnings"]
     coll_deleted_log = db["deleted_messages"]
     coll_mod_actions = db["mod_actions"]
@@ -450,9 +451,7 @@ async def telegram_groupmod_main_loop(
 
     @rcx.on_tool_call(fi_mongo_store.MONGO_STORE_TOOL.name)
     async def handle_mongo_store(toolcall: ckit_cloudtool.FCloudtoolCall, args: Dict[str, Any]) -> str:
-        return await fi_mongo_store.handle_mongo_store(
-            rcx.workdir, db["personal_mongo"], toolcall, args,
-        )
+        return await fi_mongo_store.handle_mongo_store(rcx, toolcall, args)
 
     @rcx.on_updated_message
     async def handle_message(msg):

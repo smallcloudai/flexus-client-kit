@@ -296,9 +296,7 @@ async def karen_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.
 
     @rcx.on_tool_call(fi_mongo_store.MONGO_STORE_TOOL.name)
     async def toolcall_mongo_store(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
-        if rcx.running_test_scenario:
-            return await ckit_scenario.scenario_generate_tool_result_via_model(rcx.fclient, toolcall, open(fi_mongo_store.__file__).read())
-        return await fi_mongo_store.handle_mongo_store(rcx.workdir, rcx.personal_mongo, toolcall, model_produced_args)
+        return await fi_mongo_store.handle_mongo_store(rcx, toolcall, model_produced_args)
 
     @rcx.on_tool_call(fi_crm_automations.CRM_AUTOMATION_TOOL.name)
     async def toolcall_crm_automation(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:

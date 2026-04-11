@@ -40,9 +40,9 @@ async def slonik_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec
     mongo = AsyncMongoClient(mongo_conn_str)
     dbname = rcx.persona.persona_id + "_db"
     mydb = mongo[dbname]
-    personal_mongo = mydb["personal_mongo"]
+    rcx.personal_mongo = mydb["personal_mongo"]
 
-    postgres = fi_postgres.IntegrationPostgres(personal_mongo)
+    postgres = fi_postgres.IntegrationPostgres(rcx.personal_mongo)
 
     @rcx.on_tool_call(fi_postgres.POSTGRES_TOOL.name)
     async def toolcall_postgres(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
@@ -51,12 +51,7 @@ async def slonik_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec
 
     @rcx.on_tool_call(fi_mongo_store.MONGO_STORE_TOOL.name)
     async def toolcall_mongo_store(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
-        return await fi_mongo_store.handle_mongo_store(
-            rcx.workdir,
-            personal_mongo,
-            toolcall,
-            model_produced_args,
-        )
+        return await fi_mongo_store.handle_mongo_store(rcx, toolcall, model_produced_args)
 
     try:
         while not ckit_shutdown.shutdown_event.is_set():

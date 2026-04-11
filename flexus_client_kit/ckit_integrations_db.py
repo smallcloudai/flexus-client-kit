@@ -472,10 +472,10 @@ def _parse_bracket_list(name: str) -> list[str] | None:
     return [g.strip() for g in name.split("[", 1)[1].rstrip("]").split(",")]
 
 
-async def main_loop_integrations_init(records: list[IntegrationRecord], rcx: ckit_bot_exec.RobotContext, setup: dict | None = None) -> dict[str, Any]:
+async def main_loop_integrations_init(records: list[IntegrationRecord], rcx: ckit_bot_exec.RobotContext, setup: dict | None = None, need_mongo: bool = False) -> dict[str, Any]:
     from flexus_client_kit.integrations import fi_messenger
     rcx.messengers.clear()
-    if any(rec.integr_need_mongo for rec in records) and rcx.personal_mongo is None:
+    if (need_mongo or any(rec.integr_need_mongo for rec in records)) and rcx.personal_mongo is None:
         from pymongo import AsyncMongoClient
         from flexus_client_kit import ckit_mongo
         mongo_conn_str = await ckit_mongo.mongo_fetch_creds(rcx.fclient, rcx.persona.persona_id)

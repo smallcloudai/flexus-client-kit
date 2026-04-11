@@ -245,7 +245,7 @@ async def botticelli_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_
     mongo = AsyncMongoClient(mongo_conn_str)
     dbname = rcx.persona.persona_id + "_db"
     mydb = mongo[dbname]
-    personal_mongo = mydb["personal_mongo"]
+    rcx.personal_mongo = mydb["personal_mongo"]
 
     # Lazy initialization of OpenAI client - only create when needed
     openai_client = None
@@ -477,8 +477,8 @@ async def botticelli_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_
             logger.info("Image sizes: Original %0.1fk, WebP %0.1fk, WebP resized %0.1fk" % (len(png_bytes) / 1024.0, len(webp_bytes) / 1024.0, len(webp_resized_bytes) / 1024.0))
             webp_p1 = filename.replace(".png", ".webp")
             webp_p2 = f"{filename_base}-{img_w2}x{img_h2}.webp"
-            await ckit_mongo.mongo_store_file(personal_mongo, webp_p1, webp_bytes, 90 * 86400)
-            await ckit_mongo.mongo_store_file(personal_mongo, webp_p2, webp_resized_bytes, 90 * 86400)
+            await ckit_mongo.mongo_store_file(rcx.personal_mongo, webp_p1, webp_bytes, 90 * 86400)
+            await ckit_mongo.mongo_store_file(rcx.personal_mongo, webp_p2, webp_resized_bytes, 90 * 86400)
             logger.info(f"Saved to MongoDB: {webp_p1}")
             logger.info(f"Saved to MongoDB: {webp_p2}")
             image_url1 = f"{fclient.base_url_http}/v1/docs/{rcx.persona.persona_id}/{webp_p1}"
@@ -507,7 +507,7 @@ async def botticelli_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_
         if not crops:
             return ckit_cloudtool.ToolResult("Error: crops list required")
 
-        source_doc = await ckit_mongo.mongo_retrieve_file(personal_mongo, source_path)
+        source_doc = await ckit_mongo.mongo_retrieve_file(rcx.personal_mongo, source_path)
         if not source_doc:
             return ckit_cloudtool.ToolResult(f"Error: source image not found: {source_path}")
         source_bytes = source_doc["data"]
@@ -531,7 +531,7 @@ async def botticelli_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_
             base_path = re.sub(r'\.webp$', '', base_path)
 
             existing_files = set()
-            cursor = personal_mongo.find({})
+            cursor = rcx.personal_mongo.find({})
             async for doc in cursor:
                 if "filename" in doc:
                     existing_files.add(doc["filename"])
@@ -566,8 +566,8 @@ async def botticelli_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_
                 crop_path = f"{base_path}-crop{crop_num:03d}.webp"
                 crop_resized_path = f"{base_path}-crop{crop_num:03d}-{crop_w2}x{crop_h2}.webp"
 
-                await ckit_mongo.mongo_store_file(personal_mongo, crop_path, webp_bytes, 90 * 86400)
-                await ckit_mongo.mongo_store_file(personal_mongo, crop_resized_path, webp_resized_bytes, 90 * 86400)
+                await ckit_mongo.mongo_store_file(rcx.personal_mongo, crop_path, webp_bytes, 90 * 86400)
+                await ckit_mongo.mongo_store_file(rcx.personal_mongo, crop_resized_path, webp_resized_bytes, 90 * 86400)
                 existing_files.add(crop_resized_path)
 
                 logger.info(f"Saved crop {crop_path} ({w}x{h} @ {x},{y})")
@@ -979,7 +979,7 @@ Full brief saved to: {brief_path}
 
     @rcx.on_tool_call(fi_mongo_store.MONGO_STORE_TOOL.name)
     async def toolcall_mongo_store(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
-        return await fi_mongo_store.handle_mongo_store(rcx.workdir, personal_mongo, toolcall, model_produced_args)
+        return await fi_mongo_store.handle_mongo_store(rcx, toolcall, model_produced_args)
 
     try:
         while not ckit_shutdown.shutdown_event.is_set():

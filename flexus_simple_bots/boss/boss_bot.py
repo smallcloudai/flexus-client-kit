@@ -273,12 +273,7 @@ async def boss_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.R
 
     @rcx.on_tool_call(fi_mongo_store.MONGO_STORE_TOOL.name)
     async def toolcall_mongo_store(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
-        return await fi_mongo_store.handle_mongo_store(
-            rcx.workdir,
-            rcx.personal_mongo,
-            toolcall,
-            model_produced_args,
-        )
+        return await fi_mongo_store.handle_mongo_store(rcx, toolcall, model_produced_args)
 
     @rcx.on_tool_call(BOSS_SETUP_COLLEAGUES_TOOL.name)
     async def toolcall_setup_colleagues(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
