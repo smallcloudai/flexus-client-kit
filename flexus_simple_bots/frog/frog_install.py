@@ -35,6 +35,7 @@ EXPERTS = [
         fexp_python_kernel=FROG_DEFAULT_LARK,
         fexp_allow_tools=",".join(TOOL_NAMESET | ckit_cloudtool.CLOUDTOOLS_QUITE_A_LOT),
         fexp_nature="NATURE_INTERACTIVE",
+        fexp_inactivity_timeout=3600,
         fexp_description="Main conversational expert that handles user interactions, task management, and provides cheerful encouragement.",
         fexp_builtin_skills=ckit_skills.read_name_description(frog_bot.FROG_ROOTDIR, frog_bot.FROG_SKILLS),
     )),
@@ -45,6 +46,7 @@ EXPERTS = [
         fexp_nature="NATURE_NO_TASK",
         fexp_description="Subchat expert for catching insects, respecting tongue_capacity limit.",
         fexp_subchat_only=True,
+        fexp_model_class="cheap",
     )),
 ]
 

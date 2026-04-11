@@ -53,6 +53,9 @@ class FlexusMessenger:
     async def look_assistant_might_have_posted_something(self, msg: ckit_ask_model.FThreadMessageOutput) -> bool:
         raise NotImplementedError
 
+    async def close(self) -> None:
+        pass
+
     async def look_user_message_got_confirmed(self, msg: ckit_ask_model.FThreadMessageOutput) -> bool:
         return False
 

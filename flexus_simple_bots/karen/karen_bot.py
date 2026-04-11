@@ -450,8 +450,6 @@ async def karen_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.
             await rcx.unpark_collected_events(sleep_if_no_work=10.0)
 
     finally:
-        await integrations["discord"].close()
-        await telegram.close()
         logger.info("%s exit" % (rcx.persona.persona_id,))
 
 

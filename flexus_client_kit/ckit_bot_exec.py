@@ -293,6 +293,14 @@ class BotInstance(NamedTuple):
     instance_rcx: RobotContext
 
 
+async def _close_messengers(rcx: RobotContext) -> None:
+    for me in rcx.messengers:
+        try:
+            await me.close()
+        except Exception as e:
+            logger.warning("%s messenger close error: %s", rcx.persona.persona_id, e)
+
+
 async def crash_boom_bang(fclient: ckit_client.FlexusClient, rcx: RobotContext, bot_main_loop: Callable[[ckit_client.FlexusClient, RobotContext], Awaitable[None]]) -> None:
     logger.info("%s START name=%r" % (rcx.persona.persona_id, rcx.persona.persona_name))
     while not ckit_shutdown.shutdown_event.is_set():
@@ -305,11 +313,13 @@ async def crash_boom_bang(fclient: ckit_client.FlexusClient, rcx: RobotContext, 
             # _parked_messages, _parked_toolcalls -- don't clear, they still need handling (with new auth), subscription does NOT restart for the bot
             if len(rcx.bg_call_tasks):
                 logger.error("%s background tasks still running after restart, that's a bug", rcx.persona.persona_id)
+            await _close_messengers(rcx)
             rcx.messengers.clear()  # new loop will populate this with new auth
             continue
         except RestartBecauseSettingsChanged:
             logger.info("%s restart requested (settings changed)", rcx.persona.persona_id)
             await rcx.wait_for_bg_tasks(timeout=30.0)
+            await _close_messengers(rcx)
             rcx.messengers.clear()  # new loop will populate this with new settings
             break
         except asyncio.CancelledError:
@@ -317,8 +327,10 @@ async def crash_boom_bang(fclient: ckit_client.FlexusClient, rcx: RobotContext, 
             break
         except Exception as e:
             logger.error("%s Bot main loop problem: %s %s", rcx.persona.persona_id, type(e).__name__, str(e), exc_info=e)
+        await _close_messengers(rcx)
         logger.info("%s will sleep 60 seconds and restart", rcx.persona.persona_id)
         await ckit_shutdown.wait(60)
+    await _close_messengers(rcx)
     logger.info("%s STOP" % rcx.persona.persona_id)
 
 

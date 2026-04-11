@@ -583,8 +583,6 @@ async def telegram_groupmod_main_loop(
                 last_sync = now
     finally:
         await sync_buffers_to_mongo()
-        if tg:
-            await tg.close()
         await mongo.close()
         logger.info("telegram_groupmod stopped")
 
