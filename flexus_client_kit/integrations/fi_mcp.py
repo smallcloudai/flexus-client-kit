@@ -4,6 +4,7 @@ from typing import Any, Dict, Optional, Union
 from contextlib import asynccontextmanager
 
 import httpx
+from exceptiongroup import BaseExceptionGroup
 from mcp import ClientSession
 from mcp.client.sse import sse_client
 from mcp.client.streamable_http import streamable_http_client
@@ -12,6 +13,24 @@ from flexus_client_kit import ckit_bot_exec
 from flexus_client_kit import ckit_cloudtool
 
 logger = logging.getLogger("fi_mcp")
+
+
+MCP_DATABASE = {  # "prefix": ("default_url", {"token_name": "default_value", ...}, "auth_provider"),
+"context7": ("https://mcp.context7.com/mcp", {}),
+"fibery": ("https://mcp.fibery.io/mcp", {"token": ""}, ["fibery_manual", "fibery"]),
+}
+
+
+def _unwrap_http_status(e: BaseException) -> int:
+    # MCP client wraps HTTPStatusError in ExceptionGroup via anyio TaskGroup
+    if isinstance(e, httpx.HTTPStatusError):
+        return e.response.status_code
+    if isinstance(e, BaseExceptionGroup):
+        for exc in e.exceptions:
+            s = _unwrap_http_status(exc)
+            if s:
+                return s
+    return 0
 
 
 class IntegrationMcp:
@@ -26,14 +45,18 @@ class IntegrationMcp:
         self.headers: Dict[str, str] = {}
         if tokens:
             for k, v in tokens.items():
-                if k.lower() in ("token", "bearer", "api_key"):
+                kl = k.lower()
+                if kl in ("token", "bearer", "api_key"):
                     self.headers["Authorization"] = f"Bearer {v}"
                 else:
                     self.headers[k] = v
+        logger.info("AAAAAAAAAAAAAA3 %s", self.headers)
         self._use_sse = None  # auto-detected on first connect
         self._mcp_tools = []
+        self._init_error = ""
 
     async def initialize(self):
+        self._init_error = ""
         # Probe transport: try Streamable HTTP first, fall back to SSE on 4xx
         try:
             async with self._connect_streamable() as session:
@@ -41,14 +64,27 @@ class IntegrationMcp:
                 self._use_sse = False
                 logger.info("fi_mcp %s using streamable HTTP", self.url)
                 return
-        except httpx.HTTPStatusError as e:
-            if e.response.status_code not in (404, 405):
+        except (httpx.HTTPStatusError, BaseExceptionGroup) as e:
+            status = _unwrap_http_status(e)
+            if status == 401:
+                self._init_error = "MCP server %s returned 401 Unauthorized, check your API key" % self.mcp_name
+                logger.error(self._init_error)
+                return
+            if status not in (404, 405):
                 raise
-            logger.info("fi_mcp streamable HTTP got %d, trying SSE", e.response.status_code)
-        async with self._connect_sse() as session:
-            self._mcp_tools = (await session.list_tools()).tools
-            self._use_sse = True
-            logger.info("fi_mcp %s using SSE", self.url)
+            logger.info("fi_mcp streamable HTTP got %d, trying SSE", status)
+        try:
+            async with self._connect_sse() as session:
+                self._mcp_tools = (await session.list_tools()).tools
+                self._use_sse = True
+                logger.info("fi_mcp %s using SSE", self.url)
+        except (httpx.HTTPStatusError, BaseExceptionGroup) as e:
+            status = _unwrap_http_status(e)
+            if status == 401:
+                self._init_error = "MCP server %s returned 401 Unauthorized, check your API key" % self.mcp_name
+                logger.error(self._init_error)
+                return
+            raise
 
     @classmethod
     def tool_desc(cls, n: str) -> ckit_cloudtool.CloudTool:
@@ -67,6 +103,8 @@ class IntegrationMcp:
         )
 
     async def handle_tool_call(self, toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
+        if self._init_error:
+            return self._init_error
         op = (model_produced_args or {}).get("op", "help")
         args = (model_produced_args or {}).get("args", {})
         name = (model_produced_args or {}).get("name", "")
@@ -127,9 +165,22 @@ class IntegrationMcp:
             yield session
 
 
-MCP_DATABASE = {  # "prefix": ("default_url", {"token_name": "default_value", ...}),
-"context7": ("https://mcp.context7.com/mcp", {}),
-}
+def _mcp_token_from_external_auth(ext: dict, providers: list[str]) -> str:
+    for provider in providers:
+        raw = ext.get(provider)
+        if not isinstance(raw, dict):
+            continue
+        # manual auth: api_key at top level
+        v = (raw.get("api_key") or "").strip()
+        if v:
+            return v
+        # OAuth: access_token inside token dict
+        tok = raw.get("token")
+        if isinstance(tok, dict):
+            v = (tok.get("access_token") or "").strip()
+            if v:
+                return v
+    return ""
 
 
 def _validate_names(names: list[str]):
@@ -142,7 +193,8 @@ def mcp_setup_schema(names: list[str], bs_group: str = "MCP", bs_order_start: in
     _validate_names(names)
     schema = []
     for i, n in enumerate(names):
-        default_url, default_tokens = MCP_DATABASE[n]
+        entry = MCP_DATABASE[n]
+        default_url, default_tokens = entry[0], entry[1]
         schema.append({
             "bs_name": f"mcp_{n}_url",
             "bs_type": "string_long",
@@ -173,7 +225,11 @@ def mcp_tools(names: list[str]) -> list[ckit_cloudtool.CloudTool]:
 async def mcp_launch(names: list[str], rcx: ckit_bot_exec.RobotContext, setup: Dict[str, Any]) -> None:
     _validate_names(names)
     for n in names:
-        default_url, default_tokens = MCP_DATABASE[n]
+        entry = MCP_DATABASE[n]
+        default_url, default_tokens = entry[0], entry[1]
+        auth_providers = entry[2] if len(entry) > 2 else []
+        if isinstance(auth_providers, str):
+            auth_providers = [auth_providers]
         url = setup.get(f"mcp_{n}_url", default_url)
         if not url:
             async def _not_configured(toolcall, args, _n=n):
@@ -182,9 +238,14 @@ async def mcp_launch(names: list[str], rcx: ckit_bot_exec.RobotContext, setup: D
             continue
         tokens = {}
         for tk in default_tokens:
-            v = setup.get(f"mcp_{n}_{tk}", default_tokens[tk])
+            v = ""
+            if auth_providers and tk in ("token", "bearer", "api_key"):
+                v = _mcp_token_from_external_auth(rcx.external_auth, auth_providers)
+            if not v:
+                v = setup.get(f"mcp_{n}_{tk}", default_tokens[tk])
             if v:
                 tokens[tk] = v
+        logger.info("AAAAAAAAAAAAAA2 %s %s", n, str(tokens))
         mcp = IntegrationMcp(url=url, tokens=tokens or None, mcp_name=n)
         await mcp.initialize()
         rcx.on_tool_call(f"mcp_{n}")(mcp.handle_tool_call)

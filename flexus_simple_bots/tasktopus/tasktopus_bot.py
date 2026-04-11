@@ -10,6 +10,7 @@ from flexus_client_kit import ckit_shutdown
 from flexus_client_kit import ckit_kanban
 from flexus_client_kit import ckit_integrations_db
 from flexus_client_kit.integrations import fi_slack
+from flexus_client_kit.integrations import fi_mcp
 from flexus_client_kit import ckit_bot_version
 
 logger = logging.getLogger("bot_tasktopus")
@@ -17,7 +18,12 @@ logger = logging.getLogger("bot_tasktopus")
 BOT_NAME = ckit_bot_version.bot_name_from_file(__file__)
 
 TASKTOPUS_ROOTDIR = Path(__file__).parent
+TASKTOPUS_MCPS = [
+    "fibery",
+]
+
 TASKTOPUS_SETUP_SCHEMA = json.loads((TASKTOPUS_ROOTDIR / "setup_schema.json").read_text())
+TASKTOPUS_SETUP_SCHEMA.extend(fi_mcp.mcp_setup_schema(TASKTOPUS_MCPS))
 
 TASKTOPUS_INTEGRATIONS: list[ckit_integrations_db.IntegrationRecord] = ckit_integrations_db.static_integrations_load(
     TASKTOPUS_ROOTDIR,
@@ -27,6 +33,7 @@ TASKTOPUS_INTEGRATIONS: list[ckit_integrations_db.IntegrationRecord] = ckit_inte
 
 TOOLS = [
     *[t for rec in TASKTOPUS_INTEGRATIONS for t in rec.integr_tools],
+    *fi_mcp.mcp_tools(TASKTOPUS_MCPS),
 ]
 
 
@@ -34,6 +41,7 @@ async def tasktopus_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_e
     setup = ckit_bot_exec.official_setup_mixing_procedure(TASKTOPUS_SETUP_SCHEMA, rcx.persona.persona_setup)
     integr_objects = await ckit_integrations_db.main_loop_integrations_init(TASKTOPUS_INTEGRATIONS, rcx, setup)
     sl: fi_slack.IntegrationSlack = integr_objects["slack"]
+    await fi_mcp.mcp_launch(TASKTOPUS_MCPS, rcx, setup)
 
     @rcx.on_updated_task
     async def updated_task_in_db(action: str, old_task: Optional[ckit_kanban.FPersonaKanbanTaskOutput], new_task: Optional[ckit_kanban.FPersonaKanbanTaskOutput]):
