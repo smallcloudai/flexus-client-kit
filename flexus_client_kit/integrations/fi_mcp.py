@@ -1,7 +1,8 @@
 import json
 import logging
+import time
+from contextlib import AsyncExitStack, asynccontextmanager
 from typing import Any, Dict, Union
-from contextlib import asynccontextmanager
 
 import httpx
 from exceptiongroup import BaseExceptionGroup
@@ -33,6 +34,9 @@ def _unwrap_http_status(e: BaseException) -> int:
     return 0
 
 
+SESSION_TTL = 60  # seconds of idle before closing cached session
+
+
 class IntegrationMcp:
     def __init__(self, url: str, mcp_name: str, token: str = ""):
         self.url = url.strip()
@@ -41,6 +45,9 @@ class IntegrationMcp:
         self._use_sse = None  # auto-detected on first connect
         self._mcp_tools = []
         self._init_error = ""
+        self._cached_session: ClientSession | None = None
+        self._cached_stack: AsyncExitStack | None = None
+        self._session_expires = 0.0
 
     async def initialize(self):
         self._init_error = ""
@@ -116,13 +123,23 @@ class IntegrationMcp:
         if op == "call":
             if not name:
                 return "Missing name parameter\n"
+            clean_args = {k: v for k, v in (args or {}).items() if v is not None}
             logger.info("fi_mcp calling %s on %s", name, self.url)
-            async with self._connect() as session:
-                result = await session.call_tool(name, args or {})
-                # XXX handle multimodal content (images etc) when needed
-                text = result.content[0].text if result.content and hasattr(result.content[0], "text") else ""
-                logger.info("fi_mcp %s done, %d chars", name, len(text))
-                return text
+            for attempt in range(2):
+                session = await self._get_session()
+                try:
+                    result = await session.call_tool(name, clean_args)
+                except Exception:
+                    if attempt > 0:
+                        raise
+                    logger.info("fi_mcp %s session dead, reconnecting", self.mcp_name)
+                    await self._close_session()
+                    continue
+                break
+            # XXX handle multimodal content (images etc) when needed
+            text = result.content[0].text if result.content and hasattr(result.content[0], "text") else ""
+            logger.info("fi_mcp %s done, %d chars", name, len(text))
+            return text
 
         return f"Unknown op '{op}', use help/list/call\n"
 
@@ -143,13 +160,40 @@ class IntegrationMcp:
                 await session.initialize()
                 yield session
 
-    @asynccontextmanager
-    async def _connect(self):
+    async def _get_session(self) -> ClientSession:
         if self._use_sse is None:
             raise RuntimeError("call initialize() before using MCP integration")
-        ctx = self._connect_sse() if self._use_sse else self._connect_streamable()
-        async with ctx as session:
-            yield session
+        if self._cached_session and time.monotonic() < self._session_expires:
+            self._session_expires = time.monotonic() + SESSION_TTL
+            return self._cached_session
+        # expired or absent — close old, open new (must be same task as enter)
+        await self._close_session()
+        stack = AsyncExitStack()
+        try:
+            if self._use_sse:
+                streams = await stack.enter_async_context(sse_client(self.url, headers=self.headers or None, timeout=15))
+            else:
+                h = self.headers or None
+                client = httpx.AsyncClient(headers=h, timeout=httpx.Timeout(15))
+                streams = await stack.enter_async_context(streamable_http_client(self.url, http_client=client))
+            session = await stack.enter_async_context(ClientSession(streams[0], streams[1]))
+            await session.initialize()
+        except BaseException:
+            await stack.aclose()
+            raise
+        self._cached_stack = stack
+        self._cached_session = session
+        self._session_expires = time.monotonic() + SESSION_TTL
+        logger.info("fi_mcp %s session opened", self.mcp_name)
+        return session
+
+    async def _close_session(self):
+        stack = self._cached_stack
+        self._cached_session = None
+        self._cached_stack = None
+        if stack:
+            await stack.aclose()
+            logger.info("fi_mcp %s session closed", self.mcp_name)
 
 
 def _mcp_token_from_external_auth(ext: dict, provider: str) -> str:
@@ -228,5 +272,6 @@ if __name__ == "__main__":
             print(await mcp.handle_tool_call(None, {"op": "help", "name": name}))
         print("-"*40, "call", "-"*40)
         print(await mcp.handle_tool_call(None, {"op": "call", "name": "resolve-library-id", "args": {"query": "python mcp client", "libraryName": "mcp"}}))
+        await mcp._close_session()
 
     asyncio.run(trivial_test())
