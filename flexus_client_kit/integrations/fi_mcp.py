@@ -54,8 +54,8 @@ class IntegrationMcp:
         except (httpx.HTTPStatusError, BaseExceptionGroup) as e:
             status = _unwrap_http_status(e)
             if status == 401:
-                self._init_error = "MCP server %s returned 401 Unauthorized, check your API key" % self.mcp_name
-                logger.error(self._init_error)
+                self._init_error = "MCP server %s returned 401 Unauthorized. API key is connected but rejected by the server — check if the key is valid or expired." % self.mcp_name
+                logger.info("🛑 " + self._init_error)
                 return
             if status not in (404, 405):
                 raise
@@ -68,8 +68,8 @@ class IntegrationMcp:
         except (httpx.HTTPStatusError, BaseExceptionGroup) as e:
             status = _unwrap_http_status(e)
             if status == 401:
-                self._init_error = "MCP server %s returned 401 Unauthorized, check your API key" % self.mcp_name
-                logger.error(self._init_error)
+                self._init_error = "MCP server %s returned 401 Unauthorized. API key is connected but rejected by the server — check if the key is valid or expired." % self.mcp_name
+                logger.info("🛑 " + self._init_error)
                 return
             raise
 
