@@ -780,6 +780,9 @@ async def _run_scenario_for_model(
             if result.scenario_done:
                 break
             http = await scenario.fclient.use_http_on_behalf(None, "")
+            if not result.next_human_message:
+                stop_reason = "empty_human_message"
+                break
             await ckit_ask_model.thread_add_user_message(
                 http=http,
                 ft_id=ft_id,
