@@ -1,6 +1,6 @@
 import json
 import logging
-from typing import Any, Dict, Optional, Union
+from typing import Any, Dict, Union
 from contextlib import asynccontextmanager
 
 import httpx
@@ -15,9 +15,9 @@ from flexus_client_kit import ckit_cloudtool
 logger = logging.getLogger("fi_mcp")
 
 
-MCP_DATABASE = {  # "prefix": ("default_url", {"token_name": "default_value", ...}, "auth_provider"),
-"context7": ("https://mcp.context7.com/mcp", {}),
-"fibery": ("https://mcp.fibery.io/mcp", {"token": ""}, ["fibery_manual", "fibery"]),
+MCP_DATABASE = {  # name: (url, auth_provider)
+    "context7": ("https://mcp.context7.com/mcp", ""),
+    "fibery":   ("https://mcp.fibery.io/mcp", "fibery"),
 }
 
 
@@ -34,23 +34,10 @@ def _unwrap_http_status(e: BaseException) -> int:
 
 
 class IntegrationMcp:
-    def __init__(
-        self,
-        url: str,
-        mcp_name: str,
-        tokens: Optional[Dict[str, str]] = None,
-    ):
+    def __init__(self, url: str, mcp_name: str, token: str = ""):
         self.url = url.strip()
         self.mcp_name = mcp_name
-        self.headers: Dict[str, str] = {}
-        if tokens:
-            for k, v in tokens.items():
-                kl = k.lower()
-                if kl in ("token", "bearer", "api_key"):
-                    self.headers["Authorization"] = f"Bearer {v}"
-                else:
-                    self.headers[k] = v
-        logger.info("AAAAAAAAAAAAAA3 %s", self.headers)
+        self.headers: Dict[str, str] = {"Authorization": f"Bearer {token}"} if token else {}
         self._use_sse = None  # auto-detected on first connect
         self._mcp_tools = []
         self._init_error = ""
@@ -165,21 +152,18 @@ class IntegrationMcp:
             yield session
 
 
-def _mcp_token_from_external_auth(ext: dict, providers: list[str]) -> str:
-    for provider in providers:
-        raw = ext.get(provider)
-        if not isinstance(raw, dict):
-            continue
-        # manual auth: api_key at top level
-        v = (raw.get("api_key") or "").strip()
-        if v:
-            return v
-        # OAuth: access_token inside token dict
-        tok = raw.get("token")
-        if isinstance(tok, dict):
-            v = (tok.get("access_token") or "").strip()
-            if v:
-                return v
+def _mcp_token_from_external_auth(ext: dict, provider: str) -> str:
+    raw = ext.get(provider)
+    if not isinstance(raw, dict):
+        return ""
+    # manual auth: api_key at top level
+    v = (raw.get("api_key") or "").strip()
+    if v:
+        return v
+    # OAuth: access_token inside token dict
+    tok = raw.get("token")
+    if isinstance(tok, dict):
+        return (tok.get("access_token") or "").strip()
     return ""
 
 
@@ -193,27 +177,16 @@ def mcp_setup_schema(names: list[str], bs_group: str = "MCP", bs_order_start: in
     _validate_names(names)
     schema = []
     for i, n in enumerate(names):
-        entry = MCP_DATABASE[n]
-        default_url, default_tokens = entry[0], entry[1]
+        url = MCP_DATABASE[n][0]
         schema.append({
             "bs_name": f"mcp_{n}_url",
             "bs_type": "string_long",
-            "bs_default": default_url,
+            "bs_default": url,
             "bs_group": bs_group,
             "bs_order": bs_order_start + i * 10,
             "bs_importance": 0,
             "bs_description": f"MCP server URL for {n}",
         })
-        for tk, tv in default_tokens.items():
-            schema.append({
-                "bs_name": f"mcp_{n}_{tk}",
-                "bs_type": "string_long",
-                "bs_default": tv,
-                "bs_group": bs_group,
-                "bs_order": bs_order_start + i * 10 + 1,
-                "bs_importance": 0,
-                "bs_description": f"Token '{tk}' for {n} MCP server",
-            })
     return schema
 
 
@@ -225,28 +198,15 @@ def mcp_tools(names: list[str]) -> list[ckit_cloudtool.CloudTool]:
 async def mcp_launch(names: list[str], rcx: ckit_bot_exec.RobotContext, setup: Dict[str, Any]) -> None:
     _validate_names(names)
     for n in names:
-        entry = MCP_DATABASE[n]
-        default_url, default_tokens = entry[0], entry[1]
-        auth_providers = entry[2] if len(entry) > 2 else []
-        if isinstance(auth_providers, str):
-            auth_providers = [auth_providers]
+        default_url, auth_provider = MCP_DATABASE[n]
         url = setup.get(f"mcp_{n}_url", default_url)
         if not url:
             async def _not_configured(toolcall, args, _n=n):
                 return f"MCP server {_n} is not configured, set mcp_{_n}_url in bot setup"
             rcx.on_tool_call(f"mcp_{n}")(_not_configured)
             continue
-        tokens = {}
-        for tk in default_tokens:
-            v = ""
-            if auth_providers and tk in ("token", "bearer", "api_key"):
-                v = _mcp_token_from_external_auth(rcx.external_auth, auth_providers)
-            if not v:
-                v = setup.get(f"mcp_{n}_{tk}", default_tokens[tk])
-            if v:
-                tokens[tk] = v
-        logger.info("AAAAAAAAAAAAAA2 %s %s", n, str(tokens))
-        mcp = IntegrationMcp(url=url, tokens=tokens or None, mcp_name=n)
+        token = _mcp_token_from_external_auth(rcx.external_auth, auth_provider) if auth_provider else ""
+        mcp = IntegrationMcp(url=url, token=token, mcp_name=n)
         await mcp.initialize()
         rcx.on_tool_call(f"mcp_{n}")(mcp.handle_tool_call)
         logger.info("mcp launched %s -> %s", n, url)
@@ -257,10 +217,7 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
 
     async def trivial_test():
-        mcp = IntegrationMcp(
-            url="https://mcp.context7.com/mcp",
-            mcp_name="context7",
-        )
+        mcp = IntegrationMcp(url="https://mcp.context7.com/mcp", mcp_name="context7")
         await mcp.initialize()
         listing = await mcp.handle_tool_call(None, {"op": "list"})
         print("-"*40, "list", "-"*40)
