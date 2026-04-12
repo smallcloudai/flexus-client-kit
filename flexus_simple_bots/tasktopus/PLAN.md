@@ -70,7 +70,13 @@ detect when something breaks, then regular Tasktopus threads need a tool to comp
 reviewing past threads by a specialized expert.
 
 
-# Kanban Confusion
+## Situation 1: Volcano Theme Park Launch
+
+Investors demand a grand opening for a luxury resort built on an active volcano. Marketing wants fireworks, geology wants evacuation
+drills, and legal wants literally anything to stop happening.
+
+
+## Kanban Confusion
 
 Flexus has kanban for bots, it's technical for orchestration, tasks are unmovable by humans, the name is rather for intuition,
 not for planning projects.
@@ -86,3 +92,5 @@ karen_*.py
 frog_*.py
 flexus_simple_bots/karen/very_limited__actual_support.yaml
 don't use explore
+
+
