@@ -1,6 +1,6 @@
+import asyncio
 import json
 import logging
-import time
 from contextlib import AsyncExitStack, asynccontextmanager
 from typing import Any, Dict, Union
 
@@ -12,6 +12,7 @@ from mcp.client.streamable_http import streamable_http_client
 
 from flexus_client_kit import ckit_bot_exec
 from flexus_client_kit import ckit_cloudtool
+from flexus_client_kit import ckit_shutdown
 
 logger = logging.getLogger("fi_mcp")
 
@@ -45,9 +46,9 @@ class IntegrationMcp:
         self._use_sse = None  # auto-detected on first connect
         self._mcp_tools = []
         self._init_error = ""
-        self._cached_session: ClientSession | None = None
-        self._cached_stack: AsyncExitStack | None = None
-        self._session_expires = 0.0
+        # Session owner task: all open/close happens inside _session_loop to stay in the same task
+        self._req_queue: asyncio.Queue = asyncio.Queue()
+        self._session_task: asyncio.Task | None = None
 
     async def initialize(self):
         self._init_error = ""
@@ -57,7 +58,6 @@ class IntegrationMcp:
                 self._mcp_tools = (await session.list_tools()).tools
                 self._use_sse = False
                 logger.info("fi_mcp %s using streamable HTTP", self.url)
-                return
         except (httpx.HTTPStatusError, BaseExceptionGroup) as e:
             status = _unwrap_http_status(e)
             if status == 401:
@@ -67,18 +67,29 @@ class IntegrationMcp:
             if status not in (404, 405):
                 raise
             logger.info("fi_mcp streamable HTTP got %d, trying SSE", status)
-        try:
-            async with self._connect_sse() as session:
-                self._mcp_tools = (await session.list_tools()).tools
-                self._use_sse = True
-                logger.info("fi_mcp %s using SSE", self.url)
-        except (httpx.HTTPStatusError, BaseExceptionGroup) as e:
-            status = _unwrap_http_status(e)
-            if status == 401:
-                self._init_error = "MCP server %s returned 401 Unauthorized. API key is connected but rejected by the server — check if the key is valid or expired." % self.mcp_name
-                logger.info("🛑 " + self._init_error)
-                return
-            raise
+            try:
+                async with self._connect_sse() as session:
+                    self._mcp_tools = (await session.list_tools()).tools
+                    self._use_sse = True
+                    logger.info("fi_mcp %s using SSE", self.url)
+            except (httpx.HTTPStatusError, BaseExceptionGroup) as e:
+                status = _unwrap_http_status(e)
+                if status == 401:
+                    self._init_error = "MCP server %s returned 401 Unauthorized. API key is connected but rejected by the server — check if the key is valid or expired." % self.mcp_name
+                    logger.info("🛑 " + self._init_error)
+                    return
+                raise
+        if not self._init_error:
+            self._session_task = asyncio.create_task(self._session_loop())
+
+    async def close(self):
+        if self._session_task and not self._session_task.done():
+            self._session_task.cancel()
+            try:
+                await self._session_task
+            except asyncio.CancelledError:
+                pass
+        self._session_task = None
 
     @classmethod
     def tool_desc(cls, n: str) -> ckit_cloudtool.CloudTool:
@@ -123,19 +134,10 @@ class IntegrationMcp:
         if op == "call":
             if not name:
                 return "Missing name parameter\n"
+            # XXX That might be questionable, removes all the None, why would it do that
             clean_args = {k: v for k, v in (args or {}).items() if v is not None}
             logger.info("fi_mcp calling %s on %s", name, self.url)
-            for attempt in range(2):
-                session = await self._get_session()
-                try:
-                    result = await session.call_tool(name, clean_args)
-                except Exception:
-                    if attempt > 0:
-                        raise
-                    logger.info("fi_mcp %s session dead, reconnecting", self.mcp_name)
-                    await self._close_session()
-                    continue
-                break
+            result = await self._call_tool(name, clean_args)
             # XXX handle multimodal content (images etc) when needed
             text = result.content[0].text if result.content and hasattr(result.content[0], "text") else ""
             logger.info("fi_mcp %s done, %d chars", name, len(text))
@@ -160,14 +162,47 @@ class IntegrationMcp:
                 await session.initialize()
                 yield session
 
-    async def _get_session(self) -> ClientSession:
-        if self._use_sse is None:
-            raise RuntimeError("call initialize() before using MCP integration")
-        if self._cached_session and time.monotonic() < self._session_expires:
-            self._session_expires = time.monotonic() + SESSION_TTL
-            return self._cached_session
-        # expired or absent — close old, open new (must be same task as enter)
-        await self._close_session()
+    async def _session_loop(self):
+        # All session open/close happens here, in one task, so anyio cancel scopes are happy
+        session = None
+        stack = None
+        while True:
+            try:
+                fut = await asyncio.wait_for(self._req_queue.get(), timeout=SESSION_TTL)
+            except asyncio.TimeoutError:
+                if session:
+                    logger.info("fi_mcp %s idle %ds, closing session", self.mcp_name, SESSION_TTL)
+                    await self._close_stack(stack)
+                    session, stack = None, None
+                continue
+            except asyncio.CancelledError:
+                if session:
+                    logger.info("fi_mcp %s task cancelled, closing session", self.mcp_name)
+                    await self._close_stack(stack)
+                return
+            # fut is (name, args, response_future)
+            name, args, resp = fut
+            try:
+                if not session:
+                    session, stack = await self._open_session()
+                result = await session.call_tool(name, args)
+            except Exception as e:
+                if session:
+                    logger.info("fi_mcp %s session dead, reconnecting", self.mcp_name)
+                    await self._close_stack(stack)
+                    session, stack = None, None
+                    try:
+                        session, stack = await self._open_session()
+                        result = await session.call_tool(name, args)
+                    except Exception as e2:
+                        resp.set_exception(e2)
+                        continue
+                else:
+                    resp.set_exception(e)
+                    continue
+            resp.set_result(result)
+
+    async def _open_session(self):
         stack = AsyncExitStack()
         try:
             if self._use_sse:
@@ -179,21 +214,27 @@ class IntegrationMcp:
             session = await stack.enter_async_context(ClientSession(streams[0], streams[1]))
             await session.initialize()
         except BaseException:
-            await stack.aclose()
+            await self._close_stack(stack)
             raise
-        self._cached_stack = stack
-        self._cached_session = session
-        self._session_expires = time.monotonic() + SESSION_TTL
         logger.info("fi_mcp %s session opened", self.mcp_name)
-        return session
+        return session, stack
 
-    async def _close_session(self):
-        stack = self._cached_stack
-        self._cached_session = None
-        self._cached_stack = None
-        if stack:
+    async def _close_stack(self, stack):
+        if not stack:
+            return
+        logger.info("fi_mcp %s closing session", self.mcp_name)
+        try:
             await stack.aclose()
-            logger.info("fi_mcp %s session closed", self.mcp_name)
+        except (asyncio.CancelledError, GeneratorExit):
+            raise
+        except BaseException:
+            logger.warning("fi_mcp %s error closing session", self.mcp_name, exc_info=True)
+        logger.info("fi_mcp %s session closed", self.mcp_name)
+
+    async def _call_tool(self, name: str, args: dict):
+        resp = asyncio.get_running_loop().create_future()
+        await self._req_queue.put((name, args, resp))
+        return await resp
 
 
 def _mcp_token_from_external_auth(ext: dict, provider: str) -> str:
@@ -252,6 +293,8 @@ async def mcp_launch(names: list[str], rcx: ckit_bot_exec.RobotContext, setup: D
         token = _mcp_token_from_external_auth(rcx.external_auth, auth_provider) if auth_provider else ""
         mcp = IntegrationMcp(url=url, token=token, mcp_name=n)
         await mcp.initialize()
+        if mcp._session_task:
+            ckit_shutdown.give_task_to_cancel(f"mcp_{n}", mcp._session_task)
         rcx.on_tool_call(f"mcp_{n}")(mcp.handle_tool_call)
         logger.info("mcp launched %s -> %s", n, url)
 
@@ -272,6 +315,6 @@ if __name__ == "__main__":
             print(await mcp.handle_tool_call(None, {"op": "help", "name": name}))
         print("-"*40, "call", "-"*40)
         print(await mcp.handle_tool_call(None, {"op": "call", "name": "resolve-library-id", "args": {"query": "python mcp client", "libraryName": "mcp"}}))
-        await mcp._close_session()
+        await mcp.close()
 
     asyncio.run(trivial_test())
