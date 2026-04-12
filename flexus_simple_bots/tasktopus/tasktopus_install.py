@@ -31,7 +31,7 @@ async def install(client: ckit_client.FlexusClient):
         marketable_title2="An eight-armed task manager that gets things done.",
         marketable_author="Flexus",
         marketable_occupation="Task Manager",
-        marketable_description="Tasktopus manages your tasks through a kanban board. It triages incoming work, prioritizes tasks, and resolves them methodically.",
+        marketable_description=(tasktopus_bot.TASKTOPUS_ROOTDIR / "README.md").read_text(),
         marketable_typical_group="Productivity",
         marketable_setup_default=tasktopus_bot.TASKTOPUS_SETUP_SCHEMA,
         marketable_featured_actions=[
