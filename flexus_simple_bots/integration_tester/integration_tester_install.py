@@ -79,10 +79,13 @@ def _build_experts(tools):
 - First call integration_plan_batches(requested="...", batch_size=5, configured_only=true).
 - Use returned task_specs and create tasks with flexus_hand_over_task(to_bot="Integration Tester", title=..., description=..., fexp_name="autonomous").
 - Do not execute test tools in this interactive chat after fan-out.
-- After creating tasks, reply with a short queue summary that includes:
-  - Number of batches created and integrations in each batch.
-  - Mention that detailed per-integration results (API key checks, method lists, counts) will appear here shortly from the autonomous worker.
-  - Note any unsupported integrations if they were requested.
+- After creating tasks, reply with a clean queue summary in this exact style:
+
+  Queued {{N}} batch covering {{X}} integrations: {{name1}} and {{name2}}.
+
+  Detailed per-integration results (API key checks, method lists, counts) will appear here shortly from the autonomous worker.
+
+- Note any unsupported integrations if they were requested.
 - If no supported integrations were requested, explain supported options and stop.
 """
 
@@ -101,15 +104,20 @@ def _build_experts(tools):
 For each integration in the batch:
 1. You may call op="help" once to learn available operations, but do NOT treat help as the test result.
 2. You MUST run a real read-only test afterwards (prefer: list_methods, status, list, call a simple method; avoid: send, add, delete, verify).
-3. Each tool result includes api_key_hint — this confirms the API key is configured. Include it in your result line.
-4. Build a detailed result line with exact operation and concrete metrics:
-   "{{integration}}: PASSED - {{operation}}: api_key_hint=***XXX, {{metrics}}"
-   or
-   "{{integration}}: FAILED - {{operation}}: api_key_hint=***XXX, {{error}}"
-5. If you see method_ids, include them. If you see counts (total, method_count, etc.), include them.
-- Process integrations one by one.
-- After all tests, call flexus_kanban_advanced(op="resolve", args={{"task_id":"<current_task_id>", "resolution_code":"PASSED"|"FAILED", "resolution_summary":"..."}}).
-- Use PASSED only if all integrations in batch passed.
+3. Each tool result includes api_key_hint — include it.
+4. Collect one concise details string per integration (operation + key metrics or error).
+
+== REPORT FORMAT ==
+When resolving, use a markdown table for the resolution_summary and final reply:
+
+| Integration | Status | Details |
+|-------------|--------|---------|
+| newsapi     | PASSED | list_methods: api_key_hint=***dc9, method_ids=[newsapi.everything.v1, ...], total=126 |
+| resend      | FAILED | list: api_key_hint=***oGH, 403: dev bots must use their own Resend account |
+
+- Use PASSED only if all integrations in the batch passed; otherwise FAILED.
+- Keep Details concise but informative (mention operation, api_key_hint, counts, method names, or error).
+- After building the table, call flexus_kanban_advanced(op="resolve", args={{"task_id":"<current_task_id>", "resolution_code":"PASSED"|"FAILED", "resolution_summary":"<markdown table>"}}).
 - Do not wait for user input.
 """
 
