@@ -14,9 +14,14 @@ from flexus_client_kit import ckit_messages
 from flexus_client_kit import ckit_mongo
 from flexus_client_kit import ckit_shutdown
 from flexus_client_kit.ckit_connector import ChatConnector, NormalizedEvent
+from flexus_client_kit.ckit_connector_discord import (
+    discord_bot_api_key_from_external_auth,
+    log_ctx,
+    parse_snowflake,
+    setup_truthy,
+)
 from flexus_client_kit.ckit_connector_discord_gateway import DiscordGatewayConnector
 from flexus_client_kit.gateway.ckit_gateway_wire import normalized_event_from_dict
-from flexus_client_kit.integrations import fi_discord2 as dc
 from flexus_simple_bots.discord_bot import discord_bot_install
 from flexus_simple_bots.version_common import SIMPLE_BOTS_COMMON_VERSION
 
@@ -82,10 +87,10 @@ async def _gateway_discord_channel_acl_preflight(
     try:
         for cid in sorted(watched_channel_ids):
             await _warn_gateway_channel_acl(connector, persona_id, "watched message_in_channel", cid)
-        checklist_cid = dc.parse_snowflake(setup.get("checklist_channel_id", ""))
-        if checklist_cid and not dc.setup_truthy(setup.get("disable_checklist_auto_post")):
+        checklist_cid = parse_snowflake(setup.get("checklist_channel_id", ""))
+        if checklist_cid and not setup_truthy(setup.get("disable_checklist_auto_post")):
             await _warn_gateway_channel_acl(connector, persona_id, "checklist_channel", checklist_cid)
-        welcome_cid = dc.parse_snowflake(setup.get("welcome_channel_id", ""))
+        welcome_cid = parse_snowflake(setup.get("welcome_channel_id", ""))
         if welcome_cid:
             await _warn_gateway_channel_acl(connector, persona_id, "welcome_channel", welcome_cid)
     except (TypeError, ValueError) as e:
@@ -148,12 +153,12 @@ def _guild_ids_from_persona(persona: Any, setup: Dict[str, Any]) -> set[int]:
             ids: set[int] = set()
             for v in addresses:
                 if isinstance(v, str) and v.startswith("discord:"):
-                    gid = dc.parse_snowflake(v[len("discord:") :])
+                    gid = parse_snowflake(v[len("discord:") :])
                     if gid is not None:
                         ids.add(gid)
             if ids:
                 return ids
-        legacy_gid = dc.parse_snowflake(setup.get("dc_guild_id", ""))
+        legacy_gid = parse_snowflake(setup.get("dc_guild_id", ""))
         if legacy_gid is not None:
             return {legacy_gid}
         return set()
@@ -191,13 +196,13 @@ async def _maybe_gateway_auto_post_checklist(
     Replaces the old raw-client path that called channel.send locally.
     """
     try:
-        if dc.setup_truthy(setup.get("disable_checklist_auto_post")):
+        if setup_truthy(setup.get("disable_checklist_auto_post")):
             return
         gid = int(pl.get("guild_id", 0) or 0)
         # Empty allowlist must not mean "all guilds" — deny checklist until persona lists guilds.
         if not gid or not allowed_guild_ids or gid not in allowed_guild_ids:
             return
-        cid = dc.parse_snowflake(setup.get("checklist_channel_id", ""))
+        cid = parse_snowflake(setup.get("checklist_channel_id", ""))
         if not cid:
             return
         body = (setup.get("checklist_message_body") or "").strip()
@@ -217,7 +222,7 @@ async def _maybe_gateway_auto_post_checklist(
             },
         )
         if not result.ok:
-            dc.log_ctx(persona_id, gid, "checklist auto-post failed: %s", result.error or "unknown")
+            log_ctx(persona_id, gid, "checklist auto-post failed: %s", result.error or "unknown")
             return
         extra: Dict[str, Any] = {"posted": True, "channel_id": str(cid), "guild_id": str(gid)}
         data = getattr(result, "data", None)
@@ -225,9 +230,9 @@ async def _maybe_gateway_auto_post_checklist(
             extra["message_id"] = data["message_id"]
         await checklist_meta_coll.update_one({"_id": meta_id}, {"$set": extra}, upsert=True)
     except PyMongoError as e:
-        dc.log_ctx(persona_id, None, "checklist meta PyMongoError: %s %s", type(e).__name__, e)
+        log_ctx(persona_id, None, "checklist meta PyMongoError: %s %s", type(e).__name__, e)
     except (TypeError, ValueError, KeyError) as e:
-        dc.log_ctx(persona_id, None, "checklist auto-post error: %s %s", type(e).__name__, e)
+        log_ctx(persona_id, None, "checklist auto-post error: %s %s", type(e).__name__, e)
 
 
 async def _handle_reaction_binding_event(
@@ -241,7 +246,7 @@ async def _handle_reaction_binding_event(
     Apply reaction_roles_json using gateway add_role/remove_role (reaction_* events from service_discord_gateway).
     """
     try:
-        if dc.setup_truthy(setup.get("disable_reaction_roles")):
+        if setup_truthy(setup.get("disable_reaction_roles")):
             return
         try:
             gid = int(pl.get("guild_id", 0) or 0)
@@ -270,10 +275,10 @@ async def _handle_reaction_binding_event(
                 },
             )
             if not result.ok:
-                dc.log_ctx(persona_id, gid, "reaction role %s failed: %s", act, result.error or "unknown")
+                log_ctx(persona_id, gid, "reaction role %s failed: %s", act, result.error or "unknown")
             return
     except (TypeError, ValueError, KeyError) as e:
-        dc.log_ctx(persona_id, None, "reaction binding error: %s %s", type(e).__name__, e)
+        log_ctx(persona_id, None, "reaction binding error: %s %s", type(e).__name__, e)
 
 
 async def discord_bot_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.RobotContext) -> None:
@@ -289,7 +294,7 @@ async def discord_bot_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot
         )
         token, hosted_env = _discord_bot_hosted_bot_token()
         if not token:
-            token = dc.discord_bot_api_key_from_external_auth(rcx.external_auth)
+            token = discord_bot_api_key_from_external_auth(rcx.external_auth)
             hosted_env = "external_auth" if token else None
         if not token:
             logger.error(
@@ -314,7 +319,7 @@ async def discord_bot_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot
         mongo_db = mongo[persona_id_loop + "_db"]
 
         rules = ckit_automation_engine.load_rules(persona_setup_raw)
-        dc.log_ctx(rcx.persona.persona_id, None, "loaded %d automation rules", len(rules))
+        log_ctx(rcx.persona.persona_id, None, "loaded %d automation rules", len(rules))
 
         watched_channel_ids: set[int] = set()
         for r in rules:
@@ -327,7 +332,7 @@ async def discord_bot_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot
         workspace_id = rcx.persona.located_fgroup_id or ""
 
         if len(rules) == 0:
-            dc.log_ctx(rcx.persona.persona_id, None, "no automation rules published, lifecycle automation inactive")
+            log_ctx(rcx.persona.persona_id, None, "no automation rules published, lifecycle automation inactive")
 
         mod_roles = set(_role_ids_csv(setup.get("mod_role_ids", "")))
         announce_pings = _role_ids_csv(setup.get("announce_ping_role_ids", ""))
@@ -340,7 +345,7 @@ async def discord_bot_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot
                 rcx.persona.persona_id,
             )
         else:
-            dc.log_ctx(
+            log_ctx(
                 rcx.persona.persona_id,
                 None,
                 "allowed guild ids from persona_external_addresses: %s",
@@ -453,7 +458,7 @@ async def discord_bot_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot
                                             },
                                         )
                                         if not result.ok:
-                                            dc.log_ctx(
+                                            log_ctx(
                                                 rcx.persona.persona_id,
                                                 gid_ann,
                                                 "!announce failed: %s",
@@ -542,7 +547,7 @@ async def discord_bot_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot
                     gid_log = int(payload.get("guild_id", 0) or 0) or None
                 except (TypeError, ValueError):
                     gid_log = None
-                dc.log_ctx(rcx.persona.persona_id, gid_log, "normalized event PyMongoError: %s %s", type(e).__name__, e)
+                log_ctx(rcx.persona.persona_id, gid_log, "normalized event PyMongoError: %s %s", type(e).__name__, e)
             except (TypeError, KeyError, ValueError) as e:
                 gid_log = None
                 try:
@@ -550,7 +555,7 @@ async def discord_bot_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot
                     gid_log = int(payload.get("guild_id", 0) or 0) or None
                 except (TypeError, ValueError):
                     gid_log = None
-                dc.log_ctx(rcx.persona.persona_id, gid_log, "normalized event data error: %s %s", type(e).__name__, e)
+                log_ctx(rcx.persona.persona_id, gid_log, "normalized event data error: %s %s", type(e).__name__, e)
 
         @rcx.on_emessage("DISCORD")
         async def _on_discord_emessage(emsg) -> None:

@@ -34,6 +34,12 @@ from flexus_client_kit import (
     ckit_utils,
 )
 from flexus_client_kit.ckit_connector import ActionResult, NormalizedEvent
+from flexus_client_kit.ckit_connector_discord import (
+    discord_bot_api_key_from_external_auth,
+    log_ctx,
+    parse_snowflake,
+    setup_truthy,
+)
 from flexus_client_kit.format_utils import format_cat_output
 from flexus_client_kit.integrations import fi_messenger
 from flexus_client_kit.integrations.fi_mongo_store import download_file, validate_path
@@ -126,20 +132,6 @@ def _parse_channel_reference(ref: str) -> Tuple[Optional[str], Optional[str]]:
     if thread == "0":
         thread = None
     return channel or None, thread or None
-
-
-def discord_bot_api_key_from_external_auth(ext: Dict[str, Any]) -> str:
-    for provider_key in ("discord_manual", "discord"):
-        raw = ext.get(provider_key)
-        if raw is None:
-            continue
-        if not isinstance(raw, dict):
-            logger.warning("discord_bot_api_key_from_external_auth: provider %r value is not a dict, skipping", provider_key)
-            continue
-        tok = (raw.get("api_key") or "").strip()
-        if tok:
-            return tok
-    return ""
 
 
 class IntegrationDiscord(fi_messenger.FlexusMessenger):
@@ -903,15 +895,6 @@ COL_JOBS = ckit_job_queue.COL_JOBS
 JobHandler = ckit_job_queue.JobHandler
 
 
-def setup_truthy(raw: Any) -> bool:
-    if raw is True:
-        return True
-    if raw is False or raw is None:
-        return False
-    s = str(raw).strip().lower()
-    return s in ("1", "true", "yes", "on")
-
-
 def build_intents() -> discord.Intents:
     intents = discord.Intents.default()
     intents.message_content = True
@@ -921,15 +904,6 @@ def build_intents() -> discord.Intents:
     intents.guild_messages = True
     intents.guild_reactions = True
     return intents
-
-
-def parse_snowflake(raw: str) -> Optional[int]:
-    if not raw or not isinstance(raw, str):
-        return None
-    s = raw.strip()
-    if not s or not s.isdigit():
-        return None
-    return int(s)
 
 
 def guild_matches(guild: Optional[discord.Guild], want_id: Optional[int]) -> bool:
@@ -944,11 +918,6 @@ def truncate_message(text: str, limit: int = 2000) -> str:
     if len(text) <= limit:
         return text
     return text[: limit - 20] + "\n...(truncated)"
-
-
-def log_ctx(persona_id: str, guild_id: Optional[int], msg: str, *args: Any) -> None:
-    gid = str(guild_id) if guild_id is not None else "-"
-    logger.info("[%s guild=%s] " + msg, persona_id, gid, *args)
 
 
 async def safe_send(
