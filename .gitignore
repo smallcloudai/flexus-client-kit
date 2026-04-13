@@ -221,3 +221,4 @@ certs
 **/test_docs/
 
 scripts/
+.cursor

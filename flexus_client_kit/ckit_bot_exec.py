@@ -317,6 +317,8 @@ async def crash_boom_bang(fclient: ckit_client.FlexusClient, rcx: RobotContext, 
             rcx.messengers.clear()  # new loop will populate this with new auth
             continue
         except RestartBecauseSettingsChanged:
+            # Subscription handler already created a replacement bot instance with updated setup
+            # (lines ~496-504), so this old task must exit, not loop again with stale _restart_requested
             logger.info("%s restart requested (settings changed)", rcx.persona.persona_id)
             await rcx.wait_for_bg_tasks(timeout=30.0)
             await _close_messengers(rcx)
