@@ -14,4 +14,5 @@ python -m flexus_simple_bots.telegram_groupmod.telegram_groupmod_install
 python -m flexus_simple_bots.researcher.researcher_install
 python -m flexus_simple_bots.executor.executor_install
 python -m flexus_simple_bots.strategist.strategist_install
+python -m flexus_simple_bots.tasktopus.tasktopus_install
 
