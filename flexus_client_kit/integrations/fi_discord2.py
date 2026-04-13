@@ -33,6 +33,7 @@ from flexus_client_kit import (
     ckit_scenario,
     ckit_utils,
 )
+from flexus_client_kit.ckit_connector import ActionResult, NormalizedEvent
 from flexus_client_kit.format_utils import format_cat_output
 from flexus_client_kit.integrations import fi_messenger
 from flexus_client_kit.integrations.fi_mongo_store import download_file, validate_path
@@ -1066,6 +1067,413 @@ async def close_discord_client(client: Optional[discord.Client], task: Optional[
             pass
     if client and not client.is_closed():
         await client.close()
+
+
+async def discord_run_platform_action(
+    client: discord.Client,
+    persona_id: str,
+    action_type: str,
+    params: dict,
+    *,
+    resolve_guild: Callable[[int], discord.Guild | None],
+) -> ActionResult:
+    """
+    Execute Discord-side platform actions for connectors and the backend gateway service.
+
+    Maps action_type to fetch_user, safe_dm, safe_send, role/kick operations, and introspection
+    helpers (get_user_info, get_channel). Lives in fi_discord2 so runtime Discord I/O stays in one
+    integration module (Architecture: gateway + DiscordConnector delegate here).
+    """
+    if action_type == "send_dm":
+        try:
+            uid = int(params["user_id"])
+            text = str(params["text"])
+        except (TypeError, ValueError, KeyError):
+            return ActionResult(ok=False, error="bad_params")
+        try:
+            user = await client.fetch_user(uid)
+        except DiscordException as e:
+            log_ctx(persona_id, None, "send_dm fetch_user: %s %s", type(e).__name__, e)
+            return ActionResult(ok=False, error="%s: %s" % (type(e).__name__, e))
+        except aiohttp.ClientError as e:
+            log_ctx(persona_id, None, "send_dm fetch_user network: %s %s", type(e).__name__, e)
+            return ActionResult(ok=False, error="%s: %s" % (type(e).__name__, e))
+        try:
+            ok = await safe_dm(client, user, persona_id, text)
+            return ActionResult(ok=ok)
+        except DiscordException as e:
+            log_ctx(persona_id, None, "send_dm: %s %s", type(e).__name__, e)
+            return ActionResult(ok=False, error="%s: %s" % (type(e).__name__, e))
+        except aiohttp.ClientError as e:
+            log_ctx(persona_id, None, "send_dm network: %s %s", type(e).__name__, e)
+            return ActionResult(ok=False, error="%s: %s" % (type(e).__name__, e))
+
+    if action_type == "post_to_channel":
+        try:
+            cid = int(params["channel_id"])
+            text = str(params["text"])
+        except (TypeError, ValueError, KeyError):
+            return ActionResult(ok=False, error="bad_params")
+        ch: discord.abc.GuildChannel | discord.Thread | discord.abc.PrivateChannel | None = None
+        try:
+            ch = client.get_channel(cid)
+            if not isinstance(ch, discord.TextChannel):
+                return ActionResult(ok=False, error="channel_not_found")
+            gch = ch.guild
+            if gch is None or resolve_guild(int(gch.id)) is None:
+                return ActionResult(ok=False, error="guild_not_allowed")
+            msg = await safe_send(ch, persona_id, text)
+            if msg is None:
+                return ActionResult(ok=False, error="safe_send_failed")
+            return ActionResult(
+                ok=True,
+                data={"message_id": str(msg.id), "channel_id": str(ch.id)},
+            )
+        except DiscordException as e:
+            lg = None
+            if isinstance(ch, discord.TextChannel) and ch.guild is not None:
+                lg = int(ch.guild.id)
+            log_ctx(persona_id, lg, "post_to_channel: %s %s", type(e).__name__, e)
+            return ActionResult(ok=False, error="%s: %s" % (type(e).__name__, e))
+        except aiohttp.ClientError as e:
+            log_ctx(persona_id, None, "post_to_channel network: %s %s", type(e).__name__, e)
+            return ActionResult(ok=False, error="%s: %s" % (type(e).__name__, e))
+
+    if action_type == "get_user_info":
+        try:
+            uid = int(params["user_id"])
+        except (TypeError, ValueError, KeyError):
+            return ActionResult(ok=False, error="bad_params")
+        raw_sid = params.get("server_id") or params.get("guild_id") or ""
+        if str(raw_sid).strip():
+            try:
+                gid = int(raw_sid)
+            except (TypeError, ValueError):
+                return ActionResult(ok=False, error="bad_server_id")
+            g = resolve_guild(gid)
+            if g is None:
+                return ActionResult(ok=False, error="guild_not_found")
+            member = g.get_member(uid)
+            if member is None:
+                try:
+                    member = await g.fetch_member(uid)
+                except DiscordException:
+                    member = None
+            if member is None:
+                return ActionResult(ok=False, error="member_not_found")
+            role_ids = [str(r.id) for r in member.roles]
+            return ActionResult(
+                ok=True,
+                data={
+                    "user_id": str(member.id),
+                    "display_name": member.display_name,
+                    "role_ids": role_ids,
+                },
+            )
+        for guild in client.guilds:
+            member = guild.get_member(uid)
+            if member is not None:
+                role_ids = [str(r.id) for r in member.roles]
+                return ActionResult(
+                    ok=True,
+                    data={
+                        "user_id": str(member.id),
+                        "display_name": member.display_name,
+                        "role_ids": role_ids,
+                    },
+                )
+        return ActionResult(ok=False, error="member_not_found")
+
+    if action_type == "get_channel":
+        try:
+            cid = int(params["channel_id"])
+        except (TypeError, ValueError, KeyError):
+            return ActionResult(ok=False, error="bad_params")
+        ch = client.get_channel(cid)
+        if ch is None:
+            return ActionResult(ok=False, error="channel_not_found")
+        gch = getattr(ch, "guild", None)
+        if gch is None:
+            return ActionResult(ok=False, error="not_guild_channel")
+        if resolve_guild(int(gch.id)) is None:
+            return ActionResult(ok=False, error="guild_not_allowed")
+        nm = getattr(ch, "name", None) or ""
+        data: Dict[str, Any] = {
+            "channel_id": str(ch.id),
+            "name": nm,
+            "type": str(ch.type),
+            "guild_id": str(gch.id),
+        }
+        me = gch.me
+        if me is not None and hasattr(ch, "permissions_for"):
+            pr = ch.permissions_for(me)
+            data["view_channel"] = pr.view_channel
+            data["send_messages"] = pr.send_messages
+            data["read_message_history"] = pr.read_message_history
+            data["manage_messages"] = pr.manage_messages
+        return ActionResult(ok=True, data=data)
+
+    g: discord.Guild | None = None
+    if action_type in ("add_role", "remove_role", "kick"):
+        raw = params.get("server_id") or params.get("guild_id") or ""
+        if raw is None or str(raw).strip() == "":
+            return ActionResult(ok=False, error="missing_server_id")
+        try:
+            gid = int(raw)
+        except (TypeError, ValueError):
+            return ActionResult(ok=False, error="bad_params")
+        g = resolve_guild(gid)
+        if g is None:
+            return ActionResult(ok=False, error="guild_not_found")
+
+    if action_type in ("add_role", "remove_role"):
+        try:
+            uid = int(params["user_id"])
+            rid = int(params["role_id"])
+        except (TypeError, ValueError, KeyError):
+            return ActionResult(ok=False, error="bad_params")
+        try:
+            member = g.get_member(uid)
+            role = g.get_role(rid)
+            if member is None or role is None:
+                return ActionResult(ok=False, error="member_or_role_not_found")
+            if action_type == "add_role":
+                await member.add_roles(role)
+            else:
+                await member.remove_roles(role)
+            return ActionResult(ok=True)
+        except DiscordException as e:
+            log_ctx(persona_id, g.id, "%s: %s %s", action_type, type(e).__name__, e)
+            return ActionResult(ok=False, error="%s: %s" % (type(e).__name__, e))
+        except aiohttp.ClientError as e:
+            log_ctx(persona_id, g.id, "%s network: %s %s", action_type, type(e).__name__, e)
+            return ActionResult(ok=False, error="%s: %s" % (type(e).__name__, e))
+
+    if action_type == "kick":
+        try:
+            uid = int(params["user_id"])
+        except (TypeError, ValueError, KeyError):
+            return ActionResult(ok=False, error="bad_params")
+        reason = str(params.get("reason") or "")
+        try:
+            member = g.get_member(uid)
+            if member is None:
+                return ActionResult(ok=False, error="member_not_found")
+            await member.kick(reason=reason or None)
+            return ActionResult(ok=True)
+        except DiscordException as e:
+            log_ctx(persona_id, g.id, "kick: %s %s", type(e).__name__, e)
+            return ActionResult(ok=False, error="%s: %s" % (type(e).__name__, e))
+        except aiohttp.ClientError as e:
+            log_ctx(persona_id, g.id, "kick network: %s %s", type(e).__name__, e)
+            return ActionResult(ok=False, error="%s: %s" % (type(e).__name__, e))
+
+    return ActionResult(ok=False, error="unknown_action_type")
+
+
+def gateway_reaction_emoji_key(emoji: Any) -> str:
+    """
+    Serialize a discord partial emoji to the same string form as reaction_roles_json bindings
+    (unicode name, or 'name:id' for custom emoji). Used by gateway-emitted reaction events.
+    """
+    try:
+        eid = getattr(emoji, "id", None)
+        if eid:
+            name = getattr(emoji, "name", None) or ""
+            return "%s:%s" % (name, eid)
+        return str(getattr(emoji, "name", None) or "")
+    except (TypeError, AttributeError):
+        return ""
+
+
+def bind_discord_gateway_client(
+    client: discord.Client,
+    emit: Callable[[NormalizedEvent], Awaitable[None]],
+) -> None:
+    """
+    Attach gateway Discord event handlers to ``client`` for the backend sidecar process.
+
+    Emits NormalizedEvent instances into ``emit`` (typically routed to process_external_webhook).
+    """
+
+    @client.event
+    async def on_ready() -> None:
+        for g in list(client.guilds):
+            await _emit_gateway_server_connected(g, emit)
+
+    @client.event
+    async def on_member_join(member: discord.Member) -> None:
+        if member.bot:
+            return
+        await emit(
+            NormalizedEvent(
+                source="discord",
+                server_id=str(member.guild.id),
+                channel_id="",
+                user_id=str(member.id),
+                event_type="member_joined",
+                payload={
+                    "username": str(member),
+                    "guild_id": int(member.guild.id),
+                    "user_id": int(member.id),
+                },
+                timestamp=time.time(),
+            ),
+        )
+
+    @client.event
+    async def on_message(message: discord.Message) -> None:
+        if message.author.bot:
+            return
+        if not message.guild:
+            return
+        if isinstance(message.channel, discord.DMChannel):
+            return
+        await emit(
+            NormalizedEvent(
+                source="discord",
+                server_id=str(message.guild.id),
+                channel_id=str(message.channel.id),
+                user_id=str(message.author.id),
+                event_type="message_in_channel",
+                payload={
+                    "content": message.content or "",
+                    "channel_id": int(message.channel.id),
+                    "guild_id": int(message.guild.id),
+                    "user_id": int(message.author.id),
+                    "message_id": str(message.id),
+                },
+                timestamp=time.time(),
+            ),
+        )
+
+    @client.event
+    async def on_member_remove(member: discord.Member) -> None:
+        if member.bot:
+            return
+        await emit(
+            NormalizedEvent(
+                source="discord",
+                server_id=str(member.guild.id),
+                channel_id="",
+                user_id=str(member.id),
+                event_type="member_removed",
+                payload={
+                    "username": str(member),
+                    "guild_id": int(member.guild.id),
+                    "user_id": int(member.id),
+                },
+                timestamp=time.time(),
+            ),
+        )
+
+    @client.event
+    async def on_guild_remove(guild: discord.Guild) -> None:
+        await emit(
+            NormalizedEvent(
+                source="discord",
+                server_id=str(guild.id),
+                channel_id="",
+                user_id="",
+                event_type="server_disconnected",
+                payload={"guild_id": int(guild.id)},
+                timestamp=time.time(),
+            ),
+        )
+
+    @client.event
+    async def on_guild_join(guild: discord.Guild) -> None:
+        await _emit_gateway_server_connected(guild, emit)
+
+    @client.event
+    async def on_guild_available(guild: discord.Guild) -> None:
+        await _emit_gateway_server_connected(guild, emit)
+
+    @client.event
+    async def on_raw_reaction_add(payload: discord.RawReactionActionEvent) -> None:
+        """
+        Forward reaction adds to worker bots (reaction role bindings) via the same DISCORD
+        emessage path as messages; no worker-side Discord socket required.
+        """
+        try:
+            if payload.guild_id is None:
+                return
+            bot_user = client.user
+            if bot_user is not None and int(payload.user_id) == int(bot_user.id):
+                return
+            await emit(
+                NormalizedEvent(
+                    source="discord",
+                    server_id=str(payload.guild_id),
+                    channel_id=str(payload.channel_id),
+                    user_id=str(payload.user_id),
+                    event_type="reaction_added",
+                    payload={
+                        "guild_id": int(payload.guild_id),
+                        "channel_id": int(payload.channel_id),
+                        "user_id": int(payload.user_id),
+                        "message_id": str(payload.message_id),
+                        "emoji": gateway_reaction_emoji_key(payload.emoji),
+                    },
+                    timestamp=time.time(),
+                ),
+            )
+        except (TypeError, ValueError, AttributeError, DiscordException) as e:
+            log_ctx("gateway", int(payload.guild_id or 0) or None, "on_raw_reaction_add emit: %s %s", type(e).__name__, e)
+
+    @client.event
+    async def on_raw_reaction_remove(payload: discord.RawReactionActionEvent) -> None:
+        """Mirror of on_raw_reaction_add for removing roles when a reaction is cleared."""
+        try:
+            if payload.guild_id is None:
+                return
+            bot_user = client.user
+            if bot_user is not None and int(payload.user_id) == int(bot_user.id):
+                return
+            await emit(
+                NormalizedEvent(
+                    source="discord",
+                    server_id=str(payload.guild_id),
+                    channel_id=str(payload.channel_id),
+                    user_id=str(payload.user_id),
+                    event_type="reaction_removed",
+                    payload={
+                        "guild_id": int(payload.guild_id),
+                        "channel_id": int(payload.channel_id),
+                        "user_id": int(payload.user_id),
+                        "message_id": str(payload.message_id),
+                        "emoji": gateway_reaction_emoji_key(payload.emoji),
+                    },
+                    timestamp=time.time(),
+                ),
+            )
+        except (TypeError, ValueError, AttributeError, DiscordException) as e:
+            log_ctx("gateway", int(payload.guild_id or 0) or None, "on_raw_reaction_remove emit: %s %s", type(e).__name__, e)
+
+
+async def _emit_gateway_server_connected(
+    g: discord.Guild,
+    emit: Callable[[NormalizedEvent], Awaitable[None]],
+) -> None:
+    """Emit server_connected with member count for gateway ingress routing."""
+    mc = getattr(g, "member_count", None)
+    if mc is None:
+        mc = 0
+    await emit(
+        NormalizedEvent(
+            source="discord",
+            server_id=str(g.id),
+            channel_id="",
+            user_id="",
+            event_type="server_connected",
+            payload={
+                "guild_id": int(g.id),
+                "guild_name": g.name or "",
+                "approx_member_count": int(mc),
+            },
+            timestamp=time.time(),
+        ),
+    )
 
 
 def _perm_gaps_basic(perms: discord.Permissions) -> List[str]:

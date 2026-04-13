@@ -28,7 +28,7 @@ class FPersonaOutput:
     marketable_radix: Optional[int] = None
     marketable_auth_needed: Optional[List[str]] = None
     marketable_auth_supported: Optional[List[str]] = None
-    persona_external_addresses: Optional[Any] = None
+    persona_external_addresses: Optional[List[str]] = None
 
 
 @dataclass

@@ -11,7 +11,7 @@ from flexus_client_kit.ckit_automation_v1_schema_build import build_automation_v
 
 logger = logging.getLogger(__name__)
 
-# Eagerly built from the Discord connector catalog at import time.
+# Eagerly built from the Discord automation catalog (integration triggers/actions) at import time.
 # Tests and offline fixtures can override via set_automation_schema_dict() / set_automation_schema().
 _AUTOMATION_SCHEMA: dict = build_automation_v1_schema_document()
 

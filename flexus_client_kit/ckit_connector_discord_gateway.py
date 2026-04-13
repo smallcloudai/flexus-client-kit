@@ -23,15 +23,15 @@ logger = logging.getLogger(__name__)
 # Module-level GQL document so it is parsed once, not on every call.
 _DISCORD_GW_ACTION = gql.gql("""
     mutation BotDiscordGatewayAction(
-        $personaId: String!
-        $instanceKey: String!
-        $actionType: String!
+        $persona_id: String!
+        $instance_key: String!
+        $action_type: String!
         $params: JSON!
     ) {
-        botDiscordGatewayAction(
-            personaId: $personaId
-            instanceKey: $instanceKey
-            actionType: $actionType
+        botDiscordGatewayAction: bot_discord_gateway_action(
+            persona_id: $persona_id
+            instance_key: $instance_key
+            action_type: $action_type
             params: $params
         )
     }
@@ -145,9 +145,9 @@ class DiscordGatewayConnector(ChatConnector):
                 result = await http.execute(
                     _DISCORD_GW_ACTION,
                     variable_values={
-                        "personaId": self._persona_id,
-                        "instanceKey": self._instance_key,
-                        "actionType": action_type,
+                        "persona_id": self._persona_id,
+                        "instance_key": self._instance_key,
+                        "action_type": action_type,
                         "params": params,
                     },
                 )

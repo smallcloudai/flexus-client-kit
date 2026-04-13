@@ -1,9 +1,8 @@
 """
 Discord-specific automation trigger/action JSON Schema fragments (automation_schema_version 1).
 
-Only the schemas that reference Discord concepts (guild, channel, role, DM, member join/leave)
-live here. Generic schemas (CRM fields, status transitions, scheduled checks, etc.) are in
-ckit_automation_schema_defs. Both sets are assembled by ckit_automation_v1_schema_build.
+Schemas for guild-scoped triggers and Discord actions live here; product-level definitions are in
+ckit_automation_schema_defs. The full document is assembled by ckit_automation_v1_schema_build.
 """
 
 from __future__ import annotations
@@ -16,8 +15,8 @@ SCHEMA_TRIGGER_MEMBER_JOINED = {
         "type": {"const": "member_joined"},
     },
     "description": (
-        "Fires on Discord on_member_join (or equivalent CRM row creation for backfill). "
-        "No extra payload -- the member row is the context."
+        "Fires on Discord on_member_join (or equivalent member record creation for backfill). "
+        "No extra trigger fields; context is the joining user's ids and username from the event."
     ),
 }
 
@@ -30,7 +29,7 @@ SCHEMA_TRIGGER_MEMBER_REMOVED = {
     },
     "description": (
         "Fires when a member leaves or is removed from the server. No extra saved fields; "
-        "guild and member context come from the event and CRM row."
+        "guild and member context come from the leave/kick event."
     ),
 }
 
@@ -52,7 +51,7 @@ SCHEMA_TRIGGER_MESSAGE_IN_CHANNEL = {
     },
     "description": (
         "Fires when any guild member posts a message in the specified channel. "
-        "Engine updates last_message_ts as a side effect for every guild message regardless of rules."
+        "Only messages in the configured channel are delivered as events to the bot."
     ),
 }
 
@@ -64,7 +63,7 @@ SCHEMA_ACTION_SEND_DM = {
         "type": {"const": "send_dm"},
         "template": {
             "type": "string",
-            "description": "Inline message body. Supports {field_name} placeholders resolved from CRM member + setup fields.",
+            "description": "Inline message body. Supports {field_name} placeholders resolved from the event member snapshot and setup fields.",
         },
         "template_field": {
             "type": "string",

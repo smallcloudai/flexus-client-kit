@@ -1,5 +1,5 @@
 """
-Build automation_schema_version 1 JSON Schema from a connector's capability catalog
+Build automation_schema_version 1 JSON Schema from a neutral integration catalog
 (triggers + actions) plus product-only trigger/action defs. Single compile-time
 assembly surface: backend validation and assist contracts derive from the same document.
 
@@ -12,11 +12,11 @@ from __future__ import annotations
 import copy
 from typing import Any
 
+from flexus_client_kit.ckit_connector_discord import DISCORD_ACTIONS, DISCORD_TRIGGERS
 from flexus_client_kit.ckit_automation_schema_defs import (
     SCHEMA_ACTION_CALL_GATEKEEPER_PRODUCT,
     SCHEMA_TRIGGER_MANUAL_CAMPAIGN_PRODUCT,
 )
-from flexus_client_kit.ckit_connector_discord import DISCORD_ACTIONS, DISCORD_TRIGGERS
 
 
 def _def_name_trigger(type_id: str) -> str:
@@ -39,8 +39,8 @@ def automation_persisted_trigger_property_keys(
 ) -> dict[str, frozenset[str]]:
     """Return {type -> frozenset of persisted property names} for each trigger.
 
-    Defaults to the Discord integration triggers. Pass ``triggers`` explicitly
-    to use a different connector's catalog.
+    Defaults to the Discord integration catalog. Pass ``triggers`` explicitly
+    to use a different integration's catalog.
     """
     if triggers is None:
         triggers = DISCORD_TRIGGERS
@@ -59,8 +59,8 @@ def automation_persisted_action_property_keys(
 ) -> dict[str, frozenset[str]]:
     """Return {type -> frozenset of persisted property names} for each action.
 
-    Defaults to the Discord integration actions. Pass ``actions`` explicitly
-    to use a different connector's catalog.
+    Defaults to the Discord integration catalog. Pass ``actions`` explicitly
+    to use a different integration's catalog.
     """
     if actions is None:
         actions = DISCORD_ACTIONS
@@ -173,7 +173,7 @@ _STATIC_DEFS: dict[str, Any] = {
             "field": {
                 "type": "string",
                 "minLength": 1,
-                "description": "CRM member field path to evaluate.",
+                "description": "Member field path to evaluate in automation context (dot path).",
             },
             "op": {
                 "type": "string",
@@ -190,7 +190,7 @@ _STATIC_DEFS: dict[str, Any] = {
                 ),
             },
         },
-        "description": "Single boolean predicate on a CRM field. All conditions in a rule are AND-ed.",
+        "description": "Single boolean predicate on a member field. All conditions in a rule are AND-ed.",
     },
 }
 
@@ -202,8 +202,8 @@ def build_automation_v1_schema_document(
     """
     Assemble the full automation v1 JSON Schema document.
 
-    ``triggers`` and ``actions`` are lists of TriggerDescriptor / ActionDescriptor from a
-    connector's capability catalog. Defaults to the Discord integration. Pass different
+    ``triggers`` and ``actions`` are lists of TriggerDescriptor / ActionDescriptor from an
+    integration automation catalog. Defaults to the Discord integration. Pass different
     lists to produce a schema for another integration.
     """
     if triggers is None:
@@ -258,7 +258,7 @@ def build_automation_v1_schema_document(
         "$id": "flexus-automation-v1",
         "title": "Flexus automation rules v1",
         "description": (
-            "Machine-readable contract for community bot automation. Built from a connector's capability "
+            "Machine-readable contract for community bot automation. Built from the integration automation "
             "catalog (triggers + actions) plus product-level triggers/actions. "
             "Validate with jsonschema or check-jsonschema."
         ),
@@ -288,7 +288,7 @@ if __name__ == "__main__":
     import json
     from pathlib import Path
 
-    p = argparse.ArgumentParser(description="Write automation v1 JSON Schema built from the Discord catalog.")
+    p = argparse.ArgumentParser(description="Write automation v1 JSON Schema built from the Discord automation catalog.")
     p.add_argument(
         "--write",
         metavar="PATH",

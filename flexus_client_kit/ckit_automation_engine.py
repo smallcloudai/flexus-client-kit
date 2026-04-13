@@ -1,7 +1,8 @@
 """
 Pure automation rule engine: dict in, dict out. No Discord, Mongo, or async.
-Used by community bots to match triggers, evaluate CRM conditions, and resolve
-action payloads before an executor applies side effects (U2.2 in unified bot plan).
+
+Community bots pass an in-memory member/event snapshot (fields from the current Discord event)
+for condition checks and template resolution before the executor applies side effects.
 """
 
 from __future__ import annotations
@@ -126,29 +127,6 @@ def match_trigger(event_type: str, event_data: dict, rule: dict, setup: dict) ->
             resolved = resolve_channel_id(ref, setup)
             return event_data.get("channel_id") == resolved
 
-        if event_type == "scheduled_check":
-            if ttype != "scheduled_relative_to_field":
-                return False
-            return event_data.get("check_rule_id") == rule.get("rule_id")
-
-        if event_type == "crm_field_changed":
-            if ttype != "crm_field_changed":
-                return False
-            if trigger.get("field_name") != event_data.get("field_name"):
-                return False
-            if "to_value" not in trigger:
-                return True
-            return trigger.get("to_value") == event_data.get("new_value")
-
-        if event_type == "status_transition":
-            if ttype != "status_transition":
-                return False
-            if trigger.get("to_status") != event_data.get("new_status"):
-                return False
-            if "from_status" not in trigger:
-                return True
-            return trigger.get("from_status") == event_data.get("old_status")
-
         return False
     except (KeyError, TypeError, ValueError) as e:
         logger.error("match_trigger failed", exc_info=e)
@@ -157,7 +135,7 @@ def match_trigger(event_type: str, event_data: dict, rule: dict, setup: dict) ->
 
 def evaluate_conditions(conditions: list[dict], member: dict) -> bool:
     """
-    AND all conditions; empty list is True. Uses member.get for CRM fields.
+    AND all conditions; empty list is True. Reads fields from the member/event snapshot dict.
     """
     try:
         if not conditions:
@@ -304,18 +282,10 @@ def _resolve_kick_reason(action: dict, member: dict, setup: dict) -> None:
     action["_resolved_kick_reason"] = resolve_template(raw, member, setup)
 
 
-def _resolve_set_crm_now(action: dict) -> None:
-    """Mutates action copy: literal value '{now}' -> float unix ts for set_crm_field."""
-    if action.get("type") != "set_crm_field":
-        return
-    if action.get("value") == "{now}":
-        action["value"] = time.time()
-
-
 def resolve_actions(actions: list[dict], member: dict, setup: dict) -> list[dict]:
     """
     Deep-copy each action and fill executor-facing fields: _resolved_body,
-    _resolved_channel_id, _resolved_role_id, _resolved_kick_reason, and set_crm_field {now} -> float timestamp.
+    _resolved_channel_id, _resolved_role_id, _resolved_kick_reason.
     """
     try:
         if not isinstance(actions, list):
@@ -333,7 +303,6 @@ def resolve_actions(actions: list[dict], member: dict, setup: dict) -> list[dict
             _resolve_channel_field(cloned, setup)
             _resolve_role_field(cloned, setup)
             _resolve_kick_reason(cloned, member, setup)
-            _resolve_set_crm_now(cloned)
             out.append(cloned)
         return out
     except (KeyError, TypeError, ValueError) as e:
@@ -416,21 +385,3 @@ def process_event(
         return []
 
 
-def find_scheduled_rules(rules: list[dict]) -> list[dict]:
-    """
-    Rules whose trigger is scheduled_relative_to_field (anchor + delay jobs).
-    """
-    try:
-        if not isinstance(rules, list):
-            return []
-        out = []
-        for rule in rules:
-            if not isinstance(rule, dict):
-                continue
-            trig = rule.get("trigger")
-            if isinstance(trig, dict) and trig.get("type") == "scheduled_relative_to_field":
-                out.append(rule)
-        return out
-    except (KeyError, TypeError, ValueError) as e:
-        logger.error("find_scheduled_rules failed", exc_info=e)
-        return []
