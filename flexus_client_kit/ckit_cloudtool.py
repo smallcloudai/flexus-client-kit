@@ -31,14 +31,14 @@ CLOUDTOOLS_SCARY_TOOLS = {"flexus_my_setup", "flexus_mcp_setup", "flexus_eds_set
 CLOUDTOOLS_VECDB = {"flexus_vector_search", "flexus_read_original"}
 CLOUDTOOLS_PYTHON = {"python_execute"}
 CLOUDTOOLS_WEB = {"web"}
-CLOUDTOOLS_NOT_KANBAN = CLOUDTOOLS_VECDB | CLOUDTOOLS_PYTHON | CLOUDTOOLS_WEB
+CLOUDTOOLS_AGENTS = {"flexus_hand_over_task"}
+CLOUDTOOLS_NOT_KANBAN = CLOUDTOOLS_VECDB | CLOUDTOOLS_PYTHON | CLOUDTOOLS_WEB | CLOUDTOOLS_AGENTS
 
 CLOUDTOOLS_MCP = {"mcp_*"}
 
 CLOUDTOOLS_QUITE_A_LOT = KANBAN_ADVANCED | CLOUDTOOLS_NOT_KANBAN | CLOUDTOOLS_MCP
 
 CLOUDTOOLS_ALL_KNOWN = KANBAN_ALL | CLOUDTOOLS_NOT_KANBAN | CLOUDTOOLS_A2A | CLOUDTOOLS_SCARY_TOOLS  # unsable in a bot
-
 
 
 def gql_error_4xx_to_model_reraise_5xx(e: gql.transport.exceptions.TransportQueryError, label: str) -> str:

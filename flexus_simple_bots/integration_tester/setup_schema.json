@@ -5,7 +5,7 @@
         "bs_default": "",
         "bs_group": "integrations",
         "bs_importance": 1,
-        "bs_placeholder": "SLACK_BOT_TOKEN=xoxb-...\nGITHUB_TOKEN=ghp_...\nJIRA_INSTANCE_URL=https://...\n...",
+        "bs_placeholder": "NEWSAPI_API_KEY=...\nRESEND_API_KEY=...\n...",
         "bs_description": "Paste your .env file content here with all integration keys. Each line should be KEY=VALUE format."
     },
     {
