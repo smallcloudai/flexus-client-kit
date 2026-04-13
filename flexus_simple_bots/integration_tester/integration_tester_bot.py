@@ -190,6 +190,25 @@ async def integration_tester_main_loop(
             handler_method = reg["handler_method"]
             tool_name = reg["tool"].name
 
+            def _format_result(raw: str) -> str:
+                try:
+                    data = json.loads(raw)
+                    if isinstance(data, dict):
+                        skip = {"ok", "provider", "description", "help_text"}
+                        parts = []
+                        for k, v in data.items():
+                            if k in skip:
+                                continue
+                            if isinstance(v, list) and v and all(isinstance(x, str) for x in v):
+                                parts.append(f"{k}=[{', '.join(v)}]")
+                            elif not isinstance(v, (dict, list)):
+                                parts.append(f"{k}={v}")
+                        if parts:
+                            return ", ".join(parts)
+                except json.JSONDecodeError:
+                    pass
+                return raw
+
             async def handler(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
                 keys = [os.environ.get(env_var)] + [os.environ.get(v) for v in alt_env_vars]
                 key = next((k for k in keys if k), None)
@@ -199,8 +218,9 @@ async def integration_tester_main_loop(
                     return f"Error: {env_var} not configured. Resolve the kanban task as FAILED with status: 'FAILED - No API key configured for {tool_name}'"
                 try:
                     result = await getattr(obj, handler_method)(toolcall, model_produced_args)
-                    logger.info(f"{tool_name} test result: {result[:100]}..." if len(result) > 100 else f"{tool_name} test result: {result}")
-                    return result
+                    formatted = _format_result(result)
+                    logger.info(f"{tool_name} test result: {formatted[:100]}..." if len(formatted) > 100 else f"{tool_name} test result: {formatted}")
+                    return formatted
                 except Exception as e:
                     logger.error(f"toolcall_{tool_name}: %s" % str(e), exc_info=True)
                     return "Error: %s" % str(e)

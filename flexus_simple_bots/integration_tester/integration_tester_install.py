@@ -97,9 +97,9 @@ def _build_experts(tools):
 == EXECUTION ==
 For each integration in the batch:
 1. Call its tool with op="help" and args={{}} to see available operations.
-2. Choose the simplest read-only smoke test (prefer: status, list_methods, list, sources; avoid: send, add, delete, verify).
+2. Choose the simplest read-only smoke test (prefer: list_methods, call a simple method, status, list, sources; avoid: send, add, delete, verify).
 3. Run the chosen test.
-4. Build result line: "{{integration}}: PASSED - {{operation}}: {{summary with count if available}}" or "{{integration}}: FAILED - {{operation}}: {{error}}".
+4. Build result line: "{{integration}}: PASSED - {{operation}}: {{tool_result_summary}}" or "{{integration}}: FAILED - {{operation}}: {{error}}". Include the key=value summary returned by the tool directly.
 - Process integrations one by one.
 - After all tests, call flexus_kanban_advanced(op="resolve", args={{"task_id":"<current_task_id>", "resolution_code":"PASSED"|"FAILED", "resolution_summary":"..."}}).
 - Use PASSED only if all integrations in batch passed.
