@@ -16,44 +16,6 @@ messages:
         "company_name": "Ejector Bed"
       }
 
-      📄/company/sales-strategy
-      {
-        "guarantees": "Safety-tested with 10,000+ launches, zero injuries. Soft-landing foam pads included with every unit.",
-        "competitors": {
-          "ejector_bed_advantage": "The ONLY solution that physically removes you from bed — 100% wake rate",
-          "traditional_alarm_clocks": "Easy to snooze, no physical enforcement",
-          "smart_alarms_sunrise_lamps": "Still rely on willpower"
-        },
-        "sales_stage": "Waitlist / early bird pricing model. Collecting signups via landing page, converting to buyers.",
-        "key_features": [
-          "Pneumatic launch system: 0.3 seconds to vertical",
-          "Smart companion app: control time, intensity (1-10 scale), trajectory angle",
-          "Built-in sleep tracking with optimal REM-timed launch",
-          "Safety system: soft-landing foam pads, motion sensors, emergency stop",
-          "Customizable victory fanfare sounds",
-          "Premium memory foam mattress"
-        ],
-        "social_proof": {
-          "wake_rate": "100%",
-          "test_launches": "10,000+ with zero injuries",
-          "early_adopters": "2,847+",
-          "snooze_buttons": "Zero"
-        },
-        "target_customers": [
-          "Chronic oversleepers and heavy snooze-button users",
-          "Productivity-focused professionals who struggle with mornings",
-          "Early adopters of smart home / sleep tech gadgets",
-          "People who've tried every alarm and still can't wake up"
-        ],
-        "value_proposition": "It's physics, not willpower. The Ejector Bed is the only wake-up solution that physically launches you out of bed using a pneumatic system — making snoozing impossible.",
-        "escalation_contacts": "To be configured",
-        "can_promise_without_approval": [
-          "Waitlist signup",
-          "Product information and specs",
-          "Early bird pricing details (once set)"
-        ]
-      }
-
       📄/support/summary
       does not exist yet
   - role: user
@@ -158,44 +120,6 @@ messages:
             "website": "https://ejectorbed.lovable.app/",
             "industry": "Sleep Technology / Smart Home",
             "company_name": "Ejector Bed"
-          }
-
-          📄/company/sales-strategy
-          {
-            "guarantees": "Safety-tested with 10,000+ launches, zero injuries. Soft-landing foam pads included with every unit.",
-            "competitors": {
-              "ejector_bed_advantage": "The ONLY solution that physically removes you from bed — 100% wake rate",
-              "traditional_alarm_clocks": "Easy to snooze, no physical enforcement",
-              "smart_alarms_sunrise_lamps": "Still rely on willpower"
-            },
-            "sales_stage": "Waitlist / early bird pricing model. Collecting signups via landing page, converting to buyers.",
-            "key_features": [
-              "Pneumatic launch system: 0.3 seconds to vertical",
-              "Smart companion app: control time, intensity (1-10 scale), trajectory angle",
-              "Built-in sleep tracking with optimal REM-timed launch",
-              "Safety system: soft-landing foam pads, motion sensors, emergency stop",
-              "Customizable victory fanfare sounds",
-              "Premium memory foam mattress"
-            ],
-            "social_proof": {
-              "wake_rate": "100%",
-              "test_launches": "10,000+ with zero injuries",
-              "early_adopters": "2,847+",
-              "snooze_buttons": "Zero"
-            },
-            "target_customers": [
-              "Chronic oversleepers and heavy snooze-button users",
-              "Productivity-focused professionals who struggle with mornings",
-              "Early adopters of smart home / sleep tech gadgets",
-              "People who've tried every alarm and still can't wake up"
-            ],
-            "value_proposition": "It's physics, not willpower. The Ejector Bed is the only wake-up solution that physically launches you out of bed using a pneumatic system — making snoozing impossible.",
-            "escalation_contacts": "To be configured",
-            "can_promise_without_approval": [
-              "Waitlist signup",
-              "Product information and specs",
-              "Early bird pricing details (once set)"
-            ]
           }
 
           📄/support/summary

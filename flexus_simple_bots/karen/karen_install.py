@@ -233,7 +233,7 @@ async def install(client: ckit_client.FlexusClient):
                 "im:read",
             ],
         },
-        marketable_required_policydocs=["/company/summary", "/company/sales-strategy", "/support/summary"],
+        marketable_required_policydocs=["/company/summary", "/support/summary"],
         marketable_features=["magic_desk"],
         add_integrations_into_expert_system_prompt=karen_bot.KAREN_INTEGRATIONS,
     )
