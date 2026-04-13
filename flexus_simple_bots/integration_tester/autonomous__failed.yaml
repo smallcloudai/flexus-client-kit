@@ -17,7 +17,7 @@ messages:
       "id": "int_test_002",
       "title": "Test integrations batch 1/1",
       "details": {
-        "description": "Integrations: newsapi"
+        "description": "Integrations: newsapi\nTool mapping: newsapi->newsapi"
       }
     }
 - role: assistant

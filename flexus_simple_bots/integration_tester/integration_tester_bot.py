@@ -34,6 +34,8 @@ async def integration_tester_main_loop(
     supported_integrations = sorted({r.integr_name for r in integr_records})
 
     for name, reg in shared.INTEGRATION_REGISTRY.items():
+        if name not in supported_integrations:
+            continue
         obj = reg["integration_cls"](*reg["integration_args"](fclient, rcx, setup))
         rcx.on_tool_call(reg["tool"].name)(shared.IntegrationHandler(reg, obj))
 

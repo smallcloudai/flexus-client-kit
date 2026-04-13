@@ -17,7 +17,7 @@ messages:
       "id": "int_test_001",
       "title": "Test integrations batch 1/1",
       "details": {
-        "description": "Integrations: newsapi"
+        "description": "Integrations: newsapi\nTool mapping: newsapi->newsapi"
       }
     }
 - role: assistant
@@ -39,7 +39,7 @@ messages:
     type: function
 - role: tool
   call_id: call_methods_001
-  content: 'api_key_hint=***dc9, method_ids=[newsapi.everything.v1, newsapi.top-headlines.v1]'
+  content: 'api_key_hint=***dc9, method_ids=[newsapi.everything.v1, newsapi.top_headlines.v1, newsapi.sources.v1]'
 - role: assistant
   tool_calls:
   - function:

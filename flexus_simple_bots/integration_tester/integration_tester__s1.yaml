@@ -24,7 +24,7 @@ messages:
       "task_specs": [
         {
           "title": "Test integrations batch 1/1",
-          "description": "Integrations: newsapi,resend",
+          "description": "Integrations: newsapi,resend\nTool mapping: newsapi->newsapi, resend->email_setup_domain",
           "integrations": ["newsapi", "resend"]
         }
       ]
@@ -32,7 +32,7 @@ messages:
 - role: assistant
   tool_calls:
   - function:
-      arguments: '{"description":"Integrations: newsapi,resend","fexp_name":"autonomous","title":"Test integrations batch 1/1","to_bot":"Integration Tester"}'
+      arguments: '{"description":"Integrations: newsapi,resend\nTool mapping: newsapi->newsapi, resend->email_setup_domain","fexp_name":"autonomous","title":"Test integrations batch 1/1","to_bot":"Integration Tester"}'
       name: flexus_hand_over_task
     id: call_handover_001
     type: function
