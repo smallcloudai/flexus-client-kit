@@ -5,7 +5,10 @@ from contextlib import AsyncExitStack, asynccontextmanager
 from typing import Any, Dict, Union
 
 import httpx
-from exceptiongroup import BaseExceptionGroup
+try:
+    from exceptiongroup import BaseExceptionGroup
+except ImportError:
+    pass  # Python 3.11+ has BaseExceptionGroup builtin
 from mcp import ClientSession
 from mcp.client.sse import sse_client
 from mcp.client.streamable_http import streamable_http_client
