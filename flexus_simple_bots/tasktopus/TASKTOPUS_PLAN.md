@@ -21,7 +21,7 @@
 - Assign a person who might test the changes
 
 
-## Milestone 2:
+## Milestone 2
 
 - Suspiciously similar tasks detection: suggest merging or clarifying ownership
 - Hot potato detection (tasks that keep changing assignees) initiate converstation
@@ -87,10 +87,25 @@ complex, allowing comments, pictures, references to Sprint, Feature, and actuall
 The bot needs to clearly understand those are not the same.
 
 
+## Users Confusion
+
+Slack has users, Fibery has users, Flexus has users. If this bot is going to talk to all these people, it needs to know
+everybody and their handles on each platform.
+
+Fibery is connected to each bot separately. For what we know, the other bot can be connected to a completely different Fibery
+workspace, the same for Slack, so it's our database to keep. The drawback is other bots don't know the mapping or they have to
+borrow ours, I just don't see a global users database that will work without logical problems if we have bot-connected
+integrations.
+
+More confusion: Fibery is connected on behalf of a user that connects it (clicks a button in their account). There is nothing we
+can do about it. The get_me() function will return the same person over and over again, likely irrelevant admin, not
+active participant, hopefully (because that will add to confusion). The lesson here is not to rely on get_me for anything.
+
+
+
 tasktopus_*.py and PLAN.md nearby
 karen_*.py
 frog_*.py
 flexus_simple_bots/karen/very_limited__actual_support.yaml
 don't use explore
-
 

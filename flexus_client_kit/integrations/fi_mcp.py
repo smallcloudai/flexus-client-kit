@@ -14,7 +14,7 @@ from flexus_client_kit import ckit_bot_exec
 from flexus_client_kit import ckit_cloudtool
 from flexus_client_kit import ckit_shutdown
 
-logger = logging.getLogger("fi_mcp")
+logger = logging.getLogger("fimcp")
 
 
 MCP_DATABASE = {  # name: (url, auth_provider)

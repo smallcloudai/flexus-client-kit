@@ -55,10 +55,6 @@ class FakeDocument:
 
 
 FUNCTIONS = {
-    "get_me": {
-        "description": "Get current user info (id, name, email, role).",
-        "args": {},
-    },
     "list_people": {
         "description": "List all workspace members.",
         "args": {},
@@ -201,7 +197,6 @@ class ActivityEvent:
 class FakeFibery:
     def __init__(
         self,
-        me_person_id: str,
         people: list[FakePerson],
         boards: list[FakeBoard],
         tasks: list[FakeTask],
@@ -209,7 +204,6 @@ class FakeFibery:
         activity: list[ActivityEvent],
         now_ts: float = 0,
     ):
-        self.me_person_id = me_person_id
         self.people = {p.person_id: p for p in people}
         self.boards = {b.name: b for b in boards}
         self.tasks: dict[str, FakeTask] = {}
@@ -286,12 +280,6 @@ class FakeFibery:
         return "Unknown op '%s', use list/help/call" % op
 
     # --- function implementations ---
-
-    def _call_get_me(self, args: dict) -> str:
-        me = self.people.get(self.me_person_id)
-        if not me:
-            return "Error: current user not found"
-        return json.dumps({"person_id": me.person_id, "name": me.name, "email": me.email, "role": me.role})
 
     def _call_list_people(self, args: dict) -> str:
         rows = [{"person_id": p.person_id, "name": p.name, "email": p.email, "role": p.role} for p in self.people.values()]

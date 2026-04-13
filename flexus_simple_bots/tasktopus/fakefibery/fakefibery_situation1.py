@@ -237,7 +237,6 @@ def build() -> ff.FakeFibery:
     ]
 
     return ff.FakeFibery(
-        me_person_id="elena",
         people=people,
         boards=boards,
         tasks=tasks,

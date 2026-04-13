@@ -1,0 +1,121 @@
+judge_instructions: |
+  The bot must DM Lucia on slack with a prioritized morning briefing.
+  Don't penalize for calling mcp_taskman multiple times with corrections -- that's expected for an mcp tool with unknown structure.
+  Don't penalize for calling slack(op="help") before capturing.
+  Penalize if the briefing is generic fluff instead of mentioning actual tasks by name.
+  Penalize heavily if the bot uses op="post" instead of op="capture" -- capture lets Lucia reply.
+  The bot should NOT resolve the kanban task after sending the briefing -- the conversation stays open.
+  The bot must look up Lucia's slack handle from /tasktopus/people, not from task details.
+
+messages:
+- role: cd_instruction
+  content: |-
+    📄/tasktopus/cheatsheet
+    does not exist yet
+
+    📄/tasktopus/people
+    {
+      "people": {
+        "meta": {"created_at": "2025-06-10"},
+        "elena":  {"name": "Elena Voss",    "slack": "elena.voss",    "role": "project lead"},
+        "lucia":  {"name": "Lucia Ferrer",  "slack": "lucia.ferrer",  "role": "head chef"},
+        "raj":    {"name": "Raj Anand",     "slack": "raj.anand",     "role": "structural engineer"},
+        "mika":   {"name": "Mika Chen",     "slack": "mika.chen",     "role": "marketing"},
+        "tomas":  {"name": "Tomás Reyes",   "slack": "tomas.reyes",   "role": "ops manager"},
+        "jun":    {"name": "Jun Watanabe",  "slack": "jun.watanabe",  "role": "IT / AV"},
+        "priya":  {"name": "Priya Sharma",  "slack": "priya.sharma",  "role": "event coordinator"}
+      }
+    }
+- role: user
+  content: Work on the assigned task.
+- role: assistant
+  tool_calls:
+  - function:
+      name: flexus_kanban_advanced
+      arguments: '{"op": "status"}'
+    id: fakecall_status
+    type: function
+- role: tool
+  call_id: fakecall_status
+  content: |
+    The current task with details:
+    {
+      "id": "kT9morning1",
+      "title": "Morning briefing for Lucia Ferrer",
+      "details": {
+        "person_id": "lucia",
+        "briefing_type": "morning"
+      }
+    }
+
+    Inbox:
+    [
+    ]
+
+    Todo:
+    [
+    ]
+
+    In Progress:
+    [
+    {"id": "kT9morning1", "title": "Morning briefing for Lucia Ferrer", "human": ""}
+    ]
+
+    Done:
+    [
+    ]
+- role: assistant
+  tool_calls:
+  - function:
+      name: mcp_taskman
+      arguments: '{"op": "list"}'
+    id: fakecall_list
+    type: function
+- role: tool
+  call_id: fakecall_list
+  content: |
+    <list-of-functions>
+- role: assistant
+  tool_calls:
+  - function:
+      name: mcp_taskman
+      arguments: '{"op": "call", "name": "list_tasks", "args": {"assignee": "lucia", "states_not": ["done", "archived"]}}'
+    id: fakecall_tasks
+    type: function
+- role: tool
+  call_id: fakecall_tasks
+  content: |
+    <lucias-tasks>
+- role: assistant
+  tool_calls:
+  - function:
+      name: slack
+      arguments: '{"op": "capture", "args": {"channel_slash_thread": "@lucia.ferrer"}}'
+    id: fakecall_capture
+    type: function
+- role: tool
+  call_id: fakecall_capture
+  content: |
+    <slack-captured>
+- role: assistant
+  content: |-
+    Good morning Lucia! Here's your day:
+
+    *BLOCKER — due June 20 (5 days)*
+    FD-40: Design 5-course wedding dinner menu — in progress, tasting in 3 days, 12 dietary restrictions to cover
+
+    *HIGH — due June 24*
+    FD-44: Wedding cake procurement — in progress, delivery logistics unclear
+
+    *HIGH — due June 23*
+    FD-46: Allergen documentation — todo, legal requirement
+
+    *MEDIUM*
+    FD-42: Cocktail bar setup (due June 24)
+    FD-41: Source table linens
+
+    *LOW*
+    FD-45: Staff catering for setup crew
+    FD-43: Late-night snack station
+
+    You have 7 open tasks, 2 in progress. Focus on FD-40 (menu tasting in 3 days) and FD-46 (allergen docs, legal deadline) today. Need help with anything?
