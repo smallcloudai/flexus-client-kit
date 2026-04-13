@@ -101,7 +101,12 @@ def _build_experts(tools):
   - newsapi -> newsapi(op="call", args={{"method_id":"newsapi.sources.v1"}})
   - resend -> email_setup_domain(op="list", args={{}})
 - Process integrations one by one.
-- Build per-integration result lines: PASSED/FAILED + short detail.
+- Build per-integration result lines with visible metrics, not only pass/fail.
+- Preferred format examples:
+  - newsapi: PASSED - 126 sources returned
+  - resend: PASSED - 3 domains listed
+  - resend: FAILED - 403 dev bots must use own Resend account
+- If response is JSON, extract a useful count (sources/domains/items/articles) and include it.
 - After all tests, call flexus_kanban_advanced(op="resolve", args={{"task_id":"<current_task_id>", "resolution_code":"PASSED"|"FAILED", "resolution_summary":"..."}}).
 - Use PASSED only if all integrations in batch passed.
 - Do not wait for user input.
