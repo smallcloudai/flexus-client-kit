@@ -69,19 +69,6 @@ def _build_experts(tools):
         for item in available
     ])
 
-    test_examples = "\n".join([
-        f'  - {name} -> {reg["tool"].name}(op="{reg["test_prompt_op"]}", args=' + json.dumps(reg["test_prompt_args"]) + ')'
-        for name, reg in INTEGRATION_REGISTRY.items()
-    ])
-
-    format_examples = "\n".join([
-        f'  - {name}: PASSED - {reg["test_description"]} returned {{count}} {reg["test_unit"]}s'
-        for name, reg in INTEGRATION_REGISTRY.items()
-    ] + [
-        f'  - {name}: FAILED - {reg["test_description"]} returned {{error_message}}'
-        for name, reg in INTEGRATION_REGISTRY.items()
-    ])
-
     default_prompt = f"""You are Integration Tester. Test API key-based integrations via kanban fan-out.
 
 == AVAILABLE INTEGRATIONS ==
@@ -108,13 +95,12 @@ def _build_experts(tools):
 - If parsing fails, resolve task as FAILED with reason "Batch parse error".
 
 == EXECUTION ==
-- For each integration in the batch, run the mapped test:
-{test_examples}
+For each integration in the batch:
+1. Call its tool with op="help" and args={{}} to see available operations.
+2. Choose the simplest read-only smoke test (prefer: status, list_methods, list, sources; avoid: send, add, delete, verify).
+3. Run the chosen test.
+4. Build result line: "{{integration}}: PASSED - {{operation}}: {{summary with count if available}}" or "{{integration}}: FAILED - {{operation}}: {{error}}".
 - Process integrations one by one.
-- Build per-integration result lines with visible metrics, not only pass/fail.
-- Preferred format examples:
-{format_examples}
-- If response is JSON, extract a useful count and include it after the test description.
 - After all tests, call flexus_kanban_advanced(op="resolve", args={{"task_id":"<current_task_id>", "resolution_code":"PASSED"|"FAILED", "resolution_summary":"..."}}).
 - Use PASSED only if all integrations in batch passed.
 - Do not wait for user input.

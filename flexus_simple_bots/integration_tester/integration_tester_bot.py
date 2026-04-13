@@ -90,10 +90,6 @@ INTEGRATION_REGISTRY: Dict[str, Dict[str, Any]] = {
         "integration_cls": fi_newsapi.IntegrationNewsapi,
         "integration_args": lambda fclient, rcx, setup: (rcx,),
         "handler_method": "called_by_model",
-        "test_prompt_op": "call",
-        "test_prompt_args": {"method_id": "newsapi.sources.v1"},
-        "test_description": "sources endpoint",
-        "test_unit": "source",
     },
     "resend": {
         "env_var": "RESEND_API_KEY",
@@ -101,10 +97,6 @@ INTEGRATION_REGISTRY: Dict[str, Dict[str, Any]] = {
         "integration_cls": fi_resend.IntegrationResend,
         "integration_args": lambda fclient, rcx, setup: (fclient, rcx, {}),
         "handler_method": "setup_called_by_model",
-        "test_prompt_op": "list",
-        "test_prompt_args": {},
-        "test_description": "domain list endpoint",
-        "test_unit": "domain",
     },
 }
 
