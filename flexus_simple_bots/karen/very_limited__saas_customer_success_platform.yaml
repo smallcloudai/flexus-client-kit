@@ -1,17 +1,13 @@
 judge_instructions: |
-  This scenario tests the full sales qualification funnel for a B2B SaaS buyer.
-  Karen must exercise ALL of: C.L.O.S.E.R. framework, BANT scoring, vector search
-  grounding, CRM pipeline (contact + deal + activity), objection handling, and
-  competitive differentiation. Penalize heavily for:
-  - Fabricated pricing, features, or claims not grounded in vector search results
-  - Missing CRM logging (contact, deal, or activity not created)
-  - Missing or incorrect BANT score
-  - Skipping objection handling (prospect raises competitor and price objections)
-  - Failure to capture telegram chat
-  - Failure to resolve kanban task with TASK_COMPLETED
-  Score 0 if Karen never calls flexus_vector_search. Score max 5 if CRM pipeline
-  is incomplete. The prospect is warm but skeptical (Gainsight refugee) — Karen
-  should match energy, not oversell.
+  Sales qualification scenario for B2B SaaS buyer. Tests: C.L.O.S.E.R. framework,
+  vector search grounding, BANT signal gathering, objection handling (competitor +
+  price), telegram capture, kanban resolve + TASK_COMPLETED.
+  Score 0 if Karen never calls flexus_vector_search.
+  Penalize fabricated claims not grounded in search results.
+  Penalize skipping objection handling (prospect raises Gainsight and Totango).
+  Do NOT penalize for missing CRM write calls — CRM logging is handled by a
+  separate post_conversation expert after the chat ends.
+  The prospect is skeptical (Gainsight refugee) — Karen should not oversell.
 
 messages:
 - role: cd_instruction
@@ -365,56 +361,6 @@ messages:
 
       yeah let's do the trial. but I need to be upfront — I can approve tools under $15K/year myself, but anything above that needs our CEO Maya's sign-off. at $10.4K annual we should be fine but if we end up needing Enterprise features I'll need to bring her in. can you send the trial to priya@datamesh.io and also some kind of one-pager I can share with my team so they know what's coming
 - role: assistant
-  tool_calls:
-  - id: call_fg_07
-    type: function
-    function:
-      name: manage_crm_contact
-      arguments: '{"op": "create", "args": {"contact_first_name": "Priya", "contact_last_name": "Chandrasekaran",
-        "contact_email": "priya@datamesh.io", "contact_notes": "VP of Customer Success at DataMesh (B2B
-        analytics SaaS). 1,800 customers, $14M ARR, 8 CSMs (~225 accounts each). Data scattered across Intercom,
-        Stripe, Mixpanel, Salesforce — no unified health view. Lost 3 accounts ($180K) last quarter due to
-        surprise churn. Tried Gainsight 2 years ago — 4 month deploy, bad health scores, team abandoned it.
-        Also evaluating Totango ($18K/year quote). Growth plan fits: $10.4K/year (annual). Can approve up
-        to $15K/year herself, needs CEO Maya for anything above. Wants 14-day trial + team one-pager. BANT:
-        Budget=1 (confirmed within her approval authority at $10.4K), Authority=1 (sole decision-maker under
-        $15K), Need=1 (urgent — $720K/year avoidable churn), Timeline=1 (actively evaluating, competitor
-        pressuring close this month).", "contact_tags": ["lead", "saas", "analytics", "customer-success",
-        "gainsight-refugee"], "contact_bant_score": 4}}'
-  - id: call_fg_08
-    type: function
-    function:
-      name: manage_crm_deal
-      arguments: '{"op": "create", "args": {"deal_name": "Priya Chandrasekaran / DataMesh — CS Platform
-        (Growth Plan, Annual)", "deal_stage": "QUALIFICATION"}}'
-- role: tool
-  content: 'Created: cnt_Yp5mK8wR'
-  call_id: call_fg_07
-- role: tool
-  content: 'Created: deal_Nt3vL7xQ'
-  call_id: call_fg_08
-- role: assistant
-  tool_calls:
-  - id: call_fg_09
-    type: function
-    function:
-      name: log_crm_activity
-      arguments: '{"contact_id": "cnt_Yp5mK8wR", "activity_type": "MESSENGER_CHAT", "direction": "INBOUND",
-        "platform": "TELEGRAM", "title": "Sales qualification — CS platform for B2B analytics SaaS", "summary":
-        "Priya Chandrasekaran, VP Customer Success at DataMesh (B2B analytics SaaS, 1,800 customers, $14M
-        ARR). Pain: 8 CSMs flying blind — data in Intercom, Stripe, Mixpanel, Salesforce with no unified
-        health view. Lost $180K in surprise churn last quarter. Previously tried Gainsight (4-month deploy,
-        unreliable health scores, team abandoned). Currently also evaluating Totango ($18K/year, aggressive
-        close pressure). Growth plan annual at $10.4K/year — 10x ROI against $720K avoidable annual churn.
-        Key differentiators landed: 2-week deploy vs 3-6 months, no dedicated admin, 85% accuracy guarantee,
-        self-calibrating health model. Priya can approve under $15K herself (no CEO needed at this price).
-        Requested: 14-day trial to priya@datamesh.io, team one-pager. BANT: Budget=1, Authority=1, Need=1,
-        Timeline=1. Score=4/4 (hot). NEXT STEPS: send trial invite, team one-pager, follow up in 1 week
-        on health score accuracy."}'
-- role: tool
-  content: Activity logged
-  call_id: call_fg_09
-- role: assistant
   content: |-
     Done\. Here's what's coming:
 
@@ -443,7 +389,7 @@ messages:
         $180K in surprise churn last quarter. Tried Gainsight 2 years ago (4-month deploy, bad scores, abandoned).
         Also evaluating Totango ($18K/year). Growth plan annual $10.4K/year — 10x ROI. Key differentiators:
         2-week deploy, no dedicated admin, 85% accuracy guarantee, self-calibrating model. BANT 4/4 (Budget=1
-        under $15K authority, Authority=1, Need=1, Timeline=1). CRM: contact cnt_Yp5mK8wR, deal deal_Nt3vL7xQ.
+        under $15K authority, Authority=1, Need=1, Timeline=1).
         NEXT: trial invite to priya@datamesh.io, team one-pager, follow up in 1 week.", "humanhours": 0.15,
         "uncapture": true, "pdoc_paths": []}}'
 - role: tool
