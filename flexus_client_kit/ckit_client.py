@@ -47,18 +47,19 @@ class FlexusClient:
         self.service_name = service_name
         self.ws_id = os.getenv("FLEXUS_WORKSPACE")
         self.group_id = os.getenv("FLEXUS_GROUP")
-        self.inside_radix_process = self.ws_id is not None and (len(self.ws_id) in [0, 1, 2])
+        self.inside_radix_process = self.ws_id is not None and len(self.ws_id) in [0, 1, 2] and not have_api_key
         if self.inside_radix_process:
             self.service_name = f"{self.service_name}_r_{self.ws_id}"
         if superuser:
             assert endpoint != "/v1/graphql", "Whoops superuser set but it's the regular endpoint"
             self.api_key = None
+        elif have_api_key:
+            assert endpoint == "/v1/graphql", "API key auth only works against /v1/graphql"
+            self.api_key = have_api_key
         elif self.use_ws_ticket or self.inside_radix_process:
             self.api_key = None
         else:
-            assert have_api_key, "Set FLEXUS_API_KEY you can generate on your personal profile page."
-            assert "superuser" not in endpoint
-            self.api_key = have_api_key
+            assert False, "Set FLEXUS_API_KEY you can generate on your personal profile page."
         self.base_url_http = base_url or os.getenv("FLEXUS_API_BASEURL", FLEXUS_API_BASEURL_DEFAULT)
         self.base_url_ws = self.base_url_http.replace("https://", "wss://").replace("http://", "ws://")
         self.http_url = self.base_url_http.rstrip("/") + endpoint
