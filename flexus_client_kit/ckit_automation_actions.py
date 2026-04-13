@@ -13,7 +13,6 @@ import logging
 from typing import Any, Awaitable, Callable, Dict, List, Optional, Tuple
 
 import aiohttp
-from discord.errors import DiscordException
 
 from flexus_client_kit import ckit_person_domain
 
@@ -82,9 +81,6 @@ async def _do_send_dm(action: dict, ctx: dict) -> dict:
             persona_id,
         )
         return _result_dict(ok=False, error="no_connector")
-    except DiscordException as e:
-        logger.warning("send_dm DiscordException: %s %s", type(e).__name__, e)
-        return _result_dict(ok=False, error=type(e).__name__)
     except aiohttp.ClientError as e:
         logger.warning("send_dm ClientError: %s %s", type(e).__name__, e)
         return _result_dict(ok=False, error=type(e).__name__)
@@ -121,9 +117,6 @@ async def _do_post_to_channel(action: dict, ctx: dict) -> dict:
             persona_id,
         )
         return _result_dict(ok=False, error="no_connector")
-    except DiscordException as e:
-        logger.warning("post_to_channel DiscordException: %s %s", type(e).__name__, e)
-        return _result_dict(ok=False, error=type(e).__name__)
     except aiohttp.ClientError as e:
         logger.warning("post_to_channel ClientError: %s %s", type(e).__name__, e)
         return _result_dict(ok=False, error=type(e).__name__)
@@ -155,9 +148,6 @@ async def _do_add_role(action: dict, ctx: dict) -> dict:
             {"user_id": uid_s, "role_id": str(int(rid)), "server_id": sid},
         )
         return _result_dict(ok=result.ok, error=result.error)
-    except DiscordException as e:
-        logger.warning("add_role DiscordException: %s %s", type(e).__name__, e)
-        return _result_dict(ok=False, error=type(e).__name__)
     except aiohttp.ClientError as e:
         logger.warning("add_role ClientError: %s %s", type(e).__name__, e)
         return _result_dict(ok=False, error=type(e).__name__)
@@ -189,9 +179,6 @@ async def _do_remove_role(action: dict, ctx: dict) -> dict:
             {"user_id": uid_s, "role_id": str(int(rid)), "server_id": sid},
         )
         return _result_dict(ok=result.ok, error=result.error)
-    except DiscordException as e:
-        logger.warning("remove_role DiscordException: %s %s", type(e).__name__, e)
-        return _result_dict(ok=False, error=type(e).__name__)
     except aiohttp.ClientError as e:
         logger.warning("remove_role ClientError: %s %s", type(e).__name__, e)
         return _result_dict(ok=False, error=type(e).__name__)
@@ -222,9 +209,6 @@ async def _do_kick(action: dict, ctx: dict) -> dict:
             {"user_id": uid_s, "reason": reason, "server_id": sid},
         )
         return _result_dict(ok=result.ok, error=result.error)
-    except DiscordException as e:
-        logger.warning("kick DiscordException: %s %s", type(e).__name__, e)
-        return _result_dict(ok=False, error=type(e).__name__)
     except aiohttp.ClientError as e:
         logger.warning("kick ClientError: %s %s", type(e).__name__, e)
         return _result_dict(ok=False, error=type(e).__name__)
@@ -316,9 +300,6 @@ async def _do_call_gatekeeper_tool(action: dict, ctx: dict) -> dict:
             details,
         )
         return _result_dict(ok=True, error=None)
-    except DiscordException as e:
-        logger.warning("call_gatekeeper_tool DiscordException: %s %s", type(e).__name__, e)
-        return _result_dict(ok=False, error=type(e).__name__)
     except aiohttp.ClientError as e:
         logger.warning("call_gatekeeper_tool ClientError: %s %s", type(e).__name__, e)
         return _result_dict(ok=False, error=type(e).__name__)
@@ -377,17 +358,6 @@ async def execute_actions(actions: List[dict], ctx: dict) -> List[dict]:
                 continue
             try:
                 partial = await handler(action, ctx)
-            except DiscordException as e:
-                logger.warning("execute_actions handler DiscordException: %s", e)
-                results.append(
-                    {
-                        "action_type": action_type,
-                        "rule_id": rule_id,
-                        "ok": False,
-                        "error": type(e).__name__,
-                    },
-                )
-                continue
             except aiohttp.ClientError as e:
                 logger.warning("execute_actions handler ClientError: %s", e)
                 results.append(

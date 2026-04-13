@@ -78,10 +78,6 @@ class DiscordGatewayConnector(ChatConnector):
     def allowed_guild_ids(self) -> frozenset[int]:
         return frozenset(self._allowed_guild_ids)
 
-    @property
-    def gateway_instance_key(self) -> str:
-        return self._instance_key
-
     def supported_triggers(self) -> list[TriggerDescriptor]:
         return DISCORD_TRIGGERS
 

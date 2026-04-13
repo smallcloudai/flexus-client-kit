@@ -3,8 +3,6 @@ import json
 import logging
 import os
 from typing import Any, Dict, List
-
-from discord.errors import DiscordException
 from pymongo import AsyncMongoClient
 from pymongo.errors import PyMongoError
 
@@ -196,7 +194,8 @@ async def _maybe_gateway_auto_post_checklist(
         if dc.setup_truthy(setup.get("disable_checklist_auto_post")):
             return
         gid = int(pl.get("guild_id", 0) or 0)
-        if not gid or (allowed_guild_ids and gid not in allowed_guild_ids):
+        # Empty allowlist must not mean "all guilds" — deny checklist until persona lists guilds.
+        if not gid or not allowed_guild_ids or gid not in allowed_guild_ids:
             return
         cid = dc.parse_snowflake(setup.get("checklist_channel_id", ""))
         if not cid:
@@ -334,7 +333,19 @@ async def discord_bot_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot
         announce_pings = _role_ids_csv(setup.get("announce_ping_role_ids", ""))
 
         initial_guild_ids = _guild_ids_from_persona(rcx.persona, setup)
-        dc.log_ctx(rcx.persona.persona_id, None, "allowed guild ids from persona_external_addresses: %s", sorted(initial_guild_ids))
+        if not initial_guild_ids:
+            logger.warning(
+                "%s Discord guild allowlist is empty (no discord: addresses in persona_external_addresses "
+                "and no legacy dc_guild_id). Inbound events and checklist autopost are denied until configured.",
+                rcx.persona.persona_id,
+            )
+        else:
+            dc.log_ctx(
+                rcx.persona.persona_id,
+                None,
+                "allowed guild ids from persona_external_addresses: %s",
+                sorted(initial_guild_ids),
+            )
 
         gw = DiscordGatewayConnector(
             token,
@@ -433,7 +444,7 @@ async def discord_bot_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot
                                         pings = " ".join("<@&%d>" % r for r in announce_pings)
                                         text = "%s\n%s" % (pings, rest) if pings else rest
                                         cid_str = str(pl_msg.get("channel_id", ""))
-                                        await connector.execute_action(
+                                        result = await connector.execute_action(
                                             "post_to_channel",
                                             {
                                                 "channel_id": cid_str,
@@ -441,6 +452,13 @@ async def discord_bot_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot
                                                 "server_id": str(gid_ann),
                                             },
                                         )
+                                        if not result.ok:
+                                            dc.log_ctx(
+                                                rcx.persona.persona_id,
+                                                gid_ann,
+                                                "!announce failed: %s",
+                                                result.error or "unknown",
+                                            )
                         return
 
                     if len(rules) == 0:
@@ -525,14 +543,6 @@ async def discord_bot_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot
                 except (TypeError, ValueError):
                     gid_log = None
                 dc.log_ctx(rcx.persona.persona_id, gid_log, "normalized event PyMongoError: %s %s", type(e).__name__, e)
-            except DiscordException as e:
-                gid_log = None
-                try:
-                    payload = event.payload if isinstance(event.payload, dict) else {}
-                    gid_log = int(payload.get("guild_id", 0) or 0) or None
-                except (TypeError, ValueError):
-                    gid_log = None
-                dc.log_ctx(rcx.persona.persona_id, gid_log, "normalized event DiscordException: %s %s", type(e).__name__, e)
             except (TypeError, KeyError, ValueError) as e:
                 gid_log = None
                 try:
@@ -560,7 +570,8 @@ async def discord_bot_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot
             except (TypeError, ValueError):
                 return
             allowed = connector.allowed_guild_ids
-            if allowed and gid not in allowed:
+            # Deny-all when allowlist is empty; do not treat empty as unrestricted.
+            if not allowed or gid not in allowed:
                 return
             await handle_normalized_event(ev)
 

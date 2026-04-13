@@ -9,7 +9,6 @@ from flexus_client_kit.gateway.ckit_gateway_wire import (
     gateway_instance_key_from_token,
     gateway_result_envelope_from_dict,
     normalized_event_from_dict,
-    normalized_event_to_dict,
     parse_action_command_envelope,
 )
 
@@ -24,6 +23,5 @@ __all__ = [
     "gateway_instance_key_from_token",
     "gateway_result_envelope_from_dict",
     "normalized_event_from_dict",
-    "normalized_event_to_dict",
     "parse_action_command_envelope",
 ]

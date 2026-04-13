@@ -42,10 +42,6 @@ class GatewayActionResultEnvelope:
     result: dict[str, Any]
 
 
-def normalized_event_to_dict(ev: NormalizedEvent) -> dict[str, Any]:
-    return dataclasses.asdict(ev)
-
-
 def normalized_event_from_dict(d: dict[str, Any]) -> NormalizedEvent:
     return NormalizedEvent(
         source=str(d["source"]),
