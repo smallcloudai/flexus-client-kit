@@ -40,6 +40,7 @@ CLOUDTOOLS_QUITE_A_LOT = KANBAN_ADVANCED | CLOUDTOOLS_NOT_KANBAN | CLOUDTOOLS_MC
 CLOUDTOOLS_ALL_KNOWN = KANBAN_ALL | CLOUDTOOLS_NOT_KANBAN | CLOUDTOOLS_A2A | CLOUDTOOLS_SCARY_TOOLS  # unsable in a bot
 
 
+
 def gql_error_4xx_to_model_reraise_5xx(e: gql.transport.exceptions.TransportQueryError, label: str) -> str:
     msg = (e.errors[0].get("message", "") if e.errors else "") or str(e)
     logger.info("%s: %s", label, msg)
