@@ -70,7 +70,15 @@ def _build_experts(tools):
     ])
 
     test_examples = "\n".join([
-        f'  - {name} -> {reg["tool"].name}(op="{reg["test_prompt_op"]}", args={json.dumps(reg["test_prompt_args"])})'
+        f'  - {name} -> {reg["tool"].name}(op="{reg["test_prompt_op"]}", args=' + json.dumps(reg["test_prompt_args"]) + ')'
+        for name, reg in INTEGRATION_REGISTRY.items()
+    ])
+
+    format_examples = "\n".join([
+        f'  - {name}: PASSED - {reg["test_description"]} returned {{count}} {reg["test_unit"]}s'
+        for name, reg in INTEGRATION_REGISTRY.items()
+    ] + [
+        f'  - {name}: FAILED - {reg["test_description"]} returned {{error_message}}'
         for name, reg in INTEGRATION_REGISTRY.items()
     ])
 
@@ -105,10 +113,8 @@ def _build_experts(tools):
 - Process integrations one by one.
 - Build per-integration result lines with visible metrics, not only pass/fail.
 - Preferred format examples:
-  - newsapi: PASSED - 126 sources returned
-  - resend: PASSED - 3 domains listed
-  - resend: FAILED - 403 dev bots must use own Resend account
-- If response is JSON, extract a useful count (sources/domains/items/articles) and include it.
+{format_examples}
+- If response is JSON, extract a useful count and include it after the test description.
 - After all tests, call flexus_kanban_advanced(op="resolve", args={{"task_id":"<current_task_id>", "resolution_code":"PASSED"|"FAILED", "resolution_summary":"..."}}).
 - Use PASSED only if all integrations in batch passed.
 - Do not wait for user input.
