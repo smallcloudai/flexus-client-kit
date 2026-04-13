@@ -77,11 +77,29 @@ NEWSAPI_TOOL = ckit_cloudtool.CloudTool(
 )
 
 
-TOOLS = [
-    PLAN_BATCHES_TOOL,
-    NEWSAPI_TOOL,
-    fi_resend.RESEND_SETUP_TOOL,
-]
+INTEGRATION_REGISTRY: Dict[str, Dict[str, Any]] = {
+    "newsapi": {
+        "env_var": "NEWSAPI_API_KEY",
+        "alt_env_vars": ["NEWSAPI_KEY"],
+        "tool": NEWSAPI_TOOL,
+        "integration_cls": fi_newsapi.IntegrationNewsapi,
+        "integration_args": lambda fclient, rcx, setup: (rcx,),
+        "handler_method": "called_by_model",
+        "test_prompt_op": "call",
+        "test_prompt_args": {"method_id": "newsapi.sources.v1"},
+    },
+    "resend": {
+        "env_var": "RESEND_API_KEY",
+        "tool": fi_resend.RESEND_SETUP_TOOL,
+        "integration_cls": fi_resend.IntegrationResend,
+        "integration_args": lambda fclient, rcx, setup: (fclient, rcx, {}),
+        "handler_method": "setup_called_by_model",
+        "test_prompt_op": "list",
+        "test_prompt_args": {},
+    },
+}
+
+TOOLS = [PLAN_BATCHES_TOOL] + [reg["tool"] for reg in INTEGRATION_REGISTRY.values()]
 
 
 def _chunk_names(xs: List[str], n: int) -> List[List[str]]:
@@ -130,23 +148,19 @@ def load_env_config(setup: Dict[str, Any]) -> None:
 
 def get_configured_integrations() -> List[Dict[str, Any]]:
     result = []
-    
-    newsapi_key = os.environ.get("NEWSAPI_API_KEY") or os.environ.get("NEWSAPI_KEY")
-    if newsapi_key:
-        result.append({
-            "name": "newsapi",
-            "env_var": "NEWSAPI_API_KEY",
-            "key_hint": newsapi_key[-4:] if len(newsapi_key) > 4 else "***",
-        })
-    
-    resend_key = os.environ.get("RESEND_API_KEY")
-    if resend_key:
-        result.append({
-            "name": "resend",
-            "env_var": "RESEND_API_KEY",
-            "key_hint": resend_key[-4:] if len(resend_key) > 4 else "***",
-        })
-    
+    for name, reg in INTEGRATION_REGISTRY.items():
+        key = os.environ.get(reg["env_var"])
+        if not key and "alt_env_vars" in reg:
+            for alt in reg["alt_env_vars"]:
+                key = os.environ.get(alt)
+                if key:
+                    break
+        if key:
+            result.append({
+                "name": name,
+                "env_var": reg["env_var"],
+                "key_hint": key[-4:] if len(key) > 4 else "***",
+            })
     return result
 
 
@@ -166,24 +180,32 @@ async def integration_tester_main_loop(
     await ckit_integrations_db.main_loop_integrations_init(integr_records, rcx, setup)
     supported_integrations = sorted({r.integr_name for r in integr_records})
 
-    newsapi = fi_newsapi.IntegrationNewsapi(rcx)
-    domains = setup.get("DOMAINS", {}) if isinstance(setup, dict) else {}
-    resend = fi_resend.IntegrationResend(fclient, rcx, domains)
+    for name, reg in INTEGRATION_REGISTRY.items():
+        integration_obj = reg["integration_cls"](*reg["integration_args"](fclient, rcx, setup))
 
-    @rcx.on_tool_call(NEWSAPI_TOOL.name)
-    async def toolcall_newsapi(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
-        newsapi_key = os.environ.get("NEWSAPI_API_KEY") or os.environ.get("NEWSAPI_KEY")
-        logger.info(f"Testing newsapi - API key present: {bool(newsapi_key)}")
-        if not newsapi_key:
-            logger.warning("newsapi test FAILED - no API key configured")
-            return "Error: NEWSAPI_API_KEY not configured. Resolve the kanban task as FAILED with status: 'FAILED - No API key configured for newsapi'"
-        try:
-            result = await newsapi.called_by_model(toolcall, model_produced_args)
-            logger.info(f"newsapi test result: {result[:100]}..." if len(result) > 100 else f"newsapi test result: {result}")
-            return result
-        except Exception as e:
-            logger.error("toolcall_newsapi: %s" % str(e), exc_info=True)
-            return "Error: %s" % str(e)
+        def make_handler(reg, obj):
+            env_var = reg["env_var"]
+            alt_env_vars = reg.get("alt_env_vars", [])
+            handler_method = reg["handler_method"]
+            tool_name = reg["tool"].name
+
+            async def handler(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
+                keys = [os.environ.get(env_var)] + [os.environ.get(v) for v in alt_env_vars]
+                key = next((k for k in keys if k), None)
+                logger.info(f"Testing {tool_name} - API key present: {bool(key)}")
+                if not key:
+                    logger.warning(f"{tool_name} test FAILED - no API key configured")
+                    return f"Error: {env_var} not configured. Resolve the kanban task as FAILED with status: 'FAILED - No API key configured for {tool_name}'"
+                try:
+                    result = await getattr(obj, handler_method)(toolcall, model_produced_args)
+                    logger.info(f"{tool_name} test result: {result[:100]}..." if len(result) > 100 else f"{tool_name} test result: {result}")
+                    return result
+                except Exception as e:
+                    logger.error(f"toolcall_{tool_name}: %s" % str(e), exc_info=True)
+                    return "Error: %s" % str(e)
+            return handler
+
+        rcx.on_tool_call(reg["tool"].name)(make_handler(reg, integration_obj))
 
     @rcx.on_tool_call(PLAN_BATCHES_TOOL.name)
     async def toolcall_plan_batches(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
@@ -235,21 +257,6 @@ async def integration_tester_main_loop(
             "batches": batches,
             "task_specs": task_specs,
         }, indent=2)
-
-    @rcx.on_tool_call(fi_resend.RESEND_SETUP_TOOL.name)
-    async def toolcall_email_setup_domain(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
-        resend_key = os.environ.get("RESEND_API_KEY")
-        logger.info(f"Testing resend - API key present: {bool(resend_key)}")
-        if not resend_key:
-            logger.warning("resend test FAILED - no API key configured")
-            return "Error: RESEND_API_KEY not configured. Resolve the kanban task as FAILED with status: 'FAILED - No API key configured for resend'"
-        try:
-            result = await resend.setup_called_by_model(toolcall, model_produced_args)
-            logger.info(f"resend test result: {result[:100]}..." if len(result) > 100 else f"resend test result: {result}")
-            return result
-        except Exception as e:
-            logger.error("toolcall_email_setup_domain: %s" % str(e), exc_info=True)
-            return "Error: %s" % str(e)
 
     configured = get_configured_integrations()
     logger.info(f"Integration Tester started. Configured integrations: {[i['name'] for i in configured]}")

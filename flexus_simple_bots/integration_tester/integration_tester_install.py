@@ -14,18 +14,10 @@ logger = logging.getLogger("integration_tester")
 INTEGRATION_TESTER_ROOTDIR = Path(__file__).parent
 INTEGRATION_TESTER_SKILLS = ckit_skills.static_skills_find(INTEGRATION_TESTER_ROOTDIR, shared_skills_allowlist="", integration_skills_allowlist="")
 
-API_KEY_INTEGRATIONS = {
-    "newsapi": {
-        "env_var": "NEWSAPI_API_KEY",
-        "tool_class": fi_newsapi.IntegrationNewsapi,
-        "test_op": "sources",
-    },
-    "resend": {
-        "env_var": "RESEND_API_KEY",
-        "tool_name": "email_setup_domain",
-        "test_op": "list",
-    },
-}
+from flexus_simple_bots.integration_tester.integration_tester_bot import (
+    INTEGRATION_REGISTRY,
+    PLAN_BATCHES_TOOL,
+)
 
 INTEGRATION_TESTER_INTEGRATIONS: list[ckit_integrations_db.IntegrationRecord] = ckit_integrations_db.static_integrations_load(
     INTEGRATION_TESTER_ROOTDIR,
@@ -38,21 +30,26 @@ def get_available_integrations() -> List[Dict[str, Any]]:
     result = []
     for rec in INTEGRATION_TESTER_INTEGRATIONS:
         name = rec.integr_name
-        config = API_KEY_INTEGRATIONS.get(name)
-        if not config:
+        reg = INTEGRATION_REGISTRY.get(name)
+        if not reg:
             continue
-        key = os.environ.get(config["env_var"])
+        key = os.environ.get(reg["env_var"])
+        if not key and "alt_env_vars" in reg:
+            for alt in reg["alt_env_vars"]:
+                key = os.environ.get(alt)
+                if key:
+                    break
         if key:
             result.append({
                 "name": name,
-                "env_var": config["env_var"],
+                "env_var": reg["env_var"],
                 "has_key": True,
                 "key_hint": key[-4:] if len(key) > 4 else "***",
             })
         else:
             result.append({
                 "name": name,
-                "env_var": config["env_var"],
+                "env_var": reg["env_var"],
                 "has_key": False,
                 "key_hint": None,
             })
@@ -61,7 +58,8 @@ def get_available_integrations() -> List[Dict[str, Any]]:
 
 def _build_experts(tools):
     builtin_skills = ckit_skills.read_name_description(INTEGRATION_TESTER_ROOTDIR, INTEGRATION_TESTER_SKILLS)
-    tool_names = {t.name for t in tools}
+    tool_names = {reg["tool"].name for reg in INTEGRATION_REGISTRY.values()}
+    tool_names.add(PLAN_BATCHES_TOOL.name)
     allow_tools = ",".join(tool_names | ckit_cloudtool.KANBAN_ADVANCED | {"flexus_hand_over_task"})
 
     available = get_available_integrations()
@@ -69,6 +67,11 @@ def _build_experts(tools):
         f"- {item['name']} ({item['env_var']}: ***{item['key_hint']})" if item['has_key']
         else f"- {item['name']} ({item['env_var']}: NOT SET)"
         for item in available
+    ])
+
+    test_examples = "\n".join([
+        f'  - {name} -> {reg["tool"].name}(op="{reg["test_prompt_op"]}", args={json.dumps(reg["test_prompt_args"])})'
+        for name, reg in INTEGRATION_REGISTRY.items()
     ])
 
     default_prompt = f"""You are Integration Tester. Test API key-based integrations via kanban fan-out.
@@ -98,8 +101,7 @@ def _build_experts(tools):
 
 == EXECUTION ==
 - For each integration in the batch, run the mapped test:
-  - newsapi -> newsapi(op="call", args={{"method_id":"newsapi.sources.v1"}})
-  - resend -> email_setup_domain(op="list", args={{}})
+{test_examples}
 - Process integrations one by one.
 - Build per-integration result lines with visible metrics, not only pass/fail.
 - Preferred format examples:
