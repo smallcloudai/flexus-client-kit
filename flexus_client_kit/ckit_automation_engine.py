@@ -81,19 +81,20 @@ def _single_condition_ok(condition: dict, member: dict) -> bool:
 
 def load_rules(persona_setup: dict) -> list[dict]:
     """
-    Load all automation rules from persona_setup.  Delegates to
+    Load enabled automation rules from persona_setup.  Delegates to
     resolve_automation_rules which prefers the new automation_rules setup field
     and falls back to the legacy automation_published key for backward
-    compatibility.  Returns [] if missing or invalid. Does NOT filter by
-    enabled/disabled; runtime filtering by disabled_rule_ids is done in the bot
-    layer via MongoDB.
+    compatibility.  Returns [] if missing or invalid.
+
+    Rules with enabled=False are excluded; rules without an enabled field
+    (legacy documents) are treated as enabled for backward compatibility.
     """
     try:
         published = ckit_automation.resolve_automation_rules(persona_setup)
         rules_raw = published.get("rules", [])
         if not isinstance(rules_raw, list):
             return []
-        return [r for r in rules_raw if isinstance(r, dict)]
+        return [r for r in rules_raw if isinstance(r, dict) and r.get("enabled", True) is not False]
     except (KeyError, TypeError, ValueError) as e:
         logger.error("load_rules failed", exc_info=e)
         return []

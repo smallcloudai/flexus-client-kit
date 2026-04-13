@@ -24,7 +24,6 @@ from discord.errors import DiscordException
 from pymongo.errors import PyMongoError
 
 from flexus_client_kit import ckit_crm_members, ckit_job_queue, ckit_person_domain
-from flexus_client_kit.ckit_automation import DisabledRulesCache, filter_active_rules
 from flexus_client_kit.integrations import fi_discord2 as dc
 
 logger = logging.getLogger(__name__)
@@ -709,7 +708,6 @@ async def _run_cascade(
     initial_field_changes: List[dict],
     guild_id: int,
     user_id: int,
-    disabled_rules_cache: Optional[DisabledRulesCache] = None,
 ) -> None:
     """
     Re-run the engine on synthetic CRM events up to _MAX_CASCADE_DEPTH rounds (scheduled job path).
@@ -717,8 +715,6 @@ async def _run_cascade(
     Mirrors U2.4 bot loop: refresh member from Mongo per change, then process_event + execute_actions.
     """
     try:
-        disabled = disabled_rules_cache.get() if disabled_rules_cache else set()
-        active_rules = filter_active_rules(rules, disabled)
         pending = list(initial_field_changes)
         depth = 0
         while pending:
@@ -763,7 +759,7 @@ async def _run_cascade(
                     more_actions = engine_process_fn(
                         event_type,
                         event_data,
-                        active_rules,
+                        rules,
                         fresh,
                         setup,
                     )
@@ -793,7 +789,6 @@ def make_automation_job_handler(
     db: Any,
     client: Any,
     persona_id: str,
-    disabled_rules_cache: Optional[DisabledRulesCache] = None,
     connector: Any = None,
     fclient: Any = None,
     ws_id: str = "",
@@ -805,10 +800,6 @@ def make_automation_job_handler(
             try:
                 if connector is None and client is None:
                     dc.log_ctx(persona_id, None, "job %s: no connector or discord client", rid)
-                    return
-                disabled = disabled_rules_cache.get() if disabled_rules_cache else set()
-                if rid in disabled:
-                    dc.log_ctx(persona_id, None, "job %s: rule disabled, skipping", rid)
                     return
                 raw_g = payload.get("guild_id")
                 raw_u = payload.get("user_id")
@@ -831,11 +822,10 @@ def make_automation_job_handler(
                     "user_id": u_id,
                 }
                 try:
-                    active_rules = filter_active_rules(rules, disabled)
                     actions = engine_process_fn(
                         "scheduled_check",
                         event_data,
-                        active_rules,
+                        rules,
                         member,
                         setup,
                     )
@@ -882,7 +872,6 @@ def make_automation_job_handler(
                     initial_field_changes=field_changes,
                     guild_id=g_id,
                     user_id=u_id,
-                    disabled_rules_cache=disabled_rules_cache,
                 )
             except PyMongoError as e:
                 logger.warning("job handler %s PyMongoError: %s %s", rid, type(e).__name__, e)

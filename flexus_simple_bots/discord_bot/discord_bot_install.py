@@ -7,7 +7,6 @@ from flexus_client_kit import ckit_automation_v1_schema_build
 from flexus_client_kit import ckit_bot_install
 from flexus_client_kit import ckit_client
 from flexus_client_kit import ckit_cloudtool
-from flexus_client_kit.ckit_connector_discord import DISCORD_ACTIONS, DISCORD_TRIGGERS
 from flexus_simple_bots import prompts_common
 from flexus_simple_bots.discord_bot import discord_bot_prompts
 from flexus_simple_bots.version_common import SIMPLE_BOTS_COMMON_VERSION
@@ -70,10 +69,7 @@ async def install(
         marketable_picture_small_b64=pic_small_b64,
         marketable_schedule=[prompts_common.SCHED_PICK_ONE_5M],
         marketable_auth_supported=["discord"],
-        marketable_rules_toolkit=ckit_automation_v1_schema_build.build_automation_v1_schema_document(
-            triggers=DISCORD_TRIGGERS,
-            actions=DISCORD_ACTIONS,
-        ),
+        marketable_rules_toolkit=ckit_automation_v1_schema_build.build_automation_v1_schema_document(),
     )
 
 

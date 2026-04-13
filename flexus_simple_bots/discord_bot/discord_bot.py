@@ -19,10 +19,10 @@ from flexus_client_kit import ckit_messages
 from flexus_client_kit import ckit_mongo
 from flexus_client_kit import ckit_person_domain
 from flexus_client_kit import ckit_shutdown
-from flexus_client_kit.ckit_automation import DisabledRulesCache, filter_active_rules
 from flexus_client_kit.ckit_connector import ChatConnector, NormalizedEvent
 from flexus_client_kit.ckit_connector_discord import DiscordConnector
 from flexus_client_kit.ckit_connector_discord_gateway import DiscordGatewayConnector
+from flexus_client_kit.gateway.ckit_gateway_wire import normalized_event_from_dict
 from flexus_client_kit.integrations import fi_discord2 as dc
 from flexus_simple_bots.discord_bot import discord_bot_install
 from flexus_simple_bots.version_common import SIMPLE_BOTS_COMMON_VERSION
@@ -92,9 +92,15 @@ BOT_VERSION = SIMPLE_BOTS_COMMON_VERSION
 def _has_gatekeeper_actions(rules: List[dict]) -> bool:
     """Return True when any published rule contains at least one call_gatekeeper_tool action."""
     for rule in rules:
+        # simple rule: top-level actions list
         actions = rule.get("actions") or []
         if any(isinstance(a, dict) and a.get("type") == "call_gatekeeper_tool" for a in actions):
             return True
+        # branched rule: each branch carries its own actions list
+        for branch in (rule.get("branches") or []):
+            branch_actions = branch.get("actions") or []
+            if any(isinstance(a, dict) and a.get("type") == "call_gatekeeper_tool" for a in branch_actions):
+                return True
     return False
 
 TOOLS: List[Any] = []
@@ -403,9 +409,6 @@ async def discord_bot_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot
     await ckit_crm_members.migrate_legacy_collections(mongo_db)
     await ckit_crm_members.ensure_member_indexes(mongo_db)
 
-    disabled_cache = DisabledRulesCache(fclient, rcx.persona.persona_id)
-    await disabled_cache.start()
-
     rules = ckit_automation_engine.load_rules(persona_setup_raw)
     dc.log_ctx(rcx.persona.persona_id, None, "loaded %d automation rules", len(rules))
     scheduled_rules = ckit_automation_engine.find_scheduled_rules(rules)
@@ -429,7 +432,12 @@ async def discord_bot_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot
     initial_guild_ids = _guild_ids_from_persona(rcx.persona, setup)
     dc.log_ctx(rcx.persona.persona_id, None, "allowed guild ids from persona_external_addresses: %s", sorted(initial_guild_ids))
     if use_gateway:
-        connector: ChatConnector = DiscordGatewayConnector(token, rcx.persona.persona_id, initial_guild_ids=initial_guild_ids)
+        connector: ChatConnector = DiscordGatewayConnector(
+            token,
+            rcx.persona.persona_id,
+            fclient,
+            initial_guild_ids=initial_guild_ids,
+        )
     else:
         connector = DiscordConnector(token, rcx.persona.persona_id, initial_guild_ids=initial_guild_ids)
     await connector.set_allowed_guild_ids(initial_guild_ids)
@@ -559,11 +567,10 @@ async def discord_bot_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot
                     "fclient": fclient,
                     "ws_id": workspace_id,
                 }
-                active_rules = filter_active_rules(rules, disabled_cache.get())
                 actions = ckit_automation_engine.process_event(
                     "member_joined",
                     {"guild_id": gid, "user_id": uid},
-                    active_rules,
+                    rules,
                     member_doc,
                     augmented_setup,
                 )
@@ -579,7 +586,6 @@ async def discord_bot_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot
                     initial_field_changes=field_changes,
                     guild_id=gid,
                     user_id=uid,
-                    disabled_rules_cache=disabled_cache,
                 )
                 await _schedule_scan_after_join(ctx, gid, uid)
                 return
@@ -653,11 +659,10 @@ async def discord_bot_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot
                     "fclient": fclient,
                     "ws_id": workspace_id,
                 }
-                active_rules = filter_active_rules(rules, disabled_cache.get())
                 actions = ckit_automation_engine.process_event(
                     "message_in_channel",
                     {"guild_id": gid, "user_id": uid, "channel_id": ch_id},
-                    active_rules,
+                    rules,
                     member_doc,
                     augmented_setup,
                 )
@@ -673,7 +678,6 @@ async def discord_bot_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot
                     initial_field_changes=field_changes,
                     guild_id=gid,
                     user_id=uid,
-                    disabled_rules_cache=disabled_cache,
                 )
                 return
 
@@ -698,11 +702,10 @@ async def discord_bot_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot
                     "fclient": fclient,
                     "ws_id": workspace_id,
                 }
-                active_rules = filter_active_rules(rules, disabled_cache.get())
                 actions_leave = ckit_automation_engine.process_event(
                     "member_removed",
                     {"guild_id": gid, "user_id": uid},
-                    active_rules,
+                    rules,
                     member_doc,
                     augmented_setup,
                 )
@@ -718,7 +721,6 @@ async def discord_bot_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot
                     initial_field_changes=fc_leave,
                     guild_id=gid,
                     user_id=uid,
-                    disabled_rules_cache=disabled_cache,
                 )
                 if old_status is None:
                     return
@@ -729,7 +731,7 @@ async def discord_bot_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot
                 actions = ckit_automation_engine.process_event(
                     "status_transition",
                     {"old_status": old_status, "new_status": "churned"},
-                    active_rules,
+                    rules,
                     member_doc_st,
                     augmented_setup,
                 )
@@ -745,7 +747,6 @@ async def discord_bot_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot
                     initial_field_changes=field_changes,
                     guild_id=gid,
                     user_id=uid,
-                    disabled_rules_cache=disabled_cache,
                 )
                 return
         except PyMongoError as e:
@@ -771,6 +772,34 @@ async def discord_bot_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot
             dc.log_ctx(persona_id, gid_log, "normalized event data error: %s %s", type(e).__name__, e)
 
     connector.on_event(handle_normalized_event)
+
+    if use_gateway:
+        # In gateway mode inbound events arrive via flexus_persona_external_message
+        # (routed by service_discord_gateway through process_external_webhook) rather
+        # than through a Redis event consumer.  Register an on_emessage handler so that
+        # bot_threads_calls_tasks delivers DISCORD messages here.
+        @rcx.on_emessage("DISCORD")
+        async def _on_discord_emessage(emsg) -> None:
+            try:
+                ev = normalized_event_from_dict(emsg.emsg_payload)
+            except (KeyError, TypeError, ValueError) as e:
+                logger.warning(
+                    "%s discord emessage parse error: %s %s",
+                    rcx.persona.persona_id,
+                    type(e).__name__,
+                    e,
+                )
+                return
+            # In-memory guild ACL: drop events for guilds this persona does not own.
+            try:
+                gid = int(ev.server_id)
+            except (TypeError, ValueError):
+                return
+            allowed = connector.allowed_guild_ids
+            if allowed and gid not in allowed:
+                return
+            await handle_normalized_event(ev)
+
     await connector.connect()
 
     if use_gateway:
@@ -849,7 +878,6 @@ async def discord_bot_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot
                     mongo_db,
                     connector.raw_client,
                     rcx.persona.persona_id,
-                    disabled_rules_cache=disabled_cache,
                     connector=connector,
                     fclient=fclient,
                     ws_id=workspace_id,
@@ -858,7 +886,6 @@ async def discord_bot_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot
             await ckit_job_queue.drain_due_jobs(mongo_db, rcx.persona.persona_id, job_handlers, limit=30)
             await rcx.unpark_collected_events(sleep_if_no_work=5.0)
     finally:
-        await disabled_cache.stop()
         await connector.disconnect()
         await mongo.close()
         logger.info("%s exit", rcx.persona.persona_id)

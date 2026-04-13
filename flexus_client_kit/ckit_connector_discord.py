@@ -497,47 +497,6 @@ def discord_automation_semantics_bundle() -> dict[str, Any]:
     }
 
 
-def discord_capability_export() -> dict[str, Any]:
-    """
-    Single source of truth for backend/UI: all triggers and actions the Discord integration supports.
-
-    Reuses the TriggerDescriptor / ActionDescriptor data from DISCORD_TRIGGERS / DISCORD_ACTIONS so
-    there is no second parallel catalog model. Backend can call this function to enumerate Discord
-    capabilities without importing the descriptor lists directly.
-
-    Return shape::
-
-        {
-          "integration": "discord",
-          "version": 1,
-          "triggers": [{"type": ..., "label": ..., "description": ..., "schema": {...}}, ...],
-          "actions":  [{"type": ..., "label": ..., "description": ..., "schema": {...}}, ...],
-        }
-    """
-    return {
-        "integration": "discord",
-        "version": 1,
-        "triggers": [
-            {
-                "type": t.type,
-                "label": t.label,
-                "description": t.description,
-                "schema": t.automation_schema_def,
-            }
-            for t in DISCORD_TRIGGERS
-        ],
-        "actions": [
-            {
-                "type": a.type,
-                "label": a.label,
-                "description": a.description,
-                "schema": a.automation_schema_def,
-            }
-            for a in DISCORD_ACTIONS
-        ],
-    }
-
-
 class DiscordConnector(ChatConnector):
     def __init__(
         self,
