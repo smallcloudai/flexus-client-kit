@@ -7,5 +7,14 @@
         "bs_importance": 1,
         "bs_placeholder": "SLACK_BOT_TOKEN=xoxb-...\nGITHUB_TOKEN=ghp_...\nJIRA_INSTANCE_URL=https://...\n...",
         "bs_description": "Paste your .env file content here with all integration keys. Each line should be KEY=VALUE format."
+    },
+    {
+        "bs_name": "INTEGRATION_TESTER_ALLOWLIST",
+        "bs_type": "string_short",
+        "bs_default": "",
+        "bs_group": "integrations",
+        "bs_importance": 1,
+        "bs_placeholder": "newsapi,resend",
+        "bs_description": "Optional CSV list of integration names to include. Empty means all discovered integrations with supported smoke tests."
     }
 ]

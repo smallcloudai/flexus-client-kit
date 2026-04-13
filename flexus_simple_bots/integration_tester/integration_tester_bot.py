@@ -7,6 +7,7 @@ from typing import Any, Dict, List
 
 from flexus_client_kit import ckit_bot_exec, ckit_client, ckit_shutdown, ckit_cloudtool
 from flexus_client_kit import ckit_bot_version
+from flexus_client_kit import ckit_integrations_db
 from flexus_client_kit.integrations import fi_newsapi, fi_resend
 
 logger = logging.getLogger("integration_tester")
@@ -14,7 +15,12 @@ logger = logging.getLogger("integration_tester")
 BOT_NAME = ckit_bot_version.bot_name_from_file(__file__)
 BOT_VERSION = (Path(__file__).parents[1] / "VERSION").read_text().strip()
 SETUP_SCHEMA = json.loads((Path(__file__).parent / "setup_schema.json").read_text())
-SUPPORTED_INTEGRATIONS = ["newsapi", "resend"]
+
+INTEGRATION_TESTER_INTEGRATIONS: list[ckit_integrations_db.IntegrationRecord] = ckit_integrations_db.static_integrations_load(
+    Path(__file__).parent,
+    allowlist=["newsapi", "resend"],
+    builtin_skills=[],
+)
 
 PLAN_BATCHES_TOOL = ckit_cloudtool.CloudTool(
     strict=True,
@@ -96,6 +102,18 @@ def _requested_names(raw: str) -> List[str]:
     return names or ["all"]
 
 
+def _setup_allowlist_names(setup: Dict[str, Any]) -> List[str]:
+    raw = str(setup.get("INTEGRATION_TESTER_ALLOWLIST", "") or "").strip().lower()
+    if not raw:
+        return []
+    names: List[str] = []
+    for x in raw.replace(";", ",").split(","):
+        x = x.strip()
+        if x:
+            names.append(x)
+    return names
+
+
 def load_env_config(setup: Dict[str, Any]) -> None:
     env_config = setup.get("ENV_CONFIG", "")
     if not env_config:
@@ -139,6 +157,15 @@ async def integration_tester_main_loop(
     setup = ckit_bot_exec.official_setup_mixing_procedure(SETUP_SCHEMA, rcx.persona.persona_setup)
     load_env_config(setup)
 
+    integr_records = INTEGRATION_TESTER_INTEGRATIONS
+    setup_allow = _setup_allowlist_names(setup)
+    if setup_allow:
+        allow = set(setup_allow)
+        integr_records = [r for r in integr_records if r.integr_name in allow]
+
+    await ckit_integrations_db.main_loop_integrations_init(integr_records, rcx, setup)
+    supported_integrations = sorted({r.integr_name for r in integr_records})
+
     newsapi = fi_newsapi.IntegrationNewsapi(rcx)
     domains = setup.get("DOMAINS", {}) if isinstance(setup, dict) else {}
     resend = fi_resend.IntegrationResend(fclient, rcx, domains)
@@ -174,11 +201,11 @@ async def integration_tester_main_loop(
         unsupported: List[str] = []
 
         if "all" in req:
-            pool = [x for x in SUPPORTED_INTEGRATIONS if (x in configured or not configured_only)]
+            pool = [x for x in supported_integrations if (x in configured or not configured_only)]
             selected = pool
         else:
             for x in req:
-                if x not in SUPPORTED_INTEGRATIONS:
+                if x not in supported_integrations:
                     unsupported.append(x)
                     continue
                 if configured_only and x not in configured:
@@ -199,7 +226,7 @@ async def integration_tester_main_loop(
         return json.dumps({
             "ok": True,
             "requested": req,
-            "supported": SUPPORTED_INTEGRATIONS,
+            "supported": supported_integrations,
             "configured": sorted(configured),
             "configured_only": configured_only,
             "selected": selected,

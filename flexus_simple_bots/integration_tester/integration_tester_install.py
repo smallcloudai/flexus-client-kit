@@ -5,7 +5,7 @@ import os
 from pathlib import Path
 from typing import Any, Dict, List
 
-from flexus_client_kit import ckit_client, ckit_bot_install, ckit_cloudtool, ckit_skills
+from flexus_client_kit import ckit_client, ckit_bot_install, ckit_cloudtool, ckit_skills, ckit_integrations_db
 from flexus_simple_bots import prompts_common
 from flexus_client_kit.integrations import fi_newsapi, fi_resend
 
@@ -27,10 +27,20 @@ API_KEY_INTEGRATIONS = {
     },
 }
 
+INTEGRATION_TESTER_INTEGRATIONS: list[ckit_integrations_db.IntegrationRecord] = ckit_integrations_db.static_integrations_load(
+    INTEGRATION_TESTER_ROOTDIR,
+    allowlist=["newsapi", "resend"],
+    builtin_skills=[],
+)
+
 
 def get_available_integrations() -> List[Dict[str, Any]]:
     result = []
-    for name, config in API_KEY_INTEGRATIONS.items():
+    for rec in INTEGRATION_TESTER_INTEGRATIONS:
+        name = rec.integr_name
+        config = API_KEY_INTEGRATIONS.get(name)
+        if not config:
+            continue
         key = os.environ.get(config["env_var"])
         if key:
             result.append({
