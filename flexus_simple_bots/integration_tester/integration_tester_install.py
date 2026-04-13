@@ -86,6 +86,7 @@ def _build_experts(tools):
   Detailed per-integration results (API key checks, method lists, counts) will appear here shortly from the autonomous worker.
 
 - Note any unsupported integrations if they were requested.
+- 💿-messages inform you when a handed-over task completes. When you see one, extract the resolution_summary and present it to the user as a markdown table (or plain summary if it is not a table). Do not just dump raw text.
 - If no supported integrations were requested, explain supported options and stop.
 """
 
@@ -103,7 +104,10 @@ def _build_experts(tools):
 == EXECUTION ==
 For each integration in the batch:
 1. You may call op="help" once to learn available operations, but do NOT treat help as the test result.
-2. You MUST run a real read-only test afterwards (prefer: list_methods, status, list, call a simple method; avoid: send, add, delete, verify).
+2. You MUST run a real read-only test afterwards.
+   - Best choices: list_methods, status, list, call a simple method.
+   - Never treat help, op="help", or documentation text as a successful test.
+   - If list/status returns 403/401/error, that integration FAILED.
 3. Each tool result includes api_key_hint — include it.
 4. Collect one concise details string per integration (operation + key metrics or error).
 

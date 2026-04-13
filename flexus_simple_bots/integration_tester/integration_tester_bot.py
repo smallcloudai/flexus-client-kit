@@ -218,6 +218,9 @@ async def integration_tester_main_loop(
                     return f"Error: {env_var} not configured. Resolve the kanban task as FAILED with status: 'FAILED - No API key configured for {tool_name}'"
                 try:
                     result = await getattr(obj, handler_method)(toolcall, model_produced_args)
+                    op = str(model_produced_args.get("op", "")).strip() if model_produced_args else ""
+                    if op == "help":
+                        result = "[HELP OUTPUT - NOT A TEST] " + result
                     formatted = _format_result(result)
                     key_hint = key[-3:] if len(key) > 3 else "***"
                     out = f"api_key_hint=***{key_hint}, {formatted}"
