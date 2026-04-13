@@ -225,12 +225,6 @@ async def _maybe_gateway_auto_post_checklist(
         if isinstance(data, dict) and data.get("message_id"):
             extra["message_id"] = data["message_id"]
         await checklist_meta_coll.update_one({"_id": meta_id}, {"$set": extra}, upsert=True)
-        if dc.setup_truthy(setup.get("pin_checklist")):
-            dc.log_ctx(
-                persona_id,
-                gid,
-                "pin_checklist requested but gateway checklist path does not pin messages; message was posted only.",
-            )
     except PyMongoError as e:
         dc.log_ctx(persona_id, None, "checklist meta PyMongoError: %s %s", type(e).__name__, e)
     except (TypeError, ValueError, KeyError) as e:
@@ -349,7 +343,6 @@ async def discord_bot_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot
             initial_guild_ids=initial_guild_ids,
         )
         connector = gw
-        await connector.set_allowed_guild_ids(initial_guild_ids)
 
         augmented_setup = dict(setup)
         augmented_setup["_format_mention"] = connector.format_mention

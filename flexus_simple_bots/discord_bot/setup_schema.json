@@ -63,15 +63,6 @@
         "bs_description": "Checklist content (markdown)."
     },
     {
-        "bs_name": "pin_checklist",
-        "bs_type": "bool",
-        "bs_default": false,
-        "bs_group": "Welcome",
-        "bs_order": 6,
-        "bs_importance": 0,
-        "bs_description": "If enabled, try to pin the checklist message (needs Manage Messages)."
-    },
-    {
         "bs_name": "reaction_roles_json",
         "bs_type": "string_multiline",
         "bs_default": "[]",
