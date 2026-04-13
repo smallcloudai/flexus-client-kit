@@ -219,8 +219,10 @@ async def integration_tester_main_loop(
                 try:
                     result = await getattr(obj, handler_method)(toolcall, model_produced_args)
                     formatted = _format_result(result)
-                    logger.info(f"{tool_name} test result: {formatted[:100]}..." if len(formatted) > 100 else f"{tool_name} test result: {formatted}")
-                    return formatted
+                    key_hint = key[-3:] if len(key) > 3 else "***"
+                    out = f"api_key_hint=***{key_hint}, {formatted}"
+                    logger.info(f"{tool_name} test result: {out[:120]}..." if len(out) > 120 else f"{tool_name} test result: {out}")
+                    return out
                 except Exception as e:
                     logger.error(f"toolcall_{tool_name}: %s" % str(e), exc_info=True)
                     return "Error: %s" % str(e)

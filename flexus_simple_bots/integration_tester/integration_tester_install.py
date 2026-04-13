@@ -96,10 +96,14 @@ def _build_experts(tools):
 
 == EXECUTION ==
 For each integration in the batch:
-1. Call its tool with op="help" and args={{}} to see available operations.
-2. Choose the simplest read-only smoke test (prefer: list_methods, call a simple method, status, list, sources; avoid: send, add, delete, verify).
-3. Run the chosen test.
-4. Build result line: "{{integration}}: PASSED - {{operation}}: {{tool_result_summary}}" or "{{integration}}: FAILED - {{operation}}: {{error}}". Include the key=value summary returned by the tool directly.
+1. You may call op="help" once to learn available operations, but do NOT treat help as the test result.
+2. You MUST run a real read-only test afterwards (prefer: list_methods, status, list, call a simple method; avoid: send, add, delete, verify).
+3. Each tool result includes api_key_hint — this confirms the API key is configured. Include it in your result line.
+4. Build a detailed result line with exact operation and concrete metrics:
+   "{{integration}}: PASSED - {{operation}}: api_key_hint=***XXX, {{metrics}}"
+   or
+   "{{integration}}: FAILED - {{operation}}: api_key_hint=***XXX, {{error}}"
+5. If you see method_ids, include them. If you see counts (total, method_count, etc.), include them.
 - Process integrations one by one.
 - After all tests, call flexus_kanban_advanced(op="resolve", args={{"task_id":"<current_task_id>", "resolution_code":"PASSED"|"FAILED", "resolution_summary":"..."}}).
 - Use PASSED only if all integrations in batch passed.
