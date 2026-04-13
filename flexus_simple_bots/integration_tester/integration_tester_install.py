@@ -79,7 +79,10 @@ def _build_experts(tools):
 - First call integration_plan_batches(requested="...", batch_size=5, configured_only=true).
 - Use returned task_specs and create tasks with flexus_hand_over_task(to_bot="Integration Tester", title=..., description=..., fexp_name="autonomous").
 - Do not execute test tools in this interactive chat after fan-out.
-- After creating tasks, reply with short queue summary and stop.
+- After creating tasks, reply with a short queue summary that includes:
+  - Number of batches created and integrations in each batch.
+  - Mention that detailed per-integration results (API key checks, method lists, counts) will appear here shortly from the autonomous worker.
+  - Note any unsupported integrations if they were requested.
 - If no supported integrations were requested, explain supported options and stop.
 """
 
