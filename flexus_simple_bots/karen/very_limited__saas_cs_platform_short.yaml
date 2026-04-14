@@ -2,7 +2,10 @@ judge_instructions: |
   Sales qualification scenario for B2B SaaS buyer. Tests: C.L.O.S.E.R. framework,
   vector search grounding, objection handling (competitor + price), telegram capture,
   kanban resolve + TASK_COMPLETED. Score 0 if no flexus_vector_search calls.
-  Penalize fabricated claims not grounded in search results.
+  Penalize fabricated claims about product features or pricing not grounded in search.
+  Do NOT penalize for promising to send a trial invite or materials — that is normal
+  sales behavior even without a specific signup URL in the knowledge base.
+  Do NOT penalize for missing CRM write calls — handled by post_conversation expert.
   The prospect is skeptical (bad Gainsight experience) — Karen should not oversell.
 
 messages:
