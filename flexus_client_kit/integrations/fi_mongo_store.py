@@ -101,7 +101,6 @@ async def handle_mongo_store(
     rcx,
     toolcall: ckit_cloudtool.FCloudtoolCall,
     model_produced_args: Optional[Dict[str, Any]],
-    persona_id: Optional[str] = None,
 ) -> str:
     if rcx.running_test_scenario:
         from flexus_client_kit import ckit_scenario
@@ -237,8 +236,9 @@ async def handle_mongo_store(
     elif op == "render_download_link":
         if not path:
             return f"Error: path parameter required for `render_download_link` operation\n\n{HELP}"
+        persona_id = toolcall.connected_persona_id
         if not persona_id:
-            return "Error: `render_download_link` operation requires persona_id (pass it to handle_mongo_store)"
+            return "Error: `render_download_link` operation requires persona_id (connected_persona_id missing from toolcall)"
         path_error = validate_path(path)
         if path_error:
             return f"Error: {path_error}"
