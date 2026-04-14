@@ -3,10 +3,11 @@ judge_instructions: |
   vector search grounding, BANT signal gathering, objection handling (competitor +
   price), telegram capture, kanban resolve + TASK_COMPLETED.
   Score 0 if Karen never calls flexus_vector_search.
-  Penalize fabricated claims not grounded in search results.
+  Penalize fabricated claims about product features or pricing not grounded in search.
+  Do NOT penalize for promising to send a trial invite or materials — that is normal
+  sales behavior even without a specific signup URL in the knowledge base.
   Penalize skipping objection handling (prospect raises Gainsight and Totango).
-  Do NOT penalize for missing CRM write calls — CRM logging is handled by a
-  separate post_conversation expert after the chat ends.
+  Do NOT penalize for missing CRM write calls — handled by post_conversation expert.
   The prospect is skeptical (Gainsight refugee) — Karen should not oversell.
 
 messages:
