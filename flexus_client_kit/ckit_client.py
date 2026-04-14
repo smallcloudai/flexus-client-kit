@@ -54,7 +54,8 @@ class FlexusClient:
             assert endpoint != "/v1/graphql", "Whoops superuser set but it's the regular endpoint"
             self.api_key = None
         elif have_api_key:
-            assert endpoint == "/v1/graphql", "API key auth only works against /v1/graphql"
+            api_key_works_in = ["/v1/graphql", "/v1/jailed-bot"]
+            assert endpoint in api_key_works_in, "API key auth only works against %s" % api_key_works_in
             self.api_key = have_api_key
         elif self.use_ws_ticket or self.inside_radix_process:
             self.api_key = None
