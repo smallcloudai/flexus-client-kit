@@ -56,6 +56,18 @@ METHOD_SPECS = {
         "required": ["block_id", "children"],
         "docs_url": "https://developers.notion.com/reference/patch-block-children",
     },
+    "notion.archive_page.v1": {
+        "method": "PATCH",
+        "path": "/pages/{page_id}",
+        "required": ["page_id"],
+        "docs_url": "https://developers.notion.com/reference/patch-page",
+    },
+    "notion.delete_block.v1": {
+        "method": "DELETE",
+        "path": "/blocks/{block_id}",
+        "required": ["block_id"],
+        "docs_url": "https://developers.notion.com/reference/delete-a-block",
+    },
 }
 
 METHOD_IDS = list(METHOD_SPECS.keys())
@@ -199,11 +211,18 @@ class IntegrationNotion:
                 "method_id", "include_raw", "body", "page_id", "block_id", "data_source_id", "params",
             }}
             body = payload if payload else {}
-        if method == "PATCH" and body is None:
+        elif method == "PATCH" and body is None:
             payload = {k: v for k, v in args.items() if k not in {
                 "method_id", "include_raw", "body", "page_id", "params",
             }}
             body = payload if payload else {}
+
+        if method_id == "notion.archive_page.v1":
+            body = dict(body or {})
+            body.setdefault("in_trash", True)
+        elif method_id == "notion.delete_block.v1":
+            body = dict(body or {})
+            body.setdefault("in_trash", True)
 
         return await self._request_json(method_id, method, path, query, body, include_raw)
 
@@ -233,7 +252,7 @@ class IntegrationNotion:
         url = NOTION_BASE + path
         try:
             async with httpx.AsyncClient(timeout=25.0) as cli:
-                r = await cli.request(method, url, headers=headers, params=query or None, json=body if method in {"POST", "PATCH"} else None)
+                r = await cli.request(method, url, headers=headers, params=query or None, json=body if body and method in {"POST", "PATCH", "DELETE"} else None)
             data = r.json() if r.text else {}
         except Exception as e:
             logger.exception("notion request failed: %s", method_id)
