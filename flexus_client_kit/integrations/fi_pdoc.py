@@ -526,7 +526,7 @@ class IntegrationPdoc:
                 if self.is_fake:
                     return await ckit_scenario.scenario_generate_tool_result_via_model(self.fclient, toolcall, open(__file__).read())
                 await self.pdoc_mv(p1, p2, persona_id=self.rcx.persona.persona_id, fcall_untrusted_key=toolcall.fcall_untrusted_key)
-                r += f"✍️ {p2}\n\n✓ Moved from {p1}"
+                r += f"✍️ {p2}\n🗑 {p1}\n\n✓ Moved from {p1}"
 
             elif op == "rm":
                 p = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "p", "")
