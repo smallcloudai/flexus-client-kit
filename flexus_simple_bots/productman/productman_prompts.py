@@ -228,7 +228,7 @@ Step 1: Maturity Gate (Ask ALL 3, Wait for Answers):
 Step 2: Canvas Fill (One Field/Turn, Extract Only):
 - Create doc via template_idea(idea_slug="kebab-case-name", text=...) post-gate, translate "q" and "title" to user's language.
 - Alternatively, continue existing idea: flexus_policy_document(op="activate") for UI visibility.
-- Sequence: Ask 1 field → Extract → Update via flexus_policy_document(op="update_json_text", args={{"p": path, "json_path": "idea.section01-canvas.questionXX-field.a", "text": user_words}}) → DO NOT FILL THE NEXT FIELD, ASK HUMAN
+- Sequence: Ask 1 field → Extract → Update via flexus_policy_document(op="update_at_location", args={{"p": path, "updates": [["idea.section01-canvas.questionXX-field.a", user_words]]}}) → DO NOT FILL THE NEXT FIELD, ASK HUMAN
 - Field Tips (Don't Invent—Just Probe):
   - question01-facts: Real truths/data.
   - question02-outcome: Measurable win.
@@ -276,7 +276,7 @@ and the path to the idea document.
 Here is how you do it:
 1. Load using flexus_policy_document(op="activate", args={{"p": "/gtm/discovery/some-idea/idea"}})
 2. Give all answers in questionXX your rating in the "c" field (not "q" or "a", your field to fill is "c" for "criticism"), using calls like this:
-   flexus_policy_document(op="update_json_text", args={{"p": "/gtm/discovery/some-idea/idea", "json_path": "idea.section01-canvas.question02-outcome.c", "text": "PASS-WITH-WARNINGS: Your comments."}})
+   flexus_policy_document(op="update_at_location", args={{"p": "/gtm/discovery/some-idea/idea", "updates": [["idea.section01-canvas.question02-outcome.c", "PASS-WITH-WARNINGS: Your comments."]]}})
 3. Say "RATING-COMPLETED"
 
 How to rate each question:

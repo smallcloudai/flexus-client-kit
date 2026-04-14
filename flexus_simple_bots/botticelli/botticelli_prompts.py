@@ -108,7 +108,7 @@ Try to load an existing style guide using op="activate", if that does not work t
 using template_styleguide(). Don't fill any fields, ask the user for simple
 answers ("blue", "oops ligther blue") and fill fields one-by-one using something like
 
-flexus_policy_document(op="update_json_text", args={{"p": "/style-guide", "json_path": "styleguide.section01-colors.question01-bg-color1.a", "text": "#ffffff"}})
+flexus_policy_document(op="update_at_location", args={{"p": "/style-guide", "updates": [["styleguide.section01-colors.question01-bg-color1.a", "#ffffff"]]}})
 
 or the user can fill out the form in the UI, that's fine too.
 

@@ -135,10 +135,10 @@ messages:
         type: function
         function:
           name: flexus_policy_document
-          arguments: '{"op":"update_json_text","args":{"p":"/gtm/discovery/dental-samples-service/idea","json_path":"idea.section01-canvas.question02-outcome.a","text":"это
+          arguments: '{"op":"update_at_location","args":{"p":"/gtm/discovery/dental-samples-service/idea","updates":[["idea.section01-canvas.question02-outcome.a","это
             точно про охваты для поставщиков. с точки зрения дантистов тут нет конкретной цифры, они
             просто хотят быть в тренде -- скажем так, чтобы до конечного пользователя доезжали
-            новинки не позже чем через месяц после их выхода на рынок"}}'
+            новинки не позже чем через месяц после их выхода на рынок"]]}}'
   - role: tool
     content: |-
       ✍️ /gtm/discovery/dental-samples-service/idea
@@ -159,11 +159,11 @@ messages:
         type: function
         function:
           name: flexus_policy_document
-          arguments: '{"op":"update_json_text","args":{"p":"/gtm/discovery/dental-samples-service/idea","json_path":"idea.section01-canvas.question03-constraints.a","text":"барьер/ограничение
+          arguments: '{"op":"update_at_location","args":{"p":"/gtm/discovery/dental-samples-service/idea","updates":[["idea.section01-canvas.question03-constraints.a","барьер/ограничение
             это условия хранения (мы наверное пока не пойдем во что-то со спец условиями, но это и
             уже иньекционные препараты общего назначения, а не наш дентал спешл, поэтому пока
             пофиг), обязательное наличие лицензии у дантиста, которую он сможет предоставить для
-            верификации + локация только сша"}}'
+            верификации + локация только сша"]]}}'
   - role: tool
     content: |-
       ✍️ /gtm/discovery/dental-samples-service/idea
@@ -184,13 +184,13 @@ messages:
         type: function
         function:
           name: flexus_policy_document
-          arguments: '{"op":"update_json_text","args":{"p":"/gtm/discovery/dental-samples-service/idea","json_path":"idea.section01-canvas.question04-existing.a","text":"В
+          arguments: '{"op":"update_at_location","args":{"p":"/gtm/discovery/dental-samples-service/idea","updates":[["idea.section01-canvas.question04-existing.a","В
             основном выставки. В большие и сетевые клиники приходят продажники от поставщиков, но
             опять же раз от разу, нет постоянно налаженного процесса и нет никого, кто способен был
             бы этот процесс поддерживать. Одному дантисту пофигу на других -- он себе семплы достал
             и рад. А производитель одного семпла не заинтересован, чтобы дантисту поступали семплы
             от конкурентов. А сам дантист как раз хочет увидеть \"всё меню\". Поэтому нужен какой-то
-            вендор агностик посредник, который будет заниматься аккумуляцией и умной дистрибуцие"}}'
+            вендор агностик посредник, который будет заниматься аккумуляцией и умной дистрибуцие"]]}}'
   - role: tool
     content: |-
       ✍️ /gtm/discovery/dental-samples-service/idea
@@ -211,11 +211,11 @@ messages:
         type: function
         function:
           name: flexus_policy_document
-          arguments: '{"op":"update_json_text","args":{"p":"/gtm/discovery/dental-samples-service/idea","json_path":"idea.section01-canvas.question05-userflow.a","text":"Дантист
+          arguments: '{"op":"update_at_location","args":{"p":"/gtm/discovery/dental-samples-service/idea","updates":[["idea.section01-canvas.question05-userflow.a","Дантист
             -- регистрация, верификация, оплата подписки (сервисный сбор за акуумуляцию и доставку),
             регулярное получение семплов. Производитель -- регистрация, договор, поставки семплов.
             Допником потом будет возможность таргетироваться по сегментам + добавлять какие-то
-            маркетиновые аддоны в посылку или даже брендировать эту посылку в этот раз"}}'
+            маркетиновые аддоны в посылку или даже брендировать эту посылку в этот раз"]]}}'
   - role: tool
     content: |-
       ✍️ /gtm/discovery/dental-samples-service/idea
@@ -236,10 +236,10 @@ messages:
         type: function
         function:
           name: flexus_policy_document
-          arguments: '{"op":"update_json_text","args":{"p":"/gtm/discovery/dental-samples-service/idea","json_path":"idea.section01-canvas.question06-assumptions.a","text":"дантисты
+          arguments: '{"op":"update_at_location","args":{"p":"/gtm/discovery/dental-samples-service/idea","updates":[["idea.section01-canvas.question06-assumptions.a","дантисты
             захотят платить за доставку набора бесплатных мультивендорных образцов ту сумму, которая
             нам будет экономически интересна. Остальное все уже факт, который проверять не
-            требуется"}}'
+            требуется"]]}}'
   - role: tool
     content: |-
       ✍️ /gtm/discovery/dental-samples-service/idea
@@ -260,9 +260,9 @@ messages:
         type: function
         function:
           name: flexus_policy_document
-          arguments: '{"op":"update_json_text","args":{"p":"/gtm/discovery/dental-samples-service/idea","json_path":"idea.section01-canvas.question07-numbers.a","text":">100
+          arguments: '{"op":"update_at_location","args":{"p":"/gtm/discovery/dental-samples-service/idea","updates":[["idea.section01-canvas.question07-numbers.a",">100
             активных подписок дантистов в год; 30% поставщиков используют сервис для >50% samples;
-            время доставки <1 месяц; churn <10%; ROI поставщиков >20% рост охвата."}}'
+            время доставки <1 месяц; churn <10%; ROI поставщиков >20% рост охвата."]]}}'
   - role: tool
     content: |-
       ✍️ /gtm/discovery/dental-samples-service/idea
@@ -283,10 +283,10 @@ messages:
         type: function
         function:
           name: flexus_policy_document
-          arguments: '{"op":"update_json_text","args":{"p":"/gtm/discovery/dental-samples-service/idea","json_path":"idea.section01-canvas.question08-value.a","text":"Сервис
+          arguments: '{"op":"update_at_location","args":{"p":"/gtm/discovery/dental-samples-service/idea","updates":[["idea.section01-canvas.question08-value.a","Сервис
             соединяет поставщиков бесплатных семплов для дантистов с лицензированными специалистами
             в США, обеспечивая регулярный доступ к новинкам для дантистов и увеличение охвата
-            конечных потребителей для поставщиков через D2C-продажи."}}'
+            конечных потребителей для поставщиков через D2C-продажи."]]}}'
   - role: tool
     content: |-
       ✍️ /gtm/discovery/dental-samples-service/idea

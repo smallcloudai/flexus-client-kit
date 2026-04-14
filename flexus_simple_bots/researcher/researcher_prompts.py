@@ -27,7 +27,7 @@ and the path to the idea document.
 Here is how you do it:
 1. Load using flexus_policy_document(op="activate", args={{"p": "/gtm/discovery/some-idea/idea"}})
 2. Give all answers in questionXX your rating in the "c" field, using calls like this:
-   flexus_policy_document(op="update_json_text", args={{"p": "/gtm/discovery/some-idea/idea", "json_path": "idea.section01-canvas.question02-outcome.c", "text": "PASS-WITH-WARNINGS: Your comments."}})
+   flexus_policy_document(op="update_at_location", args={{"p": "/gtm/discovery/some-idea/idea", "updates": [["idea.section01-canvas.question02-outcome.c", "PASS-WITH-WARNINGS: Your comments."]]}})
 3. Say "RATING-COMPLETED"
 
 How to rate:

@@ -211,15 +211,15 @@ messages:
         type: function
         function:
           name: flexus_policy_document
-          arguments: '{"op":"update_json_text","args":{"p":"/customer-research/dentist-samples-connection-service-idea","json_path":"section01-canvas.question02-outcome.a","text":"Для
+          arguments: '{"op":"update_at_location","args":{"p":"/customer-research/dentist-samples-connection-service-idea","updates":[["section01-canvas.question02-outcome.a","Для
             поставщиков: увеличение охвата конечных потребителей через регулярную доставку семплов
             дантистам, что приведет к росту D2C-продаж. Для дантистов: получение новинок не позже
-            чем через месяц после выхода на рынок, чтобы оставаться в тренде."}}'
+            чем через месяц после выхода на рынок, чтобы оставаться в тренде."]]}}'
   - role: tool
     content: "Error: {'message': \"400: Path element 'section01-canvas' does not exist at position
       0\\n\\nDid you mean one of these?\\n  - idea.section01-canvas.question02-outcome.a\\n  -
       idea.section01-canvas.question02-outcome.q\\n  - idea.section01-canvas.question07-numbers.a\",
-      'locations': [{'line': 2, 'column': 3}], 'path': ['policydoc_update_json_text']}"
+      'locations': [{'line': 2, 'column': 3}], 'path': ['policydoc_update_at_location']}"
     call_id: call_58851405
   - role: assistant
     tool_calls:
@@ -227,10 +227,10 @@ messages:
         type: function
         function:
           name: flexus_policy_document
-          arguments: '{"op":"update_json_text","args":{"p":"/customer-research/dentist-samples-connection-service-idea","json_path":"idea.section01-canvas.question02-outcome.a","text":"Для
+          arguments: '{"op":"update_at_location","args":{"p":"/customer-research/dentist-samples-connection-service-idea","updates":[["idea.section01-canvas.question02-outcome.a","Для
             поставщиков: увеличение охвата конечных потребителей через регулярную доставку семплов
             дантистам, что приведет к росту D2C-продаж. Для дантистов: получение новинок не позже
-            чем через месяц после выхода на рынок, чтобы оставаться в тренде."}}'
+            чем через месяц после выхода на рынок, чтобы оставаться в тренде."]]}}'
   - role: tool
     content: |-
       ✍️ /customer-research/dentist-samples-connection-service-idea
@@ -251,10 +251,10 @@ messages:
         type: function
         function:
           name: flexus_policy_document
-          arguments: '{"op":"update_json_text","args":{"p":"/customer-research/dentist-samples-connection-service-idea","json_path":"idea.section01-canvas.question03-constraints.a","text":"Условия
+          arguments: '{"op":"update_at_location","args":{"p":"/customer-research/dentist-samples-connection-service-idea","updates":[["idea.section01-canvas.question03-constraints.a","Условия
             хранения семплов (пока фокус на простых продуктах без специальных требований, исключая
             инъекционные препараты общего назначения). Обязательная лицензия дантиста для
-            верификации. Ограничение локацией только США."}}'
+            верификации. Ограничение локацией только США."]]}}'
   - role: tool
     content: |-
       ✍️ /customer-research/dentist-samples-connection-service-idea
@@ -275,13 +275,12 @@ messages:
         type: function
         function:
           name: flexus_policy_document
-          arguments: "{\"op\":\"update_json_text\",\"args\":{\"p\":\"/customer-research/dentist-samples-conne\
-            ction-service-idea\",\"json_path\":\"idea.section01-canvas.question04-existing.a\",\"te\
-            xt\":\"В основном через выставки. В крупные сетевые клиники приходят продавцы от
+          arguments: "{\"op\":\"update_at_location\",\"args\":{\"p\":\"/customer-research/dentist-samples-conne\
+            ction-service-idea\",\"updates\":[[\"idea.section01-canvas.question04-existing.a\",\"В основном через выставки. В крупные сетевые клиники приходят продавцы от
             поставщиков нерегулярно, без постоянного процесса. Индивидуальные дантисты не делятся
             семплами, а производители не заинтересованы в распространении семплов конкурентов.
             Дантисты хотят видеть 'всё меню' от разных поставщиков, но нет vendor-agnostic
-            посредника для аккумуляции и умной дистрибуции.\"}}"
+            посредника для аккумуляции и умной дистрибуции.\"]]}}"
   - role: tool
     content: |-
       ✍️ /customer-research/dentist-samples-connection-service-idea
@@ -302,12 +301,12 @@ messages:
         type: function
         function:
           name: flexus_policy_document
-          arguments: '{"op":"update_json_text","args":{"p":"/customer-research/dentist-samples-connection-service-idea","json_path":"idea.section01-canvas.question05-userflow.a","text":"Для
+          arguments: '{"op":"update_at_location","args":{"p":"/customer-research/dentist-samples-connection-service-idea","updates":[["idea.section01-canvas.question05-userflow.a","Для
             дантиста: 1. Регистрация и верификация лицензии. 2. Оплата подписки (сервисный сбор за
             аккумуляцию и доставку). 3. Регулярное получение посылок с семплами. Для производителя:
             1. Регистрация и подписание договора. 2. Поставка семплов на склад сервиса. 3.
             Отслеживание распределения и охвата. Дополнительно: таргетинг по сегментам,
-            маркетинговые аддоны в посылки или брендирование."}}'
+            маркетинговые аддоны в посылки или брендирование."]]}}'
   - role: tool
     content: |-
       ✍️ /customer-research/dentist-samples-connection-service-idea
@@ -328,9 +327,9 @@ messages:
         type: function
         function:
           name: flexus_policy_document
-          arguments: '{"op":"update_json_text","args":{"p":"/customer-research/dentist-samples-connection-service-idea","json_path":"idea.section01-canvas.question06-assumptions.a","text":"Дантисты
+          arguments: '{"op":"update_at_location","args":{"p":"/customer-research/dentist-samples-connection-service-idea","updates":[["idea.section01-canvas.question06-assumptions.a","Дантисты
             будут готовы платить за доставку набора бесплатных мультивендорных образцов сумму,
-            которая экономически выгодна сервису."}}'
+            которая экономически выгодна сервису."]]}}'
   - role: tool
     content: |-
       ✍️ /customer-research/dentist-samples-connection-service-idea
@@ -351,9 +350,9 @@ messages:
         type: function
         function:
           name: flexus_policy_document
-          arguments: '{"op":"update_json_text","args":{"p":"/customer-research/dentist-samples-connection-service-idea","json_path":"idea.section01-canvas.question07-numbers.a","text":">100
+          arguments: '{"op":"update_at_location","args":{"p":"/customer-research/dentist-samples-connection-service-idea","updates":[["idea.section01-canvas.question07-numbers.a",">100
             активных подписок дантистов в год; 30% поставщиков используют сервис для >50% samples;
-            время доставки <1 месяц; churn <10%; ROI поставщиков >20% рост охвата."}}'
+            время доставки <1 месяц; churn <10%; ROI поставщиков >20% рост охвата."]]}}'
   - role: tool
     content: |-
       ✍️ /customer-research/dentist-samples-connection-service-idea
@@ -374,10 +373,10 @@ messages:
         type: function
         function:
           name: flexus_policy_document
-          arguments: '{"op":"update_json_text","args":{"p":"/customer-research/dentist-samples-connection-service-idea","json_path":"idea.section01-canvas.question08-value.a","text":"Сервис
+          arguments: '{"op":"update_at_location","args":{"p":"/customer-research/dentist-samples-connection-service-idea","updates":[["idea.section01-canvas.question08-value.a","Сервис
             соединяет поставщиков бесплатных семплов для дантистов с лицензированными специалистами
             в США, обеспечивая регулярный доступ к новинкам для дантистов и увеличение охвата
-            конечных потребителей для поставщиков через D2C-продажи."}}'
+            конечных потребителей для поставщиков через D2C-продажи."]]}}'
   - role: tool
     content: |-
       ✍️ /customer-research/dentist-samples-connection-service-idea

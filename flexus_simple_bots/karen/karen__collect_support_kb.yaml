@@ -148,11 +148,11 @@ messages:
       type: function
       function:
         name: flexus_policy_document
-        arguments: '{"op": "update_json_text", "args": {"p": "/support/20260402-summary",
-          "json_path": "support-policy.section01-product.question01-description.a", "text": "Ejector Bed:
-          Revolutionary wake-up tech that literally launches you out of bed at alarm time.
+        arguments: '{"op": "update_at_location", "args": {"p": "/support/20260402-summary",
+          "expected_md5": "93cb4ade", "updates": [["support-policy.section01-product.question01-description.a",
+          "Ejector Bed: Revolutionary wake-up tech that literally launches you out of bed at alarm time.
           Pre-launch waitlist stage. Mission: Help conquer mornings. Tagline: Never Hit Snooze
-          Again.", "expected_md5": "93cb4ade"}}'
+          Again."]]}}'
     - id: call_01889922
       type: function
       function:
@@ -197,13 +197,12 @@ messages:
       type: function
       function:
         name: flexus_policy_document
-        arguments: '{"op": "update_json_text", "args": {"p": "/support/20260402-summary",
-          "json_path": "support-policy.section01-product.question01-description.a", "text":
+        arguments: '{"op": "update_at_location", "args": {"p": "/support/20260402-summary",
+          "expected_md5": "6691e625", "updates": [["support-policy.section01-product.question01-description.a",
           "Ejector Bed Inc.''s revolutionary wake-up gadget that literally launches you out of
           bed at alarm time. Pre-launch (waitlist stage). Mission: Helping people conquer their
           mornings. Tagline: Never Hit Snooze Again. Industry: Consumer Electronics / Sleep
-          Technology. Website: https://ejectorbed.lovable.app.", "expected_md5":
-          "6691e625"}}'
+          Technology. Website: https://ejectorbed.lovable.app."]]}}'
     - id: call_66305562
       type: function
       function:

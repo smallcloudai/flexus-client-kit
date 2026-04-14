@@ -1,6 +1,6 @@
 ---
 name: collect-support-knowledge-base
-description: To answer customer questions you need to know a whole list of things. Use this skill to improve your setup.
+description: To answer customer questions you need to know a whole list of things. Use this skill to improve your setup, change tone of voice, daily reporting.
 ---
 
 
@@ -25,24 +25,33 @@ Here is what you can use:
 - Dropbox (EDS)
 - Model Context Protocol (MCP)
 
-Set up EDS here in this chat. Homepage is not suitable for EDS usually, only for understanding what the
-company is. But documentation website might be, check it first using explore. If documentation website is
-actually good (you need to check it first), make EDS using flexus_eds_setup() for documentation to be
+Set up EDS here in this chat. A simple homepage with pictures and animations is not suitable for EDS usually,
+but if it has FAQ and return policy sections, that's very helpful, create a crawler EDS, later
+flexus_vector_search() will be able to pages like "return policy" and answer questions, exactly what we need.
+
+If you have a documentation website, that's perfect. Make EDS using flexus_eds_setup() for documentation to be
 indexed and then accessible using flexus_vector_search().
 
 Set up MCP here in this chat. The newly created MCP tool will only be available after chat restart,
-so you will not be able to test MCP yourself, but you can send a subchat.
+so you will not be able to test MCP yourself, but you can send a subchat to check it.
 
 You can call flexus_vector_search() yourself here, especially to test if EDS works. But you run the risk
 of overflowing the context here and failing your mission.
 
 Prefer explore_a_question() for everything: explore the newly created EDS, MCP, website or documentation.
 
-First call must be always to test if the source is working at all, call only 1 in parallel.
-Chances are very high it will not work at all, and it will need troubleshooting.
+First call must be always to test if the source is working, call only 1 in parallel.
+Chances are high it will not work at all, and it will need troubleshooting.
 
-Once you see evidence that it works, call up to 5 in parallel, give it up to 5 sources to run in parallel, no
-problem.
+Once you see evidence that it works, then you can call up to 5 in parallel, or give it up to 5 sources to
+run in parallel, no problem.
+
+
+## Files Attached to Chat
+
+If the user attaches a file to this chat, warn them that the file should be uploaded to your group,
+to be accessible to the next chat. Make it a big **WARNING** because it's a common mistake. An attached file
+is great for summarizing it into a policy document, but it will not be present in future chats with clients.
 
 
 ## You Have Nothing
@@ -59,19 +68,20 @@ Once you have reasonably good idea of what the nature of business is, create a d
 ```
 flexus_policy_document(op="create_draft_qa", args={
       "output_dir": "/support/",
-      "slug": "summary",
+      "slug": "summary-v1",
       "top_tag": "support-policy",
       "sections": {
           "product": ["description", "icp", "links", ...],
           "payments": ["normal-work", "refunds", "discounts", ...],
-          "restrictions": ["never-say", ...],
           "sources": ["working-eds", "working-mcp", "working-websites"],
+          "answering": ["tone-of-voice", "never-say", "offtopic"],
+          "reporting": ["daily", "weekly"],
           ...
       }
   })
 ```
 
-This will write /support/YYYYMMDD-DRAFT-summary policy document with QA structure inside.
+This will write /support/YYYYMMDD-DRAFT-summary-v1 policy document with QA structure inside.
 
 After creating the draft:
 
@@ -82,17 +92,18 @@ After creating the draft:
 
 The structure of the summary is not fixed. Look at inspiration lists below and come up with sections and questions
 tailored for the situation at hand. It should be several sections, multiple questions in each, the structure is
-not changeable later, you have to create a new draft, so do your best.
+not changeable later, you have to create a new draft, so do your best. Make sure you have "answering" and "reporting"
+sections in any case.
 
-The user can participate filling the document, should be no problem working on it together with the user at the
+The user can participate in filling the document, should be no problem working on it together with the user at the
 same time, once the structure is in place.
 
 
 ## You Have Something, but User Wants Improvements
 
-Small change => you can write an update to `/support/summary` using op=update_json_text.
+Small change => you can write an update to `/support/summary` using op=update_at_location.
 
-Big change => create a new draft, improving the structure. Then fill in the fields one by one as you research
+Big change => create a new draft with slug="summary-v{N+1}", improving the structure. Then fill in the fields one by one as you research
 user's documents.
 
 
