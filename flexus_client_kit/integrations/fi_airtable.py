@@ -244,19 +244,6 @@ AIRTABLE_TOOL = ckit_cloudtool.CloudTool(
     },
 )
 
-AIRTABLE_SETUP_SCHEMA = [
-    {
-        "bs_name": "airtable_api_key",
-        "bs_type": "string_short",
-        "bs_default": "",
-        "bs_group": "Airtable",
-        "bs_order": 1,
-        "bs_importance": 1,
-        "bs_description": "Airtable Personal Access Token (starts with pat...)",
-    },
-]
-
-
 class IntegrationAirtable:
     def __init__(self, rcx=None, api_key: str = ""):
         self.rcx = rcx
@@ -270,11 +257,8 @@ class IntegrationAirtable:
     def _get_token(self) -> str:
         auth = self._auth()
         token_obj = auth.get("token") if isinstance(auth.get("token"), dict) else {}
-        persona_setup = (self.rcx.persona.persona_setup or {}) if self.rcx and self.rcx.persona else {}
         return str(
             self.api_key
-            or persona_setup.get("airtable_api_key", "")
-            or persona_setup.get("AIRTABLE_API_KEY", "")
             or auth.get("api_key", "")
             or token_obj.get("access_token", "")
             or auth.get("access_token", "")
