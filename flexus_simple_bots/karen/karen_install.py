@@ -209,6 +209,12 @@ async def install(client: ckit_client.FlexusClient):
         marketable_schedule=[
             prompts_common.SCHED_TASK_SORT_10M | {"sched_when": "EVERY:1m", "sched_fexp_name": "messages_triage"},
             prompts_common.SCHED_TODO_5M | {"sched_when": "EVERY:1m"},
+            {
+                "sched_type": "SCHED_ANY",
+                # "sched_when": "WEEKDAYS:MO:TU:WE:TH:FR:SA:SU/19:00",
+                "sched_when": "EVERY:20m",
+                "sched_first_question": "Generate a daily report policy document at /support/reports/YYYYMMDD-daily, follow /support/policy for details",
+            },
         ],
         marketable_forms={},
         marketable_auth_supported=["slack", "telegram", "discord_manual", "shopify", "resend"],

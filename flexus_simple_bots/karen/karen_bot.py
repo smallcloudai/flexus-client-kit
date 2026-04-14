@@ -180,7 +180,8 @@ async def handle_support_status(pdoc: fi_pdoc.IntegrationPdoc, rcx: ckit_bot_exe
                 qs.add(re.sub(r"^question\d+-", "", qk))
                 total_q += 1
                 total_a += 1
-                if qv["q"].strip():
+                q_text = qv["q"].strip()
+                if q_text and q_text != "TRANSLATED":
                     filled_q += 1
                 else:
                     translated = False
