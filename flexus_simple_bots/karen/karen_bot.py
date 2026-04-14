@@ -153,43 +153,64 @@ TOOLS = [
 ]
 
 
-def _qa_fill_stats(doc: dict) -> dict:
-    total_q, filled_q, total_a, filled_a, translated = 0, 0, 0, 0, True
-    for k, v in doc.items():
-        if k == "meta" or not isinstance(v, dict):
-            continue
-        for qk, qv in v.items():
-            if not isinstance(qv, dict) or "q" not in qv or "a" not in qv:
-                continue
-            total_q += 1
-            total_a += 1
-            if qv["q"].strip():
-                filled_q += 1
-            else:
-                translated = False
-            if qv["a"].strip():
-                filled_a += 1
-    return {"total_q": total_q, "filled_q": filled_q, "total_a": total_a, "filled_a": filled_a, "translated": translated}
-
-
-_DATE_PREFIX_RE = re.compile(r"^\d{8}-")
+_REQUIRED_SECTIONS = {
+    "answering": ["tone-of-voice", "never-say", "offtopic"],
+    "reporting": ["daily", "weekly"],
+}
 
 
 async def handle_support_status(pdoc: fi_pdoc.IntegrationPdoc, rcx: ckit_bot_exec.RobotContext, fcall_untrusted_key: str) -> str:
+    def _qa_doc_check(content) -> dict | None:
+        if not isinstance(content, dict):
+            return None
+        top_tag = next((k for k in content if k != "meta"), None)
+        if not top_tag or not isinstance(content.get(top_tag), dict):
+            return None
+        doc = content[top_tag]
+        total_q, filled_q, total_a, filled_a, translated = 0, 0, 0, 0, True
+        found_sections = {}
+        for k, v in doc.items():
+            if k == "meta" or not isinstance(v, dict):
+                continue
+            sec_name = re.sub(r"^section\d+-", "", k)
+            qs = set()
+            for qk, qv in v.items():
+                if not isinstance(qv, dict) or "q" not in qv or "a" not in qv:
+                    continue
+                qs.add(re.sub(r"^question\d+-", "", qk))
+                total_q += 1
+                total_a += 1
+                if qv["q"].strip():
+                    filled_q += 1
+                else:
+                    translated = False
+                if qv["a"].strip():
+                    filled_a += 1
+            found_sections[sec_name] = qs
+        missing = []
+        for sec, required_qs in _REQUIRED_SECTIONS.items():
+            if sec not in found_sections:
+                missing.append(f"section '{sec}'")
+            else:
+                for q in required_qs:
+                    if q not in found_sections[sec]:
+                        missing.append(f"question '{q}' in section '{sec}'")
+        return {"total_q": total_q, "filled_q": filled_q, "total_a": total_a, "filled_a": filled_a, "translated": translated, "missing": missing}
+
     persona_id = rcx.persona.persona_id
     lines = []
 
     # check /support/summary
     summary = await pdoc.pdoc_cat("/support/summary", persona_id=persona_id, fcall_untrusted_key=fcall_untrusted_key)
     if summary:
-        content = summary.pdoc_content
-        top_tag = next((k for k in content if k != "meta"), None) if isinstance(content, dict) else None
-        if top_tag and isinstance(content.get(top_tag), dict):
-            stats = _qa_fill_stats(content[top_tag])
+        stats = _qa_doc_check(summary.pdoc_content)
+        if stats:
             pct = (stats["filled_a"] * 100 // stats["total_a"]) if stats["total_a"] else 0
             lines.append(f"/support/summary exists — {stats['filled_a']}/{stats['total_a']} answers filled ({pct}%)")
             if not stats["translated"]:
                 lines.append(f"   ⚠️ {stats['total_q'] - stats['filled_q']}/{stats['total_q']} questions not translated yet")
+            if stats["missing"]:
+                lines.append(f"   ⚠️ Missing: {', '.join(stats['missing'])}")
         else:
             lines.append("/support/summary exists (not QA format, can't measure fill percentage)")
     else:
@@ -197,6 +218,7 @@ async def handle_support_status(pdoc: fi_pdoc.IntegrationPdoc, rcx: ckit_bot_exe
     lines.append("")
 
     # list drafts in /support/
+    DATE_PREFIX_RE = re.compile(r"^\d{8}-")
     items = await pdoc.pdoc_list("/support/", persona_id=persona_id, fcall_untrusted_key=fcall_untrusted_key, depth=1)
     drafts = [it for it in items if not it.is_folder and it.path != "/support/summary"]
     if drafts:
@@ -206,16 +228,16 @@ async def handle_support_status(pdoc: fi_pdoc.IntegrationPdoc, rcx: ckit_bot_exe
             if not doc:
                 lines.append(f"    {d.path} —- could not read")
                 continue
-            content = doc.pdoc_content
-            top_tag = next((k for k in content if k != "meta"), None) if isinstance(content, dict) else None
-            if top_tag and isinstance(content.get(top_tag), dict):
-                stats = _qa_fill_stats(content[top_tag])
+            stats = _qa_doc_check(doc.pdoc_content)
+            if stats:
                 pct = (stats["filled_a"] * 100 // stats["total_a"]) if stats["total_a"] else 0
                 untranslated = stats['total_q'] - stats['filled_q']
                 t_status = f", {untranslated}/{stats['total_q']} questions need translation before user can answer." if not stats["translated"] else ""
                 lines.append(f"    {d.path} —- has {stats['filled_a']}/{stats['total_a']} answers{t_status}")
+                if stats["missing"]:
+                    lines.append(f"    ⚠️ Missing: {', '.join(stats['missing'])}")
                 name = d.path.rsplit("/", 1)[-1]
-                if _DATE_PREFIX_RE.match(name) and pct >= 80:
+                if DATE_PREFIX_RE.match(name) and pct >= 80:
                     lines.append(f"    💡 Looks ready, ask user if you should: flexus_policy_document(op=\"mv\", args={{\"p1\": \"{d.path}\", \"p2\": \"/support/summary\"}})")
             else:
                 lines.append(f"    {d.path} —- not QA format")
