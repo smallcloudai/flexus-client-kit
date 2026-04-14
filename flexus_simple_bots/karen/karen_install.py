@@ -214,6 +214,7 @@ async def install(client: ckit_client.FlexusClient):
                 # "sched_when": "WEEKDAYS:MO:TU:WE:TH:FR:SA:SU/19:00",
                 "sched_when": "EVERY:20m",
                 "sched_first_question": "Generate a daily report policy document at /support/reports/YYYYMMDD-daily, follow /support/policy for details",
+                "sched_fexp_name": "default",
             },
         ],
         marketable_forms={},
