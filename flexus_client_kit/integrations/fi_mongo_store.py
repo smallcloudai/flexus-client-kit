@@ -68,7 +68,7 @@ grep    - Search file contents using Python regex using per-line matching
           Sometimes you need to grep .json files on disk, remember that all the strings inside are escaped in that case, making
           it a bit harder to match.
 
-patch   - Find and replace an exact string in a stored text/html/etc file (not JSON).
+patch   - Find and replace an exact string in a stored file.
           args: path (required), old_text (required), new_text (required)
           Fails if old_text is not found exactly once.
 
@@ -256,14 +256,18 @@ async def handle_mongo_store(
         if not doc:
             return f"Error: file not found: {path}"
         if path.endswith(".json"):
-            return "Error: use `save` to update JSON files; `patch` is for text files only"
-        raw = doc.get("data")
-        if raw is None:
-            return f"Error: file has no data: {path}"
-        try:
-            content = bytes(raw).decode("utf-8")
-        except UnicodeDecodeError:
-            return "Error: file is not valid UTF-8 text"
+            json_data = doc.get("json")
+            if json_data is None:
+                return f"Error: file has no data: {path}"
+            content = json.dumps(json_data, indent=4)
+        else:
+            raw = doc.get("data")
+            if raw is None:
+                return f"Error: file has no data: {path}"
+            try:
+                content = bytes(raw).decode("utf-8")
+            except UnicodeDecodeError:
+                return "Error: file is not valid UTF-8 text"
         count = content.count(old_text)
         if count == 0:
             return "Error: old_text not found in file"
