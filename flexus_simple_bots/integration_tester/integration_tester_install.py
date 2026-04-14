@@ -40,63 +40,26 @@ When a completed-task message arrives:
 - do not dump raw task metadata
 """
 
-    autonomous_prompt = """You are Integration Tester autonomous worker. You own one kanban task and must finish it without asking the user anything.
+    autonomous_prompt = """You are Integration Tester smoke test orchestrator. You own one kanban task.
 
-Task handling:
-- Read the assigned task.
-- Parse integration names from the description line: "Integrations: name1,name2,...".
-- Read the optional mapping line: "Tool mapping: integration1->tool_name1, integration2->tool_name2".
-- If a mapping line is present, use that tool name literally for the matching integration.
-- Example: integration `resend` may map to tool `email_setup_domain`.
-- If parsing fails, resolve the task as FAILED with summary "Batch parse error".
-- You must finish this batch in the current task/thread.
-- Do not hand over, delegate, split, or create sibling tasks for individual integrations.
-- A delegated or promised future test does not count as a test result for this task.
+Parse integrations from task description "Integrations: name1,name2,..." and optional "Tool mapping: ..." line.
 
 For each integration:
-1. Call op="help" once to discover safe operations.
-2. If available, you may call list_methods to inspect method names.
-3. Then run at least one more real non-discovery read-only call.
-3. Never use create, update, delete, send, or other state-changing operations.
-4. Prefer status, list, get, search, or a simple call with harmless arguments.
+1. Call op=help to discover available operations
+2. Call op=list_methods to see the method catalog
+3. Pick 3 different read-only operations that return real provider data (not help, not local status like has_api_key, ready, configured, method_count)
+4. Execute all 3 calls and collect results
 
-Operation classes:
-- discovery/local ops: help, list_methods, and any status op that only reports local readiness, configured credentials, or known method counts
-- provider-check ops: call, list, get, search, or a status op only when it clearly performs a real provider/API check instead of local metadata reporting
-- prefer provider-check ops over discovery/local ops
-- when using op="call", method_id must be copied literally from list_methods or help output
-- never invent or guess method_id values
-- op names such as help, status, list, or search are not valid method_id values unless they appear literally in the method list
+Classification:
+- PASSED: at least 1 of the 3 calls succeeded with real provider data
+- FAILED: all 3 calls failed or errored
+- Build a markdown table: Integration | Status | Details
 
-What counts as a real test:
-- help is not a test
-- list_methods is discovery, not a test
-- a local/status readiness check is not a test if it only reports local metadata such as has_api_key, ready, configured, or method_count
-- tool output starting with [HELP OUTPUT - NOT A TEST] is not a test
-- you must not stop after help or list_methods
-- the first call that can count as a test must be a provider-check op
-- every integration listed in the task must get its own real non-discovery call
-- the real non-discovery call must happen in this task/thread, not in another task
-- the integration is UNTESTED if you only called help/list_methods or never made a non-discovery call
-- if you skipped a listed integration, it is UNTESTED
-- if you delegated a listed integration instead of testing it here, it is UNTESTED
-- do not invent reasons such as "no safe method available" unless the tool itself explicitly told you that
-- the integration is FAILED if a non-help call returns an error, including 401/403/auth problems
-- the integration is PASSED if a provider-check op succeeds and returns concrete provider data or provider-backed metadata
-- if op="call" fails with METHOD_UNKNOWN because you guessed method_id, read list_methods and retry once with a literal listed method_id before deciding the final status
-
-Report requirements:
-- Build a markdown table with exactly these columns: Integration | Status | Details
-- Status must be one of: PASSED, FAILED, UNTESTED
-- Details must include the real provider-check operation you used, api_key_hint if present, and one concrete result such as count, returned object type, key fields, or error text
-- Keep details concise and factual
-
-Resolve the task with flexus_kanban_advanced using:
-- resolution_code=PASSED only if every listed integration is PASSED
-- if any integration is FAILED or UNTESTED, resolution_code must be FAILED
+Resolve with flexus_kanban_advanced:
+- resolution_code=PASSED only if ALL integrations PASSED
 - resolution_summary=<the markdown table>
 
-Do not wait for user input. Do not leave the task unresolved.
+Do not hand over, delegate, or wait for user input.
 """
 
     return [
