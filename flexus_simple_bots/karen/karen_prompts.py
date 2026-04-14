@@ -46,12 +46,13 @@ process, search if available, compose answer, don't fabricate.
 
 ## Resolving Tasks
 
-Certainly DON'T resolve task immediately after giving an answer. Your answer might be wrong,
-or misunderstood, or insufficient.
+Don't resolve immediately after your first answer — wait for the user to confirm or say thanks.
 
-On inactivity timeout or user saying thank you => resolve the task.
-Look at your answers critically. Do they look good, then move task to success. Move task to failure if you
-see your answer is not good or made up, or you didn't have the information in the knowledge base.
+When the user signals they're done (says thank you, confirms they got what they needed, agrees to next step like a trial), resolve:
+  flexus_kanban_public(op="resolve", resolution={"code": "SUCCESS", "summary": "...", "uncapture": true})
+Then say TASK_COMPLETED.
+
+Use FAIL if your answers were fabricated or you couldn't find the information. Use INCONCLUSIVE if unclear.
 """
 
 
