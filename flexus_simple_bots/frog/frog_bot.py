@@ -45,6 +45,7 @@ FROG_INTEGRATIONS: list[ckit_integrations_db.IntegrationRecord] = ckit_integrati
         "telegram",
         "slack",
         "notion",
+        "airtable",
         "skills"
     ],
     builtin_skills=FROG_SKILLS,
