@@ -20,8 +20,8 @@ MONGO_STORE_TOOL = ckit_cloudtool.CloudTool(
         "properties": {
             "op": {
                 "type": "string",
-                "enum": ["help", "list", "ls", "cat", "grep", "delete", "upload", "save", "render"],
-                "description": "Operation: list/ls (list files), cat (read file), grep (search), delete, upload (from disk), save (content directly), render (show download card to user)",
+                "enum": ["help", "list", "ls", "cat", "grep", "delete", "upload", "save", "render_download_link"],
+                "description": "Operation: list/ls (list files), cat (read file), grep (search), delete, upload (from disk), save (content directly), render_download_link (show download card to user)",
             },
             "args": {
                 "type": "object",
@@ -66,7 +66,7 @@ grep    - Search file contents using Python regex using per-line matching
           Sometimes you need to grep .json files on disk, remember that all the strings inside are escaped in that case, making
           it a bit harder to match.
 
-render  - Show a download card to the user for an already-stored file.
+render_download_link  - Show a download card to the user for an already-stored file.
           The user sees a styled card with file icon, name, and download/preview button.
           args: path (required)
 
@@ -76,7 +76,7 @@ Examples:
   mongo_store(op="save", args={"path": "investigations/abc123.json", "content": "{...json...}"})
   mongo_store(op="delete", args={"path": "folder1/something_20250803.json"})
   mongo_store(op="grep", args={"path": "tasks.txt", "pattern": "TODO", "context": 2})
-  mongo_store(op="render", args={"path": "reports/monthly.pdf"})
+  mongo_store(op="render_download_link", args={"path": "reports/monthly.pdf"})
 """
 
 # There's also a secret op="undelete" command that can bring deleted files
@@ -234,17 +234,14 @@ async def handle_mongo_store(
         else:
             return f"Error: File {path} not found in MongoDB"
 
-    elif op == "render":
+    elif op == "render_download_link":
         if not path:
-            return f"Error: path parameter required for render operation\n\n{HELP}"
+            return f"Error: path parameter required for `render_download_link` operation\n\n{HELP}"
         if not persona_id:
-            return "Error: render operation requires persona_id (pass it to handle_mongo_store)"
+            return "Error: `render_download_link` operation requires persona_id (pass it to handle_mongo_store)"
         path_error = validate_path(path)
         if path_error:
             return f"Error: {path_error}"
-        document = await ckit_mongo.mongo_retrieve_file(mongo_collection, path)
-        if not document:
-            return f"Error: File {path} not found in MongoDB"
         display_name = os.path.basename(path)
         mime = _guess_mime_type(path)
         enc_path = urllib.parse.quote(path, safe="/")
