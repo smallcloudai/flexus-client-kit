@@ -1,10 +1,6 @@
-from __future__ import annotations
 import logging
-import time
 from typing import Dict, Any, Optional, TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from flexus_client_kit import ckit_bot_exec
+from flexus_client_kit import ckit_bot_exec
 
 import google.oauth2.credentials
 import googleapiclient.discovery
