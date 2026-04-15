@@ -797,6 +797,7 @@ async def _run_scenario_for_model(
                 content=result.next_human_message,
                 who_is_asking="trajectory_scenario",
                 ftm_alt=100,
+                ftm_factor_id="",
                 ftm_provenance={"who_is_asking": "trajectory_scenario", "shaky": result.shaky},
             )
 
