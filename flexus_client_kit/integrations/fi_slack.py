@@ -535,7 +535,7 @@ class IntegrationSlack(fi_messenger.FlexusMessenger):
                         all_message_parts,
                         "fi_slack",
                         ftm_alt=100,
-                        ftm_factor_id=f"slack:{single_author}" if single_author else "",
+                        ftm_factor_id=f"slack:{single_author}" if single_author else "slack:multiple",
                         ftm_provenance=provenance,
                     )
                 r += fi_messenger.CAPTURE_SUCCESS_MSG % (something_name,) + fi_messenger.CAPTURE_ADVICE_MSG

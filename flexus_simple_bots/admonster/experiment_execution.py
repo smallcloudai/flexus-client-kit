@@ -563,7 +563,7 @@ class IntegrationExperimentExecution:
                 content=message,
                 who_is_asking="experiment_monitor",
                 ftm_alt=100,
-                ftm_factor_id="",
+                ftm_factor_id="system",
             )
             logger.info(f"Sent notification for experiment {tracking.experiment_id}")
         except Exception as e:
