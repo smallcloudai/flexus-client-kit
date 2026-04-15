@@ -1260,9 +1260,9 @@ def bind_discord_gateway_client(
     emit: Callable[[NormalizedEvent], Awaitable[None]],
 ) -> None:
     """
-    Attach gateway Discord event handlers to ``client`` for the backend sidecar process.
+    Attach Discord event handlers to ``client`` that emit ``NormalizedEvent`` (same shape as gateway wire).
 
-    Emits NormalizedEvent instances into ``emit`` (typically routed to process_external_webhook).
+    Used by ``DiscordLocalConnector`` in the discord_bot worker to keep runtime event shape stable.
     """
 
     @client.event

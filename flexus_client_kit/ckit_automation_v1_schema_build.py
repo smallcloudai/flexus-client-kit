@@ -12,7 +12,7 @@ from __future__ import annotations
 import copy
 from typing import Any
 
-from flexus_client_kit.ckit_connector_discord import DISCORD_ACTIONS, DISCORD_TRIGGERS
+from flexus_client_kit.ckit_connector_discord_catalog import DISCORD_ACTIONS, DISCORD_TRIGGERS
 from flexus_client_kit.ckit_automation_schema_defs import (
     SCHEMA_ACTION_CALL_GATEKEEPER_PRODUCT,
     SCHEMA_TRIGGER_MANUAL_CAMPAIGN_PRODUCT,

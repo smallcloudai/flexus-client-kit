@@ -4,7 +4,7 @@ Execute resolved automation actions for Discord community bots.
 The automation engine (ckit_automation_engine) produces flat action dicts with pre-resolved
 _resolved_body / _resolved_channel_id. This module performs side effects only and returns per-action
 results for logging. Execution context uses event_member: guild_id, user_id, and optional
-discord_username from the inbound gateway event (no persisted CRM rows).
+discord_username from the inbound normalized Discord event (no persisted CRM rows).
 """
 
 from __future__ import annotations
@@ -55,7 +55,7 @@ def _guild_user_from_event_member(event_member: dict) -> Tuple[Optional[int], Op
 
 
 async def _do_send_dm(action: dict, ctx: dict) -> dict:
-    """Deliver a DM via the connector gateway action."""
+    """Deliver a DM via connector.execute_action(send_dm)."""
     try:
         persona_id = str(ctx.get("persona_id") or "")
         body_raw = action.get("_resolved_body")
@@ -77,7 +77,7 @@ async def _do_send_dm(action: dict, ctx: dict) -> dict:
             result = await connector.execute_action("send_dm", dm_params)
             return _result_dict(ok=result.ok, error=result.error)
         logger.warning(
-            "send_dm: missing ChatConnector in ctx (gateway-only executor); persona_id=%s",
+            "send_dm: missing ChatConnector in ctx; persona_id=%s",
             persona_id,
         )
         return _result_dict(ok=False, error="no_connector")
@@ -113,7 +113,7 @@ async def _do_post_to_channel(action: dict, ctx: dict) -> dict:
             result = await connector.execute_action("post_to_channel", payload)
             return _result_dict(ok=result.ok, error=result.error)
         logger.warning(
-            "post_to_channel: missing ChatConnector in ctx (gateway-only executor); persona_id=%s",
+            "post_to_channel: missing ChatConnector in ctx; persona_id=%s",
             persona_id,
         )
         return _result_dict(ok=False, error="no_connector")
@@ -126,7 +126,7 @@ async def _do_post_to_channel(action: dict, ctx: dict) -> dict:
 
 
 async def _do_add_role(action: dict, ctx: dict) -> dict:
-    """Resolve role id and call gateway add_role."""
+    """Resolve role id and call connector add_role."""
     try:
         rid = action.get("_resolved_role_id")
         if rid is None:
@@ -157,7 +157,7 @@ async def _do_add_role(action: dict, ctx: dict) -> dict:
 
 
 async def _do_remove_role(action: dict, ctx: dict) -> dict:
-    """Resolve role id and call gateway remove_role."""
+    """Resolve role id and call connector remove_role."""
     try:
         rid = action.get("_resolved_role_id")
         if rid is None:
@@ -188,7 +188,7 @@ async def _do_remove_role(action: dict, ctx: dict) -> dict:
 
 
 async def _do_kick(action: dict, ctx: dict) -> dict:
-    """Kick the member in context via gateway."""
+    """Kick the member in context via connector.execute_action(kick)."""
     try:
         em = ctx.get("event_member")
         if not isinstance(em, dict):

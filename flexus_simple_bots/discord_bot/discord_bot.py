@@ -20,26 +20,25 @@ from flexus_client_kit.ckit_connector_discord import (
     parse_snowflake,
     setup_truthy,
 )
-from flexus_client_kit.ckit_connector_discord_gateway import DiscordGatewayConnector
-from flexus_client_kit.gateway.ckit_gateway_wire import normalized_event_from_dict
+from flexus_client_kit.ckit_connector_discord_local import DiscordLocalConnector
 from flexus_simple_bots.discord_bot import discord_bot_install
 from flexus_simple_bots.version_common import SIMPLE_BOTS_COMMON_VERSION
 
 logger = logging.getLogger("discord_bot")
 
 
-async def _warn_gateway_channel_acl(
+async def _warn_discord_channel_acl(
     connector: ChatConnector,
     persona_id: str,
     purpose_label: str,
     channel_id: int,
 ) -> None:
-    """Log when the gateway cannot see a channel or the bot lacks common text permissions."""
+    """Log when the connector cannot see a channel or the bot lacks common text permissions."""
     try:
         info = await connector.get_channel(str(channel_id))
         if info is None:
             logger.warning(
-                "%s gateway preflight [%s]: channel_id=%s not reachable "
+                "%s channel preflight [%s]: channel_id=%s not reachable "
                 "(missing, not a guild channel, or guild not allowlisted)",
                 persona_id,
                 purpose_label,
@@ -59,7 +58,7 @@ async def _warn_gateway_channel_acl(
         if not missing:
             return
         logger.warning(
-            "%s gateway preflight [%s]: channel_id=%s guild_id=%s name=%r missing permissions: %s",
+            "%s channel preflight [%s]: channel_id=%s guild_id=%s name=%r missing permissions: %s",
             persona_id,
             purpose_label,
             info.get("channel_id", str(channel_id)),
@@ -69,7 +68,7 @@ async def _warn_gateway_channel_acl(
         )
     except (TypeError, ValueError, AttributeError) as e:
         logger.warning(
-            "%s gateway preflight [%s] failed: %s %s",
+            "%s channel preflight [%s] failed: %s %s",
             persona_id,
             purpose_label,
             type(e).__name__,
@@ -77,7 +76,7 @@ async def _warn_gateway_channel_acl(
         )
 
 
-async def _gateway_discord_channel_acl_preflight(
+async def _discord_channel_acl_preflight(
     connector: ChatConnector,
     persona_id: str,
     watched_channel_ids: set[int],
@@ -86,13 +85,13 @@ async def _gateway_discord_channel_acl_preflight(
     """Best-effort permission warnings for watched channels and checklist/welcome targets."""
     try:
         for cid in sorted(watched_channel_ids):
-            await _warn_gateway_channel_acl(connector, persona_id, "watched message_in_channel", cid)
+            await _warn_discord_channel_acl(connector, persona_id, "watched message_in_channel", cid)
         checklist_cid = parse_snowflake(setup.get("checklist_channel_id", ""))
         if checklist_cid and not setup_truthy(setup.get("disable_checklist_auto_post")):
-            await _warn_gateway_channel_acl(connector, persona_id, "checklist_channel", checklist_cid)
+            await _warn_discord_channel_acl(connector, persona_id, "checklist_channel", checklist_cid)
         welcome_cid = parse_snowflake(setup.get("welcome_channel_id", ""))
         if welcome_cid:
-            await _warn_gateway_channel_acl(connector, persona_id, "welcome_channel", welcome_cid)
+            await _warn_discord_channel_acl(connector, persona_id, "welcome_channel", welcome_cid)
     except (TypeError, ValueError) as e:
         logger.warning("%s acl preflight error: %s %s", persona_id, type(e).__name__, e)
 
@@ -182,7 +181,7 @@ def _event_member_dict(guild_id: int, user_id: int, pl: Dict[str, Any]) -> Dict[
     }
 
 
-async def _maybe_gateway_auto_post_checklist(
+async def _maybe_auto_post_checklist(
     connector: ChatConnector,
     setup: Dict[str, Any],
     mongo_db: Any,
@@ -191,9 +190,7 @@ async def _maybe_gateway_auto_post_checklist(
     allowed_guild_ids: frozenset[int],
 ) -> None:
     """
-    One-time checklist message per guild via gateway post_to_channel + dc_onboarding_meta marker.
-
-    Replaces the old raw-client path that called channel.send locally.
+    One-time checklist message per guild via connector post_to_channel + dc_onboarding_meta marker.
     """
     try:
         if setup_truthy(setup.get("disable_checklist_auto_post")):
@@ -243,7 +240,7 @@ async def _handle_reaction_binding_event(
     pl: Dict[str, Any],
 ) -> None:
     """
-    Apply reaction_roles_json using gateway add_role/remove_role (reaction_* events from service_discord_gateway).
+    Apply reaction_roles_json using connector add_role/remove_role (reaction_* events from the live client).
     """
     try:
         if setup_truthy(setup.get("disable_reaction_roles")):
@@ -282,7 +279,7 @@ async def _handle_reaction_binding_event(
 
 
 async def discord_bot_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.RobotContext) -> None:
-    """Discord community bot: gateway-only ingress (on_emessage DISCORD); no in-process Discord socket."""
+    """Discord community bot: in-process discord.py client; events via ChatConnector.on_event."""
     connector: ChatConnector | None = None
     mongo: Any = None
     persona_id_loop = rcx.persona.persona_id
@@ -307,8 +304,7 @@ async def discord_bot_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot
             return
 
         logger.info(
-            "%s Discord runtime: gateway-only (token source=%s, backend=%s); "
-            "ingress via on_emessage(DISCORD); service_discord_gateway must be running.",
+            "%s Discord runtime: in-process client (token source=%s, backend=%s).",
             rcx.persona.persona_id,
             hosted_env,
             fclient.base_url_http,
@@ -352,13 +348,11 @@ async def discord_bot_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot
                 sorted(initial_guild_ids),
             )
 
-        gw = DiscordGatewayConnector(
+        connector = DiscordLocalConnector(
             token,
             rcx.persona.persona_id,
-            fclient,
             initial_guild_ids=initial_guild_ids,
         )
-        connector = gw
 
         augmented_setup = dict(setup)
         augmented_setup["_format_mention"] = connector.format_mention
@@ -366,13 +360,13 @@ async def discord_bot_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot
         await ckit_messages.ensure_message_indexes(mongo_db)
 
         async def handle_normalized_event(event: NormalizedEvent) -> None:
-            """Dispatch one gateway-normalized Discord event (member, message, checklist, reactions)."""
+            """Dispatch one normalized Discord event (member, message, checklist, reactions)."""
             try:
                 persona_id = rcx.persona.persona_id
                 pl = event.payload if isinstance(event.payload, dict) else {}
 
                 if event.event_type == "server_connected":
-                    await _maybe_gateway_auto_post_checklist(
+                    await _maybe_auto_post_checklist(
                         connector,
                         setup,
                         mongo_db,
@@ -557,32 +551,11 @@ async def discord_bot_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot
                     gid_log = None
                 log_ctx(rcx.persona.persona_id, gid_log, "normalized event data error: %s %s", type(e).__name__, e)
 
-        @rcx.on_emessage("DISCORD")
-        async def _on_discord_emessage(emsg) -> None:
-            """Inbound path: backend delivers gateway-normalized Discord payloads here."""
-            try:
-                ev = normalized_event_from_dict(emsg.emsg_payload)
-            except (KeyError, TypeError, ValueError) as e:
-                logger.warning(
-                    "%s discord emessage parse error: %s %s",
-                    rcx.persona.persona_id,
-                    type(e).__name__,
-                    e,
-                )
-                return
-            try:
-                gid = int(ev.server_id)
-            except (TypeError, ValueError):
-                return
-            allowed = connector.allowed_guild_ids
-            # Deny-all when allowlist is empty; do not treat empty as unrestricted.
-            if not allowed or gid not in allowed:
-                return
-            await handle_normalized_event(ev)
+        connector.on_event(handle_normalized_event)
 
         await connector.connect()
 
-        await _gateway_discord_channel_acl_preflight(
+        await _discord_channel_acl_preflight(
             connector,
             rcx.persona.persona_id,
             watched_channel_ids,
