@@ -35,6 +35,7 @@ class FThreadMessageOutput:
     ftm_usage: Any
     ftm_tool_calls: Any
     ftm_call_id: str
+    ftm_factor_id: str
     ftm_app_specific: Any
     ftm_created_ts: float
     ftm_provenance: Any
@@ -79,6 +80,7 @@ async def thread_add_user_message(
     content: Union[str, List[Dict[str, Any]]],
     who_is_asking: str,
     ftm_alt: int,
+    ftm_factor_id: str,
     user_preferences: str = "null",
     role: str = "user",
     ftm_provenance: Optional[Dict[str, Any]] = None,
@@ -111,6 +113,7 @@ async def thread_add_user_message(
                             "ftm_num": random_ftm_num,
                             "ftm_prev_alt": ftm_alt,
                             "ftm_role": role,
+                            "ftm_factor_id": ftm_factor_id,
                             "ftm_content": ftm_content,
                             "ftm_tool_calls": "null",
                             "ftm_call_id": "",
@@ -233,19 +236,21 @@ async def captured_thread_post_user_message(
     persona_id: str,
     ft_app_searchable: str,
     content: Union[str, List[Dict[str, Any]]],
+    ftm_factor_id: str,
     only_to_expert: str = "",
     ftm_provenance: Optional[Dict[str, Any]] = None,
     thread_too_old_s: Optional[float] = None,
 ) -> str:
     async with http as h:
         r = await h.execute(gql.gql("""
-            mutation CapturedThreadPostSafe($persona_id: String!, $ft_app_searchable: String!, $ftm_content: String!, $only_to_expert: String!, $ftm_provenance: String, $thread_too_old_s: Float) {
-                captured_thread_post_user_message(persona_id: $persona_id, ft_app_searchable: $ft_app_searchable, ftm_content: $ftm_content, only_to_expert: $only_to_expert, ftm_provenance: $ftm_provenance, thread_too_old_s: $thread_too_old_s)
+            mutation CapturedThreadPostSafe($persona_id: String!, $ft_app_searchable: String!, $ftm_content: String!, $only_to_expert: String!, $ftm_factor_id: String!, $ftm_provenance: String, $thread_too_old_s: Float) {
+                captured_thread_post_user_message(persona_id: $persona_id, ft_app_searchable: $ft_app_searchable, ftm_content: $ftm_content, only_to_expert: $only_to_expert, ftm_factor_id: $ftm_factor_id, ftm_provenance: $ftm_provenance, thread_too_old_s: $thread_too_old_s)
             }"""),
             variable_values={
                 "persona_id": persona_id,
                 "ft_app_searchable": ft_app_searchable,
                 "ftm_content": json.dumps(content),
+                "ftm_factor_id": ftm_factor_id,
                 "ftm_provenance": json.dumps(ftm_provenance) if ftm_provenance else None,
                 "only_to_expert": only_to_expert,
                 "thread_too_old_s": thread_too_old_s,

@@ -463,20 +463,22 @@ class IntegrationSlack(fi_messenger.FlexusMessenger):
             try:
                 thirty_minutes_ago = str(int(time.time() - 30*60))
 
-                text_content = ""
+                msg_texts = []
                 image_parts = []
                 file_summaries = []
+                capture_authors: Dict[str, str] = {}
                 async for msg in self._get_history(something_name, thread_ts, thirty_minutes_ago, 10):
                     if txt := msg.get('text', None):
                         user_id = msg.get('user')
                         if user_id:
                             author_name = await self._get_user_name(user_id)
+                            capture_authors[user_id] = author_name
                         else:
                             author_name = msg.get('username') or (msg.get('bot_profile') or {}).get('name')
                             if not author_name:
                                 author_name = "unknown_user"
                                 logger.warning("capture history: no user/username/bot_profile: keys=%s text=%r", list(msg.keys()), txt[:200])
-                        text_content += f"👤{author_name}\n\n{txt}\n\n"
+                        msg_texts.append((author_name, txt))
 
                     for file_info in msg.get('files', [])[:2]:
                         try:
@@ -492,6 +494,12 @@ class IntegrationSlack(fi_messenger.FlexusMessenger):
                                 file_summaries.append(f"[Binary file: {filename} ({len(file_bytes)} bytes)]")
                         except Exception:
                             logger.exception("capture file processing failed: %s", file_info.get("name", "?"))
+
+                single_author = next(iter(capture_authors)) if len(capture_authors) == 1 else None
+                if single_author:
+                    text_content = "\n\n".join(txt for _, txt in msg_texts)
+                else:
+                    text_content = "\n\n".join(f"👤{author}\n\n{txt}" for author, txt in msg_texts)
 
                 all_message_parts = []
                 if text_content:
@@ -514,12 +522,17 @@ class IntegrationSlack(fi_messenger.FlexusMessenger):
                     return ckit_cloudtool.gql_error_4xx_to_model_reraise_5xx(e, "slack_capture")
                 logger.info("Successful capture %s <-> %s, posting %d parts into the captured thread" % (something_id_slash_thread, toolcall.fcall_ft_id, len(all_message_parts)))
                 if all_message_parts:
+                    provenance = {"system_type": "fi_slack"}
+                    if single_author:
+                        provenance["factor_nickname"] = capture_authors[single_author]
                     await ckit_ask_model.thread_add_user_message(
                         http,
                         toolcall.fcall_ft_id,
                         all_message_parts,
                         "fi_slack",
                         ftm_alt=100,
+                        ftm_factor_id=f"slack:{single_author}" if single_author else "",
+                        ftm_provenance=provenance,
                     )
                 r += fi_messenger.CAPTURE_SUCCESS_MSG % (something_name,) + fi_messenger.CAPTURE_ADVICE_MSG
                 r += "Remember that slack formatting rules are in effect, and it's not markdown:\n"
@@ -551,7 +564,7 @@ class IntegrationSlack(fi_messenger.FlexusMessenger):
         something_id_slash_thread = channel_id + ("/" + a.thread_ts if a.thread_ts else "")
         searchable = "slack/" + something_id_slash_thread
 
-        content = [{"m_type": "text", "m_content": f"👤{a.message_author_name}\n\n{a.message_text}"}]
+        content = [{"m_type": "text", "m_content": a.message_text}]
         if a.file_contents:
             content.extend(a.file_contents)
         content = fi_messenger.compact_message_parts(content)
@@ -564,6 +577,8 @@ class IntegrationSlack(fi_messenger.FlexusMessenger):
                 self.rcx.persona.persona_id,
                 searchable,
                 content,
+                ftm_factor_id=f"slack:{a.message_author_id}",
+                ftm_provenance={"system_type": "fi_slack", "factor_nickname": a.message_author_name},
                 only_to_expert=self.outside_messages_fexp_name,
                 thread_too_old_s=30*86400 if a.thread_ts else 300,
             )
