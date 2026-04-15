@@ -110,7 +110,8 @@ class IntegrationMagicDesk(fi_messenger.FlexusMessenger):
             for buf_text, buf_ext_id in buf_msgs:
                 await ckit_ask_model.captured_thread_post_user_message(
                     http, self.rcx.persona.persona_id, f"magic_desk/{session_id}", buf_text,
-                    ftm_provenance={"system_type": "captured_thread_post", "mdesk_msg_id": buf_ext_id},
+                    ftm_factor_id=f"magic_desk:{session_id}",
+                    ftm_provenance={"system_type": "fi_magic_desk", "mdesk_msg_id": buf_ext_id},
                     only_to_expert=self.outside_messages_fexp_name, thread_too_old_s=3600,
                 )
             return fi_messenger.CAPTURE_SUCCESS_MSG % session_id + fi_messenger.CAPTURE_ADVICE_MSG
@@ -141,7 +142,8 @@ class IntegrationMagicDesk(fi_messenger.FlexusMessenger):
             self.rcx.persona.persona_id,
             f"magic_desk/{session_id}",
             text,
-            ftm_provenance={"system_type": "captured_thread_post", "mdesk_msg_id": emsg.emsg_external_id},
+            ftm_factor_id=f"magic_desk:{session_id}",
+            ftm_provenance={"system_type": "fi_magic_desk", "mdesk_msg_id": emsg.emsg_external_id},
             only_to_expert=self.outside_messages_fexp_name,
             thread_too_old_s=3600,
         )

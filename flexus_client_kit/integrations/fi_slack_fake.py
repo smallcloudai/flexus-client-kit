@@ -72,7 +72,7 @@ class IntegrationSlackFake(fi_messenger.FlexusMessenger):
     async def post_into_captured_thread_as_user(self, a: ActivitySlack, chan_id: str) -> bool:
         something_id_slash_thread = f"{chan_id}/{a.thread_ts}" if a.thread_ts else chan_id
         searchable = "slack/" + something_id_slash_thread
-        content = [{"m_type": "text", "m_content": f"👤{a.message_author_name}\n\n{a.message_text}"}]
+        content = [{"m_type": "text", "m_content": a.message_text}]
         if a.file_contents:
             content.extend(a.file_contents)
         logger.info("captured_thread_post searchable=%s msg=%s", searchable, a.message_text[:200])
@@ -83,6 +83,8 @@ class IntegrationSlackFake(fi_messenger.FlexusMessenger):
                 self.rcx.persona.persona_id,
                 searchable,
                 content,
+                ftm_factor_id=f"slack:{a.message_author_name}",
+                ftm_provenance={"system_type": "fi_slack_fake", "factor_nickname": a.message_author_name},
                 only_to_expert=self.outside_messages_fexp_name,
             )
             return bool(ft_id)
@@ -248,6 +250,7 @@ class IntegrationSlackFake(fi_messenger.FlexusMessenger):
                     all_message_parts,
                     "fi_slack_fake",
                     ftm_alt=100,
+                    ftm_factor_id=f"slack:{chan_id}",
                 )
 
             try:
