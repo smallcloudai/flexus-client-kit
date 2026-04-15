@@ -800,7 +800,7 @@ class IntegrationSurveyResearch:
                         content=message,
                         who_is_asking="survey_research_integration",
                         ftm_alt=100,
-                        ftm_factor_id="",
+                        ftm_factor_id="system",
                         role="user"
                     )
 
