@@ -204,7 +204,7 @@ async def install(client: ckit_client.FlexusClient):
         ],
         marketable_intro_message="Hi! I'm Karen — your support, sales, and marketing assistant. I can answer customer questions, manage your CRM, run email automations, import contacts, and handle sales conversations. What would you like to work on?",
         marketable_preferred_model_expensive="grok-4-1-fast-reasoning",
-        marketable_preferred_model_cheap="gpt-5.4-nano",
+        marketable_preferred_model_cheap="grok-4-1-fast-reasoning",
         marketable_daily_budget_default=10_000_000,
         marketable_default_inbox_default=1_000_000,
         marketable_max_inprogress=10,
