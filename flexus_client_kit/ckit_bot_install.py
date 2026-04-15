@@ -29,14 +29,16 @@ class FMarketplaceExpertInput:
     fexp_system_prompt: str
     fexp_python_kernel: str
     fexp_allow_tools: str
-    fexp_nature: str  # NATURE_INTERACTIVE NATURE_SEMI_AUTONOMOUS NATURE_AUTONOMOUS NATURE_NO_TASK
+    fexp_nature: str = ""  # kept for backward compat, ignored by server
     fexp_inactivity_timeout: int = 0
     fexp_app_capture_tools: str = ""
     fexp_description: str = ""
-    fexp_model_class: str = ""
+    fexp_model_class: str = ""   # kept for backward compat, ignored by server
     fexp_subchat_only: bool = False
     fexp_builtin_skills: str = "[]"  # [{"name", "description"}, ...]
-    fexp_activation_options: str = "{}"
+    fexp_activation_options: str = "{}"  # kept for backward compat, ignored by server
+    fexp_block_tools: str = ""
+    fexp_preferred_model_default: str = ""
 
     def _tool_allowed(self, name: str) -> bool:
         allow = [p.strip() for p in self.fexp_allow_tools.split(",") if p.strip()]
@@ -76,9 +78,9 @@ async def marketplace_upsert_dev_bot(
     marketable_featured_actions: List[Dict[str, Any]],
     marketable_intro_message: str,
     marketable_preferred_model_expensive: str,
-    marketable_preferred_model_cheap: str,
     marketable_experts: List[Tuple[str, FMarketplaceExpertInput]],
     marketable_tags: List[str] = [],
+    marketable_preferred_model_cheap: str = "",
     marketable_daily_budget_default: int = 1_000_000,  # one dollar in microdollars, serves as a guardrail against overspending, user can change later
     marketable_default_inbox_default: int = 100_000,   # limit for 1 task
     marketable_max_inprogress: int = 2,
@@ -176,9 +178,12 @@ async def marketplace_upsert_dev_bot(
         prepared = dataclasses.replace(expert, fexp_system_prompt=prompt)
         expert_dict = dataclasses.asdict(prepared)
         expert_dict["fexp_name"] = f"{marketable_name}_{expert_name}"
+        # Remove fields the server no longer accepts
+        for obsolete in ("fexp_nature", "fexp_model_class", "fexp_activation_options"):
+            expert_dict.pop(obsolete, None)
         experts_input.append(expert_dict)
 
-    mutation = gql.gql(f"""mutation InstallBot($ws: String!, $name: String!, $ver: String!, $title1: String!, $title2: String!, $author: String!, $accent_color: String!, $occupation: String!, $desc: String!, $typical_group: String!, $repo: String!, $run: String!, $setup: String!, $featured: [FFeaturedActionInput!]!, $intro: String!, $model_expensive: String!, $model_cheap: String!, $daily: Int!, $inbox: Int!, $experts: [FMarketplaceExpertInput!]!, $schedule: String!, $big: String!, $small: String!, $tags: [String!]!, $forms: String, $required_policydocs: [String!]!, $auth_needed: [String!]!, $auth_supported: [String!]!, $auth_scopes: String, $max_inprogress: Int!, $features: [String!]!) {{
+    mutation = gql.gql(f"""mutation InstallBot($ws: String!, $name: String!, $ver: String!, $title1: String!, $title2: String!, $author: String!, $accent_color: String!, $occupation: String!, $desc: String!, $typical_group: String!, $repo: String!, $run: String!, $setup: String!, $featured: [FFeaturedActionInput!]!, $intro: String!, $model_expensive: String!, $daily: Int!, $inbox: Int!, $experts: [FMarketplaceExpertInput!]!, $schedule: String!, $big: String!, $small: String!, $tags: [String!]!, $forms: String, $required_policydocs: [String!]!, $auth_needed: [String!]!, $auth_supported: [String!]!, $auth_scopes: String, $max_inprogress: Int!, $features: [String!]!) {{
         marketplace_upsert_dev_bot(
             ws_id: $ws,
             marketable_name: $name,
@@ -195,8 +200,7 @@ async def marketplace_upsert_dev_bot(
             marketable_setup_default: $setup,
             marketable_featured_actions: $featured,
             marketable_intro_message: $intro,
-            marketable_preferred_model_expensive: $model_expensive,
-            marketable_preferred_model_cheap: $model_cheap,
+            marketable_preferred_model_default: $model_expensive,
             marketable_daily_budget_default: $daily,
             marketable_default_inbox_default: $inbox,
             marketable_experts: $experts,
@@ -232,7 +236,6 @@ async def marketplace_upsert_dev_bot(
         "featured": [{"feat_expert": "default", "feat_depends_on_setup": [], **fa} for fa in marketable_featured_actions],
         "intro": marketable_intro_message,
         "model_expensive": marketable_preferred_model_expensive,
-        "model_cheap": marketable_preferred_model_cheap,
         "daily": marketable_daily_budget_default,
         "inbox": marketable_default_inbox_default,
         "experts": experts_input,
