@@ -107,7 +107,7 @@ class IntegrationMagicDesk(fi_messenger.FlexusMessenger):
             if buf_msgs and time.monotonic() - buf_ts > 600:
                 logger.info("%s magic_desk capture discarding %d stale buffered msgs for session=%s", self.rcx.persona.persona_id, len(buf_msgs), session_id)
                 buf_msgs = []
-            for buf_text, buf_ext_id in buf_msgs:
+            for buf_text, buf_ext_id in buf_msgs[-10:]:
                 await ckit_ask_model.captured_thread_post_user_message(
                     http, self.rcx.persona.persona_id, f"magic_desk/{session_id}", buf_text,
                     ftm_factor_id=f"magic_desk:{session_id}",

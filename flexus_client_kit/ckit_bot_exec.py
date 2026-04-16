@@ -791,14 +791,10 @@ async def _run_scenario_for_model(
             if not result.next_human_message:
                 stop_reason = "empty_human_message"
                 break
-            await ckit_ask_model.thread_add_user_message(
-                http=http,
-                ft_id=ft_id,
-                content=result.next_human_message,
-                who_is_asking="trajectory_scenario",
-                ftm_alt=100,
-                ftm_factor_id="system",
-                ftm_provenance={"who_is_asking": "trajectory_scenario", "shaky": result.shaky},
+            await ckit_ask_model.thread_add_user_messages(
+                http, ft_id,
+                [ckit_ask_model.FThreadMessageInput(content=result.next_human_message, ftm_factor_id="system", ftm_provenance={"who_is_asking": "trajectory_scenario", "shaky": result.shaky})],
+                "trajectory_scenario",
             )
 
         wait_secs = 600  # increased from 160 for subchat scenarios

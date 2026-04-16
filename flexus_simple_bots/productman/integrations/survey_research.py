@@ -794,14 +794,10 @@ class IntegrationSurveyResearch:
 
                     from flexus_client_kit import ckit_ask_model
                     http = await fclient.use_http_on_behalf(self.pdoc_integration.rcx.persona.persona_id, "")
-                    await ckit_ask_model.thread_add_user_message(
-                        http=http,
-                        ft_id=tracking_info["thread_id"],
-                        content=message,
-                        who_is_asking="survey_research_integration",
-                        ftm_alt=100,
-                        ftm_factor_id="system",
-                        role="user"
+                    await ckit_ask_model.thread_add_user_messages(
+                        http, tracking_info["thread_id"],
+                        [ckit_ask_model.FThreadMessageInput(content=message, ftm_factor_id="system", ftm_provenance={"system_type": "survey_research_integration"})],
+                        "survey_research_integration",
                     )
 
                     tracking_info["completed_notified"] = True
