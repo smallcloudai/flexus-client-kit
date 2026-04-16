@@ -610,7 +610,11 @@ class IntegrationSlack(fi_messenger.FlexusMessenger):
         if "TASK_COMPLETED" in text and len(text) <= len("TASK_COMPLETED") + 6:
             logger.info("look_assistant_might_have_posted_something: ftm_content has TASK_COMPLETED, not posting to slack")
             return False
+        if "NOTHING_TO_SAY" in text and len(text) <= len("NOTHING_TO_SAY") + 6:
+            logger.info("look_assistant_might_have_posted_something: ftm_content has NOTHING_TO_SAY, not posting to slack")
+            return False
         text = text.replace("TASK_COMPLETED", "")
+        text = text.replace("NOTHING_TO_SAY", "")
 
         logger.info("assistant->slack ft_id=%s searchable=%s sending %r", msg.ftm_belongs_to_ft_id, msg.ft_app_searchable, text[:20].replace("\n", "\\n"))
         try:

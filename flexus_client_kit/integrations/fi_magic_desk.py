@@ -189,7 +189,10 @@ class IntegrationMagicDesk(fi_messenger.FlexusMessenger):
         text = fi_messenger.ftm_content_to_text(msg.ftm_content)
         if "TASK_COMPLETED" in text and len(text) <= len("TASK_COMPLETED") + 6:
             return False
+        if "NOTHING_TO_SAY" in text and len(text) <= len("NOTHING_TO_SAY") + 6:
+            return False
         text = text.replace("TASK_COMPLETED", "")
+        text = text.replace("NOTHING_TO_SAY", "")
         dedup_key = "%s:%03d:%03d" % (msg.ftm_belongs_to_ft_id, msg.ftm_alt, msg.ftm_num)
         if dedup_key in self._to_mdesk_dedup_set:
             return False

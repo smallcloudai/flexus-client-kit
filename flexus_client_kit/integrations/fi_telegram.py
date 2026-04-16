@@ -460,7 +460,11 @@ class IntegrationTelegram(fi_messenger.FlexusMessenger):
         if "TASK_COMPLETED" in text and len(text) <= len("TASK_COMPLETED") + 6:
             logger.info("telegram look_assistant_might_have_posted_something: ftm_content has TASK_COMPLETED, not posting to the captured chat")
             return False
+        if "NOTHING_TO_SAY" in text and len(text) <= len("NOTHING_TO_SAY") + 6:
+            logger.info("telegram look_assistant_might_have_posted_something: ftm_content has NOTHING_TO_SAY, not posting to the captured chat")
+            return False
         text = text.replace("TASK_COMPLETED", "")   # yes, sometimes the model writes it anyway
+        text = text.replace("NOTHING_TO_SAY", "")
 
         try:
             await self.tg_app.bot.send_message(chat_id=chat_id, text=tg_escape_md2(text), parse_mode="MarkdownV2")
