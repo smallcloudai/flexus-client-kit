@@ -211,8 +211,8 @@ async def install(client: ckit_client.FlexusClient):
             prompts_common.SCHED_TODO_5M | {"sched_when": "EVERY:1m"},
             {
                 "sched_type": "SCHED_ANY",
-                # "sched_when": "WEEKDAYS:MO:TU:WE:TH:FR:SA:SU/19:00",
-                "sched_when": "EVERY:20m",
+                "sched_when": "WEEKDAYS:MO:TU:WE:TH:FR:SA:SU/19:00",
+                # "sched_when": "EVERY:20m",
                 "sched_first_question": "Generate a daily report policy document at /support/reports/YYYYMMDD-daily, follow /support/policy for details",
                 "sched_fexp_name": "default",
             },
