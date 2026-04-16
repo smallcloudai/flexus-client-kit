@@ -40,6 +40,7 @@ class FEdocOutput:
     edoc_status_download: str
     edoc_status_graphdb: str
     edoc_status_vectordb: str
+    edoc_crawler_url: str
 
 async def edoc_get_existing_documents_for_eds(
     client: ckit_client.FlexusClient,
@@ -141,6 +142,7 @@ async def edoc_create(
         "edoc_status_download": "EDOC_FOUND",
         "edoc_status_graphdb": "",
         "edoc_status_vectordb": "",
+        "edoc_crawler_url": "",
     }
     http_client = await client.use_http_on_behalf("", "")
     async with http_client as http:
