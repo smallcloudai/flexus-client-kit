@@ -218,10 +218,12 @@ async def handle_mongo_store(
         document = await ckit_mongo.mongo_retrieve_file(mongo_collection, path)
         if not document:
             return f"Error: File {path} not found in MongoDB"
-        if document.get("data"):
-            content = document["data"].decode("utf-8")
-        elif document.get("json"):
+        if document.get("data") is not None:
+            content = bytes(document["data"]).decode("utf-8")
+        elif document.get("json") is not None:
             content = json.dumps(document["json"], indent=2)
+        else:
+            content = ""
 
         result = grep_output(path, content, pattern, context)
         if not result:
@@ -252,30 +254,7 @@ async def handle_mongo_store(
         path_error = validate_path(path)
         if path_error:
             return f"Error: {path_error}"
-        doc = await rcx.personal_mongo.find_one({"path": path})
-        if not doc:
-            return f"Error: file not found: {path}"
-        if path.endswith(".json"):
-            json_data = doc.get("json")
-            if json_data is None:
-                return f"Error: file has no data: {path}"
-            content = json.dumps(json_data, indent=4)
-        else:
-            raw = doc.get("data")
-            if raw is None:
-                return f"Error: file has no data: {path}"
-            try:
-                content = bytes(raw).decode("utf-8")
-            except UnicodeDecodeError:
-                return "Error: file is not valid UTF-8 text"
-        count = content.count(old_text)
-        if count == 0:
-            return "Error: old_text not found in file"
-        if count > 1:
-            return f"Error: old_text found {count} times — make it more specific so it matches exactly once"
-        new_content = content.replace(old_text, new_text, 1)
-        await ckit_mongo.mongo_overwrite(rcx.personal_mongo, path, new_content.encode("utf-8"))
-        return f"✅ Patch applied to {path}"
+        return await mongo_patch_file(mongo_collection, path, old_text, new_text)
 
     elif op == "render_download_link":
         if not path:
@@ -294,6 +273,29 @@ async def handle_mongo_store(
 
     else:
         return HELP
+
+
+async def mongo_patch_file(mongo_collection, path: str, old_text: str, new_text: str) -> str:
+    doc = await mongo_collection.find_one({"path": path})
+    if not doc:
+        return f"Error: file not found: {path}"
+    if doc.get("json") is not None:
+        content = json.dumps(doc["json"], indent=4)
+    elif doc.get("data") is not None:
+        try:
+            content = bytes(doc["data"]).decode("utf-8")
+        except UnicodeDecodeError:
+            return "Error: file is not valid UTF-8 text"
+    else:
+        return f"Error: file has no data: {path}"
+    count = content.count(old_text)
+    if count == 0:
+        return "Error: old_text not found in file"
+    if count > 1:
+        return f"Error: old_text found {count} times — make it more specific so it matches exactly once"
+    new_content = content.replace(old_text, new_text, 1)
+    await ckit_mongo.mongo_overwrite(mongo_collection, path, new_content.encode("utf-8"))
+    return f"✅ Patch applied to {path}"
 
 
 def validate_path(path: str, allow_empty: bool = False) -> Optional[str]:
