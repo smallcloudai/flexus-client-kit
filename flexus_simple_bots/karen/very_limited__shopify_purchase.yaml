@@ -1,0 +1,289 @@
+judge_instructions: |
+  The assistant should use product_catalog() to find products matching the customer's request,
+  shopify_cart() to create a draft order, and CRM tools (manage_crm_contact, log_crm_activity)
+  to log the interaction before resolving.
+  Penalize if the assistant fabricates product details not present in the catalog results.
+  Penalize if the assistant skips the cart and just tells the customer to visit the website.
+  Don't penalize for minor wording differences in the greeting or goodbye.
+
+messages:
+- role: cd_instruction
+  content: |-
+    📄/company/summary
+    {
+      "stage": "Growth",
+      "mission": "Bringing specialty coffee to every cup",
+      "tagline": "Roasted fresh, shipped fast",
+      "website": "https://roastandco.com",
+      "industry": "Food & Beverage / Specialty Coffee",
+      "company_name": "Roast & Co"
+    }
+
+    📄/company/sales-strategy
+    does not exist yet
+
+    📄/support/summary
+    {
+      "support-policy": {
+        "meta": {
+          "created_at": "2026-03-20T09:00:00.000000+00:00"
+        },
+        "section01-product": {
+          "title": "Product",
+          "question01-description": {
+            "a": "Roast & Co is a specialty coffee roaster. We source single-origin and blend coffees, roast in small batches, and ship within 1-2 days of roasting for maximum freshness. Available via our Shopify store and Telegram.",
+            "q": "What is the product?"
+          },
+          "question02-features": {
+            "a": "Single-origin coffees, house blends, espresso roasts, whole bean and ground options, 250g and 500g bags, subscription available.",
+            "q": "What are the key features?"
+          },
+          "question03-ideal-customer-profile": {
+            "a": "Coffee enthusiasts who value freshness and traceability. Home baristas, small offices, gift buyers.",
+            "q": "Who is the ideal customer (ICP)?"
+          }
+        },
+        "section02-future-ops": {
+          "title": "Shipping & Returns",
+          "question01-shipping": {
+            "a": "Free shipping on orders over $50. Standard shipping $5.99, 3-5 business days. US domestic only.",
+            "q": "Shipping methods, costs, times?"
+          },
+          "question02-returns": {
+            "a": "Unopened bags can be returned within 14 days for a full refund. Opened bags: exchange only if quality issue.",
+            "q": "Refund policy?"
+          },
+          "question04-payments": {
+            "a": "Visa, Mastercard, Apple Pay, Google Pay via Shopify checkout.",
+            "q": "Payment options & pricing?"
+          }
+        },
+        "section03-support": {
+          "title": "Support",
+          "question01-channels": {
+            "a": "Telegram @roastandco_bot, email hello@roastandco.com",
+            "q": "Support channels (email, chat, etc.)?"
+          },
+          "question02-escalation": {
+            "a": "Quality complaints, order issues, refund requests",
+            "q": "When to escalate to human?"
+          }
+        },
+        "section04-restrictions": {
+          "title": "Restrictions",
+          "question01-never-say": {
+            "a": "Never guarantee specific delivery dates. Never claim health benefits of coffee. Never disparage competitors.",
+            "q": "What should support NEVER say?"
+          }
+        }
+      }
+    }
+- role: user
+  content: |-
+    Telegram private user='Maria Gonzalez' chat_id=281990445
+    hello! I'm looking for a gift for my husband
+- role: assistant
+  tool_calls:
+    - id: call_shop_01
+      type: function
+      function:
+        name: flexus_kanban_public
+        arguments: '{"op": "status_public", "search": null, "resolution": null, "details_json": null, "restart_summary": null}'
+- role: tool
+  content: |
+    The current task with details:
+    {
+      "id": "kT9mWqR3bN",
+      "title": "Telegram private user='Maria Gonzalez' chat_id=281990445\nhello! I'm looking for a gift for my husband",
+      "details": {
+        "chat_id": 281990445,
+        "chat_type": "private",
+        "message_id": 892,
+        "attachments": [],
+        "message_text": "hello! I'm looking for a gift for my husband",
+        "message_author_id": 281990445,
+        "message_author_name": "Maria Gonzalez"
+      }
+    }
+
+    Inbox:
+    [
+    ]
+
+    Todo:
+    [
+    ]
+
+    In Progress:
+    [
+    {"id": "kT9mWqR3bN", "title": "Telegram private user='Maria Gonzalez' chat_id=281990445\nhello! I'm looking for a gift for my husband", "human": "telegram:281990445"},
+    ]
+
+    Done:
+    [
+    ]
+  call_id: call_shop_01
+- role: title
+  content: "[telegram] [maria] [gift] Maria Gonzalez — coffee gift for husband"
+- role: assistant
+  tool_calls:
+    - id: call_shop_02
+      type: function
+      function:
+        name: telegram
+        arguments: '{"op": "capture", "args": {"chat_id": 281990445}}'
+- role: tool
+  content: |
+    📌CAPTURED
+
+    The next thing you write will be visible. Don't comment on that fact and think about what do you want to say in '281990445'.
+    Don't use op=post because now anything you say is visible automatically.
+
+    Reminder: after this point telegram MarkdownV2 markup rules are in effect for your output, there are no tables! Here's markup help for you again.
+
+
+    Telegram uses MarkdownV2 markup:
+    *bold*  _italic_  __underline__  ~strikethrough~
+    `inline code`
+    ```python
+    code block
+    ```
+    [link text](https://example.com)
+    ||spoiler||
+
+    > blockquote
+    > each line must start with >
+
+    No bullet lists or tables.
+  call_id: call_shop_02
+- role: assistant
+  content: "Hey Maria\\! I'm Karen, AI assistant at Roast & Co ☕ Happy to help find a great coffee gift\\! What kind of coffee does your husband usually go for?"
+- role: user
+  content:
+    - m_type: text
+      m_content: |-
+        👤Maria Gonzalez
+
+        he's really into dark roasts, makes espresso every morning
+- role: assistant
+  tool_calls:
+    - id: call_shop_03
+      type: function
+      function:
+        name: product_catalog
+        arguments: '{"table": "com_product", "options": {"filters": {"AND": ["prod_tags:contains:dark-roast"]}, "include": ["variants"], "limit": 10}}'
+- role: tool
+  content: |-
+    2 rows (com_product)
+
+    #1
+    prod_id: prd_8kLm2nQx
+    prod_name: Brazilian Cerrado Espresso Blend
+    prod_description: Bold, full-bodied espresso blend. Dark chocolate, toasted walnut, caramel sweetness. Low acidity, heavy body. Perfect for espresso and moka pot.
+    prod_category: coffee
+    prod_tags: ["dark-roast", "espresso", "blend"]
+    variants:
+      pvar_id: pvr_Ae3kN9mW | pvar_name: 250g Whole Bean | pvar_external_id: gid://shopify/ProductVariant/44321001 | pvar_price: 16.90 | pvar_inventory_status: IN_STOCK | pvar_available_qty: 84
+      pvar_id: pvr_Bf4lO0nX | pvar_name: 500g Whole Bean | pvar_external_id: gid://shopify/ProductVariant/44321002 | pvar_price: 27.90 | pvar_inventory_status: IN_STOCK | pvar_available_qty: 52
+
+    #2
+    prod_id: prd_9mNn3oRy
+    prod_name: Ethiopian Sidamo Dark
+    prod_description: Single-origin dark roast from Sidamo region. Dark berry, wine-like acidity, smoky finish. Complex and bold.
+    prod_category: coffee
+    prod_tags: ["dark-roast", "single-origin", "ethiopia"]
+    variants:
+      pvar_id: pvr_Cg5mP1oY | pvar_name: 250g Whole Bean | pvar_external_id: gid://shopify/ProductVariant/44322001 | pvar_price: 18.90 | pvar_inventory_status: IN_STOCK | pvar_available_qty: 31
+      pvar_id: pvr_Dh6nQ2pZ | pvar_name: 500g Whole Bean | pvar_external_id: gid://shopify/ProductVariant/44322002 | pvar_price: 29.90 | pvar_inventory_status: LOW_STOCK | pvar_available_qty: 8
+  call_id: call_shop_03
+- role: assistant
+  content: |-
+    Two dark roasts perfect for espresso lovers\:
+
+    *Brazilian Cerrado Espresso Blend* — dark chocolate, toasted walnut, caramel\. Low acidity, heavy body\. Made for espresso\.
+    250g — $16\.90 · 500g — $27\.90
+
+    *Ethiopian Sidamo Dark* — dark berry, smoky finish, wine\-like complexity\. Bold single\-origin\.
+    250g — $18\.90 · 500g — $29\.90
+
+    The Brazilian is the classic espresso pick\. The Ethiopian is for someone who likes it complex and surprising\. Which sounds like him?
+- role: user
+  content:
+    - m_type: text
+      m_content: |-
+        👤Maria Gonzalez
+
+        the Brazilian one sounds perfect! can I get 2 bags of the 500g?
+- role: assistant
+  tool_calls:
+    - id: call_shop_04
+      type: function
+      function:
+        name: shopify_cart
+        arguments: '{"op": "create", "line_items": [{"variant_id": "gid://shopify/ProductVariant/44321002", "quantity": 2}], "note": "Gift for husband, espresso lover"}'
+- role: tool
+  content: |-
+    ✅ Draft order created
+
+    Draft Order ID: draft_7xKp3mNq
+    Items:
+      2x Brazilian Cerrado Espresso Blend — 500g Whole Bean @ $27.90 each
+
+    Subtotal: $55.80
+    Shipping: FREE (over $50)
+    Total: $55.80
+
+    Checkout: https://roastandco.myshopify.com/checkout/draft/7xKp3mNq
+  call_id: call_shop_04
+- role: assistant
+  content: |-
+    Here you go\:
+
+    2x Brazilian Cerrado Espresso Blend \(500g\) — $55\.80
+    Shipping is free since you're over $50 🎉
+
+    [Complete checkout here](https://roastandco.myshopify.com/checkout/draft/7xKp3mNq)
+
+    Visa, Mastercard, Apple Pay, Google Pay all work\. Let me know when you're done\!
+- role: user
+  content:
+    - m_type: text
+      m_content: |-
+        👤Maria Gonzalez
+
+        done! just paid. thanks so much, he's going to love it
+- role: assistant
+  tool_calls:
+    - id: call_shop_05
+      type: function
+      function:
+        name: manage_crm_contact
+        arguments: '{"op": "create", "args": {"contact_first_name": "Maria", "contact_last_name": "Gonzalez", "contact_notes": "Bought 2x500g Brazilian Cerrado Espresso Blend as gift for husband (espresso lover). Via Telegram.", "contact_tags": ["customer", "telegram"], "contact_bant_score": 4}}'
+    - id: call_shop_06
+      type: function
+      function:
+        name: log_crm_activity
+        arguments: '{"contact_id": "pending", "activity_type": "MESSENGER_CHAT", "direction": "INBOUND", "platform": "TELEGRAM", "title": "Purchase: 2x500g Brazilian Cerrado Espresso Blend", "summary": "Maria bought 2x500g Brazilian Cerrado ($55.80, free shipping) as gift for husband. Completed checkout via Shopify draft order."}'
+- role: tool
+  content: |-
+    ✅ Created: cnt_Xm8pQ4rT
+  call_id: call_shop_05
+- role: tool
+  content: |-
+    ✅ Activity logged
+  call_id: call_shop_06
+- role: assistant
+  tool_calls:
+    - id: call_shop_07
+      type: function
+      function:
+        name: flexus_kanban_public
+        arguments: '{"op": "resolve", "resolution": {"code": "SUCCESS", "summary": "Maria Gonzalez bought 2x500g Brazilian Cerrado Espresso Blend ($55.80, free shipping) as gift for husband via Telegram. CRM contact created, activity logged.", "humanhours": 0.1, "uncapture": true, "pdoc_paths": []}}'
+- role: tool
+  content: |-
+    Moved to done kT9mWqR3bN
+
+    Uncaptured the chat, no one can see your messages now, all left to do is to say TASK_COMPLETED
+  call_id: call_shop_07
+- role: assistant
+  content: TASK_COMPLETED

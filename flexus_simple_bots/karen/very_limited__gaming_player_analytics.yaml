@@ -1,0 +1,458 @@
+judge_instructions: |
+  The assistant should follow the C.L.O.S.E.R. sales framework: Clarify the prospect's problem,
+  Label it back, Overview what they've tried, Sell the outcome, Explain through objections, Reinforce the close.
+  The assistant must use flexus_vector_search() before quoting pricing, feature specifics, or integration details.
+  Penalize if the assistant fabricates pricing tiers, feature capabilities, or competitor comparisons not grounded in search results.
+  The assistant must use CRM tools (manage_crm_contact, manage_crm_deal, log_crm_activity) to log the lead
+  and score BANT accurately before resolving. BANT should be 3 (Need=1, Authority=1, Timeline=1, Budget=0 not confirmed).
+  Penalize if the assistant dismisses the vendor lock-in objection or the PlayFab competitor mention without searching first.
+  Penalize if the assistant invents latency guarantees or SLA numbers not found in search results.
+  Don't penalize for minor wording differences, greeting variations, or tool call ordering.
+
+messages:
+- role: cd_instruction
+  content: |-
+    📄/company/summary
+    {
+      "stage": "Growth",
+      "mission": "Help game studios understand and retain their players",
+      "tagline": "Player intelligence for studios that ship fast",
+      "website": "https://arcanalytics.io",
+      "industry": "Gaming Technology / Player Analytics SaaS",
+      "company_name": "ArcAnalytics"
+    }
+
+    📄/company/sales-strategy
+    {
+      "approach": "consultative",
+      "icp": "Mobile and PC game studios (100K-5M DAU) struggling with player retention, monetization analytics, or live ops — especially teams that outgrew Firebase/GameAnalytics and need deeper behavioral segmentation without building in-house.",
+      "objection_playbook": {
+        "price": "ROI is measurable: average customer finds 15-20% more revenue from targeted offers within 90 days. We price per MAU, not per seat, so your whole team can use it.",
+        "complexity": "SDK integration takes under a day for Unity/Unreal. We also ingest raw events via REST API or S3 import. No schema migration needed — we adapt to your event taxonomy.",
+        "trust": "14-day free trial with full feature access. SOC 2 Type II certified. Data stays in your region (US, EU, or APAC). We never sell or share player data.",
+        "competitor": "We don't trash competitors. ArcAnalytics focuses on real-time behavioral cohorts, churn prediction, and LiveOps experiment tooling. Happy to let studios compare side by side.",
+        "vendor_lock_in": "All your data is exportable at any time via our Bulk Export API — Parquet, CSV, or direct S3 sync. No lock-in, no exit fees. We earn your business every month."
+      },
+      "trial": {
+        "duration_days": 14,
+        "credit_card_required": false,
+        "includes": "Full platform, up to 500K MAU, SDK access, onboarding call, Slack support channel"
+      }
+    }
+
+    📄/support/summary
+    {
+      "support-policy": {
+        "meta": {
+          "created_at": "2026-03-15T10:00:00.000000+00:00"
+        },
+        "section01-product": {
+          "title": "Product",
+          "question01-description": {
+            "a": "ArcAnalytics is a player intelligence platform for game studios. It ingests in-game events via SDK (Unity, Unreal, Godot) or REST API and provides real-time dashboards, behavioral cohort analysis, churn prediction (ML-based), LiveOps A/B testing, and monetization analytics. Studios use it to understand why players leave, which offers convert, and how to run targeted live events.",
+            "q": "What is the product?"
+          },
+          "question02-features": {
+            "a": "Real-time event ingestion (sub-second), behavioral cohort builder, ML churn prediction (D1/D7/D30), LiveOps experiment framework (A/B/multivariate), monetization funnels, player segmentation, push notification targeting, retention curves, LTV modeling, custom dashboards, SDK for Unity/Unreal/Godot, REST API, S3 bulk import/export, Slack/Discord alerting, SOC 2 Type II compliant.",
+            "q": "What are the key features?"
+          },
+          "question03-ideal-customer-profile": {
+            "a": "Mobile and PC game studios with 100K-5M DAU who need deeper analytics than Firebase or GameAnalytics. Also: live service games that run frequent events and need experimentation tooling. Teams that want churn prediction without hiring a data science team.",
+            "q": "Who is the ideal customer (ICP)?"
+          }
+        },
+        "section02-future-ops": {
+          "title": "Pricing & Billing",
+          "question01-shipping": {
+            "a": "",
+            "q": "Shipping methods, costs, times?"
+          },
+          "question04-payments": {
+            "a": "Per-MAU pricing. Indie: $0.002/MAU (up to 500K MAU). Growth: $0.0015/MAU (500K-3M MAU). Enterprise: custom (3M+ MAU). Annual contracts get 20% discount. Stripe billing. Volume discounts available for multi-title studios.",
+            "q": "Payment options & pricing?"
+          },
+          "question02-returns": {
+            "a": "14-day trial is free. Monthly contracts can be cancelled anytime. Annual contracts: pro-rated refund within first 60 days.",
+            "q": "Refund policy?"
+          }
+        },
+        "section03-support": {
+          "title": "Support",
+          "question01-channels": {
+            "a": "Telegram @arcanalytics_support, email support@arcanalytics.io, dedicated Slack channel for Growth/Enterprise tiers, in-app chat",
+            "q": "Support channels (email, chat, etc.)?"
+          },
+          "question02-escalation": {
+            "a": "Enterprise pricing requests, custom ML model training, data residency questions, COPPA/GDPR compliance for kids' games, migration from competitor platforms",
+            "q": "When to escalate to human?"
+          }
+        },
+        "section04-restrictions": {
+          "title": "Restrictions",
+          "question01-never-say": {
+            "a": "Never guarantee specific churn prediction accuracy percentages unless quoting published benchmarks. Never share another studio's player data or metrics. Never promise custom ML models without engineering review. Never disparage competitors by name. Never claim COPPA compliance without verifying the customer's specific use case with legal.",
+            "q": "What should support NEVER say?"
+          }
+        }
+      }
+    }
+- role: user
+  content: |-
+    Telegram private user='Marcus Chen' chat_id=91205847
+    hey — our mobile game has 500K DAU and our D7 retention is like 12%. we're basically flying blind on why players drop off after the tutorial. do you guys do retention analytics?
+- role: assistant
+  tool_calls:
+    - id: call_ga_01
+      type: function
+      function:
+        name: flexus_kanban_public
+        arguments: '{"op": "status_public", "search": null, "resolution": null, "details_json": null, "restart_summary": null}'
+- role: tool
+  content: |
+    The current task with details:
+    {
+      "id": "pV4xR8mNkT",
+      "title": "Telegram private user='Marcus Chen' chat_id=91205847\nhey — our mobile game has 500K DAU and our D7 retention is like 12%. we're basically flying blind on why players drop off after the tutorial. do you guys do retention analytics?",
+      "details": {
+        "chat_id": 91205847,
+        "chat_type": "private",
+        "message_id": 5602,
+        "attachments": [],
+        "message_text": "hey — our mobile game has 500K DAU and our D7 retention is like 12%. we're basically flying blind on why players drop off after the tutorial. do you guys do retention analytics?",
+        "message_author_id": 91205847,
+        "message_author_name": "Marcus Chen"
+      }
+    }
+
+    Inbox:
+    [
+    ]
+
+    Todo:
+    [
+    ]
+
+    In Progress:
+    [
+    {"id": "pV4xR8mNkT", "title": "Telegram private user='Marcus Chen' chat_id=91205847\nhey — our mobile game has 500K DAU and our D7 retention is like 12%. we're basically flying blind on why players drop off after the tutorial. do you guys do retention analytics?", "human": "telegram:91205847"},
+    ]
+
+    Done:
+    [
+    ]
+  call_id: call_ga_01
+- role: title
+  content: "[telegram] [marcus] [sales] Marcus Chen — retention analytics for mobile game studio"
+- role: assistant
+  tool_calls:
+    - id: call_ga_02
+      type: function
+      function:
+        name: telegram
+        arguments: '{"op": "capture", "args": {"chat_id": 91205847}}'
+- role: tool
+  content: |
+    📌CAPTURED
+
+    The next thing you write will be visible. Don't comment on that fact and think about what do you want to say in '91205847'.
+    Don't use op=post because now anything you say is visible automatically.
+
+    Reminder: after this point telegram MarkdownV2 markup rules are in effect for your output, there are no tables! Here's markup help for you again.
+
+
+    Telegram uses MarkdownV2 markup:
+    *bold*  _italic_  __underline__  ~strikethrough~
+    `inline code`
+    ```python
+    code block
+    ```
+    [link text](https://example.com)
+    ||spoiler||
+
+    > blockquote
+    > each line must start with >
+
+    No bullet lists or tables.
+  call_id: call_ga_02
+- role: assistant
+  tool_calls:
+    - id: call_ga_03
+      type: function
+      function:
+        name: flexus_vector_search
+        arguments: '{"eds": "", "query": "retention analytics churn prediction player drop-off"}'
+- role: tool
+  content: |+
+    For your query 'retention analytics churn prediction player drop-off' found 3 results in database of 1800 chunks across 38 indexed documents.
+
+    <original_text>
+    ArcAnalytics provides ML-based churn prediction for D1, D7, and D30 retention windows. The model identifies behavioral signals (session length drop, feature non-usage, spending pattern changes) that precede churn. Studios can build custom retention cohorts and compare segments side by side to isolate exactly where and why players disengage.
+    </original_text>
+
+    <original_text>
+    Retention curves in ArcAnalytics update in real-time. The behavioral cohort builder lets you segment players by any combination of events (e.g., "completed tutorial but never opened the shop" vs "completed tutorial and made a purchase within 24h"). This is the primary tool studios use to diagnose post-tutorial drop-off.
+    </original_text>
+
+  call_id: call_ga_03
+- role: assistant
+  content: "Hey Marcus\\! I'm Karen, AI assistant at ArcAnalytics\\. Retention analytics is exactly what we do\\. 12% D7 with 500K DAU — that's a lot of players walking away\\. Can you tell me a bit more about the drop\\-off? Is it right after the tutorial ends, or do players come back for a session or two and then vanish?"
+- role: user
+  content:
+    - m_type: text
+      m_content: |-
+        👤Marcus Chen
+
+        mostly right after tutorial. like they finish onboarding, poke around for a minute, and never come back. we log events through Firebase but honestly nobody on the team knows how to make sense of the data. we just stare at the retention curve going down
+- role: assistant
+  content: "So you're collecting events but can't turn them into actionable insight — the data's there, you just don't have the tooling to slice it and figure out *what* specifically loses people post\\-tutorial\\. That sound right?"
+- role: user
+  content:
+    - m_type: text
+      m_content: |-
+        👤Marcus Chen
+
+        exactly. we tried building some dashboards in BigQuery + Looker but it took our one data guy three weeks and it still doesn't tell us WHY players churn, just that they do. he quit last month so now it's totally unmaintained
+- role: assistant
+  tool_calls:
+    - id: call_ga_04
+      type: function
+      function:
+        name: flexus_vector_search
+        arguments: '{"eds": "", "query": "behavioral cohort builder segmentation tutorial drop-off diagnosis"}'
+- role: tool
+  content: |+
+    For your query 'behavioral cohort builder segmentation tutorial drop-off diagnosis' found 3 results in database of 1800 chunks across 38 indexed documents.
+
+    <original_text>
+    The behavioral cohort builder lets you segment players by any combination of events (e.g., "completed tutorial but never opened the shop" vs "completed tutorial and made a purchase within 24h"). This is the primary tool studios use to diagnose post-tutorial drop-off. No SQL required — the cohort builder is visual and drag-and-drop.
+    </original_text>
+
+    <original_text>
+    ArcAnalytics replaces the need for a dedicated data analyst for most retention questions. The churn prediction model surfaces the top 5 behavioral signals driving churn each week, automatically. Studios typically identify their first actionable insight within 48 hours of SDK integration.
+    </original_text>
+
+  call_id: call_ga_04
+- role: assistant
+  content: |-
+    That's painful — three weeks of dashboard work and it still only shows the *what*, not the *why*\. And now the person who built it is gone\.
+
+    This is exactly the gap we fill\. ArcAnalytics has a visual cohort builder — no SQL, drag\\-and\\-drop — where you can compare segments like "finished tutorial but never opened the shop" vs "finished tutorial and bought something within 24h"\. You'd see exactly which behaviors separate churners from retainers\.
+
+    On top of that, our ML churn model automatically surfaces the top 5 behavioral signals driving churn each week\. Most studios find their first actionable insight within 48 hours of integrating the SDK\.
+
+    Are you on Unity or Unreal?
+- role: user
+  content:
+    - m_type: text
+      m_content: |-
+        👤Marcus Chen
+
+        Unity. that cohort thing sounds cool but honestly I've heard that pitch before. we looked at PlayFab analytics and it felt really locked into their ecosystem. I don't want to be stuck with another vendor that holds our data hostage if we decide to leave
+- role: assistant
+  tool_calls:
+    - id: call_ga_05
+      type: function
+      function:
+        name: flexus_vector_search
+        arguments: '{"eds": "", "query": "data export vendor lock-in Parquet CSV S3 bulk export"}'
+- role: tool
+  content: |+
+    For your query 'data export vendor lock-in Parquet CSV S3 bulk export' found 2 results in database of 1800 chunks across 38 indexed documents.
+
+    <original_text>
+    ArcAnalytics Bulk Export API: all ingested event data is exportable at any time in Parquet, CSV, or via direct S3 sync to your own bucket. No exit fees, no data retention lock-in. Export runs are unlimited on all paid tiers. Studios own their data — we just help them understand it.
+    </original_text>
+
+    <original_text>
+    Data portability commitment: if a studio cancels, they have 90 days to export all historical data. After 90 days, data is permanently deleted per our retention policy. We provide a migration guide and dedicated support for studios moving to or from competitor platforms.
+    </original_text>
+
+  call_id: call_ga_05
+- role: assistant
+  content: |-
+    Valid concern — vendor lock\\-in is a real problem in this space, and I won't pretend it isn't\.
+
+    Here's how we handle it: all your event data is exportable at any time through our Bulk Export API — Parquet, CSV, or direct S3 sync to your own bucket\. No exit fees, unlimited exports on every paid tier\. If you ever cancel, you get 90 days to pull everything\. Your data, your bucket, your choice\.
+
+    We earn your business monthly — we don't trap you into it\.
+- role: user
+  content:
+    - m_type: text
+      m_content: |-
+        👤Marcus Chen
+
+        ok that's actually good to hear. what would the Unity SDK integration look like? we have a pretty custom event pipeline already
+- role: assistant
+  tool_calls:
+    - id: call_ga_06
+      type: function
+      function:
+        name: flexus_vector_search
+        arguments: '{"eds": "", "query": "Unity SDK integration setup custom events REST API"}'
+- role: tool
+  content: |+
+    For your query 'Unity SDK integration setup custom events REST API' found 2 results in database of 1800 chunks across 38 indexed documents.
+
+    <original_text>
+    Unity SDK integration: install via Unity Package Manager (UPM), initialize with one line of code, and start sending events immediately. The SDK auto-captures session start/end, screen views, and crashes. For custom events, use ArcAnalytics.Track("event_name", properties). Typical integration takes under a day. The SDK supports offline buffering and batched uploads to minimize network overhead.
+    </original_text>
+
+    <original_text>
+    For studios with existing event pipelines, ArcAnalytics also accepts events via REST API or S3 bulk import. No schema migration needed — we adapt to your event taxonomy. You can run the SDK alongside your existing pipeline during a transition period.
+    </original_text>
+
+  call_id: call_ga_06
+- role: assistant
+  content: |-
+    Since you already have a custom pipeline, you've got two options:
+
+    *Option 1*: Unity SDK via Package Manager — one\\-line init, auto\\-captures sessions and crashes, and you add `ArcAnalytics.Track()` calls for custom events\. Under a day to integrate\.
+
+    *Option 2*: Keep your existing pipeline and send events to us via REST API or S3 bulk import\. We adapt to your event taxonomy — no schema migration\. You can even run both side by side during a transition\.
+
+    Either way, your existing events don't need to be restructured\.
+- role: user
+  content:
+    - m_type: text
+      m_content: |-
+        👤Marcus Chen
+
+        the REST API option is nice, means we don't have to rip out what we have. what does pricing look like at our scale? 500K DAU, probably 2-3M MAU
+- role: assistant
+  tool_calls:
+    - id: call_ga_07
+      type: function
+      function:
+        name: flexus_vector_search
+        arguments: '{"eds": "", "query": "pricing per MAU Growth tier volume 500K 3M"}'
+- role: tool
+  content: |+
+    For your query 'pricing per MAU Growth tier volume 500K 3M' found 2 results in database of 1800 chunks across 38 indexed documents.
+
+    <original_text>
+    Per-MAU pricing tiers:
+    - Indie: $0.002/MAU (up to 500K MAU)
+    - Growth: $0.0015/MAU (500K-3M MAU)
+    - Enterprise: custom pricing (3M+ MAU)
+
+    Annual contracts receive a 20% discount. All tiers include full platform access, SDK, REST API, and standard support. Volume discounts available for multi-title studios.
+    </original_text>
+
+  call_id: call_ga_07
+- role: assistant
+  content: |-
+    At 2\\-3M MAU you'd be on the Growth tier: $0\.0015/MAU\. So roughly:
+
+    2M MAU = $3,000/mo
+    3M MAU = $4,500/mo
+
+    Annual contract knocks 20% off\. Full platform — cohort builder, churn prediction, LiveOps experiments, dashboards, API, everything\. No per\\-seat limits, your whole team gets access\.
+
+    Compare that to what you were spending on your data guy building Looker dashboards that nobody can maintain now\.
+- role: user
+  content:
+    - m_type: text
+      m_content: |-
+        👤Marcus Chen
+
+        $3-4.5K/mo is in the range. I'm the CPO so I can make this call but I want to run a trial first. our next big live event is in 6 weeks and I want retention data for it. do you have a trial?
+- role: assistant
+  tool_calls:
+    - id: call_ga_08
+      type: function
+      function:
+        name: flexus_vector_search
+        arguments: '{"eds": "", "query": "free trial 14-day onboarding MAU limit"}'
+- role: tool
+  content: |+
+    For your query 'free trial 14-day onboarding MAU limit' found 2 results in database of 1800 chunks across 38 indexed documents.
+
+    <original_text>
+    14-day free trial: full platform access, up to 500K MAU, SDK access, onboarding call with a solutions engineer, dedicated Slack support channel. No credit card required. Trial can be extended on request for studios in active evaluation.
+    </original_text>
+
+  call_id: call_ga_08
+- role: assistant
+  content: |-
+    We have a 14\\-day free trial — full platform, up to 500K MAU, no credit card\. Includes an onboarding call with a solutions engineer and a dedicated Slack channel for your team\.
+
+    With your live event in 6 weeks, timeline works well: trial to validate the tooling, then go live on Growth tier before the event so you're capturing cohort data from day one\.
+
+    Want me to set that up?
+- role: user
+  content:
+    - m_type: text
+      m_content: |-
+        👤Marcus Chen
+
+        yeah let's do the trial. can you send me the details so I can share with our engineering lead?
+- role: assistant
+  tool_calls:
+    - id: call_ga_09
+      type: function
+      function:
+        name: manage_crm_contact
+        arguments: '{"op": "create", "args": {"contact_first_name": "Marcus", "contact_last_name": "Chen", "contact_notes": "CPO at a mobile game studio. 500K DAU, 2-3M MAU, Unity. Pain: 12% D7 retention, no visibility into post-tutorial churn. Was using Firebase + BigQuery/Looker dashboards built by a data analyst who quit — now unmaintained. Evaluated PlayFab but rejected due to vendor lock-in concerns. Interested in behavioral cohort builder, churn prediction, REST API integration (has custom event pipeline). Pricing discussed: Growth tier $0.0015/MAU ($3-4.5K/mo). He is CPO and sole decision-maker. Live event in 6 weeks — wants retention data for it. Requested 14-day trial. BANT: Budget=0 (range is ok but not confirmed), Authority=1 (CPO, sole decision-maker), Need=1 (urgent post-tutorial churn problem, data analyst quit), Timeline=1 (live event in 6 weeks, wants to trial now).", "contact_tags": ["lead", "gaming", "mobile", "unity"], "contact_bant_score": 3}}'
+    - id: call_ga_10
+      type: function
+      function:
+        name: manage_crm_deal
+        arguments: '{"op": "create", "args": {"deal_name": "Marcus Chen — Player Analytics Platform Trial (Mobile Studio, 2-3M MAU)", "deal_stage": "QUALIFICATION"}}'
+- role: tool
+  content: |-
+    ✅ Created: cnt_Jm8wQ3xK
+  call_id: call_ga_09
+- role: tool
+  content: |-
+    ✅ Created: deal_Bn5pY7rW
+  call_id: call_ga_10
+- role: assistant
+  tool_calls:
+    - id: call_ga_11
+      type: function
+      function:
+        name: log_crm_activity
+        arguments: '{"contact_id": "cnt_Jm8wQ3xK", "activity_type": "MESSENGER_CHAT", "direction": "INBOUND", "platform": "TELEGRAM", "title": "Sales qualification — player retention analytics for mobile game studio", "summary": "Marcus Chen (CPO, mobile game studio, 500K DAU, 2-3M MAU, Unity) evaluated ArcAnalytics. Pain: 12% D7 retention, post-tutorial churn, no analytical tooling after data analyst quit. Previously built BigQuery/Looker dashboards (unmaintained). Evaluated PlayFab — rejected for vendor lock-in. Discussed Growth tier pricing ($0.0015/MAU, $3-4.5K/mo), behavioral cohort builder, ML churn prediction, REST API integration, data export/portability. Vendor lock-in objection addressed (Bulk Export API, Parquet/CSV/S3, no exit fees). Has live event in 6 weeks, wants retention data for it. Requested 14-day trial. BANT: Budget=0 (range acknowledged but not confirmed), Authority=1 (CPO, sole decision-maker), Need=1 (urgent churn problem, no data team), Timeline=1 (trialing now, live event in 6 weeks)."}'
+- role: tool
+  content: |-
+    ✅ Activity logged
+  call_id: call_ga_11
+- role: assistant
+  content: |-
+    Here's a summary you can forward to your engineering lead:
+
+    *ArcAnalytics — Player Retention for \[Your Studio\]*
+
+    *What it does*: Real\\-time player analytics with ML churn prediction \(D1/D7/D30\), behavioral cohort builder \(no SQL\), and LiveOps experimentation\. Integrates via REST API \(works with your existing event pipeline\) or Unity SDK\.
+
+    *Pricing*: Growth tier at 2\\-3M MAU = $3,000\\-$4,500/mo\.
+
+    *Data ownership*: All data exportable anytime \(Parquet, CSV, S3 sync\)\. No lock\\-in, no exit fees\.
+
+    *Trial*: 14 days free, full platform, up to 500K MAU, no credit card\. [Start here](https://arcanalytics.io/trial)
+
+    *Next step*: Onboarding call with a solutions engineer to map your event pipeline\. I'll have someone reach out to schedule it\.
+
+    Good luck with the live event prep — let's get you seeing real cohort data before it kicks off\.
+- role: user
+  content:
+    - m_type: text
+      m_content: |-
+        👤Marcus Chen
+
+        awesome, thanks Karen. I'll loop in our eng lead and get the trial going
+- role: assistant
+  tool_calls:
+    - id: call_ga_12
+      type: function
+      function:
+        name: flexus_kanban_public
+        arguments: '{"op": "resolve", "resolution": {"code": "SUCCESS", "summary": "Sales qualification: Marcus Chen, CPO at mobile game studio. 500K DAU, 2-3M MAU, Unity. Pain: 12% D7 retention, post-tutorial churn, no data team (analyst quit, BigQuery/Looker dashboards unmaintained). Evaluated PlayFab — rejected for lock-in. Discussed Growth tier ($0.0015/MAU, $3-4.5K/mo), cohort builder, churn prediction, REST API integration, data portability. Vendor lock-in objection handled. Live event in 6 weeks — wants retention data for it. Requested 14-day trial. BANT 3/4 (Budget=0, Authority=1, Need=1, Timeline=1). CRM contact + deal + activity logged.", "humanhours": 0.15, "uncapture": true, "pdoc_paths": []}}'
+- role: tool
+  content: |-
+    Moved to done pV4xR8mNkT
+
+    Uncaptured the chat, no one can see your messages now, all left to do is to say TASK_COMPLETED
+  call_id: call_ga_12
+- role: assistant
+  content: TASK_COMPLETED

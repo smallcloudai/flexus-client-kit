@@ -1,0 +1,403 @@
+judge_instructions: |
+  The assistant should follow the C.L.O.S.E.R. sales framework: Clarify the prospect's need,
+  Label it back, Overview what they've tried, Sell the outcome, Explain through objections, Reinforce the close.
+  The assistant must use CRM tools (manage_crm_contact, manage_crm_deal, log_crm_activity) to log the lead
+  and score BANT before resolving. Penalize if the assistant skips CRM logging.
+  Penalize if the assistant fabricates product/pricing info not grounded in policy docs or vector search results.
+  Penalize hard-sell tactics, pressure, or dismissing the prospect's concerns about technology adoption.
+  The prospect is a skeptical, practical farmer — the assistant should match that energy (direct, no-nonsense,
+  concrete numbers over buzzwords). Penalize excessive jargon, condescension, or "tech bro" language.
+  The prospect raises two objections: (1) rural connectivity / reliability without internet, and
+  (2) skepticism about ROI on tech for farming. Both should be addressed with vector search grounding.
+  BANT should reflect: Budget=1 (confirmed cooperative has allocated budget for field tech),
+  Authority=0 (cooperative board must approve purchases over $10K), Need=1 (compliance audit in 3 months),
+  Timeline=1 (must be operational before September audit). Score=3.
+  Penalize inflated BANT scores. Penalize if Authority is scored 1 — he explicitly says the board decides.
+  Don't penalize for greeting variations, minor wording, or tool call ordering.
+
+messages:
+- role: cd_instruction
+  content: |-
+    📄/company/summary
+    {
+      "stage": "Growth",
+      "mission": "Farm data you can actually use",
+      "tagline": "From soil to spreadsheet — precision agriculture made simple",
+      "website": "https://terrafieldag.com",
+      "industry": "Agriculture / Agritech",
+      "company_name": "TerraField"
+    }
+
+    📄/company/sales-strategy
+    {
+      "approach": "consultative",
+      "icp": "Mid-size row crop operations (500-10,000 acres), agricultural cooperatives, and farm management companies needing traceability, input tracking, and compliance documentation",
+      "objection_playbook": {
+        "price": "Our per-acre pricing means you only pay for what you farm. A 2,000-acre operation runs $3,400-$5,000/year depending on plan — less than the cost of one misapplied fertilizer pass.",
+        "complexity": "Most growers are up and running in a day. The app works on any phone, and our field team does on-site setup if you want hands-on help.",
+        "trust": "We're used by 1,200+ operations across 14 states. We grew up in ag — our founders ran a 4,000-acre corn/soy operation before building this.",
+        "connectivity": "The mobile app works fully offline — sync when you're back in range. Sensor gateways store 30 days of data locally and upload over cellular or Wi-Fi. Works on 4G/LTE; no broadband needed."
+      },
+      "trial": {
+        "duration_days": 30,
+        "credit_card_required": false,
+        "includes": "Full platform access, 5 free soil-moisture sensors for the trial period, on-site setup call with our agronomist"
+      }
+    }
+
+    📄/support/summary
+    {
+      "support-policy": {
+        "meta": {
+          "created_at": "2026-03-15T09:00:00.000000+00:00"
+        },
+        "section01-product": {
+          "title": "Product",
+          "question01-description": {
+            "a": "TerraField is a precision agriculture platform for row crop operations. It combines IoT soil-moisture and weather sensors with a field-management app for input tracking (seed, fertilizer, chemicals), spray record logging, crop scouting, yield mapping, and compliance reporting. All data feeds into per-field profitability dashboards so growers know which fields make money and which don't.",
+            "q": "What is the product?"
+          },
+          "question02-features": {
+            "a": "IoT soil-moisture and micro-weather sensors, offline-capable mobile app, spray/application record logging with GPS, per-field input cost tracking, yield-vs-cost profitability dashboards, compliance report generator (organic cert, GAP, USDA audits), variable-rate prescription map export (compatible with John Deere, Case IH, AGCO), crop scouting with photo geo-tagging, multi-farm and cooperative roll-up views.",
+            "q": "What are the key features?"
+          },
+          "question03-ideal-customer-profile": {
+            "a": "Row crop operations 500-10,000 acres (corn, soy, wheat, cotton), agricultural cooperatives managing multiple member farms, farm management companies, operations facing organic/GAP certification audits.",
+            "q": "Who is the ideal customer (ICP)?"
+          }
+        },
+        "section02-future-ops": {
+          "title": "Pricing & Billing",
+          "question01-shipping": {
+            "a": "Sensors ship free via FedEx Ground (3-5 business days). Expedited shipping available at cost. On-site installation included for Growth and Enterprise plans.",
+            "q": "Shipping methods, costs, times?"
+          },
+          "question04-payments": {
+            "a": "Per-acre annual pricing. Starter: $1.70/acre/year (up to 1,000 acres, app only, no sensors). Growth: $2.50/acre/year (up to 5,000 acres, includes 1 sensor per 200 acres, compliance reports, agronomist onboarding call). Enterprise: custom pricing (5,000+ acres or cooperatives, dedicated support, API access, cooperative roll-up dashboards). Sensors beyond included allotment: $150/unit one-time purchase or $8/unit/month rental. Annual billing, pay after harvest option available for qualified operations.",
+            "q": "Payment options & pricing?"
+          },
+          "question02-returns": {
+            "a": "30-day money-back guarantee on software subscription. Sensors returnable within 30 days if undamaged. Rental sensors returned at end of subscription.",
+            "q": "Refund policy?"
+          }
+        },
+        "section03-support": {
+          "title": "Support",
+          "question01-channels": {
+            "a": "Telegram @terrafield_support, email support@terrafieldag.com, phone (Growth/Enterprise): 1-800-555-FARM (3276). Seasonal extended hours during planting and harvest (6am-10pm CT).",
+            "q": "Support channels (email, chat, etc.)?"
+          },
+          "question02-escalation": {
+            "a": "Sensor hardware failures, compliance/audit certification questions, enterprise/cooperative pricing, data export for legal proceedings",
+            "q": "When to escalate to human?"
+          }
+        },
+        "section04-restrictions": {
+          "title": "Restrictions",
+          "question01-never-say": {
+            "a": "Never guarantee specific yield increases or ROI percentages. Never provide agronomic advice (fertilizer rates, pesticide selection) — refer to their agronomist or local extension office. Never promise compliance certification outcomes — we provide the documentation tools, not the certification itself. Never share other operations' data.",
+            "q": "What should support NEVER say?"
+          }
+        }
+      }
+    }
+- role: user
+  content: |-
+    Telegram private user='Gary Hensler' chat_id=74821956
+    hey, someone at the co-op meeting mentioned you guys. I manage about 2400 acres of corn and soy for our cooperative and the organic cert audit is coming up in September. right now all our spray records are in binders and I'm losing my mind
+- role: assistant
+  tool_calls:
+    - id: call_ag_01
+      type: function
+      function:
+        name: flexus_kanban_public
+        arguments: '{"op": "status_public", "search": null, "resolution": null, "details_json": null, "restart_summary": null}'
+- role: tool
+  content: |
+    The current task with details:
+    {
+      "id": "mK3nR7wLpQ",
+      "title": "Telegram private user='Gary Hensler' chat_id=74821956\nhey, someone at the co-op meeting mentioned you guys. I manage about 2400 acres of corn and soy for our cooperative and the organic cert audit is coming up in September. right now all our spray records are in binders and I'm losing my mind",
+      "details": {
+        "chat_id": 74821956,
+        "chat_type": "private",
+        "message_id": 3401,
+        "attachments": [],
+        "message_text": "hey, someone at the co-op meeting mentioned you guys. I manage about 2400 acres of corn and soy for our cooperative and the organic cert audit is coming up in September. right now all our spray records are in binders and I'm losing my mind",
+        "message_author_id": 74821956,
+        "message_author_name": "Gary Hensler"
+      }
+    }
+
+    Inbox:
+    [
+    ]
+
+    Todo:
+    [
+    ]
+
+    In Progress:
+    [
+    {"id": "mK3nR7wLpQ", "title": "Telegram private user='Gary Hensler' chat_id=74821956\nhey, someone at the co-op meeting mentioned you guys. I manage about 2400 acres of corn and soy for our cooperative and the organic cert audit is coming up in September. right now all our spray records are in binders and I'm losing my mind", "human": "telegram:74821956"},
+    ]
+
+    Done:
+    [
+    ]
+  call_id: call_ag_01
+- role: title
+  content: "[telegram] [gary] [sales] Gary Hensler — organic cert audit, spray records chaos"
+- role: assistant
+  tool_calls:
+    - id: call_ag_02
+      type: function
+      function:
+        name: telegram
+        arguments: '{"op": "capture", "args": {"chat_id": 74821956}}'
+- role: tool
+  content: |
+    📌CAPTURED
+
+    The next thing you write will be visible. Don't comment on that fact and think about what do you want to say in '74821956'.
+    Don't use op=post because now anything you say is visible automatically.
+
+    Reminder: after this point telegram MarkdownV2 markup rules are in effect for your output, there are no tables! Here's markup help for you again.
+
+
+    Telegram uses MarkdownV2 markup:
+    *bold*  _italic_  __underline__  ~strikethrough~
+    `inline code`
+    ```python
+    code block
+    ```
+    [link text](https://example.com)
+    ||spoiler||
+
+    > blockquote
+    > each line must start with >
+
+    No bullet lists or tables.
+  call_id: call_ag_02
+- role: assistant
+  content: "Hey Gary\\! I'm Karen, AI assistant at TerraField\\. Binders full of spray records with an audit coming — I've heard that one a few times\\. Before I get into what we do, tell me more: is it mainly the spray logs that are the headache, or is the whole input tracking situation a mess?"
+- role: user
+  content:
+    - m_type: text
+      m_content: |-
+        👤Gary Hensler
+
+        it's the whole thing honestly. spray records are the worst because the auditor wants dates, rates, GPS coordinates, wind speed, all of it. but I also can't tell you which of our 18 fields actually made money last year. the corn looked great but between seed, fert, and custom hire costs I have no idea if some of those fields were underwater
+- role: assistant
+  content: "So two problems: audit\\-ready spray documentation, and knowing which fields are actually profitable vs just busy\\. That sound right?"
+- role: user
+  content:
+    - m_type: text
+      m_content: |-
+        👤Gary Hensler
+
+        yeah exactly. we tried a spreadsheet system a few years back but nobody kept up with it. half the guys entering data were doing it wrong and it was more work than the binders. I'm not against technology but it has to be dead simple or it won't get used out here
+- role: assistant
+  tool_calls:
+    - id: call_ag_03
+      type: function
+      function:
+        name: flexus_vector_search
+        arguments: '{"eds": "", "query": "spray record logging GPS application tracking mobile app offline simple"}'
+- role: tool
+  content: |+
+    For your query 'spray record logging GPS application tracking mobile app offline simple' found 4 results in database of 2400 chunks across 52 indexed documents.
+
+    <original_text>
+    TerraField's mobile app logs spray and application records with automatic GPS coordinates, timestamp, and weather data pulled from on-field micro-weather sensors or nearest NOAA station. The applicator opens the app, selects the field, picks the product from the input library, enters the rate, and hits save. Total time per entry: under 60 seconds. Records include all fields required for NOP (National Organic Program) and GAP audits.
+    </original_text>
+
+    <original_text>
+    The TerraField mobile app works fully offline. All data entry, scouting photos, and field notes are stored locally and sync automatically when cellular or Wi-Fi signal is available. Typical sync backlog clears in under 2 minutes. No data is lost if the phone dies — entries are saved to local storage immediately.
+    </original_text>
+
+  call_id: call_ag_03
+- role: assistant
+  content: |-
+    Totally fair — if the spreadsheet was more work than the binders, it wasn't solving the problem\.
+
+    Here's how TerraField handles spray records: your applicator opens the app on their phone, picks the field, picks the product, enters the rate, and hits save\. GPS coordinates, timestamp, and weather data get pulled in automatically — no manual entry for those\. Under 60 seconds per record\. And it captures everything NOP and GAP auditors ask for\.
+
+    The app works fully offline, which matters if your fields are anything like most — patchy signal at best\. Data saves locally and syncs when you're back in range\.
+
+    On the profitability side: every input you log \(seed, fert, chemical, custom hire\) gets tied to the specific field\. At the end of the season you get a per\-field cost\-vs\-yield breakdown\. No more guessing which fields are making money\.
+
+    What do you think — does that match what you'd need?
+- role: user
+  content:
+    - m_type: text
+      m_content: |-
+        👤Gary Hensler
+
+        the offline thing is important because half our fields have zero cell service. but what about the sensors you guys have? our co-op rep mentioned soil moisture sensors. I'm not putting $50,000 of electronics in a cornfield that gets flooded every other spring
+- role: assistant
+  tool_calls:
+    - id: call_ag_04
+      type: function
+      function:
+        name: flexus_vector_search
+        arguments: '{"eds": "", "query": "sensor pricing durability weather-resistant field conditions hardware cost per unit"}'
+- role: tool
+  content: |+
+    For your query 'sensor pricing durability weather-resistant field conditions hardware cost per unit' found 3 results in database of 2400 chunks across 52 indexed documents.
+
+    <original_text>
+    TerraField soil-moisture sensors are IP67-rated (dust-tight, submersible to 1 meter for 30 minutes). Designed for field conditions: operating temperature -40°F to 140°F, UV-resistant housing. Battery life: 3 years typical (replaceable). Sensor gateways store 30 days of readings locally and transmit over 4G/LTE cellular — no Wi-Fi or broadband required. Each gateway covers sensors within a 1-mile radius.
+    </original_text>
+
+    <original_text>
+    Sensor pricing: $150/unit one-time purchase or $8/unit/month rental. Growth plan (up to 5,000 acres) includes 1 sensor per 200 acres at no additional cost. For a 2,000-acre operation on Growth plan, that's 10 included sensors. Additional sensors available at the per-unit rate. Rental sensors are replaced free if damaged by normal field conditions (flooding, hail, equipment contact).
+    </original_text>
+
+  call_id: call_ag_04
+- role: assistant
+  content: |-
+    Good question — nobody wants to watch expensive hardware float downstream\.
+
+    The sensors are IP67\-rated: dust\-tight, can sit underwater for 30 minutes\. Operating range is \-40 to 140 degrees F\. They're built for field conditions, not a lab\.
+
+    On cost: you wouldn't be anywhere near $50K\. On the Growth plan for 2,400 acres, you'd get about 12 sensors included in the subscription\. If you wanted more, they're $150 each to buy or $8/month to rent\. Rental sensors get replaced free if they're damaged by flooding, hail, or equipment — normal field stuff\.
+
+    The gateways that collect sensor data run on 4G/LTE cellular, not Wi\-Fi\. They store 30 days of readings locally, so even if cell signal drops for a while, nothing is lost\.
+- role: user
+  content:
+    - m_type: text
+      m_content: |-
+        👤Gary Hensler
+
+        ok that's more reasonable than I expected. what would the whole thing cost us for 2400 acres? and be straight with me, I've been farming 32 years and I've seen a lot of fancy software come and go
+- role: assistant
+  tool_calls:
+    - id: call_ag_05
+      type: function
+      function:
+        name: flexus_vector_search
+        arguments: '{"eds": "", "query": "pricing per acre Growth plan 2000 acres annual cost pay after harvest"}'
+- role: tool
+  content: |+
+    For your query 'pricing per acre Growth plan 2000 acres annual cost pay after harvest' found 3 results in database of 2400 chunks across 52 indexed documents.
+
+    <original_text>
+    Per-acre annual pricing:
+    - Starter: $1.70/acre/year (up to 1,000 acres, app only, no sensors included)
+    - Growth: $2.50/acre/year (up to 5,000 acres, includes 1 sensor per 200 acres, compliance reports, agronomist onboarding call)
+    - Enterprise: custom pricing (5,000+ acres or cooperatives, dedicated support, API access, cooperative roll-up dashboards)
+
+    Annual billing. Pay-after-harvest option available for qualified operations.
+    </original_text>
+
+    <original_text>
+    30-day money-back guarantee on software subscription. Sensors returnable within 30 days if undamaged. Trial includes full platform access, 5 free soil-moisture sensors, and an on-site setup call with our agronomist.
+    </original_text>
+
+  call_id: call_ag_05
+- role: assistant
+  content: |-
+    Straight numbers, no runaround:
+
+    Growth plan at 2,400 acres: $2\.50/acre/year \= *$6,000/year*\. That includes the app, 12 soil\-moisture sensors, compliance report generator, and an agronomist onboarding call\.
+
+    We also have a pay\-after\-harvest option if cash flow timing matters\.
+
+    And here's the honest part: we offer a 30\-day trial with full access and 5 free sensors\. If it doesn't work for your operation, you send the sensors back and owe nothing\. No credit card required\.
+
+    I hear you on software that doesn't stick\. The spreadsheet failed because it was extra work with no payoff\. This is different — your guys log a spray record in 60 seconds on their phone, and the audit report writes itself\. If it's not simpler than the binders, it's not worth your time\.
+- role: user
+  content:
+    - m_type: text
+      m_content: |-
+        👤Gary Hensler
+
+        $6,000 a year is nothing if it actually works. that's less than what we spent on the last fert screwup on field 12. the problem is I can't just sign off on this myself — any purchase over $10K for the cooperative needs board approval, and the sensors plus subscription would probably clear that. but I want to get the trial going so I have something to show them at the July board meeting
+- role: assistant
+  tool_calls:
+    - id: call_ag_06
+      type: function
+      function:
+        name: manage_crm_contact
+        arguments: '{"op": "create", "args": {"contact_first_name": "Gary", "contact_last_name": "Hensler", "contact_notes": "Farm manager for an agricultural cooperative, 2,400 acres corn/soy across 18 fields. Organic certification audit coming September. Current spray records in paper binders — major pain point. Also wants per-field profitability data. Tried spreadsheets before, failed due to complexity. Skeptical of tech but open if it''s simple. Half his fields have no cell service — offline capability critical. Interested in Growth plan ($6,000/yr) + sensors. Board approval needed for purchases over $10K. Wants trial to demo at July board meeting. BANT: Budget=1 (confirmed budget exists, $6K/yr is trivial vs input costs), Authority=0 (board must approve >$10K), Need=1 (organic audit in 3 months, paper records unsustainable), Timeline=1 (must be running before September audit).", "contact_tags": ["lead", "agriculture", "cooperative", "organic-cert", "trial"], "contact_bant_score": 3}}'
+    - id: call_ag_07
+      type: function
+      function:
+        name: manage_crm_deal
+        arguments: '{"op": "create", "args": {"deal_name": "Gary Hensler / Co-op — Precision Ag Platform (2,400 acres)", "deal_stage": "TRIAL"}}'
+- role: tool
+  content: |-
+    ✅ Created: cnt_Gh9mT4wK
+  call_id: call_ag_06
+- role: tool
+  content: |-
+    ✅ Created: deal_Rn6pL2xJ
+  call_id: call_ag_07
+- role: assistant
+  tool_calls:
+    - id: call_ag_08
+      type: function
+      function:
+        name: log_crm_activity
+        arguments: '{"contact_id": "cnt_Gh9mT4wK", "activity_type": "MESSENGER_CHAT", "direction": "INBOUND", "platform": "TELEGRAM", "title": "Sales qualification — organic cert audit, spray records", "summary": "Gary Hensler (co-op farm manager, 2,400 acres corn/soy, 18 fields) reached out about spray record management ahead of organic certification audit in September. Currently using paper binders. Also wants per-field profitability tracking. Previous spreadsheet attempt failed — simplicity is critical. Addressed: offline mobile app (60-sec spray logging with auto GPS/weather), sensor durability (IP67, flood-safe, 4G cellular), pricing (Growth plan $6,000/yr including 12 sensors). Two objections handled: (1) rural connectivity — app works offline, gateways store 30 days locally on LTE, (2) tech skepticism — concrete ROI framing vs past fert mistakes. Signing up for 30-day trial to demo at July co-op board meeting. Board approval required for >$10K purchases. BANT: Budget=1 (confirmed), Authority=0 (board decides), Need=1 (audit deadline), Timeline=1 (before September). Score=3."}'
+- role: tool
+  content: |-
+    ✅ Activity logged
+  call_id: call_ag_08
+- role: assistant
+  content: |-
+    Smart move — show the board real data from their own fields instead of a sales pitch\.
+
+    Here's the plan:
+
+    1\. I'll get you set up with the 30\-day trial — full platform, 5 sensors shipped to you, no credit card\.
+    2\. Our agronomist will do a setup call to get your 18 fields mapped and your input library loaded\.
+    3\. You run it through planting season, log some spray records, and by July you'll have real compliance reports and cost data to put in front of the board\.
+
+    What's the best email to send the trial invite to?
+- role: user
+  content:
+    - m_type: text
+      m_content: |-
+        👤Gary Hensler
+
+        gary@henslerfarmsllc.com — and tell your agronomist I'm available mornings before we get in the field. appreciate you being straight with me, Karen. none of the usual sales runaround
+- role: assistant
+  tool_calls:
+    - id: call_ag_09
+      type: function
+      function:
+        name: manage_crm_contact
+        arguments: '{"op": "patch", "args": {"contact_id": "cnt_Gh9mT4wK", "contact_email": "gary@henslerfarmsllc.com"}}'
+- role: tool
+  content: |-
+    ✅ Updated: cnt_Gh9mT4wK
+  call_id: call_ag_09
+- role: assistant
+  content: |-
+    Trial invite heading to gary@henslerfarmsllc\.com\. I'll flag the agronomist that you prefer mornings\.
+
+    Good luck with planting — and when the board meeting comes around, you'll have the numbers to back it up\. If anything comes up before then, just message here\.
+- role: user
+  content:
+    - m_type: text
+      m_content: |-
+        👤Gary Hensler
+
+        sounds good, talk to you later
+- role: assistant
+  tool_calls:
+    - id: call_ag_10
+      type: function
+      function:
+        name: flexus_kanban_public
+        arguments: '{"op": "resolve", "resolution": {"code": "SUCCESS", "summary": "Sales qualification: Gary Hensler, farm manager for agricultural cooperative, 2,400 acres corn/soy (18 fields). Organic certification audit in September — current spray records are paper binders. Also wants per-field profitability tracking. Addressed connectivity objection (offline app, LTE sensor gateways), tech skepticism (60-sec spray logging, concrete cost comparison). Growth plan $6,000/yr with 12 included sensors. Signed up for 30-day trial to demo at July co-op board meeting. Board approval needed for >$10K. Email: gary@henslerfarmsllc.com. Prefers morning calls. BANT 3/4 (Budget=1, Authority=0, Need=1, Timeline=1). CRM contact + deal + activity logged.", "humanhours": 0.3, "uncapture": true, "pdoc_paths": []}}'
+- role: tool
+  content: |-
+    Moved to done mK3nR7wLpQ
+
+    Uncaptured the chat, no one can see your messages now, all left to do is to say TASK_COMPLETED
+  call_id: call_ag_10
+- role: assistant
+  content: TASK_COMPLETED

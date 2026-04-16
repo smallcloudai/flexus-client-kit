@@ -1,0 +1,383 @@
+judge_instructions: |
+  The assistant should follow the C.L.O.S.E.R. sales framework: Clarify the prospect's problem,
+  Label it back, Overview what they've tried, Sell the outcome, Explain through objections, Reinforce the close.
+  The assistant must use flexus_vector_search() before quoting pricing, feature details, integration capabilities,
+  or ROI claims — penalize if any of these are stated without a prior search.
+  When the prospect raises the "my guys aren't tech people" objection, the assistant should address it with
+  empathy and concrete adoption data, not dismiss it. Penalize hand-waving ("it's easy, don't worry").
+  The assistant must use CRM tools (manage_crm_contact, manage_crm_deal, log_crm_activity) to log the lead
+  and score BANT accurately before resolving.
+  BANT should reflect: Budget=1 (confirmed they're losing more than the tool costs), Authority=0 (needs estimator buy-in),
+  Need=1 (urgent — lost $40K on a job from missed change orders), Timeline=1 (actively looking, wants it before next big job).
+  Penalize inflated BANT scores. Penalize fabricated integration names or pricing not grounded in search results.
+  Don't penalize for minor wording differences, greeting variations, or tool call ordering.
+
+messages:
+- role: cd_instruction
+  content: |-
+    📄/company/summary
+    {
+      "stage": "Growth",
+      "mission": "Give every general contractor real-time control of their jobs",
+      "tagline": "Job costing, scheduling, and change orders — finally in one place",
+      "website": "https://ironpeak.io",
+      "industry": "Construction Technology / Project Management SaaS",
+      "company_name": "IronPeak"
+    }
+
+    📄/company/sales-strategy
+    {
+      "approach": "consultative",
+      "icp": "General contractors and specialty subs ($5M-$100M annual revenue) still running jobs on spreadsheets, paper daily reports, or disconnected legacy tools (Sage, QuickBooks + Excel)",
+      "objection_playbook": {
+        "price": "Average customer recovers the annual subscription in avoided cost overruns on a single job. We price per active project, not per seat, so your whole team can use it.",
+        "complexity": "Mobile app is designed for field crews — large buttons, photo-first, works offline. Average foreman is sending daily reports within 2 days. No laptop required.",
+        "trust": "30-day pilot on a real job. If your team doesn't use it, cancel — no contract.",
+        "competitor": "We don't badmouth Procore or Buildertrend. Our niche: mid-market GCs who need job costing + field reporting without the enterprise price tag or 6-month implementation."
+      },
+      "trial": {
+        "duration_days": 30,
+        "credit_card_required": false,
+        "includes": "Full platform, up to 3 active projects, unlimited users, onboarding call with a construction PM"
+      }
+    }
+
+    📄/support/summary
+    {
+      "support-policy": {
+        "meta": {
+          "created_at": "2026-03-15T10:00:00.000000+00:00"
+        },
+        "section01-product": {
+          "title": "Product",
+          "question01-description": {
+            "a": "IronPeak is a construction project management platform built for general contractors. It combines job costing, scheduling, daily reporting, change order tracking, and subcontractor coordination in one system. Mobile-first for field crews, with a web dashboard for the office.",
+            "q": "What is the product?"
+          },
+          "question02-features": {
+            "a": "Real-time job costing with budget-vs-actual tracking, change order workflow (create, approve, track margin impact), daily field reports with photos and weather, crew scheduling with drag-and-drop, subcontractor portal for RFIs and submittals, QuickBooks and Sage integration for accounting sync, offline-capable mobile app, punch list management, safety incident logging.",
+            "q": "What are the key features?"
+          },
+          "question03-ideal-customer-profile": {
+            "a": "General contractors running 3-20 active projects, $5M-$100M revenue. Commercial and residential. Specialty subs who manage their own jobs. Construction managers who need field-to-office visibility.",
+            "q": "Who is the ideal customer (ICP)?"
+          }
+        },
+        "section02-future-ops": {
+          "title": "Pricing & Billing",
+          "question01-shipping": {
+            "a": "",
+            "q": "Shipping methods, costs, times?"
+          },
+          "question04-payments": {
+            "a": "Per-project pricing. Starter: $149/month per active project (up to 5 projects). Growth: $119/month per active project (5-15 projects). Enterprise: custom. All plans include unlimited users, mobile app, and integrations. Annual billing saves 20%. Stripe payments.",
+            "q": "Payment options & pricing?"
+          },
+          "question02-returns": {
+            "a": "30-day free pilot, no contract. Monthly plans cancel anytime with 30-day notice. Annual plans: pro-rated refund within first 90 days.",
+            "q": "Refund policy?"
+          }
+        },
+        "section03-support": {
+          "title": "Support",
+          "question01-channels": {
+            "a": "Telegram @ironpeak_support, email support@ironpeak.io, phone (Growth/Enterprise): +1-833-555-0192",
+            "q": "Support channels (email, chat, etc.)?"
+          },
+          "question02-escalation": {
+            "a": "Enterprise pricing, custom integrations with ERP systems, data migration from Procore/Buildertrend, on-site training requests",
+            "q": "When to escalate to human?"
+          }
+        },
+        "section04-restrictions": {
+          "title": "Restrictions",
+          "question01-never-say": {
+            "a": "Never guarantee specific ROI percentages without citing published case studies. Never promise custom integrations without engineering review. Never disparage competitors by name. Never claim compliance certifications (OSHA, bonding) that are outside our scope.",
+            "q": "What should support NEVER say?"
+          }
+        }
+      }
+    }
+- role: user
+  content: |-
+    Telegram private user='Mike Durso' chat_id=44819203
+    hey, question for you guys. we're a GC out of jersey, about $18M/year. lost $40K on a job last quarter because change orders fell through the cracks and nobody caught it til closeout. looking for something to fix that
+- role: assistant
+  tool_calls:
+    - id: call_cp_01
+      type: function
+      function:
+        name: flexus_kanban_public
+        arguments: '{"op": "status_public", "search": null, "resolution": null, "details_json": null, "restart_summary": null}'
+- role: tool
+  content: |
+    The current task with details:
+    {
+      "id": "tN3kR7mWqP",
+      "title": "Telegram private user='Mike Durso' chat_id=44819203\nhey, question for you guys. we're a GC out of jersey, about $18M/year. lost $40K on a job last quarter because change orders fell through the cracks and nobody caught it til closeout. looking for something to fix that",
+      "details": {
+        "chat_id": 44819203,
+        "chat_type": "private",
+        "message_id": 2701,
+        "attachments": [],
+        "message_text": "hey, question for you guys. we're a GC out of jersey, about $18M/year. lost $40K on a job last quarter because change orders fell through the cracks and nobody caught it til closeout. looking for something to fix that",
+        "message_author_id": 44819203,
+        "message_author_name": "Mike Durso"
+      }
+    }
+
+    Inbox:
+    [
+    ]
+
+    Todo:
+    [
+    ]
+
+    In Progress:
+    [
+    {"id": "tN3kR7mWqP", "title": "Telegram private user='Mike Durso' chat_id=44819203\nhey, question for you guys. we're a GC out of jersey, about $18M/year. lost $40K on a job last quarter because change orders fell through the cracks and nobody caught it til closeout. looking for something to fix that", "human": "telegram:44819203"},
+    ]
+
+    Done:
+    [
+    ]
+  call_id: call_cp_01
+- role: title
+  content: "[telegram] [mike] [sales] Mike Durso — GC lost $40K on change orders, needs PM software"
+- role: assistant
+  tool_calls:
+    - id: call_cp_02
+      type: function
+      function:
+        name: telegram
+        arguments: '{"op": "capture", "args": {"chat_id": 44819203}}'
+- role: tool
+  content: |
+    📌CAPTURED
+
+    The next thing you write will be visible. Don't comment on that fact and think about what do you want to say in '44819203'.
+    Don't use op=post because now anything you say is visible automatically.
+
+    Reminder: after this point telegram MarkdownV2 markup rules are in effect for your output, there are no tables! Here's markup help for you again.
+
+
+    Telegram uses MarkdownV2 markup:
+    *bold*  _italic_  __underline__  ~strikethrough~
+    `inline code`
+    ```python
+    code block
+    ```
+    [link text](https://example.com)
+    ||spoiler||
+
+    > blockquote
+    > each line must start with >
+
+    No bullet lists or tables.
+  call_id: call_cp_02
+- role: assistant
+  content: "$40K gone because change orders slipped — that hurts\\. I'm Karen, AI assistant at IronPeak\\. Before I get into what we do, tell me more: how are you tracking change orders right now? Excel, paper COs, something else?"
+- role: user
+  content:
+    - m_type: text
+      m_content: |-
+        👤Mike Durso
+
+        honestly it's a mess. PM writes up the CO on paper, takes a photo, texts it to me. sometimes it goes to the owner for approval, sometimes it doesn't. by the time we get to billing nobody knows which ones were approved. I've got a guy who's great at building but he's not an admin person
+- role: assistant
+  content: "So the CO starts on paper, gets texted around, approval is hit\\-or\\-miss, and by billing time nobody can piece it together\\. And the PM is a builder, not a paper\\-pusher — so asking him to run a tighter process on paper isn't going to work\\. That sound right?"
+- role: user
+  content:
+    - m_type: text
+      m_content: |-
+        👤Mike Durso
+
+        that's exactly it. we tried Buildertrend last year but it was too complicated for my guys. my foremen and PMs are not computer people. they'll use their phones for photos and texting but anything more than that and they just go back to paper
+- role: assistant
+  tool_calls:
+    - id: call_cp_03
+      type: function
+      function:
+        name: flexus_vector_search
+        arguments: '{"eds": "", "query": "change order workflow tracking approval margin impact"}'
+- role: tool
+  content: |+
+    For your query 'change order workflow tracking approval margin impact' found 3 results in database of 2400 chunks across 52 indexed documents.
+
+    <original_text>
+    Change Order Workflow: field crew creates a CO from the mobile app (photo + description + cost estimate). CO routes automatically to the PM and then to the owner for approval. Approved COs update the job budget in real time — you always see the margin impact before it's too late. Rejected COs are logged with reason for audit trail. Average GC using IronPeak captures 35% more COs than their previous process.
+    </original_text>
+
+    <original_text>
+    The mobile app is built for field crews, not office workers. Large buttons, photo-first interface, works offline in basements and rural sites. Foremen typically send their first daily report within 2 days of setup — no training class, no laptop. The app syncs automatically when connectivity returns.
+    </original_text>
+
+  call_id: call_cp_03
+- role: assistant
+  content: |-
+    OK so two things you said matter a lot: the CO process is broken, and the team won't use anything complicated\. Both are solvable\.
+
+    Here's how change orders work in IronPeak: your PM opens the phone app, snaps a photo of the work, types a description and cost estimate\. That CO routes automatically — PM to you to the owner for approval\. Approved COs update the job budget in real time so you see the margin impact immediately, not at closeout\.
+
+    On the adoption thing — our mobile app was built for field crews, not office people\. Big buttons, photo\-first, works offline on job sites with no signal\. Most foremen are sending daily reports within 2 days, no training class needed\.
+
+    That Buildertrend experience makes total sense — it's built for a different user\. Your guys already use their phones for photos and texts, right? This is basically that but with a structure behind it\.
+- role: user
+  content:
+    - m_type: text
+      m_content: |-
+        👤Mike Durso
+
+        2 days huh. I'll believe it when I see it. what about the money side — does it tie into QuickBooks? that's what we use for accounting and I'm not switching that
+- role: assistant
+  tool_calls:
+    - id: call_cp_04
+      type: function
+      function:
+        name: flexus_vector_search
+        arguments: '{"eds": "", "query": "QuickBooks integration accounting sync job costing"}'
+- role: tool
+  content: |+
+    For your query 'QuickBooks integration accounting sync job costing' found 3 results in database of 2400 chunks across 52 indexed documents.
+
+    <original_text>
+    QuickBooks Integration: IronPeak syncs with QuickBooks Online and QuickBooks Desktop. Job costs, change orders, and billing milestones push to QuickBooks automatically. No double-entry. The sync runs every 15 minutes or can be triggered manually. Supports class and job mapping so your chart of accounts stays clean.
+    </original_text>
+
+    <original_text>
+    Job Costing: real-time budget-vs-actual tracking at the cost code level. Labor, material, equipment, and sub costs flow in from daily reports, purchase orders, and subcontractor invoices. PMs see a live job cost report on their phone — no waiting for the monthly accounting close.
+    </original_text>
+
+  call_id: call_cp_04
+- role: assistant
+  content: |-
+    No need to switch — we integrate with QuickBooks Online and Desktop\. Job costs, change orders, and billing milestones push over automatically, no double\-entry\. Syncs every 15 minutes and supports your existing chart of accounts\.
+
+    So picture this: your PM creates a change order on his phone at the job site\. You approve it\. The job budget updates instantly, and the cost flows into QuickBooks without anyone re\-keying anything\. At billing time everything is already there\.
+
+    That $40K you lost? It wouldn't have slipped through because you'd have seen the margin impact the day the CO was created, not 3 months later at closeout\.
+- role: user
+  content:
+    - m_type: text
+      m_content: |-
+        👤Mike Durso
+
+        alright you got my attention. what's this gonna run me? we usually have 6-8 jobs going at a time
+- role: assistant
+  tool_calls:
+    - id: call_cp_05
+      type: function
+      function:
+        name: flexus_vector_search
+        arguments: '{"eds": "", "query": "pricing per project active monthly cost plans"}'
+- role: tool
+  content: |+
+    For your query 'pricing per project active monthly cost plans' found 2 results in database of 2400 chunks across 52 indexed documents.
+
+    <original_text>
+    Per-project pricing tiers:
+    - Starter: $149/month per active project (up to 5 projects)
+    - Growth: $119/month per active project (5-15 projects)
+    - Enterprise: custom pricing for 15+ projects
+
+    All plans include unlimited users, mobile app, integrations, and standard support. Annual billing saves 20%.
+    </original_text>
+
+  call_id: call_cp_05
+- role: assistant
+  content: |-
+    At 6\-8 active projects, you'd be on the Growth plan: $119/month per active project\.
+
+    So call it $714\-$952/month depending on how many jobs are running\. Annual billing saves 20%, which brings it to about $570\-$762/month\.
+
+    All plans include unlimited users — so every PM, foreman, super, and office person can be on it\. No per\-seat charges\.
+
+    Compare that to $40K walking out the door on one job\. The whole year of IronPeak pays for itself if it catches a single missed change order\.
+- role: user
+  content:
+    - m_type: text
+      m_content: |-
+        👤Mike Durso
+
+        yeah the math works honestly. only thing is I need to get my estimator on board too — he does a lot of the job setup and budgets. if he doesn't buy in it won't stick. can I get him on a call or something?
+- role: assistant
+  content: |-
+    Smart — if the estimator isn't on board, it doesn't matter how good the tool is\.
+
+    Here's what I'd suggest: start with a 30\-day pilot on one real job\. No contract, no credit card\. We include an onboarding call with one of our construction PMs — someone who's actually run jobs, not a generic support person\. Get your estimator on that call so he can ask the hard questions about job setup, cost codes, and how budgets flow\.
+
+    If your team uses it, great\. If they go back to paper, cancel — no harm done\.
+
+    Want me to set that up?
+- role: user
+  content:
+    - m_type: text
+      m_content: |-
+        👤Mike Durso
+
+        yeah let's do the pilot. we've got a $2.2M commercial TI kicking off in 3 weeks, perfect job to test it on. my email is mike@dursoconstruction.com
+- role: assistant
+  tool_calls:
+    - id: call_cp_06
+      type: function
+      function:
+        name: manage_crm_contact
+        arguments: '{"op": "create", "args": {"contact_first_name": "Mike", "contact_last_name": "Durso", "contact_email": "mike@dursoconstruction.com", "contact_notes": "Owner of GC firm in New Jersey, ~$18M/year revenue, 6-8 active projects. Lost $40K last quarter from missed change orders. Current process: paper COs, photos texted around, no structured approval workflow. Tried Buildertrend — too complicated for field crews. Uses QuickBooks for accounting. Estimator needs to buy in before committing. Starting 30-day pilot on a $2.2M commercial TI job in 3 weeks.", "contact_tags": ["lead", "GC", "pilot", "quickbooks"], "contact_bant_score": 3}}'
+    - id: call_cp_07
+      type: function
+      function:
+        name: manage_crm_deal
+        arguments: '{"op": "create", "args": {"deal_name": "Mike Durso / Durso Construction — PM Platform Pilot", "deal_stage": "QUALIFICATION"}}'
+- role: tool
+  content: |-
+    ✅ Created: cnt_Hm4nK8wQ
+  call_id: call_cp_06
+- role: tool
+  content: |-
+    ✅ Created: deal_Vr7pL3xN
+  call_id: call_cp_07
+- role: assistant
+  tool_calls:
+    - id: call_cp_08
+      type: function
+      function:
+        name: log_crm_activity
+        arguments: '{"contact_id": "cnt_Hm4nK8wQ", "activity_type": "MESSENGER_CHAT", "direction": "INBOUND", "platform": "TELEGRAM", "title": "Sales qualification — construction PM platform pilot", "summary": "Mike Durso (GC owner, NJ, $18M/year, 6-8 active projects) evaluated IronPeak after losing $40K on missed change orders. Current process is paper COs and text messages with no structured approval. Tried Buildertrend — failed on field adoption. Addressed: change order workflow (photo-first mobile, auto-routing, real-time budget impact), field crew adoption (2-day ramp, offline, big buttons), QuickBooks integration (auto-sync, no double-entry), pricing (Growth $119/project/mo, ~$714-$952/mo). Estimator needs to buy in — onboarding call planned. Starting 30-day pilot on $2.2M commercial TI job in 3 weeks. BANT: Budget=1 (losing more than tool costs, math confirmed), Authority=0 (estimator co-decides on adoption), Need=1 (urgent, $40K loss), Timeline=1 (job starts in 3 weeks, actively evaluating)."}'
+- role: tool
+  content: |-
+    ✅ Activity logged
+  call_id: call_cp_08
+- role: assistant
+  content: |-
+    You're set\. Here's the plan:
+
+    1\. Pilot signup: [Start here](https://ironpeak.io/pilot) — 30 days, full platform, no credit card\.
+    2\. Onboarding call: we'll schedule one with a construction PM on our team\. Bring your estimator — he can grill them on job setup and cost codes\.
+    3\. We'll get you configured before that TI job kicks off in 3 weeks\.
+
+    I'll have our team reach out to mike@dursoconstruction\.com to lock in a time for the onboarding call\.
+
+    Good luck on the closeout for the current job — and this time next quarter, you'll have a system that catches those COs before they cost you another $40K\.
+- role: user
+  content:
+    - m_type: text
+      m_content: |-
+        👤Mike Durso
+
+        sounds good Karen. appreciate the help, talk soon
+- role: assistant
+  tool_calls:
+    - id: call_cp_09
+      type: function
+      function:
+        name: flexus_kanban_public
+        arguments: '{"op": "resolve", "resolution": {"code": "SUCCESS", "summary": "Sales qualification: Mike Durso, GC owner in NJ ($18M/year, 6-8 active projects). Lost $40K last quarter on missed change orders — paper CO process with no approval workflow. Tried Buildertrend, failed on field adoption. Addressed change order tracking (mobile, auto-routing, real-time budget impact), field crew adoption (photo-first, offline, 2-day ramp), QuickBooks integration, and pricing (Growth $119/project/mo). Estimator co-decides — onboarding call planned. Starting 30-day pilot on $2.2M commercial TI job in 3 weeks. BANT 3/4 (Budget=1, Authority=0, Need=1, Timeline=1). CRM contact + deal + activity logged.", "humanhours": 0.2, "uncapture": true, "pdoc_paths": []}}'
+- role: tool
+  content: |-
+    Moved to done tN3kR7mWqP
+
+    Uncaptured the chat, no one can see your messages now, all left to do is to say TASK_COMPLETED
+  call_id: call_cp_09
+- role: assistant
+  content: TASK_COMPLETED

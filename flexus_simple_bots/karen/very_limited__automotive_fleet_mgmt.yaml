@@ -1,0 +1,377 @@
+judge_instructions: |
+  The assistant should follow the C.L.O.S.E.R. sales framework: Clarify the prospect's problem,
+  Label it back, Overview what they've tried, Sell the outcome, Explain through objections, Reinforce the close.
+  The assistant must use flexus_vector_search() before quoting pricing, feature specifics, or integration details.
+  Penalize if the assistant fabricates pricing tiers, feature capabilities, or competitor comparisons not grounded in search results.
+  The assistant must use CRM tools (manage_crm_contact, manage_crm_deal, log_crm_activity) to log the lead
+  and score BANT accurately before resolving. BANT should be 3 (Need=1, Authority=1 sole decision-maker, Timeline=1 within 3 months, Budget=0 needs board sign-off).
+  Penalize if the assistant dismisses the competitor mention (Geotab) without searching first.
+  Penalize if the assistant skips vector search when discussing telematics integration or predictive maintenance specifics.
+  Don't penalize for minor wording differences, greeting variations, or tool call ordering.
+
+messages:
+- role: cd_instruction
+  content: |-
+    📄/company/summary
+    {
+      "stage": "Growth",
+      "mission": "Turn every vehicle into a data-driven asset",
+      "tagline": "Predictive fleet intelligence for modern fleets",
+      "website": "https://drivepulse.io",
+      "industry": "Automotive Technology / Fleet Management SaaS",
+      "company_name": "DrivePulse"
+    }
+
+    📄/company/sales-strategy
+    {
+      "approach": "consultative",
+      "icp": "Fleet operators with 50-1,000 vehicles (delivery, field service, construction, rental) who lose money to unplanned downtime, reactive maintenance, and poor route compliance",
+      "objection_playbook": {
+        "price": "Average customer reduces unplanned downtime by 40% and maintenance costs by 25% within 6 months. ROI typically 5-7x. We price per vehicle, not per feature, so you get the full platform from day one.",
+        "complexity": "OBD-II plug-in devices ship pre-configured. Install takes 5 minutes per vehicle — no mechanic needed. Dashboard is live within 24 hours of activation.",
+        "trust": "60-day pilot on up to 50 vehicles, no contract. Full data export at any time. We never lock your data in.",
+        "competitor": "We don't badmouth competitors. Focus on what DrivePulse does differently: predictive maintenance ML that learns your specific fleet, not generic thresholds. Let the customer compare outcomes."
+      },
+      "trial": {
+        "duration_days": 60,
+        "credit_card_required": false,
+        "includes": "Full platform, up to 50 vehicles, OBD-II devices shipped free, onboarding call, dedicated CSM"
+      }
+    }
+
+    📄/support/summary
+    {
+      "support-policy": {
+        "meta": {
+          "created_at": "2026-03-15T10:00:00.000000+00:00"
+        },
+        "section01-product": {
+          "title": "Product",
+          "question01-description": {
+            "a": "DrivePulse is a predictive fleet management platform. It connects to vehicles via OBD-II plug-in devices or existing telematics hardware (Geotab, Samsara, CalAmp) to collect real-time diagnostics, GPS, and driver behavior data. Features include predictive maintenance alerts, fuel waste detection, route compliance monitoring, driver safety scoring, and automated maintenance scheduling.",
+            "q": "What is the product?"
+          },
+          "question02-features": {
+            "a": "Predictive maintenance (ML-based, learns per-vehicle patterns), real-time GPS tracking, fuel waste detection (idling, aggressive driving, route deviation), driver safety scoring, automated maintenance scheduling with shop integration, geofencing, route compliance monitoring, fleet utilization dashboards, telematics hardware integration (Geotab, Samsara, CalAmp, or our OBD-II devices), mobile app for drivers, API for ERP/TMS integration.",
+            "q": "What are the key features?"
+          },
+          "question03-ideal-customer-profile": {
+            "a": "Fleet operators with 50-1,000 vehicles who deal with unplanned breakdowns, high maintenance costs, or poor visibility into vehicle health. Common verticals: last-mile delivery, field service, construction, car rental, municipal fleets.",
+            "q": "Who is the ideal customer (ICP)?"
+          }
+        },
+        "section02-future-ops": {
+          "title": "Pricing & Billing",
+          "question01-shipping": {
+            "a": "OBD-II devices ship free on all plans. Standard delivery 3-5 business days, express available for $15/device.",
+            "q": "Shipping methods, costs, times?"
+          },
+          "question04-payments": {
+            "a": "Per-vehicle monthly pricing. Starter: $25/vehicle/month (up to 100 vehicles). Fleet: $18/vehicle/month (100-500 vehicles). Enterprise: custom (500+). Annual contracts get 20% discount. Includes hardware, platform, and standard support.",
+            "q": "Payment options & pricing?"
+          },
+          "question02-returns": {
+            "a": "60-day pilot is free with up to 50 vehicles. Monthly contracts can be cancelled anytime with 30-day notice. Annual contracts: pro-rated refund within first 90 days. OBD-II devices must be returned within 30 days of cancellation.",
+            "q": "Refund policy?"
+          }
+        },
+        "section03-support": {
+          "title": "Support",
+          "question01-channels": {
+            "a": "Telegram @drivepulse_support, email support@drivepulse.io, in-app chat, phone support for Fleet and Enterprise tiers",
+            "q": "Support channels (email, chat, etc.)?"
+          },
+          "question02-escalation": {
+            "a": "Enterprise pricing requests, custom telematics hardware integration, regulatory/compliance questions (FMCSA, ELD), data migration from competitor platforms, API custom development",
+            "q": "When to escalate to human?"
+          }
+        },
+        "section04-restrictions": {
+          "title": "Restrictions",
+          "question01-never-say": {
+            "a": "Never guarantee specific downtime reduction percentages unless quoting published case studies. Never share other customers' fleet data. Never promise custom hardware integration without engineering review. Never disparage competitors by name. Never guarantee ELD compliance without reviewing the customer's specific regulatory requirements.",
+            "q": "What should support NEVER say?"
+          }
+        }
+      }
+    }
+- role: user
+  content: |-
+    Telegram private user='Marcus Devereaux' chat_id=91452037
+    hi — we manage a fleet of 200 vehicles for a regional delivery company. 3 breakdowns last month cost us about $25K in towing and rental replacements. looking for something to help us get ahead of this. you guys do predictive maintenance right?
+- role: assistant
+  tool_calls:
+    - id: call_af_01
+      type: function
+      function:
+        name: flexus_kanban_public
+        arguments: '{"op": "status_public", "search": null, "resolution": null, "details_json": null, "restart_summary": null}'
+- role: tool
+  content: |
+    The current task with details:
+    {
+      "id": "qT8xR3mKvN",
+      "title": "Telegram private user='Marcus Devereaux' chat_id=91452037\nhi — we manage a fleet of 200 vehicles for a regional delivery company. 3 breakdowns last month cost us about $25K in towing and rental replacements. looking for something to help us get ahead of this. you guys do predictive maintenance right?",
+      "details": {
+        "chat_id": 91452037,
+        "chat_type": "private",
+        "message_id": 5821,
+        "attachments": [],
+        "message_text": "hi — we manage a fleet of 200 vehicles for a regional delivery company. 3 breakdowns last month cost us about $25K in towing and rental replacements. looking for something to help us get ahead of this. you guys do predictive maintenance right?",
+        "message_author_id": 91452037,
+        "message_author_name": "Marcus Devereaux"
+      }
+    }
+
+    Inbox:
+    [
+    ]
+
+    Todo:
+    [
+    ]
+
+    In Progress:
+    [
+    {"id": "qT8xR3mKvN", "title": "Telegram private user='Marcus Devereaux' chat_id=91452037\nhi — we manage a fleet of 200 vehicles for a regional delivery company. 3 breakdowns last month cost us about $25K in towing and rental replacements. looking for something to help us get ahead of this. you guys do predictive maintenance right?", "human": "telegram:91452037"},
+    ]
+
+    Done:
+    [
+    ]
+  call_id: call_af_01
+- role: title
+  content: "[telegram] [marcus] [sales] Marcus Devereaux — predictive maintenance for 200-vehicle delivery fleet"
+- role: assistant
+  tool_calls:
+    - id: call_af_02
+      type: function
+      function:
+        name: telegram
+        arguments: '{"op": "capture", "args": {"chat_id": 91452037}}'
+- role: tool
+  content: |
+    📌CAPTURED
+
+    The next thing you write will be visible. Don't comment on that fact and think about what do you want to say in '91452037'.
+    Don't use op=post because now anything you say is visible automatically.
+
+    Reminder: after this point telegram MarkdownV2 markup rules are in effect for your output, there are no tables! Here's markup help for you again.
+
+
+    Telegram uses MarkdownV2 markup:
+    *bold*  _italic_  __underline__  ~strikethrough~
+    `inline code`
+    ```python
+    code block
+    ```
+    [link text](https://example.com)
+    ||spoiler||
+
+    > blockquote
+    > each line must start with >
+
+    No bullet lists or tables.
+  call_id: call_af_02
+- role: assistant
+  tool_calls:
+    - id: call_af_03
+      type: function
+      function:
+        name: flexus_vector_search
+        arguments: '{"eds": "", "query": "predictive maintenance fleet vehicles how it works"}'
+- role: tool
+  content: |+
+    For your query 'predictive maintenance fleet vehicles how it works' found 3 results in database of 1800 chunks across 38 indexed documents.
+
+    <original_text>
+    DrivePulse Predictive Maintenance uses machine learning models trained on each vehicle's individual diagnostic history — not generic manufacturer thresholds. The system ingests OBD-II data (engine codes, oil pressure, coolant temp, battery voltage, transmission metrics) and correlates patterns with historical failure events. Typical lead time: 2-4 weeks warning before a component failure. Accuracy improves over the first 90 days as the model learns vehicle-specific patterns.
+    </original_text>
+
+    <original_text>
+    Case study: Regional delivery fleet (180 vehicles, mixed Ford Transit and Sprinter). Before DrivePulse: 6-8 unplanned breakdowns/month, average cost $7,500/incident (towing + rental + lost delivery revenue). After 6 months on DrivePulse: unplanned breakdowns dropped to 1-2/month, 73% reduction. Annual savings: $390,000. ROI: 8.2x.
+    </original_text>
+
+  call_id: call_af_03
+- role: assistant
+  content: "Hey Marcus\\! I'm Karen, AI assistant at DrivePulse\\. $25K from 3 breakdowns in a month — that's a brutal hit\\. Yes, predictive maintenance is our core\\.\n\nBefore I jump into details though — what's happening with those breakdowns? Is it the same type of failure or different issues across different vehicles?"
+- role: user
+  content:
+    - m_type: text
+      m_content: |-
+        👤Marcus Devereaux
+
+        mix of stuff honestly. one was a transmission failure on a Sprinter, one was engine overheating on a Transit, and the third was a brake issue. we only catch things when drivers report warning lights or something actually breaks. no visibility into what's coming
+- role: assistant
+  content: "So you're basically flying blind until something fails or a driver happens to notice a light\\. And by then it's already an emergency — tow truck, rental, missed deliveries\\. That sound right?"
+- role: user
+  content:
+    - m_type: text
+      m_content: |-
+        👤Marcus Devereaux
+
+        exactly. and our drivers don't always report warning lights right away either. sometimes they'll drive for days with a check engine light on because they're behind on deliveries. we have a maintenance schedule but it's just mileage-based intervals in a spreadsheet
+- role: assistant
+  content: "Yeah, mileage\\-based intervals miss a ton — a vehicle doing city stop\\-and\\-go wears completely differently from one doing highway runs\\. Are you using any telematics right now, or is it just the spreadsheet?"
+- role: user
+  content:
+    - m_type: text
+      m_content: |-
+        👤Marcus Devereaux
+
+        we have Geotab on about half the fleet for GPS tracking but we're not really using it for maintenance. our ops manager set it up 2 years ago mainly for route compliance. I looked into their maintenance module but it felt pretty basic — still just threshold alerts, not actually predictive
+- role: assistant
+  tool_calls:
+    - id: call_af_04
+      type: function
+      function:
+        name: flexus_vector_search
+        arguments: '{"eds": "", "query": "Geotab telematics integration existing hardware"}'
+- role: tool
+  content: |+
+    For your query 'Geotab telematics integration existing hardware' found 2 results in database of 1800 chunks across 38 indexed documents.
+
+    <original_text>
+    DrivePulse integrates with existing telematics hardware from Geotab, Samsara, and CalAmp. For Geotab: we pull data via the Geotab SDK (MyGeotab API). No additional hardware needed on vehicles that already have Geotab GO devices. Setup requires a MyGeotab API key and takes approximately 2 hours. DrivePulse adds the predictive ML layer on top of Geotab's raw diagnostic data — customers keep their Geotab investment and gain predictive capabilities.
+    </original_text>
+
+    <original_text>
+    For mixed fleets (some vehicles with existing telematics, some without), DrivePulse supports hybrid deployments. Vehicles with Geotab/Samsara/CalAmp use existing hardware. Remaining vehicles get DrivePulse OBD-II plug-in devices (self-install, 5 minutes per vehicle). All data flows into one unified dashboard regardless of hardware source.
+    </original_text>
+
+  call_id: call_af_04
+- role: assistant
+  content: "Good news — you wouldn't have to rip out Geotab\\. We integrate directly via the MyGeotab API, so those vehicles keep their existing hardware\\. We add the predictive ML layer on top of Geotab's raw diagnostics\\.\n\nFor the other half of your fleet that doesn't have Geotab, we ship OBD\\-II plug\\-in devices — self\\-install, about 5 minutes per vehicle, no mechanic\\. Everything feeds into one dashboard\\.\n\nThe big difference from Geotab's built\\-in alerts: our models learn each vehicle's individual patterns, not just generic thresholds\\. So instead of \"coolant temp above 220\" it's \"this specific Transit is trending toward overheating based on its last 60 days of data\\.\" Typical warning lead time is 2\\-4 weeks before failure\\."
+- role: user
+  content:
+    - m_type: text
+      m_content: |-
+        👤Marcus Devereaux
+
+        ok that's interesting. what does it cost? we're a regional company not some national carrier — budget matters
+- role: assistant
+  tool_calls:
+    - id: call_af_05
+      type: function
+      function:
+        name: flexus_vector_search
+        arguments: '{"eds": "", "query": "pricing per vehicle monthly fleet plan"}'
+- role: tool
+  content: |+
+    For your query 'pricing per vehicle monthly fleet plan' found 3 results in database of 1800 chunks across 38 indexed documents.
+
+    <original_text>
+    Per-vehicle monthly pricing:
+    - Starter: $25/vehicle/month (up to 100 vehicles)
+    - Fleet: $18/vehicle/month (100-500 vehicles)
+    - Enterprise: custom pricing for 500+
+
+    Annual contracts receive a 20% discount. All tiers include hardware (OBD-II devices shipped free), full platform access, and standard support.
+    </original_text>
+
+    <original_text>
+    Average DrivePulse customer (mid-size fleet, 150-300 vehicles) reduces unplanned downtime by 40% and maintenance costs by 25% within the first 6 months. ROI typically 5-7x. One regional delivery fleet (180 vehicles) saved $390,000 annually after switching from reactive to predictive maintenance.
+    </original_text>
+
+  call_id: call_af_05
+- role: assistant
+  content: "Totally fair\\. At 200 vehicles you'd be on the Fleet tier: $18/vehicle/month\\. That's $3,600/month\\. Hardware included — no extra cost for the OBD\\-II devices on the non\\-Geotab half\\.\n\nFor context: you spent $25K on breakdowns last month alone\\. Our average mid\\-size fleet customer cuts unplanned downtime by 40% and maintenance costs by 25% within 6 months\\. A fleet similar to yours \\(180 vehicles, mixed Transits and Sprinters\\) saved $390K annually after switching from reactive to predictive\\.\n\nWe also have a 60\\-day pilot — no contract, up to 50 vehicles, devices shipped free\\. So you could prove it out on your worst\\-performing vehicles before committing the whole fleet\\."
+- role: user
+  content:
+    - m_type: text
+      m_content: |-
+        👤Marcus Devereaux
+
+        $3,600/month is doable if the numbers are real but I'd need to get board approval for anything annual. the 60-day pilot is smart though — we could test it on our oldest Sprinters, those are the ones that keep dying on us. one concern: does this actually work if our maintenance team is small? we have 2 mechanics and they're already overwhelmed
+- role: assistant
+  tool_calls:
+    - id: call_af_06
+      type: function
+      function:
+        name: flexus_vector_search
+        arguments: '{"eds": "", "query": "automated maintenance scheduling shop integration small team workflow"}'
+- role: tool
+  content: |+
+    For your query 'automated maintenance scheduling shop integration small team workflow' found 2 results in database of 1800 chunks across 38 indexed documents.
+
+    <original_text>
+    Automated Maintenance Scheduling: When DrivePulse predicts a component issue, it auto-generates a work order with the specific diagnosis, recommended parts, and urgency level (critical/soon/monitor). Work orders can be pushed to shop management systems (Fleetio, RTA, Dossier) or exported as PDF. The scheduling engine considers vehicle utilization patterns to recommend the least disruptive service window. This turns reactive "truck broke down, fix it now" into planned "schedule this for Tuesday, it can wait 2 weeks."
+    </original_text>
+
+  call_id: call_af_06
+- role: assistant
+  content: "That's actually where it helps most\\. Right now your mechanics are firefighting — drop everything, emergency repair\\. DrivePulse flips that\\.\n\nWhen we predict an issue, the system auto\\-generates a work order with the specific diagnosis, recommended parts, and urgency level\\. It even suggests the least disruptive service window based on that vehicle's delivery schedule\\. So instead of \"the Sprinter died on I\\-95, fix it now\" it's \"schedule this Sprinter for Tuesday morning, it can wait 2 weeks\\.\" \n\nSame 2 mechanics, but they're doing planned repairs during quiet hours instead of emergency jobs during peak delivery time\\."
+- role: user
+  content:
+    - m_type: text
+      m_content: |-
+        👤Marcus Devereaux
+
+        that makes sense. ok let's do the pilot. I'm the fleet director so I can greenlight 50 vehicles without board approval. what do I need to get started?
+- role: assistant
+  tool_calls:
+    - id: call_af_07
+      type: function
+      function:
+        name: manage_crm_contact
+        arguments: '{"op": "create", "args": {"contact_first_name": "Marcus", "contact_last_name": "Devereaux", "contact_notes": "Fleet Director at a regional delivery company, 200 vehicles (mixed Ford Transit and Sprinter). Pain: no visibility into vehicle health, mileage-based spreadsheet maintenance, 3 breakdowns last month costing $25K (towing + rentals). Has Geotab on ~100 vehicles for GPS/route compliance but not using it for maintenance — found Geotab alerts too basic. 2-mechanic team already overwhelmed with reactive repairs. Previously evaluated Geotab maintenance module, dismissed as threshold-based not predictive. Interested in 60-day pilot on 50 worst-performing Sprinters. Sole decision-maker for pilot; board approval needed for full annual contract. Pricing discussed: Fleet tier $18/vehicle/month ($3,600/mo for full fleet). BANT: Budget=0 (needs board sign-off for annual), Authority=1 (sole decision-maker for pilot), Need=1 (urgent, $25K/month losses), Timeline=1 (starting pilot now).", "contact_tags": ["lead", "fleet-management", "delivery", "geotab-user"], "contact_bant_score": 3}}'
+    - id: call_af_08
+      type: function
+      function:
+        name: manage_crm_deal
+        arguments: '{"op": "create", "args": {"deal_name": "Marcus Devereaux — 200-Vehicle Delivery Fleet Predictive Maintenance Pilot", "deal_stage": "QUALIFICATION"}}'
+- role: tool
+  content: |-
+    ✅ Created: cnt_Vm7kQ9xL
+  call_id: call_af_07
+- role: tool
+  content: |-
+    ✅ Created: deal_Jn4pR8wT
+  call_id: call_af_08
+- role: assistant
+  tool_calls:
+    - id: call_af_09
+      type: function
+      function:
+        name: log_crm_activity
+        arguments: '{"contact_id": "cnt_Vm7kQ9xL", "activity_type": "MESSENGER_CHAT", "direction": "INBOUND", "platform": "TELEGRAM", "title": "Sales qualification — predictive maintenance pilot for delivery fleet", "summary": "Marcus Devereaux (Fleet Director, 200-vehicle regional delivery, mixed Transit/Sprinter) evaluated DrivePulse. Pain: no predictive visibility, mileage-based spreadsheet maintenance, $25K lost to 3 breakdowns last month. Has Geotab on half the fleet for GPS but dismissed its maintenance module as threshold-only. 2 mechanics overwhelmed with reactive repairs. Discussed Fleet tier pricing ($18/vehicle/mo, $3,600/mo full fleet), Geotab integration (no hardware swap needed), OBD-II for remaining vehicles, predictive ML per-vehicle learning, automated work order generation. Agreed to 60-day pilot on 50 Sprinters. Sole decision-maker for pilot; board needed for annual. BANT 3/4: Budget=0 (board for annual), Authority=1 (greenlit pilot), Need=1 (urgent losses), Timeline=1 (starting now)."}'
+- role: tool
+  content: |-
+    ✅ Activity logged
+  call_id: call_af_09
+- role: assistant
+  content: |-
+    Great call, Marcus\\. Here's what happens next:
+
+    *60\\-Day Pilot — 50 Vehicles*
+
+    1\. We ship 50 OBD\\-II devices to your location \(3\\-5 business days\)\\. For the Sprinters that already have Geotab, we just connect via API — no extra hardware\.
+    2\. Self\\-install: 5 minutes per vehicle, plug into OBD\\-II port\\. No mechanic needed\.
+    3\. You get an onboarding call with a dedicated CSM to set up your dashboard and alert preferences\.
+    4\. Predictive models start learning immediately — accuracy improves over the first 90 days\.
+
+    No contract, no credit card\\. Full data export anytime\.
+
+    To kick it off I just need your work email so we can set up your account\\. Want to share it here or prefer I send a signup link?
+- role: user
+  content:
+    - m_type: text
+      m_content: |-
+        👤Marcus Devereaux
+
+        marcus@regiodelivery.com — send me the signup link and I'll get it rolling this week. thanks Karen, this was actually helpful
+- role: assistant
+  tool_calls:
+    - id: call_af_10
+      type: function
+      function:
+        name: flexus_kanban_public
+        arguments: '{"op": "resolve", "resolution": {"code": "SUCCESS", "summary": "Sales qualification + pilot close: Marcus Devereaux, Fleet Director at a regional delivery company. 200 vehicles (mixed Transit/Sprinter), $25K/month in breakdown losses, mileage-based spreadsheet maintenance, 2 overwhelmed mechanics. Has Geotab on half the fleet but found it insufficient for predictive use. Agreed to 60-day pilot on 50 Sprinters. Fleet tier $18/vehicle/mo ($3,600/mo full fleet). Sole decision-maker for pilot, board needed for annual. BANT 3/4. CRM contact + deal + activity logged. Email: marcus@regiodelivery.com. Next: send pilot signup link.", "humanhours": 0.3, "uncapture": true, "pdoc_paths": []}}'
+- role: tool
+  content: |-
+    Moved to done qT8xR3mKvN
+
+    Uncaptured the chat, no one can see your messages now, all left to do is to say TASK_COMPLETED
+  call_id: call_af_10
+- role: assistant
+  content: TASK_COMPLETED

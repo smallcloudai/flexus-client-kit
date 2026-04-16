@@ -1,0 +1,381 @@
+judge_instructions: |
+  The assistant should follow the C.L.O.S.E.R. sales framework: Clarify the prospect's problem,
+  Label it back, Overview what they've tried, Sell the outcome, Explain through objections, Reinforce the close.
+  The assistant must use flexus_vector_search() before quoting pricing, feature specifics, or integration details.
+  Penalize if the assistant fabricates pricing tiers, feature capabilities, or competitor comparisons not grounded in search results.
+  The assistant must use CRM tools (manage_crm_contact, manage_crm_deal, log_crm_activity) to log the lead
+  and score BANT accurately before resolving. BANT should be 2 (Need=1, Timeline=1, Budget=0 not discussed, Authority=0 co-decides with CTO).
+  Penalize if the assistant pressures on price or dismisses the competitor mention without searching first.
+  Don't penalize for minor wording differences, greeting variations, or tool call ordering.
+
+messages:
+- role: cd_instruction
+  content: |-
+    📄/company/summary
+    {
+      "stage": "Growth",
+      "mission": "Visibility into every shipment, every mile",
+      "tagline": "Real-time freight intelligence for modern logistics",
+      "website": "https://routestack.io",
+      "industry": "Logistics Technology / Supply Chain SaaS",
+      "company_name": "RouteStack"
+    }
+
+    📄/company/sales-strategy
+    {
+      "approach": "consultative",
+      "icp": "Mid-market freight brokers and 3PLs (50-500 shipments/day) who still rely on spreadsheets or legacy TMS for tracking and carrier communication",
+      "objection_playbook": {
+        "price": "ROI typically 3-4x within 6 months. Average customer saves 12 hours/week on manual tracking calls. We price per shipment, not per seat, so cost scales with actual volume.",
+        "complexity": "API integration takes 2-3 days with our team's help. We also have a no-code CSV import for day one.",
+        "trust": "30-day pilot with real data — no contract, cancel anytime. We handle SOC 2 and GDPR compliance out of the box.",
+        "competitor": "We don't badmouth competitors. Focus on what RouteStack does: real-time ETA prediction, automated carrier check-ins, and exception alerts. Let the customer compare features side by side."
+      },
+      "trial": {
+        "duration_days": 30,
+        "credit_card_required": false,
+        "includes": "Full platform, up to 200 shipments, API access, onboarding call"
+      }
+    }
+
+    📄/support/summary
+    {
+      "support-policy": {
+        "meta": {
+          "created_at": "2026-03-28T14:00:00.000000+00:00"
+        },
+        "section01-product": {
+          "title": "Product",
+          "question01-description": {
+            "a": "RouteStack is a real-time freight visibility platform. It connects to carriers via API, EDI, or manual upload to track shipments door-to-door. Features include ETA prediction, exception alerting, automated carrier check-in calls, and a customer-facing tracking portal.",
+            "q": "What is the product?"
+          },
+          "question02-features": {
+            "a": "Real-time shipment tracking (FTL, LTL, parcel, ocean), predictive ETA with ML, automated carrier check-ins via voice/SMS, exception alerts (late, detention, temperature), customer-facing tracking portal, TMS integrations (MercuryGate, BlueYonder, Aljex), BI dashboards, SOC 2 Type II compliant.",
+            "q": "What are the key features?"
+          },
+          "question03-ideal-customer-profile": {
+            "a": "Freight brokers and 3PLs doing 50-500 shipments/day who need visibility without building in-house. Also: shippers with complex multi-modal supply chains who want one tracking dashboard.",
+            "q": "Who is the ideal customer (ICP)?"
+          }
+        },
+        "section02-future-ops": {
+          "title": "Pricing & Billing",
+          "question01-shipping": {
+            "a": "",
+            "q": "Shipping methods, costs, times?"
+          },
+          "question04-payments": {
+            "a": "Per-shipment pricing. Starter: $0.50/shipment (up to 100/day). Growth: $0.35/shipment (100-500/day). Enterprise: custom. Annual contracts get 15% discount. Stripe billing.",
+            "q": "Payment options & pricing?"
+          },
+          "question02-returns": {
+            "a": "30-day pilot is free. Monthly contracts can be cancelled anytime with 30-day notice. Annual contracts: pro-rated refund within first 90 days.",
+            "q": "Refund policy?"
+          }
+        },
+        "section03-support": {
+          "title": "Support",
+          "question01-channels": {
+            "a": "Telegram @routestack_support, email support@routestack.io, in-app chat",
+            "q": "Support channels (email, chat, etc.)?"
+          },
+          "question02-escalation": {
+            "a": "Enterprise pricing requests, custom integrations, security/compliance questions, data migration from competitor platforms",
+            "q": "When to escalate to human?"
+          }
+        },
+        "section04-restrictions": {
+          "title": "Restrictions",
+          "question01-never-say": {
+            "a": "Never guarantee specific ETA accuracy percentages unless quoting published benchmarks. Never share other customers' shipping data. Never promise custom integrations without engineering review. Never disparage competitors by name.",
+            "q": "What should support NEVER say?"
+          }
+        }
+      }
+    }
+- role: user
+  content: |-
+    Telegram private user='Priya Nair' chat_id=72834019
+    hey, quick question — do you integrate with Aljex?
+- role: assistant
+  tool_calls:
+    - id: call_ls_01
+      type: function
+      function:
+        name: flexus_kanban_public
+        arguments: '{"op": "status_public", "search": null, "resolution": null, "details_json": null, "restart_summary": null}'
+- role: tool
+  content: |
+    The current task with details:
+    {
+      "id": "mK7nW2pLqR",
+      "title": "Telegram private user='Priya Nair' chat_id=72834019\nhey, quick question — do you integrate with Aljex?",
+      "details": {
+        "chat_id": 72834019,
+        "chat_type": "private",
+        "message_id": 3401,
+        "attachments": [],
+        "message_text": "hey, quick question — do you integrate with Aljex?",
+        "message_author_id": 72834019,
+        "message_author_name": "Priya Nair"
+      }
+    }
+
+    Inbox:
+    [
+    ]
+
+    Todo:
+    [
+    ]
+
+    In Progress:
+    [
+    {"id": "mK7nW2pLqR", "title": "Telegram private user='Priya Nair' chat_id=72834019\nhey, quick question — do you integrate with Aljex?", "human": "telegram:72834019"},
+    ]
+
+    Done:
+    [
+    ]
+  call_id: call_ls_01
+- role: title
+  content: "[telegram] [priya] [sales] Priya Nair — Aljex integration question"
+- role: assistant
+  tool_calls:
+    - id: call_ls_02
+      type: function
+      function:
+        name: telegram
+        arguments: '{"op": "capture", "args": {"chat_id": 72834019}}'
+- role: tool
+  content: |
+    📌CAPTURED
+
+    The next thing you write will be visible. Don't comment on that fact and think about what do you want to say in '72834019'.
+    Don't use op=post because now anything you say is visible automatically.
+
+    Reminder: after this point telegram MarkdownV2 markup rules are in effect for your output, there are no tables! Here's markup help for you again.
+
+
+    Telegram uses MarkdownV2 markup:
+    *bold*  _italic_  __underline__  ~strikethrough~
+    `inline code`
+    ```python
+    code block
+    ```
+    [link text](https://example.com)
+    ||spoiler||
+
+    > blockquote
+    > each line must start with >
+
+    No bullet lists or tables.
+  call_id: call_ls_02
+- role: assistant
+  tool_calls:
+    - id: call_ls_03
+      type: function
+      function:
+        name: flexus_vector_search
+        arguments: '{"eds": "", "query": "Aljex TMS integration"}'
+- role: tool
+  content: |+
+    For your query 'Aljex TMS integration' found 3 results in database of 2100 chunks across 45 indexed documents.
+
+    <original_text>
+    RouteStack integrates with major TMS platforms including MercuryGate, BlueYonder, and Aljex. The Aljex integration supports bi-directional sync: shipment orders pull into RouteStack automatically, and tracking updates push back to Aljex. Setup requires an Aljex API key (available from Aljex admin panel) and takes 2-3 hours with our onboarding team.
+    </original_text>
+
+    <original_text>
+    Supported TMS integrations: MercuryGate (API), BlueYonder (EDI 214/990), Aljex (API), McLeod (API), Turvo (webhook). For TMS platforms not listed, we offer a REST API and CSV import as fallbacks.
+    </original_text>
+
+  call_id: call_ls_03
+- role: assistant
+  content: "Hey Priya\\! I'm Karen, AI assistant at RouteStack\\. Yes, we integrate with Aljex — bi\\-directional sync, so shipment orders pull in automatically and tracking updates push back\\. Setup takes about 2\\-3 hours with our onboarding team\\. Are you currently on Aljex?"
+- role: user
+  content:
+    - m_type: text
+      m_content: |-
+        👤Priya Nair
+
+        yeah we use Aljex. we're a 3PL, about 150 shipments a day, mostly FTL. right now tracking is a nightmare — our ops team spends half their day calling carriers for updates. I saw you mentioned on a freight forum and figured I'd ask
+- role: assistant
+  content: "150 FTL shipments/day with manual carrier calls — that's brutal\\. So the main pain is your ops team burning hours just getting status updates?"
+- role: user
+  content:
+    - m_type: text
+      m_content: |-
+        👤Priya Nair
+
+        exactly. and our customers are constantly asking where their stuff is, so we're fielding calls from both sides. we tried project44 briefly but it was way too expensive for our volume and the onboarding took forever
+- role: assistant
+  tool_calls:
+    - id: call_ls_04
+      type: function
+      function:
+        name: flexus_vector_search
+        arguments: '{"eds": "", "query": "pricing per shipment 3PL mid-market volume"}'
+- role: tool
+  content: |+
+    For your query 'pricing per shipment 3PL mid-market volume' found 3 results in database of 2100 chunks across 45 indexed documents.
+
+    <original_text>
+    Per-shipment pricing tiers:
+    - Starter: $0.50/shipment (up to 100/day)
+    - Growth: $0.35/shipment (100-500/day)
+    - Enterprise: custom pricing for 500+/day
+
+    Annual contracts receive a 15% discount. All tiers include full platform access, API, and standard support.
+    </original_text>
+
+    <original_text>
+    Average RouteStack customer (mid-market 3PL) reduces manual tracking calls by 80% within the first month. Ops teams typically save 10-15 hours/week previously spent on carrier check-ins. The automated carrier check-in system contacts carriers via voice and SMS on a configurable schedule.
+    </original_text>
+
+  call_id: call_ls_04
+- role: assistant
+  content: |-
+    Good context — so you've tried a big player and it didn't fit on price or timeline\. That's actually our sweet spot\.
+
+    At 150 shipments/day you'd be on the Growth tier: $0\.35/shipment\. That's roughly $1,575/month\. Compared to what your ops team costs in hours right now — our average mid\-market 3PL cuts manual tracking calls by 80% in the first month, saving 10\-15 hours/week\.
+
+    The Aljex integration means your shipments flow in automatically, no re\-keying\. And we have a customer\-facing tracking portal so your clients can self\-serve instead of calling you\.
+
+    Want to hear about how the automated carrier check\-ins work? That's usually the biggest time saver\.
+- role: user
+  content:
+    - m_type: text
+      m_content: |-
+        👤Priya Nair
+
+        $1,575/month is workable honestly. the check-in thing sounds interesting — how does that work exactly?
+- role: assistant
+  tool_calls:
+    - id: call_ls_05
+      type: function
+      function:
+        name: flexus_vector_search
+        arguments: '{"eds": "", "query": "automated carrier check-in voice SMS how it works"}'
+- role: tool
+  content: |+
+    For your query 'automated carrier check-in voice SMS how it works' found 2 results in database of 2100 chunks across 45 indexed documents.
+
+    <original_text>
+    Automated Carrier Check-Ins: RouteStack contacts carriers automatically via voice call or SMS at configurable intervals (default: every 4 hours for FTL, every 8 hours for LTL). The system asks for current location and ETA. Responses are parsed using NLP and update the shipment record in real-time. If a carrier doesn't respond after 2 attempts, an exception alert is raised to the ops team.
+    </original_text>
+
+  call_id: call_ls_05
+- role: assistant
+  content: |-
+    It's pretty simple\. RouteStack auto\-contacts your carriers via voice call or SMS on a schedule — default is every 4 hours for FTL\. It asks for location and ETA, parses the response, and updates the shipment record automatically\.
+
+    If a carrier doesn't respond after 2 attempts, your ops team gets an exception alert — so they only step in when something's actually wrong, instead of calling everyone proactively\.
+
+    That alone usually kills 80% of the outbound calls your team is making\.
+- role: user
+  content:
+    - m_type: text
+      m_content: |-
+        👤Priya Nair
+
+        ok that's exactly what we need. one thing though — I'd need to run this by our CTO. he's going to ask about security and data handling. we had a vendor breach scare last year so he's very cautious now
+- role: assistant
+  tool_calls:
+    - id: call_ls_06
+      type: function
+      function:
+        name: flexus_vector_search
+        arguments: '{"eds": "", "query": "security SOC 2 GDPR compliance data handling"}'
+- role: tool
+  content: |+
+    For your query 'security SOC 2 GDPR compliance data handling' found 2 results in database of 2100 chunks across 45 indexed documents.
+
+    <original_text>
+    RouteStack is SOC 2 Type II certified and GDPR compliant. All data is encrypted at rest (AES-256) and in transit (TLS 1.3). Customer data is logically isolated per account. We conduct annual third-party penetration tests and publish results to customers under NDA. Data residency: US (default), EU available on Enterprise plan.
+    </original_text>
+
+  call_id: call_ls_06
+- role: assistant
+  content: |-
+    Totally understand — after a scare like that, security due diligence is non\-negotiable\.
+
+    Quick facts for your CTO: we're SOC 2 Type II certified, GDPR compliant, all data encrypted at rest \(AES\-256\) and in transit \(TLS 1\.3\)\. We do annual third\-party pen tests and share results under NDA\.
+
+    If he wants to dig deeper, I can connect you with our security team for a direct conversation\. We also have a 30\-day pilot — no contract, real data, cancel anytime — so he can evaluate the platform hands\-on before committing\.
+- role: user
+  content:
+    - m_type: text
+      m_content: |-
+        👤Priya Nair
+
+        ok that's reassuring. let me talk to him this week. can you send me something I can forward — like a summary of what we discussed and the pricing?
+- role: assistant
+  tool_calls:
+    - id: call_ls_07
+      type: function
+      function:
+        name: manage_crm_contact
+        arguments: '{"op": "create", "args": {"contact_first_name": "Priya", "contact_last_name": "Nair", "contact_notes": "Operations lead at a 3PL, 150 FTL shipments/day, uses Aljex TMS. Pain: ops team spends half their day on manual carrier tracking calls, customers calling for updates. Previously tried project44 — too expensive, slow onboarding. Interested in automated carrier check-ins and customer portal. CTO co-decides, cautious about security after past vendor breach. Pricing discussed: Growth tier $0.35/shipment (~$1,575/mo). Next step: internal discussion with CTO this week.", "contact_tags": ["lead", "3PL", "aljex"], "contact_bant_score": 2}}'
+    - id: call_ls_08
+      type: function
+      function:
+        name: manage_crm_deal
+        arguments: '{"op": "create", "args": {"deal_name": "Priya Nair 3PL — Freight Visibility Platform Evaluation", "deal_stage": "QUALIFICATION"}}'
+- role: tool
+  content: |-
+    ✅ Created: cnt_Rk3nP7wM
+  call_id: call_ls_07
+- role: tool
+  content: |-
+    ✅ Created: deal_Xt9mL4vQ
+  call_id: call_ls_08
+- role: assistant
+  tool_calls:
+    - id: call_ls_09
+      type: function
+      function:
+        name: log_crm_activity
+        arguments: '{"contact_id": "cnt_Rk3nP7wM", "activity_type": "MESSENGER_CHAT", "direction": "INBOUND", "platform": "TELEGRAM", "title": "Sales qualification — freight visibility for 3PL", "summary": "Priya Nair (3PL ops lead, 150 FTL/day, Aljex TMS) evaluated RouteStack. Pain: manual carrier tracking consuming half of ops team time. Tried project44 — too expensive, slow onboarding. Discussed Growth tier pricing ($0.35/shipment, ~$1,575/mo), automated carrier check-ins, customer tracking portal, Aljex integration. Security addressed (SOC 2, encryption, pen tests). CTO co-decides, cautious after past vendor breach. Next: internal CTO review this week. BANT: Budget=0 (not discussed), Authority=0 (CTO co-decides), Need=1 (urgent ops bottleneck), Timeline=1 (evaluating now, CTO review this week)."}'
+- role: tool
+  content: |-
+    ✅ Activity logged
+  call_id: call_ls_09
+- role: assistant
+  content: |-
+    Here's a summary you can forward to your CTO:
+
+    *RouteStack — Freight Visibility for \[Your Company\]*
+
+    *What it does*: Real\-time shipment tracking with automated carrier check\-ins \(voice/SMS every 4h\)\. Integrates with Aljex bi\-directionally\. Customer\-facing tracking portal so clients self\-serve\.
+
+    *Pricing*: Growth tier at 150 shipments/day = $0\.35/shipment \(\~$1,575/mo\)\.
+
+    *Security*: SOC 2 Type II, GDPR, AES\-256 encryption, annual third\-party pen tests \(results available under NDA\)\.
+
+    *Next step*: 30\-day pilot, no contract, no credit card\. [Start here](https://routestack.io/pilot)
+
+    Happy to jump on a call with your CTO if that helps — just let me know\.
+- role: user
+  content:
+    - m_type: text
+      m_content: |-
+        👤Priya Nair
+
+        perfect, thanks Karen. I'll circle back after we discuss
+- role: assistant
+  tool_calls:
+    - id: call_ls_10
+      type: function
+      function:
+        name: flexus_kanban_public
+        arguments: '{"op": "resolve", "resolution": {"code": "SUCCESS", "summary": "Sales qualification: Priya Nair, 3PL ops lead, 150 FTL shipments/day on Aljex. Pain: manual carrier tracking consuming 50% of ops team time. Previously tried project44 (too expensive, slow onboarding). Discussed Growth tier ($0.35/shipment, ~$1,575/mo), automated carrier check-ins, customer portal, Aljex integration, security posture. CTO co-decides (cautious after past vendor breach). Priya will review internally this week. BANT 2/4. CRM contact + deal + activity logged.", "humanhours": 0.2, "uncapture": true, "pdoc_paths": []}}'
+- role: tool
+  content: |-
+    Moved to done mK7nW2pLqR
+
+    Uncaptured the chat, no one can see your messages now, all left to do is to say TASK_COMPLETED
+  call_id: call_ls_10
+- role: assistant
+  content: TASK_COMPLETED
