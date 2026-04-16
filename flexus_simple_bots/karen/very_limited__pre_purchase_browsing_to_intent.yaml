@@ -1,0 +1,279 @@
+judge_instructions: |
+  Browsing-to-intent transition scenario. Starts as pure support (API rate limiting question),
+  then customer reveals buying intent mid-conversation ("evaluating tools for platform migration,
+  50-person team"). Tests: answering support first, detecting intent shift naturally,
+  transitioning without being pushy, graceful close when customer defers to CTO.
+  Score 0 if no flexus_vector_search calls.
+  Penalize: jumping to sales before the intent signal ("evaluating tools"), asking BANT
+  questions before intent is clear, feature-dumping instead of answering the question,
+  pushing for commitment after customer says "let me check with CTO," interrogation-style
+  qualifying questions at any point.
+  Reward: direct answer to API question first, natural transition after intent signal,
+  painting outcome instead of listing features, offering materials/trial without pressure,
+  short messages throughout.
+  Do NOT penalize for missing CRM write calls — handled by post_conversation expert.
+
+messages:
+- role: cd_instruction
+  content: |-
+    📄/company/summary
+    {
+      "stage": "Growth",
+      "mission": "API infrastructure that scales without the ops team",
+      "tagline": "Ship APIs, not YAML",
+      "website": "https://gatekeeper.dev",
+      "industry": "Technology / B2B SaaS / API Management",
+      "company_name": "Gatekeeper"
+    }
+
+    📄/company/sales-strategy
+    {
+      "approach": "consultative",
+      "icp": "Engineering teams 10-100 people running 20+ microservices, spending too much time on rate limiting, auth, and observability plumbing instead of product work. $2M-50M ARR.",
+      "objection_playbook": {
+        "build_vs_buy": "Building rate limiting alone takes 2-3 months of senior eng time. We've seen teams maintain 15K+ lines of custom gateway code. Gatekeeper replaces that with config, not code.",
+        "vendor_lock_in": "Standard OpenAPI specs in, standard HTTP out. Config is exportable YAML. You can eject to Kong/Envoy any time — we just make it unnecessary.",
+        "migration_risk": "Shadow mode: run Gatekeeper alongside your current gateway, compare responses for 2 weeks, then cut over. Zero-downtime migration."
+      },
+      "trial": {
+        "duration_days": 14,
+        "credit_card_required": false,
+        "includes": "Full platform, up to 10M requests/month, all integrations, migration support call."
+      }
+    }
+
+    📄/support/summary
+    {
+      "support-policy": {
+        "meta": {
+          "created_at": "2026-04-05T11:00:00.000000+00:00"
+        },
+        "section01-product": {
+          "title": "Product",
+          "question01-description": {
+            "a": "Gatekeeper is a managed API gateway and rate limiting platform. Deploy rate limits, auth, caching, and observability for your APIs without writing gateway code. Supports REST and GraphQL. SDKs for Node, Python, Go, Java.",
+            "q": "What is the product?"
+          },
+          "question02-features": {
+            "a": "Per-endpoint rate limiting (fixed window, sliding window, token bucket), JWT/OAuth2/API key auth, response caching, request validation, real-time analytics dashboard, alerting (Slack/PagerDuty/webhook), shadow mode for migration, OpenAPI import, multi-region (US-East, EU-West, APAC).",
+            "q": "What are the key features?"
+          }
+        },
+        "section02-future-ops": {
+          "title": "Pricing & Billing",
+          "question01-shipping": {
+            "a": "",
+            "q": "Shipping methods, costs, times?"
+          },
+          "question04-payments": {
+            "a": "Usage-based pricing. Starter: free up to 1M requests/month. Growth: $0.50 per 1M requests (1M-100M/month), includes all features + shadow mode + analytics. Enterprise: custom pricing for 100M+/month, SLA, dedicated support, custom regions.",
+            "q": "Payment options & pricing?"
+          },
+          "question02-returns": {
+            "a": "14-day free trial. No refunds on usage charges. Prepaid commit discounts refundable if unused within contract period.",
+            "q": "Refund policy?"
+          }
+        },
+        "section03-support": {
+          "title": "Support",
+          "question01-channels": {
+            "a": "Telegram @gatekeeper_support, email support@gatekeeper.dev, Discord community.",
+            "q": "Support channels (email, chat, etc.)?"
+          },
+          "question02-escalation": {
+            "a": "Outages, data processing agreements, enterprise pricing, custom region deployment, SOC2/HIPAA compliance questions.",
+            "q": "When to escalate to human?"
+          }
+        },
+        "section04-restrictions": {
+          "title": "Restrictions",
+          "question01-never-say": {
+            "a": "Never promise specific latency numbers without knowing their region and traffic pattern. Never guarantee 100% uptime. Never share other customers' traffic volumes.",
+            "q": "What should support NEVER say?"
+          }
+        }
+      }
+    }
+- role: user
+  content: |-
+    Telegram private user='Marcus Chen' chat_id=33918274
+    hey, quick technical question — how does your rate limiting work exactly? we're running sliding window on our custom gateway right now and I want to understand if your implementation handles burst differently
+- role: assistant
+  tool_calls:
+  - id: call_fg_01
+    type: function
+    function:
+      name: flexus_kanban_public
+      arguments: '{"op": "status_public", "search": null, "resolution": null, "details_json": null, "restart_summary": null}'
+- role: tool
+  content: |
+    The current task with details:
+    {
+      "id": "mN5xR2kYwL",
+      "title": "Telegram private user='Marcus Chen' chat_id=33918274\nhey, quick technical question — how does your rate limiting...",
+      "details": {
+        "chat_id": 33918274,
+        "chat_type": "private",
+        "message_id": 19402,
+        "attachments": [],
+        "message_text": "hey, quick technical question — how does your rate limiting work exactly? we're running sliding window on our custom gateway right now and I want to understand if your implementation handles burst differently",
+        "message_author_id": 33918274,
+        "message_author_name": "Marcus Chen"
+      }
+    }
+
+    Inbox:
+    [
+    ]
+
+    In Progress:
+    [
+    {"id": "mN5xR2kYwL", "title": "Telegram private user='Marcus Chen' chat_id=33918274\nhey, quick technical question — how does your rate limiting...", "human": "telegram:33918274"},
+    ]
+
+    Done:
+    [
+    ]
+  call_id: call_fg_01
+- role: title
+  content: '[telegram] [marcus] [support] Marcus Chen — rate limiting implementation question'
+- role: assistant
+  tool_calls:
+  - id: call_fg_02
+    type: function
+    function:
+      name: telegram
+      arguments: '{"op": "capture", "args": {"chat_id": 33918274}}'
+- role: tool
+  content: |
+    📌CAPTURED
+
+    The next thing you write will be visible. Don't comment on that fact and think about what do you want to say in '33918274'.
+    Don't use op=post because now anything you say is visible automatically.
+
+    Reminder: after this point telegram MarkdownV2 markup rules are in effect for your output, there are no tables! Here's markup help for you again.
+
+
+    Telegram uses MarkdownV2 markup:
+    *bold*  _italic_  __underline__  ~strikethrough~
+    ```python
+    code block
+    ```
+    [link text](https://example.com)
+    ||spoiler||
+
+    > blockquote
+    > each line must start with >
+
+    No bullet lists or tables.
+  call_id: call_fg_02
+- role: assistant
+  tool_calls:
+  - id: call_fg_03
+    type: function
+    function:
+      name: flexus_vector_search
+      arguments: '{"eds": "", "query": "rate limiting sliding window token bucket burst handling per-endpoint"}'
+- role: tool
+  content: |+
+    For your query 'rate limiting sliding window token bucket burst handling per-endpoint' found 3 results in database of 1200 chunks across 28 indexed documents.
+
+    <original_text>
+    Per-endpoint rate limiting supports three algorithms: fixed window, sliding window, and token bucket. Configure per route or globally. Sliding window uses sub-second precision with atomic Redis counters. Token bucket allows burst capacity — set bucket size for max burst and refill rate for sustained throughput.
+    </original_text>
+
+    <original_text>
+    Rate limit rules are defined per-endpoint in your OpenAPI spec or via dashboard. Rules support composition: apply multiple algorithms to the same endpoint (e.g., sliding window for sustained rate + token bucket for burst tolerance). Override per API key or per tenant.
+    </original_text>
+
+  call_id: call_fg_03
+- role: assistant
+  content: |-
+    Hey Marcus\. I'm Karen, AI assistant at Gatekeeper\.
+
+    We support three algorithms per endpoint: fixed window, sliding window, and token bucket\. You can compose them — e\.g\. sliding window for sustained rate \+ token bucket on top for burst tolerance\.
+
+    Sliding window uses sub\-second precision with atomic Redis counters\. Token bucket lets you set bucket size \(max burst\) and refill rate \(sustained throughput\) independently\.
+
+    You can configure per route via OpenAPI spec or dashboard, and override per API key or tenant\.
+- role: user
+  content:
+  - m_type: text
+    m_content: |-
+      👤Marcus Chen
+
+      oh interesting, the composition part is nice. we're actually evaluating tools right now — we're doing a platform migration, 50-person eng team, and maintaining our custom gateway is eating about 20% of one team's time. we've looked at Kong but the config overhead seems worse than what we have now. what would switching to you look like for something at our scale?
+- role: assistant
+  tool_calls:
+  - id: call_fg_04
+    type: function
+    function:
+      name: flexus_vector_search
+      arguments: '{"eds": "", "query": "migration shadow mode zero downtime gateway replacement Kong comparison"}'
+- role: tool
+  content: |+
+    For your query 'migration shadow mode zero downtime gateway replacement Kong comparison' found 3 results in database of 1200 chunks across 28 indexed documents.
+
+    <original_text>
+    Shadow mode: run Gatekeeper alongside your current gateway, compare responses for 2 weeks, then cut over. Zero-downtime migration. Shadow mode is included on Growth and Enterprise plans.
+    </original_text>
+
+    <original_text>
+    Standard OpenAPI specs in, standard HTTP out. Config is exportable YAML. Import your existing OpenAPI definitions and rate limit rules are auto-generated with sensible defaults you can tune.
+    </original_text>
+
+    <original_text>
+    Usage-based pricing. Growth: $0.50 per 1M requests (1M-100M/month), includes all features + shadow mode + analytics. Enterprise: custom pricing for 100M+/month, SLA, dedicated support, custom regions.
+    </original_text>
+
+  call_id: call_fg_04
+- role: assistant
+  content: |-
+    At 50 engineers, maintaining a custom gateway is expensive time\. Here's how teams your size typically switch:
+
+    1\. Import your OpenAPI specs — we auto\-generate rate limit rules with defaults you tune
+    2\. Run in *shadow mode* alongside your current gateway for ~2 weeks, comparing responses
+    3\. Cut over with zero downtime once you're confident
+
+    Config is standard YAML, not a proprietary DSL\. If you ever want out, you can export and move to Kong/Envoy — we just make it unnecessary\.
+
+    What's your monthly request volume? That'll tell you whether Growth \($0\.50/1M requests\) or Enterprise makes sense\.
+- role: user
+  content:
+  - m_type: text
+    m_content: |-
+      👤Marcus Chen
+
+      probably 40-60M requests/month across all services. the shadow mode thing is exactly what I'd need to sell this internally — our CTO is risk-averse after the last migration went sideways. let me run this by her, can you send me something I can forward? like a technical overview or migration guide?
+- role: assistant
+  content: |-
+    At 40\-60M requests/month you'd be on Growth — $20\-30/month\. That's significantly less than 20% of an engineer's time\.
+
+    I don't have a doc link handy, but I can set you up with a 14\-day trial \(no card, up to 10M requests\) so you and your CTO can see shadow mode running against real traffic\. That's usually more convincing than a PDF\.
+
+    Want me to send the trial invite? Or I can have our team reach out with technical migration docs if you prefer\.
+- role: user
+  content:
+  - m_type: text
+    m_content: |-
+      👤Marcus Chen
+
+      let me talk to the CTO first before we spin anything up. if she's interested I'll reach back out. appreciate the detailed answers on the rate limiting stuff — that was actually my main question
+- role: assistant
+  content: |-
+    Sounds good\. Reach out here whenever you're ready — happy to walk through the technical details with your CTO too\.
+- role: assistant
+  tool_calls:
+  - id: call_fg_05
+    type: function
+    function:
+      name: flexus_kanban_public
+      arguments: '{"op": "resolve", "resolution": {"code": "SUCCESS", "summary": "Marcus Chen, eng team (50 people, 40-60M req/month). Started with technical question on rate limiting (sliding window + burst). Revealed mid-conversation they are evaluating gateway replacements — custom gateway eating 20% of a team. Looked at Kong. Explained shadow mode migration, Growth pricing ($20-30/mo). Deferred to CTO. Offered trial and technical follow-up.", "humanhours": 0.1, "uncapture": true, "pdoc_paths": []}}'
+- role: tool
+  content: |-
+    Moved to done mN5xR2kYwL
+
+    Uncaptured the chat, no one can see your messages now, all left to do is to say TASK_COMPLETED
+  call_id: call_fg_05
+- role: assistant
+  content: TASK_COMPLETED

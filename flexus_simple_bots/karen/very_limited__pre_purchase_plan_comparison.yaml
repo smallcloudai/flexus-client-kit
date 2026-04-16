@@ -1,0 +1,254 @@
+judge_instructions: |
+  Pre-purchase plan comparison scenario. SaaS with 3 tiers (Starter, Pro, Enterprise).
+  Small team lead confused about Pro vs Enterprise. NOT ready to buy today.
+  Tests: support-first behavior, KB grounding, single recommendation, graceful exit.
+  Score 0 if no flexus_vector_search calls.
+  Penalize: >2 questions before recommending, listing all features as a matrix, pushing
+  for a decision, any BANT interrogation (asking about budget/authority/timeline unprompted).
+  Reward: clear direct answers grounded in KB, recommending ONE plan with a reason,
+  accepting "I'll discuss with manager" without escalating to sales pressure.
+  Do NOT penalize for missing CRM write calls — handled by post_conversation expert.
+
+messages:
+- role: cd_instruction
+  content: |-
+    📄/company/summary
+    {
+      "stage": "Growth",
+      "mission": "Project management that adapts to how your team actually works",
+      "tagline": "Stop managing your tool. Start managing your projects.",
+      "website": "https://launchpad.pm",
+      "industry": "Technology / B2B SaaS / Project Management",
+      "company_name": "Launchpad PM"
+    }
+
+    📄/company/sales-strategy
+    {
+      "approach": "consultative",
+      "icp": "Software teams 5-50 people who outgrew Trello/Asana but find Jira overkill. $500K-20M ARR, shipping product regularly, need sprint planning + roadmap without the bloat.",
+      "trial": {
+        "duration_days": 14,
+        "credit_card_required": false,
+        "includes": "Full access to selected plan, up to 15 seats, all integrations."
+      }
+    }
+
+    📄/support/summary
+    {
+      "support-policy": {
+        "meta": {
+          "created_at": "2026-04-01T09:00:00.000000+00:00"
+        },
+        "section01-product": {
+          "title": "Product",
+          "question01-description": {
+            "a": "Launchpad PM is a project management platform for software teams. Sprint boards, roadmap views, GitHub/GitLab integration, time tracking, and a lightweight workflow engine that doesn't require a dedicated admin.",
+            "q": "What is the product?"
+          },
+          "question02-features": {
+            "a": "Sprint boards, backlog grooming, roadmap timeline, GitHub/GitLab PR linking, time tracking, custom fields, workflow automation, Slack notifications, API access, SSO (Enterprise only), audit log (Enterprise only), priority support (Enterprise only).",
+            "q": "What are the key features?"
+          }
+        },
+        "section02-future-ops": {
+          "title": "Pricing & Billing",
+          "question01-shipping": {
+            "a": "",
+            "q": "Shipping methods, costs, times?"
+          },
+          "question04-payments": {
+            "a": "Three tiers. Starter: $8/user/month (up to 10 users, sprint boards + backlog + GitHub integration). Pro: $16/user/month (unlimited users, roadmap + time tracking + custom fields + workflow automation + Slack). Enterprise: custom pricing (SSO, audit log, priority support, dedicated CSM, custom integrations). Annual billing: 20% discount on all tiers.",
+            "q": "Payment options & pricing?"
+          },
+          "question02-returns": {
+            "a": "14-day free trial on any tier, no credit card. 30-day refund on annual plans if unsatisfied.",
+            "q": "Refund policy?"
+          }
+        },
+        "section03-support": {
+          "title": "Support",
+          "question01-channels": {
+            "a": "Telegram @launchpad_support, email help@launchpad.pm",
+            "q": "Support channels (email, chat, etc.)?"
+          },
+          "question02-escalation": {
+            "a": "SSO/SAML setup, data migration from Jira/Asana, enterprise pricing, security review.",
+            "q": "When to escalate to human?"
+          }
+        },
+        "section04-restrictions": {
+          "title": "Restrictions",
+          "question01-never-say": {
+            "a": "Never guarantee migration timelines from other tools. Never promise features on the roadmap with dates. Never share other customers' data or usage.",
+            "q": "What should support NEVER say?"
+          }
+        }
+      }
+    }
+- role: user
+  content: |-
+    Telegram private user='Sam Ortiz' chat_id=55012399
+    hey, I'm looking at your pricing page and I'm confused about the difference between Pro and Enterprise. we're a team of 12 devs and I honestly can't tell if we need Enterprise or if Pro is enough
+- role: assistant
+  tool_calls:
+  - id: call_fg_01
+    type: function
+    function:
+      name: flexus_kanban_public
+      arguments: '{"op": "status_public", "search": null, "resolution": null, "details_json": null, "restart_summary": null}'
+- role: tool
+  content: |
+    The current task with details:
+    {
+      "id": "tP4mK9vXwR",
+      "title": "Telegram private user='Sam Ortiz' chat_id=55012399\nhey, I'm looking at your pricing page...",
+      "details": {
+        "chat_id": 55012399,
+        "chat_type": "private",
+        "message_id": 8301,
+        "attachments": [],
+        "message_text": "hey, I'm looking at your pricing page and I'm confused about the difference between Pro and Enterprise. we're a team of 12 devs and I honestly can't tell if we need Enterprise or if Pro is enough",
+        "message_author_id": 55012399,
+        "message_author_name": "Sam Ortiz"
+      }
+    }
+
+    Inbox:
+    [
+    ]
+
+    In Progress:
+    [
+    {"id": "tP4mK9vXwR", "title": "Telegram private user='Sam Ortiz' chat_id=55012399\nhey, I'm looking at your pricing page...", "human": "telegram:55012399"},
+    ]
+
+    Done:
+    [
+    ]
+  call_id: call_fg_01
+- role: title
+  content: '[telegram] [sam] [support] Sam Ortiz — Pro vs Enterprise plan comparison, 12-person dev team'
+- role: assistant
+  tool_calls:
+  - id: call_fg_02
+    type: function
+    function:
+      name: telegram
+      arguments: '{"op": "capture", "args": {"chat_id": 55012399}}'
+- role: tool
+  content: |
+    📌CAPTURED
+
+    The next thing you write will be visible. Don't comment on that fact and think about what do you want to say in '55012399'.
+    Don't use op=post because now anything you say is visible automatically.
+
+    Reminder: after this point telegram MarkdownV2 markup rules are in effect for your output, there are no tables! Here's markup help for you again.
+
+
+    Telegram uses MarkdownV2 markup:
+    *bold*  _italic_  __underline__  ~strikethrough~
+    ```python
+    code block
+    ```
+    [link text](https://example.com)
+    ||spoiler||
+
+    > blockquote
+    > each line must start with >
+
+    No bullet lists or tables.
+  call_id: call_fg_02
+- role: assistant
+  tool_calls:
+  - id: call_fg_03
+    type: function
+    function:
+      name: flexus_vector_search
+      arguments: '{"eds": "", "query": "Pro vs Enterprise plan features pricing SSO audit log"}'
+- role: tool
+  content: |+
+    For your query 'Pro vs Enterprise plan features pricing SSO audit log' found 3 results in database of 900 chunks across 22 indexed documents.
+
+    <original_text>
+    Three tiers. Starter: $8/user/month (up to 10 users, sprint boards + backlog + GitHub integration). Pro: $16/user/month (unlimited users, roadmap + time tracking + custom fields + workflow automation + Slack). Enterprise: custom pricing (SSO, audit log, priority support, dedicated CSM, custom integrations). Annual billing: 20% discount on all tiers.
+    </original_text>
+
+    <original_text>
+    14-day free trial on any tier, no credit card. 30-day refund on annual plans if unsatisfied.
+    </original_text>
+
+  call_id: call_fg_03
+- role: assistant
+  content: |-
+    Hey Sam\. I'm Karen, AI assistant at Launchpad PM\.
+
+    For a team of 12, here's the real difference:
+
+    *Pro* \($16/user/mo\) gives you everything most dev teams need: roadmap, time tracking, custom fields, workflow automation, Slack integration\. Unlimited users\.
+
+    *Enterprise* adds three things: SSO/SAML, audit log, and priority support with a dedicated CSM\. Custom pricing\.
+
+    If your company doesn't require SSO or compliance audit trails, Pro covers you\. At 12 users that's $192/mo \(or \~$154/mo annual\)\.
+
+    Do you have SSO requirements or is that not a factor?
+- role: user
+  content:
+  - m_type: text
+    m_content: |-
+      👤Sam Ortiz
+
+      no SSO, we use Google Workspace but no enforced SSO policy. honestly we mostly care about the sprint boards and GitHub integration. do custom fields work on Pro? our PM wants to tag tickets by client
+- role: assistant
+  tool_calls:
+  - id: call_fg_04
+    type: function
+    function:
+      name: flexus_vector_search
+      arguments: '{"eds": "", "query": "custom fields Pro plan sprint boards GitHub integration"}'
+- role: tool
+  content: |+
+    For your query 'custom fields Pro plan sprint boards GitHub integration' found 2 results in database of 900 chunks across 22 indexed documents.
+
+    <original_text>
+    Pro: $16/user/month (unlimited users, roadmap + time tracking + custom fields + workflow automation + Slack).
+    </original_text>
+
+    <original_text>
+    Sprint boards, backlog grooming, roadmap timeline, GitHub/GitLab PR linking, time tracking, custom fields, workflow automation, Slack notifications, API access, SSO (Enterprise only), audit log (Enterprise only), priority support (Enterprise only).
+    </original_text>
+
+  call_id: call_fg_04
+- role: assistant
+  content: |-
+    Yes, custom fields are included in Pro\. Your PM can create a "Client" field and tag tickets however they want\.
+
+    Sprint boards and GitHub PR linking are on every tier including Starter — but at 12 users you'd need Pro anyway since Starter caps at 10\.
+
+    Pro is the right fit\. No reason to pay Enterprise pricing when you don't need SSO or audit logs\.
+- role: user
+  content:
+  - m_type: text
+    m_content: |-
+      👤Sam Ortiz
+
+      cool that's helpful. I need to run this by my manager before we do anything — she handles the tool budget. thanks for the clear breakdown
+- role: assistant
+  content: |-
+    Makes sense\. When you're ready, there's a 14\-day free trial \(no card\) so your team can test it before committing\.
+
+    I'm here if your manager has questions or you want to set up the trial later\.
+- role: assistant
+  tool_calls:
+  - id: call_fg_05
+    type: function
+    function:
+      name: flexus_kanban_public
+      arguments: '{"op": "resolve", "resolution": {"code": "SUCCESS", "summary": "Sam Ortiz, dev team lead, 12 devs. Asked about Pro vs Enterprise — recommended Pro ($16/user/mo), no SSO needed. Custom fields confirmed on Pro. Deferred to manager for budget approval. Offered 14-day trial when ready.", "humanhours": 0.1, "uncapture": true, "pdoc_paths": []}}'
+- role: tool
+  content: |-
+    Moved to done tP4mK9vXwR
+
+    Uncaptured the chat, no one can see your messages now, all left to do is to say TASK_COMPLETED
+  call_id: call_fg_05
+- role: assistant
+  content: TASK_COMPLETED
