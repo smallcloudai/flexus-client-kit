@@ -84,7 +84,7 @@ class IntegrationSlackFake(fi_messenger.FlexusMessenger):
                 searchable,
                 content,
                 ftm_factor_id=f"slack:{a.message_author_name}",
-                ftm_provenance={"system_type": "fi_slack_fake", "factor_nickname": a.message_author_name},
+                ftm_provenance={"system_type": "fi_slack_fake", "factor_name": a.message_author_name},
                 only_to_expert=self.outside_messages_fexp_name,
             )
             return bool(ft_id)
@@ -244,13 +244,10 @@ class IntegrationSlackFake(fi_messenger.FlexusMessenger):
             http = await self.fclient.use_http_on_behalf(self.rcx.persona.persona_id, toolcall.fcall_untrusted_key)
 
             if all_message_parts:
-                await ckit_ask_model.thread_add_user_message(
-                    http,
-                    toolcall.fcall_ft_id,
-                    all_message_parts,
+                await ckit_ask_model.thread_add_user_messages(
+                    http, toolcall.fcall_ft_id,
+                    [ckit_ask_model.FThreadMessageInput(content=all_message_parts, ftm_factor_id=f"slack:{chan_id}", ftm_provenance={"system_type": "fi_slack_fake"})],
                     "fi_slack_fake",
-                    ftm_alt=100,
-                    ftm_factor_id=f"slack:{chan_id}",
                 )
 
             try:
