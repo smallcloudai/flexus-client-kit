@@ -627,6 +627,16 @@ class IntegrationSlack(fi_messenger.FlexusMessenger):
             self._to_slack_dedup.append(dedup_key)
             self._to_slack_dedup_set.add(dedup_key)
             logger.info("posted to channel=%s thread_ts=%s", something_id, thread_ts)
+        except SlackApiError as e:
+            logger.exception("failed to post to slack channel=%s thread_ts=%s", something_id, thread_ts)
+            if e.response["error"] == "cannot_reply_to_message":
+                try:
+                    http = await self.fclient.use_http_on_behalf(self.rcx.persona.persona_id, "")
+                    await ckit_ask_model.thread_app_capture_patch(http, msg.ftm_belongs_to_ft_id, ft_app_searchable="")
+                    logger.info("uncaptured thread ft_id=%s after cannot_reply_to_message", msg.ftm_belongs_to_ft_id)
+                except Exception:
+                    logger.exception("failed to uncapture thread ft_id=%s", msg.ftm_belongs_to_ft_id)
+            return False
         except Exception:
             logger.exception("failed to post to slack channel=%s thread_ts=%s", something_id, thread_ts)
             return False
