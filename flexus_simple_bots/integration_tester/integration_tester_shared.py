@@ -2,10 +2,9 @@ import json
 import os
 import logging
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Callable, Awaitable
 
 from flexus_client_kit import ckit_cloudtool, ckit_integrations_db
-from flexus_client_kit.integrations import fi_newsapi, fi_resend
 
 logger = logging.getLogger("integration_tester")
 
@@ -27,59 +26,14 @@ PLAN_BATCHES_TOOL = ckit_cloudtool.CloudTool(
     },
 )
 
-NEWSAPI_TOOL = ckit_cloudtool.CloudTool(
-    strict=False,
-    name=fi_newsapi.PROVIDER_NAME,
-    description=f"{fi_newsapi.PROVIDER_NAME}: data provider. op=help|status|list_methods|call",
-    parameters={
-        "type": "object",
-        "additionalProperties": False,
-        "properties": {
-            "op": {"type": "string", "enum": ["help", "status", "list_methods", "call"]},
-            "args": {
-                "type": "object",
-                "additionalProperties": False,
-                "properties": {
-                    "method_id": {"type": "string"},
-                    "include_raw": {"type": "boolean"},
-                    "q": {"type": "string"},
-                    "query": {"type": "string"},
-                    "sources": {"type": "string"},
-                    "domains": {"type": "string"},
-                    "excludeDomains": {"type": "string"},
-                    "from": {"type": "string"},
-                    "to": {"type": "string"},
-                    "language": {"type": "string"},
-                    "sortBy": {"type": "string"},
-                    "pageSize": {"type": "integer"},
-                    "page": {"type": "integer"},
-                    "country": {"type": "string"},
-                    "category": {"type": "string"},
-                    "time_window": {"type": "string"},
-                    "start_date": {"type": "string"},
-                    "end_date": {"type": "string"},
-                },
-            },
-        },
-        "required": ["op", "args"],
-    },
-)
-
-INTEGRATION_REGISTRY: Dict[str, Dict[str, Any]] = {
+INTEGRATION_CONFIG: Dict[str, Dict[str, Any]] = {
     "newsapi": {
         "env_var": "NEWSAPI_API_KEY",
         "alt_env_vars": ["NEWSAPI_KEY"],
-        "tool": NEWSAPI_TOOL,
-        "integration_cls": fi_newsapi.IntegrationNewsapi,
-        "integration_args": lambda fclient, rcx, setup: (rcx,),
-        "handler_method": "called_by_model",
     },
     "resend": {
         "env_var": "RESEND_API_KEY",
-        "tool": fi_resend.RESEND_SETUP_TOOL,
-        "integration_cls": fi_resend.IntegrationResend,
-        "integration_args": lambda fclient, rcx, setup: (fclient, rcx, {}),
-        "handler_method": "setup_called_by_model",
+        "alt_env_vars": [],
     },
 }
 
@@ -89,7 +43,7 @@ INTEGRATION_TESTER_INTEGRATIONS: list[ckit_integrations_db.IntegrationRecord] = 
     builtin_skills=[],
 )
 
-TOOLS = [PLAN_BATCHES_TOOL] + [reg["tool"] for reg in INTEGRATION_REGISTRY.values()]
+TOOLS = [PLAN_BATCHES_TOOL] + [t for rec in INTEGRATION_TESTER_INTEGRATIONS for t in rec.integr_tools]
 
 
 def _chunk_names(xs: List[str], n: int) -> List[List[str]]:
@@ -138,17 +92,17 @@ def load_env_config(setup: Dict[str, Any]) -> None:
 
 def get_configured_integrations() -> List[Dict[str, Any]]:
     result = []
-    for name, reg in INTEGRATION_REGISTRY.items():
-        key = os.environ.get(reg["env_var"])
-        if not key and "alt_env_vars" in reg:
-            for alt in reg["alt_env_vars"]:
+    for name, cfg in INTEGRATION_CONFIG.items():
+        key = os.environ.get(cfg["env_var"])
+        if not key:
+            for alt in cfg.get("alt_env_vars", []):
                 key = os.environ.get(alt)
                 if key:
                     break
         if key:
             result.append({
                 "name": name,
-                "env_var": reg["env_var"],
+                "env_var": cfg["env_var"],
                 "key_hint": key[-4:] if len(key) > 4 else "***",
             })
     return result
@@ -175,51 +129,50 @@ def classify_error(e: Exception) -> tuple[str, str]:
     return "UNKNOWN_ERROR", str(e)[:200]
 
 
-class IntegrationHandler:
-    def __init__(self, reg: Dict[str, Any], obj: Any):
-        self.env_var = reg["env_var"]
-        self.alt_env_vars = reg.get("alt_env_vars", [])
-        self.handler_method = reg["handler_method"]
-        self.tool_name = reg["tool"].name
-        self.obj = obj
+def _format_result(raw: str) -> str:
+    try:
+        data = json.loads(raw)
+        if isinstance(data, dict):
+            skip = {"ok", "provider", "description", "help_text"}
+            parts = []
+            for k, v in data.items():
+                if k in skip:
+                    continue
+                if isinstance(v, list) and v and all(isinstance(x, str) for x in v):
+                    parts.append(f"{k}=[{', '.join(v)}]")
+                elif not isinstance(v, (dict, list)):
+                    parts.append(f"{k}={v}")
+            if parts:
+                return ", ".join(parts)
+    except json.JSONDecodeError:
+        pass
+    return raw
 
-    @staticmethod
-    def _format_result(raw: str) -> str:
-        try:
-            data = json.loads(raw)
-            if isinstance(data, dict):
-                skip = {"ok", "provider", "description", "help_text"}
-                parts = []
-                for k, v in data.items():
-                    if k in skip:
-                        continue
-                    if isinstance(v, list) and v and all(isinstance(x, str) for x in v):
-                        parts.append(f"{k}=[{', '.join(v)}]")
-                    elif not isinstance(v, (dict, list)):
-                        parts.append(f"{k}={v}")
-                if parts:
-                    return ", ".join(parts)
-        except json.JSONDecodeError:
-            pass
-        return raw
 
-    async def __call__(self, toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
-        key = _resolve_api_key(self.env_var, self.alt_env_vars)
-        logger.info(f"Testing {self.tool_name} - API key present: {bool(key)}")
+def make_testing_wrapper(
+    original: Callable[[ckit_cloudtool.FCloudtoolCall, Dict[str, Any]], Awaitable[str]],
+    env_var: str,
+    alt_env_vars: list[str],
+    tool_name: str,
+):
+    async def wrapper(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
+        key = _resolve_api_key(env_var, alt_env_vars)
+        logger.info(f"Testing {tool_name} - API key present: {bool(key)}")
         if not key:
-            logger.warning(f"{self.tool_name} test FAILED - no API key configured")
-            return f"Error [AUTH_ERROR]: {self.env_var} not configured. Resolve the kanban task as FAILED with status: 'FAILED - No API key configured for {self.tool_name}'"
+            logger.warning(f"{tool_name} test FAILED - no API key configured")
+            return f"Error [AUTH_ERROR]: {env_var} not configured. Resolve the kanban task as FAILED with status: 'FAILED - No API key configured for {tool_name}'"
         try:
-            result = await getattr(self.obj, self.handler_method)(toolcall, model_produced_args)
+            result = await original(toolcall, model_produced_args)
             op = str(model_produced_args.get("op", "")).strip() if model_produced_args else ""
             if op == "help":
                 result = "[HELP OUTPUT - NOT A TEST] " + result
-            formatted = self._format_result(result)
+            formatted = _format_result(result)
             key_hint = key[-3:] if len(key) > 3 else "***"
             out = f"api_key_hint=***{key_hint}, {formatted}"
-            logger.info(f"{self.tool_name} test result: {out[:120]}..." if len(out) > 120 else f"{self.tool_name} test result: {out}")
+            logger.info(f"{tool_name} test result: {out[:120]}..." if len(out) > 120 else f"{tool_name} test result: {out}")
             return out
         except Exception as e:
             category, detail = classify_error(e)
-            logger.error(f"toolcall_{self.tool_name}: {category}: {detail}", exc_info=True)
+            logger.error(f"toolcall_{tool_name}: {category}: {detail}", exc_info=True)
             return f"Error [{category}]: {detail}"
+    return wrapper

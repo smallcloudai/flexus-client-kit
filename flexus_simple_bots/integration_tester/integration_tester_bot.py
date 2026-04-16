@@ -30,14 +30,24 @@ async def integration_tester_main_loop(
         allow = set(setup_allow)
         integr_records = [r for r in integr_records if r.integr_name in allow]
 
-    await ckit_integrations_db.main_loop_integrations_init(integr_records, rcx, setup)
+    integr_objects = await ckit_integrations_db.main_loop_integrations_init(integr_records, rcx, setup)
     supported_integrations = sorted({r.integr_name for r in integr_records})
 
-    for name, reg in shared.INTEGRATION_REGISTRY.items():
-        if name not in supported_integrations:
+    for rec in integr_records:
+        cfg = shared.INTEGRATION_CONFIG.get(rec.integr_name)
+        if not cfg:
             continue
-        obj = reg["integration_cls"](*reg["integration_args"](fclient, rcx, setup))
-        rcx.on_tool_call(reg["tool"].name)(shared.IntegrationHandler(reg, obj))
+        for tool in rec.integr_tools:
+            original_handler = rcx._handler_per_tool.get(tool.name)
+            if original_handler:
+                rcx.on_tool_call(tool.name)(
+                    shared.make_testing_wrapper(
+                        original_handler,
+                        cfg["env_var"],
+                        cfg.get("alt_env_vars", []),
+                        tool.name,
+                    )
+                )
 
     @rcx.on_tool_call(shared.PLAN_BATCHES_TOOL.name)
     async def toolcall_plan_batches(toolcall, model_produced_args):
@@ -68,10 +78,11 @@ async def integration_tester_main_loop(
                     selected.append(x)
 
         batches = shared._chunk_names(selected, bs)
+        tool_name_by_integr = {r.integr_name: r.integr_tools[0].name for r in integr_records if r.integr_tools}
         task_specs = []
         total = len(batches)
         for i, b in enumerate(batches, start=1):
-            tool_map = ", ".join(f"{name}->{shared.INTEGRATION_REGISTRY[name]['tool'].name}" for name in b)
+            tool_map = ", ".join(f"{name}->{tool_name_by_integr[name]}" for name in b)
             task_specs.append({
                 "title": f"Test integrations batch {i}/{total}",
                 "description": f"Integrations: {','.join(b)}\nTool mapping: {tool_map}",
