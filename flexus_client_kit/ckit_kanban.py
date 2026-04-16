@@ -45,42 +45,6 @@ class FPersonaKanbanTaskOutput:
         return 'inbox'
 
 
-@dataclass
-class FPersonaKanbanSubs:
-    news_action: str
-    news_payload_id: str
-    news_payload_task_new: Optional[FPersonaKanbanTaskOutput]
-    news_payload_task_old: Optional[FPersonaKanbanTaskOutput] = None
-
-
-async def persona_kanban_list(
-    client: ckit_client.FlexusClient,
-    persona_id: str,
-) -> List[FPersonaKanbanTaskOutput]:
-    tasks = {}
-    ws_client = await client.use_ws()
-    async with ws_client as ws:
-        async for r in ws.subscribe(
-            gql.gql(f"""subscription PersonaKanban($persona_id: String!) {{
-                persona_kanban_subs(persona_id: $persona_id, limit_inbox: 100, limit_done: 100) {{
-                    news_action
-                    news_payload_id
-                    news_payload_task_new {{ {gql_utils.gql_fields(FPersonaKanbanTaskOutput)} }}
-                }}
-            }}"""),
-            variable_values={"persona_id": persona_id}
-        ):
-            upd = r["persona_kanban_subs"]
-            if upd["news_action"] == "INITIAL_UPDATES_OVER":
-                break
-            if upd["news_payload_task_new"]:
-                task = gql_utils.dataclass_from_dict(upd["news_payload_task_new"], FPersonaKanbanTaskOutput)
-                tasks[upd["news_payload_id"]] = task
-
-    bucket_order = {"inbox": 0, "todo": 1, "inprogress": 2, "done": 3}
-    return sorted(tasks.values(), key=lambda t: bucket_order.get(t.calc_bucket(), 4))
-
-
 async def bot_kanban_post_into_inprogress(
     http: gql.Client,
     persona_id: str,

@@ -1,4 +1,5 @@
 import asyncio
+import datetime
 import email.utils
 import json
 import logging
@@ -138,6 +139,61 @@ SUPPORT_STATUS_TOOL = ckit_cloudtool.CloudTool(
     },
 )
 
+REPORT_SCHEMA = {
+    "section01-crm": {
+        "type": "object",
+        "title": "CRM & Sales",
+        "properties": {
+            "new_contacts": {"type": "integer", "order": 0, "title": "New Contacts"},
+            "deals_created": {"type": "integer", "order": 1, "title": "New Deals"},
+            "deals_closed_won": {"type": "integer", "order": 2, "title": "Closed Won"},
+            "deals_closed_lost": {"type": "integer", "order": 3, "title": "Closed Lost"},
+            "orders": {"type": "integer", "order": 4, "title": "Orders"},
+            "revenue": {"type": "number", "order": 5, "title": "Revenue"},
+            "refunds": {"type": "integer", "order": 6, "title": "Refunds"},
+            "refund_amount": {"type": "number", "order": 7, "title": "Refund Amount"},
+        },
+    },
+    "section02-tasks": {
+        "type": "object",
+        "title": "Tasks",
+        "properties": {
+            "tasks_completed": {"type": "integer", "order": 0, "title": "Completed"},
+            "tasks_success": {"type": "integer", "order": 1, "title": "Success"},
+            "tasks_failed": {"type": "integer", "order": 2, "title": "Failed"},
+            "tasks_inconclusive": {"type": "integer", "order": 3, "title": "Inconclusive"},
+            "tasks_irrelevant": {"type": "integer", "order": 4, "title": "Irrelevant"},
+        },
+    },
+    "section03-notes": {
+        "type": "object",
+        "title": "Notes",
+        "properties": {
+            "notable_incidents": {"type": "string", "order": 0, "title": "Notable Incidents"},
+            "setup_problems": {"type": "string", "order": 1, "title": "Setup Problems"},
+            "what_people_asked": {"type": "string", "order": 2, "title": "What People Asked"},
+        },
+    },
+}
+
+REPORT_TOOL = ckit_cloudtool.CloudTool(
+    strict=True,
+    name="karen_report",
+    description=(
+        "Generate a daily or weekly report. Queries CRM, deals, orders, and kanban, "
+        "saves a schemed policy document to /support/reports/YYYYMMDD-daily or YYYYMMDD-weekly. "
+        "Returns collected data so you can fill in the notes section and save the final document."
+    ),
+    parameters={
+        "type": "object",
+        "properties": {
+            "report_type": {"type": "string", "enum": ["daily", "weekly"]},
+        },
+        "required": ["report_type"],
+        "additionalProperties": False,
+    },
+)
+
 TOOLS = [
     fi_mongo_store.MONGO_STORE_TOOL,
     fi_crm_automations.CRM_AUTOMATION_TOOL,
@@ -148,6 +204,7 @@ TOOLS = [
     SUPPORT_STATUS_TOOL,
     EXPLORE_A_QUESTION_TOOL,
     PRODUCT_CATALOG_TOOL,
+    REPORT_TOOL,
     fi_thread.THREAD_READ_TOOL,
     *[t for rec in KAREN_INTEGRATIONS for t in rec.integr_tools],
 ]
@@ -251,6 +308,80 @@ async def handle_support_status(pdoc: fi_pdoc.IntegrationPdoc, rcx: ckit_bot_exe
     return "\n".join(lines)
 
 
+async def handle_report(
+    fclient: ckit_client.FlexusClient,
+    rcx: ckit_bot_exec.RobotContext,
+    pdoc: fi_pdoc.IntegrationPdoc,
+    report_type: str,
+    fcall_untrusted_key: str,
+) -> str:
+    now = datetime.datetime.now(datetime.timezone.utc)
+    if report_type == "weekly":
+        t0 = (now - datetime.timedelta(days=7)).replace(hour=0, minute=0, second=0, microsecond=0)
+    else:
+        t0 = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    ts0 = t0.timestamp()
+    pid = rcx.persona.persona_id
+    ws_id = rcx.persona.ws_id
+    http = await fclient.use_http_on_behalf(pid, fcall_untrusted_key)
+
+    new_contacts = await ckit_erp.erp_table_data(http, "crm_contact", ws_id, erp_schema.CrmContact, filters=f"contact_created_ts:>=:{ts0}", limit=1000)
+    deals = await ckit_erp.erp_table_data(http, "crm_deal", ws_id, erp_schema.CrmDeal, filters=f"deal_created_ts:>=:{ts0}", limit=1000)
+    closed_deals = await ckit_erp.erp_table_data(http, "crm_deal", ws_id, erp_schema.CrmDeal, filters=f"deal_closed_ts:>=:{ts0}", include=["stage"], limit=1000)
+    won = sum(1 for d in closed_deals if d.stage and d.stage.stage_status == "WON")
+    lost = sum(1 for d in closed_deals if d.stage and d.stage.stage_status == "LOST")
+    orders = await ckit_erp.erp_table_data(http, "com_order", ws_id, erp_schema.ComOrder, filters=f"order_created_ts:>=:{ts0}", limit=1000)
+    revenue = float(sum(o.order_total for o in orders))
+    refunds = await ckit_erp.erp_table_data(http, "com_refund", ws_id, erp_schema.ComRefund, filters=f"refund_created_ts:>=:{ts0}", limit=1000)
+    refund_amount = float(sum(r.refund_amount for r in refunds))
+
+    data = {
+        "section01-crm": {
+            "new_contacts": len(new_contacts),
+            "deals_created": len(deals),
+            "deals_closed_won": won,
+            "deals_closed_lost": lost,
+            "orders": len(orders),
+            "revenue": revenue,
+            "refunds": len(refunds),
+            "refund_amount": refund_amount,
+        },
+        "section02-tasks": {
+            "tasks_completed": 0,
+            "tasks_success": 0,
+            "tasks_failed": 0,
+            "tasks_inconclusive": 0,
+            "tasks_irrelevant": 0,
+        },
+        "section03-notes": {
+            "notable_incidents": "",
+            "setup_problems": "",
+            "what_people_asked": "",
+        },
+    }
+
+    date_str = now.strftime("%Y%m%d")
+    path = "/support/reports/%s-%s" % (date_str, report_type)
+    doc = {
+        "karen-report": {
+            "meta": {
+                "author": "auto generated",
+                "created": date_str,
+            },
+            "schema": REPORT_SCHEMA,
+            **data,
+        }
+    }
+    doc_text = json.dumps(doc, ensure_ascii=False, indent=2)
+    result = await pdoc.pdoc_overwrite(path, doc_text, persona_id=pid, fcall_untrusted_key=fcall_untrusted_key)
+
+    return (
+        "✍️ %s\nmd5=%s\n\n%s\n\n"
+        "Task stats (section02-tasks) are zero — fill them using your kanban search tool. Then fill in notes. Use flexus_policy_document(op=\"update_at_location\", "
+        "args={\"p\": \"%s\", \"expected_md5\": \"%s\", \"updates\": [[\"karen-report.section02-tasks.tasks_completed\", ...], ...]})"
+    ) % (path, result.md5_after, doc_text, path, result.md5_after)
+
+
 async def karen_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.RobotContext) -> None:
     setup = ckit_bot_exec.official_setup_mixing_procedure(KAREN_SETUP_SCHEMA, rcx.persona.persona_setup)
 
@@ -346,6 +477,12 @@ async def karen_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.
         if rcx.running_test_scenario:
             return await ckit_scenario.scenario_generate_tool_result_via_model(rcx.fclient, toolcall, open(__file__).read())
         return await handle_support_status(pdoc_integration, rcx, toolcall.fcall_untrusted_key)
+
+    @rcx.on_tool_call(REPORT_TOOL.name)
+    async def toolcall_report(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
+        if rcx.running_test_scenario:
+            return await ckit_scenario.scenario_generate_tool_result_via_model(rcx.fclient, toolcall, open(__file__).read())
+        return await handle_report(fclient, rcx, pdoc_integration, model_produced_args["report_type"], toolcall.fcall_untrusted_key)
 
     @rcx.on_tool_call(PRODUCT_CATALOG_TOOL.name)
     async def toolcall_product_catalog(toolcall: ckit_cloudtool.FCloudtoolCall, args: Dict[str, Any]) -> str:

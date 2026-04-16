@@ -151,27 +151,6 @@ async def scenario_generate_tool_result_via_model(
     raise ckit_cloudtool.AlreadyFakedResult()
 
 
-async def scenario_print_personas(fclient: ckit_client.FlexusClient, fgroup_id: str) -> str:
-    lines = []
-    for persona in (await ckit_bot_query.persona_list(fclient, fgroup_id)):
-        lines.append(f"    👤{persona.persona_id} name={persona.persona_name!r} marketplace={persona.persona_marketable_name}@{persona.persona_marketable_version} pref_model_expensive={persona.persona_preferred_model_expensive} pref_model_cheap={persona.persona_preferred_model_cheap}")
-        kanban_tasks = await ckit_kanban.persona_kanban_list(fclient, persona.persona_id)
-        if kanban_tasks:
-            for task in kanban_tasks:
-                extras = []
-                if task.ktask_resolution_code:
-                    extras.append(f"resolution_code:{task.ktask_resolution_code}")
-                if task.ktask_resolution_summary:
-                    extras.append(f"resolution_summary:'{task.ktask_resolution_summary}'")
-                if hasattr(task.ktask_details, 'get') and task.ktask_details and task.ktask_details.get('humanhours'):
-                    extras.append(f"humanhours:{task.ktask_details['humanhours']}")
-                extra_str = f" {' '.join(extras)}" if extras else ""
-                lines.append(f"        📋 {task.calc_bucket()} id:{task.ktask_id} title:'{task.ktask_title}' budget:{task.ktask_budget} coins:{task.ktask_coins}{extra_str}")
-        else:
-            lines.append(f"        📋 No kanban tasks")
-    return "\n".join(lines)
-
-
 async def scenario_print_threads(fclient: ckit_client.FlexusClient, fgroup_id: str) -> str:
     async with (await fclient.use_http_on_behalf("", "")) as http:
         threads = await http.execute(gql.gql(f"""
