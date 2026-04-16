@@ -74,57 +74,47 @@ class FThreadComprehensiveSubs:
     news_payload_thread: Optional[FThreadOutput]
 
 
-async def thread_add_user_message(
+@dataclass
+class FThreadMessageInput:
+    content: Union[str, List[Dict[str, Any]]]
+    ftm_factor_id: str
+    ftm_provenance: Dict[str, Any]
+    ftm_alt: int = 100
+    role: str = "user"
+
+
+async def thread_add_user_messages(
     http: gql.Client,
     ft_id: str,
-    content: Union[str, List[Dict[str, Any]]],
+    messages: List[FThreadMessageInput],
     who_is_asking: str,
-    ftm_alt: int,
-    ftm_factor_id: str,
-    user_preferences: str = "null",
-    role: str = "user",
-    ftm_provenance: Optional[Dict[str, Any]] = None,
 ) -> None:
-    random_ftm_num = -random.randint(1, 2**31 - 1)
-    assert role in ["user", "cd_instruction"]
-
-    if isinstance(content, str):
-        ftm_content = json.dumps(content)
-    elif isinstance(content, list):
-        ftm_content = json.dumps(content)
-    else:
-        assert 0, "bad type %s" % type(content)
-
-    if ftm_provenance is None:
-        ftm_provenance = {"system_type": who_is_asking}
-
+    if not messages:
+        return
+    records = []
+    for m in messages:
+        assert m.role in ["user", "cd_instruction"]
+        records.append({
+            "ftm_belongs_to_ft_id": ft_id,
+            "ftm_alt": m.ftm_alt,
+            "ftm_num": -random.randint(1, 2**31 - 1),
+            "ftm_prev_alt": m.ftm_alt,
+            "ftm_role": m.role,
+            "ftm_factor_id": m.ftm_factor_id,
+            "ftm_content": json.dumps(m.content),
+            "ftm_tool_calls": "null",
+            "ftm_call_id": "",
+            "ftm_usage": "null",
+            "ftm_app_specific": "null",
+            "ftm_user_preferences": "null",
+            "ftm_provenance": json.dumps(m.ftm_provenance),
+        })
     async with http as h:
         await h.execute(
             gql.gql(f"""mutation {who_is_asking}CreateMessages($input: FThreadMultipleMessagesInput!) {{
                 thread_messages_create_multiple(input: $input)
             }}"""),
-            variable_values={
-                "input": {
-                    "ftm_belongs_to_ft_id": ft_id,
-                    "messages": [
-                        {
-                            "ftm_belongs_to_ft_id": ft_id,
-                            "ftm_alt": ftm_alt,
-                            "ftm_num": random_ftm_num,
-                            "ftm_prev_alt": ftm_alt,
-                            "ftm_role": role,
-                            "ftm_factor_id": ftm_factor_id,
-                            "ftm_content": ftm_content,
-                            "ftm_tool_calls": "null",
-                            "ftm_call_id": "",
-                            "ftm_usage": "null",
-                            "ftm_app_specific": "null",
-                            "ftm_user_preferences": user_preferences,
-                            "ftm_provenance": json.dumps(ftm_provenance),
-                        },
-                    ],
-                }
-            },
+            variable_values={"input": {"ftm_belongs_to_ft_id": ft_id, "messages": records}},
         )
 
 

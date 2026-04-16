@@ -463,50 +463,43 @@ class IntegrationSlack(fi_messenger.FlexusMessenger):
             try:
                 thirty_minutes_ago = str(int(time.time() - 30*60))
 
-                msg_texts = []
-                image_parts = []
-                file_summaries = []
-                capture_authors: Dict[str, str] = {}
-                async for msg in self._get_history(something_name, thread_ts, thirty_minutes_ago, 10):
-                    if txt := msg.get('text', None):
-                        user_id = msg.get('user')
-                        if user_id:
-                            author_name = await self._get_user_name(user_id)
-                            capture_authors[user_id] = author_name
-                        else:
-                            author_name = msg.get('username') or (msg.get('bot_profile') or {}).get('name')
-                            if not author_name:
-                                author_name = "unknown_user"
-                                logger.warning("capture history: no user/username/bot_profile: keys=%s text=%r", list(msg.keys()), txt[:200])
-                        msg_texts.append((author_name, txt))
-
+                captured_msgs: List[ckit_ask_model.FThreadMessageInput] = []
+                total_images = 0
+                async for msg in self._get_history(something_name, thread_ts, thirty_minutes_ago, 5):
+                    txt = msg.get('text') or ''
+                    user_id = msg.get('user')
+                    if user_id:
+                        author_name = await self._get_user_name(user_id)
+                    else:
+                        author_name = msg.get('username') or (msg.get('bot_profile') or {}).get('name')
+                        if not author_name:
+                            author_name = "unknown_user"
+                            logger.warning("capture history: no user/username/bot_profile: keys=%s text=%r", list(msg.keys()), txt[:200])
+                        user_id = None
+                    parts = []
+                    if txt:
+                        parts.append({"m_type": "text", "m_content": txt})
                     for file_info in msg.get('files', [])[:2]:
                         try:
                             file_bytes, mimetype = await self._download_slack_file(file_info)
                             filename = file_info.get('name', 'unknown')
                             if file_bytes is None:
-                                file_summaries.append(f"[Failed to download: {filename}]")
-                            elif mimetype and mimetype.startswith('image/') and len(image_parts) < 3:
-                                image_parts.append(await self._process_slack_image(file_bytes, mimetype))
+                                parts.append({"m_type": "text", "m_content": f"[Failed to download: {filename}]"})
+                            elif mimetype and mimetype.startswith('image/') and total_images < 3:
+                                parts.append(await self._process_slack_image(file_bytes, mimetype))
+                                total_images += 1
                             elif fi_messenger.is_text_file(file_bytes):
-                                file_summaries.append((await self._process_slack_text_file(file_bytes, filename))['m_content'])
+                                parts.append(await self._process_slack_text_file(file_bytes, filename))
                             else:
-                                file_summaries.append(f"[Binary file: {filename} ({len(file_bytes)} bytes)]")
+                                parts.append({"m_type": "text", "m_content": f"[Binary file: {filename} ({len(file_bytes)} bytes)]"})
                         except Exception:
                             logger.exception("capture file processing failed: %s", file_info.get("name", "?"))
-
-                single_author = next(iter(capture_authors)) if len(capture_authors) == 1 else None
-                if single_author:
-                    text_content = "\n\n".join(txt for _, txt in msg_texts)
-                else:
-                    text_content = "\n\n".join(f"👤{author}\n\n{txt}" for author, txt in msg_texts)
-
-                all_message_parts = []
-                if text_content:
-                    all_message_parts.append({"m_type": "text", "m_content": text_content.strip()})
-                if file_summaries:
-                    all_message_parts.append({"m_type": "text", "m_content": "\n📎 Attached files:\n" + "\n".join(file_summaries)})
-                all_message_parts.extend(image_parts)
+                    if parts:
+                        captured_msgs.append(ckit_ask_model.FThreadMessageInput(
+                            content=parts,
+                            ftm_factor_id=f"slack:{user_id}" if user_id else "slack:unknown",
+                            ftm_provenance={"system_type": "fi_slack", "factor_name": author_name},
+                        ))
 
                 http = await self.fclient.use_http_on_behalf(self.rcx.persona.persona_id, toolcall.fcall_untrusted_key)
                 try:
@@ -520,20 +513,8 @@ class IntegrationSlack(fi_messenger.FlexusMessenger):
                     )
                 except gql.transport.exceptions.TransportQueryError as e:
                     return ckit_cloudtool.gql_error_4xx_to_model_reraise_5xx(e, "slack_capture")
-                logger.info("Successful capture %s <-> %s, posting %d parts into the captured thread" % (something_id_slash_thread, toolcall.fcall_ft_id, len(all_message_parts)))
-                if all_message_parts:
-                    provenance = {"system_type": "fi_slack"}
-                    if single_author:
-                        provenance["factor_nickname"] = capture_authors[single_author]
-                    await ckit_ask_model.thread_add_user_message(
-                        http,
-                        toolcall.fcall_ft_id,
-                        all_message_parts,
-                        "fi_slack",
-                        ftm_alt=100,
-                        ftm_factor_id=f"slack:{single_author}" if single_author else "slack:multiple",
-                        ftm_provenance=provenance,
-                    )
+                logger.info("Successful capture %s <-> %s, posting %d msgs into the captured thread" % (something_id_slash_thread, toolcall.fcall_ft_id, len(captured_msgs)))
+                await ckit_ask_model.thread_add_user_messages(http, toolcall.fcall_ft_id, captured_msgs, "fi_slack")
                 r += fi_messenger.CAPTURE_SUCCESS_MSG % (something_name,) + fi_messenger.CAPTURE_ADVICE_MSG
                 r += "Remember that slack formatting rules are in effect, and it's not markdown:\n"
                 r += FORMATTING
@@ -578,7 +559,7 @@ class IntegrationSlack(fi_messenger.FlexusMessenger):
                 searchable,
                 content,
                 ftm_factor_id=f"slack:{a.message_author_id}",
-                ftm_provenance={"system_type": "fi_slack", "factor_nickname": a.message_author_name},
+                ftm_provenance={"system_type": "fi_slack", "factor_name": a.message_author_name},
                 only_to_expert=self.outside_messages_fexp_name,
                 thread_too_old_s=30*86400 if a.thread_ts else 300,
             )
