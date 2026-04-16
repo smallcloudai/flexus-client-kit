@@ -26,17 +26,6 @@ PLAN_BATCHES_TOOL = ckit_cloudtool.CloudTool(
     },
 )
 
-INTEGRATION_CONFIG: Dict[str, Dict[str, Any]] = {
-    "newsapi": {
-        "env_var": "NEWSAPI_API_KEY",
-        "alt_env_vars": ["NEWSAPI_KEY"],
-    },
-    "resend": {
-        "env_var": "RESEND_API_KEY",
-        "alt_env_vars": [],
-    },
-}
-
 INTEGRATION_TESTER_INTEGRATIONS: list[ckit_integrations_db.IntegrationRecord] = ckit_integrations_db.static_integrations_load(
     INTEGRATION_TESTER_ROOTDIR,
     allowlist=["newsapi", "resend"],
@@ -90,19 +79,25 @@ def load_env_config(setup: Dict[str, Any]) -> None:
     logger.info(f"Loaded {count} environment variables from ENV_CONFIG")
 
 
-def get_configured_integrations() -> List[Dict[str, Any]]:
+def _integration_env_vars(integr_name: str) -> tuple[str, list[str]]:
+    name = integr_name.upper()
+    return f"{name}_API_KEY", [f"{name}_KEY"]
+
+
+def get_configured_integrations(integr_names: List[str]) -> List[Dict[str, Any]]:
     result = []
-    for name, cfg in INTEGRATION_CONFIG.items():
-        key = os.environ.get(cfg["env_var"])
+    for name in integr_names:
+        env_var, alt_env_vars = _integration_env_vars(name)
+        key = os.environ.get(env_var)
         if not key:
-            for alt in cfg.get("alt_env_vars", []):
+            for alt in alt_env_vars:
                 key = os.environ.get(alt)
                 if key:
                     break
         if key:
             result.append({
                 "name": name,
-                "env_var": cfg["env_var"],
+                "env_var": env_var,
                 "key_hint": key[-4:] if len(key) > 4 else "***",
             })
     return result
@@ -151,10 +146,11 @@ def _format_result(raw: str) -> str:
 
 def make_testing_wrapper(
     original: Callable[[ckit_cloudtool.FCloudtoolCall, Dict[str, Any]], Awaitable[str]],
-    env_var: str,
-    alt_env_vars: list[str],
+    integr_name: str,
     tool_name: str,
 ):
+    env_var, alt_env_vars = _integration_env_vars(integr_name)
+
     async def wrapper(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
         key = _resolve_api_key(env_var, alt_env_vars)
         logger.info(f"Testing {tool_name} - API key present: {bool(key)}")

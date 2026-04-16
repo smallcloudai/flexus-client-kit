@@ -34,17 +34,13 @@ async def integration_tester_main_loop(
     supported_integrations = sorted({r.integr_name for r in integr_records})
 
     for rec in integr_records:
-        cfg = shared.INTEGRATION_CONFIG.get(rec.integr_name)
-        if not cfg:
-            continue
         for tool in rec.integr_tools:
             original_handler = rcx._handler_per_tool.get(tool.name)
             if original_handler:
                 rcx.on_tool_call(tool.name)(
                     shared.make_testing_wrapper(
                         original_handler,
-                        cfg["env_var"],
-                        cfg.get("alt_env_vars", []),
+                        rec.integr_name,
                         tool.name,
                     )
                 )
@@ -60,7 +56,7 @@ async def integration_tester_main_loop(
         except (TypeError, ValueError):
             bs = 5
 
-        configured = {x["name"] for x in shared.get_configured_integrations()}
+        configured = {x["name"] for x in shared.get_configured_integrations(supported_integrations)}
         selected = []
         unsupported = []
 
@@ -102,7 +98,7 @@ async def integration_tester_main_loop(
             "task_specs": task_specs,
         }, indent=2)
 
-    configured = shared.get_configured_integrations()
+    configured = shared.get_configured_integrations(supported_integrations)
     shared.logger.info(f"Integration Tester started. Configured integrations: {[i['name'] for i in configured]}")
 
     @rcx.on_updated_task
