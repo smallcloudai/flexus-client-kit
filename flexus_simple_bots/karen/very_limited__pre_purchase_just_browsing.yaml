@@ -217,7 +217,7 @@ messages:
     type: function
     function:
       name: flexus_kanban_public
-      arguments: '{"op": "resolve", "resolution": {"code": "SUCCESS", "summary": "Jordan Kim — support questions only. Clarified dual arm won't fit 34\" ultrawide, recommended ultrawide arm instead. Confirmed Canada shipping (5-7 days standard, free over $200). No buying intent.", "humanhours": 0.05, "uncapture": true, "pdoc_paths": []}}'
+      arguments: '{"op": "resolve", "resolution": {"code": "SUCCESS", "summary": "Jordan Kim — support questions only. Clarified dual arm does not fit 34in ultrawide, recommended ultrawide arm instead. Confirmed Canada shipping (5-7 days standard, free over $200). No buying intent.", "humanhours": 0.05, "uncapture": true, "pdoc_paths": []}}'
 - role: tool
   content: |-
     Moved to done kW2nR7yLpJ
