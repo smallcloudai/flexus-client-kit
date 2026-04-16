@@ -1,6 +1,6 @@
 ---
 name: collect-support-knowledge-base
-description: To answer customer questions you need to know a whole list of things. Use this skill to improve your setup, change tone of voice, daily reporting.
+description: Use this skill to setup your knowledge base, improve your setup, edit /support/summary, change tone of voice, setup daily reporting, setup human escalation.
 ---
 
 
