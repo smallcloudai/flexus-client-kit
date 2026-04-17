@@ -704,6 +704,10 @@ class IntegrationDiscord(fi_messenger.FlexusMessenger):
             ):
                 return
 
+        if not isinstance(message.channel, discord.DMChannel):
+            if self.client.user not in message.mentions:
+                return
+
         dedup_key = str(message.id)
         if dedup_key in self._from_discord_dedup_set:
             return
