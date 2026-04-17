@@ -1,0 +1,229 @@
+judge_instructions: |
+  B2B fitness studio management SaaS support scenario. Tests KB grounding,
+  direct factual answers, and no upselling. Score 0 if no flexus_vector_search
+  calls. Penalize fabricated features, pricing, or integration details not
+  present in search results or /support/summary. Penalize upselling or pushing
+  a higher plan when user didn't ask. Reward concise, grounded answers.
+
+messages:
+- role: cd_instruction
+  content: |-
+    📄/company/summary
+    {
+      "stage": "Growth",
+      "mission": "Help fitness studios run their business from one screen",
+      "tagline": "Studio management, simplified",
+      "website": "https://fitrunner.io",
+      "industry": "B2B SaaS / Fitness Studio Management",
+      "company_name": "FitRunner"
+    }
+
+    📄/company/sales-strategy
+    does not exist yet
+
+    📄/support/summary
+    {
+      "support-policy": {
+        "meta": {
+          "created_at": "2026-04-01T09:00:00.000000+00:00"
+        },
+        "section01-product": {
+          "title": "Product",
+          "question01-description": {
+            "a": "FitRunner is a cloud platform for fitness studios. Manages class scheduling, member check-ins, billing, instructor payroll, and retention campaigns. Replaces Mindbody/Glofox for studios that want simpler software without enterprise complexity.",
+            "q": "What is the product?"
+          },
+          "question02-features": {
+            "a": "Class scheduling with waitlists, member app (iOS/Android), automated billing via Stripe, instructor availability and sub management, attendance tracking, retention alerts (members inactive >14 days), basic reporting dashboard, Zapier integration.",
+            "q": "What are the key features?"
+          },
+          "question03-ideal-customer-profile": {
+            "a": "Independent fitness studios, yoga studios, CrossFit boxes, Pilates studios. 1-5 locations, 200-2000 active members. Currently using spreadsheets, Mindbody, or Glofox and frustrated with cost or complexity.",
+            "q": "Who is the ideal customer (ICP)?"
+          }
+        },
+        "section02-future-ops": {
+          "title": "Billing & Plans",
+          "question01-shipping": {
+            "a": "",
+            "q": "Shipping methods, costs, times?"
+          },
+          "question04-payments": {
+            "a": "Starter: $49/mo (1 location, up to 500 members). Growth: $99/mo (up to 3 locations, 2000 members, Zapier). Enterprise: custom. Annual billing: 2 months free. All plans include member app.",
+            "q": "Payment options & pricing?"
+          },
+          "question02-returns": {
+            "a": "14-day free trial. Monthly plans cancel anytime, no refunds on partial months. Annual contracts refundable pro-rata within first 60 days.",
+            "q": "Refund policy?"
+          },
+          "question03-warranty": {
+            "a": "",
+            "q": "Warranty details?"
+          }
+        },
+        "section03-support": {
+          "title": "Support",
+          "question01-channels": {
+            "a": "Telegram @fitrunner_support, email help@fitrunner.io, in-app chat",
+            "q": "Support channels (email, chat, etc.)?"
+          },
+          "question02-escalation": {
+            "a": "Billing disputes, data migration from Mindbody/Glofox, Stripe account issues, multi-location setup",
+            "q": "When to escalate to human?"
+          }
+        },
+        "section04-restrictions": {
+          "title": "Restrictions",
+          "question01-never-say": {
+            "a": "Never promise specific integrations beyond what's listed. Never guarantee data migration timelines without human review. Never share other studios' data or revenue numbers.",
+            "q": "What should support NEVER say?"
+          }
+        }
+      }
+    }
+- role: user
+  content: |-
+    Telegram private user='Marco Diaz' chat_id=55812340
+    hey, we run a CrossFit box and just switched to FitRunner. can i connect our scheduling with Google Calendar so coaches see their classes there? also how does the waitlist thing work?
+- role: assistant
+  tool_calls:
+  - id: call_fg_01
+    type: function
+    function:
+      name: flexus_kanban_public
+      arguments: '{"op": "status_public", "search": null, "resolution": null, "details_json": null, "restart_summary": null}'
+- role: tool
+  content: |
+    The current task with details:
+    {
+      "id": "kT5mW2pRnX",
+      "title": "Telegram private user='Marco Diaz' chat_id=55812340\nhey, we run a CrossFit box...",
+      "details": {
+        "chat_id": 55812340,
+        "chat_type": "private",
+        "message_id": 8801,
+        "attachments": [],
+        "message_text": "hey, we run a CrossFit box and just switched to FitRunner. can i connect our scheduling with Google Calendar so coaches see their classes there? also how does the waitlist thing work?",
+        "message_author_id": 55812340,
+        "message_author_name": "Marco Diaz"
+      }
+    }
+
+    Inbox:
+    [
+    ]
+
+    In Progress:
+    [
+    {"id": "kT5mW2pRnX", "title": "Telegram private user='Marco Diaz' chat_id=55812340\nhey, we run a CrossFit box...", "human": "telegram:55812340"},
+    ]
+
+    Done:
+    [
+    ]
+  call_id: call_fg_01
+- role: title
+  content: "[telegram] [marco] [support] Marco Diaz — CrossFit box, Google Calendar + waitlist questions"
+- role: assistant
+  tool_calls:
+  - id: call_fg_02
+    type: function
+    function:
+      name: telegram
+      arguments: '{"op": "capture", "args": {"chat_id": 55812340}}'
+- role: tool
+  content: |
+    📌CAPTURED
+
+    The next thing you write will be visible. Don't comment on that fact and think about what do you want to say in '55812340'.
+    Don't use op=post because now anything you say is visible automatically.
+
+    Reminder: after this point telegram MarkdownV2 markup rules are in effect for your output, there are no tables! Here's markup help for you again.
+
+
+    Telegram uses MarkdownV2 markup:
+    *bold*  _italic_  __underline__  ~strikethrough~
+    `inline code`
+    ```python
+    code block
+    ```
+    [link text](https://example.com)
+    ||spoiler||
+
+    > blockquote
+    > each line must start with >
+
+    No bullet lists or tables.
+  call_id: call_fg_02
+- role: assistant
+  tool_calls:
+  - id: call_fg_03
+    type: function
+    function:
+      name: flexus_vector_search
+      arguments: '{"eds": "", "query": "Google Calendar integration scheduling waitlist class management"}'
+- role: tool
+  content: |+
+    For your query 'Google Calendar integration scheduling waitlist class management' found 3 results in database of 950 chunks across 22 indexed documents.
+
+    <original_text>
+    FitRunner syncs class schedules to Google Calendar via Zapier. Set up a Zap: trigger = "New Class Created", action = "Google Calendar Create Event". Coaches add the FitRunner Zapier calendar and see all assigned classes. Two-way sync is not supported — changes must be made in FitRunner.
+    </original_text>
+
+    <original_text>
+    Waitlist: when a class reaches max capacity, members can join the waitlist from the app. When a spot opens (cancellation or no-show after 15min), the next person on the waitlist gets a push notification and has 30 minutes to confirm. If they don't confirm, it moves to the next person. Studio owner can set max waitlist size per class (default: 5).
+    </original_text>
+
+  call_id: call_fg_03
+- role: assistant
+  content: |-
+    Hey Marco\. Google Calendar — yes, it works through Zapier\. You set up a Zap with trigger "New Class Created" → Google Calendar "Create Event"\. Coaches subscribe to that calendar and see their classes\. One caveat: it's one\-way, so schedule changes need to be made in FitRunner\.
+
+    Waitlist: when a class hits max capacity, members tap "join waitlist" in the app\. If someone cancels or no\-shows \(15min grace\), next person gets a push notification and has 30 minutes to confirm\. Default max waitlist is 5 per class — you can change that in class settings\.
+
+    Need help setting up the Zapier connection?
+- role: user
+  content:
+  - m_type: text
+    m_content: |-
+      👤Marco Diaz
+
+      nice, that works. one more thing — a few members are complaining they got double-charged this month. how do I check that?
+- role: assistant
+  tool_calls:
+  - id: call_fg_04
+    type: function
+    function:
+      name: flexus_vector_search
+      arguments: '{"eds": "", "query": "double charge billing dispute member payment Stripe refund"}'
+- role: tool
+  content: |+
+    For your query 'double charge billing dispute member payment Stripe refund' found 2 results in database of 950 chunks across 22 indexed documents.
+
+    <original_text>
+    Billing issues: FitRunner processes payments through Stripe. To check a member's payment history, go to Members → select member → Billing tab. Shows all charges, failed payments, and refunds. For suspected double charges, cross-reference with your Stripe dashboard (Settings → Stripe Integration → "Open Stripe Dashboard"). If confirmed, issue a refund from Stripe directly — it will sync back to FitRunner within 1 hour.
+    </original_text>
+
+  call_id: call_fg_04
+- role: assistant
+  content: |-
+    Go to Members → pick the member → Billing tab\. That shows all charges, failed payments, and refunds\. Compare with your Stripe dashboard \(Settings → Stripe Integration → "Open Stripe Dashboard"\)\.
+
+    If you see a genuine double charge, refund directly from Stripe — it syncs back to FitRunner within an hour\.
+
+    If it's affecting multiple members, that's worth escalating to our team so we can check if there's a billing bug\. Want me to flag it?
+- role: assistant
+  tool_calls:
+  - id: call_fg_05
+    type: function
+    function:
+      name: flexus_kanban_public
+      arguments: '{"op": "resolve", "resolution": {"code": "SUCCESS", "summary": "Answered Marco (CrossFit box owner) on Telegram: Google Calendar sync via Zapier (one-way), waitlist mechanics (push notification, 30min confirm window, configurable max), and billing double-charge troubleshooting via Members > Billing tab + Stripe dashboard.", "humanhours": 0.15, "uncapture": true, "pdoc_paths": []}}'
+- role: tool
+  content: |-
+    Moved to done kT5mW2pRnX
+
+    Uncaptured the chat, no one can see your messages now, all left to do is to say TASK_COMPLETED
+  call_id: call_fg_05
+- role: assistant
+  content: TASK_COMPLETED
