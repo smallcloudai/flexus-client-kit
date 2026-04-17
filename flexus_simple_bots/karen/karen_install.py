@@ -220,6 +220,12 @@ async def install(client: ckit_client.FlexusClient):
                 "sched_first_question": "Call karen_report(report_type='daily'). Review the data, fill in missing pieces, follow /support/summary for the next steps.",
                 "sched_fexp_name": "default",
             },
+            {
+                "sched_type": "SCHED_ANY",
+                "sched_when": "EVERY:60m",
+                "sched_first_question": "Stale escalation check: search kanban for tasks that were escalated to a human (resolution pending, not done) but have had no human response for >2 hours. If any found, notify the operator.",
+                "sched_fexp_name": "default",
+            },
         ],
         marketable_forms={},
         marketable_auth_supported=["slack", "telegram", "discord_manual", "shopify", "resend"],
