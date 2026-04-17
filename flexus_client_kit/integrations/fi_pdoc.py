@@ -71,10 +71,10 @@ flexus_policy_document(op="create_draft_from_template", args={"output_dir": "/pl
     Create a new policy document from a known template. Automatically prepends current date and DRAFT between
     output_dir and slug, e.g. /plans/20260325-DRAFT-my-thing. Fails if the document already exists.
 
-flexus_policy_document(op="update_at_location", args={"p": "/folder/file", "expected_md5": "abc123", "updates": [["toptag.section1.field1", "value1"], ["toptag.section1.field2", "value2"]]})
+flexus_policy_document(op="update_at_location", args={"p": "/folder/file", "expected_md5": "abc123", "updates": [["toptag.section1.field1", "my string"], ["toptag.section1.field2", "[1,2,3]"]]})
     Update fields in a document using dot notation for path. This normally updates strings, but you can try to set
     any structure or number, if schema in available in the document.
-    NEVER call this tool in parallel, backend will serialize calls and only the first will pass md5 gate.
+    NEVER call this tool in parallel, backend will serialize calls and only the first will pass the md5 gate.
     Instead use "updates" array to set multiple fields at once.
 
 flexus_policy_document(op="translate_qa", args={"p": "/folder/file", "expected_md5": "abc123", "translation": [["top-tag.section01-product.question01-description.q", "Translated text"], ...]})
@@ -432,13 +432,25 @@ class IntegrationPdoc:
                 # batch: updates=[[json_path, text], ...] or single: json_path= text=
                 updates_raw = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "updates", None)
                 if updates_raw and isinstance(updates_raw, list):
-                    updates = [{"json_path": u[0], "text": u[1]} for u in updates_raw]
+                    updates = []
+                    for path, v in updates_raw:
+                        if isinstance(v, bool):
+                            v = "true" if v else "false"
+                        elif isinstance(v, (float, int)):
+                            v = str(v)
+                        elif v is None:
+                              v = "null"
+                        elif isinstance(v, str):
+                            pass
+                        else:
+                            return f"Error: at {path} value to save has type {type(v).__name__} which is not clear how to apply"
+                        updates.append({"json_path": path, "text": v})
                 else:
                     json_path = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "json_path", "")
                     text = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "text", "")
                     if not json_path or not text:
-                        return f"Error: provide json_path+text or updates list\n\n{HELP}"
-                    updates = [{"json_path": json_path, "text": text}]
+                        return f"Error: invalid updates list\n\n{HELP}"
+                    updates = [{"json_path": json_path, "text": str(text)}]
                 if not p:
                     return f"Error: p parameter required\n\n{HELP}"
 
