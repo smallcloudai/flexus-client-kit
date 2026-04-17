@@ -418,7 +418,8 @@ class IntegrationTelegram(fi_messenger.FlexusMessenger):
             searchable,
             msg_text,
             ftm_factor_id=f"telegram:{activity.message_author_id}",
-            ftm_provenance={"system_type": "fi_telegram", "factor_name": activity.message_author_name},
+            ftm_factor_label=f"{activity.message_author_name or activity.message_author_id}, via Telegram",
+            ftm_provenance={"system_type": "fi_telegram"},
             only_to_expert=self.outside_messages_fexp_name,
             thread_too_old_s=3600,
         )

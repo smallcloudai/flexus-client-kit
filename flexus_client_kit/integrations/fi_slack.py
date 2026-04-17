@@ -502,7 +502,8 @@ class IntegrationSlack(fi_messenger.FlexusMessenger):
                         captured_msgs.append(ckit_ask_model.FThreadMessageInput(
                             content=parts,
                             ftm_factor_id=f"slack:{user_id}" if user_id else "slack:unknown",
-                            ftm_provenance={"system_type": "fi_slack", "factor_name": author_name},
+                            ftm_factor_label=f"{author_name or user_id or 'unknown'}, via Slack",
+                            ftm_provenance={"system_type": "fi_slack"},
                         ))
 
                 http = await self.fclient.use_http_on_behalf(self.rcx.persona.persona_id, toolcall.fcall_untrusted_key)
@@ -563,7 +564,8 @@ class IntegrationSlack(fi_messenger.FlexusMessenger):
                 searchable,
                 content,
                 ftm_factor_id=f"slack:{a.message_author_id}",
-                ftm_provenance={"system_type": "fi_slack", "factor_name": a.message_author_name},
+                ftm_factor_label=f"{a.message_author_name or a.message_author_id}, via Slack",
+                ftm_provenance={"system_type": "fi_slack"},
                 only_to_expert=self.outside_messages_fexp_name,
                 thread_too_old_s=30*86400 if a.thread_ts else 300,
             )

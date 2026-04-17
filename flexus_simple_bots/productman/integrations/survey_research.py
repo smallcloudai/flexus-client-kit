@@ -796,7 +796,7 @@ class IntegrationSurveyResearch:
                     http = await fclient.use_http_on_behalf(self.pdoc_integration.rcx.persona.persona_id, "")
                     await ckit_ask_model.thread_add_user_messages(
                         http, tracking_info["thread_id"],
-                        [ckit_ask_model.FThreadMessageInput(content=message, ftm_factor_id="system", ftm_provenance={"system_type": "survey_research_integration"})],
+                        [ckit_ask_model.FThreadMessageInput(content=message, ftm_factor_id="system", ftm_factor_label="system", ftm_provenance={"system_type": "survey_research_integration"})],
                         "survey_research_integration",
                     )
 
