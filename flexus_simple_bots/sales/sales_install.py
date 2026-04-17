@@ -4,6 +4,7 @@ from flexus_client_kit import ckit_bot_install
 from flexus_client_kit import ckit_cloudtool
 from flexus_client_kit import ckit_skills
 
+from flexus_simple_bots import prompts_common
 from flexus_simple_bots.sales import sales_bot
 from flexus_simple_bots.sales import sales_prompts
 
@@ -28,30 +29,33 @@ TOOLS_DEFAULT = {
     "email_setup_domain",
 } | ckit_cloudtool.CLOUDTOOLS_QUITE_A_LOT
 
-TOOLS_VERY_LIMITED = {
-    "flexus_policy_document",
-    "mongo_store",
-    "flexus_fetch_skill",
+TOOLS_SALES = {
+    "flexus_policy_document", "mongo_store", "flexus_fetch_skill",
     "shopify_cart",
-    "crm_contact_info",
-    "verify_email",
+    "crm_contact_info", "verify_email",
     "email_reply",
-    "magic_desk",
-    "slack",
-    "telegram",
-    "discord",
+    "magic_desk", "slack", "telegram", "discord",
 } | ckit_cloudtool.KANBAN_PUBLIC | ckit_cloudtool.CLOUDTOOLS_VECDB | ckit_cloudtool.CLOUDTOOLS_MCP
 
 TOOLS_POST_CONVERSATION = {
-    "flexus_fetch_skill",
-    "thread_read",
-    "erp_table_meta",
-    "erp_table_data",
-    "erp_table_crud",
+    "flexus_fetch_skill", "thread_read",
+    "erp_table_meta", "erp_table_data", "erp_table_crud",
 } | ckit_cloudtool.KANBAN_SAFE
 
-# Kernel for very_limited: warn if bot hasn't captured anything after responding
-SALES_VERY_LIMITED_KERNEL = """
+TOOLS_NURTURING = {
+    "flexus_policy_document", "mongo_store", "flexus_fetch_skill",
+    "shopify_cart",
+    "erp_table_meta", "erp_table_data", "erp_table_crud",
+    "crm_contact_info",
+    "email_send",
+    "magic_desk", "slack", "telegram", "discord",
+} | ckit_cloudtool.KANBAN_TRIAGE | ckit_cloudtool.CLOUDTOOLS_VECDB | ckit_cloudtool.CLOUDTOOLS_WEB | ckit_cloudtool.CLOUDTOOLS_MCP
+
+
+SALES_DESC = (sales_bot.SALES_ROOTDIR / "README.md").read_text()
+
+
+SALES_KERNEL = """
 captured = False
 warn1_text = "You have not captured any chat or thread. No one can see your messages. Capture something and repeat whatever you are trying to say. Disregard if you are just thinking aloud."
 warn1_have = False
@@ -83,21 +87,30 @@ EXPERTS = [
         fexp_allow_tools=",".join(TOOLS_DEFAULT),
         fexp_nature="NATURE_INTERACTIVE",
         fexp_inactivity_timeout=3600,
-        fexp_description="Admin expert: CRM pipeline management, deal setup, Shopify, knowledge base configuration, and automation rules.",
+        fexp_description="Admin expert for pipeline setup, CRM management, contact import, and knowledge base configuration.",
         fexp_builtin_skills=ckit_skills.read_name_description(sales_bot.SALES_ROOTDIR, [
             "sales-pipeline-setup",
             "stall-deals",
             "welcome-email-setup",
         ]),
     )),
+    ("messages_triage", ckit_bot_install.FMarketplaceExpertInput(
+        fexp_system_prompt=sales_prompts.SALES_TRIAGE,
+        fexp_python_kernel="",
+        fexp_allow_tools=",".join(ckit_cloudtool.KANBAN_TRIAGE),
+        fexp_nature="NATURE_NO_TASK",
+        fexp_inactivity_timeout=0,
+        fexp_model_class="cheap",
+        fexp_description="Deals with messages in the inbox, picks relevant to work on.",
+    )),
     ("very_limited", ckit_bot_install.FMarketplaceExpertInput(
         fexp_system_prompt=sales_prompts.SALES_VERY_LIMITED,
-        fexp_python_kernel=SALES_VERY_LIMITED_KERNEL,
-        fexp_allow_tools=",".join(TOOLS_VERY_LIMITED),
+        fexp_python_kernel=SALES_KERNEL,
+        fexp_allow_tools=",".join(TOOLS_SALES),
         fexp_nature="NATURE_AUTONOMOUS",
         fexp_inactivity_timeout=600,
         fexp_model_class="cheap",
-        fexp_description="Customer-facing expert: consultative sales conversations using C.L.O.S.E.R. framework, BANT qualification, vector-search grounded answers.",
+        fexp_description="Customer-facing sales expert: qualifies leads with BANT, handles objections using C.L.O.S.E.R. framework, recommends products.",
     )),
     ("post_conversation", ckit_bot_install.FMarketplaceExpertInput(
         fexp_system_prompt=sales_prompts.SALES_POST_CONVERSATION,
@@ -106,7 +119,16 @@ EXPERTS = [
         fexp_nature="NATURE_AUTONOMOUS",
         fexp_inactivity_timeout=300,
         fexp_model_class="cheap",
-        fexp_description="Runs after sales conversations: logs CRM activities, creates/updates contacts, records BANT scores, advances deal stages.",
+        fexp_description="Runs after sales conversations to log CRM activities, create/update contacts, and record BANT scores.",
+    )),
+    ("nurturing", ckit_bot_install.FMarketplaceExpertInput(
+        fexp_system_prompt=sales_prompts.SALES_NURTURING,
+        fexp_python_kernel="",
+        fexp_allow_tools=",".join(TOOLS_NURTURING),
+        fexp_nature="NATURE_SEMI_AUTONOMOUS",
+        fexp_inactivity_timeout=600,
+        fexp_description="Automated task executor: sends templated emails, follow-ups, stall deal recovery, and simple CRM operations.",
+        fexp_model_class="cheap",
         fexp_builtin_skills=ckit_skills.read_name_description(sales_bot.SALES_ROOTDIR, [
             "stall-recovery",
         ]),
@@ -119,29 +141,32 @@ async def install(client: ckit_client.FlexusClient):
         client,
         ws_id=client.ws_id,
         bot_dir=sales_bot.SALES_ROOTDIR,
-        marketable_accent_color="#1D6F42",
-        marketable_title1="Sales",
-        marketable_title2="Your consultative sales agent — qualifies leads, manages pipeline, and closes.",
+        marketable_accent_color="#2563EB",
+        marketable_title1="Sales Assistant",
+        marketable_title2="Consultative sales bot -- qualifies leads, handles objections, manages pipeline.",
         marketable_author="Flexus",
         marketable_occupation="Sales",
-        marketable_description="Handles inbound sales conversations using the C.L.O.S.E.R. framework, qualifies leads with BANT, manages your CRM pipeline, and runs automated follow-ups.",
+        marketable_description=SALES_DESC,
         marketable_typical_group="Sales",
         marketable_setup_default=sales_bot.SALES_SETUP_SCHEMA,
         marketable_featured_actions=[
             {"feat_question": "Set Up Sales Pipeline"},
-            {"feat_question": "Set Up Stall Deal Recovery"},
-            {"feat_question": "Set Up Welcome Email"},
-            {"feat_question": "Connect Telegram or Slack"},
+            {"feat_question": "Set Up Welcome Emails"},
+            {"feat_question": "Work on Stalled-Deal Strategy"},
+            {"feat_question": "Connect Slack, Telegram, or Email"},
         ],
-        marketable_intro_message="Hi! I'm Sales — your consultative sales assistant. I can handle inbound sales conversations, qualify leads, manage your CRM pipeline, and run follow-up automations. What would you like to work on?",
+        marketable_intro_message="Hi! I'm your Sales Assistant. I qualify leads, handle objections, manage your CRM pipeline, and run follow-up automations. What would you like to work on?",
         marketable_preferred_model_expensive="grok-4-1-fast-reasoning",
         marketable_preferred_model_cheap="gpt-5.4-nano",
         marketable_daily_budget_default=10_000_000,
         marketable_default_inbox_default=1_000_000,
         marketable_max_inprogress=10,
         marketable_experts=[(name, exp.filter_tools(sales_bot.TOOLS)) for name, exp in EXPERTS],
-        marketable_tags=["Sales", "CRM", "Lead Qualification", "Pipeline", "BANT", "CLOSER"],
-        marketable_schedule=[],
+        marketable_tags=["Sales", "CRM", "Lead Qualification", "Pipeline", "Email", "Automation"],
+        marketable_schedule=[
+            prompts_common.SCHED_TASK_SORT_10M | {"sched_when": "EVERY:1m", "sched_fexp_name": "messages_triage"},
+            prompts_common.SCHED_TODO_5M | {"sched_when": "EVERY:1m"},
+        ],
         marketable_forms={},
         marketable_auth_supported=["slack", "telegram", "discord_manual", "shopify", "resend"],
         marketable_auth_scopes={
