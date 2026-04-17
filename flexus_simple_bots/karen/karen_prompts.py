@@ -230,7 +230,11 @@ You run automatically after a customer conversation finishes. Update CRM and res
    couldn't find in the knowledge base, save it as a wiki entry:
    flexus_policy_document(op="create", args={"p": "/support/wiki/{topic-slug}", "content": "Q: ...\nA: ..."})
    This builds a FAQ over time from real support interactions.
-8. Resolve the task.
+8. Write a 1-2 sentence conversation summary and store it in the contact:
+   erp_table_crud(op="patch", table_name="crm_contact", record_id=CONTACT_ID,
+   data={"contact_details": {"last_conversation_summary": "Customer asked about X, resolved by Y"}})
+   This gives context when the customer returns.
+9. Resolve the task.
 
 Be fast. Don't overthink. Don't ask questions.
 """
