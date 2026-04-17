@@ -393,8 +393,8 @@ async def karen_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.
     email_respond_to = set(a.strip().lower() for a in setup.get("EMAIL_RESPOND_TO", "").split(",") if a.strip())
     shopify = fi_shopify.IntegrationShopify(fclient, rcx)
     sched = fi_sched.IntegrationSched(rcx)
-    slack: fi_slack.IntegrationSlack = integrations["slack"]
-    telegram: fi_telegram.IntegrationTelegram = integrations["telegram"]
+    slack: fi_slack.IntegrationSlack | None = integrations.get("slack")
+    telegram: fi_telegram.IntegrationTelegram | None = integrations.get("telegram")
 
     for me in rcx.messengers:
         me.accept_outside_messages_only_to_expert("very_limited")
@@ -578,32 +578,34 @@ async def karen_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.
                     fexp_name="post_conversation",
                 )
 
-    @telegram.on_incoming_activity
-    async def telegram_activity_callback(a: fi_telegram.ActivityTelegram, already_posted: bool):
-        if already_posted:
-            return
-        extra = {}
-        title = None
-        http = await fclient.use_http_on_behalf(rcx.persona.persona_id, "")
-        if a.message_text.startswith("/start c_"):  # deep links from email campaigns
-            contact_id = a.message_text[9:].strip()
-            extra["contact_id"] = contact_id
-            title = "CRM contact opened Telegram chat, contact_id=%s chat_id=%d" % (contact_id, a.chat_id)
-            await ckit_erp.erp_record_patch(http, "crm_contact", rcx.persona.ws_id, contact_id, {"contact_platform_ids": {"telegram": str(a.chat_id)}})
-        else:
-            if contact_id := await fi_crm.find_contact_by_platform_id(http, rcx.persona.ws_id, "telegram", str(a.chat_id)):
+    if telegram:
+        @telegram.on_incoming_activity
+        async def telegram_activity_callback(a: fi_telegram.ActivityTelegram, already_posted: bool):
+            if already_posted:
+                return
+            extra = {}
+            title = None
+            http = await fclient.use_http_on_behalf(rcx.persona.persona_id, "")
+            if a.message_text.startswith("/start c_"):  # deep links from email campaigns
+                contact_id = a.message_text[9:].strip()
                 extra["contact_id"] = contact_id
-        await telegram.inbound_activity_to_task(a, already_posted=False, extra_details=extra, provenance="karen_telegram_activity", title=title)
+                title = "CRM contact opened Telegram chat, contact_id=%s chat_id=%d" % (contact_id, a.chat_id)
+                await ckit_erp.erp_record_patch(http, "crm_contact", rcx.persona.ws_id, contact_id, {"contact_platform_ids": {"telegram": str(a.chat_id)}})
+            else:
+                if contact_id := await fi_crm.find_contact_by_platform_id(http, rcx.persona.ws_id, "telegram", str(a.chat_id)):
+                    extra["contact_id"] = contact_id
+            await telegram.inbound_activity_to_task(a, already_posted=False, extra_details=extra, provenance="karen_telegram_activity", title=title)
 
-    @slack.on_incoming_activity
-    async def slack_activity_callback(a: fi_slack.ActivitySlack, already_posted: bool):
-        if already_posted:
-            return
-        extra = {}
-        if a.message_author_id:
-            if contact_id := await fi_crm.find_contact_by_platform_id(await fclient.use_http_on_behalf(rcx.persona.persona_id, ""), rcx.persona.ws_id, "slack", a.message_author_id):
-                extra["contact_id"] = contact_id
-        await slack.inbound_activity_to_task(a, already_posted_to_captured_thread=False, extra_details=extra, provenance="karen_slack_activity")
+    if slack:
+        @slack.on_incoming_activity
+        async def slack_activity_callback(a: fi_slack.ActivitySlack, already_posted: bool):
+            if already_posted:
+                return
+            extra = {}
+            if a.message_author_id:
+                if contact_id := await fi_crm.find_contact_by_platform_id(await fclient.use_http_on_behalf(rcx.persona.persona_id, ""), rcx.persona.ws_id, "slack", a.message_author_id):
+                    extra["contact_id"] = contact_id
+            await slack.inbound_activity_to_task(a, already_posted_to_captured_thread=False, extra_details=extra, provenance="karen_slack_activity")
 
     try:
         while not ckit_shutdown.shutdown_event.is_set():
