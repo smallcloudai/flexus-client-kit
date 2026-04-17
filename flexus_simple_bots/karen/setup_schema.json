@@ -1,5 +1,24 @@
 [
     {
+        "bs_name": "business_name",
+        "bs_type": "string_short",
+        "bs_default": "",
+        "bs_group": "General",
+        "bs_order": 1,
+        "bs_importance": 0,
+        "bs_description": "Your business name"
+    },
+    {
+        "bs_name": "support_hours",
+        "bs_type": "string_short",
+        "bs_default": "",
+        "bs_group": "General",
+        "bs_placeholder": "Mon-Fri 9-5 EST",
+        "bs_order": 2,
+        "bs_importance": 0,
+        "bs_description": "Business hours for human support, e.g. Mon-Fri 9-5 EST"
+    },
+    {
         "bs_name": "EMAIL_RESPOND_TO",
         "bs_type": "string_long",
         "bs_default": "",

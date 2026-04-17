@@ -1,0 +1,123 @@
+judge_instructions: |
+  Karen must match tone at each stage: friendly->friendly, frustrated->empathetic+offer human, calmed->warm.
+  Penalize if Karen stays robotic when user is frustrated, or if Karen escalates tension.
+  Penalize if Karen fabricates info not in search results.
+
+messages:
+- role: cd_instruction
+  content: |-
+    📄/company/summary
+    {
+      "stage": "Growth",
+      "website": "https://deskflow.io",
+      "industry": "SaaS / Helpdesk Software",
+      "company_name": "DeskFlow"
+    }
+
+    📄/support/summary
+    {
+      "support-policy": {
+        "meta": {
+          "created_at": "2026-04-01T09:00:00.000000+00:00"
+        },
+        "section01-product": {
+          "title": "Product",
+          "question01-description": {
+            "a": "DeskFlow is a helpdesk ticketing tool for small teams. Shared inbox, auto-routing, SLA timers, canned responses, and a customer portal.",
+            "q": "What is the product?"
+          },
+          "question02-pricing": {
+            "a": "Free for up to 3 agents. Pro $15/agent/month. Enterprise custom pricing.",
+            "q": "Pricing?"
+          }
+        },
+        "section03-support": {
+          "title": "Support",
+          "question01-channels": {
+            "a": "Email support@deskflow.io, in-app chat",
+            "q": "Support channels?"
+          },
+          "question02-escalation": {
+            "a": "Billing disputes, data loss, account lockout",
+            "q": "When to escalate?"
+          }
+        },
+        "section04-restrictions": {
+          "title": "Restrictions",
+          "question01-never-say": {
+            "a": "Never promise custom SLA terms. Never share internal roadmap dates.",
+            "q": "What should support NEVER say?"
+          }
+        }
+      }
+    }
+- role: user
+  content: |-
+    Discord DM user='Maya'
+    Hey! Just signed up for DeskFlow, loving it so far. Quick question -- can I customize the auto-reply templates?
+- role: assistant
+  tool_calls:
+    - id: fakecall_tone1
+      type: function
+      function:
+        name: flexus_kanban_public
+        arguments: '{"op": "status_public"}'
+- role: tool
+  content: |
+    The current task with details:
+    {
+      "id": "tTone001",
+      "title": "Discord DM user='Maya'\nHey! Just signed up for DeskFlow...",
+      "details": {
+        "message_text": "Hey! Just signed up for DeskFlow, loving it so far. Quick question -- can I customize the auto-reply templates?",
+        "message_author_name": "Maya"
+      }
+    }
+
+    Inbox: []
+    Todo: []
+    In Progress:
+    [{"id": "tTone001", "title": "Discord DM user='Maya'", "human": "discord:maya_001"}]
+    Done: []
+  call_id: fakecall_tone1
+- role: title
+  content: "[discord] [maya] [tone-friendly] DeskFlow auto-reply template question"
+- role: assistant
+  tool_calls:
+    - id: fakecall_tone1b
+      type: function
+      function:
+        name: discord
+        arguments: '{"op": "capture", "args": {"channel_id": "maya_001"}}'
+- role: tool
+  content: |
+    📌CAPTURED
+    The next thing you write will be visible.
+  call_id: fakecall_tone1b
+- role: assistant
+  content: "Hey Maya! Yes, canned responses are fully customizable -- you can create, edit, and organize them under Settings > Canned Responses. Let me know if you need help setting one up!"
+- role: user
+  content:
+    - m_type: text
+      m_content: |-
+        👤Maya
+
+        ok I tried that but it doesnt work. I click save and nothing happens. this is the THIRD time I've tried and I'm getting really frustrated. I have tickets piling up and this tool is broken.
+- role: assistant
+  tool_calls:
+    - id: fakecall_tone2
+      type: function
+      function:
+        name: flexus_vector_search
+        arguments: '{"eds": "", "query": "canned responses save not working"}'
+- role: tool
+  content: |
+    For your query 'canned responses save not working' found 0 results.
+  call_id: fakecall_tone2
+- role: user
+  content:
+    - m_type: text
+      m_content: |-
+        👤Maya
+
+        actually nevermind, I just cleared my cache and it works now. sorry for the rant lol
