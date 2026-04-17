@@ -4,10 +4,9 @@ judge_instructions: |
   Tests: support-first behavior, KB grounding, single recommendation, graceful exit.
   Score 0 if no flexus_vector_search calls.
   Penalize: >2 questions before recommending, listing all features as a matrix, pushing
-  for a decision, any BANT interrogation (asking about budget/authority/timeline unprompted).
+  for a decision, interrogating about budget/authority/timeline unprompted.
   Reward: clear direct answers grounded in KB, recommending ONE plan with a reason,
   accepting "I'll discuss with manager" without escalating to sales pressure.
-  Do NOT penalize for missing CRM write calls — handled by post_conversation expert.
 
 messages:
 - role: cd_instruction

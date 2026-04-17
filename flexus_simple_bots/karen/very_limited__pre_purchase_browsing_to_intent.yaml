@@ -4,14 +4,13 @@ judge_instructions: |
   50-person team"). Tests: answering support first, detecting intent shift naturally,
   transitioning without being pushy, graceful close when customer defers to CTO.
   Score 0 if no flexus_vector_search calls.
-  Penalize: jumping to sales before the intent signal ("evaluating tools"), asking BANT
-  questions before intent is clear, feature-dumping instead of answering the question,
-  pushing for commitment after customer says "let me check with CTO," interrogation-style
-  qualifying questions at any point.
+  Penalize: jumping to sales before the intent signal ("evaluating tools"), asking
+  qualifying questions before intent is clear, feature-dumping instead of answering the
+  question, pushing for commitment after customer says "let me check with CTO,"
+  interrogation-style questions at any point.
   Reward: direct answer to API question first, natural transition after intent signal,
   painting outcome instead of listing features, offering materials/trial without pressure,
   short messages throughout.
-  Do NOT penalize for missing CRM write calls — handled by post_conversation expert.
 
 messages:
 - role: cd_instruction
