@@ -559,7 +559,7 @@ class IntegrationExperimentExecution:
             http = await self.fclient.use_http_on_behalf(self.pdoc_integration.rcx.persona.persona_id, "")
             await ckit_ask_model.thread_add_user_messages(
                 http, tracking.thread_id,
-                [ckit_ask_model.FThreadMessageInput(content=message, ftm_factor_id="system", ftm_provenance={"system_type": "experiment_monitor"})],
+                [ckit_ask_model.FThreadMessageInput(content=message, ftm_factor_id="system", ftm_factor_label="system", ftm_provenance={"system_type": "experiment_monitor"})],
                 "experiment_monitor",
             )
             logger.info(f"Sent notification for experiment {tracking.experiment_id}")

@@ -78,6 +78,7 @@ class FThreadComprehensiveSubs:
 class FThreadMessageInput:
     content: Union[str, List[Dict[str, Any]]]
     ftm_factor_id: str
+    ftm_factor_label: str
     ftm_provenance: Dict[str, Any]
     ftm_alt: int = 100
     role: str = "user"
@@ -101,6 +102,7 @@ async def thread_add_user_messages(
             "ftm_prev_alt": m.ftm_alt,
             "ftm_role": m.role,
             "ftm_factor_id": m.ftm_factor_id,
+            "ftm_factor_label": m.ftm_factor_label,
             "ftm_content": json.dumps(m.content),
             "ftm_tool_calls": "null",
             "ftm_call_id": "",
@@ -229,20 +231,22 @@ async def captured_thread_post_user_message(
     ft_app_searchable: str,
     content: Union[str, List[Dict[str, Any]]],
     ftm_factor_id: str,
+    ftm_factor_label: str,
     only_to_expert: str = "",
     ftm_provenance: Optional[Dict[str, Any]] = None,
     thread_too_old_s: Optional[float] = None,
 ) -> str:
     async with http as h:
         r = await h.execute(gql.gql("""
-            mutation CapturedThreadPostSafe($persona_id: String!, $ft_app_searchable: String!, $ftm_content: String!, $only_to_expert: String!, $ftm_factor_id: String!, $ftm_provenance: String, $thread_too_old_s: Float) {
-                captured_thread_post_user_message(persona_id: $persona_id, ft_app_searchable: $ft_app_searchable, ftm_content: $ftm_content, only_to_expert: $only_to_expert, ftm_factor_id: $ftm_factor_id, ftm_provenance: $ftm_provenance, thread_too_old_s: $thread_too_old_s)
+            mutation CapturedThreadPostSafe($persona_id: String!, $ft_app_searchable: String!, $ftm_content: String!, $only_to_expert: String!, $ftm_factor_id: String!, $ftm_factor_label: String!, $ftm_provenance: String, $thread_too_old_s: Float) {
+                captured_thread_post_user_message(persona_id: $persona_id, ft_app_searchable: $ft_app_searchable, ftm_content: $ftm_content, only_to_expert: $only_to_expert, ftm_factor_id: $ftm_factor_id, ftm_factor_label: $ftm_factor_label, ftm_provenance: $ftm_provenance, thread_too_old_s: $thread_too_old_s)
             }"""),
             variable_values={
                 "persona_id": persona_id,
                 "ft_app_searchable": ft_app_searchable,
                 "ftm_content": json.dumps(content),
                 "ftm_factor_id": ftm_factor_id,
+                "ftm_factor_label": ftm_factor_label,
                 "ftm_provenance": json.dumps(ftm_provenance) if ftm_provenance else None,
                 "only_to_expert": only_to_expert,
                 "thread_too_old_s": thread_too_old_s,

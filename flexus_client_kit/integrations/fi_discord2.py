@@ -580,7 +580,8 @@ class IntegrationDiscord(fi_messenger.FlexusMessenger):
                 result.append(ckit_ask_model.FThreadMessageInput(
                     content=parts,
                     ftm_factor_id=f"discord:{message.author.id}",
-                    ftm_provenance={"system_type": "fi_discord2", "factor_name": author_name},
+                    ftm_factor_label=f"{author_name or message.author.id}, via Discord",
+                    ftm_provenance={"system_type": "fi_discord2"},
                 ))
         return result
 
@@ -762,7 +763,8 @@ class IntegrationDiscord(fi_messenger.FlexusMessenger):
                 searchable,
                 parts,
                 ftm_factor_id=f"discord:{activity.message_author_id}",
-                ftm_provenance={"system_type": "fi_discord2", "factor_name": activity.message_author_name},
+                ftm_factor_label=f"{activity.message_author_name or activity.message_author_id}, via Discord",
+                ftm_provenance={"system_type": "fi_discord2"},
                 only_to_expert=self.outside_messages_fexp_name,
                 thread_too_old_s=30*86400 if activity.thread_id else 300,
             )
