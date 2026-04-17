@@ -48,6 +48,7 @@ RESEND_SETUP_SCHEMA = [
 RESEND_SEND_TOOL = ckit_cloudtool.CloudTool(
     strict=True,
     name="email_send",
+    auth_required="resend",
     description="Send an email. Provide html and/or text body.",
     parameters={
         "type": "object",
@@ -69,6 +70,7 @@ RESEND_SEND_TOOL = ckit_cloudtool.CloudTool(
 RESEND_REPLY_TOOL = ckit_cloudtool.CloudTool(
     strict=True,
     name="email_reply",
+    auth_required="resend",
     description="Reply to the inbound email of the current task. Recipient and CC are locked to the original sender/CCs.",
     parameters={
         "type": "object",
@@ -85,6 +87,7 @@ RESEND_REPLY_TOOL = ckit_cloudtool.CloudTool(
 RESEND_SETUP_TOOL = ckit_cloudtool.CloudTool(
     strict=False,
     name="email_setup_domain",
+    auth_required="resend",
     description="Manage email domains: add, verify, check status, list, delete. Call with op=\"help\" for usage. Before adding a domain, ask the user if they want to enable receiving emails on it.",
     parameters={
         "type": "object",

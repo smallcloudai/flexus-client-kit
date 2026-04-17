@@ -40,6 +40,7 @@ logger = logging.getLogger("teleg")
 TELEGRAM_TOOL = ckit_cloudtool.CloudTool(
     strict=False,
     name="telegram",
+    auth_required="telegram",
     description="Interact with Telegram. Call with op=\"help\" for usage, or op=\"status+help\" for both.",
     parameters={
         "type": "object",

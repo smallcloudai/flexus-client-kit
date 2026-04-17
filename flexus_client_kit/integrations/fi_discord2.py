@@ -39,6 +39,7 @@ logger = logging.getLogger("discord")
 DISCORD_TOOL = ckit_cloudtool.CloudTool(
     strict=False,
     name="discord",
+    auth_required="discord_manual",
     description="Interact with Discord channels, threads and DMs. Call with op=\"help\" for usage.",
     parameters={
         "type": "object",
