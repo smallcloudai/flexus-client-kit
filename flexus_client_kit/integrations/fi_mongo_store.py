@@ -2,6 +2,7 @@ import json
 import os
 import logging
 import re
+import urllib.parse
 from typing import Dict, Any, Optional
 from flexus_client_kit.integrations.fi_localfile import _validate_file_security
 
@@ -19,8 +20,8 @@ MONGO_STORE_TOOL = ckit_cloudtool.CloudTool(
         "properties": {
             "op": {
                 "type": "string",
-                "enum": ["help", "list", "ls", "cat", "grep", "delete", "upload", "save"],
-                "description": "Operation: list/ls (list files), cat (read file), grep (search), delete, upload (from disk), save (content directly)",
+                "enum": ["help", "list", "ls", "cat", "grep", "delete", "upload", "save", "patch", "render_download_link"],
+                "description": "Operation: list/ls (list files), cat (read file), grep (search), delete, upload (from disk), save (content directly), patch (find-and-replace in a file), render_download_link (show download card to user)",
             },
             "args": {
                 "type": "object",
@@ -33,8 +34,10 @@ MONGO_STORE_TOOL = ckit_cloudtool.CloudTool(
                     "pattern": {"type": ["string", "null"], "description": "Python regex pattern for grep"},
                     "context": {"type": ["integer", "null"], "description": "Context lines around grep matches"},
                     "content": {"type": ["string", "null"], "description": "Content for save op (JSON string or text)"},
+                    "old_text": {"type": ["string", "null"], "description": "For patch: exact text to find"},
+                    "new_text": {"type": ["string", "null"], "description": "For patch: replacement text"},
                 },
-                "required": ["path", "lines_range", "safety_valve", "pattern", "context", "content"],
+                "required": ["path", "lines_range", "safety_valve", "pattern", "context", "content", "old_text", "new_text"],
             },
         },
         "required": ["op", "args"],
@@ -65,15 +68,40 @@ grep    - Search file contents using Python regex using per-line matching
           Sometimes you need to grep .json files on disk, remember that all the strings inside are escaped in that case, making
           it a bit harder to match.
 
+patch   - Find and replace an exact string in a stored file.
+          args: path (required), old_text (required), new_text (required)
+          Fails if old_text is not found exactly once.
+
+render_download_link  - Show a download card to the user for an already-stored file.
+          The user sees a styled card with file icon, name, and download/preview button.
+          args: path (required)
+
 Examples:
   mongo_store(op="list", args={"path": "folder1/"})
   mongo_store(op="cat", args={"path": "folder1/something_20250803.json", "lines_range": "0:40", "safety_valve": "10k"})
   mongo_store(op="save", args={"path": "investigations/abc123.json", "content": "{...json...}"})
   mongo_store(op="delete", args={"path": "folder1/something_20250803.json"})
   mongo_store(op="grep", args={"path": "tasks.txt", "pattern": "TODO", "context": 2})
+  mongo_store(op="patch", args={"path": "report.html", "old_text": "<h1>Old</h1>", "new_text": "<h1>New</h1>"})
+  mongo_store(op="render_download_link", args={"path": "reports/monthly.pdf"})
 """
 
 # There's also a secret op="undelete" command that can bring deleted files
+
+
+_MIME_TYPES = {
+    ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg",
+    ".webp": "image/webp", ".gif": "image/gif", ".svg": "image/svg+xml",
+    ".pdf": "application/pdf", ".txt": "text/plain", ".csv": "text/csv",
+    ".json": "application/json", ".html": "text/html", ".htm": "text/html",
+    ".xml": "application/xml", ".md": "text/markdown",
+    ".yaml": "application/yaml", ".yml": "application/yaml",
+}
+
+
+def _guess_mime_type(path: str) -> str:
+    ext = os.path.splitext(path)[1].lower()
+    return _MIME_TYPES.get(ext, "application/octet-stream")
 
 
 async def handle_mongo_store(
@@ -190,10 +218,12 @@ async def handle_mongo_store(
         document = await ckit_mongo.mongo_retrieve_file(mongo_collection, path)
         if not document:
             return f"Error: File {path} not found in MongoDB"
-        if document.get("data"):
-            content = document["data"].decode("utf-8")
-        elif document.get("json"):
+        if document.get("data") is not None:
+            content = bytes(document["data"]).decode("utf-8")
+        elif document.get("json") is not None:
             content = json.dumps(document["json"], indent=2)
+        else:
+            content = ""
 
         result = grep_output(path, content, pattern, context)
         if not result:
@@ -212,8 +242,60 @@ async def handle_mongo_store(
         else:
             return f"Error: File {path} not found in MongoDB"
 
+    elif op == "patch":
+        if not path:
+            return f"Error: path parameter required for `patch` operation\n\n{HELP}"
+        old_text = args.get("old_text")
+        new_text = args.get("new_text")
+        if old_text is None:
+            return "Error: old_text is required for patch"
+        if new_text is None:
+            return "Error: new_text is required for patch"
+        path_error = validate_path(path)
+        if path_error:
+            return f"Error: {path_error}"
+        return await mongo_patch_file(mongo_collection, path, old_text, new_text)
+
+    elif op == "render_download_link":
+        if not path:
+            return f"Error: path parameter required for `render_download_link` operation\n\n{HELP}"
+        persona_id = toolcall.connected_persona_id
+        if not persona_id:
+            return "Error: `render_download_link` operation requires persona_id (connected_persona_id missing from toolcall)"
+        path_error = validate_path(path)
+        if path_error:
+            return f"Error: {path_error}"
+        display_name = os.path.basename(path)
+        mime = _guess_mime_type(path)
+        enc_path = urllib.parse.quote(path, safe="/")
+        enc_name = urllib.parse.quote(display_name, safe="")
+        return f"📎DOWNLOAD:{persona_id}:{enc_path}:{enc_name}:{mime}"
+
     else:
         return HELP
+
+
+async def mongo_patch_file(mongo_collection, path: str, old_text: str, new_text: str) -> str:
+    doc = await mongo_collection.find_one({"path": path})
+    if not doc:
+        return f"Error: file not found: {path}"
+    if doc.get("json") is not None:
+        content = json.dumps(doc["json"], indent=4)
+    elif doc.get("data") is not None:
+        try:
+            content = bytes(doc["data"]).decode("utf-8")
+        except UnicodeDecodeError:
+            return "Error: file is not valid UTF-8 text"
+    else:
+        return f"Error: file has no data: {path}"
+    count = content.count(old_text)
+    if count == 0:
+        return "Error: old_text not found in file"
+    if count > 1:
+        return f"Error: old_text found {count} times — make it more specific so it matches exactly once"
+    new_content = content.replace(old_text, new_text, 1)
+    await ckit_mongo.mongo_overwrite(mongo_collection, path, new_content.encode("utf-8"))
+    return f"✅ Patch applied to {path}"
 
 
 def validate_path(path: str, allow_empty: bool = False) -> Optional[str]:

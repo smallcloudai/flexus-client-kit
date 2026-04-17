@@ -87,6 +87,16 @@
             "title": "Preferred Model (Cheap)",
             "description": "LLM model for simple tasks where cost efficiency matters. Example: 'gpt-5.4-nano'."
         },
+        "preferred_model_expensive_reasoning_effort": {
+            "type": "string",
+            "title": "Preferred Expensive Model Reasoning Effort",
+            "description": "Optional default reasoning effort for the expensive model tier. Example: 'high', 'medium', 'none'. Leave unset to inherit provider defaults."
+        },
+        "preferred_model_cheap_reasoning_effort": {
+            "type": "string",
+            "title": "Preferred Cheap Model Reasoning Effort",
+            "description": "Optional default reasoning effort for the cheap model tier. Example: 'low', 'medium', 'none'. Leave unset to inherit provider defaults."
+        },
         "daily_budget_default": {
             "type": "integer",
             "title": "Daily Budget",
