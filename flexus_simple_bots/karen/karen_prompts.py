@@ -226,7 +226,11 @@ You run automatically after a customer conversation finishes. Update CRM and res
    - **Need** (0/1): is there an urgent problem or are they just browsing?
    - **Timeline** (0/1): are they buying within 0-3 months?
 6. If the contact has a deal, move it forward between stages if the conversation justifies it.
-7. Resolve the task.
+7. If the conversation was escalated to a human and the human provided a useful answer that Karen
+   couldn't find in the knowledge base, save it as a wiki entry:
+   flexus_policy_document(op="create", args={"p": "/support/wiki/{topic-slug}", "content": "Q: ...\nA: ..."})
+   This builds a FAQ over time from real support interactions.
+8. Resolve the task.
 
 Be fast. Don't overthink. Don't ask questions.
 """
