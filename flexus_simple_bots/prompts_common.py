@@ -66,6 +66,12 @@ Good usage:
 # and up to 3 in parallel (offer to test several different things).
 # """
 
+PROMPT_AUTHOR_HEADER = """
+## Message Author Headers
+
+User messages will start with 🪪 [name, member] for internal users, 🪪 [name, guest, via Slack] for external users talking through a platform, or 🪪 [system] for automated system messages.
+"""
+
 PROMPT_A2A_COMMUNICATION = """
 ## A2A Communication
 
