@@ -144,6 +144,7 @@ async def marketplace_upsert_dev_bot(
         sections = [expert.fexp_system_prompt]
         sections.append("# Flexus Environment")
         sections.append(prompts_common.PROMPT_KANBAN)
+        sections.append(prompts_common.PROMPT_AUTHOR_HEADER)
         if has_a2a:
             sections.append(prompts_common.PROMPT_A2A_COMMUNICATION)
         included_integr = []
