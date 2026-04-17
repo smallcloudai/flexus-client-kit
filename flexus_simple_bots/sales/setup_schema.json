@@ -1,0 +1,29 @@
+[
+    {
+        "bs_name": "knowledge_eds_ids",
+        "bs_type": "string_long",
+        "bs_default": "",
+        "bs_group": "Knowledge",
+        "bs_order": 1,
+        "bs_importance": 0,
+        "bs_description": "Comma-separated list of External Data Source (EDS) IDs this bot should search when answering prospect questions. Leave empty to search all workspace EDS."
+    },
+    {
+        "bs_name": "sales_strategy",
+        "bs_type": "string_multiline",
+        "bs_default": "",
+        "bs_group": "Policy",
+        "bs_order": 1,
+        "bs_importance": 0,
+        "bs_description": "Your sales strategy and key talking points. The bot uses this to ground sales conversations."
+    },
+    {
+        "bs_name": "escalate_policy",
+        "bs_type": "string_multiline",
+        "bs_default": "If you can't figure out what's going on, ask the prospect to wait and escalate to a human.",
+        "bs_group": "Policy",
+        "bs_order": 2,
+        "bs_importance": 0,
+        "bs_description": "When and how to escalate to a human sales rep."
+    }
+]
