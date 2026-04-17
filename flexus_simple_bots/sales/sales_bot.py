@@ -1,7 +1,6 @@
 import asyncio
 import json
 import logging
-import time
 from pathlib import Path
 from typing import Dict, Any, Optional
 
@@ -9,11 +8,9 @@ from flexus_client_kit import ckit_client
 from flexus_client_kit import ckit_cloudtool
 from flexus_client_kit import ckit_bot_exec
 from flexus_client_kit import ckit_shutdown
-from flexus_client_kit import ckit_erp
 from flexus_client_kit import ckit_kanban
 from flexus_client_kit import ckit_integrations_db
 from flexus_client_kit import ckit_skills
-from flexus_client_kit import erp_schema
 from flexus_client_kit import ckit_bot_version
 from flexus_client_kit.integrations import fi_mongo_store
 from flexus_client_kit.integrations import fi_crm_automations
@@ -24,7 +21,6 @@ from flexus_client_kit.integrations import fi_slack
 from flexus_client_kit.integrations import fi_crm
 from flexus_client_kit.integrations import fi_sched
 from flexus_client_kit.integrations import fi_thread
-from flexus_client_kit import ckit_scenario
 from flexus_client_kit.integrations import fi_discord2
 import gql.transport.exceptions
 
