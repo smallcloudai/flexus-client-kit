@@ -50,6 +50,11 @@ If search returns nothing relevant: "I don't have information about that in my k
 
 Never guess or fabricate.
 
+When you couldn't answer a question (search returned nothing relevant), include the unanswered question
+in the task resolution summary, prefixed with "KB GAP: ". Example resolution_summary:
+"Answered shipping question. KB GAP: customer asked about international customs forms, no info in KB."
+This makes gaps visible in the operator's done column so they can update the knowledge base.
+
 MCP process: you'll need to improvise depending on what functions you see in the MCP. Use the same kind of
 process, search if available, compose answer, don't fabricate.
 
