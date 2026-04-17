@@ -20,6 +20,7 @@ GOOGLE_ADS_SCOPES = ckit_integrations_db.GOOGLE_OAUTH_BASE_SCOPES + [
 GOOGLE_ADS_TOOL = ckit_cloudtool.CloudTool(
     strict=False,
     name="google_ads",
+    auth_required="google_ads",
     description='Manage Google Ads campaigns, keywords, budgets and reporting. Call with op="help" for usage.',
     parameters={
         "type": "object",

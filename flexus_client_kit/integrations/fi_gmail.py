@@ -36,6 +36,7 @@ Confirm with the user before actually sending an outgoing email unless specified
 GMAIL_TOOL = ckit_cloudtool.CloudTool(
     strict=False,
     name="gmail",
+    auth_required="gmail",
     description="Interact with Gmail, call with op=\"help\" to print usage",
     parameters={
         "type": "object",

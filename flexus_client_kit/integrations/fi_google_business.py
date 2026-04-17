@@ -30,6 +30,7 @@ Use `replyToReview` to post a response. Confirm with the user before replying to
 GOOGLE_BUSINESS_TOOL = ckit_cloudtool.CloudTool(
     strict=False,
     name="google_business",
+    auth_required="google_business",
     description='Manage Google Business Profile reviews, call with op="help" for usage',
     parameters={
         "type": "object",
