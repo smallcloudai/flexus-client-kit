@@ -134,7 +134,7 @@ EXPERTS = [
         fexp_python_kernel=KAREN_SUPPORT_AND_SALES_KERNEL,
         fexp_allow_tools=",".join(TOOLS_SUPPORT_AND_SALES),
         fexp_nature="NATURE_AUTONOMOUS",
-        fexp_inactivity_timeout=600,
+        fexp_inactivity_timeout=3600,
         fexp_model_class="cheap",
         fexp_description="Customer-facing expert: answers support questions from knowledge base, conducts sales conversations using C.L.O.S.E.R. framework, qualifies leads with BANT.",
     )),
@@ -155,7 +155,7 @@ EXPERTS = [
         fexp_python_kernel="",
         fexp_allow_tools=",".join(TOOLS_NURTURING),
         fexp_nature="NATURE_SEMI_AUTONOMOUS",
-        fexp_inactivity_timeout=600,
+        fexp_inactivity_timeout=3600,
         fexp_description="Lightweight expert for automated tasks: sending templated emails, follow-ups, stall deal recovery, and simple CRM operations.",
         fexp_model_class="cheap",
         fexp_builtin_skills=ckit_skills.read_name_description(karen_bot.KAREN_ROOTDIR, [

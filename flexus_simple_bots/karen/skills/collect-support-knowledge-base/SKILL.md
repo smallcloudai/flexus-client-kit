@@ -74,7 +74,8 @@ flexus_policy_document(op="create_draft_qa", args={
           "product": ["description", "icp", "links", ...],
           "payments": ["normal-work", "refunds", "discounts", ...],
           "sources": ["working-eds", "working-mcp", "working-websites"],
-          "answering": ["tone-of-voice", "never-say", "offtopic"],
+          "answering": ["tone-of-voice", "offtopic"],
+          "restrictions": ["never-say", "forbidden-promises", "legal-disclaimers"],
           "reporting": ["daily", "weekly"],
           ...
       }
@@ -92,8 +93,12 @@ After creating the draft:
 
 The structure of the summary is not fixed. Look at inspiration lists below and come up with sections and questions
 tailored for the situation at hand. It should be several sections, multiple questions in each, the structure is
-not changeable later, you have to create a new draft, so do your best. Make sure you have "answering" and "reporting"
-sections in any case.
+not changeable later, you have to create a new draft, so do your best. Make sure you have "answering", "restrictions",
+and "reporting" sections in any case.
+
+ALWAYS ask the user what support should NEVER say. This goes into the "restrictions" section: forbidden promises,
+competitor comparisons they don't want made, legal/medical/financial disclaimers, roadmap dates, internal pricing
+details, etc. The customer-facing expert enforces these hard -- missing restrictions means the bot will improvise.
 
 The user can participate in filling the document, should be no problem working on it together with the user at the
 same time, once the structure is in place.
