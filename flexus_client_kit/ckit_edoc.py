@@ -100,7 +100,6 @@ async def edoc_delete_batch(
     logger.info("Deleted %d edocs from ws %s", sum_deleted_cnt, ws_id)
 
 
-# A small helper needed by *edoc_create* – kept private.
 _EXT_ICONS = {
     'txt': "📝", 'doc': "📝", 'docx': "📝", 'rtf': "📝", 'odt': "📝", 'md': "📝",
     'xls': "📊", 'xlsx': "📊", 'csv': "📊", 'ods': "📊",
@@ -116,48 +115,6 @@ _EXT_ICONS = {
     'zip': "📦", 'rar': "📦", 'tar': "📦", 'gz': "📦",
 }
 
-
-async def edoc_create(
-    client: ckit_client.FlexusClient,
-    ws_id: str,
-    eds_id: str,
-    eds_type: str,
-    edoc_id: str,
-    edoc_title: str,
-    edoc_size_bytes: int,
-    edoc_icon: Optional[str] = None,
-) -> bool:
-    if not edoc_icon:
-        ext = edoc_title.split(".")[-1].lower() if "." in edoc_title else ""
-        edoc_icon = _EXT_ICONS.get(ext, "📎")
-    payload = {
-        "ws_id": ws_id,
-        "eds_id": eds_id,
-        "eds_type": eds_type,
-        "edoc_id": edoc_id,
-        "edoc_icon": edoc_icon,
-        "edoc_title": edoc_title,
-        "edoc_mtime": 0,
-        "edoc_size_bytes": edoc_size_bytes,
-        "edoc_status_download": "EDOC_FOUND",
-        "edoc_status_graphdb": "",
-        "edoc_status_vectordb": "",
-        "edoc_crawler_url": "",
-    }
-    http_client = await client.use_http_on_behalf("", "")
-    async with http_client as http:
-        result = await http.execute(
-            gql.gql(
-                """mutation EdocUpsert($p: FEdocInput!) {
-                    edoc_upsert(p: $p)
-                }""",
-            ),
-            variable_values={
-                "p": payload,
-            },
-        )
-    logger.info("edoc_create: %s", edoc_title)
-    return result["edoc_upsert"]
 
 async def edoc_patch(
     client: ckit_client.FlexusClient,
@@ -175,27 +132,31 @@ async def edoc_patch(
                 "p": p,
             },
         )
-    logger.debug("edoc_patch %s updated with %s", p["edoc_id"], {k: v for k, v in p.items()})
+    logger.info("edoc_patch %s updated with %s", p["edoc_id"], {k: v for k, v in p.items()})
     return result["edoc_update"]
 
-async def edoc_upsert(
+async def edoc_upsert_multi(
     client: ckit_client.FlexusClient,
-    p: Dict[str, Any]
-) -> bool:
+    ps: List[Dict[str, Any]],
+) -> int:
+    if not ps:
+        return 0
     http_client = await client.use_http_on_behalf("", "")
+    total = 0
     async with http_client as http:
-        result = await http.execute(
-            gql.gql(
-                """mutation EdocUpsert($p: FEdocInput!) {
-                    edoc_upsert(p: $p)
-                }""",
-            ),
-            variable_values={
-                "p": p
-            }
-        )
-    logger.debug("edoc_upsert %s with %s", p["edoc_id"], {k: v for k, v in p.items()})
-    return result["edoc_upsert"]
+        for i in range(0, len(ps), MAX_EDOCS_PER_REQ):
+            batch = ps[i:i + MAX_EDOCS_PER_REQ]
+            r = await http.execute(
+                gql.gql(
+                    """mutation EdocUpsertMulti($ps: [FEdocInput!]!) {
+                        edoc_upsert_multi(ps: $ps)
+                    }""",
+                ),
+                variable_values={"ps": batch},
+            )
+            total += r["edoc_upsert_multi"]
+    logger.info("edoc_upsert_multi upserted %d edocs", total)
+    return total
 
 async def subscribe_to_eds_types(
     ws_client,
