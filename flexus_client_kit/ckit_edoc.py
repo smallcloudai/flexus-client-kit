@@ -173,6 +173,20 @@ async def subscribe_to_eds_types(
             subs = gql_utils.dataclass_from_dict(r["eds_subs"], FExternalDataSourceSubs)
             yield subs
 
+async def eds_mark_started(fclient: ckit_client.FlexusClient, eds_id: str):
+    http = await fclient.use_http_on_behalf("", "")
+    async with http as h:
+        await h.execute(
+            gql.gql(
+                """mutation EdsMarkStarted($eds_id: String!) {
+                    eds_mark_started(eds_id: $eds_id)
+                }""",
+            ),
+            variable_values={"eds_id": eds_id},
+        )
+    logger.info("eds_mark_started: %s", eds_id)
+
+
 async def eds_report_error(fclient: ckit_client.FlexusClient, eds_id: str, error_msg: str):
     http = await fclient.use_http_on_behalf("", "")
     async with http as h:
