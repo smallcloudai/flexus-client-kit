@@ -3,8 +3,8 @@
         "type": "object",
         "title": "Input",
         "properties": {
-            "input_goal": {"type": "string", "order": 0, "ui:multiline": 10},
-            "input_documents": {"type": "string", "order": 1, "ui:multiline": 6}
+            "input_goal": {"type": "string", "order": 0, "ui:multiline": 10, "title": "Goal"},
+            "input_documents": {"type": "string", "order": 1, "ui:multiline": 6, "title": "Referenced documents"}
         },
         "additionalProperties": false
     },
@@ -12,7 +12,7 @@
         "type": ["object", "null"],
         "title": "Draft",
         "properties": {
-            "draft_tasks": {"type": "string", "order": 0, "ui:multiline": 13}
+            "draft_tasks": {"type": "string", "order": 0, "ui:multiline": 13, "title": "Tasks (one per line: 'BotName: do something')"}
         },
         "additionalProperties": false
     },
@@ -20,8 +20,8 @@
         "type": ["object", "null"],
         "title": "Progress",
         "properties": {
-            "learned_so_far": {"type": "string", "order": 0, "ui:multiline": 5},
-            "progress_documents": {"type": "string", "order": 1, "ui:multiline": 3}
+            "learned_so_far": {"type": "string", "order": 0, "ui:multiline": 5, "title": "Learned so far"},
+            "progress_documents": {"type": "string", "order": 1, "ui:multiline": 3, "title": "Produced documents"}
         },
         "additionalProperties": false
     },
@@ -29,8 +29,8 @@
         "type": ["object", "null"],
         "title": "Conclusion",
         "properties": {
-            "outcome_summary": {"type": "string", "order": 0, "ui:multiline": 10},
-            "outcome_documents": {"type": "string", "order": 1, "ui:multiline": 6}
+            "outcome_summary": {"type": "string", "order": 0, "ui:multiline": 10, "title": "Outcome summary"},
+            "outcome_documents": {"type": "string", "order": 1, "ui:multiline": 6, "title": "Outcome documents"}
         },
         "additionalProperties": false
     }
