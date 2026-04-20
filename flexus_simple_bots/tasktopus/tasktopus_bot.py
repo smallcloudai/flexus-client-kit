@@ -45,6 +45,7 @@ async def tasktopus_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_e
     setup = ckit_bot_exec.official_setup_mixing_procedure(TASKTOPUS_SETUP_SCHEMA, rcx.persona.persona_setup)
     integr_objects = await ckit_integrations_db.main_loop_integrations_init(TASKTOPUS_INTEGRATIONS, rcx, setup)
     sl: Optional[fi_slack.IntegrationSlack] = integr_objects.get("slack")
+    sl.accept_outside_messages_only_to_expert("one_on_one_messenger")
     await fi_mcp.mcp_launch(TASKTOPUS_MCPS, rcx, setup)
 
     fb = fakefibery_situation1.build()

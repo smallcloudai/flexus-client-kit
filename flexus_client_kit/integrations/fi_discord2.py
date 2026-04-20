@@ -212,6 +212,9 @@ class IntegrationDiscord(fi_messenger.FlexusMessenger):
         if extra_details:
             details.update(extra_details)
         human_id = "discord:%d" % a.message_author_id if a.message_author_id else ""
+        if not self.outside_messages_fexp_name:
+            logger.warning("%s accept_outside_messages_only_to_expert() was never called, don't know which expert to use", self.rcx.persona.persona_id)
+            return
         post_fn = ckit_kanban.bot_kanban_post_into_inprogress if a.is_dm else ckit_kanban.bot_kanban_post_into_inbox
         await post_fn(
             await self.fclient.use_http_on_behalf(self.rcx.persona.persona_id, ""),

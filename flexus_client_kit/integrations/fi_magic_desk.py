@@ -68,6 +68,9 @@ class IntegrationMagicDesk(fi_messenger.FlexusMessenger):
     async def inbound_activity_to_task(self, a: ActivityMagicDesk, already_posted: bool):
         if already_posted:
             return
+        if not self.outside_messages_fexp_name:
+            logger.warning("%s accept_outside_messages_only_to_expert() was never called, don't know which expert to use", self.rcx.persona.persona_id)
+            return
         await ckit_kanban.bot_kanban_post_into_inprogress(
             await self.fclient.use_http_on_behalf(self.rcx.persona.persona_id, ""),
             self.rcx.persona.persona_id,

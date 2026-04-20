@@ -387,6 +387,9 @@ class IntegrationTelegram(fi_messenger.FlexusMessenger):
             if a.attachments:
                 title += f"\n[{len(a.attachments)} file(s) attached]"
         human_id = "telegram:%d" % a.chat_id
+        if not self.outside_messages_fexp_name:
+            logger.warning("%s accept_outside_messages_only_to_expert() was never called, don't know which expert to use", self.rcx.persona.persona_id)
+            return
         post_fn = ckit_kanban.bot_kanban_post_into_inprogress if a.chat_type == "private" else ckit_kanban.bot_kanban_post_into_inbox
         await post_fn(
             await self.fclient.use_http_on_behalf(self.rcx.persona.persona_id, ""),
