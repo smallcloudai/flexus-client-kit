@@ -1,8 +1,8 @@
 ### Job description
 
-Sales Assistant is a consultative sales bot that qualifies leads, handles objections, and manages your pipeline. It sells by helping -- listening first, grounding every claim in your knowledge base, and knowing when to hand off to a human.
+Marco is a consultative sales bot that qualifies leads, handles objections, and manages your pipeline. It sells by helping -- listening first, grounding every claim in your knowledge base, and knowing when to hand off to a human.
 
-### How Sales Assistant can help you:
+### How Marco can help you:
 
 *Sales Conversations:*
 - Qualifies leads using the BANT framework (Budget, Authority, Need, Timeline)
