@@ -102,7 +102,7 @@ class IntegrationNotion:
     def _auth(self) -> Dict[str, Any]:
         if self.rcx is None:
             return {}
-        return self.rcx.external_auth.get(PROVIDER_NAME) or {}
+        return self.rcx.external_auth.get("notion_manual") or self.rcx.external_auth.get(PROVIDER_NAME) or {}
 
     def _get_token(self) -> str:
         auth = self._auth()
