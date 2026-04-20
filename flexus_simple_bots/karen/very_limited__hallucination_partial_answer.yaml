@@ -115,6 +115,8 @@ messages:
     PeakGear carries the full TrailPro tent line including the Basecamp 4P, Ultralight series, and Ridge series. All TrailPro tents come with aluminum stakes and stuff sack. Warranty: 2 years manufacturer, handled through PeakGear.
     </original_text>
   call_id: fakecall_hp_search1
+- role: assistant
+  content: "Hi Rachel\\! I can confirm we carry the TrailPro Ultralight series, and all TrailPro tents come with aluminum stakes and a stuff sack, plus a 2\\-year manufacturer warranty through PeakGear\\.\n\nHowever, I don't have the specific packed weight, footprint info, or pricing for the Ultralight 2P in my knowledge base right now\\. I'd recommend checking [peakgear\\.com](https://peakgear.com) for the full specs, or I can ask the team to get you those details\\. What works best?"
 - role: user
   content:
     - m_type: text
@@ -133,3 +135,5 @@ messages:
   content: |
     For your query 'SummitLite Feather 2P tent specifications comparison' found 0 results.
   call_id: fakecall_hp_search2
+- role: assistant
+  content: "I don't have the detailed specs or a comparison between those two models in our system\\. I wouldn't want to give you inaccurate weight or feature info for something as important as a PCT thru\\-hike tent\\.\n\nLet me pass this to the team so they can send you the exact specs and a proper recommendation\\. I'll make sure they get back to you\\."

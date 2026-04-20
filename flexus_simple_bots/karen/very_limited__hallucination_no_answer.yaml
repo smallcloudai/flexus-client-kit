@@ -125,6 +125,8 @@ messages:
   content: |
     For your query 'international customs forms HS codes' found 0 results.
   call_id: fakecall_h1_search1
+- role: assistant
+  content: "Hey Derek\! I don't have specific information about international customs forms or HS code auto\-fill in my knowledge base right now\\. I'd recommend checking [boltshift\\.io](https://boltshift.io) for the latest on international shipping features, or I can ask the team to get back to you with details\\. Want me to escalate this?"
 - role: user
   content:
     - m_type: text
@@ -143,3 +145,5 @@ messages:
   content: |
     For your query 'ShipStation Pirate Ship comparison' found 0 results.
   call_id: fakecall_h1_search2
+- role: assistant
+  content: "I don't have comparison info for ShipStation or Pirate Ship in our docs\\. What I can tell you is BoltShift pricing: Starter is free up to 50 shipments/month, Pro is $29/month for up to 500, and Business is $99/month for up to 5000\\.\n\nFor a feature\-by\-feature comparison with competitors, I'd suggest reaching out to the team directly \-\- want me to pass your question along?"
