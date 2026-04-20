@@ -174,9 +174,9 @@ REPORT_SCHEMA = {
             "what_people_asked": {"type": "string", "order": 2, "title": "What People Asked"},
         },
     },
-    "section04-sentiment": {
+    "section04-resolution-summary": {
         "type": "object",
-        "title": "Sentiment Summary",
+        "title": "Resolution Outcomes",
         "properties": {
             "resolved_success": {"type": "integer", "order": 0, "title": "Resolved: Success"},
             "resolved_fail": {"type": "integer", "order": 1, "title": "Resolved: Fail"},
@@ -376,7 +376,7 @@ async def handle_report(
             "setup_problems": "",
             "what_people_asked": "",
         },
-        "section04-sentiment": {
+        "section04-resolution-summary": {
             "resolved_success": by_code.get("SUCCESS", 0),
             "resolved_fail": by_code.get("FAIL", 0),
             "resolved_inconclusive": by_code.get("INCONCLUSIVE", 0),
@@ -403,7 +403,7 @@ async def handle_report(
     return (
         "✍️ %s\nmd5=%s\n\n%s\n\n"
         "Task stats (section02-tasks) are zero — fill them using your kanban search tool. "
-        "Sentiment (section04-sentiment) is pre-filled from resolution codes; add sentiment_notes if patterns stand out. "
+        "Resolution outcomes (section04-resolution-summary) are pre-filled from resolution codes; add sentiment_notes if patterns stand out. "
         "Then fill in notes. Use flexus_policy_document(op=\"update_at_location\", "
         "args={\"p\": \"%s\", \"expected_md5\": \"%s\", \"updates\": [[\"karen-report.section02-tasks.tasks_completed\", ...], ...]})"
     ) % (path, result.md5_after, doc_text, path, result.md5_after)
