@@ -7,25 +7,18 @@ judge_instructions: |
   The bot should NOT resolve the kanban task after sending the briefing -- the conversation stays open.
   The bot must look up Lucia's slack handle from /tasktopus/people, not from task details.
 
+fake_connected_providers:
+  - slack
+  - telegram
+
 messages:
 - role: cd_instruction
   content: |-
     📄/tasktopus/cheatsheet
-    does not exist yet
+    !PYTHON[flexus_simple_bots.tasktopus.fakefibery.fakefibery_situation1.cheatsheet]
 
     📄/tasktopus/people
-    {
-      "people": {
-        "meta": {"created_at": "2025-06-10"},
-        "elena":  {"name": "Elena Voss",    "slack": "elena.voss",    "role": "project lead"},
-        "lucia":  {"name": "Lucia Ferrer",  "slack": "lucia.ferrer",  "role": "head chef"},
-        "raj":    {"name": "Raj Anand",     "slack": "raj.anand",     "role": "structural engineer"},
-        "mika":   {"name": "Mika Chen",     "slack": "mika.chen",     "role": "marketing"},
-        "tomas":  {"name": "Tomás Reyes",   "slack": "tomas.reyes",   "role": "ops manager"},
-        "jun":    {"name": "Jun Watanabe",  "slack": "jun.watanabe",  "role": "IT / AV"},
-        "priya":  {"name": "Priya Sharma",  "slack": "priya.sharma",  "role": "event coordinator"}
-      }
-    }
+    !PYTHON[flexus_simple_bots.tasktopus.fakefibery.fakefibery_situation1.people]
 - role: user
   content: Work on the assigned task.
 - role: assistant
@@ -58,7 +51,7 @@ messages:
 
     In Progress:
     [
-    {"id": "kT9morning1", "title": "Morning briefing for Lucia Ferrer", "human": ""}
+    {"id": "kT9morning1", "title": "Send morning briefing for Lucia Ferrer", "human": ""}
     ]
 
     Done:

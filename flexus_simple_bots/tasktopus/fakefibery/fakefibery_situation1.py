@@ -1,4 +1,7 @@
+import json
+
 from flexus_simple_bots.tasktopus.fakefibery import fakefibery_fakemcp as ff
+
 
 # Celebrity Wedding at a half-finished volcano resort.
 # Billionaire booked a wedding for 200 VIP guests in 10 days, forcing the team
@@ -244,3 +247,71 @@ def build() -> ff.FakeFibery:
         activity=activity,
         now_ts=NOW,
     )
+
+
+# Can model real-world drift: incorrect or missing info
+people = json.dumps(json.loads("""
+{
+  "people-db": {
+    "meta": {
+      "author": "Elena Voss",
+      "created": "20250601",
+      "updated": "20250610"
+    },
+    "users": {
+      "elena": {
+        "full-name": "Elena Voss",
+        "avatar": "/v1/avatar/032-sheep_meditating.webp",
+        "aka": {"taskman": "elena", "slack": "elena.voss", "telegram": "elenavoss"},
+        "primary-messenger": "slack",
+        "prefs": "Project lead. Prefers morning briefings, hates midday interruptions."
+      },
+      "lucia": {
+        "full-name": "Lucia Ferrer",
+        "avatar": "/v1/avatar/299-fox-sitting.webp",
+        "aka": {"taskman": "lucia", "slack": "lucia.ferrer", "telegram": "luciaferrer"},
+        "primary-messenger": "slack",
+        "prefs": "Head chef. Kitchen hours 6:00–22:00, DMs OK anytime but she replies in bursts."
+      },
+      "raj": {
+        "full-name": "Raj Anand",
+        "avatar": "/v1/avatar/048-opossum_wearing_spacesuit.webp",
+        "aka": {"taskman": "raj", "slack": "raj.anand", "telegram": ""},
+        "prefs": "Structural engineer. Long reply latency, works best with very specific questions."
+      }
+    },
+    "schema": {
+      "users": {
+        "type": "object",
+        "order": 0,
+        "title": "Tasktopus People Database",
+        "additionalProperties": {
+          "type": "object",
+          "required": ["full-name"],
+          "properties": {
+            "full-name": {"type": "string", "order": 0, "title": "Full name"},
+            "avatar":    {"type": "string", "order": 1, "title": "Avatar URL", "ui:avatar": true},
+            "aka": {
+              "type": "object",
+              "order": 2,
+              "title": "Messengers",
+              "properties": {
+                "taskman":  {"type": "string", "order": 0},
+                "slack":    {"type": "string", "order": 1},
+                "telegram": {"type": "string", "order": 2}
+              },
+              "additionalProperties": false
+            },
+            "primary-messenger": {"type": "string", "order": 3, "title": "Primary messenger", "enum": ["taskman", "slack", "telegram"]},
+            "prefs": {"type": "string", "order": 4, "title": "Preferences", "ui:multiline": true}
+          },
+          "additionalProperties": false
+        }
+      }
+    }
+  }
+}
+"""), ensure_ascii=False, indent=2)
+
+
+cheatsheet = "does not exist yet"

@@ -1,3 +1,5 @@
+import importlib
+import re
 import uuid
 import logging
 import argparse
@@ -10,6 +12,23 @@ import gql
 from flexus_client_kit import gql_utils, ckit_client, ckit_ask_model, ckit_kanban, ckit_bot_query, ckit_cloudtool
 
 logger = logging.getLogger("cksce")
+
+
+# Matches a line like "    !PYTHON[pkg.sub.module.attr]" and captures the leading indent.
+_PYTHON_REF_RE = re.compile(r"^([ \t]*)!PYTHON\[([A-Za-z_][\w.]*)\]\s*$", re.MULTILINE)
+
+
+def expand_python_refs(raw_yaml: str) -> str:
+    # Substitutes !PYTHON[fully.qualified.attr] on its own line with the string
+    # value of the referenced python object, re-indented to match the original
+    # line's indentation. The referenced attribute must be a string.
+    def _replace(m: re.Match) -> str:
+        indent, dotted = m.group(1), m.group(2)
+        mod_name, _, attr = dotted.rpartition(".")
+        mod = importlib.import_module(mod_name)
+        text = getattr(mod, attr)
+        return "\n".join(indent + line for line in text.splitlines())
+    return _PYTHON_REF_RE.sub(_replace, raw_yaml)
 
 
 def bot_launch_argparse():

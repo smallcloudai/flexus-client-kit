@@ -709,6 +709,7 @@ async def _run_scenario_for_model(
     bot_version: str,
 ) -> None:
     judge_instructions = trajectory_data.get("judge_instructions", "")
+    fake_connected_providers = trajectory_data["fake_connected_providers"]
     messages = trajectory_data["messages"]
     logger.info("Running scenario %s with model %s", expert__scenario, model_name)
     await ckit_scenario.bot_scenario_result_upsert(
@@ -758,6 +759,7 @@ async def _run_scenario_for_model(
                 persona_id=scenario.persona.persona_id,
                 fexp_name=fexp_name,
                 scenario_initial_cd_instruction=scenario_initial_cd_instruction,
+                scenario_fake_connected_providers=fake_connected_providers,
                 first_question=last_human_message,
                 first_calls=first_assistant_calls,
                 title="Trajectory Test",
@@ -952,6 +954,7 @@ async def run_happy_trajectory(
 ) -> None:
     with open(trajectory_yaml_path) as f:
         trajectory_happy = f.read()
+    trajectory_happy = ckit_scenario.expand_python_refs(trajectory_happy)
 
     trajectory_data = yaml.safe_load(trajectory_happy)
     messages = trajectory_data["messages"]
@@ -1078,6 +1081,7 @@ async def run_bots_in_this_group(
     if scenario_fn:
         with open(scenario_fn) as f:
             running_happy_yaml = f.read()
+        running_happy_yaml = ckit_scenario.expand_python_refs(running_happy_yaml)
         running_test_scenario = True
         scenario = ckit_scenario.ScenarioSetup(service_name="trajectory_replay")
         assert scenario.explicit_models, "use --model (comma-separated list of models)"
