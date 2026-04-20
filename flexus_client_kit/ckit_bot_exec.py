@@ -793,7 +793,7 @@ async def _run_scenario_for_model(
                 break
             await ckit_ask_model.thread_add_user_messages(
                 http, ft_id,
-                [ckit_ask_model.FThreadMessageInput(content=result.next_human_message, ftm_factor_id="system", ftm_factor_label="system", ftm_provenance={"who_is_asking": "trajectory_scenario", "shaky": result.shaky})],
+                [ckit_ask_model.FThreadMessageInput(content=result.next_human_message, ftm_author_label1="system", ftm_author_label2="", ftm_provenance={"who_is_asking": "trajectory_scenario", "shaky": result.shaky})],
                 "trajectory_scenario",
             )
 

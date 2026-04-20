@@ -467,7 +467,7 @@ class IntegrationSlack(fi_messenger.FlexusMessenger):
             try:
                 thirty_minutes_ago = str(int(time.time() - 30*60))
 
-                captured_msgs: List[ckit_ask_model.FThreadMessageInput] = []
+                captured_msgs: List[ckit_ask_model.CapturedMessageInput] = []
                 total_images = 0
                 async for msg in self._get_history(something_name, thread_ts, thirty_minutes_ago, 5):
                     txt = msg.get('text') or ''
@@ -499,10 +499,10 @@ class IntegrationSlack(fi_messenger.FlexusMessenger):
                         except Exception:
                             logger.exception("capture file processing failed: %s", file_info.get("name", "?"))
                     if parts:
-                        captured_msgs.append(ckit_ask_model.FThreadMessageInput(
+                        captured_msgs.append(ckit_ask_model.CapturedMessageInput(
                             content=parts,
-                            ftm_factor_id=f"slack:{user_id}" if user_id else "slack:unknown",
-                            ftm_factor_label=f"{author_name or user_id or 'unknown'}, via Slack",
+                            ftm_author_label1=f"slack:{user_id}" if user_id else "slack:unknown",
+                            ftm_author_label2=f"{author_name or user_id or 'unknown'}",
                             ftm_provenance={"system_type": "fi_slack"},
                         ))
 
@@ -519,7 +519,10 @@ class IntegrationSlack(fi_messenger.FlexusMessenger):
                 except gql.transport.exceptions.TransportQueryError as e:
                     return ckit_cloudtool.gql_error_4xx_to_model_reraise_5xx(e, "slack_capture")
                 logger.info("Successful capture %s <-> %s, posting %d msgs into the captured thread" % (something_id_slash_thread, toolcall.fcall_ft_id, len(captured_msgs)))
-                await ckit_ask_model.thread_add_user_messages(http, toolcall.fcall_ft_id, captured_msgs, "fi_slack")
+                await ckit_ask_model.captured_thread_post_user_messages(
+                    http, self.rcx.persona.persona_id, searchable, captured_msgs,
+                    only_to_expert=self.outside_messages_fexp_name,
+                )
                 r += fi_messenger.CAPTURE_SUCCESS_MSG % (something_name,) + fi_messenger.CAPTURE_ADVICE_MSG
                 r += "Remember that slack formatting rules are in effect, and it's not markdown:\n"
                 r += FORMATTING
@@ -558,14 +561,16 @@ class IntegrationSlack(fi_messenger.FlexusMessenger):
         http = await self.fclient.use_http_on_behalf(self.rcx.persona.persona_id, "")
         logger.info("captured_thread_post searchable=%s msg=%s", searchable, a.message_text[:200])
         try:
-            ft_id = await ckit_ask_model.captured_thread_post_user_message(
+            ft_id = await ckit_ask_model.captured_thread_post_user_messages(
                 http,
                 self.rcx.persona.persona_id,
                 searchable,
-                content,
-                ftm_factor_id=f"slack:{a.message_author_id}",
-                ftm_factor_label=f"{a.message_author_name or a.message_author_id}, via Slack",
-                ftm_provenance={"system_type": "fi_slack"},
+                [ckit_ask_model.CapturedMessageInput(
+                    content=content,
+                    ftm_author_label1=f"slack:{a.message_author_id}",
+                    ftm_author_label2=f"{a.message_author_name or a.message_author_id}",
+                    ftm_provenance={"system_type": "fi_slack"},
+                )],
                 only_to_expert=self.outside_messages_fexp_name,
                 thread_too_old_s=30*86400 if a.thread_ts else 300,
             )

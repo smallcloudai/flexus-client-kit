@@ -35,7 +35,7 @@ class FThreadMessageOutput:
     ftm_usage: Any
     ftm_tool_calls: Any
     ftm_call_id: str
-    ftm_factor_id: str
+    ftm_author_label1: str
     ftm_app_specific: Any
     ftm_created_ts: float
     ftm_provenance: Any
@@ -77,8 +77,8 @@ class FThreadComprehensiveSubs:
 @dataclass
 class FThreadMessageInput:
     content: Union[str, List[Dict[str, Any]]]
-    ftm_factor_id: str
-    ftm_factor_label: str
+    ftm_author_label1: str
+    ftm_author_label2: str
     ftm_provenance: Dict[str, Any]
     ftm_alt: int = 100
     role: str = "user"
@@ -101,8 +101,8 @@ async def thread_add_user_messages(
             "ftm_num": -random.randint(1, 2**31 - 1),
             "ftm_prev_alt": m.ftm_alt,
             "ftm_role": m.role,
-            "ftm_factor_id": m.ftm_factor_id,
-            "ftm_factor_label": m.ftm_factor_label,
+            "ftm_author_label1": m.ftm_author_label1,
+            "ftm_author_label2": m.ftm_author_label2,
             "ftm_content": json.dumps(m.content),
             "ftm_tool_calls": "null",
             "ftm_call_id": "",
@@ -225,34 +225,42 @@ async def thread_app_capture_patch(
     return r["thread_app_capture_patch"]
 
 
-async def captured_thread_post_user_message(
+@dataclass
+class CapturedMessageInput:
+    content: Union[str, List[Dict[str, Any]]]
+    ftm_author_label1: str
+    ftm_author_label2: str
+    ftm_provenance: Optional[Dict[str, Any]] = None
+
+
+async def captured_thread_post_user_messages(
     http: gql.Client,
     persona_id: str,
     ft_app_searchable: str,
-    content: Union[str, List[Dict[str, Any]]],
-    ftm_factor_id: str,
-    ftm_factor_label: str,
-    only_to_expert: str = "",
-    ftm_provenance: Optional[Dict[str, Any]] = None,
+    messages: List[CapturedMessageInput],
+    only_to_expert: str,
     thread_too_old_s: Optional[float] = None,
 ) -> str:
+    records = [{
+        "ftm_content": json.dumps(m.content),
+        "ftm_author_label1": m.ftm_author_label1,
+        "ftm_author_label2": m.ftm_author_label2,
+        "ftm_provenance": json.dumps(m.ftm_provenance) if m.ftm_provenance else None,
+    } for m in messages]
     async with http as h:
         r = await h.execute(gql.gql("""
-            mutation CapturedThreadPostSafe($persona_id: String!, $ft_app_searchable: String!, $ftm_content: String!, $only_to_expert: String!, $ftm_factor_id: String!, $ftm_factor_label: String!, $ftm_provenance: String, $thread_too_old_s: Float) {
-                captured_thread_post_user_message(persona_id: $persona_id, ft_app_searchable: $ft_app_searchable, ftm_content: $ftm_content, only_to_expert: $only_to_expert, ftm_factor_id: $ftm_factor_id, ftm_factor_label: $ftm_factor_label, ftm_provenance: $ftm_provenance, thread_too_old_s: $thread_too_old_s)
+            mutation CapturedThreadPostSafe($persona_id: String!, $ft_app_searchable: String!, $messages: [CapturedThreadMessageInput!]!, $only_to_expert: String!, $thread_too_old_s: Float) {
+                captured_thread_post_user_messages(persona_id: $persona_id, ft_app_searchable: $ft_app_searchable, messages: $messages, only_to_expert: $only_to_expert, thread_too_old_s: $thread_too_old_s)
             }"""),
             variable_values={
                 "persona_id": persona_id,
                 "ft_app_searchable": ft_app_searchable,
-                "ftm_content": json.dumps(content),
-                "ftm_factor_id": ftm_factor_id,
-                "ftm_factor_label": ftm_factor_label,
-                "ftm_provenance": json.dumps(ftm_provenance) if ftm_provenance else None,
+                "messages": records,
                 "only_to_expert": only_to_expert,
                 "thread_too_old_s": thread_too_old_s,
             },
         )
-    return r["captured_thread_post_user_message"]
+    return r["captured_thread_post_user_messages"]
 
 
 async def captured_thread_lookup(
