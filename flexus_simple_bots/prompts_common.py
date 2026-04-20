@@ -69,7 +69,10 @@ Good usage:
 PROMPT_AUTHOR_HEADER = """
 ## Message Author Headers
 
-User messages will start with 🪪 [name, member] for internal users, 🪪 [name, guest, via Slack] for external users talking through a platform, or 🪪 [system] for automated system messages.
+User messages start with a 🪪 header identifying the author:
+- `🪪 [email, name]` — internal users
+- `🪪 [platform:external_id, name]` — external users (e.g. `telegram:456902377`, `magic_desk:<session>`)
+- `🪪 [system]` — automated system messages
 """
 
 PROMPT_A2A_COMMUNICATION = """
