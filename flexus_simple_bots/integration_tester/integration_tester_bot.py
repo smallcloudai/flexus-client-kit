@@ -49,12 +49,7 @@ async def integration_tester_main_loop(
     async def toolcall_plan_batches(toolcall, model_produced_args):
         args = model_produced_args or {}
         req = shared._requested_names(str(args.get("requested", "all")))
-        bs = args.get("batch_size", 5)
         configured_only = bool(args.get("configured_only", True))
-        try:
-            bs = int(bs)
-        except (TypeError, ValueError):
-            bs = 5
 
         configured = {x["name"] for x in shared.get_configured_integrations(supported_integrations)}
         selected = []
@@ -73,17 +68,18 @@ async def integration_tester_main_loop(
                 if x not in selected:
                     selected.append(x)
 
-        batches = shared._chunk_names(selected, bs)
         tool_name_by_integr = {r.integr_name: r.integr_tools[0].name for r in integr_records if r.integr_tools}
         task_specs = []
-        total = len(batches)
-        for i, b in enumerate(batches, start=1):
-            tool_map = ", ".join(f"{name}->{tool_name_by_integr[name]}" for name in b)
+        total = len(selected)
+        for i, name in enumerate(selected, start=1):
+            tool_name = tool_name_by_integr.get(name, name)
             task_specs.append({
-                "title": f"Test integrations batch {i}/{total}",
-                "description": f"Integrations: {','.join(b)}\nTool mapping: {tool_map}",
-                "integrations": b,
+                "title": f"Test {name} ({i}/{total})",
+                "description": f"Integration: {name}\nTool: {tool_name}",
+                "integrations": [name],
             })
+
+        batches = [[name] for name in selected]
 
         return json.dumps({
             "ok": True,
@@ -93,7 +89,7 @@ async def integration_tester_main_loop(
             "configured_only": configured_only,
             "selected": selected,
             "unsupported": unsupported,
-            "batch_size": bs,
+            "batch_size": 1,
             "batches": batches,
             "task_specs": task_specs,
         }, indent=2)

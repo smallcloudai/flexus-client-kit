@@ -13,16 +13,15 @@ INTEGRATION_TESTER_ROOTDIR = Path(__file__).parent
 PLAN_BATCHES_TOOL = ckit_cloudtool.CloudTool(
     strict=True,
     name="integration_plan_batches",
-    description="Plan deterministic integration test batches and return task specs for kanban fan-out.",
+    description="Plan integration tests one by one and return task specs for kanban fan-out.",
     parameters={
         "type": "object",
         "additionalProperties": False,
         "properties": {
             "requested": {"type": "string", "description": "Requested integrations, e.g. 'all' or 'newsapi,resend'."},
-            "batch_size": {"type": "integer", "description": "Max integrations per task batch."},
             "configured_only": {"type": "boolean", "description": "If true, include only integrations with configured keys."},
         },
-        "required": ["requested", "batch_size", "configured_only"],
+        "required": ["requested", "configured_only"],
     },
 )
 
@@ -33,12 +32,6 @@ INTEGRATION_TESTER_INTEGRATIONS: list[ckit_integrations_db.IntegrationRecord] = 
 )
 
 TOOLS = [PLAN_BATCHES_TOOL] + [t for rec in INTEGRATION_TESTER_INTEGRATIONS for t in rec.integr_tools]
-
-
-def _chunk_names(xs: List[str], n: int) -> List[List[str]]:
-    if n < 1:
-        n = 1
-    return [xs[i:i + n] for i in range(0, len(xs), n)]
 
 
 def _requested_names(raw: str) -> List[str]:
