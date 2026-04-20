@@ -30,7 +30,7 @@ TASKTOPUS_SETUP_SCHEMA.extend(fi_mcp.mcp_setup_schema(TASKTOPUS_MCPS))
 
 TASKTOPUS_INTEGRATIONS: list[ckit_integrations_db.IntegrationRecord] = ckit_integrations_db.static_integrations_load(
     TASKTOPUS_ROOTDIR,
-    allowlist=["slack"],
+    allowlist=["flexus_policy_document", "slack"],
     builtin_skills=[],
 )
 

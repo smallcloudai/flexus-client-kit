@@ -254,7 +254,6 @@ people = json.dumps(json.loads("""
 {
   "people-db": {
     "meta": {
-      "author": "Elena Voss",
       "created": "20250601",
       "updated": "20250610"
     },
