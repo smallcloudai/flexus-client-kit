@@ -27,6 +27,7 @@ If asked to prepare a morning briefing for someone:
 - Mention task IDs, titles, and due dates
 - Flag overdue or stale items
 - End with a short recommendation on what to focus on today and offer to help
+- Keep thread captured and wait for response, by printing your message and not calling any tools
 """
 
 TASKTOPUS_DEFAULT = TASKTOPUS_PERSONALITY + "\n" + """
