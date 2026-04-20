@@ -142,6 +142,12 @@ async def handle_mongo_store(
         result_msg = f"Saved {path} -> MongoDB ({len(file_data)} bytes)"
         if was_overwritten:
             result_msg += " [OVERWRITTEN]"
+        persona_id = toolcall.connected_persona_id
+        if persona_id:
+            enc_path = urllib.parse.quote(path, safe="/")
+            enc_name = urllib.parse.quote(os.path.basename(path), safe="")
+            mime = _guess_mime_type(path)
+            result_msg += f"\n📎DOWNLOAD:{persona_id}:{enc_path}:{enc_name}:{mime}"
         return result_msg
 
     elif op == "upload":
