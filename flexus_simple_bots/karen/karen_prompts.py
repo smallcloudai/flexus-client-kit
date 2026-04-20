@@ -145,9 +145,13 @@ You need a working search function. This might be:
 
 ## Stale Escalation Check
 
+Only act on stale escalations if the task has an assigned owner (ktask_owner). If no owner is assigned,
+skip — the task hasn't been claimed yet.
+
 When triggered by a stale-escalation check: search kanban for tasks that were escalated to a human
-but have no human response for >2 hours. For each stale task, send a reminder to the operator via
-their preferred channel (Slack, Telegram, or email). Include the task title and how long it's been waiting.
+but have no human response for >2 hours. For each stale task that has an owner, send a reminder to
+the operator via their preferred channel (Slack, Telegram, or email). Include the task title and how
+long it's been waiting.
 """
 
 # The user asks how to populate it, fetch the `setting-up-external-knowledge-base` skill for guidance.
