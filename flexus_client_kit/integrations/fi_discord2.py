@@ -718,7 +718,6 @@ class IntegrationDiscord(fi_messenger.FlexusMessenger):
         text = message.content or ""
         attachments = await self._extract_attachments(message)
 
-        is_dm = isinstance(message.channel, discord.DMChannel)
         activity = ActivityDiscord(
             channel_name=await self._get_channel_name(channel_identifier),
             channel_id=channel_identifier,
@@ -727,7 +726,7 @@ class IntegrationDiscord(fi_messenger.FlexusMessenger):
             message_text=text,
             message_author_name=author_name,
             message_author_id=message.author.id,
-            is_dm=is_dm,
+            is_dm=isinstance(message.channel, discord.DMChannel),
             bot_mentioned=self.client.user in message.mentions,
             attachments=attachments,
         )
