@@ -433,8 +433,12 @@ class IntegrationTelegram(fi_messenger.FlexusMessenger):
             activity.message_author_name, activity.message_author_id, msg_text[:120] or "(empty)")
         return True
 
-    async def look_assistant_might_have_posted_something(self, msg: ckit_ask_model.FThreadMessageOutput) -> bool:
-        if msg.ftm_role != "assistant" or not msg.ftm_content:
+    async def look_assistant_or_fuser_might_have_posted(self, msg: ckit_ask_model.FThreadMessageOutput) -> bool:
+        if msg.ftm_role not in ("assistant", "user"):
+            return False
+        if msg.ftm_role == "user" and (msg.ftm_author_label1 or "").startswith("telegram:"):
+            return False
+        if not msg.ftm_content:
             return False
 
         searchable = msg.ft_app_searchable or ""
@@ -458,18 +462,17 @@ class IntegrationTelegram(fi_messenger.FlexusMessenger):
             chat_id = int(searchable[len("telegram/"):])
         except ValueError:
             return False
-        if not isinstance(msg.ftm_content, str):
-            logger.warning("telegram look_assistant_might_have_posted_something: ftm_content is not a string: %r" % msg.ftm_content)
-            return False
         if not self.tg_app:
             return False
 
-        text = msg.ftm_content
+        text = fi_messenger.ftm_content_to_text(msg.ftm_content)
+        if not text:
+            return False
         if "TASK_COMPLETED" in text and len(text) <= len("TASK_COMPLETED") + 6:
-            logger.info("telegram look_assistant_might_have_posted_something: ftm_content has TASK_COMPLETED, not posting to the captured chat")
+            logger.info("telegram look_assistant_or_fuser_might_have_posted: ftm_content has TASK_COMPLETED, not posting to the captured chat")
             return False
         if "NOTHING_TO_SAY" in text and len(text) <= len("NOTHING_TO_SAY") + 6:
-            logger.info("telegram look_assistant_might_have_posted_something: ftm_content has NOTHING_TO_SAY, not posting to the captured chat")
+            logger.info("telegram look_assistant_or_fuser_might_have_posted: ftm_content has NOTHING_TO_SAY, not posting to the captured chat")
             return False
         text = text.replace("TASK_COMPLETED", "")   # yes, sometimes the model writes it anyway
         text = text.replace("NOTHING_TO_SAY", "")

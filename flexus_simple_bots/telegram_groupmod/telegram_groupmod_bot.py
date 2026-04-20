@@ -456,7 +456,7 @@ async def telegram_groupmod_main_loop(
     @rcx.on_updated_message
     async def handle_message(msg):
         if tg:
-            await tg.look_assistant_might_have_posted_something(msg)
+            await tg.look_assistant_or_fuser_might_have_posted(msg)
 
     @rcx.on_emessage("TELEGRAM")
     async def handle_emessage(emsg):

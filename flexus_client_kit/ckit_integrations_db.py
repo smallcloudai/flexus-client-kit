@@ -510,9 +510,9 @@ async def main_loop_integrations_init(records: list[IntegrationRecord], rcx: cki
     if rcx.messengers:
         @rcx.on_updated_message
         async def _messenger_updated_message(msg: ckit_ask_model.FThreadMessageOutput):
-            # Don't worry, you can override it. The default reaction to assistant messages is to get it past messengers:
+            # Don't worry, you can override it. The default reaction is to relay assistant messages and flexus-user messages past messengers:
             for m in rcx.messengers:
-                await m.look_assistant_might_have_posted_something(msg)
+                await m.look_assistant_or_fuser_might_have_posted(msg)
                 await m.look_user_message_got_confirmed(msg)
 
     return result
