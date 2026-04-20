@@ -114,6 +114,8 @@ messages:
   content: |
     For your query 'canned responses save not working' found 0 results.
   call_id: fakecall_tone2
+- role: assistant
+  content: "I'm really sorry about the trouble, Maya -- I can see how frustrating that must be, especially with tickets piling up. I don't have a documented fix for this specific issue, but a few things that often help:\n\n- Clear your browser cache and reload\n- Try a different browser\n- Check for extensions that might block form saves\n\nIf none of that works, I'll escalate this to the team right away. Want me to do that now?"
 - role: user
   content:
     - m_type: text
@@ -121,3 +123,18 @@ messages:
         👤Maya
 
         actually nevermind, I just cleared my cache and it works now. sorry for the rant lol
+- role: assistant
+  tool_calls:
+    - id: fakecall_tone3
+      type: function
+      function:
+        name: flexus_kanban_public
+        arguments: '{"op": "resolve", "resolution": {"code": "SUCCESS", "summary": "Maya had trouble saving canned responses in DeskFlow. Issue resolved by clearing browser cache. No escalation needed.", "humanhours": 0.1, "uncapture": true, "pdoc_paths": []}}'
+- role: tool
+  content: |-
+    Moved to done tTone001
+
+    Uncaptured the chat, no one can see your messages now, all left to do is to say TASK_COMPLETED
+  call_id: fakecall_tone3
+- role: assistant
+  content: "Glad it's working now! No worries at all -- cache issues can be really sneaky. If anything else comes up, just reach out anytime. Happy ticketing!"
