@@ -201,9 +201,7 @@ class IntegrationDiscord(fi_messenger.FlexusMessenger):
         logger.info("%s Discord %s by @%s in %s: %s", self.rcx.persona.persona_id, "message", a.message_author_name, a.channel_name, a.message_text[:50])
         if already_posted_to_captured_thread:
             return
-        # bot decides whether to respond -- group channels require @mention by default
-        if not a.bot_mentioned:
-            logger.info("%s Discord skip, not mentioned in group channel %s", self.rcx.persona.persona_id, a.channel_name)
+        if not a.is_dm and not a.bot_mentioned:
             return
         title = "Discord user=%r in %s\n%s" % (a.message_author_name, a.channel_name, a.message_text)
         if a.attachments:
@@ -728,7 +726,7 @@ class IntegrationDiscord(fi_messenger.FlexusMessenger):
             message_author_name=author_name,
             message_author_id=message.author.id,
             is_dm=is_dm,
-            bot_mentioned=is_dm or (self.client.user in message.mentions),
+            bot_mentioned=self.client.user in message.mentions,
             attachments=attachments,
         )
 
