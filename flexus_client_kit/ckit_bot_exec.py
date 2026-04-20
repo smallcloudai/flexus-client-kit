@@ -99,6 +99,7 @@ class RobotContext:
         self.running_test_scenario = False
         self.running_happy_yaml = ""
         self.external_auth = external_auth or {}
+        self.fake_connected_providers: List[str] = []
         self.messengers: list = []
         self.personal_mongo: Optional[Any] = None   # pymongo Collection, set by main_loop_integrations_init if integr_need_mongo
         os.makedirs(self.workdir, exist_ok=True)
@@ -397,6 +398,7 @@ class BotsCollection:
         self.thread_tracker: Dict[str, ckit_bot_query.FThreadWithMessages] = {}
         self.running_test_scenario = running_test_scenario
         self.running_happy_yaml = running_happy_yaml
+        self.scenario_fake_connected_providers: List[str] = []
         self.subscribe_to_erp_tables = subscribe_to_erp_tables
         self.auth: Dict[str, Dict[str, Any]] = {}
         self.handled_emsg_ids: List[str] = []
@@ -513,6 +515,7 @@ async def subscribe_and_produce_callbacks(
                         rcx = RobotContext(fclient, upd.news_payload_persona, bc.handled_emsg_ids, bc.auth.get(persona_id, {}))
                         rcx.running_test_scenario = bc.running_test_scenario
                         rcx.running_happy_yaml = bc.running_happy_yaml
+                        rcx.fake_connected_providers = list(bc.scenario_fake_connected_providers)
                         bc.bots_running[persona_id] = BotInstance(
                             fclient=fclient,
                             atask=asyncio.create_task(crash_boom_bang(fclient, rcx, bc.bot_main_loop)),
@@ -710,6 +713,8 @@ async def _run_scenario_for_model(
 ) -> None:
     judge_instructions = trajectory_data.get("judge_instructions", "")
     fake_connected_providers = trajectory_data["fake_connected_providers"]
+    assert isinstance(fake_connected_providers, list)
+    bc.scenario_fake_connected_providers = fake_connected_providers
     messages = trajectory_data["messages"]
     logger.info("Running scenario %s with model %s", expert__scenario, model_name)
     await ckit_scenario.bot_scenario_result_upsert(
@@ -968,7 +973,7 @@ async def run_happy_trajectory(
     first_calls = None
     if len(messages) > hi + 1 and messages[hi + 1]["role"] == "assistant" and messages[hi + 1]["tool_calls"]:
         first_calls = [{"type": tc.get("type", "function"), "function": {"name": tc["function"]["name"], "arguments": tc["function"]["arguments"]}} for tc in messages[hi + 1]["tool_calls"]]
-    logger.info(f"bot_activate() first_calls, taken from the happy path:\n{first_calls}")
+    logger.info(f"first_calls, taken from the happy path:\n{first_calls}")
     trajectory_happy_messages_only = ckit_messages.yaml_dump_with_multiline({"messages": trajectory_data["messages"]})
 
     expert__scenario = os.path.splitext(os.path.basename(trajectory_yaml_path))[0]

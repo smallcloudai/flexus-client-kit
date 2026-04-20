@@ -492,8 +492,11 @@ async def main_loop_integrations_init(records: list[IntegrationRecord], rcx: cki
         if rec.integr_provider:
             auth = rcx.external_auth.get(rec.integr_provider) or {}
             if not (auth.get("token") or auth.get("api_key") or auth.get("connect_fields")):
-                logger.info("%s integration %s skipped (not connected)", rcx.persona.persona_id, rec.integr_name)
-                continue
+                if rec.integr_provider in rcx.fake_connected_providers:
+                    logger.info("%s integration %s faked (scenario)", rcx.persona.persona_id, rec.integr_name)
+                else:
+                    logger.info("%s integration %s skipped (not connected)", rcx.persona.persona_id, rec.integr_name)
+                    continue
         obj = await rec.integr_init(rcx, setup)
         rec.integr_setup_handlers(obj, rcx)
         result[rec.integr_name] = obj
