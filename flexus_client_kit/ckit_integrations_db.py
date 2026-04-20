@@ -76,6 +76,22 @@ def static_integrations_load(bot_dir: Path, allowlist: list[str], builtin_skills
                 integr_prompt=fi_pdoc.POLICY_DOCUMENT_PROMPT,
             ))
 
+        elif name == "escalate_to_human":
+            from flexus_client_kit.integrations import fi_escalate
+            async def _init_escalate(rcx, setup):
+                return None
+            result.append(IntegrationRecord(
+                integr_name=name,
+                integr_tools=[fi_escalate.ESCALATE_TO_HUMAN_TOOL],
+                integr_init=_init_escalate,
+                integr_setup_handlers=lambda obj, rcx: [
+                    rcx.on_tool_call(fi_escalate.ESCALATE_TO_HUMAN_TOOL.name)(
+                        lambda tc, args, _rcx=rcx: fi_escalate.handle_escalate_to_human(_rcx, tc, args)
+                    )
+                ],
+                integr_prompt=fi_escalate.ESCALATE_TO_HUMAN_PROMPT,
+            ))
+
         elif name == "print_widget":
             from flexus_client_kit.integrations import fi_widget
             async def _init_widget(rcx, setup):

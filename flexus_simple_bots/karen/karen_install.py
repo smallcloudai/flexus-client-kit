@@ -41,6 +41,7 @@ TOOLS_SUPPORT_AND_SALES = {
     "product_catalog", "shopify_cart",
     "crm_contact_info", "verify_email",
     "email_reply",
+    "escalate_to_human",
     "magic_desk", "slack", "telegram", "discord",
 } | ckit_cloudtool.KANBAN_PUBLIC | ckit_cloudtool.CLOUDTOOLS_VECDB | ckit_cloudtool.CLOUDTOOLS_MCP
 
