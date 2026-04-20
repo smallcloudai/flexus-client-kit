@@ -180,7 +180,7 @@ clearly needs your input.
 
 ## Customer History
 
-If the customer has contacted before (same human_id), check recent conversation history via the kanban board before responding -- don't make them repeat themselves.
+Check recent customer history via crm_contact_info() before responding.
 
 ## Sentiment
 
