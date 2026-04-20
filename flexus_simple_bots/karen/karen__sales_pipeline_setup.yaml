@@ -1,0 +1,329 @@
+messages:
+- role: cd_instruction
+  content: |-
+    📄/support/summary
+    {
+      "support-policy": {
+        "meta": {
+          "created_at": "2026-04-13T12:05:04.637664+00:00"
+        },
+        "section01-company": {
+          "title": "Company Overview",
+          "question01-nature-of-business": {
+            "q": "What is the nature of the business?",
+            "a": "Ejector Bed Inc. develops revolutionary wake-up technology. The core product physically launches you out of bed at alarm time to guarantee no snoozing or oversleeping. Currently in early stage with waitlist for access."
+          },
+          "question02-homepage": {
+            "q": "What is the company homepage?",
+            "a": "Primary LP: http://localhost:4001/ (dev), production canonical: https://ejectorbed.com"
+          }
+        },
+        "section02-product": {
+          "title": "Product Details",
+          "question01-description": {
+            "q": "Describe the main product(s).",
+            "a": "Ejector Bed: Smart alarm bed that ejects/launches the user out of bed at set alarm for instant wake-ups. Tagline: 'Never Hit Snooze Again'."
+          },
+          "question02-features": {
+            "q": "What are the key features?",
+            "a": "Premium memory foam mattress for sleep; pneumatic actuators eject/launch user at alarm time. Sizes: Single, Double, Queen, King, Cal King."
+          },
+          "question03-target-customer-icp": {
+            "q": "Who is the ideal customer (ICP)?",
+            "a": "Chronic snoozers, busy professionals who struggle with mornings, anyone tired of hitting snooze."
+          },
+          "question04-pricing-tiers": {
+            "q": "What are the pricing tiers and what's included?",
+            "a": "Ejector Bed (physical): Single $1,299 | Double $1,799 | Queen $1,899 | King $1,999 | California King $2,099. All USD."
+          }
+        },
+        "section03-purchase": {
+          "title": "Purchasing Process",
+          "question01-buying-process": {
+            "q": "How does the buying process work?",
+            "a": "Standard Shopify checkout. Add to cart, select size/variant, checkout. Currency USD."
+          },
+          "question02-waitlist": {
+            "q": "Details on waitlist or pre-order?",
+            "a": "Waitlist available for early access - join via landing page."
+          }
+        }
+      }
+    }
+- role: user
+  content: Set Up Sales Pipeline
+- role: assistant
+  tool_calls:
+    - id: call_07142451
+      type: function
+      function:
+        name: flexus_fetch_skill
+        arguments: '{"name": "sales-pipeline-setup"}'
+    - id: call_05270287
+      type: function
+      function:
+        name: erp_table_data
+        arguments: '{"table_name": "crm_pipeline", "options": {"limit": 20, "include": ["stages"]}}'
+- role: tool
+  content: <explanation>
+  call_id: call_07142451
+- role: tool
+  content: |-
+    Table: crm_pipeline
+    1 rows
+
+    {"ws_id": "3uFnry1ImQ", "pipeline_name": "B2B Partnerships", "pipeline_id": "Brjh9BJZFI", "pipeline_active": true, "stages": [{"stage_name": "Outreach", "stage_id": "74jQ489M29", "stage_sequence": 1, "stage_probability": 5, "stage_status": "OPEN"}, {"stage_name": "Qualified (they replied!)", "stage_id": "WW9QTVtYad", "stage_sequence": 2, "stage_probability": 25, "stage_status": "OPEN"}, {"stage_name": "Proposal Sent", "stage_id": "Ad4DNBpsVi", "stage_sequence": 3, "stage_probability": 50, "stage_status": "OPEN"}, {"stage_name": "Negotiating", "stage_id": "dvcuASc5Me", "stage_sequence": 4, "stage_probability": 75, "stage_status": "OPEN"}, {"stage_name": "Won", "stage_id": "IUNoWSEc9Z", "stage_sequence": 5, "stage_probability": 100, "stage_status": "WON"}, {"stage_name": "Lost", "stage_id": "2Psok9iKDF", "stage_sequence": 6, "stage_probability": 0, "stage_status": "LOST"}]}
+  call_id: call_05270287
+- role: assistant
+  content: |-
+    One pipeline exists: **B2B Partnerships** (Outreach → Qualified → Proposal → Negotiating → Won/Lost).
+
+    Want to tweak that one or build a fresh pipeline? What's it for, and what stages do you want?
+- role: user
+  content: B2C Sales
+- role: assistant
+  content: |-
+    B2C Sales pipeline, got it.
+
+    Standard flow suggestion:
+    1. New Lead (10%)
+    2. Qualified (30%)
+    3. Proposal Sent (60%)
+    4. Negotiation (80%)
+    5. Won (100%)
+    6. Lost (0%)
+
+    Sound good, or tweak names/probabilities? (Probabilities = win chance at that stage.)
+- role: user
+  content: New Lead (4) -> Welcome Email Sent (4%) -> Engaged (20) -> Qualified (50) -> Won | Lost
+- role: assistant
+  tool_calls:
+    - id: call_93902216
+      type: function
+      function:
+        name: erp_table_crud
+        arguments: '{"op": "create", "table_name": "crm_pipeline", "id": "null", "fields": {"pipeline_name":
+          "B2C Sales", "pipeline_active": true}}'
+- role: tool
+  content: "✅ Created new record in crm_pipeline with ID: 7JAGLycJ5C"
+  call_id: call_93902216
+- role: assistant
+  tool_calls:
+    - id: call_95176715
+      type: function
+      function:
+        name: erp_table_crud
+        arguments: '{"op": "create", "table_name": "crm_pipeline_stage", "id": "null", "fields":
+          {"stage_name": "New Lead", "stage_pipeline_id": "7JAGLycJ5C", "stage_sequence": 1,
+          "stage_probability": 4, "stage_status": "OPEN"}}'
+    - id: call_82312566
+      type: function
+      function:
+        name: erp_table_crud
+        arguments: '{"op": "create", "table_name": "crm_pipeline_stage", "id": "null", "fields":
+          {"stage_name": "Welcome Email Sent", "stage_pipeline_id": "7JAGLycJ5C",
+          "stage_sequence": 2, "stage_probability": 4, "stage_status": "OPEN"}}'
+    - id: call_95888317
+      type: function
+      function:
+        name: erp_table_crud
+        arguments: '{"op": "create", "table_name": "crm_pipeline_stage", "id": "null", "fields":
+          {"stage_name": "Engaged", "stage_pipeline_id": "7JAGLycJ5C", "stage_sequence": 3,
+          "stage_probability": 20, "stage_status": "OPEN"}}'
+    - id: call_46696209
+      type: function
+      function:
+        name: erp_table_crud
+        arguments: '{"op": "create", "table_name": "crm_pipeline_stage", "id": "null", "fields":
+          {"stage_name": "Qualified", "stage_pipeline_id": "7JAGLycJ5C", "stage_sequence": 4,
+          "stage_probability": 50, "stage_status": "OPEN"}}'
+    - id: call_17246352
+      type: function
+      function:
+        name: erp_table_crud
+        arguments: '{"op": "create", "table_name": "crm_pipeline_stage", "id": "null", "fields":
+          {"stage_name": "Won", "stage_pipeline_id": "7JAGLycJ5C", "stage_sequence": 5,
+          "stage_probability": 100, "stage_status": "WON"}}'
+    - id: call_26596929
+      type: function
+      function:
+        name: erp_table_crud
+        arguments: '{"op": "create", "table_name": "crm_pipeline_stage", "id": "null", "fields":
+          {"stage_name": "Lost", "stage_pipeline_id": "7JAGLycJ5C", "stage_sequence": 6,
+          "stage_probability": 0, "stage_status": "LOST"}}'
+- role: tool
+  content: "✅ Created new record in crm_pipeline_stage with ID: NwV1I9laAu"
+  call_id: call_95176715
+- role: tool
+  content: "✅ Created new record in crm_pipeline_stage with ID: 2ADGqqmL8m"
+  call_id: call_82312566
+- role: tool
+  content: "✅ Created new record in crm_pipeline_stage with ID: 6mBJkvXDod"
+  call_id: call_95888317
+- role: tool
+  content: "✅ Created new record in crm_pipeline_stage with ID: qWdhCnicSb"
+  call_id: call_46696209
+- role: tool
+  content: "✅ Created new record in crm_pipeline_stage with ID: JV1KxCpNX6"
+  call_id: call_17246352
+- role: tool
+  content: "✅ Created new record in crm_pipeline_stage with ID: wRr16FqMXq"
+  call_id: call_26596929
+- role: assistant
+  content: |-
+    **B2C Sales** pipeline is live. Stages:
+    1. New Lead (4%, OPEN)
+    2. Welcome Email Sent (4%, OPEN)
+    3. Engaged (20%, OPEN)
+    4. Qualified (50%, OPEN)
+    5. Won (100%, WON)
+    6. Lost (0%, LOST)
+
+    Next: auto-create deals? E.g. new contact → New Lead. And stage jumps: inbound reply → Engaged? Gimme triggers.
+- role: user
+  content: New contact, add them to New Lead, unless it has b2b tag, in that case, do nothing
+- role: assistant
+  tool_calls:
+    - id: toolu_018R7jtPxs9LVkzMCNvh1ZPq
+      type: function
+      function:
+        name: flexus_fetch_skill
+        arguments: '{"name": "crm-automations"}'
+- role: tool
+  content: <explanation>
+  call_id: toolu_018R7jtPxs9LVkzMCNvh1ZPq
+- role: assistant
+  tool_calls:
+    - id: toolu_01GjSZXNwAgXtafpi7itRwEe
+      type: function
+      function:
+        name: crm_automation
+        arguments: '{"op": "create", "args": {"automation_name": "b2c-new-lead-deal-create",
+          "automation_config": {"enabled": true, "triggers": [{"type": "erp_table", "table":
+          "crm_contact", "operations": ["insert", "update"], "filters":
+          ["contact_tags:not_contains:b2b", "contact_tags:not_contains:b2c-deal-created"]}],
+          "actions": [{"type": "create_erp_record", "table": "crm_deal", "fields": {"deal_name":
+          "B2C: {{trigger.new_record.contact_first_name}}
+          {{trigger.new_record.contact_last_name}}", "deal_pipeline_id": "7JAGLycJ5C",
+          "deal_stage_id": "NwV1I9laAu", "deal_contact_id": "{{trigger.new_record.contact_id}}",
+          "deal_value": 0, "deal_notes": "Auto-created for new B2C contact."}}, {"type":
+          "update_erp_record", "table": "crm_contact", "record_id":
+          "{{trigger.new_record.contact_id}}", "fields": {"contact_tags": {"op": "append",
+          "values": ["b2c-deal-created"]}}}]}}}'
+- role: tool
+  content: ✅ Created automation 'b2c-new-lead-deal-create'
+  call_id: toolu_01GjSZXNwAgXtafpi7itRwEe
+- role: assistant
+  content: |-
+    Done! **b2c-new-lead-deal-create** is live:
+    - New contact (insert or update) → deal in **B2C Sales → New Lead**
+    - Skipped if tagged `b2b`
+    - Tags contact `b2c-deal-created` to prevent duplicates
+
+    Next stage transitions? Contact replies → Engaged? Welcome email sent → Welcome Email Sent?
+- role: user
+  content: |-
+    Contact replies → move to Engaged
+
+    exactly
+- role: assistant
+  tool_calls:
+    - id: toolu_01UDK3PFJhB1AaWZNmxqWVpz
+      type: function
+      function:
+        name: crm_automation
+        arguments: '{"op": "create", "args": {"automation_name": "b2c-contact-reply-to-engaged",
+          "automation_config": {"enabled": true, "triggers": [{"type": "erp_table", "table":
+          "crm_activity", "operations": ["insert", "update"], "filters":
+          ["activity_direction:=:INBOUND"]}], "actions": [{"type": "move_deal_stage",
+          "contact_id": "{{trigger.new_record.activity_contact_id}}", "pipeline_id": "7JAGLycJ5C",
+          "from_stages": ["NwV1I9laAu", "2ADGqqmL8m"], "to_stage_id": "6mBJkvXDod"}]}}}'
+- role: tool
+  content: ✅ Created automation 'b2c-contact-reply-to-engaged'
+  call_id: toolu_01UDK3PFJhB1AaWZNmxqWVpz
+- role: assistant
+  content: |-
+    Done! **b2c-contact-reply-to-engaged** is live. Any inbound activity bumps the deal to **Engaged** from New Lead or Welcome Email Sent.
+
+    More transitions? Qualified trigger? Won on purchase?
+- role: user
+  content: Move to qualified when it's BANT qualified
+- role: assistant
+  content: What BANT score threshold should trigger the move to Qualified? Like 50+, 75+?
+- role: user
+  content: yep 2+
+- role: assistant
+  tool_calls:
+    - id: toolu_019uz4sv99ipQNk9ZAg2mefv
+      type: function
+      function:
+        name: crm_automation
+        arguments: '{"op": "create", "args": {"automation_name": "b2c-bant-to-qualified",
+          "automation_config": {"enabled": true, "triggers": [{"type": "erp_table", "table":
+          "crm_contact", "operations": ["insert", "update"], "filters":
+          ["contact_bant_score:>=:2"]}], "actions": [{"type": "move_deal_stage", "contact_id":
+          "{{trigger.new_record.contact_id}}", "pipeline_id": "7JAGLycJ5C", "from_stages":
+          ["NwV1I9laAu", "2ADGqqmL8m", "6mBJkvXDod"], "to_stage_id": "qWdhCnicSb"}]}}}'
+- role: tool
+  content: ✅ Created automation 'b2c-bant-to-qualified'
+  call_id: toolu_019uz4sv99ipQNk9ZAg2mefv
+- role: assistant
+  content: |-
+    Done! **b2c-bant-to-qualified** is live. BANT ≥ 2 moves the deal to **Qualified** from New Lead, Welcome Email Sent, or Engaged.
+
+    Anything else? Move to Won on purchase?
+- role: user
+  content: Move to won on purchase
+- role: assistant
+  tool_calls:
+    - id: toolu_0155AYZ6XDCEeyw2mZv2RXT8
+      type: function
+      function:
+        name: crm_automation
+        arguments: '{"op": "create", "args": {"automation_name": "b2c-purchase-to-won", "automation_config":
+          {"enabled": true, "triggers": [{"type": "erp_table", "table": "com_order", "operations":
+          ["insert", "update"], "filters": ["order_financial_status:=:paid"]}], "actions":
+          [{"type": "move_deal_stage", "contact_id": "{{trigger.new_record.order_contact_id}}",
+          "pipeline_id": "7JAGLycJ5C", "from_stages": ["NwV1I9laAu", "2ADGqqmL8m", "6mBJkvXDod",
+          "qWdhCnicSb"], "to_stage_id": "JV1KxCpNX6"}]}}}'
+- role: tool
+  content: ✅ Created automation 'b2c-purchase-to-won'
+  call_id: toolu_0155AYZ6XDCEeyw2mZv2RXT8
+- role: assistant
+  content: |-
+    **b2c-purchase-to-won** is live. Paid order → deal moves to **Won** from any open stage.
+
+    Full B2C pipeline automation recap:
+    1. New contact (no b2b tag) → deal in **New Lead**
+    2. Inbound reply → **Engaged**
+    3. BANT ≥ 2 → **Qualified**
+    4. Paid order → **Won**
+
+    Still missing: Welcome Email Sent trigger, Lost logic. Want those now, or are we good?
+- role: user
+  content: We're good for now, I'll set up those later
+- role: assistant
+  content: |-
+    Sounds good. When you're ready for the welcome email and lost logic, ping me.
+
+judge_instructions: |-
+  Be strict — the issues below are real bugs that would break production automations, not style
+  nits. Don't round up.
+
+  Penalize if the bot does not check existing pipelines first and ask whether to update one or
+  create a new one.
+
+  Heavily penalize automations that risk infinite loops: adding a tag without a not_contains filter on
+  that tag, or actions that don't mutate anything the trigger filter depends on.
+
+  Heeavily penalize guessing wrong table names, or field names that don't exist in the schema.
+
+  Penalize triggers that use only ["insert"] instead of ["insert", "update"] — if the bot is
+  offline when a record is inserted, it will only see an "update" later.
+
+  Penalize move_deal_stage automations for Engaged/Qualified that omit from_stages, or that
+  include later stages, like Won, in from_stages — deals in later stages must not be dragged
+  backwards.
+
+  Penalize fabricated table/field names or stage IDs — automations must be grounded in the real
+  erp schema and the stage IDs just created, not guessed.
