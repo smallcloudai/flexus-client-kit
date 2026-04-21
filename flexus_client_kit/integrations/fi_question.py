@@ -7,23 +7,17 @@ ASK_QUESTIONS_TOOL = ckit_cloudtool.CloudTool(
     name="ask_questions",
     description="""Ask the user one or more questions with interactive UI. Use this instead of numbered lists.
 
-Types: "single" (pick one), "multi" (pick several), "text" (free-form), "yesno" (yes/no buttons),
-"credential" (collect one or more secret API keys / tokens and save them to the workspace).
+Types: "single" (pick one), "multi" (pick several), "text" (free-form), "yesno", "credential" (collect API keys/tokens saved to workspace).
 
-For "credential" questions, include:
-  - "provider": snake_case namespace, e.g. "openai", "tavily", "stripe"
-  - "credential_name": human label shown in the UI, e.g. "Production OpenAI"
-  - "fields": list of {key, label, required} describing what to collect
+For "credential": include provider (e.g. "openai"), credential_name (e.g. "Production OpenAI"), and fields list [{key, label, required}].
 
 Example:
 ask_questions(questions=[
-    {"text": "What kind of bot do you want?", "type": "single", "options": ["Support", "Sales", "Analytics", "Other"]},
-    {"text": "Which channels should it support?", "type": "multi", "options": ["Slack", "Email", "Discord", "Telegram"]},
-    {"text": "Should it run on a schedule?", "type": "yesno"},
-    {"text": "Any special requirements?", "type": "text"},
-    {"text": "Please provide your OpenAI credentials", "type": "credential",
-     "provider": "openai", "credential_name": "Production OpenAI",
-     "fields": [{"key": "API_KEY", "label": "API Key", "required": true}]}
+    {"text": "Bot type?", "type": "single", "options": ["Support", "Sales"]},
+    {"text": "Run on schedule?", "type": "yesno"},
+    {"text": "Notes?", "type": "text"},
+    {"text": "OpenAI credentials", "type": "credential", "provider": "openai",
+     "credential_name": "Production OpenAI", "fields": [{"key": "API_KEY", "label": "API Key", "required": true}]}
 ])""",
     parameters={
         "type": "object",
