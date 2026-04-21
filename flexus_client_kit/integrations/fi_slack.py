@@ -44,6 +44,7 @@ logger = logging.getLogger("slack")
 SLACK_TOOL = ckit_cloudtool.CloudTool(
     strict=False,
     name="slack",
+    auth_required="slack",
     description="Interact with Slack, call with op=\"help\" to print usage, call with op=\"status+help\" to see both status and help in one call",
     parameters={
         "type": "object",
@@ -206,6 +207,9 @@ class IntegrationSlack(fi_messenger.FlexusMessenger):
         if extra_details:
             details.update(extra_details)
         human_id = "slack:%s" % a.message_author_id if a.message_author_id else ""
+        if not self.outside_messages_fexp_name:
+            logger.warning("%s accept_outside_messages_only_to_expert() was never called, don't know which expert to use", self.rcx.persona.persona_id)
+            return
         post_fn = ckit_kanban.bot_kanban_post_into_inprogress if a.what_happened == "message/im" else ckit_kanban.bot_kanban_post_into_inbox
         await post_fn(
             await self.fclient.use_http_on_behalf(self.rcx.persona.persona_id, ""),
@@ -463,42 +467,44 @@ class IntegrationSlack(fi_messenger.FlexusMessenger):
             try:
                 thirty_minutes_ago = str(int(time.time() - 30*60))
 
-                text_content = ""
-                image_parts = []
-                file_summaries = []
-                async for msg in self._get_history(something_name, thread_ts, thirty_minutes_ago, 10):
-                    if txt := msg.get('text', None):
-                        user_id = msg.get('user')
-                        if user_id:
-                            author_name = await self._get_user_name(user_id)
-                        else:
-                            author_name = msg.get('username') or (msg.get('bot_profile') or {}).get('name')
-                            if not author_name:
-                                author_name = "unknown_user"
-                                logger.warning("capture history: no user/username/bot_profile: keys=%s text=%r", list(msg.keys()), txt[:200])
-                        text_content += f"👤{author_name}\n\n{txt}\n\n"
-
+                captured_msgs: List[ckit_ask_model.CapturedMessageInput] = []
+                total_images = 0
+                async for msg in self._get_history(something_name, thread_ts, thirty_minutes_ago, 5):
+                    txt = msg.get('text') or ''
+                    user_id = msg.get('user')
+                    if user_id:
+                        author_name = await self._get_user_name(user_id)
+                    else:
+                        author_name = msg.get('username') or (msg.get('bot_profile') or {}).get('name')
+                        if not author_name:
+                            author_name = "unknown_user"
+                            logger.warning("capture history: no user/username/bot_profile: keys=%s text=%r", list(msg.keys()), txt[:200])
+                        user_id = None
+                    parts = []
+                    if txt:
+                        parts.append({"m_type": "text", "m_content": txt})
                     for file_info in msg.get('files', [])[:2]:
                         try:
                             file_bytes, mimetype = await self._download_slack_file(file_info)
                             filename = file_info.get('name', 'unknown')
                             if file_bytes is None:
-                                file_summaries.append(f"[Failed to download: {filename}]")
-                            elif mimetype and mimetype.startswith('image/') and len(image_parts) < 3:
-                                image_parts.append(await self._process_slack_image(file_bytes, mimetype))
+                                parts.append({"m_type": "text", "m_content": f"[Failed to download: {filename}]"})
+                            elif mimetype and mimetype.startswith('image/') and total_images < 3:
+                                parts.append(await self._process_slack_image(file_bytes, mimetype))
+                                total_images += 1
                             elif fi_messenger.is_text_file(file_bytes):
-                                file_summaries.append((await self._process_slack_text_file(file_bytes, filename))['m_content'])
+                                parts.append(await self._process_slack_text_file(file_bytes, filename))
                             else:
-                                file_summaries.append(f"[Binary file: {filename} ({len(file_bytes)} bytes)]")
+                                parts.append({"m_type": "text", "m_content": f"[Binary file: {filename} ({len(file_bytes)} bytes)]"})
                         except Exception:
                             logger.exception("capture file processing failed: %s", file_info.get("name", "?"))
-
-                all_message_parts = []
-                if text_content:
-                    all_message_parts.append({"m_type": "text", "m_content": text_content.strip()})
-                if file_summaries:
-                    all_message_parts.append({"m_type": "text", "m_content": "\n📎 Attached files:\n" + "\n".join(file_summaries)})
-                all_message_parts.extend(image_parts)
+                    if parts:
+                        captured_msgs.append(ckit_ask_model.CapturedMessageInput(
+                            content=parts,
+                            ftm_author_label1=f"slack:{user_id}" if user_id else "slack:unknown",
+                            ftm_author_label2=f"{author_name or user_id or 'unknown'}",
+                            ftm_provenance={"system_type": "fi_slack"},
+                        ))
 
                 http = await self.fclient.use_http_on_behalf(self.rcx.persona.persona_id, toolcall.fcall_untrusted_key)
                 try:
@@ -512,15 +518,11 @@ class IntegrationSlack(fi_messenger.FlexusMessenger):
                     )
                 except gql.transport.exceptions.TransportQueryError as e:
                     return ckit_cloudtool.gql_error_4xx_to_model_reraise_5xx(e, "slack_capture")
-                logger.info("Successful capture %s <-> %s, posting %d parts into the captured thread" % (something_id_slash_thread, toolcall.fcall_ft_id, len(all_message_parts)))
-                if all_message_parts:
-                    await ckit_ask_model.thread_add_user_message(
-                        http,
-                        toolcall.fcall_ft_id,
-                        all_message_parts,
-                        "fi_slack",
-                        ftm_alt=100,
-                    )
+                logger.info("Successful capture %s <-> %s, posting %d msgs into the captured thread" % (something_id_slash_thread, toolcall.fcall_ft_id, len(captured_msgs)))
+                await ckit_ask_model.captured_thread_post_user_messages(
+                    http, self.rcx.persona.persona_id, searchable, captured_msgs,
+                    only_to_expert=self.outside_messages_fexp_name,
+                )
                 r += fi_messenger.CAPTURE_SUCCESS_MSG % (something_name,) + fi_messenger.CAPTURE_ADVICE_MSG
                 r += "Remember that slack formatting rules are in effect, and it's not markdown:\n"
                 r += FORMATTING
@@ -551,7 +553,7 @@ class IntegrationSlack(fi_messenger.FlexusMessenger):
         something_id_slash_thread = channel_id + ("/" + a.thread_ts if a.thread_ts else "")
         searchable = "slack/" + something_id_slash_thread
 
-        content = [{"m_type": "text", "m_content": f"👤{a.message_author_name}\n\n{a.message_text}"}]
+        content = [{"m_type": "text", "m_content": a.message_text}]
         if a.file_contents:
             content.extend(a.file_contents)
         content = fi_messenger.compact_message_parts(content)
@@ -559,11 +561,16 @@ class IntegrationSlack(fi_messenger.FlexusMessenger):
         http = await self.fclient.use_http_on_behalf(self.rcx.persona.persona_id, "")
         logger.info("captured_thread_post searchable=%s msg=%s", searchable, a.message_text[:200])
         try:
-            ft_id = await ckit_ask_model.captured_thread_post_user_message(
+            ft_id = await ckit_ask_model.captured_thread_post_user_messages(
                 http,
                 self.rcx.persona.persona_id,
                 searchable,
-                content,
+                [ckit_ask_model.CapturedMessageInput(
+                    content=content,
+                    ftm_author_label1=f"slack:{a.message_author_id}",
+                    ftm_author_label2=f"{a.message_author_name or a.message_author_id}",
+                    ftm_provenance={"system_type": "fi_slack"},
+                )],
                 only_to_expert=self.outside_messages_fexp_name,
                 thread_too_old_s=30*86400 if a.thread_ts else 300,
             )

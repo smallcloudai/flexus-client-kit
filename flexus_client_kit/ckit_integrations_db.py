@@ -1,5 +1,6 @@
 import importlib
 import inspect
+import logging
 import os
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -26,6 +27,9 @@ def _register_tool_handler(
             return await ckit_scenario.scenario_generate_tool_result_via_model(rcx.fclient, toolcall, source)
         return await handler(toolcall, *args, **kwargs)
     return rcx.on_tool_call(tool_name)(_wrapped)
+
+
+logger = logging.getLogger("igrdb")
 
 
 @dataclass
@@ -180,6 +184,7 @@ def static_integrations_load(bot_dir: Path, allowlist: list[str], builtin_skills
             from flexus_client_kit.integrations import fi_facebook2
             fb_bunch = fi_facebook2.make_facebook_bunch(_parse_bracket_list(name))
             fb_tool = fb_bunch.make_tool()
+            fb_tool.auth_required = "facebook"
             async def _init_facebook(rcx, setup, _bunch=fb_bunch):
                 return fi_facebook2.IntegrationFacebook2(rcx.fclient, rcx, _bunch)
             result.append(IntegrationRecord(
@@ -484,6 +489,14 @@ async def main_loop_integrations_init(records: list[IntegrationRecord], rcx: cki
 
     result = {}
     for rec in records:
+        if rec.integr_provider:
+            auth = rcx.external_auth.get(rec.integr_provider) or {}
+            if not (auth.get("token") or auth.get("api_key") or auth.get("connect_fields")):
+                if rec.integr_provider in rcx.fake_connected_providers:
+                    logger.info("%s integration %s faked (scenario)", rcx.persona.persona_id, rec.integr_name)
+                else:
+                    logger.info("%s integration %s skipped (not connected)", rcx.persona.persona_id, rec.integr_name)
+                    continue
         obj = await rec.integr_init(rcx, setup)
         rec.integr_setup_handlers(obj, rcx)
         result[rec.integr_name] = obj

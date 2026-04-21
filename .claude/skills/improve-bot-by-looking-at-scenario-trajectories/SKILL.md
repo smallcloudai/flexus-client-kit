@@ -29,7 +29,8 @@ Trajectories -actual.yaml are bigger in size, in fact might be huge. Pick 1 or 2
 problems, think which will be most informative.
 
 The -happy.yaml files are all equal within an experiment, so read one if you are curious, it's also mostly equal
-to scenario file in the bot, only formatting changes.
+to scenario file in the bot, only formatting changes, and expansion of !PYTHON[] notation to include some json from
+source code so it does not have to be copy-pasted.
 
 
 ## Step 3: Ask Human What to Fix

@@ -107,6 +107,7 @@ _TIMEOUT = 30.0
 LINKEDIN_B2B_TOOL = ckit_cloudtool.CloudTool(
     strict=False,
     name="linkedin_b2b",
+    auth_required="linkedin",
     description="LinkedIn non-partner B2B APIs: Community Management, Ads, Leads, Events, Conversions, and qualified private marketing surfaces.",
     parameters={
         "type": "object",

@@ -35,6 +35,7 @@ class FThreadMessageOutput:
     ftm_usage: Any
     ftm_tool_calls: Any
     ftm_call_id: str
+    ftm_author_label1: str
     ftm_app_specific: Any
     ftm_created_ts: float
     ftm_provenance: Any
@@ -73,55 +74,49 @@ class FThreadComprehensiveSubs:
     news_payload_thread: Optional[FThreadOutput]
 
 
-async def thread_add_user_message(
+@dataclass
+class FThreadMessageInput:
+    content: Union[str, List[Dict[str, Any]]]
+    ftm_author_label1: str
+    ftm_author_label2: str
+    ftm_provenance: Dict[str, Any]
+    ftm_alt: int = 100
+    role: str = "user"
+
+
+async def thread_add_user_messages(
     http: gql.Client,
     ft_id: str,
-    content: Union[str, List[Dict[str, Any]]],
+    messages: List[FThreadMessageInput],
     who_is_asking: str,
-    ftm_alt: int,
-    user_preferences: str = "null",
-    role: str = "user",
-    ftm_provenance: Optional[Dict[str, Any]] = None,
 ) -> None:
-    random_ftm_num = -random.randint(1, 2**31 - 1)
-    assert role in ["user", "cd_instruction"]
-
-    if isinstance(content, str):
-        ftm_content = json.dumps(content)
-    elif isinstance(content, list):
-        ftm_content = json.dumps(content)
-    else:
-        assert 0, "bad type %s" % type(content)
-
-    if ftm_provenance is None:
-        ftm_provenance = {"system_type": who_is_asking}
-
+    if not messages:
+        return
+    records = []
+    for m in messages:
+        assert m.role in ["user", "cd_instruction"]
+        records.append({
+            "ftm_belongs_to_ft_id": ft_id,
+            "ftm_alt": m.ftm_alt,
+            "ftm_num": -random.randint(1, 2**31 - 1),
+            "ftm_prev_alt": m.ftm_alt,
+            "ftm_role": m.role,
+            "ftm_author_label1": m.ftm_author_label1,
+            "ftm_author_label2": m.ftm_author_label2,
+            "ftm_content": json.dumps(m.content),
+            "ftm_tool_calls": "null",
+            "ftm_call_id": "",
+            "ftm_usage": "null",
+            "ftm_app_specific": "null",
+            "ftm_user_preferences": "null",
+            "ftm_provenance": json.dumps(m.ftm_provenance),
+        })
     async with http as h:
         await h.execute(
             gql.gql(f"""mutation {who_is_asking}CreateMessages($input: FThreadMultipleMessagesInput!) {{
                 thread_messages_create_multiple(input: $input)
             }}"""),
-            variable_values={
-                "input": {
-                    "ftm_belongs_to_ft_id": ft_id,
-                    "messages": [
-                        {
-                            "ftm_belongs_to_ft_id": ft_id,
-                            "ftm_alt": ftm_alt,
-                            "ftm_num": random_ftm_num,
-                            "ftm_prev_alt": ftm_alt,
-                            "ftm_role": role,
-                            "ftm_content": ftm_content,
-                            "ftm_tool_calls": "null",
-                            "ftm_call_id": "",
-                            "ftm_usage": "null",
-                            "ftm_app_specific": "null",
-                            "ftm_user_preferences": user_preferences,
-                            "ftm_provenance": json.dumps(ftm_provenance),
-                        },
-                    ],
-                }
-            },
+            variable_values={"input": {"ftm_belongs_to_ft_id": ft_id, "messages": records}},
         )
 
 
@@ -140,14 +135,15 @@ async def bot_activate(
     assign_ktask_id: str = "",
     check_kanban_status: bool = False,
     scenario_initial_cd_instruction: str = "",
+    scenario_fake_connected_providers: Optional[List[str]] = None,
 ) -> str:
     title = title or (fexp_name + " " + time.strftime("%Y%m%d %H:%M:%S"))
     assert re.match(r'^[a-z0-9_]+$', who_is_asking)
     camel_case_for_logs = "".join(word.capitalize() for word in who_is_asking.split("_"))
     async with http as h:
         r = await h.execute(
-            gql.gql(f"""mutation {camel_case_for_logs}BotActivate($who_is_asking: String!, $persona_id: String!, $fexp_name: String!, $first_question: String!, $first_calls: String!, $title: String!, $sched_id: String!, $fexp_id: String!, $ft_btest_name: String!, $model: String!, $assign_ktask_id: String!, $check_kanban_status: Boolean!, $scenario_initial_cd_instruction: String!) {{
-                bot_activate(who_is_asking: $who_is_asking, persona_id: $persona_id, fexp_name: $fexp_name, first_question: $first_question, first_calls: $first_calls, title: $title, sched_id: $sched_id, fexp_id: $fexp_id, ft_btest_name: $ft_btest_name, model: $model, assign_ktask_id: $assign_ktask_id, check_kanban_status: $check_kanban_status, scenario_initial_cd_instruction: $scenario_initial_cd_instruction) {{ ft_id }}
+            gql.gql(f"""mutation {camel_case_for_logs}BotActivate($who_is_asking: String!, $persona_id: String!, $fexp_name: String!, $first_question: String!, $first_calls: String!, $title: String!, $sched_id: String!, $fexp_id: String!, $ft_btest_name: String!, $model: String!, $assign_ktask_id: String!, $check_kanban_status: Boolean!, $scenario_initial_cd_instruction: String!, $scenario_fake_connected_providers: [String!]) {{
+                bot_activate(who_is_asking: $who_is_asking, persona_id: $persona_id, fexp_name: $fexp_name, first_question: $first_question, first_calls: $first_calls, title: $title, sched_id: $sched_id, fexp_id: $fexp_id, ft_btest_name: $ft_btest_name, model: $model, assign_ktask_id: $assign_ktask_id, check_kanban_status: $check_kanban_status, scenario_initial_cd_instruction: $scenario_initial_cd_instruction, scenario_fake_connected_providers: $scenario_fake_connected_providers) {{ ft_id }}
             }}"""),
             variable_values={
                 "who_is_asking": who_is_asking,
@@ -163,6 +159,7 @@ async def bot_activate(
                 "assign_ktask_id": assign_ktask_id,
                 "check_kanban_status": check_kanban_status,
                 "scenario_initial_cd_instruction": scenario_initial_cd_instruction,
+                "scenario_fake_connected_providers": scenario_fake_connected_providers,
             },
         )
         ft_id = r["bot_activate"]["ft_id"]
@@ -228,30 +225,42 @@ async def thread_app_capture_patch(
     return r["thread_app_capture_patch"]
 
 
-async def captured_thread_post_user_message(
+@dataclass
+class CapturedMessageInput:
+    content: Union[str, List[Dict[str, Any]]]
+    ftm_author_label1: str
+    ftm_author_label2: str
+    ftm_provenance: Optional[Dict[str, Any]] = None
+
+
+async def captured_thread_post_user_messages(
     http: gql.Client,
     persona_id: str,
     ft_app_searchable: str,
-    content: Union[str, List[Dict[str, Any]]],
-    only_to_expert: str = "",
-    ftm_provenance: Optional[Dict[str, Any]] = None,
+    messages: List[CapturedMessageInput],
+    only_to_expert: str,
     thread_too_old_s: Optional[float] = None,
 ) -> str:
+    records = [{
+        "ftm_content": json.dumps(m.content),
+        "ftm_author_label1": m.ftm_author_label1,
+        "ftm_author_label2": m.ftm_author_label2,
+        "ftm_provenance": json.dumps(m.ftm_provenance) if m.ftm_provenance else None,
+    } for m in messages]
     async with http as h:
         r = await h.execute(gql.gql("""
-            mutation CapturedThreadPostSafe($persona_id: String!, $ft_app_searchable: String!, $ftm_content: String!, $only_to_expert: String!, $ftm_provenance: String, $thread_too_old_s: Float) {
-                captured_thread_post_user_message(persona_id: $persona_id, ft_app_searchable: $ft_app_searchable, ftm_content: $ftm_content, only_to_expert: $only_to_expert, ftm_provenance: $ftm_provenance, thread_too_old_s: $thread_too_old_s)
+            mutation CapturedThreadPostSafe($persona_id: String!, $ft_app_searchable: String!, $messages: [CapturedThreadMessageInput!]!, $only_to_expert: String!, $thread_too_old_s: Float) {
+                captured_thread_post_user_messages(persona_id: $persona_id, ft_app_searchable: $ft_app_searchable, messages: $messages, only_to_expert: $only_to_expert, thread_too_old_s: $thread_too_old_s)
             }"""),
             variable_values={
                 "persona_id": persona_id,
                 "ft_app_searchable": ft_app_searchable,
-                "ftm_content": json.dumps(content),
-                "ftm_provenance": json.dumps(ftm_provenance) if ftm_provenance else None,
+                "messages": records,
                 "only_to_expert": only_to_expert,
                 "thread_too_old_s": thread_too_old_s,
             },
         )
-    return r["captured_thread_post_user_message"]
+    return r["captured_thread_post_user_messages"]
 
 
 async def captured_thread_lookup(

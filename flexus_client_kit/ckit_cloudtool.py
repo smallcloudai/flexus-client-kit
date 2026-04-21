@@ -124,6 +124,7 @@ class CloudTool:
     name: str
     description: str
     parameters: dict
+    auth_required: str = ""
 
     def openai_style_tool(self):
         def add_order(obj):
@@ -172,6 +173,7 @@ class CloudTool:
                 "parameters": params,
             },
             "strict": self.strict,
+            "_auth_required": self.auth_required,
         }
 
 

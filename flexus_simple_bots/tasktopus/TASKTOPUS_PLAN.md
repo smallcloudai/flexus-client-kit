@@ -5,8 +5,6 @@
 
 - Every morning, generate a today's most important 5, based on deadlines, blockers, and dependency chains
 - If there is no progress on a task for more than a day, ask human what's happening
-- Offer to split a blocked task
-- Detect zombie tasks: close/archive/revive
 - If no tasks assigned to a human, contact them and offer something that matches their skills and recent activity
 - Summarize weekly progress
   - Completed tasks
@@ -14,30 +12,32 @@
   - Slipped deadlines
   - Engagement score for humans
   - Gaps in process (work uncovered by tasks)
-- Prepare topics for upcoming meetings
-- Description
+- Improve description
   - Clarify from authors
   - Reduce size if someone posts AI-generated description
-- Assign a person who might test the changes
 
 
 ## Milestone 2
 
+- Detect zombie tasks: close/archive/revive
+- Offer to split a blocked task
+- Prepare topics for upcoming meetings
 - Suspiciously similar tasks detection: suggest merging or clarifying ownership
-- Hot potato detection (tasks that keep changing assignees) initiate converstation
-- Find changes in git:
+- Track changes in git:
   - Mention changes in task
   - Auto send to testing task
   - Detect fake progress
+- Assign a person who might test the changes
 
 
 ## Deprioritize but valid
 
-- Track outside deadlines
-- Task dep, no progress on dep for 2 business days, rise up issue
+- Listening to slack for action items
+- Track customer facing deadlines
+- Hot potato detection (tasks that keep changing assignees) initiate converstation
+- Detect task dep, no progress on dep for 2 business days, rise up issue
 - Detect overloaded humans and recommend rebalancing work
 - Meeting notes transfer to action items
-- Listening to slack for action items
 - Spot tasks waiting on external approvals, contracts, or payments and group them into one "administrative friction" report
 - Help morale: chronic overload, invisible work, and unfair assignment patterns
 
@@ -84,7 +84,7 @@ not for planning projects.
 Fibery has a lot of kanban boards (we have 14) on different topics, moveable and editable by humans, tasks are also more
 complex, allowing comments, pictures, references to Sprint, Feature, and actually any arbitrary fields and references.
 
-The bot needs to clearly understand those are not the same.
+The bot needs to clearly compartmentalize the two.
 
 
 ## Users Confusion
@@ -92,7 +92,7 @@ The bot needs to clearly understand those are not the same.
 Slack has users, Fibery has users, Flexus has users. If this bot is going to talk to all these people, it needs to know
 everybody and their handles on each platform.
 
-Fibery is connected to each bot separately. For what we know, the other bot can be connected to a completely different Fibery
+Fibery is connected to each bot separately. For what we know, another colleague bot can be connected to a completely different Fibery
 workspace, the same for Slack, so it's our database to keep. The drawback is other bots don't know the mapping or they have to
 borrow ours, I just don't see a global users database that will work without logical problems if we have bot-connected
 integrations.
@@ -101,6 +101,68 @@ More confusion: Fibery is connected on behalf of a user that connects it (clicks
 can do about it. The get_me() function will return the same person over and over again, likely irrelevant admin, not
 active participant, hopefully (because that will add to confusion). The lesson here is not to rely on get_me for anything.
 
+
+
+# Format of /tasktopus/people
+
+{
+  "people-db": {
+    "meta": {
+      "created": "20260418",
+      "updated": "20260418"
+    },
+    "users": {
+      "elena-voss": {
+        "full-name": "Elena Voss",
+        "avatar": "/v1/avatar/032-sheep_meditating.webp",
+        "aka": {
+          "taskman": "elena",
+          "slack": "elenavoss",
+          "telegram": ""
+        },
+        "prefs": "Elena wants her tasks shaken, not stirred"
+      },
+      "marco-tanaka": {
+        "full-name": "Marco Tanaka",
+        "avatar": "/v1/avatar/299-fox-sitting.webp",
+        "aka": {
+          "taskman": "marco.t",
+          "slack": "mtanaka",
+          "telegram": "marcot"
+        },
+        "prefs": "Night owl, don't ping before 11:00 local. Hates surprise meetings."
+      }
+    },
+    "schema": {
+      "users": {
+        "type": "object",
+        "order": 0,
+        "title": "Tasktopus People Database",
+        "additionalProperties": {
+          "type": "object",
+          "required": ["full-name"],
+          "properties": {
+            "full-name": {"type": "string", "order": 0, "title": "Full name"},
+            "avatar":    {"type": "string", "order": 1, "title": "Avatar URL", "ui:avatar": true},
+            "aka": {
+              "type": "object",
+              "order": 2,
+              "title": "Messengers",
+              "properties": {
+                "taskman":  {"type": "string", "order": 0},
+                "slack":    {"type": "string", "order": 1},
+                "telegram": {"type": "string", "order": 2}
+              },
+              "additionalProperties": false
+            },
+            "prefs":     {"type": "string", "order": 3, "title": "Preferences", "ui:multiline": true}
+          },
+          "additionalProperties": false
+        }
+      }
+    }
+  }
+}
 
 
 tasktopus_*.py and PLAN.md nearby

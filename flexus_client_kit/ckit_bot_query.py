@@ -11,6 +11,7 @@ class FPersonaOutput:
     owner_fuser_id: str
     located_fgroup_id: str
     persona_id: str
+    factor_id: str
     persona_name: str
     persona_marketable_name: str
     persona_marketable_version: int

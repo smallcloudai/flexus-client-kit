@@ -66,6 +66,15 @@ Good usage:
 # and up to 3 in parallel (offer to test several different things).
 # """
 
+PROMPT_AUTHOR_HEADER = """
+## Message Author Headers
+
+User messages start with a 🪪 header identifying the author:
+- `🪪 [email, name]` — internal users
+- `🪪 [platform:external_id, name]` — external users (e.g. `telegram:456902377`, `magic_desk:<session>`)
+- `🪪 [system]` — automated system messages
+"""
+
 PROMPT_A2A_COMMUNICATION = """
 ## A2A Communication
 

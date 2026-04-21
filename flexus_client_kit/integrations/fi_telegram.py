@@ -40,6 +40,7 @@ logger = logging.getLogger("teleg")
 TELEGRAM_TOOL = ckit_cloudtool.CloudTool(
     strict=False,
     name="telegram",
+    auth_required="telegram",
     description="Interact with Telegram. Call with op=\"help\" for usage, or op=\"status+help\" for both.",
     parameters={
         "type": "object",
@@ -386,6 +387,9 @@ class IntegrationTelegram(fi_messenger.FlexusMessenger):
             if a.attachments:
                 title += f"\n[{len(a.attachments)} file(s) attached]"
         human_id = "telegram:%d" % a.chat_id
+        if not self.outside_messages_fexp_name:
+            logger.warning("%s accept_outside_messages_only_to_expert() was never called, don't know which expert to use", self.rcx.persona.persona_id)
+            return
         post_fn = ckit_kanban.bot_kanban_post_into_inprogress if a.chat_type == "private" else ckit_kanban.bot_kanban_post_into_inbox
         await post_fn(
             await self.fclient.use_http_on_behalf(self.rcx.persona.persona_id, ""),
@@ -406,14 +410,18 @@ class IntegrationTelegram(fi_messenger.FlexusMessenger):
         # parts.extend(activity.attachments)
         # parts = fi_messenger.compact_message_parts(parts)
         searchable = f"telegram/{activity.chat_id}"
-        content = [{"m_type": "text", "m_content": f"👤{activity.message_author_name}\n\n{msg_text}"}]
         http = await self.fclient.use_http_on_behalf(self.rcx.persona.persona_id, "")
         logger.info("captured_thread_post searchable=%s msg=%s", searchable, msg_text[:200])
-        ft_id = await ckit_ask_model.captured_thread_post_user_message(
+        ft_id = await ckit_ask_model.captured_thread_post_user_messages(
             http,
             self.rcx.persona.persona_id,
             searchable,
-            content,
+            [ckit_ask_model.CapturedMessageInput(
+                content=msg_text,
+                ftm_author_label1=f"telegram:{activity.message_author_id}",
+                ftm_author_label2=f"{activity.message_author_name or activity.message_author_id}",
+                ftm_provenance={"system_type": "fi_telegram"},
+            )],
             only_to_expert=self.outside_messages_fexp_name,
             thread_too_old_s=3600,
         )

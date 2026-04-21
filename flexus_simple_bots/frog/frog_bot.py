@@ -126,8 +126,8 @@ async def frog_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.R
     setup = ckit_bot_exec.official_setup_mixing_procedure(FROG_SETUP_SCHEMA, rcx.persona.persona_setup)
     integr_objects = await ckit_integrations_db.main_loop_integrations_init(FROG_INTEGRATIONS, rcx, setup, need_mongo=True)
     pdoc_integration: fi_pdoc.IntegrationPdoc = integr_objects["flexus_policy_document"]
-    tg: fi_telegram.IntegrationTelegram = integr_objects["telegram"]
-    sl: fi_slack.IntegrationSlack = integr_objects["slack"]
+    tg: Optional[fi_telegram.IntegrationTelegram] = integr_objects.get("telegram")
+    sl: Optional[fi_slack.IntegrationSlack] = integr_objects.get("slack")
     await fi_mcp.mcp_launch(FROG_MCPS, rcx, setup)
 
     tongue_capacity_used = {}

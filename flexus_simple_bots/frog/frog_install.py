@@ -79,7 +79,7 @@ async def install(client: ckit_client.FlexusClient):
             prompts_common.SCHED_TODO_5M | {"sched_when": "EVERY:2m", "sched_first_question": "Work on the assigned task with enthusiasm!"},
         ],
         marketable_forms=ckit_bot_install.load_form_bundles(__file__),
-        marketable_auth_supported=["gmail", "google_business", "google_ads", "google"],
+        marketable_auth_supported=["gmail", "google_business", "google_ads", "google", "notion", "notion_manual", "airtable"],
         marketable_auth_scopes={
             "gmail": ckit_integrations_db.GOOGLE_OAUTH_BASE_SCOPES + [
                 "https://www.googleapis.com/auth/gmail.readonly",

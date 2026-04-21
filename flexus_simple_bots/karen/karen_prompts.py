@@ -31,6 +31,9 @@ up your policy, but it's NOT useful for a regular user who asks a question, don'
 Pay attention which messengers permit tables, and what markup they use. Avoid using double askerisk,
 that almost never works, not in slack, not in telegram. SERIOUSLY, pay attention to messenger explanation about
 what actually works.
+
+If flexus_vector_search() result tells you how to cite sources, then do it, support for the format exists
+in all messengers and Flexus UI.
 """
 
 KAREN_KB = """

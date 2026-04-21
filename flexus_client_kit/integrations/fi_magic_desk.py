@@ -68,6 +68,9 @@ class IntegrationMagicDesk(fi_messenger.FlexusMessenger):
     async def inbound_activity_to_task(self, a: ActivityMagicDesk, already_posted: bool):
         if already_posted:
             return
+        if not self.outside_messages_fexp_name:
+            logger.warning("%s accept_outside_messages_only_to_expert() was never called, don't know which expert to use", self.rcx.persona.persona_id)
+            return
         await ckit_kanban.bot_kanban_post_into_inprogress(
             await self.fclient.use_http_on_behalf(self.rcx.persona.persona_id, ""),
             self.rcx.persona.persona_id,
@@ -104,10 +107,15 @@ class IntegrationMagicDesk(fi_messenger.FlexusMessenger):
             if buf_msgs and time.monotonic() - buf_ts > 600:
                 logger.info("%s magic_desk capture discarding %d stale buffered msgs for session=%s", self.rcx.persona.persona_id, len(buf_msgs), session_id)
                 buf_msgs = []
-            for buf_text, buf_ext_id in buf_msgs:
-                await ckit_ask_model.captured_thread_post_user_message(
-                    http, self.rcx.persona.persona_id, f"magic_desk/{session_id}", buf_text,
-                    ftm_provenance={"system_type": "captured_thread_post", "mdesk_msg_id": buf_ext_id},
+            if buf_msgs[-10:]:
+                await ckit_ask_model.captured_thread_post_user_messages(
+                    http, self.rcx.persona.persona_id, f"magic_desk/{session_id}",
+                    [ckit_ask_model.CapturedMessageInput(
+                        content=buf_text,
+                        ftm_author_label1=f"magic_desk:{session_id}",
+                        ftm_author_label2=f"Guest",
+                        ftm_provenance={"system_type": "fi_magic_desk", "mdesk_msg_id": buf_ext_id},
+                    ) for buf_text, buf_ext_id in buf_msgs[-10:]],
                     only_to_expert=self.outside_messages_fexp_name, thread_too_old_s=3600,
                 )
             return fi_messenger.CAPTURE_SUCCESS_MSG % session_id + fi_messenger.CAPTURE_ADVICE_MSG
@@ -133,12 +141,16 @@ class IntegrationMagicDesk(fi_messenger.FlexusMessenger):
         self._from_mdesk_dedup_set.add(emsg.emsg_external_id)
         http = await self.fclient.use_http_on_behalf(self.rcx.persona.persona_id, "")
         logger.info("captured_thread_post searchable=magic_desk/%s msg=%s", session_id, text[:200])
-        ft_id = await ckit_ask_model.captured_thread_post_user_message(
+        ft_id = await ckit_ask_model.captured_thread_post_user_messages(
             http,
             self.rcx.persona.persona_id,
             f"magic_desk/{session_id}",
-            text,
-            ftm_provenance={"system_type": "captured_thread_post", "mdesk_msg_id": emsg.emsg_external_id},
+            [ckit_ask_model.CapturedMessageInput(
+                content=text,
+                ftm_author_label1=f"magic_desk:{session_id}",
+                ftm_author_label2=f"Guest",
+                ftm_provenance={"system_type": "fi_magic_desk", "mdesk_msg_id": emsg.emsg_external_id},
+            )],
             only_to_expert=self.outside_messages_fexp_name,
             thread_too_old_s=3600,
         )

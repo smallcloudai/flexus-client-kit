@@ -557,12 +557,10 @@ class IntegrationExperimentExecution:
             message += "\nNo actions needed.\n"
         try:
             http = await self.fclient.use_http_on_behalf(self.pdoc_integration.rcx.persona.persona_id, "")
-            await ckit_ask_model.thread_add_user_message(
-                http=http,
-                ft_id=tracking.thread_id,
-                content=message,
-                who_is_asking="experiment_monitor",
-                ftm_alt=100,
+            await ckit_ask_model.thread_add_user_messages(
+                http, tracking.thread_id,
+                [ckit_ask_model.FThreadMessageInput(content=message, ftm_author_label1="system", ftm_author_label2="", ftm_provenance={"system_type": "experiment_monitor"})],
+                "experiment_monitor",
             )
             logger.info(f"Sent notification for experiment {tracking.experiment_id}")
         except Exception as e:

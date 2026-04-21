@@ -26,6 +26,7 @@ _TIMEOUT = 30.0
 LINKEDIN_TOOL = ckit_cloudtool.CloudTool(
     strict=False,
     name="linkedin",
+    auth_required="linkedin",
     description="LinkedIn open permissions: OIDC userinfo and member posting.",
     parameters={
         "type": "object",

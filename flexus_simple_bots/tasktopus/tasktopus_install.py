@@ -9,14 +9,38 @@ from flexus_simple_bots.tasktopus import tasktopus_prompts
 
 TOOL_NAMESET = {t.name for t in tasktopus_bot.TOOLS}
 
+ONE_ON_ONE_CAPTURE_KERNEL = """
+captured = False
+warn_text = "You have not captured any messenger chat yet. Anything you write will go nowhere until you call capture. Call the messenger tool with op=capture for the person you are addressing."
+warn_have = False
+
+for msg in messages:
+    s = str(msg["content"])
+    if "📌CAPTURED" in s:
+        captured = True
+    if warn_text in s:
+        warn_have = True
+
+if not captured and not warn_have and messages[-1]["role"] == "assistant" and not messages[-1]["tool_calls"]:
+    post_cd_instruction = warn_text
+"""
+
 EXPERTS = [
     ("default", ckit_bot_install.FMarketplaceExpertInput(
-        fexp_system_prompt=tasktopus_prompts.tasktopus_prompt,
+        fexp_system_prompt=tasktopus_prompts.TASKTOPUS_DEFAULT,
         fexp_python_kernel="",
         fexp_allow_tools=",".join(TOOL_NAMESET | ckit_cloudtool.CLOUDTOOLS_QUITE_A_LOT),
         fexp_nature="NATURE_INTERACTIVE",
         fexp_inactivity_timeout=3600,
         fexp_description="Main expert that handles user interactions and task management.",
+    )),
+    ("one_on_one_messenger", ckit_bot_install.FMarketplaceExpertInput(
+        fexp_system_prompt=tasktopus_prompts.ONE_ON_ONE_MESSENGER_PROMPT,
+        fexp_python_kernel=ONE_ON_ONE_CAPTURE_KERNEL,
+        fexp_allow_tools=",".join(TOOL_NAMESET | ckit_cloudtool.CLOUDTOOLS_QUITE_A_LOT),
+        fexp_nature="NATURE_AUTONOMOUS",
+        fexp_inactivity_timeout=3600,
+        fexp_description="Handles a single messenger 1:1 conversation with a specific person (morning briefings, check-ins, follow-ups).",
     )),
 ]
 
