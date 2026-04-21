@@ -39,6 +39,8 @@ def official_setup_mixing_procedure(marketable_setup_default, persona_setup) -> 
     full_set = minimal_set | set(["bs_description", "bs_order", "bs_placeholder", "bs_importance"])
     types = {"string_short": str, "string_long": str, "string_multiline": str, "bool": bool, "int": int, "float": float, "list_dict": list}
     for d in marketable_setup_default:
+        if not set(d.keys()).issuperset(minimal_set):
+            raise ValueError("You have missing keys in marketable_setup_default: %s" % (minimal_set - set(d.keys())))
         k = d["bs_name"]
         if not re.match(r'^[a-zA-Z][a-zA-Z0-9_]{1,39}$', k):
             raise ValueError("Bad key for setup %r" % k)
@@ -50,9 +52,6 @@ def official_setup_mixing_procedure(marketable_setup_default, persona_setup) -> 
         else:
             if not set(d.keys()).issubset(full_set):
                 raise ValueError("You have unrecognized keys in marketable_setup_default: %s" % (set(d.keys()) - full_set))
-
-        if not set(d.keys()).issuperset(minimal_set):
-            raise ValueError("You have missing keys in marketable_setup_default: %s" % (minimal_set - set(d.keys())))
         if d["bs_type"] not in types:
             raise ValueError("You have unrecognized type in marketable_setup_default: %s" % d["bs_type"])
 
@@ -283,9 +282,14 @@ class RobotContext:
         if subchats_list is not None:
             prov_dict["subchats_started"] = subchats_list
         prov = json.dumps(prov_dict)
-        http_client = await fclient.use_http_on_behalf(toolcall.connected_persona_id, toolcall.fcall_untrusted_key)
-        async with http_client as http:
-            await ckit_cloudtool.cloudtool_post_result(http, toolcall, serialized_result, prov, dollars=dollars, as_placeholder=bool(subchats_list))
+        try:
+            http_client = await fclient.use_http_on_behalf(toolcall.connected_persona_id, toolcall.fcall_untrusted_key)
+            async with http_client as http:
+                await ckit_cloudtool.cloudtool_post_result(http, toolcall, serialized_result, prov, dollars=dollars, as_placeholder=bool(subchats_list))
+        except gql.transport.exceptions.TransportQueryError as e:
+            logger.warning("%s cloudtool_post_result failed (tool call may have expired): %s", toolcall.fcall_id, e)
+        except Exception as e:
+            logger.error("%s cloudtool_post_result unexpected error: %s", toolcall.fcall_id, e, exc_info=e)
 
 
 class BotInstance(NamedTuple):
@@ -712,7 +716,7 @@ async def _run_scenario_for_model(
     bot_version: str,
 ) -> None:
     judge_instructions = trajectory_data.get("judge_instructions", "")
-    fake_connected_providers = trajectory_data["fake_connected_providers"]
+    fake_connected_providers = trajectory_data.get("fake_connected_providers", [])
     assert isinstance(fake_connected_providers, list)
     bc.scenario_fake_connected_providers = fake_connected_providers
     messages = trajectory_data["messages"]
@@ -971,7 +975,7 @@ async def run_happy_trajectory(
     assert messages[hi]["role"] == "user", "happy trajectory must have a user message after cd_instruction (or first)"
     first_human_message = messages[hi]["content"]
     first_calls = None
-    if len(messages) > hi + 1 and messages[hi + 1]["role"] == "assistant" and messages[hi + 1]["tool_calls"]:
+    if len(messages) > hi + 1 and messages[hi + 1]["role"] == "assistant" and messages[hi + 1].get("tool_calls"):
         first_calls = [{"type": tc.get("type", "function"), "function": {"name": tc["function"]["name"], "arguments": tc["function"]["arguments"]}} for tc in messages[hi + 1]["tool_calls"]]
     logger.info(f"first_calls, taken from the happy path:\n{first_calls}")
     trajectory_happy_messages_only = ckit_messages.yaml_dump_with_multiline({"messages": trajectory_data["messages"]})
