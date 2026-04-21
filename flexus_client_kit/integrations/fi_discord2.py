@@ -99,6 +99,7 @@ class ActivityDiscord:
     message_author_name: str
     message_author_id: int = 0
     is_dm: bool = False
+    bot_mentioned: bool = False
     attachments: List[Dict[str, str]] = field(default_factory=list)
     mention_looked_up: Dict[str, str] = field(default_factory=dict)
 
@@ -201,6 +202,8 @@ class IntegrationDiscord(fi_messenger.FlexusMessenger):
         logger.info("%s Discord %s by @%s in %s: %s", self.rcx.persona.persona_id, "message", a.message_author_name, a.channel_name, a.message_text[:50])
         if already_posted_to_captured_thread:
             return
+        if not a.is_dm and not a.bot_mentioned:
+            return
         title = "Discord user=%r in %s\n%s" % (a.message_author_name, a.channel_name, a.message_text)
         if a.attachments:
             title += f"\n[{len(a.attachments)} file(s) attached]"
@@ -215,8 +218,7 @@ class IntegrationDiscord(fi_messenger.FlexusMessenger):
         if not self.outside_messages_fexp_name:
             logger.warning("%s accept_outside_messages_only_to_expert() was never called, don't know which expert to use", self.rcx.persona.persona_id)
             return
-        post_fn = ckit_kanban.bot_kanban_post_into_inprogress if a.is_dm else ckit_kanban.bot_kanban_post_into_inbox
-        await post_fn(
+        await ckit_kanban.bot_kanban_post_into_inprogress(
             await self.fclient.use_http_on_behalf(self.rcx.persona.persona_id, ""),
             self.rcx.persona.persona_id,
             title=title,
@@ -725,6 +727,7 @@ class IntegrationDiscord(fi_messenger.FlexusMessenger):
             message_author_name=author_name,
             message_author_id=message.author.id,
             is_dm=isinstance(message.channel, discord.DMChannel),
+            bot_mentioned=self.client.user in message.mentions,
             attachments=attachments,
         )
 
