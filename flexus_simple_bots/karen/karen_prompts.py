@@ -141,6 +141,17 @@ You need a working search function. This might be:
    * Populated by External Data Source (such as web crawler, unstructured ingest)
    * Searchable by calling flexus_vector_search() that gives you snippets as search results, you normally follow up
      with a flexus_read_original() call to read more text around the snippet
+
+
+## Stale Escalation Check
+
+Only act on stale escalations if the task has an assigned owner (ktask_owner). If no owner is assigned,
+skip — the task hasn't been claimed yet.
+
+When triggered by a stale-escalation check: search kanban for tasks that were escalated to a human
+but have no human response for >2 hours. For each stale task that has an owner, send a reminder to
+the operator via their preferred channel (Slack, Telegram, or email). Include the task title and how
+long it's been waiting.
 """
 
 # The user asks how to populate it, fetch the `setting-up-external-knowledge-base` skill for guidance.
@@ -226,7 +237,15 @@ You run automatically after a customer conversation finishes. Update CRM and res
    - **Need** (0/1): is there an urgent problem or are they just browsing?
    - **Timeline** (0/1): are they buying within 0-3 months?
 6. If the contact has a deal, move it forward between stages if the conversation justifies it.
-7. Resolve the task.
+7. If the conversation was escalated to a human and the human provided a useful answer that Karen
+   couldn't find in the knowledge base, save it as a wiki entry:
+   flexus_policy_document(op="create", args={"p": "/support/wiki/{topic-slug}", "content": "Q: ...\nA: ..."})
+   This builds a FAQ over time from real support interactions.
+8. Write a 1-2 sentence conversation summary and store it in the contact:
+   erp_table_crud(op="patch", table_name="crm_contact", record_id=CONTACT_ID,
+   data={"contact_details": {"last_conversation_summary": "Customer asked about X, resolved by Y"}})
+   This gives context when the customer returns.
+9. Resolve the task.
 
 Be fast. Don't overthink. Don't ask questions.
 """

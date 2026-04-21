@@ -142,16 +142,13 @@ SUPPORT_STATUS_TOOL = ckit_cloudtool.CloudTool(
 REPORT_SCHEMA = {
     "section01-crm": {
         "type": "object",
-        "title": "CRM & Sales",
+        "title": "CRM & Support",
         "properties": {
             "new_contacts": {"type": "integer", "order": 0, "title": "New Contacts"},
-            "deals_created": {"type": "integer", "order": 1, "title": "New Deals"},
-            "deals_closed_won": {"type": "integer", "order": 2, "title": "Closed Won"},
-            "deals_closed_lost": {"type": "integer", "order": 3, "title": "Closed Lost"},
-            "orders": {"type": "integer", "order": 4, "title": "Orders"},
-            "revenue": {"type": "number", "order": 5, "title": "Revenue"},
-            "refunds": {"type": "integer", "order": 6, "title": "Refunds"},
-            "refund_amount": {"type": "number", "order": 7, "title": "Refund Amount"},
+            "orders": {"type": "integer", "order": 1, "title": "Orders"},
+            "revenue": {"type": "number", "order": 2, "title": "Revenue"},
+            "refunds": {"type": "integer", "order": 3, "title": "Refunds"},
+            "refund_amount": {"type": "number", "order": 4, "title": "Refund Amount"},
         },
     },
     "section02-tasks": {
@@ -180,7 +177,7 @@ REPORT_TOOL = ckit_cloudtool.CloudTool(
     strict=True,
     name="karen_report",
     description=(
-        "Generate a daily or weekly report. Queries CRM, deals, orders, and kanban, "
+        "Generate a daily or weekly report. Queries CRM, orders, and kanban tasks, "
         "saves a schemed policy document to /support/reports/YYYYMMDD-daily or YYYYMMDD-weekly. "
         "Returns collected data so you can fill in the notes section and save the final document."
     ),
@@ -326,32 +323,45 @@ async def handle_report(
     http = await fclient.use_http_on_behalf(pid, fcall_untrusted_key)
 
     new_contacts = await ckit_erp.erp_table_data(http, "crm_contact", ws_id, erp_schema.CrmContact, filters=f"contact_created_ts:>=:{ts0}", limit=1000)
-    deals = await ckit_erp.erp_table_data(http, "crm_deal", ws_id, erp_schema.CrmDeal, filters=f"deal_created_ts:>=:{ts0}", limit=1000)
-    closed_deals = await ckit_erp.erp_table_data(http, "crm_deal", ws_id, erp_schema.CrmDeal, filters=f"deal_closed_ts:>=:{ts0}", include=["stage"], limit=1000)
-    won = sum(1 for d in closed_deals if d.stage and d.stage.stage_status == "WON")
-    lost = sum(1 for d in closed_deals if d.stage and d.stage.stage_status == "LOST")
     orders = await ckit_erp.erp_table_data(http, "com_order", ws_id, erp_schema.ComOrder, filters=f"order_created_ts:>=:{ts0}", limit=1000)
     revenue = float(sum(o.order_total for o in orders))
     refunds = await ckit_erp.erp_table_data(http, "com_refund", ws_id, erp_schema.ComRefund, filters=f"refund_created_ts:>=:{ts0}", limit=1000)
     refund_amount = float(sum(r.refund_amount for r in refunds))
 
+    # collect task stats from kanban
+    tasks_completed, tasks_success, tasks_failed, tasks_inconclusive, tasks_irrelevant = 0, 0, 0, 0, 0
+    try:
+        all_tasks = await ckit_kanban.bot_get_all_tasks(http, pid)
+        for t in all_tasks:
+            if t.ktask_done_ts < ts0:
+                continue
+            tasks_completed += 1
+            s = (t.ktask_resolution_code or "").upper()
+            if s == "SUCCESS":
+                tasks_success += 1
+            elif s == "FAIL":
+                tasks_failed += 1
+            elif s == "IRRELEVANT":
+                tasks_irrelevant += 1
+            else:
+                tasks_inconclusive += 1
+    except gql.transport.exceptions.TransportQueryError:
+        logger.warning("report: failed to fetch done tasks")
+
     data = {
         "section01-crm": {
             "new_contacts": len(new_contacts),
-            "deals_created": len(deals),
-            "deals_closed_won": won,
-            "deals_closed_lost": lost,
             "orders": len(orders),
             "revenue": revenue,
             "refunds": len(refunds),
             "refund_amount": refund_amount,
         },
         "section02-tasks": {
-            "tasks_completed": 0,
-            "tasks_success": 0,
-            "tasks_failed": 0,
-            "tasks_inconclusive": 0,
-            "tasks_irrelevant": 0,
+            "tasks_completed": tasks_completed,
+            "tasks_success": tasks_success,
+            "tasks_failed": tasks_failed,
+            "tasks_inconclusive": tasks_inconclusive,
+            "tasks_irrelevant": tasks_irrelevant,
         },
         "section03-notes": {
             "notable_incidents": "",
@@ -375,10 +385,18 @@ async def handle_report(
     doc_text = json.dumps(doc, ensure_ascii=False, indent=2)
     result = await pdoc.pdoc_overwrite(path, doc_text, persona_id=pid, fcall_untrusted_key=fcall_untrusted_key)
 
+    all_zeros = len(new_contacts) == 0 and len(orders) == 0 and tasks_completed == 0
+    if all_zeros:
+        return (
+            "Nothing happened — no new contacts, no orders, no tasks completed. "
+            "Report saved to %s with all zeros. Fill in notes if anything notable occurred, "
+            "otherwise this period was quiet."
+        ) % path
+
     return (
         "✍️ %s\nmd5=%s\n\n%s\n\n"
-        "Task stats (section02-tasks) are zero — fill them using your kanban search tool. Then fill in notes. Use flexus_policy_document(op=\"update_at_location\", "
-        "args={\"p\": \"%s\", \"expected_md5\": \"%s\", \"updates\": [[\"karen-report.section02-tasks.tasks_completed\", ...], ...]})"
+        "Fill in notes. Use flexus_policy_document(op=\"update_at_location\", "
+        "args={\"p\": \"%s\", \"expected_md5\": \"%s\", \"updates\": [[\"karen-report.section03-notes.notable_incidents\", ...], ...]})"
     ) % (path, result.md5_after, doc_text, path, result.md5_after)
 
 
