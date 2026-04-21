@@ -361,11 +361,11 @@ async def handle_report(
             "refund_amount": refund_amount,
         },
         "section02-tasks": {
-            "tasks_completed": 0,
-            "tasks_success": 0,
-            "tasks_failed": 0,
-            "tasks_inconclusive": 0,
-            "tasks_irrelevant": 0,
+            "tasks_completed": len(done_tasks),
+            "tasks_success": by_code.get("SUCCESS", 0),
+            "tasks_failed": by_code.get("FAIL", 0),
+            "tasks_inconclusive": by_code.get("INCONCLUSIVE", 0),
+            "tasks_irrelevant": by_code.get("IRRELEVANT", 0),
         },
         "section03-notes": {
             "notable_incidents": "",
@@ -398,10 +398,9 @@ async def handle_report(
 
     return (
         "✍️ %s\nmd5=%s\n\n%s\n\n"
-        "Task stats (section02-tasks) are zero — fill them using your kanban search tool. "
-        "Resolution outcomes (section04-resolution-summary) are pre-filled from resolution codes; add sentiment_notes if patterns stand out. "
-        "Then fill in notes. Use flexus_policy_document(op=\"update_at_location\", "
-        "args={\"p\": \"%s\", \"expected_md5\": \"%s\", \"updates\": [[\"karen-report.section02-tasks.tasks_completed\", ...], ...]})"
+        "Task stats and resolution outcomes are pre-filled from kanban. "
+        "Fill in the notes section, then save. Use flexus_policy_document(op=\"update_at_location\", "
+        "args={\"p\": \"%s\", \"expected_md5\": \"%s\", \"updates\": [[\"karen-report.section03-notes.notable_incidents\", ...], ...]})"
     ) % (path, result.md5_after, doc_text, path, result.md5_after)
 
 
