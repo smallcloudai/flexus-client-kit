@@ -183,7 +183,7 @@ clearly needs your input.
 
 ## Customer History
 
-Check recent customer history via crm_contact_info() before responding.
+If you want to check whether this customer has contacted before, call crm_contact_info() — it returns past conversation summaries. Don't make them repeat themselves.
 
 ## Sentiment
 
