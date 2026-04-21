@@ -411,6 +411,18 @@ def static_integrations_load(bot_dir: Path, allowlist: list[str], builtin_skills
                 integr_prompt="",
             ))
 
+        elif name == "hubspot":
+            from flexus_client_kit.integrations import fi_hubspot
+            async def _init_hubspot(rcx, setup):
+                return fi_hubspot.IntegrationHubSpot(rcx)
+            result.append(IntegrationRecord(
+                integr_name="hubspot",
+                integr_tools=[fi_hubspot.HUBSPOT_TOOL],
+                integr_init=_init_hubspot,
+                integr_setup_handlers=lambda obj, rcx: [_register_tool_handler(rcx, "hubspot", obj.called_by_model, fake_in_scenario=True)],
+                integr_prompt=fi_hubspot.HUBSPOT_PROMPT,
+            ))
+
         else:
             # Import fi_{name}.py at runtime by name (e.g. "reddit" -> fi_reddit.py).
             # We can't do this at the top of the file because the name is only known at call time.
