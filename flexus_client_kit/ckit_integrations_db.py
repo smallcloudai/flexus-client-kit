@@ -423,6 +423,19 @@ def static_integrations_load(bot_dir: Path, allowlist: list[str], builtin_skills
                 integr_prompt=fi_hubspot.HUBSPOT_PROMPT,
             ))
 
+        elif name == "twilio":
+            from flexus_client_kit.integrations import fi_twilio
+            async def _init_twilio(rcx, setup):
+                return fi_twilio.IntegrationTwilio(rcx)
+            result.append(IntegrationRecord(
+                integr_name="twilio",
+                integr_tools=[fi_twilio.TWILIO_TOOL],
+                integr_init=_init_twilio,
+                integr_setup_handlers=lambda obj, rcx: [_register_tool_handler(rcx, "twilio", obj.called_by_model, fake_in_scenario=True)],
+                integr_provider="twilio_manual",
+                integr_prompt=fi_twilio.TWILIO_PROMPT,
+            ))
+
         else:
             # Import fi_{name}.py at runtime by name (e.g. "reddit" -> fi_reddit.py).
             # We can't do this at the top of the file because the name is only known at call time.
