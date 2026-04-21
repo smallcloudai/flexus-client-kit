@@ -1,0 +1,240 @@
+judge_instructions: |
+  Fashion e-commerce support scenario. Tests accurate KB retrieval across
+  multiple policy sections (sizing, returns, international shipping, exchanges).
+  Score 0 if no flexus_vector_search calls. Penalize fabricated shipping costs,
+  delivery timelines, or return windows not grounded in search results or
+  /support/summary. Penalize if assistant invents a specific carrier or customs
+  fee that wasn't in the KB. Reward precise answers that cite policy details.
+
+messages:
+- role: cd_instruction
+  content: |-
+    📄/company/summary
+    {
+      "stage": "Growth",
+      "mission": "Scandinavian workwear designed for creative professionals",
+      "tagline": "Dress sharp, work sharper",
+      "website": "https://nordicthread.com",
+      "industry": "E-commerce / Fashion / Workwear",
+      "company_name": "Nordic Thread"
+    }
+
+    📄/company/sales-strategy
+    does not exist yet
+
+    📄/support/summary
+    {
+      "support-policy": {
+        "meta": {
+          "created_at": "2026-03-25T14:00:00.000000+00:00"
+        },
+        "section01-product": {
+          "title": "Product",
+          "question01-description": {
+            "a": "Nordic Thread sells Scandinavian-designed workwear for creative professionals — architects, designers, agency people. Premium fabrics, minimalist cuts, designed for office-to-meeting versatility. All items designed in Stockholm, manufactured in Portugal.",
+            "q": "What is the product?"
+          },
+          "question02-features": {
+            "a": "Men's and women's collections. Core lines: The Studio Blazer, The Draft Trouser, The Pitch Shirt, The Commute Jacket. All wrinkle-resistant. Sizing: EU standard (XS-XXL), detailed size guide on each product page with measurements in cm. Custom hemming available on trousers (free, adds 5 business days).",
+            "q": "What are the key features?"
+          },
+          "question03-ideal-customer-profile": {
+            "a": "Creative professionals 25-45 who want polished workwear without corporate stiffness. Architects, UX designers, agency founders, creative directors.",
+            "q": "Who is the ideal customer (ICP)?"
+          }
+        },
+        "section02-future-ops": {
+          "title": "Shipping & Returns",
+          "question01-shipping": {
+            "a": "EU: free shipping over €100, otherwise €7.50. Standard delivery 3-5 business days. Express (€12) 1-2 business days. International (non-EU): €15 flat rate, 7-14 business days. Customs/duties are buyer's responsibility. We ship via PostNord (Nordics), DHL (EU), and DHL Express (international).",
+            "q": "Shipping methods, costs, times?"
+          },
+          "question04-payments": {
+            "a": "Visa, Mastercard, Klarna (pay in 3), PayPal. All prices in EUR. Currency conversion by payment provider.",
+            "q": "Payment options & pricing?"
+          },
+          "question02-returns": {
+            "a": "30-day return window from delivery date. Items must be unworn, tags attached. Free returns within EU (prepaid label in box). International returns: customer pays shipping. Refund processed within 5 business days of receiving the return. Exchanges: same 30-day window, we ship the replacement once we receive the original — no cross-shipping.",
+            "q": "Refund policy?"
+          },
+          "question03-warranty": {
+            "a": "12-month warranty on manufacturing defects (seam failure, zipper breaks, fabric pilling within normal use). Send photo + order number to support for assessment. If confirmed, free replacement or store credit.",
+            "q": "Warranty details?"
+          }
+        },
+        "section03-support": {
+          "title": "Support",
+          "question01-channels": {
+            "a": "Telegram @nordicthread_support, email hello@nordicthread.com",
+            "q": "Support channels (email, chat, etc.)?"
+          },
+          "question02-escalation": {
+            "a": "Lost shipments, warranty claims, orders over €500, corporate/bulk orders",
+            "q": "When to escalate to human?"
+          }
+        },
+        "section04-restrictions": {
+          "title": "Restrictions",
+          "question01-never-say": {
+            "a": "Never estimate customs fees for international orders. Never promise specific delivery dates, only windows. Never offer discounts without manager approval.",
+            "q": "What should support NEVER say?"
+          }
+        }
+      }
+    }
+- role: user
+  content: |-
+    Telegram private user='Aisha Nakamura' chat_id=77293651
+    hi, I'm in Tokyo and want to order the Studio Blazer. I normally wear US size 6 — what EU size is that? also what's the return situation for international orders if it doesn't fit?
+- role: assistant
+  tool_calls:
+  - id: call_fg_01
+    type: function
+    function:
+      name: flexus_kanban_public
+      arguments: '{"op": "status_public", "search": null, "resolution": null, "details_json": null, "restart_summary": null}'
+- role: tool
+  content: |
+    The current task with details:
+    {
+      "id": "rN3kX7wQmL",
+      "title": "Telegram private user='Aisha Nakamura' chat_id=77293651\nhi, I'm in Tokyo and want to order the Studio Blazer...",
+      "details": {
+        "chat_id": 77293651,
+        "chat_type": "private",
+        "message_id": 3401,
+        "attachments": [],
+        "message_text": "hi, I'm in Tokyo and want to order the Studio Blazer. I normally wear US size 6 — what EU size is that? also what's the return situation for international orders if it doesn't fit?",
+        "message_author_id": 77293651,
+        "message_author_name": "Aisha Nakamura"
+      }
+    }
+
+    Inbox:
+    [
+    ]
+
+    In Progress:
+    [
+    {"id": "rN3kX7wQmL", "title": "Telegram private user='Aisha Nakamura' chat_id=77293651\nhi, I'm in Tokyo and want to order the Studio Blazer...", "human": "telegram:77293651"},
+    ]
+
+    Done:
+    [
+    ]
+  call_id: call_fg_01
+- role: title
+  content: "[telegram] [aisha] [support] Aisha Nakamura — Tokyo, Studio Blazer sizing + international returns"
+- role: assistant
+  tool_calls:
+  - id: call_fg_02
+    type: function
+    function:
+      name: telegram
+      arguments: '{"op": "capture", "args": {"chat_id": 77293651}}'
+- role: tool
+  content: |
+    📌CAPTURED
+
+    The next thing you write will be visible. Don't comment on that fact and think about what do you want to say in '77293651'.
+    Don't use op=post because now anything you say is visible automatically.
+
+    Reminder: after this point telegram MarkdownV2 markup rules are in effect for your output, there are no tables! Here's markup help for you again.
+
+
+    Telegram uses MarkdownV2 markup:
+    *bold*  _italic_  __underline__  ~strikethrough~
+    `inline code`
+    ```python
+    code block
+    ```
+    [link text](https://example.com)
+    ||spoiler||
+
+    > blockquote
+    > each line must start with >
+
+    No bullet lists or tables.
+  call_id: call_fg_02
+- role: assistant
+  tool_calls:
+  - id: call_fg_03
+    type: function
+    function:
+      name: flexus_vector_search
+      arguments: '{"eds": "", "query": "EU sizing size guide US conversion Studio Blazer international returns shipping"}'
+- role: tool
+  content: |+
+    For your query 'EU sizing size guide US conversion Studio Blazer international returns shipping' found 3 results in database of 620 chunks across 15 indexed documents.
+
+    <original_text>
+    Size conversion guide (women's tops/blazers): US 2 = EU XS (34), US 4 = EU S (36), US 6 = EU S/M (38), US 8 = EU M (40), US 10 = EU L (42), US 12 = EU XL (44). Each product page has a detailed size chart with bust, waist, and sleeve measurements in cm. When between sizes, we recommend sizing up — our cuts are slim.
+    </original_text>
+
+    <original_text>
+    International (non-EU) returns: 30-day return window from delivery date. Items must be unworn with tags attached. Customer pays return shipping. Refund processed within 5 business days of receiving the item. We recommend using a tracked shipping service. No cross-shipping on exchanges — we ship the replacement once the original is received.
+    </original_text>
+
+    <original_text>
+    International (non-EU) shipping: €15 flat rate, 7-14 business days via DHL Express. Customs duties and import taxes are the buyer's responsibility and vary by country.
+    </original_text>
+
+  call_id: call_fg_03
+- role: assistant
+  content: |-
+    Hi Aisha\. US 6 maps to EU S/M \(38\) for women's blazers\. The Studio Blazer runs slim — if you're between sizes, I'd go up to M \(40\)\. Each product page has exact bust, waist, and sleeve measurements in cm so you can compare\.
+
+    International returns from Japan: 30\-day window from delivery, unworn with tags\. You'd pay return shipping \(tracked service recommended\)\. Refund hits within 5 business days after we receive it\.
+
+    For exchanges: same 30\-day window, but we ship the new size only after receiving the original — no cross\-shipping\.
+
+    Shipping to Tokyo is €15 flat, 7\-14 business days via DHL Express\. Customs and import duties are on your side — I can't estimate those for Japan\.
+- role: user
+  content:
+  - m_type: text
+    m_content: |-
+      👤Aisha Nakamura
+
+      ok got it. can I do the exchange for free if it's the wrong size? and do you accept Klarna from Japan?
+- role: assistant
+  tool_calls:
+  - id: call_fg_04
+    type: function
+    function:
+      name: flexus_vector_search
+      arguments: '{"eds": "", "query": "exchange shipping cost free Klarna international payment availability"}'
+- role: tool
+  content: |+
+    For your query 'exchange shipping cost free Klarna international payment availability' found 2 results in database of 620 chunks across 15 indexed documents.
+
+    <original_text>
+    Klarna (pay in 3 installments) is available for EU customers only. International customers can pay with Visa, Mastercard, or PayPal.
+    </original_text>
+
+    <original_text>
+    Free returns within EU (prepaid label included in the box). International returns: customer pays shipping both ways — return of the original and we cover shipping of the replacement at the standard international rate (€15).
+    </original_text>
+
+  call_id: call_fg_04
+- role: assistant
+  content: |-
+    Exchange shipping: you'd pay to send back the original, then we ship the replacement at the standard €15 international rate\. So return shipping is on you, outbound replacement is €15\.
+
+    Klarna: EU only, unfortunately\. From Japan you can use Visa, Mastercard, or PayPal\.
+
+    Want to go ahead with the order?
+- role: assistant
+  tool_calls:
+  - id: call_fg_05
+    type: function
+    function:
+      name: flexus_kanban_public
+      arguments: '{"op": "resolve", "resolution": {"code": "SUCCESS", "summary": "Helped Aisha (Tokyo) with Studio Blazer sizing (US 6 → EU 38/S-M, recommended sizing up), international return policy (30 days, customer pays shipping, no cross-ship exchanges), Klarna unavailable outside EU, payment alternatives.", "humanhours": 0.15, "uncapture": true, "pdoc_paths": []}}'
+- role: tool
+  content: |-
+    Moved to done rN3kX7wQmL
+
+    Uncaptured the chat, no one can see your messages now, all left to do is to say TASK_COMPLETED
+  call_id: call_fg_05
+- role: assistant
+  content: TASK_COMPLETED

@@ -172,6 +172,17 @@ REPORT_SCHEMA = {
             "what_people_asked": {"type": "string", "order": 2, "title": "What People Asked"},
         },
     },
+    "section04-resolution-summary": {
+        "type": "object",
+        "title": "Resolution Outcomes",
+        "properties": {
+            "resolved_success": {"type": "integer", "order": 0, "title": "Resolved: Success"},
+            "resolved_fail": {"type": "integer", "order": 1, "title": "Resolved: Fail"},
+            "resolved_inconclusive": {"type": "integer", "order": 2, "title": "Resolved: Inconclusive"},
+            "resolved_escalated": {"type": "integer", "order": 3, "title": "Resolved: Escalated"},
+            "sentiment_notes": {"type": "string", "order": 4, "title": "Sentiment Notes"},
+        },
+    },
 }
 
 REPORT_TOOL = ckit_cloudtool.CloudTool(
@@ -331,6 +342,13 @@ async def handle_report(
     refunds = await ckit_erp.erp_table_data(http, "com_refund", ws_id, erp_schema.ComRefund, filters=f"refund_created_ts:>=:{ts0}", limit=1000)
     refund_amount = float(sum(r.refund_amount for r in refunds))
 
+    all_tasks = await ckit_kanban.bot_get_all_tasks(http, pid)
+    done_tasks = [t for t in all_tasks if t.ktask_done_ts >= ts0]
+    by_code = {}
+    for t in done_tasks:
+        c = (t.ktask_resolution_code or "UNKNOWN").upper()
+        by_code[c] = by_code.get(c, 0) + 1
+
     data = {
         "section01-crm": {
             "new_contacts": len(new_contacts),
@@ -354,6 +372,13 @@ async def handle_report(
             "setup_problems": "",
             "what_people_asked": "",
         },
+        "section04-resolution-summary": {
+            "resolved_success": by_code.get("SUCCESS", 0),
+            "resolved_fail": by_code.get("FAIL", 0),
+            "resolved_inconclusive": by_code.get("INCONCLUSIVE", 0),
+            "resolved_escalated": by_code.get("ESCALATED", 0),
+            "sentiment_notes": "",
+        },
     }
 
     date_str = now.strftime("%Y%m%d")
@@ -373,7 +398,9 @@ async def handle_report(
 
     return (
         "✍️ %s\nmd5=%s\n\n%s\n\n"
-        "Task stats (section02-tasks) are zero — fill them using your kanban search tool. Then fill in notes. Use flexus_policy_document(op=\"update_at_location\", "
+        "Task stats (section02-tasks) are zero — fill them using your kanban search tool. "
+        "Resolution outcomes (section04-resolution-summary) are pre-filled from resolution codes; add sentiment_notes if patterns stand out. "
+        "Then fill in notes. Use flexus_policy_document(op=\"update_at_location\", "
         "args={\"p\": \"%s\", \"expected_md5\": \"%s\", \"updates\": [[\"karen-report.section02-tasks.tasks_completed\", ...], ...]})"
     ) % (path, result.md5_after, doc_text, path, result.md5_after)
 
