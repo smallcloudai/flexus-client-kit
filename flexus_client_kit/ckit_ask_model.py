@@ -136,14 +136,16 @@ async def bot_activate(
     check_kanban_status: bool = False,
     scenario_initial_cd_instruction: str = "",
     scenario_fake_connected_providers: Optional[List[str]] = None,
+    scenario_first_author_label1: str = "",
+    scenario_first_author_label2: str = "",
 ) -> str:
     title = title or (fexp_name + " " + time.strftime("%Y%m%d %H:%M:%S"))
     assert re.match(r'^[a-z0-9_]+$', who_is_asking)
     camel_case_for_logs = "".join(word.capitalize() for word in who_is_asking.split("_"))
     async with http as h:
         r = await h.execute(
-            gql.gql(f"""mutation {camel_case_for_logs}BotActivate($who_is_asking: String!, $persona_id: String!, $fexp_name: String!, $first_question: String!, $first_calls: String!, $title: String!, $sched_id: String!, $fexp_id: String!, $ft_btest_name: String!, $model: String!, $assign_ktask_id: String!, $check_kanban_status: Boolean!, $scenario_initial_cd_instruction: String!, $scenario_fake_connected_providers: [String!]) {{
-                bot_activate(who_is_asking: $who_is_asking, persona_id: $persona_id, fexp_name: $fexp_name, first_question: $first_question, first_calls: $first_calls, title: $title, sched_id: $sched_id, fexp_id: $fexp_id, ft_btest_name: $ft_btest_name, model: $model, assign_ktask_id: $assign_ktask_id, check_kanban_status: $check_kanban_status, scenario_initial_cd_instruction: $scenario_initial_cd_instruction, scenario_fake_connected_providers: $scenario_fake_connected_providers) {{ ft_id }}
+            gql.gql(f"""mutation {camel_case_for_logs}BotActivate($who_is_asking: String!, $persona_id: String!, $fexp_name: String!, $first_question: String!, $first_calls: String!, $title: String!, $sched_id: String!, $fexp_id: String!, $ft_btest_name: String!, $model: String!, $assign_ktask_id: String!, $check_kanban_status: Boolean!, $scenario_initial_cd_instruction: String!, $scenario_fake_connected_providers: [String!], $scenario_first_author_label1: String!, $scenario_first_author_label2: String!) {{
+                bot_activate(who_is_asking: $who_is_asking, persona_id: $persona_id, fexp_name: $fexp_name, first_question: $first_question, first_calls: $first_calls, title: $title, sched_id: $sched_id, fexp_id: $fexp_id, ft_btest_name: $ft_btest_name, model: $model, assign_ktask_id: $assign_ktask_id, check_kanban_status: $check_kanban_status, scenario_initial_cd_instruction: $scenario_initial_cd_instruction, scenario_fake_connected_providers: $scenario_fake_connected_providers, scenario_first_author_label1: $scenario_first_author_label1, scenario_first_author_label2: $scenario_first_author_label2) {{ ft_id }}
             }}"""),
             variable_values={
                 "who_is_asking": who_is_asking,
@@ -160,6 +162,8 @@ async def bot_activate(
                 "check_kanban_status": check_kanban_status,
                 "scenario_initial_cd_instruction": scenario_initial_cd_instruction,
                 "scenario_fake_connected_providers": scenario_fake_connected_providers,
+                "scenario_first_author_label1": scenario_first_author_label1,
+                "scenario_first_author_label2": scenario_first_author_label2,
             },
         )
         ft_id = r["bot_activate"]["ft_id"]

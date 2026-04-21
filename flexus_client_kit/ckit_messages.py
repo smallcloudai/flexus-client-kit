@@ -85,6 +85,10 @@ def fmessages_to_yaml(messages: list, *, limits: Optional[dict[str, int]] = None
     out = []
     for msg in messages:
         m = {"role": msg.ftm_role}
+        if getattr(msg, "ftm_author_label1", ""):
+            m["author_label1"] = msg.ftm_author_label1
+        if getattr(msg, "ftm_author_label2", ""):
+            m["author_label2"] = msg.ftm_author_label2
         if msg.ftm_content and msg.ftm_content != "null":
             max_chars = limits.get(msg.ftm_role)
             if max_chars:

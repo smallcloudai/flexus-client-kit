@@ -707,6 +707,8 @@ async def _run_scenario_for_model(
     *,
     scenario_initial_cd_instruction: str,
     first_human_message: str,
+    first_author_label1: str,
+    first_author_label2: str,
     first_assistant_calls: Optional[List[dict]],
     expert__scenario: str,
     bot_version: str,
@@ -765,6 +767,8 @@ async def _run_scenario_for_model(
                 fexp_name=fexp_name,
                 scenario_initial_cd_instruction=scenario_initial_cd_instruction,
                 scenario_fake_connected_providers=fake_connected_providers,
+                scenario_first_author_label1=first_author_label1,
+                scenario_first_author_label2=first_author_label2,
                 first_question=last_human_message,
                 first_calls=first_assistant_calls,
                 title="Trajectory Test",
@@ -793,7 +797,7 @@ async def _run_scenario_for_model(
                 break
             await ckit_ask_model.thread_add_user_messages(
                 http, ft_id,
-                [ckit_ask_model.FThreadMessageInput(content=result.next_human_message, ftm_author_label1="system", ftm_author_label2="", ftm_provenance={"who_is_asking": "trajectory_scenario", "shaky": result.shaky})],
+                [ckit_ask_model.FThreadMessageInput(content=result.next_human_message, ftm_author_label1=result.next_author_label1, ftm_author_label2=result.next_author_label2, ftm_provenance={"who_is_asking": "trajectory_scenario", "shaky": result.shaky})],
                 "trajectory_scenario",
             )
 
@@ -967,6 +971,8 @@ async def run_happy_trajectory(
         hi += 1
     assert messages[hi]["role"] == "user", "happy trajectory must have a user message after cd_instruction (or first)"
     first_human_message = messages[hi]["content"]
+    first_author_label1 = messages[hi].get("author_label1", "")
+    first_author_label2 = messages[hi].get("author_label2", "")
     first_calls = None
     if len(messages) > hi + 1 and messages[hi + 1]["role"] == "assistant" and messages[hi + 1]["tool_calls"]:
         first_calls = [{"type": tc.get("type", "function"), "function": {"name": tc["function"]["name"], "arguments": tc["function"]["arguments"]}} for tc in messages[hi + 1]["tool_calls"]]
@@ -985,6 +991,8 @@ async def run_happy_trajectory(
                 trajectory_happy_messages_only,
                 scenario_initial_cd_instruction=scenario_initial_cd_instruction,
                 first_human_message=first_human_message,
+                first_author_label1=first_author_label1,
+                first_author_label2=first_author_label2,
                 first_assistant_calls=first_calls,
                 expert__scenario=expert__scenario,
                 bot_version=bot_version,

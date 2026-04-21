@@ -44,6 +44,8 @@ def bot_launch_argparse():
 class ScenarioHumanMessageOutput:
     scenario_done: bool
     next_human_message: str
+    next_author_label1: str
+    next_author_label2: str
     shaky: bool
     stop_reason: str
     cost: int

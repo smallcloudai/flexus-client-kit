@@ -42,6 +42,27 @@ references to removed things in assistant text. Remember, we are making idealize
 
 4. Remove extra tasks on the kanban board that does not participate in the decision process later.
 
+5. Anonymize `author_label1` on user messages. Real fuser_ids leak PII and the backend will reject
+them at scenario run time. Replace each real fuser_id with `test_scenario:NNNNNN` (6 digits) —
+pick a number per person in the chat (same person, same number, so the scenario stays coherent).
+`author_label2` is the display name and can stay as-is or be replaced with a made-up name. Example:
+
+```
+- role: user
+  author_label1: test_scenario:769235
+  author_label2: Alice
+  content: ...
+```
+
+Leave `author_label1: system` messages alone. Platform-prefixed labels (e.g. `slack:U123`) should
+also be replaced with `test_scenario:NNNNNN` since they're external user identifiers.
+
+If you rename a person (change their `author_label2` to a different name), replace the name
+everywhere else it appears in the scenario — other message contents, tool calls, tool results,
+assistant replies. Consistency matters: if Bob becomes "Carol" in label2, every mention of "Bob"
+in the rest of the scenario must also become "Carol", otherwise the assistant gets confused about
+who's who.
+
 
 ## Judge Instructions
 
