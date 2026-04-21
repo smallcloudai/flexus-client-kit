@@ -15,10 +15,8 @@ TOOLS_DEFAULT = {
     "mongo_store",
     "flexus_fetch_skill",
     "print_widget",
-    "crm_automation",
     "flexus_schedule",
     "shopify",
-    "shopify_cart",
     "erp_table_meta",
     "erp_table_data",
     "erp_table_crud",
@@ -38,7 +36,7 @@ TOOLS_EXPLORE = ckit_cloudtool.CLOUDTOOLS_VECDB | ckit_cloudtool.CLOUDTOOLS_WEB
 
 TOOLS_SUPPORT_AND_SALES = {
     "flexus_policy_document", "mongo_store", "flexus_fetch_skill",
-    "product_catalog", "shopify_cart",
+    "product_catalog",
     "crm_contact_info", "verify_email",
     "email_reply",
     "magic_desk", "slack", "telegram", "discord",
@@ -48,15 +46,6 @@ TOOLS_POST_CONVERSATION = {
     "flexus_fetch_skill", "thread_read",
     "erp_table_meta", "erp_table_data", "erp_table_crud",
 } | ckit_cloudtool.KANBAN_SAFE
-
-TOOLS_NURTURING = {
-    "flexus_policy_document", "mongo_store", "flexus_fetch_skill",
-    "shopify_cart",
-    "erp_table_meta", "erp_table_data", "erp_table_crud",
-    "crm_contact_info",
-    "email_send",
-    "magic_desk", "slack", "telegram", "discord",
-} | ckit_cloudtool.KANBAN_TRIAGE | ckit_cloudtool.CLOUDTOOLS_VECDB | ckit_cloudtool.CLOUDTOOLS_WEB | ckit_cloudtool.CLOUDTOOLS_MCP
 
 
 KAREN_DESC = (karen_bot.KAREN_ROOTDIR / "README.md").read_text()
@@ -108,14 +97,11 @@ EXPERTS = [
         fexp_allow_tools=",".join(TOOLS_DEFAULT),
         fexp_nature="NATURE_INTERACTIVE",
         fexp_inactivity_timeout=3600,
-        fexp_description="Marketing assistant for CRM management, contact import, automated outreach, company/product setup, and support knowledge base configuration.",
+        fexp_description="Support assistant for CRM management, contact import, company/product setup, and support knowledge base configuration.",
         fexp_builtin_skills=ckit_skills.read_name_description(karen_bot.KAREN_ROOTDIR, [
-            "stall-deals",
             "collect-support-knowledge-base",
             "store-setup",
-            "welcome-email-setup",
             "resend-email-setup",
-            "sales-pipeline-setup",
             "crm-import-landing-pages",
             "crm-automations",
         ]),
@@ -136,7 +122,7 @@ EXPERTS = [
         fexp_nature="NATURE_AUTONOMOUS",
         fexp_inactivity_timeout=600,
         fexp_model_class="cheap",
-        fexp_description="Customer-facing expert: answers support questions from knowledge base, conducts sales conversations using C.L.O.S.E.R. framework, qualifies leads with BANT.",
+        fexp_description="Customer-facing expert: answers support questions from knowledge base, handles pre-purchase recommendations using C.L.O.S.E.R. framework.",
     )),
     ("post_conversation", ckit_bot_install.FMarketplaceExpertInput(
         fexp_system_prompt=karen_prompts.KAREN_POST_CONVERSATION,
@@ -145,21 +131,8 @@ EXPERTS = [
         fexp_nature="NATURE_AUTONOMOUS",
         fexp_inactivity_timeout=300,
         fexp_model_class="cheap",
-        fexp_description="Runs after customer conversations to log CRM activities, create/update contacts, and record BANT scores.",
+        fexp_description="Runs after customer conversations to log CRM activities and create/update contacts.",
         fexp_builtin_skills=ckit_skills.read_name_description(karen_bot.KAREN_ROOTDIR, [
-            "log-crm-activity",
-        ]),
-    )),
-    ("nurturing", ckit_bot_install.FMarketplaceExpertInput(
-        fexp_system_prompt=karen_prompts.KAREN_NURTURING,
-        fexp_python_kernel="",
-        fexp_allow_tools=",".join(TOOLS_NURTURING),
-        fexp_nature="NATURE_SEMI_AUTONOMOUS",
-        fexp_inactivity_timeout=600,
-        fexp_description="Lightweight expert for automated tasks: sending templated emails, follow-ups, stall deal recovery, and simple CRM operations.",
-        fexp_model_class="cheap",
-        fexp_builtin_skills=ckit_skills.read_name_description(karen_bot.KAREN_ROOTDIR, [
-            "stall-recovery",
             "log-crm-activity",
         ]),
     )),
@@ -186,11 +159,11 @@ async def install(client: ckit_client.FlexusClient):
         bot_dir=karen_bot.KAREN_ROOTDIR,
         marketable_accent_color="#6252A4",
         marketable_title1="Karen",
-        marketable_title2="Your 24/7 support, sales & marketing agent — empathetic, accurate, and always closing.",
+        marketable_title2="Your 24/7 support agent — empathetic, accurate, and always helpful.",
         marketable_author="Flexus",
-        marketable_occupation="Support, Sales & Marketing",
+        marketable_occupation="Support & CRM",
         marketable_description=KAREN_DESC,
-        marketable_typical_group="Sales",
+        marketable_typical_group="Support",
         marketable_setup_default=karen_bot.KAREN_SETUP_SCHEMA,
         marketable_featured_actions=[
             {"feat_question": "Collect Support Knowledge Base"},
@@ -198,18 +171,15 @@ async def install(client: ckit_client.FlexusClient):
             {"feat_question": "Add Karen to Your Website"},
             {"feat_question": "Set Up Human Escalation"},
             {"feat_question": "Connect WhatsApp, Telegram, or Email"},
-            # {"feat_question": "Set Up Welcome Emails"},
-            # {"feat_question": "Set Up Sales Pipeline"},
-            # {"feat_question": "Work on Stalled-Deal Strategy"},
         ],
-        marketable_intro_message="Hi! I'm Karen — your support, sales, and marketing assistant. I can answer customer questions, manage your CRM, run email automations, import contacts, and handle sales conversations. What would you like to work on?",
+        marketable_intro_message="Hi! I'm Karen — your support assistant. I can answer customer questions, manage your CRM, run email automations, and import contacts. What would you like to work on?",
         marketable_preferred_model_expensive="grok-4-1-fast-reasoning",
         marketable_preferred_model_cheap="grok-4-1-fast-reasoning",
         marketable_daily_budget_default=10_000_000,
         marketable_default_inbox_default=1_000_000,
         marketable_max_inprogress=10,
         marketable_experts=[(name, exp.filter_tools(karen_bot.TOOLS)) for name, exp in EXPERTS],
-        marketable_tags=["Customer Support", "Sales", "Marketing", "CRM", "Email", "Automation", "Shopify", "E-commerce"],
+        marketable_tags=["Customer Support", "CRM", "Email", "Automation", "Shopify", "E-commerce"],
         marketable_schedule=[
             prompts_common.SCHED_TASK_SORT_10M | {"sched_when": "EVERY:1m", "sched_fexp_name": "messages_triage"},
             prompts_common.SCHED_TODO_5M | {"sched_when": "EVERY:1m"},
@@ -233,7 +203,7 @@ async def install(client: ckit_client.FlexusClient):
                 "im:read",
             ],
         },
-        marketable_required_policydocs=["/company/summary", "/company/sales-strategy", "/support/summary"],
+        marketable_required_policydocs=["/company/summary", "/support/summary"],
         marketable_features=["magic_desk"],
         add_integrations_into_expert_system_prompt=karen_bot.KAREN_INTEGRATIONS,
     )

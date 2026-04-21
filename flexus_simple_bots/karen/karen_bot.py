@@ -20,7 +20,6 @@ from flexus_client_kit import ckit_skills
 from flexus_client_kit import erp_schema
 from flexus_client_kit import ckit_mongo
 from flexus_client_kit.integrations import fi_mongo_store
-from flexus_client_kit.integrations import fi_crm_automations
 from flexus_client_kit.integrations import fi_resend
 from flexus_client_kit.integrations import fi_shopify
 from flexus_client_kit.integrations import fi_telegram
@@ -45,7 +44,6 @@ KAREN_MCPS = []
 KAREN_SETUP_SCHEMA = json.loads((KAREN_ROOTDIR / "setup_schema.json").read_text())
 KAREN_SETUP_SCHEMA += (
     fi_shopify.SHOPIFY_SETUP_SCHEMA
-    + fi_crm_automations.CRM_AUTOMATIONS_SETUP_SCHEMA
     + fi_crm.CRM_SETUP_SCHEMA
     + fi_resend.RESEND_SETUP_SCHEMA
     + fi_slack.SLACK_SETUP_SCHEMA
@@ -196,9 +194,7 @@ REPORT_TOOL = ckit_cloudtool.CloudTool(
 
 TOOLS = [
     fi_mongo_store.MONGO_STORE_TOOL,
-    fi_crm_automations.CRM_AUTOMATION_TOOL,
     fi_shopify.SHOPIFY_TOOL,
-    fi_shopify.SHOPIFY_CART_TOOL,
     fi_sched.SCHED_TOOL,
     fi_repo_reader.REPO_READER_TOOL,
     SUPPORT_STATUS_TOOL,
@@ -386,9 +382,6 @@ async def karen_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.
     setup = ckit_bot_exec.official_setup_mixing_procedure(KAREN_SETUP_SCHEMA, rcx.persona.persona_setup)
 
     integrations = await ckit_integrations_db.main_loop_integrations_init(KAREN_INTEGRATIONS, rcx, setup)
-    automations_integration = fi_crm_automations.IntegrationCrmAutomations(
-        fclient, rcx, setup, available_erp_tables=ERP_TABLES,
-    )
     pdoc_integration: fi_pdoc.IntegrationPdoc = integrations["flexus_policy_document"]
     email_respond_to = set(a.strip().lower() for a in setup.get("EMAIL_RESPOND_TO", "").split(",") if a.strip())
     shopify = fi_shopify.IntegrationShopify(fclient, rcx)
@@ -452,17 +445,9 @@ async def karen_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.
     async def toolcall_mongo_store(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
         return await fi_mongo_store.handle_mongo_store(rcx, toolcall, model_produced_args)
 
-    @rcx.on_tool_call(fi_crm_automations.CRM_AUTOMATION_TOOL.name)
-    async def toolcall_crm_automation(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
-        return await automations_integration.handle_crm_automation(toolcall, model_produced_args)
-
     @rcx.on_tool_call(fi_shopify.SHOPIFY_TOOL.name)
     async def toolcall_shopify(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
         return await shopify.called_by_model(toolcall, model_produced_args)
-
-    @rcx.on_tool_call(fi_shopify.SHOPIFY_CART_TOOL.name)
-    async def toolcall_shopify_cart(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
-        return await shopify.handle_cart(toolcall, model_produced_args)
 
     @rcx.on_tool_call(fi_sched.SCHED_TOOL.name)
     async def toolcall_sched(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
@@ -567,7 +552,7 @@ async def karen_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.
                 await ckit_kanban.bot_kanban_post_into_inbox(
                     await fclient.use_http_on_behalf(rcx.persona.persona_id, ""),
                     rcx.persona.persona_id,
-                    title="Read linked thread, find/create contact, log activity, score BANT: %s" % new_task.ktask_title[:60],
+                    title="Read linked thread, find/create contact, log activity: %s" % new_task.ktask_title[:60],
                     details_json=json.dumps({
                         "spawned_from_ktask_id": new_task.ktask_id,
                         "spawned_from_title": new_task.ktask_title,
