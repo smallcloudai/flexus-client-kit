@@ -1,6 +1,7 @@
 import json
 import logging
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from typing import Optional
 
 import gql
 from flexus_client_kit import ckit_client
@@ -110,3 +111,71 @@ async def start_external_auth_flow(
         }
     )
     return r["external_auth_start"]["authorization_url"]
+
+
+@dataclass
+class SavedCredentialField:
+    key: str
+    label: str
+    masked_value: str
+
+
+@dataclass
+class SavedCredential:
+    auth_id: str
+    provider: str
+    credential_name: str
+    status: str
+    fields: list[SavedCredentialField] = field(default_factory=list)
+
+
+async def list_saved_credentials(
+    http,
+    ws_id: str,
+    provider: Optional[str] = None,
+) -> list[SavedCredential]:
+    r = await http.execute(gql.gql("""
+        query ListSavedCredentials($ws_id: String!, $provider: String) {
+            workspace_saved_credentials(ws_id: $ws_id, provider: $provider) {
+                auth_id
+                provider
+                credential_name
+                status
+                fields { key label masked_value }
+            }
+        }
+        """), variable_values={"ws_id": ws_id, "provider": provider}
+    )
+    results = []
+    for item in (r.get("workspace_saved_credentials") or []):
+        results.append(SavedCredential(
+            auth_id=item["auth_id"],
+            provider=item["provider"],
+            credential_name=item["credential_name"],
+            status=item["status"],
+            fields=[SavedCredentialField(key=f["key"], label=f["label"], masked_value=f["masked_value"])
+                    for f in (item.get("fields") or [])],
+        ))
+    return results
+
+
+async def fetch_resolved_persona_setup(http, persona_id: str) -> dict:
+    r = await http.execute(gql.gql("""
+        query PersonaResolvedSetup($persona_id: String!) {
+            persona_resolved_setup(persona_id: $persona_id)
+        }
+    """), variable_values={"persona_id": persona_id})
+    return r.get("persona_resolved_setup") or {}
+
+
+async def get_saved_credential_by_name(
+    http,
+    ws_id: str,
+    provider: str,
+    credential_name: str,
+) -> Optional[SavedCredential]:
+    all_creds = await list_saved_credentials(http, ws_id, provider=provider)
+    for cred in all_creds:
+        if cred.credential_name == credential_name:
+            return cred
+    return None

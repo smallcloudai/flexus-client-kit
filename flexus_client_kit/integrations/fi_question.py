@@ -7,14 +7,23 @@ ASK_QUESTIONS_TOOL = ckit_cloudtool.CloudTool(
     name="ask_questions",
     description="""Ask the user one or more questions with interactive UI. Use this instead of numbered lists.
 
-Types: "single" (pick one), "multi" (pick several), "text" (free-form), "yesno" (yes/no buttons).
+Types: "single" (pick one), "multi" (pick several), "text" (free-form), "yesno" (yes/no buttons),
+"credential" (collect one or more secret API keys / tokens and save them to the workspace).
+
+For "credential" questions, include:
+  - "provider": snake_case namespace, e.g. "openai", "tavily", "stripe"
+  - "credential_name": human label shown in the UI, e.g. "Production OpenAI"
+  - "fields": list of {key, label, required} describing what to collect
 
 Example:
 ask_questions(questions=[
     {"text": "What kind of bot do you want?", "type": "single", "options": ["Support", "Sales", "Analytics", "Other"]},
     {"text": "Which channels should it support?", "type": "multi", "options": ["Slack", "Email", "Discord", "Telegram"]},
     {"text": "Should it run on a schedule?", "type": "yesno"},
-    {"text": "Any special requirements?", "type": "text"}
+    {"text": "Any special requirements?", "type": "text"},
+    {"text": "Please provide your OpenAI credentials", "type": "credential",
+     "provider": "openai", "credential_name": "Production OpenAI",
+     "fields": [{"key": "API_KEY", "label": "API Key", "required": true}]}
 ])""",
     parameters={
         "type": "object",
@@ -26,8 +35,23 @@ ask_questions(questions=[
                     "type": "object",
                     "properties": {
                         "text": {"type": "string", "description": "The question text"},
-                        "type": {"type": "string", "enum": ["single", "multi", "text", "yesno"]},
+                        "type": {"type": "string", "enum": ["single", "multi", "text", "yesno", "credential"]},
                         "options": {"type": "array", "items": {"type": "string"}, "description": "Options for single/multi"},
+                        "provider": {"type": "string", "description": "For credential: snake_case provider namespace, e.g. 'openai'"},
+                        "credential_name": {"type": "string", "description": "For credential: human-readable name, e.g. 'Production OpenAI'"},
+                        "fields": {
+                            "type": "array",
+                            "description": "For credential: list of fields to collect",
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "key": {"type": "string", "description": "Field key, e.g. 'API_KEY'"},
+                                    "label": {"type": "string", "description": "Display label, e.g. 'API Key'"},
+                                    "required": {"type": "boolean"},
+                                },
+                                "required": ["key", "label"],
+                            },
+                        },
                     },
                     "required": ["text", "type"],
                 },
@@ -68,7 +92,7 @@ def _validate_questions(raw: List[Dict[str, Any]]) -> tuple:
         q = item.get("q", "")
         qtype = item.get("type", "")
         options = item.get("options")
-        if not q or qtype not in ["single", "multi", "text", "yesno"]:
+        if not q or qtype not in ["single", "multi", "text", "yesno", "credential"]:
             return None, f"Error: question {i+1} invalid"
         if len(q) > MAX_TEXT_LEN:
             return None, f"Error: question {i+1} text too long"
@@ -77,7 +101,33 @@ def _validate_questions(raw: List[Dict[str, Any]]) -> tuple:
                 return None, f"Error: question {i+1} ({qtype}) requires options"
             if len(options) > MAX_OPTIONS:
                 return None, f"Error: question {i+1} too many options"
-        validated.append({"q": q, "type": qtype, "options": options})
+        if qtype == "credential":
+            provider = item.get("provider", "")
+            credential_name = item.get("credential_name", "")
+            fields = item.get("fields", [])
+            if not isinstance(provider, str) or not provider:
+                return None, f"Error: question {i+1} (credential) requires a non-empty string provider"
+            if not isinstance(credential_name, str) or not credential_name:
+                return None, f"Error: question {i+1} (credential) requires a non-empty string credential_name"
+            if not isinstance(fields, list) or not fields:
+                return None, f"Error: question {i+1} (credential) requires at least one field"
+            validated_fields = []
+            for fi, f in enumerate(fields):
+                if not isinstance(f, dict):
+                    return None, f"Error: question {i+1} field {fi+1} must be an object"
+                if not isinstance(f.get("key"), str) or not f["key"]:
+                    return None, f"Error: question {i+1} field {fi+1} must have a non-empty string key"
+                if not isinstance(f.get("label"), str) or not f["label"]:
+                    return None, f"Error: question {i+1} field {fi+1} must have a non-empty string label"
+                validated_fields.append({
+                    "key": f["key"],
+                    "label": f["label"],
+                    "required": bool(f.get("required", True)),
+                })
+            entry: Dict[str, Any] = {"q": q, "type": qtype, "options": None, "provider": provider, "credential_name": credential_name, "fields": validated_fields}
+        else:
+            entry = {"q": q, "type": qtype, "options": options}
+        validated.append(entry)
     if not validated:
         return None, "Error: at least one valid question required"
     return validated, None
@@ -95,7 +145,14 @@ async def handle_ask_questions(
         for item in model_produced_args["questions"]:
             if not isinstance(item, dict):
                 continue
-            raw.append({"q": item.get("text", ""), "type": item.get("type", ""), "options": item.get("options")})
+            raw.append({
+                "q": item.get("text", ""),
+                "type": item.get("type", ""),
+                "options": item.get("options"),
+                "provider": item.get("provider"),
+                "credential_name": item.get("credential_name"),
+                "fields": item.get("fields"),
+            })
     else:
         # legacy q1..q6 string format
         for i in range(1, MAX_QUESTIONS + 1):
