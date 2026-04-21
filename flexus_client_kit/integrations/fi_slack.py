@@ -207,6 +207,8 @@ class IntegrationSlack(fi_messenger.FlexusMessenger):
         if extra_details:
             details.update(extra_details)
         human_id = "slack:%s" % a.message_author_id if a.message_author_id else ""
+        if self.is_task_recently_done(human_id):
+            return
         if not self.outside_messages_fexp_name:
             logger.warning("%s accept_outside_messages_only_to_expert() was never called, don't know which expert to use", self.rcx.persona.persona_id)
             return

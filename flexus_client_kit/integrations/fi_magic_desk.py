@@ -68,6 +68,9 @@ class IntegrationMagicDesk(fi_messenger.FlexusMessenger):
     async def inbound_activity_to_task(self, a: ActivityMagicDesk, already_posted: bool):
         if already_posted:
             return
+        human_id = "magic_desk:%s" % a.session_id
+        if self.is_task_recently_done(human_id):
+            return
         if not self.outside_messages_fexp_name:
             logger.warning("%s accept_outside_messages_only_to_expert() was never called, don't know which expert to use", self.rcx.persona.persona_id)
             return

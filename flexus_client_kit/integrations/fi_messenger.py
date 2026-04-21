@@ -1,7 +1,11 @@
+import logging
+import time
 from collections import deque
 from typing import List, Dict, Any
 
 from flexus_client_kit import ckit_ask_model, ckit_bot_exec, ckit_bot_query, ckit_client
+
+logger = logging.getLogger("messenger")
 
 MESSENGER_PROMPT = """
 ## Messaging Platforms (Telegram, Slack, WhatsApp, Flexus Magic Desk, etc.)
@@ -49,6 +53,22 @@ class FlexusMessenger:
 
     def accept_outside_messages_only_to_expert(self, fexp_name: str):
         self.outside_messages_fexp_name = fexp_name
+
+    def is_task_recently_done(self, human_id: str, max_age_s: float = 7200) -> bool:
+        """Check if the most recent task for human_id is done (resolved/escalated).
+
+        Prevents creating new tasks after human takeover. Uses in-memory latest_tasks
+        from the subscription — no GQL call needed.
+        """
+        if not human_id:
+            return False
+        now = time.time()
+        for task in self.rcx.latest_tasks.values():
+            if task.ktask_human_id == human_id and task.ktask_done_ts > 0 and now - task.ktask_done_ts < max_age_s:
+                logger.info("%s escalation guard: human_id=%s task %s is done (resolution=%s), skipping",
+                    self.rcx.persona.persona_id, human_id, task.ktask_id, task.ktask_resolution_code)
+                return True
+        return False
 
     async def handle_emessage(self, emsg: ckit_bot_query.FExternalMessageOutput) -> None:
         raise NotImplementedError

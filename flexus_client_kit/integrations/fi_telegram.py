@@ -2,7 +2,6 @@ import asyncio
 import re
 import json
 import logging
-import time
 import gql
 
 from collections import deque
@@ -388,11 +387,8 @@ class IntegrationTelegram(fi_messenger.FlexusMessenger):
             if a.attachments:
                 title += f"\n[{len(a.attachments)} file(s) attached]"
         human_id = "telegram:%d" % a.chat_id
-        now = time.time()
-        for task in self.rcx.latest_tasks.values():
-            if task.ktask_human_id == human_id and task.ktask_done_ts > 0 and now - task.ktask_done_ts < 7200:
-                logger.info("%s skipping new task for %s — recently escalated (done_ts=%.0f)", self.rcx.persona.persona_id, human_id, task.ktask_done_ts)
-                return
+        if self.is_task_recently_done(human_id):
+            return
         if not self.outside_messages_fexp_name:
             logger.warning("%s accept_outside_messages_only_to_expert() was never called, don't know which expert to use", self.rcx.persona.persona_id)
             return
