@@ -1,0 +1,39 @@
+[
+    {
+        "bs_name": "EMAIL_RESPOND_TO",
+        "bs_type": "string_long",
+        "bs_default": "",
+        "bs_group": "Email",
+        "bs_order": 1,
+        "bs_importance": 0,
+        "bs_description": "Email addresses the bot should respond to, comma-separated (e.g. sales@yourdomain.com). All other emails to your domains are logged as CRM activities only."
+    },
+    {
+        "bs_name": "escalate_policy",
+        "bs_type": "string_multiline",
+        "bs_default": "If the prospect asks to speak with a human or you can't answer their question, find the right person on Slack and hand off with context.",
+        "bs_group": "Policy",
+        "bs_order": 1,
+        "bs_importance": 0,
+        "bs_description": "When and how to escalate conversations to a human sales rep"
+    },
+    {
+        "bs_name": "escalate_technical_person",
+        "bs_type": "string_short",
+        "bs_default": "",
+        "bs_group": "Policy",
+        "bs_placeholder": "tell Alice via slack",
+        "bs_order": 2,
+        "bs_importance": 0,
+        "bs_description": "Name or contact information of the person to escalate unresolved sales questions to"
+    },
+    {
+        "bs_name": "knowledge_eds_ids",
+        "bs_type": "string_long",
+        "bs_default": "",
+        "bs_group": "Knowledge",
+        "bs_order": 1,
+        "bs_importance": 0,
+        "bs_description": "Comma-separated list of External Data Source (EDS) IDs this bot should search when answering prospect questions. Leave empty to search all workspace EDS."
+    }
+]
