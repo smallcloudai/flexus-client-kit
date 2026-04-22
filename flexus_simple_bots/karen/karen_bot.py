@@ -342,6 +342,9 @@ async def handle_report(
     refunds = await ckit_erp.erp_table_data(http, "com_refund", ws_id, erp_schema.ComRefund, filters=f"refund_created_ts:>=:{ts0}", limit=1000)
     refund_amount = float(sum(r.refund_amount for r in refunds))
 
+    # XXX bad idea:
+    # - there are infinite tasks here
+    # - model already asks kanban about all the counters
     all_tasks = await ckit_kanban.bot_get_all_tasks(http, pid)
     done_tasks = [t for t in all_tasks if t.ktask_done_ts >= ts0]
     by_code = {}

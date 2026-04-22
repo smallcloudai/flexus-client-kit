@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from typing import List, Optional, Any
 
 import gql
+from typing_extensions import deprecated
 
 from flexus_client_kit import ckit_client, gql_utils
 
@@ -155,7 +156,7 @@ async def bot_kanban_update_details(
     return result.get("kanban_task_update_details", False)
 
 
-# XXX remove, bot subscription already sends the tasks
+@deprecated("bot subscription already sends the tasks")
 async def bot_get_all_tasks(
         http: gql.Client,
         persona_id: str,
