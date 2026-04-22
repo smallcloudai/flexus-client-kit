@@ -20,7 +20,7 @@ EXPERTS = [
     ("setup", ckit_bot_install.FMarketplaceExpertInput(
         fexp_system_prompt=admonster_prompts.admonster_setup,
         fexp_python_kernel="",
-        fexp_allow_tools=",".join(sorted(ckit_cloudtool.KANBAN_ADVANCED | ckit_cloudtool.CLOUDTOOLS_SCARY_ENOUGH | TOOL_NAMESET)),
+        fexp_allow_tools=",".join(sorted(ckit_cloudtool.KANBAN_ADVANCED | ckit_cloudtool.CLOUDTOOLS_SCARY_TOOLS | TOOL_NAMESET)),
         fexp_nature="NATURE_INTERACTIVE",
         fexp_inactivity_timeout=0,
         fexp_description="Helps users configure Facebook OAuth connections and ad account settings, plus LinkedIn advertising credentials.",

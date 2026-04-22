@@ -26,7 +26,8 @@ KANBAN_SAFE = {"flexus_kanban_safe"}
 KANBAN_BOSS = {"flexus_kanban_boss"}
 KANBAN_ALL = KANBAN_ADVANCED | KANBAN_TRIAGE | KANBAN_PUBLIC | KANBAN_SAFE | KANBAN_BOSS   # unusable in bot
 
-CLOUDTOOLS_SCARY_ENOUGH = {"flexus_my_setup", "flexus_colleagues", "flexus_hand_over_task", "flexus_mcp_setup", "flexus_eds_setup"}
+CLOUDTOOLS_A2A = {"flexus_colleagues", "flexus_hand_over_task"}
+CLOUDTOOLS_SCARY_TOOLS = {"flexus_my_setup", "flexus_mcp_setup", "flexus_eds_setup"}
 CLOUDTOOLS_VECDB = {"flexus_vector_search", "flexus_read_original"}
 CLOUDTOOLS_PYTHON = {"python_execute"}
 CLOUDTOOLS_WEB = {"web"}

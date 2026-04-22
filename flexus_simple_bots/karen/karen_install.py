@@ -12,8 +12,8 @@ from flexus_simple_bots.karen import karen_prompts
 
 TOOLS_DEFAULT = {
     "flexus_policy_document",
-    "mongo_store",
     "flexus_fetch_skill",
+    "mongo_store",
     "print_widget",
     "flexus_schedule",
     "shopify",
@@ -30,21 +30,30 @@ TOOLS_DEFAULT = {
     "discord",
     "email_send",
     "email_setup_domain",
-} | ckit_cloudtool.CLOUDTOOLS_QUITE_A_LOT
+} | ckit_cloudtool.CLOUDTOOLS_QUITE_A_LOT | ckit_cloudtool.CLOUDTOOLS_SCARY_TOOLS
 
 TOOLS_EXPLORE = ckit_cloudtool.CLOUDTOOLS_VECDB | ckit_cloudtool.CLOUDTOOLS_WEB
 
 TOOLS_SUPPORT_AND_SALES = {
-    "flexus_policy_document", "mongo_store", "flexus_fetch_skill",
+    "flexus_policy_document",
+    "flexus_fetch_skill",
+    "mongo_store",
     "product_catalog",
-    "crm_contact_info", "verify_email",
+    "crm_contact_info",
+    "verify_email",
     "email_reply",
-    "magic_desk", "slack", "telegram", "discord",
+    "magic_desk",
+    "slack",
+    "telegram",
+    "discord",
 } | ckit_cloudtool.KANBAN_PUBLIC | ckit_cloudtool.CLOUDTOOLS_VECDB | ckit_cloudtool.CLOUDTOOLS_MCP
 
 TOOLS_POST_CONVERSATION = {
-    "flexus_fetch_skill", "thread_read",
-    "erp_table_meta", "erp_table_data", "erp_table_crud",
+    "flexus_fetch_skill",
+    "thread_read",
+    "erp_table_meta",
+    "erp_table_data",
+    "erp_table_crud",
 } | ckit_cloudtool.KANBAN_SAFE
 
 

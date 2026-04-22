@@ -90,7 +90,7 @@ EXPERTS = [
     ("setup", ckit_bot_install.FMarketplaceExpertInput(
         fexp_system_prompt=lawyerrat_prompts.lawyerrat_setup,
         fexp_python_kernel=LAWYERRAT_DEFAULT_LARK,
-        fexp_allow_tools=",".join(TOOL_NAMESET | ckit_cloudtool.KANBAN_ADVANCED | ckit_cloudtool.CLOUDTOOLS_SCARY_ENOUGH),
+        fexp_allow_tools=",".join(TOOL_NAMESET | ckit_cloudtool.KANBAN_ADVANCED | ckit_cloudtool.CLOUDTOOLS_SCARY_TOOLS),
         fexp_nature="NATURE_INTERACTIVE",
         fexp_description="Setup assistant for configuring legal specialty, formality, and jurisdiction.",
     )),

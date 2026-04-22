@@ -36,7 +36,7 @@ EXPERTS = [
     ("setup", ckit_bot_install.FMarketplaceExpertInput(
         fexp_system_prompt=clerkwing_prompts.clerkwing_setup,
         fexp_python_kernel="",
-        fexp_allow_tools=",".join(TOOL_NAMESET | ckit_cloudtool.KANBAN_ADVANCED | ckit_cloudtool.CLOUDTOOLS_SCARY_ENOUGH),
+        fexp_allow_tools=",".join(TOOL_NAMESET | ckit_cloudtool.KANBAN_ADVANCED | ckit_cloudtool.CLOUDTOOLS_SCARY_TOOLS),
         fexp_nature="NATURE_INTERACTIVE",
         fexp_description="Configuration assistant for setting up Gmail, Google Calendar, and Jira OAuth connections.",
     )),
