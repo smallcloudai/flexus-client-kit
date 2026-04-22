@@ -954,29 +954,29 @@ async def run_happy_trajectory(
     scenario: ckit_scenario.ScenarioSetup,
     trajectory_yaml_path: str,
 ) -> None:
-    with open(trajectory_yaml_path) as f:
-        trajectory_happy = f.read()
-    trajectory_happy = ckit_scenario.expand_python_refs(trajectory_happy)
-
-    trajectory_data = yaml.safe_load(trajectory_happy)
-    messages = trajectory_data["messages"]
-    hi = 0
-    scenario_initial_cd_instruction = ""
-    if messages[hi]["role"] == "cd_instruction":
-        scenario_initial_cd_instruction = messages[hi]["content"]
-        hi += 1
-    assert messages[hi]["role"] == "user", "happy trajectory must have a user message after cd_instruction (or first)"
-    first_human_message = messages[hi]["content"]
-    first_calls = None
-    if len(messages) > hi + 1 and messages[hi + 1]["role"] == "assistant" and messages[hi + 1]["tool_calls"]:
-        first_calls = [{"type": tc.get("type", "function"), "function": {"name": tc["function"]["name"], "arguments": tc["function"]["arguments"]}} for tc in messages[hi + 1]["tool_calls"]]
-    logger.info(f"first_calls, taken from the happy path:\n{first_calls}")
-    trajectory_happy_messages_only = ckit_messages.yaml_dump_with_multiline({"messages": trajectory_data["messages"]})
-
-    expert__scenario = os.path.splitext(os.path.basename(trajectory_yaml_path))[0]
-    bot_version = ckit_client.marketplace_version_as_str(scenario.persona.persona_marketable_version)
-
     try:
+        with open(trajectory_yaml_path) as f:
+            trajectory_happy = f.read()
+        trajectory_happy = ckit_scenario.expand_python_refs(trajectory_happy)
+
+        trajectory_data = yaml.safe_load(trajectory_happy)
+        messages = trajectory_data["messages"]
+        hi = 0
+        scenario_initial_cd_instruction = ""
+        if messages[hi]["role"] == "cd_instruction":
+            scenario_initial_cd_instruction = messages[hi]["content"]
+            hi += 1
+        assert messages[hi]["role"] == "user", "happy trajectory must have a user message after cd_instruction (or first)"
+        first_human_message = messages[hi]["content"]
+        first_calls = None
+        if len(messages) > hi + 1 and messages[hi + 1]["role"] == "assistant" and messages[hi + 1]["tool_calls"]:
+            first_calls = [{"type": tc.get("type", "function"), "function": {"name": tc["function"]["name"], "arguments": tc["function"]["arguments"]}} for tc in messages[hi + 1]["tool_calls"]]
+        logger.info(f"first_calls, taken from the happy path:\n{first_calls}")
+        trajectory_happy_messages_only = ckit_messages.yaml_dump_with_multiline({"messages": trajectory_data["messages"]})
+
+        expert__scenario = os.path.splitext(os.path.basename(trajectory_yaml_path))[0]
+        bot_version = ckit_client.marketplace_version_as_str(scenario.persona.persona_marketable_version)
+
         for model_name in scenario.explicit_models:
             await _run_scenario_for_model(
                 bc, scenario, model_name,
@@ -1086,27 +1086,33 @@ async def run_bots_in_this_group(
         running_happy_yaml = ckit_scenario.expand_python_refs(running_happy_yaml)
         running_test_scenario = True
         scenario = ckit_scenario.ScenarioSetup(service_name="trajectory_replay")
-        assert scenario.explicit_models, "use --model (comma-separated list of models)"
+        if not scenario.explicit_models:
+            raise ValueError("use --model (comma-separated list of models)")
         await scenario.create_group_and_hire_bot(
             marketable_name=marketable_name,
             marketable_version=marketable_version,
             persona_setup={},
         )
-        async with (await scenario.fclient.use_http_on_behalf(None, "")) as http:
-            result = await http.execute(gql.gql("""
-                query ValidateModels($fgroup_id: String!) {
-                    models_list(fgroup_id: $fgroup_id) { provm_name }
-                }"""),
-                variable_values={"fgroup_id": scenario.fgroup_id},
-            )
-            available = {m["provm_name"] for m in result["models_list"]}
-            bad = [m for m in scenario.explicit_models if m not in available]
-            assert not bad, "unknown model(s): %s, available: %s" % (", ".join(bad), ", ".join(sorted(available)))
-        logger.info("Validated models: %s", ", ".join(scenario.explicit_models))
-        fclient.group_id = scenario.fgroup_id
-        # UGLY: we can't really move this code above install_func() call, because hire_bot part will not work without prior installation
-        # so this just ignores previous calculation for ws_id_prefix (valid without a scenario) and overwrites it:
-        ws_id_prefix = None
+        try:
+            async with (await scenario.fclient.use_http_on_behalf(None, "")) as http:
+                result = await http.execute(gql.gql("""
+                    query ValidateModels($fgroup_id: String!) {
+                        models_list(fgroup_id: $fgroup_id) { provm_name }
+                    }"""),
+                    variable_values={"fgroup_id": scenario.fgroup_id},
+                )
+                available = {m["provm_name"] for m in result["models_list"]}
+                bad = [m for m in scenario.explicit_models if m not in available]
+                if bad:
+                    raise ValueError("unknown model(s): %s, available: %s" % (", ".join(bad), ", ".join(sorted(available))))
+            logger.info("Validated models: %s", ", ".join(scenario.explicit_models))
+            fclient.group_id = scenario.fgroup_id
+            # UGLY: we can't really move this code above install_func() call, because hire_bot part will not work without prior installation
+            # so this just ignores previous calculation for ws_id_prefix (valid without a scenario) and overwrites it:
+            ws_id_prefix = None
+        except ValueError:
+            await scenario.cleanup()
+            raise
 
     bc = BotsCollection(
         ws_id_prefix=ws_id_prefix,
