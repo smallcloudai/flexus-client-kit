@@ -76,6 +76,22 @@ def static_integrations_load(bot_dir: Path, allowlist: list[str], builtin_skills
                 integr_prompt=fi_pdoc.POLICY_DOCUMENT_PROMPT,
             ))
 
+        elif name == "escalate_to_human":
+            from flexus_client_kit.integrations import fi_escalate
+            async def _init_escalate(rcx, setup):
+                return None
+            result.append(IntegrationRecord(
+                integr_name=name,
+                integr_tools=[fi_escalate.ESCALATE_TO_HUMAN_TOOL],
+                integr_init=_init_escalate,
+                integr_setup_handlers=lambda obj, rcx: [
+                    rcx.on_tool_call(fi_escalate.ESCALATE_TO_HUMAN_TOOL.name)(
+                        lambda tc, args, _rcx=rcx: fi_escalate.handle_escalate_to_human(_rcx, tc, args)
+                    )
+                ],
+                integr_prompt=fi_escalate.ESCALATE_TO_HUMAN_PROMPT,
+            ))
+
         elif name == "print_widget":
             from flexus_client_kit.integrations import fi_widget
             async def _init_widget(rcx, setup):
@@ -535,9 +551,9 @@ async def main_loop_integrations_init(records: list[IntegrationRecord], rcx: cki
     if rcx.messengers:
         @rcx.on_updated_message
         async def _messenger_updated_message(msg: ckit_ask_model.FThreadMessageOutput):
-            # Don't worry, you can override it. The default reaction to assistant messages is to get it past messengers:
+            # Don't worry, you can override it. The default reaction is to relay assistant messages and flexus-user messages past messengers:
             for m in rcx.messengers:
-                await m.look_assistant_might_have_posted_something(msg)
+                await m.look_assistant_or_fuser_might_have_posted(msg)
                 await m.look_user_message_got_confirmed(msg)
 
     return result

@@ -53,7 +53,7 @@ class FlexusMessenger:
     async def handle_emessage(self, emsg: ckit_bot_query.FExternalMessageOutput) -> None:
         raise NotImplementedError
 
-    async def look_assistant_might_have_posted_something(self, msg: ckit_ask_model.FThreadMessageOutput) -> bool:
+    async def look_assistant_or_fuser_might_have_posted(self, msg: ckit_ask_model.FThreadMessageOutput) -> bool:
         raise NotImplementedError
 
     async def close(self) -> None:

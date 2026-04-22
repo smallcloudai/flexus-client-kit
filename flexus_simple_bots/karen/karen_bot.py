@@ -59,6 +59,7 @@ KAREN_INTEGRATIONS: list[ckit_integrations_db.IntegrationRecord] = ckit_integrat
         "skills",
         "flexus_policy_document",
         "print_widget",
+        "escalate_to_human",
         "erp[meta, data, crud, csv_import]",
         "crm[contact_info, manage_deal, verify_email]",
         "magic_desk",

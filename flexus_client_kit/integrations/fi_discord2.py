@@ -781,8 +781,12 @@ class IntegrationDiscord(fi_messenger.FlexusMessenger):
             return False
         return bool(ft_id)
 
-    async def look_assistant_might_have_posted_something(self, msg: ckit_ask_model.FThreadMessageOutput) -> bool:
-        if msg.ftm_role != "assistant" or not msg.ftm_content:
+    async def look_assistant_or_fuser_might_have_posted(self, msg: ckit_ask_model.FThreadMessageOutput) -> bool:
+        if msg.ftm_role not in ("assistant", "user"):
+            return False
+        if msg.ftm_role == "user" and (msg.ftm_author_label1 or "").startswith("discord:"):
+            return False
+        if not msg.ftm_content:
             return False
         if not msg.ft_app_searchable:
             return False

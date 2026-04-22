@@ -583,8 +583,10 @@ class IntegrationSlack(fi_messenger.FlexusMessenger):
         logger.info("Captured slack->db ft_id=%s ft_app_searchable=%s sending=%d parts", ft_id, searchable, len(content))
         return True
 
-    async def look_assistant_might_have_posted_something(self, msg: ckit_ask_model.FThreadMessageOutput) -> bool:
-        if msg.ftm_role != "assistant":
+    async def look_assistant_or_fuser_might_have_posted(self, msg: ckit_ask_model.FThreadMessageOutput) -> bool:
+        if msg.ftm_role not in ("assistant", "user"):
+            return False
+        if msg.ftm_role == "user" and (msg.ftm_author_label1 or "").startswith("slack:"):
             return False
         if not msg.ftm_content:
             return False
@@ -613,12 +615,14 @@ class IntegrationSlack(fi_messenger.FlexusMessenger):
         if not self.web_client:
             return False
 
-        text = msg.ftm_content
+        text = fi_messenger.ftm_content_to_text(msg.ftm_content)
+        if not text:
+            return False
         if "TASK_COMPLETED" in text and len(text) <= len("TASK_COMPLETED") + 6:
-            logger.info("look_assistant_might_have_posted_something: ftm_content has TASK_COMPLETED, not posting to slack")
+            logger.info("look_assistant_or_fuser_might_have_posted: ftm_content has TASK_COMPLETED, not posting to slack")
             return False
         if "NOTHING_TO_SAY" in text and len(text) <= len("NOTHING_TO_SAY") + 6:
-            logger.info("look_assistant_might_have_posted_something: ftm_content has NOTHING_TO_SAY, not posting to slack")
+            logger.info("look_assistant_or_fuser_might_have_posted: ftm_content has NOTHING_TO_SAY, not posting to slack")
             return False
         text = text.replace("TASK_COMPLETED", "")
         text = text.replace("NOTHING_TO_SAY", "")
@@ -656,7 +660,7 @@ class IntegrationSlack(fi_messenger.FlexusMessenger):
         await ckit_ask_model.thread_app_capture_patch(http, msg.ftm_belongs_to_ft_id, ft_app_specific=json.dumps({
             "last_posted_assistant_ts": msg.ftm_created_ts
         }))
-        logger.info("/look_assistant_might_have_posted_something() success")
+        logger.info("/look_assistant_or_fuser_might_have_posted() success")
         return True
 
     async def load_workspace_maps(self):
