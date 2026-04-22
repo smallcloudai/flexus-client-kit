@@ -37,7 +37,7 @@ CLOUDTOOLS_MCP = {"mcp_*"}
 
 CLOUDTOOLS_QUITE_A_LOT = KANBAN_ADVANCED | CLOUDTOOLS_NOT_KANBAN | CLOUDTOOLS_MCP
 
-CLOUDTOOLS_ALL_KNOWN = KANBAN_ALL | CLOUDTOOLS_NOT_KANBAN  # unsable in a bot
+CLOUDTOOLS_ALL_KNOWN = KANBAN_ALL | CLOUDTOOLS_NOT_KANBAN | CLOUDTOOLS_A2A | CLOUDTOOLS_SCARY_TOOLS  # unsable in a bot
 
 
 def gql_error_4xx_to_model_reraise_5xx(e: gql.transport.exceptions.TransportQueryError, label: str) -> str:
