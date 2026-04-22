@@ -312,6 +312,27 @@ async def handle_support_status(pdoc: fi_pdoc.IntegrationPdoc, rcx: ckit_bot_exe
     lines.append("")
     lines.append("To see if you have any External Data Sources set up to answer questions, run flexus_read_original(eds=null, op=null)")
 
+    # launch readiness verdict
+    lines.append("")
+    blockers = []
+    if not summary:
+        blockers.append("/support/summary missing")
+    elif stats and stats["filled_a"] < stats["total_a"] * 0.5:
+        blockers.append("/support/summary less than 50%% filled (%d/%d)" % (stats["filled_a"], stats["total_a"]))
+    company = await pdoc.pdoc_cat("/company/summary", persona_id=persona_id, fcall_untrusted_key=fcall_untrusted_key)
+    if not company:
+        blockers.append("/company/summary missing (no business name)")
+    elif hasattr(company, "pdoc_content") and company.pdoc_content:
+        c = company.pdoc_content
+        if not (c.get("company_name") or c.get("name") or c.get("business_name")):
+            blockers.append("business name not set in /company/summary")
+    if not rcx.messengers:
+        blockers.append("no channels connected (telegram, slack, discord)")
+    if blockers:
+        lines.append("🔴 NOT READY — %s" % "; ".join(blockers))
+    else:
+        lines.append("🟢 READY — support KB filled, business info set, channel connected")
+
     return "\n".join(lines)
 
 
