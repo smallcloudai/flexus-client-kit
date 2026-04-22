@@ -232,7 +232,9 @@ async def handle_plan_progress_add(
     existing = await pdoc_integration.pdoc_cat(path, persona_id=rcx.persona.persona_id, fcall_untrusted_key=uk)
     if existing is None:
         return f"Error: plan {path} not found"
-    prev = existing.pdoc_content.get("plan", {}).get("section03-progress", {}).get(field, "").rstrip("\n")
+    plan = (existing.pdoc_content or {}).get("plan") or {}
+    progress = plan.get("section03-progress") or {}
+    prev = (progress.get(field) or "").rstrip("\n")
     new_value = (prev + "\n" + line).lstrip("\n")
     upd = await pdoc_integration.pdoc_update_at_location(path, [{"json_path": f"plan.section03-progress.{field}", "text": new_value}], persona_id=rcx.persona.persona_id, fcall_untrusted_key=uk, expected_md5=expected_md5)
     if not upd.changes_saved:
