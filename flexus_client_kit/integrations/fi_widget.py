@@ -1,25 +1,18 @@
 from typing import Dict, Any, Optional
 from flexus_client_kit import ckit_cloudtool
 
-PRINT_WIDGET_PROMPT = """
-## Printing Widgets
+_DESC = """
+Print UI widgets for the user to interact with. If this tool is present, you are talking to the user inside UI that supports it.
 
-You are talking to the user inside a UI. Here are some simple widgets you can show to the user:
-
-print_widget(t="upload-files")
-print_widget(t="open-bot-setup-dialog")
-
-Your toolset in this chat is fixed, after setting up a new tool (such as an MCP server) to test it
-you'll need a restart, print a widget to test, parameter `q` will become the first user
-message when clicked:
-
-print_widget(t="restart-chat", q="Test this new XXX tool in this way, in user's language")
+upload-files -- when clicked opens an upload files page in the same group as you are located, files will be available as EDS, data accessible using flexus_vector_search and flexus_read_original
+open-bot-setup-dialog -- when clicked opens the page with your settings
+restart-chat -- after setting up a new tool (such as an MCP server) to test it you'll need a restart, fill q with "Test this new XXX tool in this way", when clicked opens a new chat
 """
 
 PRINT_WIDGET_TOOL = ckit_cloudtool.CloudTool(
     strict=False,
     name="print_widget",
-    description="Print UI widgets for the user to interact with.",
+    description=_DESC,
     parameters={
         "type": "object",
         "properties": {

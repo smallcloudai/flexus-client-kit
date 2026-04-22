@@ -85,7 +85,7 @@ def static_integrations_load(bot_dir: Path, allowlist: list[str], builtin_skills
                 integr_tools=[fi_widget.PRINT_WIDGET_TOOL],
                 integr_init=_init_widget,
                 integr_setup_handlers=lambda obj, rcx: [rcx.on_tool_call("print_widget")(fi_widget.handle_print_widget)],
-                integr_prompt=fi_widget.PRINT_WIDGET_PROMPT,
+                integr_prompt="",
             ))
 
         elif name == "gmail":
