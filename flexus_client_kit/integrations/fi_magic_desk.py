@@ -134,6 +134,9 @@ class IntegrationMagicDesk(fi_messenger.FlexusMessenger):
         session_id = emsg.emsg_from.split(":", 1)[1] if ":" in emsg.emsg_from else emsg.emsg_from
         if not text.strip():
             return
+        if not emsg.emsg_external_id:
+            logger.error("%s magic_desk handle_emessage: emsg has no emsg_external_id, dropping. session=%s emsg_from=%s", self.rcx.persona.persona_id, session_id, emsg.emsg_from)
+            return
         if emsg.emsg_external_id in self._from_mdesk_dedup_set:
             return
         if len(self._from_mdesk_dedup) == self._from_mdesk_dedup.maxlen:
