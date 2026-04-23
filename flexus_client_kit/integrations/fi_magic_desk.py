@@ -108,13 +108,14 @@ class IntegrationMagicDesk(fi_messenger.FlexusMessenger):
                 logger.info("%s magic_desk capture discarding %d stale buffered msgs for session=%s", self.rcx.persona.persona_id, len(buf_msgs), session_id)
                 buf_msgs = []
             if buf_msgs[-10:]:
-                await ckit_ask_model.captured_thread_post_user_messages(
+                await ckit_ask_model.captured_thread_post_group_messages(
                     http, self.rcx.persona.persona_id, f"magic_desk/{session_id}",
                     [ckit_ask_model.CapturedMessageInput(
                         content=buf_text,
                         ftm_author_label1=f"magic_desk:{session_id}",
                         ftm_author_label2=f"Guest",
-                        ftm_provenance={"system_type": "fi_magic_desk", "mdesk_msg_id": buf_ext_id},
+                        dedup_key=buf_ext_id,
+                        provenance_generated_by_module="fi_magic_desk",
                     ) for buf_text, buf_ext_id in buf_msgs[-10:]],
                     only_to_expert=self.outside_messages_fexp_name, thread_too_old_s=3600,
                 )
@@ -141,7 +142,7 @@ class IntegrationMagicDesk(fi_messenger.FlexusMessenger):
         self._from_mdesk_dedup_set.add(emsg.emsg_external_id)
         http = await self.fclient.use_http_on_behalf(self.rcx.persona.persona_id, "")
         logger.info("captured_thread_post searchable=magic_desk/%s msg=%s", session_id, text[:200])
-        ft_id = await ckit_ask_model.captured_thread_post_user_messages(
+        ft_id = await ckit_ask_model.captured_thread_post_group_messages(
             http,
             self.rcx.persona.persona_id,
             f"magic_desk/{session_id}",
@@ -149,7 +150,8 @@ class IntegrationMagicDesk(fi_messenger.FlexusMessenger):
                 content=text,
                 ftm_author_label1=f"magic_desk:{session_id}",
                 ftm_author_label2=f"Guest",
-                ftm_provenance={"system_type": "fi_magic_desk", "mdesk_msg_id": emsg.emsg_external_id},
+                dedup_key=emsg.emsg_external_id,
+                provenance_generated_by_module="fi_magic_desk",
             )],
             only_to_expert=self.outside_messages_fexp_name,
             thread_too_old_s=3600,
@@ -169,13 +171,22 @@ class IntegrationMagicDesk(fi_messenger.FlexusMessenger):
         await self._activity_callback(ActivityMagicDesk(session_id=session_id, text=text), bool(ft_id))
 
     async def look_user_message_got_confirmed(self, msg: ckit_ask_model.FThreadMessageOutput) -> bool:
+        # XXX I have no idea why this function exists; simplified to "log loud, do nothing" when
+        # anything we expect is missing, so the real fix later doesn't have to unpick silent branches.
         if msg.ftm_role != "user" or msg.ftm_num < 0:
             return False
         searchable = msg.ft_app_searchable or ""
         if not searchable.startswith("magic_desk/"):
             return False
-        prov = msg.ftm_provenance if isinstance(msg.ftm_provenance, dict) else {}
-        if prov.get("system_type") != "captured_thread_post":
+        prov = msg.ftm_provenance
+        if not isinstance(prov, dict):
+            logger.error("%s magic_desk look_user_message_got_confirmed: ftm_provenance not a dict ft_id=%s alt=%d num=%d got=%r", self.rcx.persona.persona_id, msg.ftm_belongs_to_ft_id, msg.ftm_alt, msg.ftm_num, prov)
+            return False
+        if prov.get("system_type") != "fi_magic_desk":
+            return False
+        dedup_key = prov.get("dedup_key")
+        if not dedup_key:
+            logger.error("%s magic_desk look_user_message_got_confirmed: expected dedup_key in provenance ft_id=%s alt=%d num=%d prov=%r", self.rcx.persona.persona_id, msg.ftm_belongs_to_ft_id, msg.ftm_alt, msg.ftm_num, prov)
             return False
         session_id = searchable[len("magic_desk/"):]
         text = fi_messenger.ftm_content_to_text(msg.ftm_content)
@@ -187,7 +198,7 @@ class IntegrationMagicDesk(fi_messenger.FlexusMessenger):
                 mutation MagicDeskConfirmUserMessage($session_id: String!, $text: String!, $ftm_alt: Int!, $ftm_num: Int!, $ftm_belongs_to_ft_id: String!, $mdesk_msg_id: String, $persona_id: String!) {
                     magic_desk_deliver_reply(session_id: $session_id, text: $text, role: "user", ftm_alt: $ftm_alt, ftm_num: $ftm_num, ftm_belongs_to_ft_id: $ftm_belongs_to_ft_id, mdesk_msg_id: $mdesk_msg_id, persona_id: $persona_id)
                 }"""),
-                variable_values={"session_id": session_id, "text": text, "ftm_alt": msg.ftm_alt, "ftm_num": msg.ftm_num, "ftm_belongs_to_ft_id": msg.ftm_belongs_to_ft_id, "mdesk_msg_id": prov.get("mdesk_msg_id"), "persona_id": self.rcx.persona.persona_id},
+                variable_values={"session_id": session_id, "text": text, "ftm_alt": msg.ftm_alt, "ftm_num": msg.ftm_num, "ftm_belongs_to_ft_id": msg.ftm_belongs_to_ft_id, "mdesk_msg_id": dedup_key, "persona_id": self.rcx.persona.persona_id},
             )
         return True
 

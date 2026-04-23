@@ -498,12 +498,17 @@ class IntegrationSlack(fi_messenger.FlexusMessenger):
                                 parts.append({"m_type": "text", "m_content": f"[Binary file: {filename} ({len(file_bytes)} bytes)]"})
                         except Exception:
                             logger.exception("capture file processing failed: %s", file_info.get("name", "?"))
+                    msg_ts = msg.get('ts')
+                    if not msg_ts:
+                        logger.error("%s slack capture history: message has no 'ts', skipping. keys=%s text=%r", self.rcx.persona.persona_id, list(msg.keys()), txt[:200])
+                        continue
                     if parts:
                         captured_msgs.append(ckit_ask_model.CapturedMessageInput(
                             content=parts,
                             ftm_author_label1=f"slack:{user_id}" if user_id else "slack:unknown",
                             ftm_author_label2=f"{author_name or user_id or 'unknown'}",
-                            ftm_provenance={"system_type": "fi_slack"},
+                            dedup_key=f"slack:{msg_ts}",
+                            provenance_generated_by_module="fi_slack",
                         ))
 
                 http = await self.fclient.use_http_on_behalf(self.rcx.persona.persona_id, toolcall.fcall_untrusted_key)
@@ -519,7 +524,7 @@ class IntegrationSlack(fi_messenger.FlexusMessenger):
                 except gql.transport.exceptions.TransportQueryError as e:
                     return ckit_cloudtool.gql_error_4xx_to_model_reraise_5xx(e, "slack_capture")
                 logger.info("Successful capture %s <-> %s, posting %d msgs into the captured thread" % (something_id_slash_thread, toolcall.fcall_ft_id, len(captured_msgs)))
-                await ckit_ask_model.captured_thread_post_user_messages(
+                await ckit_ask_model.captured_thread_post_group_messages(
                     http, self.rcx.persona.persona_id, searchable, captured_msgs,
                     only_to_expert=self.outside_messages_fexp_name,
                 )
@@ -561,7 +566,7 @@ class IntegrationSlack(fi_messenger.FlexusMessenger):
         http = await self.fclient.use_http_on_behalf(self.rcx.persona.persona_id, "")
         logger.info("captured_thread_post searchable=%s msg=%s", searchable, a.message_text[:200])
         try:
-            ft_id = await ckit_ask_model.captured_thread_post_user_messages(
+            ft_id = await ckit_ask_model.captured_thread_post_group_messages(
                 http,
                 self.rcx.persona.persona_id,
                 searchable,
@@ -569,7 +574,8 @@ class IntegrationSlack(fi_messenger.FlexusMessenger):
                     content=content,
                     ftm_author_label1=f"slack:{a.message_author_id}",
                     ftm_author_label2=f"{a.message_author_name or a.message_author_id}",
-                    ftm_provenance={"system_type": "fi_slack"},
+                    dedup_key=f"slack:{a.message_ts}",
+                    provenance_generated_by_module="fi_slack",
                 )],
                 only_to_expert=self.outside_messages_fexp_name,
                 thread_too_old_s=30*86400 if a.thread_ts else 300,
