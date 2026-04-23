@@ -527,7 +527,7 @@ class IntegrationSlack(fi_messenger.FlexusMessenger):
                 except gql.transport.exceptions.TransportQueryError as e:
                     return ckit_cloudtool.gql_error_4xx_to_model_reraise_5xx(e, "slack_capture")
                 logger.info("Successful capture %s <-> %s, posting %d msgs into the captured thread" % (something_id_slash_thread, toolcall.fcall_ft_id, len(captured_msgs)))
-                await ckit_ask_model.captured_thread_post_group_messages(
+                await ckit_ask_model.groupchat_post(
                     http, self.rcx.persona.persona_id, searchable, captured_msgs,
                     only_to_expert=self.outside_messages_fexp_name,
                 )
@@ -569,7 +569,7 @@ class IntegrationSlack(fi_messenger.FlexusMessenger):
         http = await self.fclient.use_http_on_behalf(self.rcx.persona.persona_id, "")
         logger.info("captured_thread_post searchable=%s msg=%s", searchable, a.message_text[:200])
         try:
-            ft_id = await ckit_ask_model.captured_thread_post_group_messages(
+            ft_id = await ckit_ask_model.groupchat_post(
                 http,
                 self.rcx.persona.persona_id,
                 searchable,

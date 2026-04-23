@@ -234,7 +234,7 @@ class CapturedMessageInput:
     provenance_generated_by_module: str
 
 
-async def captured_thread_post_group_messages(
+async def groupchat_post(
     http: gql.Client,
     persona_id: str,
     ft_app_searchable: str,
@@ -252,7 +252,7 @@ async def captured_thread_post_group_messages(
     async with http as h:
         r = await h.execute(gql.gql("""
             mutation CapturedThreadPostGroup($persona_id: String!, $ft_app_searchable: String!, $messages: [CapturedThreadMessageInput!]!, $only_to_expert: String!, $thread_too_old_s: Float) {
-                captured_thread_post_group_messages(persona_id: $persona_id, ft_app_searchable: $ft_app_searchable, messages: $messages, only_to_expert: $only_to_expert, thread_too_old_s: $thread_too_old_s)
+                groupchat_post(persona_id: $persona_id, ft_app_searchable: $ft_app_searchable, messages: $messages, only_to_expert: $only_to_expert, thread_too_old_s: $thread_too_old_s)
             }"""),
             variable_values={
                 "persona_id": persona_id,
@@ -262,7 +262,29 @@ async def captured_thread_post_group_messages(
                 "thread_too_old_s": thread_too_old_s,
             },
         )
-    return r["captured_thread_post_group_messages"]
+    return r["groupchat_post"]
+
+
+async def groupchat_invite(
+    http: gql.Client,
+    ft_id: str,
+    colleague_name: str,
+    summary_so_far: str,
+    standby: bool,
+) -> str:
+    async with http as h:
+        r = await h.execute(gql.gql("""
+            mutation GroupchatInvite($ft_id: String!, $colleague_name: String!, $summary_so_far: String!, $standby: Boolean!) {
+                groupchat_invite(ft_id: $ft_id, colleague_name: $colleague_name, summary_so_far: $summary_so_far, standby: $standby)
+            }"""),
+            variable_values={
+                "ft_id": ft_id,
+                "colleague_name": colleague_name,
+                "summary_so_far": summary_so_far,
+                "standby": standby,
+            },
+        )
+    return r["groupchat_invite"]
 
 
 async def captured_thread_lookup(

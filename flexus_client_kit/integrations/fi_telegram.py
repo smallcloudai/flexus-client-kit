@@ -412,7 +412,7 @@ class IntegrationTelegram(fi_messenger.FlexusMessenger):
         searchable = f"telegram/{activity.chat_id}"
         http = await self.fclient.use_http_on_behalf(self.rcx.persona.persona_id, "")
         logger.info("captured_thread_post searchable=%s msg=%s", searchable, msg_text[:200])
-        ft_id = await ckit_ask_model.captured_thread_post_group_messages(
+        ft_id = await ckit_ask_model.groupchat_post(
             http,
             self.rcx.persona.persona_id,
             searchable,

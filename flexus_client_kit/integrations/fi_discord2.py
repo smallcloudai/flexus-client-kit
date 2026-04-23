@@ -388,7 +388,7 @@ class IntegrationDiscord(fi_messenger.FlexusMessenger):
             except gql.transport.exceptions.TransportQueryError as e:
                 return ckit_cloudtool.gql_error_4xx_to_model_reraise_5xx(e, "discord_capture")
             msgs = await self._collect_recent_messages(destination)
-            await ckit_ask_model.captured_thread_post_group_messages(
+            await ckit_ask_model.groupchat_post(
                 http, self.rcx.persona.persona_id, searchable, msgs,
                 only_to_expert=self.outside_messages_fexp_name,
             )
@@ -764,7 +764,7 @@ class IntegrationDiscord(fi_messenger.FlexusMessenger):
         http = await self.fclient.use_http_on_behalf(self.rcx.persona.persona_id, "")
         logger.info("captured_thread_post searchable=%s msg=%s", searchable, text[:200])
         try:
-            ft_id = await ckit_ask_model.captured_thread_post_group_messages(
+            ft_id = await ckit_ask_model.groupchat_post(
                 http,
                 self.rcx.persona.persona_id,
                 searchable,
@@ -779,7 +779,7 @@ class IntegrationDiscord(fi_messenger.FlexusMessenger):
                 thread_too_old_s=30*86400 if activity.thread_id else 300,
             )
         except gql.transport.exceptions.TransportQueryError as e:  # type: ignore[attr-defined]
-            logger.info("Discord captured_thread_post_group_messages failed: %s", e)
+            logger.info("Discord groupchat_post failed: %s", e)
             return False
         return bool(ft_id)
 
