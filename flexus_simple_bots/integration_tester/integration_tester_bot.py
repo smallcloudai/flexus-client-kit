@@ -1,16 +1,143 @@
 import asyncio
 import json
+import logging
 import sys
 from pathlib import Path
+from typing import Any, Dict, List, Callable, Awaitable
 
 _repo_root = Path(__file__).parents[2]
 if str(_repo_root) not in sys.path:
     sys.path.insert(0, str(_repo_root))
 
-from flexus_client_kit import ckit_bot_exec, ckit_client, ckit_shutdown, ckit_integrations_db
+from flexus_client_kit import ckit_bot_exec, ckit_client, ckit_shutdown
 from flexus_client_kit import ckit_bot_version
-from flexus_simple_bots.integration_tester import integration_tester_shared as shared
-from flexus_simple_bots.integration_tester import integration_tester_install
+from flexus_client_kit import ckit_cloudtool, ckit_integrations_db
+
+logger = logging.getLogger("integration_tester")
+
+INTEGRATION_TESTER_ROOTDIR = Path(__file__).parent
+
+PLAN_BATCHES_TOOL = ckit_cloudtool.CloudTool(
+    strict=True,
+    name="integration_plan_batches",
+    description="Plan integration tests one by one and return task specs for kanban fan-out.",
+    parameters={
+        "type": "object",
+        "additionalProperties": False,
+        "properties": {
+            "requested": {"type": "string", "description": "Requested integrations, e.g. 'all' or 'newsapi,resend'."},
+            "configured_only": {"type": "boolean", "description": "If true, include only integrations with configured keys."},
+        },
+        "required": ["requested", "configured_only"],
+    },
+)
+
+INTEGRATION_TESTER_INTEGRATIONS: list[ckit_integrations_db.IntegrationRecord] = ckit_integrations_db.static_integrations_load(
+    INTEGRATION_TESTER_ROOTDIR,
+    allowlist=[
+        "flexus_policy_document",
+        "print_widget",
+        "gmail",
+        "google_business",
+        "google_ads",
+        "google_sheets",
+        "telegram",
+        "slack",
+        "notion",
+        "airtable",
+        "hubspot",
+        "twilio",
+        "skills",
+    ],
+    builtin_skills=[],
+)
+
+TOOLS = [PLAN_BATCHES_TOOL] + [t for rec in INTEGRATION_TESTER_INTEGRATIONS for t in rec.integr_tools]
+
+
+def _requested_names(raw: str) -> List[str]:
+    s = (raw or "").strip().lower()
+    if not s or s == "all":
+        return ["all"]
+    names = []
+    for x in s.replace(";", ",").split(","):
+        x = x.strip()
+        if x:
+            names.append(x)
+    return names or ["all"]
+
+
+def get_configured_integrations(integr_names: List[str]) -> List[Dict[str, Any]]:
+    result = []
+    for rec in INTEGRATION_TESTER_INTEGRATIONS:
+        if rec.integr_name in integr_names:
+            try:
+                has_key = bool(rec.integr_api_key) if rec.integr_api_key else False
+                if has_key:
+                    key_hint = "***" + rec.integr_api_key[-4:] if len(rec.integr_api_key) > 4 else "***"
+                    result.append({
+                        "name": rec.integr_name,
+                        "env_var": rec.integr_api_key_env_var or f"{rec.integr_name.upper()}_API_KEY",
+                        "key_hint": key_hint,
+                    })
+            except Exception:
+                pass
+    return result
+
+
+def classify_error(e: Exception) -> tuple[str, str]:
+    msg = str(e).lower()
+    if any(k in msg for k in ("401", "403", "unauthorized", "invalid api", "forbidden", "invalid_api")):
+        return "AUTH_ERROR", "API key invalid or unauthorized"
+    if any(k in msg for k in ("timeout", "connection", "dns", "network", "connect", "refused")):
+        return "NETWORK_ERROR", "Network/connectivity issue"
+    if any(k in msg for k in ("rate", "429", "quota", "limit")):
+        return "RATE_LIMIT", "API rate limit or quota exceeded"
+    return "UNKNOWN_ERROR", str(e)[:200]
+
+
+def _format_result(raw: str) -> str:
+    try:
+        data = json.loads(raw)
+        if isinstance(data, dict):
+            skip = {"ok", "provider", "description", "help_text"}
+            parts = []
+            for k, v in data.items():
+                if k in skip:
+                    continue
+                if isinstance(v, list) and v and all(isinstance(x, str) for x in v):
+                    parts.append(f"{k}=[{", ".join(v)}]")
+                elif not isinstance(v, (dict, list)):
+                    parts.append(f"{k}={v}")
+            if parts:
+                return ", ".join(parts)
+    except json.JSONDecodeError:
+        pass
+    return raw
+
+
+def make_testing_wrapper(
+    original: Callable[[ckit_cloudtool.FCloudtoolCall, Dict[str, Any]], Awaitable[str]],
+    integr_name: str,
+    tool_name: str,
+):
+    async def wrapper(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
+        logger.info(f"Testing {tool_name}")
+        try:
+            result = await original(toolcall, model_produced_args)
+            op = str(model_produced_args.get("op", "")).strip() if model_produced_args else ""
+            if op == "help":
+                result = "[HELP OUTPUT - NOT A TEST] " + result
+            formatted = _format_result(result)
+            out = f"result={formatted}"
+            logger.info(f"{tool_name} test result: {out[:120]}..." if len(out) > 120 else f"{tool_name} test result: {out}")
+            return out
+        except Exception as e:
+            category, detail = classify_error(e)
+            logger.error(f"toolcall_{tool_name}: {category}: {detail}", exc_info=True)
+            return f"Error [{category}]: {detail}"
+    return wrapper
+
 
 BOT_NAME = ckit_bot_version.bot_name_from_file(__file__)
 BOT_VERSION = (Path(__file__).parents[1] / "VERSION").read_text().strip()
@@ -22,36 +149,29 @@ async def integration_tester_main_loop(
     rcx: ckit_bot_exec.RobotContext,
 ) -> None:
     setup = ckit_bot_exec.official_setup_mixing_procedure(SETUP_SCHEMA, rcx.persona.persona_setup)
-    shared.load_env_config(setup)
 
-    integr_records = shared.INTEGRATION_TESTER_INTEGRATIONS
-    setup_allow = shared._setup_allowlist_names(setup)
-    if setup_allow:
-        allow = set(setup_allow)
-        integr_records = [r for r in integr_records if r.integr_name in allow]
+    integr_objects = await ckit_integrations_db.main_loop_integrations_init(INTEGRATION_TESTER_INTEGRATIONS, rcx, setup)
+    supported_integrations = sorted({r.integr_name for r in INTEGRATION_TESTER_INTEGRATIONS})
 
-    integr_objects = await ckit_integrations_db.main_loop_integrations_init(integr_records, rcx, setup)
-    supported_integrations = sorted({r.integr_name for r in integr_records})
-
-    for rec in integr_records:
+    for rec in INTEGRATION_TESTER_INTEGRATIONS:
         for tool in rec.integr_tools:
             original_handler = rcx._handler_per_tool.get(tool.name)
             if original_handler:
                 rcx.on_tool_call(tool.name)(
-                    shared.make_testing_wrapper(
+                    make_testing_wrapper(
                         original_handler,
                         rec.integr_name,
                         tool.name,
                     )
                 )
 
-    @rcx.on_tool_call(shared.PLAN_BATCHES_TOOL.name)
+    @rcx.on_tool_call(PLAN_BATCHES_TOOL.name)
     async def toolcall_plan_batches(toolcall, model_produced_args):
         args = model_produced_args or {}
-        req = shared._requested_names(str(args.get("requested", "all")))
+        req = _requested_names(str(args.get("requested", "all")))
         configured_only = bool(args.get("configured_only", True))
 
-        configured = {x["name"] for x in shared.get_configured_integrations(supported_integrations)}
+        configured = {x["name"] for x in get_configured_integrations(supported_integrations)}
         selected = []
         unsupported = []
 
@@ -68,7 +188,7 @@ async def integration_tester_main_loop(
                 if x not in selected:
                     selected.append(x)
 
-        tool_name_by_integr = {r.integr_name: r.integr_tools[0].name for r in integr_records if r.integr_tools}
+        tool_name_by_integr = {r.integr_name: r.integr_tools[0].name for r in INTEGRATION_TESTER_INTEGRATIONS if r.integr_tools}
         task_specs = []
         total = len(selected)
         for i, name in enumerate(selected, start=1):
@@ -94,32 +214,16 @@ async def integration_tester_main_loop(
             "task_specs": task_specs,
         }, indent=2)
 
-    configured = shared.get_configured_integrations(supported_integrations)
-    shared.logger.info(f"Integration Tester started. Configured integrations: {[i['name'] for i in configured]}")
-
-    @rcx.on_updated_task
-    async def on_task_update(action, old_task, new_task):
-        task = new_task or old_task
-        if not task:
-            shared.logger.info(f"TASK UPDATE: {action} with no task payload")
-            return
-        col = task.calc_bucket()
-        title = task.ktask_title
-        tid = task.ktask_id
-        if col == "inprogress":
-            shared.logger.info(f"TASK ASSIGNED: {title} (id={tid}) - will test now")
-        elif col == "done":
-            shared.logger.info(f"TASK COMPLETED: {title} (id={tid})")
-        else:
-            shared.logger.info(f"TASK UPDATE: {title} moved to {col} (id={tid})")
+    logger.info(f"Integration Tester started. Supported integrations: {supported_integrations}")
 
     while not ckit_shutdown.shutdown_event.is_set():
         await rcx.unpark_collected_events(sleep_if_no_work=10.0)
 
-    shared.logger.info(f"{rcx.persona.persona_id} exit")
+    logger.info(f"{rcx.persona.persona_id} exit")
 
 
 def main():
+    from flexus_simple_bots.integration_tester import integration_tester_install
     scenario_fn = ckit_bot_exec.parse_bot_args()
     fclient = ckit_client.FlexusClient(
         ckit_client.bot_service_name(BOT_NAME, BOT_VERSION),
@@ -134,14 +238,14 @@ def main():
             client,
             bot_name=BOT_NAME,
             bot_version=BOT_VERSION,
-            tools=shared.TOOLS,
+            tools=TOOLS,
         )
         return 0
 
     asyncio.run(ckit_bot_exec.run_bots_in_this_group(
         fclient,
         bot_main_loop=integration_tester_main_loop,
-        inprocess_tools=shared.TOOLS,
+        inprocess_tools=TOOLS,
         scenario_fn=scenario_fn,
         install_func=_install_compat,
     ))
