@@ -119,16 +119,17 @@ DESTRUCTIVE_METHODS = {
 }
 
 TWILIO_TOOL = ckit_cloudtool.CloudTool(
-    strict=False,
+    strict=True,
     name=PROVIDER_NAME,
     description='Interact with Twilio: send SMS, verify phone numbers (2FA), lookup numbers, manage phone numbers. ops: help, status, list_methods, call. Example: op="call", args={"method_id":"twilio.messages.send.v1","To":"+15558675310","From":"+15017122661","Body":"Hello!"}',
     parameters={
         "type": "object",
         "properties": {
             "op": {"type": "string", "description": "Operation: help, status, list_methods, call"},
-            "args": {"type": "object", "description": "Arguments for the operation"},
+            "args": {"type": ["object", "null"], "description": "Arguments for the operation"},
         },
-        "required": ["op"],
+        "required": ["op", "args"],
+        "additionalProperties": False,
     },
 )
 

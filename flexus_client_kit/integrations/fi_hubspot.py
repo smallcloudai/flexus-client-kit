@@ -148,16 +148,17 @@ DESTRUCTIVE_METHODS = {
 }
 
 HUBSPOT_TOOL = ckit_cloudtool.CloudTool(
-    strict=False,
+    strict=True,
     name=PROVIDER_NAME,
     description='Interact with HubSpot CRM: contacts, companies, deals, tickets, engagements, associations. ops: help, status, list_methods, call. Example: op="call", args={"method_id":"hubspot.crm.objects.search.v1","objectType":"contacts","body":{"filterGroups":[{"filters":[{"propertyName":"email","operator":"EQ","value":"alice@example.com"}]}]}}',
     parameters={
         "type": "object",
         "properties": {
             "op": {"type": "string", "description": "Operation: help, status, list_methods, call"},
-            "args": {"type": "object", "description": "Arguments for the operation"},
+            "args": {"type": ["object", "null"], "description": "Arguments for the operation"},
         },
-        "required": ["op"],
+        "required": ["op", "args"],
+        "additionalProperties": False,
     },
 )
 
