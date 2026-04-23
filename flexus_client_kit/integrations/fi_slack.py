@@ -243,7 +243,10 @@ class IntegrationSlack(fi_messenger.FlexusMessenger):
         channel_id = event.get("channel", "")
         channel_type = event.get("channel_type", "channel")
         thread_ts = event.get("thread_ts", "")
-        ts = event.get("ts", "")
+        ts = event.get("ts")
+        if not ts:
+            logger.error("%s slack handle_emessage: event has no 'ts', dropping. keys=%s", self.rcx.persona.persona_id, list(event.keys()))
+            return
         text = event.get("text", "")
 
         if channel_type == "im":
