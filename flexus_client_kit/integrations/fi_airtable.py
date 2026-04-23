@@ -231,16 +231,17 @@ DESTRUCTIVE_METHODS = {
 }
 
 AIRTABLE_TOOL = ckit_cloudtool.CloudTool(
-    strict=False,
+    strict=True,
     name="airtable",
     description='Interact with Airtable bases, tables, records, comments, and attachments. ops: help, status, list_methods, call. Example call: op="call", args={"method_id":"airtable.records.create.v1","base_id":"app...","table_id_or_name":"...","fields":{"Name":"value"}}',
     parameters={
         "type": "object",
         "properties": {
             "op": {"type": "string", "description": "Operation: help, status, list_methods, call"},
-            "args": {"type": "object", "description": "Arguments for the operation"},
+            "args": {"type": ["object", "null"], "description": "Arguments for the operation"},
         },
-        "required": ["op"]
+        "required": ["op", "args"],
+        "additionalProperties": False,
     },
 )
 

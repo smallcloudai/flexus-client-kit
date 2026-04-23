@@ -80,7 +80,7 @@ NOTION_TOOL = ckit_cloudtool.CloudTool(
         "type": "object",
         "properties": {
             "op": {"type": "string", "enum": ["help", "status", "list_methods", "call"]},
-            "args": {"type": ["object", "null"]},
+            "args": {"type": ["object", "null"], "additionalProperties": False},
         },
         "required": ["op", "args"],
         "additionalProperties": False,

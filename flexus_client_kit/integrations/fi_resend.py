@@ -93,9 +93,9 @@ RESEND_SETUP_TOOL = ckit_cloudtool.CloudTool(
         "type": "object",
         "properties": {
             "op": {"type": "string", "description": "Operation: help, add, verify, status, list, delete"},
-            "args": {"type": "object"},
+            "args": {"type": "object", "additionalProperties": False},
         },
-        "required": [],
+        "required": ["op", "args"],
     },
 )
 
