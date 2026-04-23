@@ -21,6 +21,7 @@ from flexus_client_kit.integrations import fi_pdoc
 from flexus_client_kit.integrations import fi_telegram
 from flexus_client_kit.integrations import fi_slack
 from flexus_client_kit import ckit_bot_version
+import gql.transport.exceptions
 
 logger = logging.getLogger("bot_frog")
 
@@ -90,6 +91,26 @@ CATCH_INSECTS_TOOL = ckit_cloudtool.CloudTool(
 # > - All fields in properties must be marked as required.
 # > - You can denote optional fields by adding null as a type option (see example below).
 
+GROUPCHAT_INVITE_TOOL = ckit_cloudtool.CloudTool(
+    strict=True,
+    name="groupchat_invite",
+    description=(
+        "Invite a colleague frog into this thread as a groupchat peer. They see only your "
+        "summary_so_far, not the full history. After this, messages here are shared with them."
+    ),
+    parameters={
+        "type": "object",
+        "properties": {
+            "colleague_name": {"type": "string", "description": "persona_name of the colleague to invite (must be in this workspace, must expose the same expert you're running)"},
+            "summary_so_far": {"type": "string", "description": "Everything the invitee needs to be useful. They do not see prior messages."},
+            "standby": {"type": "boolean", "description": "True: you go silent after inviting, the colleague drives. False: both participate."},
+        },
+        "required": ["colleague_name", "summary_so_far", "standby"],
+        "additionalProperties": False,
+    },
+)
+
+
 MAKE_POND_REPORT_TOOL = ckit_cloudtool.CloudTool(
     strict=True,
     name="make_pond_report",
@@ -119,6 +140,7 @@ MAKE_POND_REPORT_TOOL = ckit_cloudtool.CloudTool(
 TOOLS = [
     RIBBIT_TOOL,
     CATCH_INSECTS_TOOL,
+    GROUPCHAT_INVITE_TOOL,
     MAKE_POND_REPORT_TOOL,
     fi_mongo_store.MONGO_STORE_TOOL,
     *[t for rec in FROG_INTEGRATIONS for t in rec.integr_tools],
@@ -144,9 +166,9 @@ async def frog_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.R
         # Don't assume you'll find any thread infinitely in the past.
         pass
 
-    @rcx.on_updated_task
-    async def updated_task_in_db(action: str, old_task: Optional[ckit_kanban.FPersonaKanbanTaskOutput], new_task: Optional[ckit_kanban.FPersonaKanbanTaskOutput]):
-        logger.info(f"Ribbit! task {action}: old={old_task} new={new_task}")
+    # @rcx.on_updated_task
+    # async def updated_task_in_db(action: str, old_task: Optional[ckit_kanban.FPersonaKanbanTaskOutput], new_task: Optional[ckit_kanban.FPersonaKanbanTaskOutput]):
+    #     logger.info(f"Ribbit! task {action}: old={old_task} new={new_task}")
 
     @rcx.on_erp_change("crm_contact")
     async def on_contact_change(action: str, old_record: Optional[erp_schema.CrmContact], new_record: Optional[erp_schema.CrmContact]):
@@ -202,6 +224,18 @@ async def frog_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.R
             fexp_name="huntmode",
         )
         raise ckit_cloudtool.WaitForSubchats(subchats)
+
+    @rcx.on_tool_call(GROUPCHAT_INVITE_TOOL.name)
+    async def toolcall_groupchat_invite(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
+        colleague_name = model_produced_args["colleague_name"]
+        summary_so_far = model_produced_args["summary_so_far"]
+        standby = model_produced_args["standby"]
+        http = await fclient.use_http_on_behalf(rcx.persona.persona_id, toolcall.fcall_untrusted_key)
+        try:
+            new_ft_id = await ckit_ask_model.groupchat_invite(http, toolcall.fcall_ft_id, colleague_name, summary_so_far, standby)
+        except gql.transport.exceptions.TransportQueryError as e:
+            return ckit_cloudtool.gql_error_4xx_to_model_reraise_5xx(e, "groupchat_invite")
+        return f"Ribbit! Invited {colleague_name} (ft_id={new_ft_id})."
 
     @rcx.on_tool_call(MAKE_POND_REPORT_TOOL.name)
     async def toolcall_make_pond_report(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
