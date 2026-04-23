@@ -235,7 +235,10 @@ async def frog_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.R
             new_ft_id = await ckit_ask_model.groupchat_invite(http, toolcall.fcall_ft_id, colleague_name, summary_so_far, standby)
         except gql.transport.exceptions.TransportQueryError as e:
             return ckit_cloudtool.gql_error_4xx_to_model_reraise_5xx(e, "groupchat_invite")
-        return f"Ribbit! Invited {colleague_name} (ft_id={new_ft_id})."
+        tool_result = f"Ribbit! Invited {colleague_name} (ft_id={new_ft_id}).\n\n"
+        if not standby:
+            tool_result += "To avoid endless loop, remember you can use NOTHING_TO_SAY to skip your turn.\n\n"
+        return tool_result
 
     @rcx.on_tool_call(MAKE_POND_REPORT_TOOL.name)
     async def toolcall_make_pond_report(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
