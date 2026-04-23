@@ -108,7 +108,7 @@ class IntegrationMagicDesk(fi_messenger.FlexusMessenger):
                 logger.info("%s magic_desk capture discarding %d stale buffered msgs for session=%s", self.rcx.persona.persona_id, len(buf_msgs), session_id)
                 buf_msgs = []
             if buf_msgs[-10:]:
-                await ckit_ask_model.captured_thread_post_group_messages(
+                await ckit_ask_model.groupchat_post(
                     http, self.rcx.persona.persona_id, f"magic_desk/{session_id}",
                     [ckit_ask_model.CapturedMessageInput(
                         content=buf_text,
@@ -145,7 +145,7 @@ class IntegrationMagicDesk(fi_messenger.FlexusMessenger):
         self._from_mdesk_dedup_set.add(emsg.emsg_external_id)
         http = await self.fclient.use_http_on_behalf(self.rcx.persona.persona_id, "")
         logger.info("captured_thread_post searchable=magic_desk/%s msg=%s", session_id, text[:200])
-        ft_id = await ckit_ask_model.captured_thread_post_group_messages(
+        ft_id = await ckit_ask_model.groupchat_post(
             http,
             self.rcx.persona.persona_id,
             f"magic_desk/{session_id}",
