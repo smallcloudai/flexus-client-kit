@@ -412,7 +412,7 @@ class IntegrationTelegram(fi_messenger.FlexusMessenger):
         searchable = f"telegram/{activity.chat_id}"
         http = await self.fclient.use_http_on_behalf(self.rcx.persona.persona_id, "")
         logger.info("captured_thread_post searchable=%s msg=%s", searchable, msg_text[:200])
-        ft_id = await ckit_ask_model.captured_thread_post_user_messages(
+        ft_id = await ckit_ask_model.captured_thread_post_group_messages(
             http,
             self.rcx.persona.persona_id,
             searchable,
@@ -420,7 +420,8 @@ class IntegrationTelegram(fi_messenger.FlexusMessenger):
                 content=msg_text,
                 ftm_author_label1=f"telegram:{activity.message_author_id}",
                 ftm_author_label2=f"{activity.message_author_name or activity.message_author_id}",
-                ftm_provenance={"system_type": "fi_telegram"},
+                dedup_key=f"telegram:{activity.chat_id}:{activity.message_id}",
+                provenance_generated_by_module="fi_telegram",
             )],
             only_to_expert=self.outside_messages_fexp_name,
             thread_too_old_s=3600,

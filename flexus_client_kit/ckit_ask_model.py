@@ -230,10 +230,11 @@ class CapturedMessageInput:
     content: Union[str, List[Dict[str, Any]]]
     ftm_author_label1: str
     ftm_author_label2: str
-    ftm_provenance: Optional[Dict[str, Any]] = None
+    dedup_key: str
+    provenance_generated_by_module: str
 
 
-async def captured_thread_post_user_messages(
+async def captured_thread_post_group_messages(
     http: gql.Client,
     persona_id: str,
     ft_app_searchable: str,
@@ -245,12 +246,13 @@ async def captured_thread_post_user_messages(
         "ftm_content": json.dumps(m.content),
         "ftm_author_label1": m.ftm_author_label1,
         "ftm_author_label2": m.ftm_author_label2,
-        "ftm_provenance": json.dumps(m.ftm_provenance) if m.ftm_provenance else None,
+        "dedup_key": m.dedup_key,
+        "provenance_generated_by_module": m.provenance_generated_by_module,
     } for m in messages]
     async with http as h:
         r = await h.execute(gql.gql("""
-            mutation CapturedThreadPostSafe($persona_id: String!, $ft_app_searchable: String!, $messages: [CapturedThreadMessageInput!]!, $only_to_expert: String!, $thread_too_old_s: Float) {
-                captured_thread_post_user_messages(persona_id: $persona_id, ft_app_searchable: $ft_app_searchable, messages: $messages, only_to_expert: $only_to_expert, thread_too_old_s: $thread_too_old_s)
+            mutation CapturedThreadPostGroup($persona_id: String!, $ft_app_searchable: String!, $messages: [CapturedThreadMessageInput!]!, $only_to_expert: String!, $thread_too_old_s: Float) {
+                captured_thread_post_group_messages(persona_id: $persona_id, ft_app_searchable: $ft_app_searchable, messages: $messages, only_to_expert: $only_to_expert, thread_too_old_s: $thread_too_old_s)
             }"""),
             variable_values={
                 "persona_id": persona_id,
@@ -260,7 +262,7 @@ async def captured_thread_post_user_messages(
                 "thread_too_old_s": thread_too_old_s,
             },
         )
-    return r["captured_thread_post_user_messages"]
+    return r["captured_thread_post_group_messages"]
 
 
 async def captured_thread_lookup(
