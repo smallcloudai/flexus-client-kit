@@ -238,7 +238,13 @@ AIRTABLE_TOOL = ckit_cloudtool.CloudTool(
         "type": "object",
         "properties": {
             "op": {"type": "string", "description": "Operation: help, status, list_methods, call"},
-            "args": {"type": ["object", "null"], "description": "Arguments for the operation"},
+            "args": {
+                "description": "Arguments for the operation",
+                "anyOf": [
+                    {"type": "object", "additionalProperties": False},
+                    {"type": "null"},
+                ],
+            },
         },
         "required": ["op", "args"],
         "additionalProperties": False,

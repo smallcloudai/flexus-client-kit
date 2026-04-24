@@ -464,7 +464,12 @@ def static_integrations_load(bot_dir: Path, allowlist: list[str], builtin_skills
                     "type": "object",
                     "properties": {
                         "op": {"type": "string", "enum": ["help", "status", "list_methods", "call"]},
-                        "args": {"type": ["object", "null"]},
+                        "args": {
+                            "anyOf": [
+                                {"type": "object", "additionalProperties": False},
+                                {"type": "null"},
+                            ],
+                        },
                     },
                     "required": ["op", "args"],
                     "additionalProperties": False,
