@@ -62,7 +62,6 @@ class FlexusMessenger:
     async def look_user_message_got_confirmed(self, msg: ckit_ask_model.FThreadMessageOutput) -> bool:
         return False
 
-
 def ftm_content_to_text(content) -> str:
     if isinstance(content, list):
         return "\n\n".join(
@@ -95,4 +94,3 @@ def compact_message_parts(parts: List[Dict[str, Any]], max_parts: int = 5, max_i
     image_parts = [p for p in parts if p.get("m_type", "").startswith("image/")][:max_images]
     combined_text = "\n\n".join(p["m_content"] for p in text_parts)
     return [{"m_type": "text", "m_content": combined_text}] + image_parts
-

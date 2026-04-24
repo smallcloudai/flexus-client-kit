@@ -458,11 +458,6 @@ async def telegram_groupmod_main_loop(
         if tg:
             await tg.look_assistant_might_have_posted_something(msg)
 
-    @rcx.on_emessage("TELEGRAM")
-    async def handle_emessage(emsg):
-        if tg:
-            await tg.handle_emessage(emsg)
-
     async def _post_buffer_task(chat_id: str, reason: str):
         buf = buffers.get(chat_id, [])
         if not buf:

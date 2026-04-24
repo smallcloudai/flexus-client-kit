@@ -77,6 +77,7 @@ class RobotContext:
         self._handler_per_tool: Dict[str, Callable[[Dict[str, Any]], Awaitable[str]]] = {}
         self._handler_per_erp_table_change: Dict[str, Callable[[str, Optional[Any], Optional[Any]], Awaitable[None]]] = {}
         self._handler_per_emsg_type: Dict[str, Callable[[ckit_bot_query.FExternalMessageOutput], Awaitable[None]]] = {}
+        self._handler_per_messenger_platform: Dict[str, Callable[[str, Optional[ckit_bot_query.FMessengerThreadMessageOutput], Optional[ckit_bot_query.FMessengerThreadMessageOutput]], Awaitable[None]]] = {}
         self._restart_requested = False
         self._soft_restart_requested = False
         self._completed_initial_unpark = False
@@ -86,6 +87,7 @@ class RobotContext:
         self._parked_toolcalls: List[ckit_cloudtool.FCloudtoolCall] = []
         self._parked_erp_changes: Dict[tuple, tuple[str, str, Optional[Dict[str, Any]], Optional[Dict[str, Any]]]] = {}
         self._parked_emessages: Dict[str, ckit_bot_query.FExternalMessageOutput] = {}
+        self._parked_messenger_msgs: Dict[tuple[str, str], tuple[str, Optional[ckit_bot_query.FMessengerThreadMessageOutput], Optional[ckit_bot_query.FMessengerThreadMessageOutput]]] = {}
         self._parked_anything_new = asyncio.Event()
         self._shared_handled_emsg_ids = shared_handled_emsg_ids
         # These fields are designed for direct access:
@@ -135,6 +137,14 @@ class RobotContext:
             raise ValueError("use @on_emessage(\"MESSENGER\") such as TELEGRAM, SLACK")
         def decorator(handler: Callable[[ckit_bot_query.FExternalMessageOutput], Awaitable[None]]):
             self._handler_per_emsg_type[messenger] = handler
+            return handler
+        return decorator
+
+    def on_messenger_msg(self, platform: str):
+        if not isinstance(platform, str):
+            raise ValueError("use @on_messenger_msg(\"PLATFORM\") such as TELEGRAM, SLACK")
+        def decorator(handler: Callable[[str, Optional[ckit_bot_query.FMessengerThreadMessageOutput], Optional[ckit_bot_query.FMessengerThreadMessageOutput]], Awaitable[None]]):
+            self._handler_per_messenger_platform[platform] = handler
             return handler
         return decorator
 
@@ -200,6 +210,40 @@ class RobotContext:
                 await handler(emsg)
             except Exception as e:
                 logger.error("%s error in on_emessage(%r) handler: %s\n%s", self.persona.persona_id, emsg.emsg_type, type(e).__name__, e, exc_info=e)
+
+        messenger_msgs = list(self._parked_messenger_msgs.values())
+        self._parked_messenger_msgs.clear()
+        for action, old, new in messenger_msgs:
+            ref = new or old
+            did_anything = True
+            handler = self._handler_per_messenger_platform.get(ref.mt_platform)
+            if not handler:
+                logger.info("%s on_messenger_msg(%r) handler not found, message is lost", self.persona.persona_id, ref.mt_platform)
+                continue
+            ok = True
+            try:
+                await handler(action, old, new)
+            except Exception as e:
+                ok = False
+                logger.error("%s error in on_messenger_msg(%r) handler: %s\n%s", self.persona.persona_id, ref.mt_platform, type(e).__name__, e, exc_info=e)
+            if ok and ref.mtm_author_kind == "EXTERNAL":
+                # Server-side dedup: ack so the subscription replay won't redeliver this row.
+                # An edit (mtm_edited_ts > mtm_acked_ts) will still re-trigger delivery as an edit.
+                try:
+                    http = await self.fclient.use_http_on_behalf(self.persona.persona_id, "")
+                    async with http as h:
+                        await h.execute(gql.gql("""
+                            mutation MessengerMsgAck($pid: String!, $mt_id: String!, $ext: String!) {
+                                messenger_thread_message_ack(persona_id: $pid, mt_id: $mt_id, mtm_external_id: $ext)
+                            }"""),
+                            variable_values={
+                                "pid": self.persona.persona_id,
+                                "mt_id": ref.mtm_belongs_to_mt_id,
+                                "ext": ref.mtm_external_id,
+                            },
+                        )
+                except Exception as e:
+                    logger.warning("%s mtm ack failed mt=%s mtm=%s: %s", self.persona.persona_id, ref.mtm_belongs_to_mt_id, ref.mtm_external_id, e)
 
         mycalls = list(self._parked_toolcalls)
         self._parked_toolcalls.clear()
@@ -430,6 +474,7 @@ async def subscribe_and_produce_callbacks(
                 $inprocess_tool_names: [String!]!,
                 $want_erp_tables: [String!]!,
                 $want_messages: Boolean!,
+                $want_mtmessages: Boolean!,
                 $max_threads: Int!,
                 $ws_id_prefix: String,
                 $group_id: String,
@@ -442,6 +487,7 @@ async def subscribe_and_produce_callbacks(
                     want_personas: true,
                     want_threads: true,
                     want_messages: $want_messages,
+                    want_mtmessages: $want_mtmessages,
                     want_tasks: true,
                     want_erp_tables: $want_erp_tables,
                     ws_id_prefix: $ws_id_prefix,
@@ -456,6 +502,7 @@ async def subscribe_and_produce_callbacks(
                 "inprocess_tool_names": [t.name for t in bc.inprocess_tools],
                 "want_erp_tables": bc.subscribe_to_erp_tables,
                 "want_messages": True,
+                "want_mtmessages": True,
                 "max_threads": 50,
                 "ws_id_prefix": use_ws_id_prefix,
                 "group_id": use_group_id,
@@ -642,6 +689,18 @@ async def subscribe_and_produce_callbacks(
                         bot.instance_rcx._parked_anything_new.set()
                     else:
                         logger.warning("External message about persona %s, but no bot is running it." % emsg.emsg_persona_id)
+
+            elif upd.news_about == "flexus_messenger_thread_message":
+                handled = True
+                new = upd.news_payload_mtmessage_new
+                old = upd.news_payload_mtmessage_old
+                ref = new or old
+                if ref:
+                    if bot := bc.bots_running.get(ref.mtm_via_persona_id):
+                        bot.instance_rcx._parked_messenger_msgs[(ref.mtm_belongs_to_mt_id, ref.mtm_external_id)] = (upd.news_action, old, new)
+                        bot.instance_rcx._parked_anything_new.set()
+                    else:
+                        logger.warning("Messenger msg via persona %s, but no bot is running it.", ref.mtm_via_persona_id)
 
             elif upd.news_action == "INITIAL_UPDATES_OVER":
                 if len(bc.bots_running) == 0:
