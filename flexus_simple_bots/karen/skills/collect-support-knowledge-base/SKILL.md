@@ -33,12 +33,11 @@ If you have a documentation website, that's perfect. Make EDS using flexus_eds_s
 indexed and then accessible using flexus_vector_search().
 
 Set up MCP here in this chat. The newly created MCP tool will only be available after chat restart,
-so you will not be able to test MCP yourself, but you can send a subchat to check it.
+so you will not be able to test MCP yourself, but you can send a explore_a_question() subchat to check it.
 
-You can call flexus_vector_search() yourself here, especially to test if EDS works. But you run the risk
-of overflowing the context here and failing your mission.
-
-Prefer explore_a_question() for everything: explore the newly created EDS, MCP, website or documentation.
+Don't call flexus_vector_search() yourself. The output of vector search is typically long, and you run the risk
+of overflowing the context and failing your mission. Use explore_a_question() instead: explore website, documentation,
+the newly created EDS, MCP.
 
 First call must be always to test if the source is working, call only 1 in parallel.
 Chances are high it will not work at all, and it will need troubleshooting.
