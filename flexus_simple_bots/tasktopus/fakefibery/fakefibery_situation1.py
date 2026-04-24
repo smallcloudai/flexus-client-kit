@@ -261,21 +261,21 @@ people = json.dumps(json.loads("""
       "elena": {
         "full-name": "Elena Voss",
         "avatar": "/v1/avatar/032-sheep_meditating.webp",
-        "aka": {"taskman": "elena", "slack": "elena.voss", "telegram": "elenavoss"},
+        "aka": {"taskman": "elena", "fibery-email": "elena@volcresort.com", "fibery-uuid": "7c1d2e40-5a3b-11ee-9f2a-0242ac120002", "slack": "elena.voss", "telegram": "elenavoss"},
         "primary-messenger": "slack",
         "prefs": "Project lead. Prefers morning briefings, hates midday interruptions."
       },
       "lucia": {
         "full-name": "Lucia Ferrer",
         "avatar": "/v1/avatar/299-fox-sitting.webp",
-        "aka": {"taskman": "lucia", "slack": "lucia.ferrer", "telegram": "luciaferrer"},
+        "aka": {"taskman": "lucia", "fibery-email": "lucia@volcresort.com", "fibery-uuid": "", "slack": "lucia.ferrer", "telegram": "luciaferrer"},
         "primary-messenger": "slack",
         "prefs": "Head chef. Kitchen hours 6:00–22:00, DMs OK anytime but she replies in bursts."
       },
       "raj": {
         "full-name": "Raj Anand",
         "avatar": "/v1/avatar/048-opossum_wearing_spacesuit.webp",
-        "aka": {"taskman": "raj", "slack": "raj.anand", "telegram": ""},
+        "aka": {"taskman": "raj", "fibery-email": "raj@volcresort.com", "fibery-uuid": "9a2e3f80-6b4c-11ee-a0b1-0242ac120003", "slack": "raj.anand", "telegram": ""},
         "prefs": "Structural engineer. Long reply latency, works best with very specific questions."
       }
     },
@@ -295,13 +295,15 @@ people = json.dumps(json.loads("""
               "order": 2,
               "title": "Messengers",
               "properties": {
-                "taskman":  {"type": "string", "order": 0},
-                "slack":    {"type": "string", "order": 1},
-                "telegram": {"type": "string", "order": 2}
+                "taskman":      {"type": "string", "order": 0},
+                "fibery-email": {"type": "string", "order": 1, "description": "Fibery user email"},
+                "fibery-uuid":  {"type": "string", "order": 2, "description": "Stable across email changes"},
+                "slack":        {"type": "string", "order": 3},
+                "telegram":     {"type": "string", "order": 4}
               },
               "additionalProperties": false
             },
-            "primary-messenger": {"type": "string", "order": 3, "title": "Primary messenger", "enum": ["taskman", "slack", "telegram"]},
+            "primary-messenger": {"type": "string", "order": 3, "title": "Primary messenger", "enum": ["slack", "telegram"]},
             "prefs": {"type": "string", "order": 4, "title": "Preferences", "ui:multiline": true}
           },
           "additionalProperties": false

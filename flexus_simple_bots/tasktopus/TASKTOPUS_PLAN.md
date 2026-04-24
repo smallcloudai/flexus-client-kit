@@ -117,9 +117,12 @@ active participant, hopefully (because that will add to confusion). The lesson h
         "avatar": "/v1/avatar/032-sheep_meditating.webp",
         "aka": {
           "taskman": "elena",
+          "fibery-email": "elena.voss@example.com",
+          "fibery-uuid": "7c1d2e40-5a3b-11ee-9f2a-0242ac120002",
           "slack": "elenavoss",
           "telegram": ""
         },
+        "primary-messenger": "slack",
         "prefs": "Elena wants her tasks shaken, not stirred"
       },
       "marco-tanaka": {
@@ -127,9 +130,12 @@ active participant, hopefully (because that will add to confusion). The lesson h
         "avatar": "/v1/avatar/299-fox-sitting.webp",
         "aka": {
           "taskman": "marco.t",
+          "fibery-email": "marco.tanaka@example.com",
+          "fibery-uuid": "904b0460-8b98-11ef-8837-cb7281aea57d",
           "slack": "mtanaka",
           "telegram": "marcot"
         },
+        "primary-messenger": "telegram",
         "prefs": "Night owl, don't ping before 11:00 local. Hates surprise meetings."
       }
     },
@@ -142,20 +148,23 @@ active participant, hopefully (because that will add to confusion). The lesson h
           "type": "object",
           "required": ["full-name"],
           "properties": {
-            "full-name": {"type": "string", "order": 0, "title": "Full name"},
-            "avatar":    {"type": "string", "order": 1, "title": "Avatar URL", "ui:avatar": true},
+            "full-name":         {"type": "string", "order": 0, "title": "Full name"},
+            "avatar":            {"type": "string", "order": 1, "title": "Avatar URL", "ui:avatar": true},
             "aka": {
               "type": "object",
               "order": 2,
               "title": "Messengers",
               "properties": {
-                "taskman":  {"type": "string", "order": 0},
-                "slack":    {"type": "string", "order": 1},
-                "telegram": {"type": "string", "order": 2}
+                "taskman":      {"type": "string", "order": 0},
+                "fibery-email": {"type": "string", "order": 1, "description": "Fibery user email"},
+                "fibery-uuid":  {"type": "string", "order": 2, "description": "Stable across email changes"},
+                "slack":        {"type": "string", "order": 3},
+                "telegram":     {"type": "string", "order": 4}
               },
               "additionalProperties": false
             },
-            "prefs":     {"type": "string", "order": 3, "title": "Preferences", "ui:multiline": true}
+            "primary-messenger": {"type": "string", "order": 3, "title": "Primary messenger", "enum": ["slack", "telegram"]},
+            "prefs":             {"type": "string", "order": 4, "title": "Preferences", "ui:multiline": true}
           },
           "additionalProperties": false
         }
