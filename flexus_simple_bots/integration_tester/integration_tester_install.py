@@ -123,7 +123,6 @@ async def install(client: ckit_client.FlexusClient):
             "telegram",
             "twilio_manual",
             "resend",
-            "newsapi",
         ],
         marketable_auth_scopes={
             "gmail": ckit_integrations_db.GOOGLE_OAUTH_BASE_SCOPES + [
