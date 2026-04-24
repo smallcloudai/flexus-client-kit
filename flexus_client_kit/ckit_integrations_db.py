@@ -333,7 +333,10 @@ def static_integrations_load(bot_dir: Path, allowlist: list[str], builtin_skills
                 integr_name=name,
                 integr_tools=[fi_telegram.TELEGRAM_TOOL],
                 integr_init=_init_telegram,
-                integr_setup_handlers=lambda obj, rcx: [_register_tool_handler(rcx, "telegram", obj.called_by_model, fake_in_scenario=True)],
+                integr_setup_handlers=lambda obj, rcx: [
+                    _register_tool_handler(rcx, "telegram", obj.called_by_model, fake_in_scenario=True),
+                    rcx.on_messenger_msg("TELEGRAM")(obj.handle_messenger_msg),
+                ],
                 integr_provider="telegram",
                 integr_is_messenger=True,
                 integr_prompt=fi_messenger.MESSENGER_PROMPT,

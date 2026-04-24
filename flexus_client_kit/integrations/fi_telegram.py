@@ -4,7 +4,6 @@ import json
 import logging
 import gql
 
-from collections import deque
 from dataclasses import asdict, dataclass, field
 from typing import Any, Awaitable, Callable, Dict, List, Optional
 
@@ -55,15 +54,12 @@ HELP = """Help:
 
 telegram(op="status")
 
-telegram(op="capture", args={"chat_id": 123456789})
+telegram(op="capture", args={"chat_id": 12345})
     Capture a Telegram chat. Messages will appear here and your responses will be sent back.
-    You can only capture chats where the bot is a member.
+    chat_id is from the inbound kanban task details.
 
 telegram(op="uncapture")
     Stop capturing this Telegram chat. Do this at the end when you're done talking.
-
-telegram(op="post", args={"chat_id": 123456789, "text": "Hello!"})
-    Post a message to a Telegram chat. Don't use this for captured chats. Remember to use MarkdownV2 markup.
 """
 # Unclear why is this useful, commeted out for now:
 # telegram(op="generate_chat_link", args={"contact_id": "abc123"})
@@ -177,11 +173,7 @@ class IntegrationTelegram(fi_messenger.FlexusMessenger):
         self.tg_app: Optional[telegram.ext.Application] = None
 
         self._activity_callback: Callable[[ActivityTelegram, bool], Awaitable[None]] = self.inbound_activity_to_task
-        # See fi_slack.py for explanation of deque+set dedup pattern
-        self._from_tg_dedup = deque(maxlen=50000)
-        self._from_tg_dedup_set = set()
-        self._to_tg_dedup = deque(maxlen=50000)
-        self._to_tg_dedup_set = set()
+        self._processing_mtm_keys: set[tuple[str, str]] = set()
 
         if not self.bot_token:
             self.oops_a_problem("Telegram is not connected, ask user to connect it in bot Integrations", dont_print=True)
@@ -256,58 +248,31 @@ class IntegrationTelegram(fi_messenger.FlexusMessenger):
         if print_status:
             return r
 
-        if op == "post":
-            chat_id = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "chat_id", None)
-            text = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "text", None)
-            if not chat_id:
-                return "Missing chat_id parameter\n"
-            if not text:
-                return "Missing text parameter\n"
-
-            this_thread = self.rcx.latest_threads.get(toolcall.fcall_ft_id)
-            if this_thread and (this_thread.thread_fields.ft_app_searchable or "").startswith("telegram/"):
-                return "Cannot post to captured chat. Your responses are sent automatically.\n"
-
-            http = await self.fclient.use_http_on_behalf(self.rcx.persona.persona_id, toolcall.fcall_untrusted_key)
-            capturing_ft_id = await ckit_ask_model.captured_thread_lookup(
-                http, self.rcx.persona.persona_id, f"telegram/{chat_id}",
-            )
-            if capturing_ft_id == toolcall.fcall_ft_id:
-                return "Cannot post to captured chat. Your responses are sent automatically.\n"
-            if capturing_ft_id:
-                logger.warning("telegram post blocked: target telegram/%s already captured by ft_id=%s, this ft_id=%s, persona=%s",
-                    chat_id, capturing_ft_id, toolcall.fcall_ft_id, self.rcx.persona.persona_id)
-                return "This chat is already captured in another thread.\n"
-
-            try:
-                await self.tg_app.bot.send_message(chat_id=int(chat_id), text=tg_escape_md2(text), parse_mode="MarkdownV2")
-                return "Post success\n"
-            except Exception as e:
-                return f"ERROR: {type(e).__name__}: {e}\n"
-
         if op == "capture":
             if self.outside_messages_fexp_name and not toolcall.fcall_fexp_name.endswith("_" + self.outside_messages_fexp_name):
                 return fi_messenger.CAPTURE_WRONG_EXPERT_MSG % self.outside_messages_fexp_name
             chat_id = ckit_cloudtool.try_best_to_find_argument(args, model_produced_args, "chat_id", None)
-            if not chat_id:
-                return "Missing chat_id parameter\n"
             try:
-                int(str(chat_id).lstrip("-"))
-            except ValueError:
-                return f"chat_id must be a numeric Telegram chat id, got {chat_id!r}\n"
-            identifier = str(chat_id)
+                chat_id = int(chat_id) if chat_id is not None else None
+            except (TypeError, ValueError):
+                chat_id = None
+            if chat_id is None:
+                return "Missing chat_id parameter (find it in the inbound kanban task details)\n"
+            # Telegram: positive chat_id = DM (needs bot_id prefix to disambiguate same user across bots), negative = group.
+            bot_id = self.bot_token.split(":", 1)[0]
+            mt_external_id = f"{bot_id}/{chat_id}" if chat_id > 0 else str(chat_id)
             http = await self.fclient.use_http_on_behalf(self.rcx.persona.persona_id, toolcall.fcall_untrusted_key)
-            searchable = f"telegram/{identifier}"
+            searchable = f"telegram/{mt_external_id}"
             try:
                 await ckit_ask_model.thread_app_capture_patch(
                     http,
                     toolcall.fcall_ft_id,
                     ft_app_searchable=searchable,
-                    ft_app_specific=json.dumps({"last_posted_assistant_ts": toolcall.fcall_created_ts}),
+                    ft_app_specific=json.dumps({"last_posted_assistant_ts": toolcall.fcall_created_ts, "mt_external_id": mt_external_id}),
                 )
             except gql.transport.exceptions.TransportQueryError as e:
                 return ckit_cloudtool.gql_error_4xx_to_model_reraise_5xx(e, "telegram_capture")
-            return fi_messenger.CAPTURE_SUCCESS_MSG % identifier + fi_messenger.CAPTURE_ADVICE_MSG + "\n" + \
+            return fi_messenger.CAPTURE_SUCCESS_MSG % mt_external_id + fi_messenger.CAPTURE_ADVICE_MSG + "\n" + \
                 "Reminder: after this point telegram MarkdownV2 markup rules are in effect for your output, there are no tables! Here's markup help for you again.\n\n" + \
                 TG_MARKUP_HELP
 
@@ -330,54 +295,61 @@ class IntegrationTelegram(fi_messenger.FlexusMessenger):
 
         return fi_messenger.UNKNOWN_OPERATION_MSG % op
 
-    async def handle_emessage(self, emsg: ckit_bot_query.FExternalMessageOutput) -> None:
-        # external message FExternalMessageOutput(
-        #  emsg_id='vgfz9BmBpa',
-        #  emsg_persona_id='6gjySpynvG',
-        #  emsg_type='TELEGRAM',
-        #  emsg_from='telegram:14931503',
-        #  emsg_to='telegram:8497987008',
-        #  emsg_external_id='22',
-        #  emsg_payload={'message': {'chat': {'id': 14931503, 'type': 'private', 'username': 'handle', 'first_name': 'Real Name'}, 'date': 1770975588, 'from': {'id': 14931503, 'is_bot': False, 'username': 'handle', 'first_name': 'Real Name', 'language_code': 'en'}, 'text': 'hello wrold', 'message_id': 22}, 'update_id': 257336450},
-        #  emsg_created_ts=1770975590.564911,
-        #  ws_id='solarsystem')
-
-        payload = emsg.emsg_payload
-        update = telegram.Update.de_json(payload, bot=None)   # Scary, strange types, date becomes datetime.datetime etc, but good for validation
-
-        msg = update.message or update.edited_message
-        if not msg or not msg.from_user:
-            return
-        dedup_key = str(msg.message_id)
-        if dedup_key in self._from_tg_dedup_set:
-            return
-        if len(self._from_tg_dedup) == self._from_tg_dedup.maxlen:
-            self._from_tg_dedup_set.discard(self._from_tg_dedup[0])
-        self._from_tg_dedup.append(dedup_key)
-        self._from_tg_dedup_set.add(dedup_key)
-        user = msg.from_user
-        activity = ActivityTelegram(
-            chat_id=msg.chat.id,
-            chat_type=str(msg.chat.type),
-            message_id=msg.message_id,
-            message_text=msg.text or msg.caption or "",
-            message_author_name=user.full_name or user.username or str(user.id),
-            message_author_id=user.id,
-            attachments=[],
-        )
-        already_posted_to_captured_thread = await self.post_into_captured_thread_as_user(activity)
-        await self._activity_callback(activity, already_posted_to_captured_thread)
-
     def on_incoming_activity(self, handler: Callable[[ActivityTelegram, bool], Awaitable[None]]):
         self._activity_callback = handler
         return handler
+
+    async def handle_messenger_msg(
+        self,
+        action: str,
+        old: Optional[ckit_bot_query.FMessengerThreadMessageOutput],
+        new: Optional[ckit_bot_query.FMessengerThreadMessageOutput],
+    ) -> None:
+        if action not in ("INSERT", "UPDATE") or not new:
+            return
+        mtm = new
+        if mtm.mt_platform != "TELEGRAM":
+            return
+        mtm_key = (mtm.mtm_belongs_to_mt_id, mtm.mtm_external_id)
+        if mtm_key in self._processing_mtm_keys:
+            return
+        self._processing_mtm_keys.add(mtm_key)
+        try:
+            # mt_external_id is "{bot_id}/{chat_id}" for DM, "{chat_id}" for group.
+            raw = mtm.mt_external_id
+            chat_id_str = raw.split("/", 1)[1] if "/" in raw else raw
+            try:
+                chat_id = int(chat_id_str)
+            except ValueError:
+                chat_id = 0
+            try:
+                message_id = int(mtm.mtm_external_id)
+            except ValueError:
+                message_id = 0
+            activity = ActivityTelegram(
+                chat_id=chat_id,
+                chat_type="private" if mtm.mt_kind == "DM" else "group",
+                message_id=message_id,
+                message_text=mtm.mtm_text or "",
+                message_author_name=mtm.mtm_author_label or mtm.mtm_author_id,
+                message_author_id=int(mtm.mtm_author_id) if mtm.mtm_author_id.isdigit() else 0,
+                attachments=mtm.mtm_attachments if isinstance(mtm.mtm_attachments, list) else [],
+            )
+            http = await self.fclient.use_http_on_behalf(self.rcx.persona.persona_id, "")
+            captured_ft_id = await ckit_ask_model.captured_thread_lookup(http, self.rcx.persona.persona_id, f"telegram/{mtm.mt_external_id}")
+            if self._activity_callback is self.inbound_activity_to_task:
+                await self.inbound_activity_to_task(activity, already_posted=bool(captured_ft_id), extra_details={"mt_external_id": mtm.mt_external_id})
+            else:
+                await self._activity_callback(activity, bool(captured_ft_id))
+        finally:
+            self._processing_mtm_keys.discard(mtm_key)
 
     async def inbound_activity_to_task(self, a: ActivityTelegram, already_posted: bool, extra_details: dict = None, provenance: str = None, title: str = None):
         logger.info("%s Telegram %s by @%s: %s", self.rcx.persona.persona_id, a.chat_type, a.message_author_name, a.message_text[:50])
         if already_posted:
             return
         details = asdict(a)
-        details["to_capture"] = "telegram(op=\"capture\", args={\"chat_id\": %r})" % a.chat_id
+        details["to_capture"] = "telegram(op=\"capture\", args={\"chat_id\": %d})" % a.chat_id
         if a.attachments:
             details["attachments"] = f"{len(a.attachments)} files attached"
         if extra_details:
@@ -401,97 +373,8 @@ class IntegrationTelegram(fi_messenger.FlexusMessenger):
             fexp_name=self.outside_messages_fexp_name,
         )
 
-    async def post_into_captured_thread_as_user(self, activity: ActivityTelegram) -> bool:
-        msg_text = activity.message_text
-        if not msg_text.strip():
-            return True  # empty message, keep capture, do nothing
-        # parts.append({"m_type": "text", "m_content": f"👤{activity.message_author_name}\n\n{activity.message_text}"})
-        # parts: List[Dict[str, str]] = []
-        # parts.extend(activity.attachments)
-        # parts = fi_messenger.compact_message_parts(parts)
-        searchable = f"telegram/{activity.chat_id}"
-        http = await self.fclient.use_http_on_behalf(self.rcx.persona.persona_id, "")
-        logger.info("captured_thread_post searchable=%s msg=%s", searchable, msg_text[:200])
-        ft_id = await ckit_ask_model.groupchat_post(
-            http,
-            self.rcx.persona.persona_id,
-            searchable,
-            [ckit_ask_model.CapturedMessageInput(
-                content=msg_text,
-                ftm_author_label1=f"telegram:{activity.message_author_id}",
-                ftm_author_label2=f"{activity.message_author_name or activity.message_author_id}",
-                dedup_key=f"telegram:{activity.chat_id}:{activity.message_id}",
-                provenance_generated_by_module="fi_telegram",
-            )],
-            only_to_expert=self.outside_messages_fexp_name,
-            thread_too_old_s=3600,
-        )
-        if not ft_id:
-            return False
-        logger.info("%s telegram inbound captured ft_id=%s type=%s chat_id=%s msg_id=%s from %r (uid=%s): %s",
-            self.rcx.persona.persona_id, ft_id,
-            activity.chat_type, activity.chat_id, activity.message_id,
-            activity.message_author_name, activity.message_author_id, msg_text[:120] or "(empty)")
-        return True
-
     async def look_assistant_might_have_posted_something(self, msg: ckit_ask_model.FThreadMessageOutput) -> bool:
-        if msg.ftm_role != "assistant" or not msg.ftm_content:
-            return False
-
-        searchable = msg.ft_app_searchable or ""
-        if not searchable.startswith("telegram/"):
-            return False
-
-        # msg-level ft_app_specific is stale; thread-level has the latest last_posted_assistant_ts
-        t = self.rcx.latest_threads.get(msg.ftm_belongs_to_ft_id)
-        app_specific = (t.thread_fields.ft_app_specific if t else None) or msg.ft_app_specific
-        last_posted_ts = (app_specific or {}).get("last_posted_assistant_ts")
-        if last_posted_ts is None:
-            logger.warning("tg dedup: no last_posted_assistant_ts ft=%s ft_app_specific=%r", msg.ftm_belongs_to_ft_id, app_specific)
-        elif msg.ftm_created_ts <= last_posted_ts:
-            return False
-
-        dedup_key = "%s:%03d:%03d" % (msg.ftm_belongs_to_ft_id, msg.ftm_alt, msg.ftm_num)
-        if dedup_key in self._to_tg_dedup_set:
-            return False
-
-        try:
-            chat_id = int(searchable[len("telegram/"):])
-        except ValueError:
-            return False
-        if not isinstance(msg.ftm_content, str):
-            logger.warning("telegram look_assistant_might_have_posted_something: ftm_content is not a string: %r" % msg.ftm_content)
-            return False
-        if not self.tg_app:
-            return False
-
-        text = msg.ftm_content
-        if "TASK_COMPLETED" in text and len(text) <= len("TASK_COMPLETED") + 6:
-            logger.info("telegram look_assistant_might_have_posted_something: ftm_content has TASK_COMPLETED, not posting to the captured chat")
-            return False
-        if "NOTHING_TO_SAY" in text and len(text) <= len("NOTHING_TO_SAY") + 6:
-            logger.info("telegram look_assistant_might_have_posted_something: ftm_content has NOTHING_TO_SAY, not posting to the captured chat")
-            return False
-        text = text.replace("TASK_COMPLETED", "")   # yes, sometimes the model writes it anyway
-        text = text.replace("NOTHING_TO_SAY", "")
-
-        try:
-            await self.tg_app.bot.send_message(chat_id=chat_id, text=tg_escape_md2(text), parse_mode="MarkdownV2")
-            if len(self._to_tg_dedup) == self._to_tg_dedup.maxlen:
-                self._to_tg_dedup_set.discard(self._to_tg_dedup[0])
-            self._to_tg_dedup.append(dedup_key)
-            self._to_tg_dedup_set.add(dedup_key)
-        except Exception as e:
-            logger.warning("Failed to post to Telegram chat %d: %s\n%s", chat_id, e, text)
-            return False
-
-        http = await self.fclient.use_http_on_behalf(self.rcx.persona.persona_id, "")
-        await ckit_ask_model.thread_app_capture_patch(
-            http,
-            msg.ftm_belongs_to_ft_id,
-            ft_app_specific=json.dumps({"last_posted_assistant_ts": msg.ftm_created_ts}),
-        )
-        return True
+        return False
 
     # -- Additional stuff --
     # How to handle images
