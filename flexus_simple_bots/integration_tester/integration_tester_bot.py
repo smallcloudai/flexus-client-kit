@@ -67,21 +67,26 @@ def _requested_names(raw: str) -> List[str]:
     return names or ["all"]
 
 
-def get_configured_integrations(integr_names: List[str]) -> List[Dict[str, Any]]:
+def _auth_provider_names(rec: ckit_integrations_db.IntegrationRecord) -> List[str]:
+    names = []
+    for x in [rec.integr_provider, rec.integr_name, f"{rec.integr_name}_manual"]:
+        if x and x not in names:
+            names.append(x)
+    return names
+
+
+def get_configured_integrations(external_auth: Dict[str, Any], integr_names: List[str]) -> List[Dict[str, Any]]:
     result = []
     for rec in INTEGRATION_TESTER_INTEGRATIONS:
         if rec.integr_name in integr_names:
-            try:
-                has_key = bool(rec.integr_api_key) if rec.integr_api_key else False
-                if has_key:
-                    key_hint = "***" + rec.integr_api_key[-4:] if len(rec.integr_api_key) > 4 else "***"
+            for provider_name in _auth_provider_names(rec):
+                auth = external_auth.get(provider_name) or {}
+                if any(v for k, v in auth.items() if k != "status"):
                     result.append({
                         "name": rec.integr_name,
-                        "env_var": rec.integr_api_key_env_var or f"{rec.integr_name.upper()}_API_KEY",
-                        "key_hint": key_hint,
+                        "provider": provider_name,
                     })
-            except Exception:
-                pass
+                    break
     return result
 
 
@@ -171,7 +176,7 @@ async def integration_tester_main_loop(
         req = _requested_names(str(args.get("requested", "all")))
         configured_only = bool(args.get("configured_only", True))
 
-        configured = {x["name"] for x in get_configured_integrations(supported_integrations)}
+        configured = {x["name"] for x in get_configured_integrations(rcx.external_auth, supported_integrations)}
         selected = []
         unsupported = []
 
@@ -199,8 +204,6 @@ async def integration_tester_main_loop(
                 "integrations": [name],
             })
 
-        batches = [[name] for name in selected]
-
         return json.dumps({
             "ok": True,
             "requested": req,
@@ -209,8 +212,6 @@ async def integration_tester_main_loop(
             "configured_only": configured_only,
             "selected": selected,
             "unsupported": unsupported,
-            "batch_size": 1,
-            "batches": batches,
             "task_specs": task_specs,
         }, indent=2)
 

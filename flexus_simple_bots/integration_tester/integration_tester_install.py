@@ -3,7 +3,7 @@ import json
 import logging
 from typing import List
 
-from flexus_client_kit import ckit_client, ckit_bot_install, ckit_cloudtool, ckit_skills
+from flexus_client_kit import ckit_client, ckit_bot_install, ckit_cloudtool, ckit_integrations_db, ckit_skills
 from flexus_simple_bots import prompts_common
 from flexus_simple_bots.integration_tester import integration_tester_bot
 from flexus_simple_bots.integration_tester import integration_tester_prompts
@@ -102,7 +102,11 @@ async def install(
         marketable_description=INTEGRATION_TESTER_DESC,
         marketable_typical_group="Development",
         marketable_schedule=[
-            prompts_common.SCHED_TASK_SORT_10M | {"sched_when": "EVERY:1m", "sched_fexp_name": "default"},
+            prompts_common.SCHED_TASK_SORT_10M | {
+                "sched_when": "EVERY:1m",
+                "sched_fexp_name": "default",
+                "sched_first_question": "If there are tasks in Inbox, move exactly one task from Inbox to Todo using op=inbox_to_todo with a single task id. Never join multiple tasks together. Then respond with \"1 task sorted\" or \"0 tasks sorted\". Do nothing else.",
+            },
             prompts_common.SCHED_TODO_5M | {"sched_when": "EVERY:1m", "sched_fexp_name": "autonomous"},
         ],
         marketable_setup_default=integration_tester_setup_default,
@@ -124,6 +128,45 @@ async def install(
         add_integrations_into_expert_system_prompt=integration_tester_bot.INTEGRATION_TESTER_INTEGRATIONS,
         marketable_tags=["testing", "integrations", "qa"],
         marketable_forms=ckit_bot_install.load_form_bundles(__file__),
+        marketable_auth_supported=[
+            "gmail",
+            "google_business",
+            "google_ads",
+            "google",
+            "notion",
+            "notion_manual",
+            "airtable",
+            "hubspot",
+            "slack",
+            "telegram",
+            "twilio_manual",
+        ],
+        marketable_auth_scopes={
+            "gmail": ckit_integrations_db.GOOGLE_OAUTH_BASE_SCOPES + [
+                "https://www.googleapis.com/auth/gmail.readonly",
+                "https://www.googleapis.com/auth/gmail.compose",
+                "https://www.googleapis.com/auth/gmail.modify",
+                "https://www.googleapis.com/auth/gmail.send",
+                "https://www.googleapis.com/auth/gmail.labels",
+            ],
+            "google_business": ckit_integrations_db.GOOGLE_OAUTH_BASE_SCOPES + [
+                "https://www.googleapis.com/auth/business.manage",
+            ],
+            "google_ads": ckit_integrations_db.GOOGLE_OAUTH_BASE_SCOPES + [
+                "https://www.googleapis.com/auth/adwords",
+            ],
+            "google": ckit_integrations_db.GOOGLE_OAUTH_BASE_SCOPES + [
+                "https://www.googleapis.com/auth/spreadsheets",
+            ],
+            "slack": [
+                "channels:read",
+                "chat:write",
+                "chat:write.customize",
+                "files:read",
+                "users:read",
+                "im:read",
+            ],
+        },
     )
 
 
