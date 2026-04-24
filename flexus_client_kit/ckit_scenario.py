@@ -37,6 +37,7 @@ def bot_launch_argparse():
     parser.add_argument("--no-cleanup", action="store_true", help="Skip cleanup of test group")
     parser.add_argument("--model", type=str, default="", help="Comma-separated list of models to run scenario against")
     parser.add_argument("--experiment", "-E", type=str, default="", help="Experiment name to append to output files")
+    parser.add_argument("--setup", action="append", default=[], metavar="KEY=VALUE", help="Set persona_setup key (repeatable), e.g. --setup TAVILY_API_KEY=tvly-abc123")
     return parser
 
 
@@ -243,6 +244,11 @@ class ScenarioSetup:
         self.should_cleanup = not args.no_cleanup
         self.explicit_models = [m.strip() for m in args.model.split(",") if m.strip()] if args.model else []
         self.experiment = args.experiment
+        self.persona_setup: dict = {}
+        for kv in (args.setup or []):
+            if "=" in kv:
+                k, v = kv.split("=", 1)
+                self.persona_setup[k] = v
 
     async def create_group_and_hire_bot(
         self,

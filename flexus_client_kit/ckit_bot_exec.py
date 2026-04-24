@@ -1091,7 +1091,7 @@ async def run_bots_in_this_group(
         await scenario.create_group_and_hire_bot(
             marketable_name=marketable_name,
             marketable_version=marketable_version,
-            persona_setup={},
+            persona_setup=scenario.persona_setup,
         )
         try:
             async with (await scenario.fclient.use_http_on_behalf(None, "")) as http:
