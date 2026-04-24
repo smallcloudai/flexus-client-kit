@@ -1,23 +1,20 @@
 import asyncio
 import json
 import logging
-import sys
 from pathlib import Path
 from typing import Any, Dict, List, Callable, Awaitable
 
-_repo_root = Path(__file__).parents[2]
-if str(_repo_root) not in sys.path:
-    sys.path.insert(0, str(_repo_root))
-
 from flexus_client_kit import ckit_bot_exec, ckit_client, ckit_shutdown
 from flexus_client_kit import ckit_bot_version
-from flexus_client_kit import ckit_cloudtool, ckit_integrations_db
+from flexus_client_kit import ckit_cloudtool, ckit_integrations_db, ckit_skills
+from flexus_client_kit.integrations import fi_resend
 
-logger = logging.getLogger("integration_tester")
+logger = logging.getLogger("bot_integration_tester")
 
 INTEGRATION_TESTER_ROOTDIR = Path(__file__).parent
+INTEGRATION_TESTER_SKILLS: list[str] = ckit_skills.static_skills_find(INTEGRATION_TESTER_ROOTDIR, shared_skills_allowlist="", integration_skills_allowlist="")
 
-PLAN_BATCHES_TOOL = ckit_cloudtool.CloudTool(
+INTEGRATION_TESTER_PLAN_BATCHES_TOOL = ckit_cloudtool.CloudTool(
     strict=True,
     name="integration_plan_batches",
     description="Plan integration tests one by one and return task specs for kanban fan-out.",
@@ -47,12 +44,14 @@ INTEGRATION_TESTER_INTEGRATIONS: list[ckit_integrations_db.IntegrationRecord] = 
         "airtable",
         "hubspot",
         "twilio",
+        "resend",
+        "newsapi",
         "skills",
     ],
-    builtin_skills=[],
+    builtin_skills=INTEGRATION_TESTER_SKILLS,
 )
 
-TOOLS = [PLAN_BATCHES_TOOL] + [t for rec in INTEGRATION_TESTER_INTEGRATIONS for t in rec.integr_tools]
+TOOLS = [INTEGRATION_TESTER_PLAN_BATCHES_TOOL] + [t for rec in INTEGRATION_TESTER_INTEGRATIONS for t in rec.integr_tools]
 
 
 def _requested_names(raw: str) -> List[str]:
@@ -145,15 +144,14 @@ def make_testing_wrapper(
 
 
 BOT_NAME = ckit_bot_version.bot_name_from_file(__file__)
-BOT_VERSION = (Path(__file__).parents[1] / "VERSION").read_text().strip()
-SETUP_SCHEMA = json.loads((Path(__file__).parent / "setup_schema.json").read_text())
+INTEGRATION_TESTER_SETUP_SCHEMA = json.loads((Path(__file__).parent / "setup_schema.json").read_text()) + fi_resend.RESEND_SETUP_SCHEMA
 
 
 async def integration_tester_main_loop(
     fclient: ckit_client.FlexusClient,
     rcx: ckit_bot_exec.RobotContext,
 ) -> None:
-    setup = ckit_bot_exec.official_setup_mixing_procedure(SETUP_SCHEMA, rcx.persona.persona_setup)
+    setup = ckit_bot_exec.official_setup_mixing_procedure(INTEGRATION_TESTER_SETUP_SCHEMA, rcx.persona.persona_setup)
 
     integr_objects = await ckit_integrations_db.main_loop_integrations_init(INTEGRATION_TESTER_INTEGRATIONS, rcx, setup)
     supported_integrations = sorted({r.integr_name for r in INTEGRATION_TESTER_INTEGRATIONS})
@@ -170,7 +168,7 @@ async def integration_tester_main_loop(
                     )
                 )
 
-    @rcx.on_tool_call(PLAN_BATCHES_TOOL.name)
+    @rcx.on_tool_call(INTEGRATION_TESTER_PLAN_BATCHES_TOOL.name)
     async def toolcall_plan_batches(toolcall, model_produced_args):
         args = model_produced_args or {}
         req = _requested_names(str(args.get("requested", "all")))
@@ -226,29 +224,18 @@ async def integration_tester_main_loop(
 def main():
     from flexus_simple_bots.integration_tester import integration_tester_install
     scenario_fn = ckit_bot_exec.parse_bot_args()
+    bot_version = ckit_bot_version.read_version_file(__file__)
     fclient = ckit_client.FlexusClient(
-        ckit_client.bot_service_name(BOT_NAME, BOT_VERSION),
+        ckit_client.bot_service_name(BOT_NAME, bot_version),
         endpoint="/v1/jailed-bot",
     )
-
-    from dotenv import load_dotenv
-    load_dotenv()
-
-    async def _install_compat(client: ckit_client.FlexusClient) -> int:
-        await integration_tester_install.install(
-            client,
-            bot_name=BOT_NAME,
-            bot_version=BOT_VERSION,
-            tools=TOOLS,
-        )
-        return 0
 
     asyncio.run(ckit_bot_exec.run_bots_in_this_group(
         fclient,
         bot_main_loop=integration_tester_main_loop,
         inprocess_tools=TOOLS,
         scenario_fn=scenario_fn,
-        install_func=_install_compat,
+        install_func=integration_tester_install.install,
     ))
 
 

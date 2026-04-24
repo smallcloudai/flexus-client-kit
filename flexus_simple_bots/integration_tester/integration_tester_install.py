@@ -1,44 +1,34 @@
 import asyncio
-import json
 import logging
-from typing import List
 
 from flexus_client_kit import ckit_client, ckit_bot_install, ckit_cloudtool, ckit_integrations_db, ckit_skills
 from flexus_simple_bots import prompts_common
 from flexus_simple_bots.integration_tester import integration_tester_bot
 from flexus_simple_bots.integration_tester import integration_tester_prompts
 
-logger = logging.getLogger("integration_tester")
+logger = logging.getLogger("bot_integration_tester")
 
-INTEGRATION_TESTER_SKILLS = ckit_skills.static_skills_find(integration_tester_bot.INTEGRATION_TESTER_ROOTDIR, shared_skills_allowlist="", integration_skills_allowlist="")
+TOOL_NAMESET = {t.name for t in integration_tester_bot.TOOLS}
 
-
-def _build_experts(tools):
-    builtin_skills = ckit_skills.read_name_description(integration_tester_bot.INTEGRATION_TESTER_ROOTDIR, INTEGRATION_TESTER_SKILLS)
-    tool_names = {t.name for rec in integration_tester_bot.INTEGRATION_TESTER_INTEGRATIONS for t in rec.integr_tools}
-    tool_names.add(integration_tester_bot.PLAN_BATCHES_TOOL.name)
-    allow_tools = ",".join(tool_names | ckit_cloudtool.KANBAN_ADVANCED | {"flexus_hand_over_task"})
-
-    return [
-        ("default", ckit_bot_install.FMarketplaceExpertInput(
-            fexp_system_prompt=integration_tester_prompts.DEFAULT_PROMPT,
-            fexp_python_kernel="",
-            fexp_allow_tools=allow_tools,
-            fexp_nature="NATURE_INTERACTIVE",
-            fexp_builtin_skills=builtin_skills,
-            fexp_description="Test API key integrations",
-        )),
-        ("autonomous", ckit_bot_install.FMarketplaceExpertInput(
-            fexp_system_prompt=integration_tester_prompts.AUTONOMOUS_PROMPT,
-            fexp_python_kernel="",
-            fexp_allow_tools=allow_tools,
-            fexp_nature="NATURE_AUTONOMOUS",
-            fexp_inactivity_timeout=600,
-            fexp_builtin_skills=builtin_skills,
-            fexp_description="Autonomous integration testing",
-        )),
-    ]
-
+EXPERTS = [
+    ("default", ckit_bot_install.FMarketplaceExpertInput(
+        fexp_system_prompt=integration_tester_prompts.DEFAULT_PROMPT,
+        fexp_python_kernel="",
+        fexp_allow_tools=",".join(TOOL_NAMESET | ckit_cloudtool.KANBAN_ADVANCED | {"flexus_hand_over_task"}),
+        fexp_nature="NATURE_INTERACTIVE",
+        fexp_builtin_skills=ckit_skills.read_name_description(integration_tester_bot.INTEGRATION_TESTER_ROOTDIR, integration_tester_bot.INTEGRATION_TESTER_SKILLS),
+        fexp_description="Test API key integrations",
+    )),
+    ("autonomous", ckit_bot_install.FMarketplaceExpertInput(
+        fexp_system_prompt=integration_tester_prompts.AUTONOMOUS_PROMPT,
+        fexp_python_kernel="",
+        fexp_allow_tools=",".join(TOOL_NAMESET | ckit_cloudtool.KANBAN_ADVANCED | {"flexus_hand_over_task"}),
+        fexp_nature="NATURE_AUTONOMOUS",
+        fexp_inactivity_timeout=600,
+        fexp_builtin_skills=ckit_skills.read_name_description(integration_tester_bot.INTEGRATION_TESTER_ROOTDIR, integration_tester_bot.INTEGRATION_TESTER_SKILLS),
+        fexp_description="Autonomous integration testing",
+    )),
+]
 
 INTEGRATION_TESTER_DESC = """
 **Job description**
@@ -77,18 +67,8 @@ def _ensure_marketplace_images() -> None:
         pic_small_path.write_bytes(fallback_small_path.read_bytes())
 
 
-async def install(
-    client: ckit_client.FlexusClient,
-    bot_name: str,
-    bot_version: str,
-    tools: List[ckit_cloudtool.CloudTool],
-):
-    setup_schema_path = integration_tester_bot.INTEGRATION_TESTER_ROOTDIR / "setup_schema.json"
-    integration_tester_setup_default = json.loads(setup_schema_path.read_text())
-
+async def install(client: ckit_client.FlexusClient):
     _ensure_marketplace_images()
-
-    experts = _build_experts(tools)
 
     await ckit_bot_install.marketplace_upsert_dev_bot(
         client,
@@ -109,7 +89,7 @@ async def install(
             },
             prompts_common.SCHED_TODO_5M | {"sched_when": "EVERY:1m", "sched_fexp_name": "autonomous"},
         ],
-        marketable_setup_default=integration_tester_setup_default,
+        marketable_setup_default=integration_tester_bot.INTEGRATION_TESTER_SETUP_SCHEMA,
         marketable_featured_actions=[
             {"feat_question": "Test all integrations", "feat_expert": "default"},
             {"feat_question": "Test gmail", "feat_expert": "default"},
@@ -120,11 +100,13 @@ async def install(
             {"feat_question": "Test airtable", "feat_expert": "default"},
             {"feat_question": "Test hubspot", "feat_expert": "default"},
             {"feat_question": "Test twilio", "feat_expert": "default"},
+            {"feat_question": "Test resend", "feat_expert": "default"},
+            {"feat_question": "Test newsapi", "feat_expert": "default"},
         ],
         marketable_intro_message="Hi! I'm Integration Tester. I create deterministic kanban batch tasks and resolve them autonomously.",
         marketable_preferred_model_expensive="gpt-5.4-mini",
         marketable_preferred_model_cheap="gpt-5.4-mini",
-        marketable_experts=[(name, exp.filter_tools(tools)) for name, exp in experts],
+        marketable_experts=[(name, exp.filter_tools(integration_tester_bot.TOOLS)) for name, exp in EXPERTS],
         add_integrations_into_expert_system_prompt=integration_tester_bot.INTEGRATION_TESTER_INTEGRATIONS,
         marketable_tags=["testing", "integrations", "qa"],
         marketable_forms=ckit_bot_install.load_form_bundles(__file__),
@@ -140,6 +122,8 @@ async def install(
             "slack",
             "telegram",
             "twilio_manual",
+            "resend",
+            "newsapi",
         ],
         marketable_auth_scopes={
             "gmail": ckit_integrations_db.GOOGLE_OAUTH_BASE_SCOPES + [
@@ -171,8 +155,5 @@ async def install(
 
 
 if __name__ == "__main__":
-    from dotenv import load_dotenv
-    load_dotenv()
-
     client = ckit_client.FlexusClient("integration_tester_install")
-    asyncio.run(install(client, bot_name="integration_tester", bot_version="dev", tools=integration_tester_bot.TOOLS))
+    asyncio.run(install(client))
