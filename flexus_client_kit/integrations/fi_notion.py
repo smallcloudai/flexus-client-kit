@@ -73,7 +73,7 @@ METHOD_SPECS = {
 METHOD_IDS = list(METHOD_SPECS.keys())
 
 NOTION_TOOL = ckit_cloudtool.CloudTool(
-    strict=True,
+    strict=False,
     name=PROVIDER_NAME,
     description="notion: knowledge base and content hub. op=help|status|list_methods|call",
     parameters={
