@@ -1,4 +1,5 @@
 import asyncio
+import dataclasses
 import json
 import logging
 from contextlib import AsyncExitStack, asynccontextmanager
@@ -20,12 +21,19 @@ from flexus_client_kit import ckit_bot_exec
 from flexus_client_kit import ckit_cloudtool
 from flexus_client_kit import ckit_shutdown
 
-logger = logging.getLogger("fimcp")
+logger = logging.getLogger("__mcp")
 
 
-MCP_DATABASE = {  # name: (url, auth_provider)
-    "context7": ("https://mcp.context7.com/mcp", ""),
-    "fibery":   ("https://mcp.fibery.io/mcp", "fibery"),
+@dataclasses.dataclass
+class McpServerEntry:
+    url: str
+    auth_provider: str = ""
+    dont_validate_tool_result: bool = False  # server returns extra undeclared fields, skip strict structured-content validation
+
+
+MCP_DATABASE: Dict[str, McpServerEntry] = {
+    "context7": McpServerEntry(url="https://mcp.context7.com/mcp"),
+    "fibery":   McpServerEntry(url="https://mcp.fibery.io/mcp", auth_provider="fibery", dont_validate_tool_result=True),
 }
 
 
@@ -75,10 +83,22 @@ def _render_resource(result) -> str:
     return "\n\n".join(out) or "(empty resource)"
 
 
+async def _noop_validate(self, name, result):
+    return None
+
+
+def _disable_strict_output_validation(session: ClientSession):
+    # Fibery and possibly other servers return undeclared fields (e.g. "fixLogs")
+    # that fail strict additionalProperties=false validation. We only consume
+    # result.content[0].text anyway, so skip structured-content validation.
+    session._validate_tool_result = _noop_validate.__get__(session, ClientSession)
+
+
 class IntegrationMcp:
-    def __init__(self, url: str, mcp_name: str, token: str = ""):
-        self.url = url.strip()
+    def __init__(self, mcp_name: str, entry: McpServerEntry, url: str, token: str):
         self.mcp_name = mcp_name
+        self.entry = entry
+        self.url = url.strip()
         self.headers: Dict[str, str] = {"Authorization": f"Bearer {token}"} if token else {}
         self._use_sse = None  # auto-detected on first connect
         self._mcp_tools = []
@@ -250,6 +270,8 @@ class IntegrationMcp:
         client = httpx.AsyncClient(headers=h, timeout=httpx.Timeout(15))
         async with streamable_http_client(self.url, http_client=client) as streams:
             async with ClientSession(streams[0], streams[1]) as session:
+                if self.entry.dont_validate_tool_result:
+                    _disable_strict_output_validation(session)
                 await session.initialize()
                 yield session
 
@@ -258,6 +280,8 @@ class IntegrationMcp:
         h = self.headers or None
         async with sse_client(self.url, headers=h, timeout=15) as streams:
             async with ClientSession(streams[0], streams[1]) as session:
+                if self.entry.dont_validate_tool_result:
+                    _disable_strict_output_validation(session)
                 await session.initialize()
                 yield session
 
@@ -311,6 +335,8 @@ class IntegrationMcp:
                 client = httpx.AsyncClient(headers=h, timeout=httpx.Timeout(15))
                 streams = await stack.enter_async_context(streamable_http_client(self.url, http_client=client))
             session = await stack.enter_async_context(ClientSession(streams[0], streams[1]))
+            if self.entry.dont_validate_tool_result:
+                _disable_strict_output_validation(session)
             await session.initialize()
         except BaseException:
             await self._close_stack(stack)
@@ -361,7 +387,7 @@ def mcp_setup_schema(names: list[str], bs_group: str = "MCP", bs_order_start: in
     _validate_names(names)
     schema = []
     for i, n in enumerate(names):
-        url = MCP_DATABASE[n][0]
+        url = MCP_DATABASE[n].url
         schema.append({
             "bs_name": f"mcp_{n}_url",
             "bs_type": "string_long",
@@ -382,15 +408,15 @@ def mcp_tools(names: list[str]) -> list[ckit_cloudtool.CloudTool]:
 async def mcp_launch(names: list[str], rcx: ckit_bot_exec.RobotContext, setup: Dict[str, Any]) -> None:
     _validate_names(names)
     for n in names:
-        default_url, auth_provider = MCP_DATABASE[n]
-        url = setup.get(f"mcp_{n}_url", default_url)
+        entry = MCP_DATABASE[n]
+        url = setup.get(f"mcp_{n}_url", entry.url)
         if not url:
             async def _not_configured(toolcall, args, _n=n):
                 return f"MCP server {_n} is not configured, set mcp_{_n}_url in bot setup"
             rcx.on_tool_call(f"mcp_{n}")(_not_configured)
             continue
-        token = _mcp_token_from_external_auth(rcx.external_auth, auth_provider) if auth_provider else ""
-        mcp = IntegrationMcp(url=url, token=token, mcp_name=n)
+        token = _mcp_token_from_external_auth(rcx.external_auth, entry.auth_provider) if entry.auth_provider else ""
+        mcp = IntegrationMcp(mcp_name=n, entry=entry, url=url, token=token)
         await mcp.initialize()
         if mcp._session_task:
             ckit_shutdown.give_task_to_cancel(f"mcp_{n}", mcp._session_task)
