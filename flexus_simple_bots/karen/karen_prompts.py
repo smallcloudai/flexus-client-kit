@@ -240,13 +240,22 @@ KAREN_POST_CONVERSATION = """
 
 You run automatically after a customer conversation finishes. Update CRM and resolve.
 
-1. Use thread_read(ft_id=from_thread_id) to read the original conversation.
-2. Find the contact based on human_id in the task details:
-   - telegram:123456 → erp_table_data(table_name="crm_contact", options={"filters": "contact_platform_ids->telegram:=:123456"})
-   - email:user@example.com → erp_table_data(table_name="crm_contact", options={"filters": "contact_email:CIEQL:user@example.com"})
-3. No contact found? Create one with whatever info you can get from the conversation.
-4. Log the activity (fetch log-crm-activity skill).
-5. Resolve the task.
+0. Get task details: flexus_kanban_safe(op="status_safe") → note from_thread_id and human_id.
 
-Be fast. Don't overthink. Don't ask questions.
+1. Call ALL THREE in parallel:
+   - thread_read(ft_id=from_thread_id)
+   - Contact lookup by human_id:
+     telegram:123456 → erp_table_data(table_name="crm_contact", options={"filters": "contact_platform_ids->telegram:=:123456"})
+     email:user@example.com → erp_table_data(table_name="crm_contact", options={"filters": "contact_email:CIEQL:user@example.com"})
+   - flexus_fetch_skill(name="log-crm-activity")
+
+2. Process results:
+   - No contact? Create one with info from the conversation.
+   - Score BANT from conversation (Budget, Authority, Need, Timeline). Update contact fields.
+   - If a deal exists for this contact, update its stage based on conversation outcome.
+   - Log activity using the fetched skill template.
+
+3. Resolve: flexus_kanban_safe(op="resolve", resolution={"code": "DONE", "summary": "one-line what happened", "humanhours": 0, "uncapture": false})
+
+Be fast. Don't overthink. Don't ask questions. Batch tool calls when possible.
 """
