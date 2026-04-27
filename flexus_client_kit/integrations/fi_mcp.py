@@ -50,6 +50,11 @@ def _unwrap_http_status(e: BaseException) -> int:
 
 
 SESSION_TTL = 60  # seconds of idle before closing cached session
+MCP_CALL_TIMEOUT = 30  # seconds for a single MCP call before declaring the session dead
+
+
+class McpCallTimeout(Exception):
+    pass
 
 
 def _truncate(s: str, n: int) -> str:
@@ -231,36 +236,39 @@ class IntegrationMcp:
                     return json.dumps(entry, indent=2, ensure_ascii=False)
             return f"Unknown tool '{name}'\n"
 
-        if op == "call":
-            if not name:
-                return "Missing name parameter\n"
-            # XXX That might be questionable, removes all the None, why would it do that
-            clean_args = {k: v for k, v in (args or {}).items() if v is not None}
-            logger.info("fi_mcp calling %s on %s", name, self.url)
-            result = await self._session_run("call_tool", name=name, arguments=clean_args)
-            # XXX handle multimodal content (images etc) when needed
-            text = result.content[0].text if result.content and hasattr(result.content[0], "text") else ""
-            logger.info("fi_mcp %s done, %d chars", name, len(text))
-            return text
+        try:
+            if op == "call":
+                if not name:
+                    return "Missing name parameter\n"
+                # XXX That might be questionable, removes all the None, why would it do that
+                clean_args = {k: v for k, v in (args or {}).items() if v is not None}
+                logger.info("fi_mcp calling %s on %s", name, self.url)
+                result = await self._session_run("call_tool", name=name, arguments=clean_args)
+                # XXX handle multimodal content (images etc) when needed
+                text = result.content[0].text if result.content and hasattr(result.content[0], "text") else ""
+                logger.info("fi_mcp %s done, %d chars", name, len(text))
+                return text
 
-        if op == "get_prompt":
-            if not name:
-                return "Missing name parameter\n"
-            str_args = {k: str(v) for k, v in (args or {}).items() if v is not None}
-            logger.info("fi_mcp get_prompt %s on %s", name, self.url)
-            result = await self._session_run("get_prompt", name=name, arguments=str_args)
-            return _render_prompt(result)
+            if op == "get_prompt":
+                if not name:
+                    return "Missing name parameter\n"
+                str_args = {k: str(v) for k, v in (args or {}).items() if v is not None}
+                logger.info("fi_mcp get_prompt %s on %s", name, self.url)
+                result = await self._session_run("get_prompt", name=name, arguments=str_args)
+                return _render_prompt(result)
 
-        if op == "read_resource":
-            if not uri:
-                return "Missing uri parameter\n"
-            logger.info("fi_mcp read_resource %s on %s", uri, self.url)
-            try:
-                parsed = AnyUrl(uri)
-            except Exception as e:
-                return f"Invalid uri {uri!r}: {e}\n"
-            result = await self._session_run("read_resource", uri=parsed)
-            return _render_resource(result)
+            if op == "read_resource":
+                if not uri:
+                    return "Missing uri parameter\n"
+                logger.info("fi_mcp read_resource %s on %s", uri, self.url)
+                try:
+                    parsed = AnyUrl(uri)
+                except Exception as e:
+                    return f"Invalid uri {uri!r}: {e}\n"
+                result = await self._session_run("read_resource", uri=parsed)
+                return _render_resource(result)
+        except McpCallTimeout as e:
+            return f"MCP server {self.mcp_name} did not respond within {MCP_CALL_TIMEOUT}s ({e}). Retry this same call up to 2 more times; if it still times out, treat this MCP tool as non-working and proceed without it.\n"
 
         return f"Unknown op '{op}', use list/help/call/get_prompt/read_resource\n"
 
@@ -308,21 +316,22 @@ class IntegrationMcp:
             try:
                 if not session:
                     session, stack = await self._open_session()
-                result = await getattr(session, method_name)(**kwargs)
+                logger.info("🐙 fi_mcp %s -> session.%s", self.mcp_name, method_name)
+                result = await asyncio.wait_for(getattr(session, method_name)(**kwargs), timeout=MCP_CALL_TIMEOUT)
+                logger.info("🐙 fi_mcp %s <- session.%s ok", self.mcp_name, method_name)
+            except asyncio.TimeoutError:
+                logger.warning("🐙 fi_mcp %s session.%s timed out after %ds, dropping session", self.mcp_name, method_name, MCP_CALL_TIMEOUT)
+                # Don't await close here — the underlying anyio task group is mid-call and would deadlock; drop refs and let GC clean up
+                session, stack = None, None
+                resp.set_exception(McpCallTimeout(f"{method_name} timed out after {MCP_CALL_TIMEOUT}s"))
+                continue
             except Exception as e:
+                logger.info("🐙 fi_mcp %s session.%s raised %s: %s, closing session", self.mcp_name, method_name, type(e).__name__, e)
                 if session:
-                    logger.info("fi_mcp %s session dead, reconnecting", self.mcp_name)
                     await self._close_stack(stack)
                     session, stack = None, None
-                    try:
-                        session, stack = await self._open_session()
-                        result = await getattr(session, method_name)(**kwargs)
-                    except Exception as e2:
-                        resp.set_exception(e2)
-                        continue
-                else:
-                    resp.set_exception(e)
-                    continue
+                resp.set_exception(e)
+                continue
             resp.set_result(result)
 
     async def _open_session(self):
