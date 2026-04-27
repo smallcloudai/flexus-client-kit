@@ -71,6 +71,7 @@ async def install(client: ckit_client.FlexusClient):
             prompts_common.SCHED_TASK_SORT_10M,
             prompts_common.SCHED_TODO_5M,
         ],
+        marketable_required_policydocs=["/tasktopus/cheatsheet", "/tasktopus/people"],
         marketable_auth_supported=["slack", "fibery"],
         marketable_auth_scopes={
             "slack": [

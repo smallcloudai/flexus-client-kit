@@ -105,6 +105,7 @@ active participant, hopefully (because that will add to confusion). The lesson h
 
 # Format of /tasktopus/people
 
+```json
 {
   "people-db": {
     "meta": {
@@ -172,37 +173,17 @@ active participant, hopefully (because that will add to confusion). The lesson h
     }
   }
 }
+```
+
+Format of /tasktopus/cheatsheet: see SELF_IMPROVEMENT_PLAN.md
 
 
-# Format of /tasktopus/cheatsheet
-
-{
-  "cheatsheet": {
-    "meta": {
-      "created": "20260424",
-      "updated": "20260424"
-    },
-    "schema": {
-      "task_details":     {"type": "string", "order": 0, "title": "Get one task by public-id or URL",        "ui:multiline": true},
-      "task_list":        {"type": "string", "order": 1, "title": "List tasks (by assignee, state, sprint)",  "ui:multiline": true},
-      "task_add_comment": {"type": "string", "order": 2, "title": "Add a comment to a task",                  "ui:multiline": true},
-      "task_create":      {"type": "string", "order": 3, "title": "Create a new task",                        "ui:multiline": true},
-      "task_search":      {"type": "string", "order": 4, "title": "Free-text search across tasks",            "ui:multiline": true},
-      "user_list":        {"type": "string", "order": 5, "title": "List users in the workspace",              "ui:multiline": true},
-      "user_details":     {"type": "string", "order": 6, "title": "Look up a single user",                    "ui:multiline": true}
-    },
-    "task_details": "fetch_by_url {\"url\": \"https://refact.fibery.io/Software_Development/Stage1-bots-917#Software_Development/Task/Karen-Source-traceability-for-admin-2401\"}\nquery {\"q/from\": \"Software Development/Task\", \"q/select\": {\"PublicId\": [\"fibery/public-id\"], \"Title\": [\"Software Development/name\"], \"State\": [\"workflow/state\", \"enum/name\"], \"Updated\": [\"fibery/modification-date\"], \"DescSecret\": [\"Software Development/description\", \"Collaboration~Documents/secret\"]}, \"q/where\": [\"=\", [\"fibery/public-id\"], \"2401\"], \"q/limit\": 1}\nget_documents_content {\"secrets\": [\"<desc-secret-from-prev-query>\"]}\n",
-    "task_list": "query {\"q/from\": \"Software Development/Task\", \"q/select\": {\"PublicId\": [\"fibery/public-id\"], \"Title\": [\"Software Development/name\"], \"State\": [\"workflow/state\", \"enum/name\"], \"Updated\": [\"fibery/modification-date\"]}, \"q/where\": [\"q/contains?\", [\"assignments/assignees\", \"fibery/id\"], \"904b0460-8b98-11ef-8837-cb7281aea57d\"], \"q/order-by\": [[[\"fibery/modification-date\"], \"q/desc\"]], \"q/limit\": 20}\nquery {\"q/from\": \"Software Development/Task\", \"q/select\": {\"PublicId\": [\"fibery/public-id\"], \"Title\": [\"Software Development/name\"]}, \"q/where\": [\"q/and\", [\"q/equals-ignoring-case?\", [\"workflow/state\", \"enum/name\"], \"🏃 In Progress\"], [\">\", [\"fibery/modification-date\"], \"2026-04-01T00:00:00.000Z\"]], \"q/limit\": 50}\nquery {\"q/from\": \"Software Development/Task\", \"q/select\": {\"PublicId\": [\"fibery/public-id\"], \"Title\": [\"Software Development/name\"]}, \"q/where\": [\"q/or\", [\"q/contains?\", [\"assignments/assignees\", \"fibery/id\"], \"904b0460-8b98-11ef-8837-cb7281aea57d\"], [\"q/contains?\", [\"Software Development/Task Owner\", \"fibery/id\"], \"904b0460-8b98-11ef-8837-cb7281aea57d\"]], \"q/limit\": 50}\nquery {\"q/from\": \"Product/Task\", \"q/select\": {\"PublicId\": [\"fibery/public-id\"], \"Title\": [\"Product/Name\"], \"State\": [\"workflow/state\", \"enum/name\"], \"Owner\": [\"Product/Owner\", \"user/name\"]}, \"q/where\": [\"=\", [\"Product/Owner\", \"fibery/id\"], \"904b0460-8b98-11ef-8837-cb7281aea57d\"], \"q/limit\": 20}\nquery {\"q/from\": \"Marketing and Growth/Daily Tasks\", \"q/select\": {\"PublicId\": [\"fibery/public-id\"], \"Title\": [\"Marketing and Growth/Name\"], \"Status\": [\"Marketing and Growth/TODO Status\", \"enum/name\"]}, \"q/where\": [\"q/contains?\", [\"Marketing and Growth/People\", \"fibery/id\"], \"904b0460-8b98-11ef-8837-cb7281aea57d\"], \"q/limit\": 20}\n",
-    "task_add_comment": "",
-    "task_create": "",
-    "task_search": "search {\"query\": \"Karen source traceability\"}\nquery {\"q/from\": \"Software Development/Task\", \"q/select\": {\"PublicId\": [\"fibery/public-id\"], \"Title\": [\"Software Development/name\"]}, \"q/where\": [\"q/contains?\", [\"Software Development/name\"], \"Karen\"], \"q/limit\": 20}\n",
-    "user_list": "query {\"q/from\": \"fibery/user\", \"q/select\": {\"Id\": [\"fibery/id\"], \"Name\": [\"user/name\"], \"Email\": [\"user/email\"], \"Role\": [\"fibery/role\"]}, \"q/where\": [\"=\", [\"fibery/active?\"], true], \"q/limit\": 1000}\n",
-    "user_details": "get_me {}\nquery {\"q/from\": \"fibery/user\", \"q/select\": {\"Id\": [\"fibery/id\"], \"Name\": [\"user/name\"], \"Email\": [\"user/email\"]}, \"q/where\": [\"q/equals-ignoring-case?\", [\"user/email\"], \"oleg@smallcloud.tech\"], \"q/limit\": 1}\n"
-  }
-}
 
 
-tasktopus_*.py and PLAN.md nearby
+
+
+
+tasktopus_*.py and TASKTOPUS_PLAN.md nearby
 karen_*.py
 frog_*.py
 flexus_simple_bots/karen/very_limited__actual_support.yaml
