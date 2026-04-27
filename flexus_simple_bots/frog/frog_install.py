@@ -96,6 +96,7 @@ async def install(client: ckit_client.FlexusClient):
             ],
             "google": ckit_integrations_db.GOOGLE_OAUTH_BASE_SCOPES + [
                 "https://www.googleapis.com/auth/spreadsheets",
+                "https://www.googleapis.com/auth/documents",
             ],
         },
     )
