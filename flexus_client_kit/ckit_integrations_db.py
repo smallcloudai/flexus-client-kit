@@ -48,13 +48,6 @@ class IntegrationRecord:
 def static_integrations_load(bot_dir: Path, allowlist: list[str], builtin_skills: list[str]) -> list[IntegrationRecord]:
     # static means designed to save into constant on top level of a bot file
     # logger is not yet initilized here, no logs possible
-    # Note: integr_name (allowlist token, tool name) is independent of integr_provider (OAuth key).
-    # Multiple integrations can share one provider, e.g. google_sheets and google_docs both pull
-    # their token from external_auth["google"]. Bot author lists exactly the integrations they want;
-    # runtime skips any whose provider has no token.
-    # XXX marketable_auth_scopes (declared in install.py per provider) must include scopes for every
-    # integration the bot lists that uses that provider — currently manual, easy to forget. Could be
-    # autogen'd from sum(rec.integr_scopes for rec where rec.integr_provider == p).
     result = []
     for name in allowlist:
         if name == "skills":
@@ -166,7 +159,7 @@ def static_integrations_load(bot_dir: Path, allowlist: list[str], builtin_skills
                 integr_tools=[fi_google_sheets.GOOGLE_SHEETS_TOOL],
                 integr_init=_init_gsheets,
                 integr_setup_handlers=lambda obj, rcx: [_register_tool_handler(rcx, "google_sheets", obj.called_by_model, fake_in_scenario=True)],
-                integr_provider="google",
+                integr_provider="google_sheets",
                 integr_scopes=fi_google_sheets.REQUIRED_SCOPES,
             ))
 
@@ -179,7 +172,7 @@ def static_integrations_load(bot_dir: Path, allowlist: list[str], builtin_skills
                 integr_tools=[fi_google_docs.GOOGLE_DOCS_TOOL],
                 integr_init=_init_gdocs,
                 integr_setup_handlers=lambda obj, rcx: [_register_tool_handler(rcx, "google_docs", obj.called_by_model, fake_in_scenario=True)],
-                integr_provider="google",
+                integr_provider="google_docs",
                 integr_scopes=fi_google_docs.REQUIRED_SCOPES,
             ))
 
