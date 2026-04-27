@@ -1,6 +1,6 @@
 ---
 name: collect-support-knowledge-base
-description: Use this skill to set up a customer-support knowledge base for a small or mid-size business owner. Use when the user is creating /support/summary, improving it, editing tone of voice, configuring escalation rules, setting up daily reporting, or onboarding a business that has no website or no written docs. Works across industries (e-commerce, SaaS, agency, clinic, education, hospitality, real estate, professional services, local services, regulated retail).
+description: Use this skill to set up or improve the customer-support knowledge base for a small or mid-size business owner. Activate it when the user asks to set up support, onboard their business, change tone of voice, change escalation rules, set up daily reporting, when /support/summary does not exist yet, when the user provides a website or documents and expects you to take it from there, or when the user has no website and needs to be interviewed. You drive the process; the user only answers your questions and confirms decisions. Works across industries (e-commerce, SaaS, agency, clinic, education, hospitality, real estate, professional services, local services, regulated retail).
 ---
 
 # Your Job
