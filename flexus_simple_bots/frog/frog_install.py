@@ -3,6 +3,7 @@ from flexus_client_kit import ckit_client
 from flexus_client_kit import ckit_bot_install
 from flexus_client_kit import ckit_cloudtool
 from flexus_client_kit import ckit_integrations_db
+from flexus_client_kit.integrations import fi_x
 from flexus_client_kit import ckit_skills
 
 from flexus_simple_bots import prompts_common
@@ -79,8 +80,9 @@ async def install(client: ckit_client.FlexusClient):
             prompts_common.SCHED_TODO_5M | {"sched_when": "EVERY:2m", "sched_first_question": "Work on the assigned task with enthusiasm!"},
         ],
         marketable_forms=ckit_bot_install.load_form_bundles(__file__),
-        marketable_auth_supported=["gmail", "google_business", "google_ads", "google_sheets", "google_docs", "notion", "notion_manual", "airtable", "hubspot", "twilio_manual"],
+        marketable_auth_supported=["gmail", "google_business", "google_ads", "google_sheets", "google_docs", "x", "notion", "notion_manual", "airtable", "hubspot", "twilio_manual"],
         marketable_auth_scopes={
+            "x": fi_x.REQUIRED_SCOPES,
             "gmail": ckit_integrations_db.GOOGLE_OAUTH_BASE_SCOPES + [
                 "https://www.googleapis.com/auth/gmail.readonly",
                 "https://www.googleapis.com/auth/gmail.compose",

@@ -45,6 +45,7 @@ FROG_INTEGRATIONS: list[ckit_integrations_db.IntegrationRecord] = ckit_integrati
         "google_docs",
         "telegram",
         "slack",
+        "x",
         "notion",
         "airtable",
         "hubspot",

@@ -191,6 +191,20 @@ def static_integrations_load(bot_dir: Path, allowlist: list[str], builtin_skills
                 integr_prompt="",
             ))
 
+        elif name == "x":
+            from flexus_client_kit.integrations import fi_x
+            async def _init_x(rcx, setup):
+                return fi_x.IntegrationX(rcx.fclient, rcx)
+            result.append(IntegrationRecord(
+                integr_name=name,
+                integr_tools=[fi_x.X_TOOL],
+                integr_init=_init_x,
+                integr_setup_handlers=lambda obj, rcx: [_register_tool_handler(rcx, "x", obj.called_by_model, fake_in_scenario=True)],
+                integr_provider="x",
+                integr_scopes=fi_x.REQUIRED_SCOPES,
+                integr_prompt="",
+            ))
+
         elif name.startswith("facebook"):   # "facebook[account, adset]"
             # In manifest.json, it's not possible to write [] brackets (according to the json schema), but in a
             # bot defined by code, you can
