@@ -79,7 +79,7 @@ async def install(client: ckit_client.FlexusClient):
             prompts_common.SCHED_TODO_5M | {"sched_when": "EVERY:2m", "sched_first_question": "Work on the assigned task with enthusiasm!"},
         ],
         marketable_forms=ckit_bot_install.load_form_bundles(__file__),
-        marketable_auth_supported=["gmail", "google_business", "google_ads", "google", "notion", "notion_manual", "airtable", "hubspot", "twilio_manual"],
+        marketable_auth_supported=["gmail", "google_business", "google_ads", "google_sheets", "google_docs", "notion", "notion_manual", "airtable", "hubspot", "twilio_manual"],
         marketable_auth_scopes={
             "gmail": ckit_integrations_db.GOOGLE_OAUTH_BASE_SCOPES + [
                 "https://www.googleapis.com/auth/gmail.readonly",
@@ -94,8 +94,10 @@ async def install(client: ckit_client.FlexusClient):
             "google_ads": ckit_integrations_db.GOOGLE_OAUTH_BASE_SCOPES + [
                 "https://www.googleapis.com/auth/adwords",
             ],
-            "google": ckit_integrations_db.GOOGLE_OAUTH_BASE_SCOPES + [
+            "google_sheets": ckit_integrations_db.GOOGLE_OAUTH_BASE_SCOPES + [
                 "https://www.googleapis.com/auth/spreadsheets",
+            ],
+            "google_docs": ckit_integrations_db.GOOGLE_OAUTH_BASE_SCOPES + [
                 "https://www.googleapis.com/auth/documents",
             ],
         },

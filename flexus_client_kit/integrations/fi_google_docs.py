@@ -18,7 +18,7 @@ REQUIRED_SCOPES = ["https://www.googleapis.com/auth/documents"]
 GOOGLE_DOCS_TOOL = ckit_cloudtool.CloudTool(
     strict=False,
     name="google_docs",
-    auth_required="google",
+    auth_required="google_docs",
     description="Access Google Docs to create, read, and edit documents. Call with op=\"help\" to see all available ops.",
     parameters={
         "type": "object",
@@ -74,7 +74,7 @@ class IntegrationGoogleDocs:
         }
 
     async def _ensure_service(self) -> bool:
-        google_auth = self.rcx.external_auth.get("google") or {}
+        google_auth = self.rcx.external_auth.get("google_docs") or {}
         access_token = (google_auth.get("token") or {}).get("access_token", "")
         if not access_token:
             self._service = None
@@ -134,7 +134,7 @@ class IntegrationGoogleDocs:
         except googleapiclient.errors.HttpError as e:
             if e.resp.status in (401, 403):
                 self._last_access_token = None
-                return "❌ Authentication error. Please reconnect Google in workspace settings.\n\nThen retry."
+                return "❌ Authentication error. Please reconnect Google Docs in Integrations tab.\n\nThen retry."
             logger.info("Docs API error %s: %s", op, e, exc_info=True)
             return f"❌ Google Docs API error: {e.resp.status} {e._get_reason()}"
 
@@ -158,7 +158,7 @@ class IntegrationGoogleDocs:
         if authenticated:
             r += f"  Available ops: {', '.join(self.op_map.keys())}\n"
         else:
-            r += "\n❌ Not authenticated. Please connect Google in workspace settings.\n"
+            r += "\n❌ Not authenticated. Please connect Google Docs in Integrations tab.\n"
         return r
 
     async def _create(self, args):
