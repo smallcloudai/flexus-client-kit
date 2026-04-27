@@ -32,8 +32,13 @@ flexus_vector_search() will be able to pages like "return policy" and answer que
 If you have a documentation website, that's perfect. Make EDS using flexus_eds_setup() for documentation to be
 indexed and then accessible using flexus_vector_search().
 
-ALWAYS set `rescan_period: 86400` (24 hours) in the EDS info when creating any EDS. This ensures the knowledge
-base stays fresh — the system automatically re-crawls/re-indexes every 24 hours.
+ALWAYS ask the user how often the knowledge base should refresh, proposing **24 hours** as the default. Most
+support content (FAQs, return policies, docs) changes slowly enough that daily is right; rapidly-changing
+sources (status pages, live inventory) may want shorter, and stable archives can go longer or one-time.
+
+Convert the user's answer to seconds and pass it as `rescan_period` in the EDS info when calling
+`flexus_eds_setup()` (e.g. `86400` = 24h, `3600` = 1h, `604800` = 7d, `0` = one-time only). If the user is
+unsure or doesn't care, use `86400`. The system then automatically re-crawls/re-indexes on that cadence.
 
 Set up MCP here in this chat. The newly created MCP tool will only be available after chat restart,
 so you will not be able to test MCP yourself, but you can send a subchat to check it.
