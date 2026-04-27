@@ -188,10 +188,9 @@ REPORT_SCHEMA = {
         "title": "Token Costs",
         "properties": {
             "total_coins": {"type": "integer", "order": 0, "title": "Total Coins"},
-            "total_cost_usd": {"type": "number", "order": 1, "title": "Total Cost (USD)"},
-            "conversations_count": {"type": "integer", "order": 2, "title": "Conversations"},
-            "avg_cost_per_conversation": {"type": "number", "order": 3, "title": "Avg Cost/Conversation (USD)"},
-            "budget_utilization_pct": {"type": "number", "order": 4, "title": "Budget Utilization %"},
+            "conversations_count": {"type": "integer", "order": 1, "title": "Conversations"},
+            "avg_coins_per_conversation": {"type": "integer", "order": 2, "title": "Avg Coins/Conversation"},
+            "budget_utilization_pct": {"type": "number", "order": 3, "title": "Budget Utilization %"},
         },
     },
 }
@@ -353,6 +352,9 @@ async def handle_report(
     refunds = await ckit_erp.erp_table_data(http, "com_refund", ws_id, erp_schema.ComRefund, filters=f"refund_created_ts:>=:{ts0}", limit=1000)
     refund_amount = float(sum(r.refund_amount for r in refunds))
 
+    # XXX bad idea:
+    # - there are infinite tasks here
+    # - model already asks kanban about all the counters
     all_tasks = await ckit_kanban.bot_get_all_tasks(http, pid)
     done_tasks = [t for t in all_tasks if t.ktask_done_ts >= ts0]
     total_coins = sum(t.ktask_coins for t in done_tasks)
@@ -374,11 +376,11 @@ async def handle_report(
             "refund_amount": refund_amount,
         },
         "section02-tasks": {
-            "tasks_completed": len(done_tasks),
-            "tasks_success": by_code.get("SUCCESS", 0),
-            "tasks_failed": by_code.get("FAIL", 0),
-            "tasks_inconclusive": by_code.get("INCONCLUSIVE", 0),
-            "tasks_irrelevant": by_code.get("IRRELEVANT", 0),
+            "tasks_completed": 0,
+            "tasks_success": 0,
+            "tasks_failed": 0,
+            "tasks_inconclusive": 0,
+            "tasks_irrelevant": 0,
         },
         "section03-notes": {
             "notable_incidents": "",
@@ -394,9 +396,8 @@ async def handle_report(
         },
         "section05-costs": {
             "total_coins": total_coins,
-            "total_cost_usd": round(total_coins / 1_000_000, 2),
             "conversations_count": len(done_tasks),
-            "avg_cost_per_conversation": round(total_coins / max(len(done_tasks), 1) / 1_000_000, 4),
+            "avg_coins_per_conversation": total_coins // max(len(done_tasks), 1),
             "budget_utilization_pct": round(total_coins / max(total_budget, 1) * 100, 1),
         },
     }
@@ -418,9 +419,10 @@ async def handle_report(
 
     return (
         "✍️ %s\nmd5=%s\n\n%s\n\n"
-        "Task stats and resolution outcomes are pre-filled from kanban. "
-        "Fill in the notes section, then save. Use flexus_policy_document(op=\"update_at_location\", "
-        "args={\"p\": \"%s\", \"expected_md5\": \"%s\", \"updates\": [[\"karen-report.section03-notes.notable_incidents\", ...], ...]})"
+        "Task stats (section02-tasks) are zero — fill them using your kanban search tool. "
+        "Resolution outcomes (section04-resolution-summary) are pre-filled from resolution codes; add sentiment_notes if patterns stand out. "
+        "Then fill in notes. Use flexus_policy_document(op=\"update_at_location\", "
+        "args={\"p\": \"%s\", \"expected_md5\": \"%s\", \"updates\": [[\"karen-report.section02-tasks.tasks_completed\", ...], ...]})"
     ) % (path, result.md5_after, doc_text, path, result.md5_after)
 
 
