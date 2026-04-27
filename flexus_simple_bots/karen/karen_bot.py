@@ -152,35 +152,15 @@ REPORT_SCHEMA = {
             "refund_amount": {"type": "number", "order": 7, "title": "Refund Amount"},
         },
     },
-    "section02-tasks": {
-        "type": "object",
-        "title": "Tasks",
-        "properties": {
-            "tasks_completed": {"type": "integer", "order": 0, "title": "Completed"},
-            "tasks_success": {"type": "integer", "order": 1, "title": "Success"},
-            "tasks_failed": {"type": "integer", "order": 2, "title": "Failed"},
-            "tasks_inconclusive": {"type": "integer", "order": 3, "title": "Inconclusive"},
-            "tasks_irrelevant": {"type": "integer", "order": 4, "title": "Irrelevant"},
-        },
-    },
-    "section03-notes": {
+    "section02-notes": {
         "type": "object",
         "title": "Notes",
         "properties": {
             "notable_incidents": {"type": "string", "order": 0, "title": "Notable Incidents"},
             "setup_problems": {"type": "string", "order": 1, "title": "Setup Problems"},
             "what_people_asked": {"type": "string", "order": 2, "title": "What People Asked"},
-        },
-    },
-    "section04-resolution-summary": {
-        "type": "object",
-        "title": "Resolution Outcomes",
-        "properties": {
-            "resolved_success": {"type": "integer", "order": 0, "title": "Resolved: Success"},
-            "resolved_fail": {"type": "integer", "order": 1, "title": "Resolved: Fail"},
-            "resolved_inconclusive": {"type": "integer", "order": 2, "title": "Resolved: Inconclusive"},
-            "resolved_escalated": {"type": "integer", "order": 3, "title": "Resolved: Escalated"},
-            "sentiment_notes": {"type": "string", "order": 4, "title": "Sentiment Notes"},
+            "sentiment_notes": {"type": "string", "order": 3, "title": "Sentiment Notes"},
+            "task_resolution_summary": {"type": "string", "order": 4, "title": "Task Resolution Summary"},
         },
     },
 }
@@ -189,9 +169,9 @@ REPORT_TOOL = ckit_cloudtool.CloudTool(
     strict=True,
     name="karen_report",
     description=(
-        "Generate a daily or weekly report. Queries CRM, deals, orders, and kanban, "
+        "Generate a daily or weekly report. Queries CRM, deals, and orders, "
         "saves a schemed policy document to /support/reports/YYYYMMDD-daily or YYYYMMDD-weekly. "
-        "Returns collected data so you can fill in the notes section and save the final document."
+        "Returns collected data so you can ask kanban for task counts, fill in the notes section, and save the final document."
     ),
     parameters={
         "type": "object",
@@ -342,13 +322,6 @@ async def handle_report(
     refunds = await ckit_erp.erp_table_data(http, "com_refund", ws_id, erp_schema.ComRefund, filters=f"refund_created_ts:>=:{ts0}", limit=1000)
     refund_amount = float(sum(r.refund_amount for r in refunds))
 
-    all_tasks = await ckit_kanban.bot_get_all_tasks(http, pid)
-    done_tasks = [t for t in all_tasks if t.ktask_done_ts >= ts0]
-    by_code = {}
-    for t in done_tasks:
-        c = (t.ktask_resolution_code or "UNKNOWN").upper()
-        by_code[c] = by_code.get(c, 0) + 1
-
     data = {
         "section01-crm": {
             "new_contacts": len(new_contacts),
@@ -360,24 +333,12 @@ async def handle_report(
             "refunds": len(refunds),
             "refund_amount": refund_amount,
         },
-        "section02-tasks": {
-            "tasks_completed": len(done_tasks),
-            "tasks_success": by_code.get("SUCCESS", 0),
-            "tasks_failed": by_code.get("FAIL", 0),
-            "tasks_inconclusive": by_code.get("INCONCLUSIVE", 0),
-            "tasks_irrelevant": by_code.get("IRRELEVANT", 0),
-        },
-        "section03-notes": {
+        "section02-notes": {
             "notable_incidents": "",
             "setup_problems": "",
             "what_people_asked": "",
-        },
-        "section04-resolution-summary": {
-            "resolved_success": by_code.get("SUCCESS", 0),
-            "resolved_fail": by_code.get("FAIL", 0),
-            "resolved_inconclusive": by_code.get("INCONCLUSIVE", 0),
-            "resolved_escalated": by_code.get("ESCALATED", 0),
             "sentiment_notes": "",
+            "task_resolution_summary": "",
         },
     }
 
@@ -398,9 +359,9 @@ async def handle_report(
 
     return (
         "✍️ %s\nmd5=%s\n\n%s\n\n"
-        "Task stats and resolution outcomes are pre-filled from kanban. "
-        "Fill in the notes section, then save. Use flexus_policy_document(op=\"update_at_location\", "
-        "args={\"p\": \"%s\", \"expected_md5\": \"%s\", \"updates\": [[\"karen-report.section03-notes.notable_incidents\", ...], ...]})"
+        "CRM and order stats are pre-filled. Use flexus_kanban_advanced(op=\"status\") to get task counts and resolution codes, "
+        "then fill in the notes section. Save with flexus_policy_document(op=\"update_at_location\", "
+        "args={\"p\": \"%s\", \"expected_md5\": \"%s\", \"updates\": [[\"karen-report.section02-notes.notable_incidents\", ...], ...]})"
     ) % (path, result.md5_after, doc_text, path, result.md5_after)
 
 
