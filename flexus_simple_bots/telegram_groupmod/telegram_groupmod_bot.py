@@ -19,7 +19,7 @@ from flexus_client_kit import ckit_kanban
 from flexus_client_kit import ckit_shutdown
 from flexus_client_kit import ckit_skills
 from flexus_client_kit import ckit_mongo
-from flexus_client_kit.integrations import fi_telegram
+from flexus_client_kit.integrations import fi_telegram   # XXX migrate to fi_messengers; needs direct telegram.Bot for delete/ban/restrict via rcx.external_auth
 from flexus_client_kit.integrations import fi_mongo_store
 from flexus_client_kit import ckit_bot_version
 

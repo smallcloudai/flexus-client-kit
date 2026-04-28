@@ -26,7 +26,7 @@ TOOLS_DEFAULT = {
     "explore_a_question",
     "karen_report",
     "slack",
-    "telegram",
+    "flexus_messenger",
     "discord",
     "email_send",
     "email_setup_domain",
@@ -44,7 +44,7 @@ TOOLS_SUPPORT_AND_SALES = {
     "email_reply",
     "magic_desk",
     "slack",
-    "telegram",
+    "flexus_messenger",
     "discord",
 } | ckit_cloudtool.KANBAN_PUBLIC | ckit_cloudtool.CLOUDTOOLS_VECDB | ckit_cloudtool.CLOUDTOOLS_MCP
 
