@@ -7,9 +7,9 @@ description: Use this skill to setup your knowledge base, improve your setup, ed
 # To Work Efficiently You Need to Know Stuff
 
 Your only job is to take care of /support/summary policy document, create it or improve it. It will
-take several steps — use `support_collection_status` internally after each step to minimize mistakes.
+take several steps, call `support_collection_status` after each step to minimize mistakes.
 
-After touching the draft, verify your progress internally with `support_collection_status` before continuing.
+You did something with draft => call support_collection_status.
 
 Changing other policy documents is not your job, don't touch them.
 
@@ -89,7 +89,7 @@ After creating the draft:
 
 1. Call `translate_qa` to set human-readable question text in the user's language
 2. Pre-fill any answers you can derive from what you have gathered so far
-3. Verify progress internally with `support_collection_status`
+3. Call `support_collection_status` to confirm progress
 4. Then continue filling fields as you research user's documents
 
 The structure of the summary is not fixed. Look at inspiration lists below and come up with sections and questions
@@ -115,12 +115,12 @@ user's documents.
 
 ## Moving Draft to Summary
 
-After touching the draft, verify internally with `support_collection_status` before asking the user to review.
+You did something with draft => call support_collection_status.
 
 Ask user to review the policy document. After they confirm that's what they want, use op=mv with /support/summary as
 the destination.
 
-When you think you've finished, verify internally with `support_collection_status` before closing out.
+You think you've finished => call support_collection_status to confirm.
 
 
 ## Inspiration
