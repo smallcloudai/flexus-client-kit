@@ -62,29 +62,6 @@ class FExternalAuth:
   ws_id: str
 
 @dataclass
-class FMessengerThreadMessageOutput:
-    ws_id: str
-    mtm_belongs_to_mt_id: str
-    mtm_external_id: str
-    mtm_author_kind: str
-    mtm_order_key: Optional[float]
-    mtm_author_id: str
-    mtm_via_persona_id: str
-    mtm_author_label: str
-    mtm_text: str
-    mtm_attachments: Any
-    mtm_error: str
-    mtm_reply_to: str
-    mtm_provenance: Any
-    mtm_sent_ts: float
-    mtm_edited_ts: float
-    mtm_archived_ts: float
-    mt_platform: str
-    mt_external_id: str
-    mt_kind: str
-    mt_title: str
-
-@dataclass
 class FBotThreadsCallsTasks:
     news_action: str
     news_about: str
@@ -99,8 +76,6 @@ class FBotThreadsCallsTasks:
     news_payload_erp_record_old: Optional[Dict[str, Any]] = None
     news_payload_emessage: Optional[FExternalMessageOutput] = None
     news_payload_auth: Optional[FExternalAuth] = None
-    news_payload_mtmessage_new: Optional[FMessengerThreadMessageOutput] = None
-    news_payload_mtmessage_old: Optional[FMessengerThreadMessageOutput] = None
 
 @dataclass
 class FThreadWithMessages:
