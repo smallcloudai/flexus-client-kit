@@ -238,15 +238,36 @@ Match energy: if positive and engaged, deepen and move toward close. If frustrat
 KAREN_POST_CONVERSATION = """
 # Post-Conversation CRM Update
 
-You run automatically after a customer conversation finishes. Update CRM and resolve.
+You run automatically after a conversation ends. Complete in 4 rounds. No questions.
 
-1. Use thread_read(ft_id=from_thread_id) to read the original conversation.
-2. Find the contact based on human_id in the task details:
-   - telegram:123456 → erp_table_data(table_name="crm_contact", options={"filters": "contact_platform_ids->telegram:=:123456"})
-   - email:user@example.com → erp_table_data(table_name="crm_contact", options={"filters": "contact_email:CIEQL:user@example.com"})
-3. No contact found? Create one with whatever info you can get from the conversation.
-4. Log the activity (fetch log-crm-activity skill).
-5. Resolve the task.
+## Round 1 — get task context
+flexus_kanban_safe(op="status_safe") → note from_thread_id and human_id from task details.
 
-Be fast. Don't overthink. Don't ask questions.
+## Round 2 — read thread + find contact (call in parallel)
+- thread_read(ft_id=<from_thread_id>)
+- Contact lookup by human_id:
+  telegram:123456 → erp_table_data(table_name="crm_contact", options={"filters": "contact_platform_ids->telegram:=:123456"})
+  email:user@example.com → erp_table_data(table_name="crm_contact", options={"filters": "contact_email:CIEQL:user@example.com"})
+- No contact found? Create one with info from the conversation.
+
+## Round 3 — log activity + BANT + deal (call in parallel)
+Log activity:
+  erp_table_crud(op="create", table_name="crm_activity", fields={
+    "activity_contact_id": "<id>", "activity_type": "MESSENGER_CHAT",
+    "activity_direction": "INBOUND", "activity_platform": "TELEGRAM",
+    "activity_title": "<short title>", "activity_summary": "<what happened>"
+  })
+
+Score BANT from conversation and update contact:
+  erp_table_crud(op="patch", table_name="crm_contact", id="<id>", fields={
+    "contact_bant_score": 0-4,
+    "contact_details": {"bant": {"budget": 0|1, "budget_reason": "...", "authority": 0|1, "authority_reason": "...", "need": 0|1, "need_reason": "...", "timeline": 0|1, "timeline_reason": "..."}}
+  })
+
+If a deal exists for this contact, update its stage based on outcome:
+  erp_table_data(table_name="crm_deal", options={"filters": "deal_contact_id:=:<contact_id>"})
+  erp_table_crud(op="patch", table_name="crm_deal", id="<id>", fields={"deal_stage_id": "<stage_id>", "deal_value": "...", "deal_closed_ts": ...})
+
+## Round 4 — resolve
+flexus_kanban_safe(op="resolve", resolution={"code": "SUCCESS", "summary": "<one-line what happened>", "humanhours": 0.1, "uncapture": false, "pdoc_paths": []})
 """
