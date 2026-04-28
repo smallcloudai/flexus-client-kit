@@ -1,6 +1,6 @@
 import json
 import logging
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Tuple
 
 import httpx
 
@@ -29,6 +29,32 @@ METHOD_IDS = [
     "x.follows.create.v1",
     "x.follows.delete.v1",
 ]
+
+# X API v2 pay-per-use pricing (USD per call). Source: docs.x.com/x-api/getting-started/pricing
+# and devcommunity announcements (Feb 2026 launch + Apr 20 2026 update).
+# XXX X dedupes identical reads within a 24h UTC window server-side; we currently bill on every call.
+_FLAT_PRICING_USD: Dict[str, float] = {
+    # x.users.me.v1 is free under "owned reads" (your own dev app reading own user record).
+    "x.users.by_username.v1": 0.010,
+    "x.users.by_id.v1": 0.010,
+    "x.tweets.create.v1": 0.010,
+    "x.tweets.delete.v1": 0.010,
+    "x.tweets.get.v1": 0.005,
+    "x.likes.create.v1": 0.010,
+    "x.likes.delete.v1": 0.010,
+    "x.retweets.create.v1": 0.010,
+    "x.retweets.delete.v1": 0.010,
+    "x.bookmarks.create.v1": 0.001,
+    "x.bookmarks.delete.v1": 0.001,
+    "x.follows.create.v1": 0.010,
+    "x.follows.delete.v1": 0.010,
+}
+_PER_POST_READ_METHODS = {
+    "x.tweets.search_recent.v1",
+    "x.timelines.user.v1",
+    "x.timelines.reverse_chronological.v1",
+}
+_PER_POST_USD = 0.005
 
 REQUIRED_SCOPES = [
     "tweet.read",
@@ -160,7 +186,7 @@ class IntegrationX:
         self,
         toolcall: ckit_cloudtool.FCloudtoolCall,
         model_produced_args: Optional[Dict[str, Any]],
-    ) -> str:
+    ):
         args = model_produced_args or {}
         op = str(args.get("op", "help")).strip()
         if op == "help":
@@ -180,7 +206,21 @@ class IntegrationX:
             return json.dumps({"ok": False, "error_code": "METHOD_UNKNOWN", "method_id": method_id}, indent=2, ensure_ascii=False)
         if not self._access_token():
             return self._auth_missing(method_id)
-        return await self._dispatch(method_id, call_args)
+        content, dollars = await self._dispatch(method_id, call_args)
+        if dollars > 0:
+            logger.info("x billed method=%s dollars=%0.4f", method_id, dollars)
+        return ckit_cloudtool.ToolResult(content=content, dollars=dollars)
+
+    def _calc_cost(self, method_id: str, parsed: Any) -> float:
+        if method_id in _PER_POST_READ_METHODS:
+            n = 0
+            if isinstance(parsed, dict):
+                meta = parsed.get("meta") or {}
+                n = int(meta.get("result_count") or 0)
+                if n == 0 and isinstance(parsed.get("data"), list):
+                    n = len(parsed["data"])
+            return _PER_POST_USD * n
+        return _FLAT_PRICING_USD.get(method_id, 0.0)
 
     async def _request(
         self,
@@ -190,7 +230,7 @@ class IntegrationX:
         *,
         params: Optional[Dict[str, Any]] = None,
         body: Optional[Dict[str, Any]] = None,
-    ) -> str:
+    ) -> Tuple[str, float]:
         url = _BASE_URL + path
         try:
             async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
@@ -201,9 +241,9 @@ class IntegrationX:
                 elif http_method == "DELETE":
                     response = await client.delete(url, headers=self._headers(has_body=False), params=params)
                 else:
-                    return json.dumps({"ok": False, "error_code": "UNSUPPORTED_HTTP_METHOD"}, indent=2, ensure_ascii=False)
+                    return json.dumps({"ok": False, "error_code": "UNSUPPORTED_HTTP_METHOD"}, indent=2, ensure_ascii=False), 0.0
         except httpx.TimeoutException:
-            return json.dumps({"ok": False, "provider": PROVIDER_NAME, "method_id": method_id, "error_code": "TIMEOUT"}, indent=2, ensure_ascii=False)
+            return json.dumps({"ok": False, "provider": PROVIDER_NAME, "method_id": method_id, "error_code": "TIMEOUT"}, indent=2, ensure_ascii=False), 0.0
         except (httpx.HTTPError, ValueError) as e:
             logger.error("x request failed", exc_info=e)
             return json.dumps({
@@ -212,17 +252,18 @@ class IntegrationX:
                 "method_id": method_id,
                 "error_code": "HTTP_ERROR",
                 "message": f"{type(e).__name__}: {e}",
-            }, indent=2, ensure_ascii=False)
+            }, indent=2, ensure_ascii=False), 0.0
 
         if response.status_code >= 400:
-            return self._provider_error(method_id, response.status_code, response.text)
+            return self._provider_error(method_id, response.status_code, response.text), 0.0
 
         if not response.text.strip():
-            return self._result(method_id, {})
+            return self._result(method_id, {}), self._calc_cost(method_id, {})
         try:
-            return self._result(method_id, response.json())
+            parsed = response.json()
+            return self._result(method_id, parsed), self._calc_cost(method_id, parsed)
         except json.JSONDecodeError:
-            return self._result(method_id, response.text)
+            return self._result(method_id, response.text), 0.0
 
     def _build_create_tweet_body(self, args: Dict[str, Any]) -> Dict[str, Any]:
         text = str(args.get("text", "")).strip()
@@ -283,7 +324,7 @@ class IntegrationX:
                 out[dst] = v
         return out
 
-    async def _dispatch(self, method_id: str, args: Dict[str, Any]) -> str:
+    async def _dispatch(self, method_id: str, args: Dict[str, Any]) -> Tuple[str, float]:
         try:
             if method_id == "x.users.me.v1":
                 params = self._expansion_params(args)
@@ -406,5 +447,5 @@ class IntegrationX:
                 return await self._request(method_id, "DELETE", f"/users/{source_user_id}/following/{target_user_id}")
 
         except ValueError as e:
-            return self._invalid_args(method_id, str(e))
-        return json.dumps({"ok": False, "error_code": "METHOD_UNIMPLEMENTED", "method_id": method_id}, indent=2, ensure_ascii=False)
+            return self._invalid_args(method_id, str(e)), 0.0
+        return json.dumps({"ok": False, "error_code": "METHOD_UNIMPLEMENTED", "method_id": method_id}, indent=2, ensure_ascii=False), 0.0

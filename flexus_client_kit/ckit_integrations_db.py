@@ -324,18 +324,19 @@ def static_integrations_load(bot_dir: Path, allowlist: list[str], builtin_skills
             ))
 
         elif name == "telegram":
-            from flexus_client_kit.integrations import fi_telegram, fi_messenger
+            from flexus_client_kit.integrations import fi_messenger, fi_messengers
             async def _init_telegram(rcx, setup):
-                obj = fi_telegram.IntegrationTelegram(rcx.fclient, rcx)
-                await obj.initialize()
-                return obj
+                return {"platform": "telegram", "connected": True}
+            def _telegram_setup(obj, rcx):
+                _register_tool_handler(rcx, fi_messengers.FLEXUS_MESSENGER_TOOL.name, lambda toolcall, args: fi_messengers.flexus_messenger_called_by_model(rcx, toolcall, args), fake_in_scenario=True)
+                rcx.on_emessage("TELEGRAM")(lambda emsg: fi_messengers.default_handle_emessage(rcx, emsg))
+                return []
             result.append(IntegrationRecord(
                 integr_name=name,
-                integr_tools=[fi_telegram.TELEGRAM_TOOL],
+                integr_tools=[fi_messengers.FLEXUS_MESSENGER_TOOL],
                 integr_init=_init_telegram,
-                integr_setup_handlers=lambda obj, rcx: [_register_tool_handler(rcx, "telegram", obj.called_by_model, fake_in_scenario=True)],
+                integr_setup_handlers=_telegram_setup,
                 integr_provider="telegram",
-                integr_is_messenger=True,
                 integr_prompt=fi_messenger.MESSENGER_PROMPT,
             ))
 
@@ -564,12 +565,14 @@ async def main_loop_integrations_init(records: list[IntegrationRecord], rcx: cki
             async def _emessage_handler(emsg, _m=obj):
                 await _m.handle_emessage(emsg)
 
-    if rcx.messengers:
+    if rcx.messengers or any(rec.integr_name == "telegram" for rec in records):
+        from flexus_client_kit.integrations import fi_messengers
         @rcx.on_updated_message
         async def _messenger_updated_message(msg: ckit_ask_model.FThreadMessageOutput):
             # Don't worry, you can override it. The default reaction to assistant messages is to get it past messengers:
             for m in rcx.messengers:
                 await m.look_assistant_might_have_posted_something(msg)
                 await m.look_user_message_got_confirmed(msg)
+            await fi_messengers.messenger_outbound(rcx, msg)
 
     return result

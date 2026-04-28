@@ -19,7 +19,7 @@ from flexus_client_kit import ckit_kanban
 from flexus_client_kit import ckit_shutdown
 from flexus_client_kit import ckit_skills
 from flexus_client_kit import ckit_mongo
-from flexus_client_kit.integrations import fi_telegram
+from flexus_client_kit.integrations import fi_telegram   # XXX migrate to fi_messengers; needs direct telegram.Bot for delete/ban/restrict via rcx.external_auth
 from flexus_client_kit.integrations import fi_mongo_store
 from flexus_client_kit import ckit_bot_version
 
@@ -457,11 +457,6 @@ async def telegram_groupmod_main_loop(
     async def handle_message(msg):
         if tg:
             await tg.look_assistant_might_have_posted_something(msg)
-
-    @rcx.on_emessage("TELEGRAM")
-    async def handle_emessage(emsg):
-        if tg:
-            await tg.handle_emessage(emsg)
 
     async def _post_buffer_task(chat_id: str, reason: str):
         buf = buffers.get(chat_id, [])
