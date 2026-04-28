@@ -18,7 +18,6 @@ from flexus_client_kit import ckit_skills
 from flexus_client_kit.integrations import fi_mongo_store
 from flexus_client_kit.integrations import fi_mcp
 from flexus_client_kit.integrations import fi_pdoc
-from flexus_client_kit.integrations import fi_telegram
 from flexus_client_kit.integrations import fi_slack
 from flexus_client_kit import ckit_bot_version
 import gql.transport.exceptions
@@ -152,7 +151,6 @@ async def frog_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.R
     setup = ckit_bot_exec.official_setup_mixing_procedure(FROG_SETUP_SCHEMA, rcx.persona.persona_setup)
     integr_objects = await ckit_integrations_db.main_loop_integrations_init(FROG_INTEGRATIONS, rcx, setup, need_mongo=True)
     pdoc_integration: fi_pdoc.IntegrationPdoc = integr_objects["flexus_policy_document"]
-    tg: Optional[fi_telegram.IntegrationTelegram] = integr_objects.get("telegram")
     sl: Optional[fi_slack.IntegrationSlack] = integr_objects.get("slack")
     await fi_mcp.mcp_launch(FROG_MCPS, rcx, setup)
 

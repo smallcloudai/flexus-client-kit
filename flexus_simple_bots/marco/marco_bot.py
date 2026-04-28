@@ -4,6 +4,7 @@ import logging
 from pathlib import Path
 from typing import Dict, Any, Optional
 
+from flexus_client_kit import ckit_ask_model
 from flexus_client_kit import ckit_client
 from flexus_client_kit import ckit_cloudtool
 from flexus_client_kit import ckit_bot_exec
@@ -16,7 +17,7 @@ from flexus_client_kit.integrations import fi_mongo_store
 from flexus_client_kit.integrations import fi_crm_automations
 from flexus_client_kit.integrations import fi_resend
 from flexus_client_kit.integrations import fi_shopify
-from flexus_client_kit.integrations import fi_telegram
+from flexus_client_kit.integrations import fi_messengers
 from flexus_client_kit.integrations import fi_slack
 from flexus_client_kit.integrations import fi_crm
 from flexus_client_kit.integrations import fi_sched
@@ -79,10 +80,12 @@ async def marco_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.
     shopify = fi_shopify.IntegrationShopify(fclient, rcx)
     sched = fi_sched.IntegrationSched(rcx)
     slack: fi_slack.IntegrationSlack = integrations["slack"]
-    telegram: fi_telegram.IntegrationTelegram = integrations["telegram"]
+    telegram = integrations.get("telegram")
 
     for me in rcx.messengers:
         me.accept_outside_messages_only_to_expert("very_limited")
+    if telegram:
+        fi_messengers.accept_outside_messages_only_to_expert(rcx, "very_limited")
 
     @rcx.on_tool_call(fi_mongo_store.MONGO_STORE_TOOL.name)
     async def toolcall_mongo_store(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
@@ -128,15 +131,18 @@ async def marco_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.
                     fexp_name="post_conversation",
                 )
 
-    @telegram.on_incoming_activity
-    async def telegram_activity_callback(a: fi_telegram.ActivityTelegram, already_posted: bool):
-        if already_posted:
-            return
-        extra = {}
-        http = await fclient.use_http_on_behalf(rcx.persona.persona_id, "")
-        if contact_id := await fi_crm.find_contact_by_platform_id(http, rcx.persona.ws_id, "telegram", str(a.chat_id)):
-            extra["contact_id"] = contact_id
-        await telegram.inbound_activity_to_task(a, already_posted=False, extra_details=extra, provenance="marco_telegram_activity")
+    if telegram:
+        @rcx.on_emessage("TELEGRAM")
+        async def telegram_activity_callback(emsg):
+            a = fi_messengers.parse_emessage(emsg)
+            if not a:
+                return
+            http = await fclient.use_http_on_behalf(rcx.persona.persona_id, "")
+            captured_ft_id = await ckit_ask_model.captured_thread_lookup(http, rcx.persona.persona_id, f"telegram/{a.chat_id}")
+            extra = {}
+            if contact_id := await fi_crm.find_contact_by_platform_id(http, rcx.persona.ws_id, "telegram", a.chat_id):
+                extra["contact_id"] = contact_id
+            await fi_messengers.inbound_activity_to_task(rcx, a, already_posted=bool(captured_ft_id), extra_details=extra, provenance="marco_telegram_activity")
 
     @slack.on_incoming_activity
     async def slack_activity_callback(a: fi_slack.ActivitySlack, already_posted: bool):

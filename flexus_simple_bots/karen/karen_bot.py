@@ -22,7 +22,7 @@ from flexus_client_kit import ckit_mongo
 from flexus_client_kit.integrations import fi_mongo_store
 from flexus_client_kit.integrations import fi_resend
 from flexus_client_kit.integrations import fi_shopify
-from flexus_client_kit.integrations import fi_telegram
+from flexus_client_kit.integrations import fi_messengers
 from flexus_client_kit.integrations import fi_slack
 from flexus_client_kit.integrations import fi_crm
 from flexus_client_kit.integrations import fi_sched
@@ -417,10 +417,12 @@ async def karen_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.
     shopify = fi_shopify.IntegrationShopify(fclient, rcx)
     sched = fi_sched.IntegrationSched(rcx)
     slack: fi_slack.IntegrationSlack | None = integrations.get("slack")
-    telegram: fi_telegram.IntegrationTelegram | None = integrations.get("telegram")
+    telegram = integrations.get("telegram")
 
     for me in rcx.messengers:
         me.accept_outside_messages_only_to_expert("very_limited")
+    if telegram:
+        fi_messengers.accept_outside_messages_only_to_expert(rcx, "very_limited")
 
     @rcx.on_emessage("EMAIL")
     async def handle_email(emsg):
@@ -594,22 +596,24 @@ async def karen_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.
                 )
 
     if telegram:
-        @telegram.on_incoming_activity
-        async def telegram_activity_callback(a: fi_telegram.ActivityTelegram, already_posted: bool):
-            if already_posted:
+        @rcx.on_emessage("TELEGRAM")
+        async def telegram_activity_callback(emsg):
+            a = fi_messengers.parse_emessage(emsg)
+            if not a:
                 return
+            http = await fclient.use_http_on_behalf(rcx.persona.persona_id, "")
+            captured_ft_id = await ckit_ask_model.captured_thread_lookup(http, rcx.persona.persona_id, f"telegram/{a.chat_id}")
             extra = {}
             title = None
-            http = await fclient.use_http_on_behalf(rcx.persona.persona_id, "")
-            if a.message_text.startswith("/start c_"):  # deep links from email campaigns
-                contact_id = a.message_text[9:].strip()
+            if a.text.startswith("/start c_"):  # deep links from email campaigns
+                contact_id = a.text[9:].strip()
                 extra["contact_id"] = contact_id
-                title = "CRM contact opened Telegram chat, contact_id=%s chat_id=%d" % (contact_id, a.chat_id)
-                await ckit_erp.erp_record_patch(http, "crm_contact", rcx.persona.ws_id, contact_id, {"contact_platform_ids": {"telegram": str(a.chat_id)}})
+                title = f"CRM contact opened Telegram chat, contact_id={contact_id} chat_id={a.chat_id}"
+                await ckit_erp.erp_record_patch(http, "crm_contact", rcx.persona.ws_id, contact_id, {"contact_platform_ids": {"telegram": a.chat_id}})
             else:
-                if contact_id := await fi_crm.find_contact_by_platform_id(http, rcx.persona.ws_id, "telegram", str(a.chat_id)):
+                if contact_id := await fi_crm.find_contact_by_platform_id(http, rcx.persona.ws_id, "telegram", a.chat_id):
                     extra["contact_id"] = contact_id
-            await telegram.inbound_activity_to_task(a, already_posted=False, extra_details=extra, provenance="karen_telegram_activity", title=title)
+            await fi_messengers.inbound_activity_to_task(rcx, a, already_posted=bool(captured_ft_id), extra_details=extra, provenance="karen_telegram_activity", title=title)
 
     if slack:
         @slack.on_incoming_activity
