@@ -192,13 +192,15 @@ async def messenger_outbound(rcx: ckit_bot_exec.RobotContext, ftm: ckit_ask_mode
     try:
         async with http as h:
             await h.execute(gql.gql("""
-                mutation MessengerOutboundFromBot($ft_id: String!, $text: String!, $reply_to_external_id: String!) {
-                    messenger_thread_post(ft_id: $ft_id, text: $text, reply_to_external_id: $reply_to_external_id)
+                mutation MessengerOutboundFromBot($ft_id: String!, $text: String!, $reply_to_external_id: String!, $from_ftm_alt: Int!, $from_ftm_num: Int!) {
+                    messenger_thread_post(ft_id: $ft_id, text: $text, reply_to_external_id: $reply_to_external_id, from_ftm_alt: $from_ftm_alt, from_ftm_num: $from_ftm_num)
                 }"""),
                 variable_values={
                     "ft_id": ftm.ftm_belongs_to_ft_id,
                     "text": mtm.get("text", ""),
                     "reply_to_external_id": mtm.get("reply_to", ""),
+                    "from_ftm_alt": ftm.ftm_alt if ftm.ftm_role == "user" else 0,
+                    "from_ftm_num": ftm.ftm_num if ftm.ftm_role == "user" else 0,
                 },
             )
     except gql.transport.exceptions.TransportQueryError as e:
