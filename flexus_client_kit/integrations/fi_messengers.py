@@ -7,6 +7,7 @@ import gql
 import gql.transport.exceptions
 
 from flexus_client_kit import ckit_ask_model, ckit_bot_exec, ckit_bot_query, ckit_cloudtool, ckit_kanban, ckit_scenario
+from flexus_client_kit.integrations import fi_messenger
 
 logger = logging.getLogger("fi_msgrs")
 
@@ -220,7 +221,7 @@ async def flexus_messenger_called_by_model(
                 )
         except gql.transport.exceptions.TransportQueryError as e:
             return f"uncapture failed: {e}\n"
-        return "uncaptured; replies from this thread no longer go to the messenger\n"
+        return fi_messenger.UNCAPTURE_SUCCESS_MSG
 
     if op == "status":
         # XXX backend mutation: messenger_status(persona_id, ft_id) — all connections + capture in this thread
@@ -254,7 +255,7 @@ async def flexus_messenger_called_by_model(
                 )
         except gql.transport.exceptions.TransportQueryError as e:
             return f"capture failed: {e}\n"
-        return f"captured {platform} chat_id={chat_id}; their messages will appear here, your replies go back automatically\n"
+        return (fi_messenger.CAPTURE_SUCCESS_MSG % f"{platform} chat_id={chat_id}") + "\n" + fi_messenger.CAPTURE_ADVICE_MSG
 
     if op == "post":
         chat_id = ckit_cloudtool.try_best_to_find_argument(inner, model_args, "chat_id", None)
@@ -279,4 +280,4 @@ async def flexus_messenger_called_by_model(
             return f"post failed: {e}\n"
         return f"posted to {platform} chat_id={chat_id}\n"
 
-    return f"unknown op {op!r}, try op=\"help\"\n"
+    return fi_messenger.UNKNOWN_OPERATION_MSG % op
