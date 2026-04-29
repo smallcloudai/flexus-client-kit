@@ -55,6 +55,7 @@ class ActivityMessenger:
     author_name: str
     author_id: str
     attachments: List[Dict[str, Any]] = field(default_factory=list)
+    mentions: List[Dict[str, Any]] = field(default_factory=list)
 
 
 def parse_emessage(emsg: ckit_bot_query.FExternalMessageOutput) -> Optional[ActivityMessenger]:
@@ -73,6 +74,7 @@ def parse_emessage(emsg: ckit_bot_query.FExternalMessageOutput) -> Optional[Acti
         author_name=payload.get("mtm_author_label") or payload.get("mtm_author_id") or "",
         author_id=str(payload.get("mtm_author_id", "")),
         attachments=payload.get("mtm_attachments") or [],
+        mentions=payload.get("mtm_mentions") or [],
     )
 
 
@@ -92,6 +94,22 @@ def escape_text(platform: str, text: str) -> str:
 
 def accept_outside_messages_only_to_expert(rcx: ckit_bot_exec.RobotContext, fexp_name: str) -> None:
     rcx.outside_messages_fexp_name = fexp_name
+
+
+def is_bot_mentioned(rcx: ckit_bot_exec.RobotContext, a: ActivityMessenger) -> bool:
+    if not a.mentions:
+        return False
+    if a.platform == "telegram":
+        auth = rcx.external_auth.get("telegram") or {}
+        bot_id, bot_un = str(auth.get("bot_id", "")), auth.get("bot_username", "")
+    else:
+        return False
+    for m in a.mentions:
+        if bot_id and str(m.get("id", "")) == bot_id:
+            return True
+        if bot_un and (m.get("username") or "").lower() == bot_un.lower():
+            return True
+    return False
 
 
 async def inbound_activity_to_task(
@@ -127,8 +145,8 @@ async def inbound_activity_to_task(
         title = f"{a.platform} {a.chat_type} user={a.author_name!r} chat_id={a.chat_id}\n{a.text}"
         if a.attachments:
             title += f"\n[{len(a.attachments)} file(s) attached]"
-    is_dm = a.chat_type in ("private", "DM", "im")
-    post_fn = ckit_kanban.bot_kanban_post_into_inprogress if is_dm else ckit_kanban.bot_kanban_post_into_inbox
+    into_inprogress = a.chat_type in ("private", "DM", "im") or is_bot_mentioned(rcx, a)
+    post_fn = ckit_kanban.bot_kanban_post_into_inprogress if into_inprogress else ckit_kanban.bot_kanban_post_into_inbox
     await post_fn(
         await rcx.fclient.use_http_on_behalf(rcx.persona.persona_id, ""),
         rcx.persona.persona_id,
