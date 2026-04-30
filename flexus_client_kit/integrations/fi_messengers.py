@@ -180,6 +180,8 @@ async def messenger_outbound(rcx: ckit_bot_exec.RobotContext, ftm: ckit_ask_mode
         return False
     if ftm.ftm_role == "user" and ((ftm.ftm_author_label1 or "").startswith(f"{platform}:") or ftm.ftm_author_label1 == "system"):
         return False
+    if (ftm.ftm_provenance or {}).get("from_mt_ui"):
+        return False
     mtm = ftm_to_mtm(platform, ftm)
     if not mtm:
         return False
