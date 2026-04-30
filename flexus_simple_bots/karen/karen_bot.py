@@ -183,6 +183,16 @@ REPORT_SCHEMA = {
             "sentiment_notes": {"type": "string", "order": 4, "title": "Sentiment Notes"},
         },
     },
+    "section05-costs": {
+        "type": "object",
+        "title": "Token Costs",
+        "properties": {
+            "total_coins": {"type": "integer", "order": 0, "title": "Total Coins"},
+            "conversations_count": {"type": "integer", "order": 1, "title": "Conversations"},
+            "avg_coins_per_conversation": {"type": "integer", "order": 2, "title": "Avg Coins/Conversation"},
+            "budget_utilization_pct": {"type": "number", "order": 3, "title": "Budget Utilization %"},
+        },
+    },
 }
 
 REPORT_TOOL = ckit_cloudtool.CloudTool(
@@ -347,6 +357,8 @@ async def handle_report(
     # - model already asks kanban about all the counters
     all_tasks = await ckit_kanban.bot_get_all_tasks(http, pid)
     done_tasks = [t for t in all_tasks if t.ktask_done_ts >= ts0]
+    total_coins = sum(t.ktask_coins for t in done_tasks)
+    total_budget = sum(t.ktask_budget for t in done_tasks)
     by_code = {}
     for t in done_tasks:
         c = (t.ktask_resolution_code or "UNKNOWN").upper()
@@ -381,6 +393,12 @@ async def handle_report(
             "resolved_inconclusive": by_code.get("INCONCLUSIVE", 0),
             "resolved_escalated": by_code.get("ESCALATED", 0),
             "sentiment_notes": "",
+        },
+        "section05-costs": {
+            "total_coins": total_coins,
+            "conversations_count": len(done_tasks),
+            "avg_coins_per_conversation": total_coins // max(len(done_tasks), 1),
+            "budget_utilization_pct": round(total_coins / max(total_budget, 1) * 100, 1),
         },
     }
 
