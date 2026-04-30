@@ -593,6 +593,7 @@ async def karen_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.
                     }),
                     provenance_message="karen_post_conversation",
                     fexp_name="post_conversation",
+                    human_id=new_task.ktask_human_id,
                 )
 
     if telegram:
