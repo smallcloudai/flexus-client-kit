@@ -201,7 +201,7 @@ async def install(client: ckit_client.FlexusClient):
             },
         ],
         marketable_forms={},
-        marketable_auth_supported=["slack", "telegram", "discord_manual", "shopify", "resend"],
+        marketable_auth_supported=["slack", "telegram", "whatsapp", "discord_manual", "shopify", "resend"],
         marketable_auth_scopes={
             "slack": [
                 "channels:read",
