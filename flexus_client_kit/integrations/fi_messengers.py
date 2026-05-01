@@ -12,9 +12,7 @@ from flexus_client_kit.integrations import fi_messenger
 logger = logging.getLogger("fi_msgrs")
 
 
-SUPPORTED_PLATFORMS = {"telegram"}   # XXX add slack, whatsapp, discord, magic_desk as they are migrated
-
-EMSG_TYPE_TO_PLATFORM = {"TELEGRAM": "telegram"}
+SUPPORTED_PLATFORMS = {"telegram", "whatsapp"}   # XXX add slack, discord, magic_desk as they are migrated
 
 
 HELP = """flexus_messenger(op="capture", args={"platform": "telegram", "chat_id": 12345})
@@ -34,7 +32,7 @@ flexus_messenger(op="status")
 FLEXUS_MESSENGER_TOOL = ckit_cloudtool.CloudTool(
     strict=False,
     name="flexus_messenger",
-    description="Interact with messengers (telegram, ...). Call op=\"help\" for usage.",
+    description="Interact with messengers (telegram, whatsapp, ...). Call op=\"help\" for usage.",
     parameters={
         "type": "object",
         "properties": {
@@ -59,8 +57,8 @@ class ActivityMessenger:
 
 
 def parse_emessage(emsg: ckit_bot_query.FExternalMessageOutput) -> Optional[ActivityMessenger]:
-    platform = EMSG_TYPE_TO_PLATFORM.get(emsg.emsg_type)
-    if not platform:
+    platform = emsg.emsg_type.lower()
+    if platform not in SUPPORTED_PLATFORMS:
         return None
     payload = emsg.emsg_payload if isinstance(emsg.emsg_payload, dict) else json.loads(emsg.emsg_payload)
     if not payload.get("mtm_text") and not payload.get("mtm_attachments"):
@@ -82,6 +80,9 @@ def ftm_to_mtm(platform: str, ftm: ckit_ask_model.FThreadMessageOutput) -> Optio
     if platform == "telegram":
         from flexus_client_kit.integrations import fi_telegram
         return fi_telegram.ftm_to_mtm(ftm)
+    if platform == "whatsapp":
+        from flexus_client_kit.integrations import fi_whatsapp
+        return fi_whatsapp.ftm_to_mtm(ftm)
     return None
 
 

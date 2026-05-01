@@ -64,6 +64,7 @@ KAREN_INTEGRATIONS: list[ckit_integrations_db.IntegrationRecord] = ckit_integrat
         "magic_desk",
         "slack",
         "telegram",
+        "whatsapp",
         "discord",
         "resend",
     ],
@@ -418,10 +419,11 @@ async def karen_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.
     sched = fi_sched.IntegrationSched(rcx)
     slack: fi_slack.IntegrationSlack | None = integrations.get("slack")
     telegram = integrations.get("telegram")
+    whatsapp = integrations.get("whatsapp")
 
     for me in rcx.messengers:
         me.accept_outside_messages_only_to_expert("very_limited")
-    if telegram:
+    if telegram or whatsapp:
         fi_messengers.accept_outside_messages_only_to_expert(rcx, "very_limited")
 
     @rcx.on_emessage("EMAIL")
@@ -614,6 +616,19 @@ async def karen_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.
                 if contact_id := await fi_crm.find_contact_by_platform_id(http, rcx.persona.ws_id, "telegram", a.chat_id):
                     extra["contact_id"] = contact_id
             await fi_messengers.inbound_activity_to_task(rcx, a, already_posted=bool(captured_ft_id), extra_details=extra, provenance="karen_telegram_activity", title=title)
+
+    if whatsapp:
+        @rcx.on_emessage("WHATSAPP")
+        async def whatsapp_activity_callback(emsg):
+            a = fi_messengers.parse_emessage(emsg)
+            if not a:
+                return
+            http = await fclient.use_http_on_behalf(rcx.persona.persona_id, "")
+            captured_ft_id = await ckit_ask_model.captured_thread_lookup(http, rcx.persona.persona_id, f"whatsapp/{a.chat_id}")
+            extra = {}
+            if contact_id := await fi_crm.find_contact_by_platform_id(http, rcx.persona.ws_id, "whatsapp", a.chat_id):
+                extra["contact_id"] = contact_id
+            await fi_messengers.inbound_activity_to_task(rcx, a, already_posted=bool(captured_ft_id), extra_details=extra, provenance="karen_whatsapp_activity")
 
     if slack:
         @slack.on_incoming_activity
