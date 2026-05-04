@@ -340,6 +340,23 @@ def static_integrations_load(bot_dir: Path, allowlist: list[str], builtin_skills
                 integr_prompt=fi_messenger.MESSENGER_PROMPT,
             ))
 
+        elif name == "whatsapp":
+            from flexus_client_kit.integrations import fi_messenger, fi_messengers
+            async def _init_whatsapp(rcx, setup):
+                return {"platform": "whatsapp", "connected": True}
+            def _whatsapp_setup(obj, rcx):
+                _register_tool_handler(rcx, fi_messengers.FLEXUS_MESSENGER_TOOL.name, lambda toolcall, args: fi_messengers.flexus_messenger_called_by_model(rcx, toolcall, args), fake_in_scenario=True)
+                rcx.on_emessage("WHATSAPP")(lambda emsg: fi_messengers.default_handle_emessage(rcx, emsg))
+                return []
+            result.append(IntegrationRecord(
+                integr_name=name,
+                integr_tools=[fi_messengers.FLEXUS_MESSENGER_TOOL],
+                integr_init=_init_whatsapp,
+                integr_setup_handlers=_whatsapp_setup,
+                integr_provider="whatsapp",
+                integr_prompt=fi_messenger.MESSENGER_PROMPT,
+            ))
+
         elif name == "discord":
             from flexus_client_kit.integrations import fi_discord2, fi_messenger
             async def _init_discord(rcx, setup):
@@ -526,6 +543,9 @@ def static_integrations_load(bot_dir: Path, allowlist: list[str], builtin_skills
                     _register_tool_handler(rcx, _t.name, obj.called_by_model, fake_in_scenario=_f)
                 ],
             ))
+    seen: set[str] = set()
+    for rec in result:
+        rec.integr_tools = [t for t in rec.integr_tools if not (t.name in seen or seen.add(t.name))]
     return result
 
 
@@ -549,7 +569,7 @@ async def main_loop_integrations_init(records: list[IntegrationRecord], rcx: cki
     for rec in records:
         if rec.integr_provider:
             auth = rcx.external_auth.get(rec.integr_provider) or {}
-            if not (auth.get("token") or auth.get("api_key") or auth.get("connect_fields")):
+            if not (auth.get("token") or auth.get("api_key") or auth.get("access_token") or auth.get("connect_fields")):
                 if rec.integr_provider in rcx.fake_connected_providers:
                     logger.info("%s integration %s faked (scenario)", rcx.persona.persona_id, rec.integr_name)
                 else:
