@@ -168,14 +168,14 @@ async def frog_main_loop(fclient: ckit_client.FlexusClient, rcx: ckit_bot_exec.R
     # async def updated_task_in_db(action: str, old_task: Optional[ckit_kanban.FPersonaKanbanTaskOutput], new_task: Optional[ckit_kanban.FPersonaKanbanTaskOutput]):
     #     logger.info(f"Ribbit! task {action}: old={old_task} new={new_task}")
 
-    @rcx.on_erp_change("crm_contact")
-    async def on_contact_change(action: str, old_record: Optional[erp_schema.CrmContact], new_record: Optional[erp_schema.CrmContact]):
+    @rcx.on_erp_change("party")
+    async def on_contact_change(action: str, old_record: Optional[erp_schema.Party], new_record: Optional[erp_schema.Party]):
         if action == "INSERT":
-            logger.info(f"Ribbit! Yay, we have a new contact: {new_record.contact_first_name}!")
+            logger.info(f"Ribbit! Yay, we have a new contact: {new_record.party_first_name}!")
         elif action == "UPDATE":
-            logger.info(f"Ribbit ribbit! Ooh, {new_record.contact_first_name} is being updated!")
+            logger.info(f"Ribbit ribbit! Ooh, {new_record.party_first_name} is being updated!")
         elif action == "DELETE":
-            logger.info(f"Ribbit... Sorry to see you go, {old_record.contact_first_name}.")
+            logger.info(f"Ribbit... Sorry to see you go, {old_record.party_first_name}.")
 
     @rcx.on_tool_call(RIBBIT_TOOL.name)
     async def toolcall_ribbit(toolcall: ckit_cloudtool.FCloudtoolCall, model_produced_args: Dict[str, Any]) -> str:
@@ -289,7 +289,7 @@ def main():
         inprocess_tools=TOOLS,
         scenario_fn=scenario_fn,
         install_func=frog_install.install,
-        subscribe_to_erp_tables=["crm_contact"],
+        subscribe_to_erp_tables=["party"],
     ))
 
 
