@@ -4,355 +4,602 @@ from dataclasses import dataclass, field
 from decimal import Decimal
 from typing import Optional, Dict, Type, List
 
+PARTY_KIND_ENUM: List[Dict[str, str]] = [
+    {"value": "PERSON", "label": "Person"},
+    {"value": "COMPANY", "label": "Company"},
+]
 
-@dataclass
-class CrmContact:
-    ws_id: str
-    contact_first_name: str = field(metadata={"importance": 1, "display_name": "First Name"})
-    contact_last_name: str = field(metadata={"importance": 1, "display_name": "Last Name"})
-    contact_email: Optional[str] = field(default=None, metadata={"importance": 1, "extra_search": True, "display_name": "Email"})
-    contact_phone: str = field(default="", metadata={"display_name": "Phone"})
-    contact_id: str = field(default="", metadata={"pkey": True, "display_name": "Contact ID"})
-    contact_notes: str = field(default="", metadata={"importance": 1, "display": "string_multiline", "display_name": "Notes"})
-    contact_details: dict = field(default_factory=dict, metadata={"display_name": "Details", "description": "Custom JSON data: BANT qualification reasons, social profiles, preferences, custom attributes"})
-    contact_tags: List[str] = field(default_factory=list, metadata={"importance": 1, "display_name": "Tags"})
-    contact_address_line1: str = field(default="", metadata={"display_name": "Address Line 1"})
-    contact_address_line2: str = field(default="", metadata={"display_name": "Address Line 2"})
-    contact_address_city: str = field(default="", metadata={"display_name": "City"})
-    contact_address_state: str = field(default="", metadata={"display_name": "State"})
-    contact_address_zip: str = field(default="", metadata={"display_name": "ZIP Code"})
-    contact_address_country: str = field(default="", metadata={"importance": 1, "display_name": "Country"})
-    contact_utm_first_source: str = field(default="", metadata={"importance": 1, "display_name": "UTM Source (first touch)", "description": "First marketing interaction that brought this contact"})
-    contact_utm_first_medium: str = field(default="", metadata={"display_name": "UTM Medium (first touch)"})
-    contact_utm_first_campaign: str = field(default="", metadata={"display_name": "UTM Campaign (first touch)"})
-    contact_utm_first_term: str = field(default="", metadata={"display_name": "UTM Term (first touch)"})
-    contact_utm_first_content: str = field(default="", metadata={"display_name": "UTM Content (first touch)"})
-    contact_utm_last_source: str = field(default="", metadata={"display_name": "UTM Source (last touch)", "description": "Most recent marketing interaction"})
-    contact_utm_last_medium: str = field(default="", metadata={"display_name": "UTM Medium (last touch)"})
-    contact_utm_last_campaign: str = field(default="", metadata={"display_name": "UTM Campaign (last touch)"})
-    contact_utm_last_term: str = field(default="", metadata={"display_name": "UTM Term (last touch)"})
-    contact_utm_last_content: str = field(default="", metadata={"display_name": "UTM Content (last touch)"})
-    contact_bant_score: int = field(default=-1, metadata={"display_name": "BANT Score", "description": "How many of Budget/Authority/Need/Timeline criteria met. -1=unqualified, 0-1=cold, 2-3=warm, 4=hot"})
-    contact_created_ts: float = field(default=0.0, metadata={"importance": 1, "display_name": "Created at"})
-    contact_modified_ts: float = field(default=0.0, metadata={"display_name": "Modified at"})
-    contact_archived_ts: float = field(default=0.0, metadata={"display_name": "Archived at"})
-    contact_commerce_external: dict = field(default_factory=dict, metadata={"display_name": "Commerce External"})
-    contact_platform_ids: dict = field(default_factory=dict, metadata={"display_name": "Platform IDs", "editable": False, "description": "Map of platform name to user/chat ID, e.g. {\"telegram\": \"123456\"}"})
-    contact_last_inbound_ts: float = field(default=0.0, metadata={"importance": 1, "display_name": "Last Inbound", "editable": False, "description": "Auto-updated to the most recent inbound activity time for this contact"})
-    contact_last_outbound_ts: float = field(default=0.0, metadata={"importance": 1, "display_name": "Last Outbound", "editable": False, "description": "Auto-updated to the most recent outbound activity time for this contact"})
+CONTACT_CHANNEL_ENUM: List[Dict[str, str]] = [
+    {"value": "PHONE_CALL", "label": "Phone call"},
+    {"value": "SMS", "label": "SMS"},
+    {"value": "WHATSAPP", "label": "WhatsApp"},
+    {"value": "TELEGRAM", "label": "Telegram"},
+    {"value": "INSTAGRAM", "label": "Instagram"},
+    {"value": "EMAIL", "label": "Email"},
+    {"value": "OTHER", "label": "Other"},
+]
 
-    activities: Optional[List[CrmActivity]] = field(default=None, metadata={"inbound_fk_table": "crm_activity", "inbound_fk_col": "activity_contact_id"})
-    deals: Optional[List[CrmDeal]] = field(default=None, metadata={"inbound_fk_table": "crm_deal", "inbound_fk_col": "deal_contact_id"})
-    orders: Optional[List[ComOrder]] = field(default=None, metadata={"inbound_fk_table": "com_order", "inbound_fk_col": "order_contact_id"})
+CONTACT_ADDRESS_KIND_ENUM: List[Dict[str, str]] = [
+    {"value": "PHONE", "label": "Phone"},
+    {"value": "EMAIL", "label": "Email"},
+    {"value": "USERNAME", "label": "Username"},
+    {"value": "EXTERNAL_ID", "label": "External ID"},
+    {"value": "URL", "label": "URL"},
+    {"value": "OTHER", "label": "Other"},
+]
 
+CRM_EVENT_KIND_ENUM: List[Dict[str, str]] = [
+    {"value": "TXN_REQUESTED", "label": "Transaction requested"},
+    {"value": "TXN_RESCHEDULE_REQUESTED", "label": "Reschedule requested"},
+    {"value": "TXN_CANCEL_REQUESTED", "label": "Cancel requested"},
+    {"value": "TXN_CONFIRMED", "label": "Confirmed"},
+    {"value": "TXN_REMINDER_SENT", "label": "Reminder sent"},
+    {"value": "TXN_COMPLETED", "label": "Completed"},
+    {"value": "NOTE_CREATED", "label": "Note created"},
+    {"value": "CLIENT_MESSAGE_SUMMARIZED", "label": "Client message summarized"},
+    {"value": "CLIENT_INTENT_DETECTED", "label": "Client intent detected"},
+    {"value": "OTHER", "label": "Other"},
+]
 
-@dataclass
-class CrmActivity:
-    ws_id: str
-    activity_title: str = field(metadata={"importance": 1, "display_name": "Title"})
-    activity_type: str = field(metadata={"importance": 1, "display_name": "Type", "enum": [
-        {"value": "WEB_CHAT", "label": "Web Chat"},
-        {"value": "MESSENGER_CHAT", "label": "Messenger Chat"},
-        {"value": "EMAIL", "label": "Email"},
-        {"value": "CALL", "label": "Call"},
-        {"value": "MEETING", "label": "Meeting"},
-    ]})
-    activity_direction: str = field(metadata={"importance": 1, "display_name": "Direction", "enum": [
-        {"value": "INBOUND", "label": "Inbound"},
-        {"value": "OUTBOUND", "label": "Outbound"},
-    ]})
-    activity_contact_id: str = field(metadata={"importance": 1, "display_name": "Contact"})
-    activity_id: str = field(default="", metadata={"pkey": True, "display_name": "Activity ID"})
-    activity_platform: str = field(default="", metadata={"importance": 1, "display_name": "Channel", "description": "e.g. TELEGRAM, WHATSAPP, EMAIL, SLACK, DISCORD, PHONE, WEB"})
-    activity_ft_id: Optional[str] = field(default=None, metadata={"importance": 1, "display_name": "Thread"})
-    activity_summary: str = field(default="", metadata={"importance": 1, "display": "string_multiline", "display_name": "Summary"})
-    activity_details: dict = field(default_factory=dict, metadata={"display_name": "Details"})
-    activity_occurred_ts: float = field(default=0.0, metadata={"importance": 1, "display_name": "Occurred at"})
-    activity_created_ts: float = field(default=0.0, metadata={"display_name": "Created at"})
-    activity_modified_ts: float = field(default=0.0, metadata={"display_name": "Modified at"})
+CRM_EVENT_SOURCE_ENUM: List[Dict[str, str]] = [
+    {"value": "MANUAL", "label": "Manual"},
+    {"value": "BOT", "label": "Bot"},
+    {"value": "SYSTEM", "label": "System"},
+    {"value": "SCHEDULER", "label": "Scheduler"},
+    {"value": "MESSENGER", "label": "Messenger"},
+    {"value": "WEB_CHAT", "label": "Web chat"},
+    {"value": "EMAIL", "label": "Email"},
+    {"value": "PHONE", "label": "Phone"},
+    {"value": "EXTERNAL_WEBHOOK", "label": "External webhook"},
+    {"value": "OTHER", "label": "Other"},
+]
 
-    contact: Optional[CrmContact] = field(default=None, metadata={"fk_field": "activity_contact_id", "description": "included via include=['contact']"})
+CATALOG_ITEM_KIND_ENUM: List[Dict[str, str]] = [
+    {"value": "SERVICE", "label": "Service"},
+    {"value": "PRODUCT", "label": "Product"},
+    {"value": "SUPPLY", "label": "Supply"},
+]
 
+RESOURCE_SLOT_ENUM: List[Dict[str, str]] = [
+    {"value": "PRIMARY", "label": "Primary"},
+    {"value": "SECONDARY", "label": "Secondary"},
+    {"value": "TERTIARY", "label": "Tertiary"},
+]
 
-@dataclass
-class CrmDeal:
-    ws_id: str
-    deal_name: str = field(metadata={"importance": 1, "display_name": "Name"})
-    deal_pipeline_id: str = field(metadata={"importance": 1, "display_name": "Pipeline"})
-    deal_stage_id: str = field(metadata={"importance": 1, "display_name": "Stage", "fk_scope": {"stage_pipeline_id": "deal_pipeline_id"}})
-    deal_id: str = field(default="", metadata={"pkey": True, "display_name": "Deal ID"})
-    deal_contact_id: Optional[str] = field(default=None, metadata={"importance": 1, "display_name": "Contact"})
-    deal_value: Decimal = field(default=Decimal(0), metadata={"importance": 1, "display_name": "Value"})
-    deal_expected_close_ts: float = field(default=0.0, metadata={"importance": 1, "display_name": "Expected Close"})
-    deal_closed_ts: float = field(default=0.0, metadata={"display_name": "Closed at"})
-    deal_lost_reason: str = field(default="", metadata={"display_name": "Lost Reason"})
-    deal_notes: str = field(default="", metadata={"importance": 1, "display": "string_multiline", "display_name": "Notes"})
-    deal_tags: List[str] = field(default_factory=list, metadata={"importance": 1, "display_name": "Tags"})
-    deal_details: dict = field(default_factory=dict, metadata={"display_name": "Details", "description": "Custom fields JSON"})
-    deal_owner_fuser_id: str = field(default="", metadata={"importance": 1, "display_name": "Owner"})
-    deal_priority: str = field(default="NONE", metadata={"importance": 1, "display_name": "Priority", "enum": [{"value": "NONE", "label": "None"}, {"value": "LOW", "label": "Low"}, {"value": "MEDIUM", "label": "Medium"}, {"value": "HIGH", "label": "High"}]})
-    deal_created_ts: float = field(default=0.0, metadata={"importance": 1, "display_name": "Created at"})
-    deal_modified_ts: float = field(default=0.0, metadata={"display_name": "Modified at"})
-    deal_archived_ts: float = field(default=0.0, metadata={"display_name": "Archived at"})
+TXN_KIND_ENUM: List[Dict[str, str]] = [
+    {"value": "APPOINTMENT", "label": "Appointment"},
+    {"value": "SALE", "label": "Sale"},
+]
 
-    contact: Optional[CrmContact] = field(default=None, metadata={"fk_field": "deal_contact_id", "description": "included via include=['contact']"})
-    stage: Optional[CrmPipelineStage] = field(default=None, metadata={"fk_field": "deal_stage_id", "description": "included via include=['stage']"})
+TXN_STATUS_ENUM: List[Dict[str, str]] = [
+    {"value": "DRAFT", "label": "Draft"},
+    {"value": "BOOKED", "label": "Booked"},
+    {"value": "CONFIRMED", "label": "Confirmed"},
+    {"value": "ARRIVED", "label": "Arrived"},
+    {"value": "IN_PROGRESS", "label": "In progress"},
+    {"value": "COMPLETED", "label": "Completed"},
+    {"value": "CANCELLED", "label": "Cancelled"},
+    {"value": "NO_SHOW", "label": "No show"},
+]
 
+TXN_SOURCE_ENUM: List[Dict[str, str]] = [
+    {"value": "MANUAL", "label": "Manual"},
+    {"value": "BOT", "label": "Bot"},
+    {"value": "MESSENGER", "label": "Messenger"},
+    {"value": "WEB", "label": "Web"},
+]
 
-@dataclass
-class CrmPipeline:
-    ws_id: str
-    pipeline_name: str = field(metadata={"importance": 1, "display_name": "Name"})
-    pipeline_id: str = field(default="", metadata={"pkey": True, "display_name": "Pipeline ID"})
-    pipeline_active: bool = field(default=True, metadata={"importance": 1, "display_name": "Active"})
-    pipeline_created_ts: float = field(default=0.0, metadata={"display_name": "Created at"})
-    pipeline_modified_ts: float = field(default=0.0, metadata={"display_name": "Modified at"})
-    pipeline_archived_ts: float = field(default=0.0, metadata={"display_name": "Archived at"})
+PAYMENT_STATUS_ENUM: List[Dict[str, str]] = [
+    {"value": "PENDING", "label": "Pending"},
+    {"value": "PAID", "label": "Paid"},
+    {"value": "FAILED", "label": "Failed"},
+    {"value": "REFUNDED", "label": "Refunded"},
+]
 
-    stages: Optional[List[CrmPipelineStage]] = field(default=None, metadata={"inbound_fk_table": "crm_pipeline_stage", "inbound_fk_col": "stage_pipeline_id"})
+INVENTORY_MOVEMENT_KIND_ENUM: List[Dict[str, str]] = [
+    {"value": "RESTOCK", "label": "Restock"},
+    {"value": "SALE", "label": "Sale"},
+    {"value": "SERVICE_CONSUMPTION", "label": "Service consumption"},
+    {"value": "ADJUSTMENT", "label": "Adjustment"},
+    {"value": "RETURN", "label": "Return"},
+]
 
 
 @dataclass
-class CrmPipelineStage:
+class Party:
     ws_id: str
-    stage_name: str = field(metadata={"importance": 1, "display_name": "Name"})
-    stage_pipeline_id: str = field(metadata={"importance": 1, "display_name": "Pipeline"})
-    stage_id: str = field(default="", metadata={"pkey": True, "display_name": "Stage ID"})
-    stage_sequence: int = field(default=0, metadata={"display_name": "Sequence"})
-    stage_probability: int = field(default=0, metadata={"importance": 1, "display_name": "Win Probability %", "description": "0-100 win probability percentage"})
-    stage_status: str = field(default="OPEN", metadata={"importance": 1, "display_name": "Status", "enum": [{"value": "OPEN", "label": "Open"}, {"value": "WON", "label": "Won"}, {"value": "LOST", "label": "Lost"}]})
-    stage_created_ts: float = field(default=0.0, metadata={"display_name": "Created at"})
-    stage_modified_ts: float = field(default=0.0, metadata={"display_name": "Modified at"})
-    stage_archived_ts: float = field(default=0.0, metadata={"display_name": "Archived at"})
+    party_id: str = field(default="", metadata={"pkey": True, "display_name": "Party ID"})
+    party_kind: str = field(
+        default="PERSON",
+        metadata={"importance": 1, "display_name": "Kind", "enum": PARTY_KIND_ENUM},
+    )
+    party_first_name: str = field(default="", metadata={"importance": 1, "display_name": "First name", "extra_search": True})
+    party_last_name: str = field(default="", metadata={"importance": 1, "display_name": "Last name", "extra_search": True})
+    party_company_name: str = field(default="", metadata={"importance": 1, "display_name": "Company", "extra_search": True})
+    party_reminder_ctpoint_id: Optional[str] = field(default=None, metadata={"display_name": "Reminder contact point"})
+    party_notes: str = field(default="", metadata={"importance": 1, "display": "string_multiline", "display_name": "Notes"})
+    party_tags: List[str] = field(default_factory=list, metadata={"importance": 1, "display_name": "Tags"})
+    party_details: dict = field(default_factory=dict, metadata={"display_name": "Details"})
+    party_created_ts: float = field(default=0.0, metadata={"importance": 1, "display_name": "Created at"})
+    party_modified_ts: float = field(default=0.0, metadata={"display_name": "Modified at"})
+    party_archived_ts: float = field(default=0.0, metadata={"display_name": "Archived at"})
 
-    pipeline: Optional[CrmPipeline] = field(default=None, metadata={"fk_field": "stage_pipeline_id", "description": "included via include=['pipeline']"})
+    contact_points: Optional[List[PartyContactPoint]] = field(
+        default=None,
+        metadata={"inbound_fk_table": "party_contact_point", "inbound_fk_col": "ctpoint_party_id"},
+    )
+    reminder_contact_point: Optional[PartyContactPoint] = field(
+        default=None,
+        metadata={"fk_field": "party_reminder_ctpoint_id", "description": "included via include=['reminder_contact_point']"},
+    )
+    crm_events: Optional[List[CrmEvent]] = field(
+        default=None,
+        metadata={"inbound_fk_table": "crm_event", "inbound_fk_col": "crmev_party_id"},
+    )
+    txns: Optional[List[Txn]] = field(
+        default=None,
+        metadata={"inbound_fk_table": "txn", "inbound_fk_col": "txn_party_id"},
+    )
 
 
 @dataclass
-class ComShop:
+class PartyContactPoint:
     ws_id: str
-    shop_name: str = field(metadata={"importance": 1, "display_name": "Name"})
-    shop_type: str = field(metadata={"importance": 1, "display_name": "Type"})
-    shop_id: str = field(default="", metadata={"pkey": True, "display_name": "Shop ID"})
-    shop_domain: str = field(default="", metadata={"importance": 1, "display_name": "Domain"})
-    shop_currency: str = field(default="USD", metadata={"importance": 1, "display_name": "Currency"})
-    shop_auth_id: str = field(default="", metadata={"display_name": "Auth ID", "editable": False})
-    shop_webhook_secret: str = field(default="", metadata={"display_name": "Webhook Secret"})
-    shop_sync_cursor: str = field(default="", metadata={"display_name": "Sync Cursor"})
-    shop_details: dict = field(default_factory=dict, metadata={"display_name": "Details"})
-    shop_created_ts: float = field(default=0.0, metadata={"display_name": "Created at"})
-    shop_modified_ts: float = field(default=0.0, metadata={"display_name": "Modified at"})
-    shop_archived_ts: float = field(default=0.0, metadata={"display_name": "Archived at"})
+    ctpoint_party_id: str
+    ctpoint_channel: str = field(metadata={"importance": 1, "display_name": "Channel", "enum": CONTACT_CHANNEL_ENUM})
+    ctpoint_address_kind: str = field(
+        metadata={"importance": 1, "display_name": "Address kind", "enum": CONTACT_ADDRESS_KIND_ENUM},
+    )
+    ctpoint_value: str = field(metadata={"importance": 1, "extra_search": True, "display_name": "Value"})
+    ctpoint_id: str = field(default="", metadata={"pkey": True, "display_name": "Contact point ID"})
+    ctpoint_display_value: str = field(default="", metadata={"display_name": "Display value"})
+    ctpoint_label: str = field(default="", metadata={"importance": 1, "display_name": "Label"})
+    ctpoint_reminders_enabled: bool = field(default=True, metadata={"display_name": "Reminders enabled"})
+    ctpoint_active: bool = field(default=True, metadata={"importance": 1, "display_name": "Active"})
+    ctpoint_verified_ts: float = field(default=0.0, metadata={"display_name": "Verified at"})
+    ctpoint_details: dict = field(default_factory=dict, metadata={"display_name": "Details"})
+    ctpoint_created_ts: float = field(default=0.0, metadata={"display_name": "Created at"})
+    ctpoint_modified_ts: float = field(default=0.0, metadata={"display_name": "Modified at"})
+    ctpoint_archived_ts: float = field(default=0.0, metadata={"display_name": "Archived at"})
+
+    party: Optional[Party] = field(default=None, metadata={"fk_field": "ctpoint_party_id", "description": "included via include=['party']"})
+    reminder_for: Optional[List[Party]] = field(
+        default=None,
+        metadata={"inbound_fk_table": "party", "inbound_fk_col": "party_reminder_ctpoint_id"},
+    )
+    crm_events: Optional[List[CrmEvent]] = field(
+        default=None,
+        metadata={"inbound_fk_table": "crm_event", "inbound_fk_col": "crmev_ctpoint_id"},
+    )
 
 
 @dataclass
-class ComProduct:
+class CrmEvent:
     ws_id: str
-    prod_name: str = field(metadata={"importance": 1, "display_name": "Name"})
-    prod_shop_id: str = field(metadata={"importance": 1, "display_name": "Shop"})
-    prod_id: str = field(default="", metadata={"pkey": True, "display_name": "Product ID"})
-    prod_external_id: str = field(default="", metadata={"importance": 1, "display_name": "External ID", "editable": False})
-    prod_description: str = field(default="", metadata={"importance": 1, "display": "string_multiline", "display_name": "Description"})
-    prod_type: str = field(default="physical", metadata={"importance": 1, "display_name": "Type", "enum": [
-        {"value": "physical", "label": "Physical"},
-        {"value": "digital", "label": "Digital"},
-        {"value": "service", "label": "Service"},
-    ]})
-    prod_category: str = field(default="", metadata={"importance": 1, "display_name": "Category"})
-    prod_tags: List[str] = field(default_factory=list, metadata={"importance": 1, "display_name": "Tags"})
-    prod_images: list = field(default_factory=list, metadata={"display_name": "Images", "examples": '[{"src":"https://cdn.shopify.com/.../snowboard.jpg","alt":"A snowboard"}]'})
-    prod_details: dict = field(default_factory=dict, metadata={"display_name": "Details"})
-    prod_created_ts: float = field(default=0.0, metadata={"display_name": "Created at"})
-    prod_modified_ts: float = field(default=0.0, metadata={"display_name": "Modified at"})
-    prod_archived_ts: float = field(default=0.0, metadata={"display_name": "Archived at"})
+    crmev_kind: str = field(metadata={"importance": 1, "display_name": "Kind", "enum": CRM_EVENT_KIND_ENUM})
+    crmev_source: str = field(metadata={"importance": 1, "display_name": "Source", "enum": CRM_EVENT_SOURCE_ENUM})
+    crmev_id: str = field(default="", metadata={"pkey": True, "display_name": "Event ID"})
+    crmev_party_id: Optional[str] = field(default=None, metadata={"display_name": "Party"})
+    crmev_txn_id: Optional[str] = field(default=None, metadata={"display_name": "Transaction"})
+    crmev_ctpoint_id: Optional[str] = field(default=None, metadata={"display_name": "Contact point"})
+    crmev_source_name: str = field(default="", metadata={"display_name": "Source name"})
+    crmev_source_ref: dict = field(default_factory=dict, metadata={"display_name": "Source ref"})
+    crmev_title: str = field(default="", metadata={"importance": 1, "display_name": "Title", "extra_search": True})
+    crmev_summary: str = field(default="", metadata={"importance": 1, "display": "string_multiline", "display_name": "Summary"})
+    crmev_details: dict = field(default_factory=dict, metadata={"display_name": "Details"})
+    crmev_occurred_ts: float = field(default=0.0, metadata={"importance": 1, "display_name": "Occurred at"})
+    crmev_created_ts: float = field(default=0.0, metadata={"display_name": "Created at"})
 
-    variants: Optional[List[ComProductVariant]] = field(default=None, metadata={"inbound_fk_table": "com_product_variant", "inbound_fk_col": "pvar_prod_id"})
+    party: Optional[Party] = field(default=None, metadata={"fk_field": "crmev_party_id", "description": "included via include=['party']"})
+    txn: Optional[Txn] = field(default=None, metadata={"fk_field": "crmev_txn_id", "description": "included via include=['txn']"})
+    contact_point: Optional[PartyContactPoint] = field(
+        default=None,
+        metadata={"fk_field": "crmev_ctpoint_id", "description": "included via include=['contact_point']"},
+    )
 
 
 @dataclass
-class ComProductVariant:
+class CatalogItem:
     ws_id: str
-    pvar_prod_id: str = field(metadata={"importance": 1, "display_name": "Product"})
-    pvar_id: str = field(default="", metadata={"pkey": True, "display_name": "Variant ID"})
-    pvar_external_id: str = field(default="", metadata={"display_name": "External ID", "editable": False})
-    pvar_name: str = field(default="", metadata={"importance": 1, "display_name": "Name"})
-    pvar_sku: str = field(default="", metadata={"importance": 1, "display_name": "SKU"})
-    pvar_barcode: str = field(default="", metadata={"display_name": "Barcode"})
-    pvar_price: Decimal = field(default=Decimal(0), metadata={"importance": 1, "display_name": "Price"})
-    pvar_compare_at_price: Decimal = field(default=Decimal(0), metadata={"display_name": "Compare at Price"})
-    pvar_cost: Decimal = field(default=Decimal(0), metadata={"display_name": "Cost"})
-    pvar_available_qty: int = field(default=0, metadata={"importance": 1, "display_name": "Available Qty"})
-    pvar_inventory_status: str = field(default="UNKNOWN", metadata={"importance": 1, "display_name": "Inventory Status", "enum": [
-        {"value": "UNKNOWN", "label": "Unknown"},
-        {"value": "IN_STOCK", "label": "In Stock"},
-        {"value": "LOW_STOCK", "label": "Low Stock"},
-        {"value": "OUT_OF_STOCK", "label": "Out of Stock"},
-    ]})
-    pvar_weight: Decimal = field(default=Decimal(0), metadata={"display_name": "Weight"})
-    pvar_weight_unit: str = field(default="kg", metadata={"display_name": "Weight Unit"})
-    pvar_options: dict = field(default_factory=dict, metadata={"display_name": "Options"})
-    pvar_active: bool = field(default=True, metadata={"importance": 1, "display_name": "Active"})
-    pvar_details: dict = field(default_factory=dict, metadata={"display_name": "Details"})
-    pvar_created_ts: float = field(default=0.0, metadata={"display_name": "Created at"})
-    pvar_modified_ts: float = field(default=0.0, metadata={"display_name": "Modified at"})
+    citem_kind: str = field(metadata={"importance": 1, "display_name": "Kind", "enum": CATALOG_ITEM_KIND_ENUM})
+    citem_name: str = field(metadata={"importance": 1, "extra_search": True, "display_name": "Name"})
+    citem_id: str = field(default="", metadata={"pkey": True, "display_name": "Catalog item ID"})
+    citem_description: str = field(default="", metadata={"display": "string_multiline", "display_name": "Description"})
+    citem_category: str = field(default="", metadata={"importance": 1, "display_name": "Category"})
+    citem_active: bool = field(default=False, metadata={"importance": 1, "display_name": "Active"})
+    citem_tags: List[str] = field(default_factory=list, metadata={"display_name": "Tags"})
+    citem_details: dict = field(default_factory=dict, metadata={"display_name": "Details"})
+    citem_created_ts: float = field(default=0.0, metadata={"display_name": "Created at"})
+    citem_modified_ts: float = field(default=0.0, metadata={"display_name": "Modified at"})
+    citem_archived_ts: float = field(default=0.0, metadata={"display_name": "Archived at"})
 
-    product: Optional[ComProduct] = field(default=None, metadata={"fk_field": "pvar_prod_id", "description": "included via include=['product']"})
+    variants: Optional[List[CatalogItemVariant]] = field(
+        default=None,
+        metadata={"inbound_fk_table": "catalog_item_variant", "inbound_fk_col": "civar_citem_id"},
+    )
 
 
 @dataclass
-class ComOrder:
+class CatalogItemVariant:
     ws_id: str
-    order_shop_id: str = field(metadata={"importance": 1, "display_name": "Shop"})
-    order_id: str = field(default="", metadata={"pkey": True, "display_name": "Order ID"})
-    order_external_id: str = field(default="", metadata={"display_name": "External ID", "editable": False})
-    order_number: str = field(default="", metadata={"importance": 1, "display_name": "Order Number"})
-    order_contact_id: Optional[str] = field(default=None, metadata={"importance": 1, "display_name": "Contact"})
-    order_email: str = field(default="", metadata={"importance": 1, "display_name": "Email"})
-    order_financial_status: str = field(default="PENDING", metadata={"importance": 1, "display_name": "Financial Status", "enum": [
-        {"value": "PENDING", "label": "Pending"},
-        {"value": "PAID", "label": "Paid"},
-        {"value": "PARTIALLY_PAID", "label": "Partially Paid"},
-        {"value": "REFUNDED", "label": "Refunded"},
-        {"value": "PARTIALLY_REFUNDED", "label": "Partially Refunded"},
-        {"value": "VOIDED", "label": "Voided"},
-    ]})
-    order_fulfillment_status: str = field(default="UNFULFILLED", metadata={"importance": 1, "display_name": "Fulfillment Status", "enum": [
-        {"value": "UNFULFILLED", "label": "Unfulfilled"},
-        {"value": "PARTIAL", "label": "Partial"},
-        {"value": "FULFILLED", "label": "Fulfilled"},
-    ]})
-    order_currency: str = field(default="", metadata={"importance": 1, "display_name": "Currency"})
-    order_subtotal: Decimal = field(default=Decimal(0), metadata={"importance": 1, "display_name": "Subtotal"})
-    order_total_tax: Decimal = field(default=Decimal(0), metadata={"display_name": "Total Tax"})
-    order_total_shipping: Decimal = field(default=Decimal(0), metadata={"display_name": "Total Shipping"})
-    order_total_discount: Decimal = field(default=Decimal(0), metadata={"display_name": "Total Discount"})
-    order_total: Decimal = field(default=Decimal(0), metadata={"importance": 1, "display_name": "Total"})
-    order_total_refunded: Decimal = field(default=Decimal(0), metadata={"display_name": "Total Refunded"})
-    order_notes: str = field(default="", metadata={"display": "string_multiline", "display_name": "Notes"})
-    order_tags: List[str] = field(default_factory=list, metadata={"importance": 1, "display_name": "Tags"})
-    order_tax_lines: list = field(default_factory=list, metadata={"display_name": "Tax Lines"})
-    order_shipping_charges: list = field(default_factory=list, metadata={"display_name": "Shipping Charges", "examples": '[{"id":"5632653459649","title":"Standard","price":"0.00","code":"Standard"}]'})
-    order_shipments: list = field(default_factory=list, metadata={"display_name": "Shipments", "description": "Fulfillments/shipments. Status: PENDING, IN_TRANSIT, SHIPPED, DELIVERED, FAILED.", "examples": '[{"id":"6237394370753","carrier":"Amazon Logistics","tracking_number":"1234","tracking_url":"https://track.amazon.com/tracking/1234","status":"SHIPPED","line_items":[{"id":"17452631130305","quantity":1}],"created_ts":1771449051.0,"modified_ts":1771449051.0}]'})
-    order_details: dict = field(default_factory=dict, metadata={"display_name": "Details"})
-    order_created_ts: float = field(default=0.0, metadata={"importance": 1, "display_name": "Created at"})
-    order_modified_ts: float = field(default=0.0, metadata={"display_name": "Modified at"})
-    order_cancelled_ts: float = field(default=0.0, metadata={"display_name": "Cancelled at"})
-    order_archived_ts: float = field(default=0.0, metadata={"display_name": "Archived at"})
+    civar_citem_id: str
+    civar_name: str = field(metadata={"importance": 1, "extra_search": True, "display_name": "Name"})
+    civar_id: str = field(default="", metadata={"pkey": True, "display_name": "Variant ID"})
+    civar_sku: str = field(default="", metadata={"importance": 1, "display_name": "SKU"})
+    civar_barcode: str = field(default="", metadata={"display_name": "Barcode"})
+    civar_attrs: dict = field(default_factory=dict, metadata={"display_name": "Attributes"})
+    civar_price: Decimal = field(default=Decimal(0), metadata={"importance": 1, "display_name": "Price"})
+    civar_cost: Decimal = field(default=Decimal(0), metadata={"display_name": "Cost"})
+    civar_duration_min: int = field(default=0, metadata={"importance": 1, "display_name": "Duration (min)"})
+    civar_unit: str = field(default="pcs", metadata={"display_name": "Unit"})
+    civar_sellable: bool = field(default=False, metadata={"importance": 1, "display_name": "Sellable"})
+    civar_stock_tracked: bool = field(default=False, metadata={"importance": 1, "display_name": "Stock tracked"})
+    civar_active: bool = field(default=False, metadata={"importance": 1, "display_name": "Active"})
+    civar_details: dict = field(default_factory=dict, metadata={"display_name": "Details"})
+    civar_created_ts: float = field(default=0.0, metadata={"display_name": "Created at"})
+    civar_modified_ts: float = field(default=0.0, metadata={"display_name": "Modified at"})
+    civar_archived_ts: float = field(default=0.0, metadata={"display_name": "Archived at"})
 
-    contact: Optional[CrmContact] = field(default=None, metadata={"fk_field": "order_contact_id", "description": "included via include=['contact']"})
-    items: Optional[List[ComOrderItem]] = field(default=None, metadata={"inbound_fk_table": "com_order_item", "inbound_fk_col": "oitem_order_id"})
-    payments: Optional[List[ComPayment]] = field(default=None, metadata={"inbound_fk_table": "com_payment", "inbound_fk_col": "pay_order_id"})
-    refunds: Optional[List[ComRefund]] = field(default=None, metadata={"inbound_fk_table": "com_refund", "inbound_fk_col": "refund_order_id"})
+    catalog_item: Optional[CatalogItem] = field(
+        default=None,
+        metadata={"fk_field": "civar_citem_id", "description": "included via include=['catalog_item']"},
+    )
+    resource_requirements: Optional[List[CatalogItemResourceRequirement]] = field(
+        default=None,
+        metadata={"inbound_fk_table": "catalog_item_resource_requirement", "inbound_fk_col": "cireq_civar_id"},
+    )
+    supply_requirements_as_service: Optional[List[CatalogItemSupplyRequirement]] = field(
+        default=None,
+        metadata={"inbound_fk_table": "catalog_item_supply_requirement", "inbound_fk_col": "csreq_service_civar_id"},
+    )
+    supply_requirements_as_supply: Optional[List[CatalogItemSupplyRequirement]] = field(
+        default=None,
+        metadata={"inbound_fk_table": "catalog_item_supply_requirement", "inbound_fk_col": "csreq_supply_civar_id"},
+    )
+    txn_lines: Optional[List[TxnLine]] = field(
+        default=None,
+        metadata={"inbound_fk_table": "txn_line", "inbound_fk_col": "txnline_civar_id"},
+    )
+    inventory_balances: Optional[List[InventoryBalance]] = field(
+        default=None,
+        metadata={"inbound_fk_table": "inventory_balance", "inbound_fk_col": "ibal_civar_id"},
+    )
+    inventory_movements: Optional[List[InventoryMovement]] = field(
+        default=None,
+        metadata={"inbound_fk_table": "inventory_movement", "inbound_fk_col": "imov_civar_id"},
+    )
 
 
 @dataclass
-class ComOrderItem:
+class Resource:
     ws_id: str
-    oitem_order_id: str = field(metadata={"importance": 1, "display_name": "Order"})
-    oitem_name: str = field(metadata={"importance": 1, "display_name": "Name"})
-    oitem_id: str = field(default="", metadata={"pkey": True, "display_name": "Item ID"})
-    oitem_pvar_id: Optional[str] = field(default=None, metadata={"display_name": "Variant"})
-    oitem_external_id: str = field(default="", metadata={"display_name": "External ID", "editable": False})
-    oitem_sku: str = field(default="", metadata={"importance": 1, "display_name": "SKU"})
-    oitem_quantity: int = field(default=1, metadata={"importance": 1, "display_name": "Quantity"})
-    oitem_unit_price: Decimal = field(default=Decimal(0), metadata={"importance": 1, "display_name": "Unit Price"})
-    oitem_total_discount: Decimal = field(default=Decimal(0), metadata={"display_name": "Total Discount"})
-    oitem_total: Decimal = field(default=Decimal(0), metadata={"importance": 1, "display_name": "Total"})
-    oitem_details: dict = field(default_factory=dict, metadata={"display_name": "Details"})
-    oitem_created_ts: float = field(default=0.0, metadata={"display_name": "Created at"})
-    oitem_modified_ts: float = field(default=0.0, metadata={"display_name": "Modified at"})
+    resource_slot: str = field(metadata={"importance": 1, "display_name": "Slot", "enum": RESOURCE_SLOT_ENUM})
+    resource_name: str = field(metadata={"importance": 1, "extra_search": True, "display_name": "Name"})
+    resource_id: str = field(default="", metadata={"pkey": True, "display_name": "Resource ID"})
+    resource_active: bool = field(default=True, metadata={"importance": 1, "display_name": "Active"})
+    resource_notes: str = field(default="", metadata={"display": "string_multiline", "display_name": "Notes"})
+    resource_tags: List[str] = field(default_factory=list, metadata={"display_name": "Tags"})
+    resource_details: dict = field(default_factory=dict, metadata={"display_name": "Details"})
+    resource_created_ts: float = field(default=0.0, metadata={"display_name": "Created at"})
+    resource_modified_ts: float = field(default=0.0, metadata={"display_name": "Modified at"})
+    resource_archived_ts: float = field(default=0.0, metadata={"display_name": "Archived at"})
 
-    order: Optional[ComOrder] = field(default=None, metadata={"fk_field": "oitem_order_id", "description": "included via include=['order']"})
-    variant: Optional[ComProductVariant] = field(default=None, metadata={"fk_field": "oitem_pvar_id", "description": "included via include=['variant']"})
+    availability: Optional[List[ResourceAvailability]] = field(
+        default=None,
+        metadata={"inbound_fk_table": "resource_availability", "inbound_fk_col": "ravail_resource_id"},
+    )
+    requirements: Optional[List[CatalogItemResourceRequirement]] = field(
+        default=None,
+        metadata={"inbound_fk_table": "catalog_item_resource_requirement", "inbound_fk_col": "cireq_resource_id"},
+    )
+    bookings: Optional[List[TxnLineResourceBooking]] = field(
+        default=None,
+        metadata={"inbound_fk_table": "txn_line_resource_booking", "inbound_fk_col": "booking_resource_id"},
+    )
 
 
 @dataclass
-class ComPayment:
+class ResourceAvailability:
     ws_id: str
-    pay_order_id: str = field(metadata={"importance": 1, "display_name": "Order"})
-    pay_id: str = field(default="", metadata={"pkey": True, "display_name": "Payment ID"})
-    pay_external_id: str = field(default="", metadata={"display_name": "External ID", "editable": False})
-    pay_amount: Decimal = field(default=Decimal(0), metadata={"importance": 1, "display_name": "Amount"})
-    pay_currency: str = field(default="", metadata={"importance": 1, "display_name": "Currency"})
-    pay_status: str = field(default="PENDING", metadata={"importance": 1, "display_name": "Status", "enum": [
-        {"value": "PENDING", "label": "Pending"},
-        {"value": "COMPLETED", "label": "Completed"},
-        {"value": "FAILED", "label": "Failed"},
-        {"value": "REFUNDED", "label": "Refunded"},
-    ]})
-    pay_provider: str = field(default="", metadata={"importance": 1, "display_name": "Provider"})
-    pay_details: dict = field(default_factory=dict, metadata={"display_name": "Details"})
-    pay_created_ts: float = field(default=0.0, metadata={"display_name": "Created at"})
-    pay_modified_ts: float = field(default=0.0, metadata={"display_name": "Modified at"})
+    ravail_resource_id: str
+    ravail_date: str
+    ravail_start_minute_of_day: int
+    ravail_end_minute_of_day: int
+    ravail_id: str = field(default="", metadata={"pkey": True, "display_name": "Availability ID"})
+    ravail_created_ts: float = field(default=0.0, metadata={"display_name": "Created at"})
+    ravail_modified_ts: float = field(default=0.0, metadata={"display_name": "Modified at"})
+    ravail_archived_ts: float = field(default=0.0, metadata={"display_name": "Archived at"})
 
-    order: Optional[ComOrder] = field(default=None, metadata={"fk_field": "pay_order_id", "description": "included via include=['order']"})
+    resource: Optional[Resource] = field(default=None, metadata={"fk_field": "ravail_resource_id", "description": "included via include=['resource']"})
 
 
 @dataclass
-class ComRefund:
+class CatalogItemResourceRequirement:
     ws_id: str
-    refund_order_id: str = field(metadata={"importance": 1, "display_name": "Order"})
+    cireq_civar_id: str
+    cireq_slot: str = field(metadata={"importance": 1, "display_name": "Slot", "enum": RESOURCE_SLOT_ENUM})
+    cireq_resource_id: str
+    cireq_id: str = field(default="", metadata={"pkey": True, "display_name": "Requirement ID"})
+    cireq_created_ts: float = field(default=0.0, metadata={"display_name": "Created at"})
+    cireq_modified_ts: float = field(default=0.0, metadata={"display_name": "Modified at"})
+
+    variant: Optional[CatalogItemVariant] = field(default=None, metadata={"fk_field": "cireq_civar_id", "description": "included via include=['variant']"})
+    resource: Optional[Resource] = field(default=None, metadata={"fk_field": "cireq_resource_id", "description": "included via include=['resource']"})
+
+
+@dataclass
+class CatalogItemSupplyRequirement:
+    ws_id: str
+    csreq_service_civar_id: str
+    csreq_supply_civar_id: str
+    csreq_quantity: Decimal
+    csreq_id: str = field(default="", metadata={"pkey": True, "display_name": "Supply requirement ID"})
+    csreq_unit: str = field(default="pcs", metadata={"display_name": "Unit"})
+    csreq_created_ts: float = field(default=0.0, metadata={"display_name": "Created at"})
+    csreq_modified_ts: float = field(default=0.0, metadata={"display_name": "Modified at"})
+
+    service_variant: Optional[CatalogItemVariant] = field(
+        default=None,
+        metadata={"fk_field": "csreq_service_civar_id", "description": "included via include=['service_variant']"},
+    )
+    supply_variant: Optional[CatalogItemVariant] = field(
+        default=None,
+        metadata={"fk_field": "csreq_supply_civar_id", "description": "included via include=['supply_variant']"},
+    )
+
+
+@dataclass
+class Txn:
+    ws_id: str
+    txn_kind: str = field(metadata={"importance": 1, "display_name": "Kind", "enum": TXN_KIND_ENUM})
+    txn_id: str = field(default="", metadata={"pkey": True, "display_name": "Transaction ID"})
+    txn_party_id: Optional[str] = field(default=None, metadata={"importance": 1, "display_name": "Party"})
+    txn_status: str = field(
+        default="DRAFT",
+        metadata={"importance": 1, "display_name": "Status", "enum": TXN_STATUS_ENUM},
+    )
+    txn_source: str = field(
+        default="MANUAL",
+        metadata={"importance": 1, "display_name": "Source", "enum": TXN_SOURCE_ENUM},
+    )
+    txn_source_name: str = field(default="", metadata={"display_name": "Source name"})
+    txn_source_ref: dict = field(default_factory=dict, metadata={"display_name": "Source ref"})
+    txn_scheduled_ts1: float = field(default=0.0, metadata={"importance": 1, "display_name": "Scheduled start"})
+    txn_scheduled_ts2: float = field(default=0.0, metadata={"importance": 1, "display_name": "Scheduled end"})
+    txn_currency: str = field(default="USD", metadata={"display_name": "Currency"})
+    txn_subtotal: Decimal = field(default=Decimal(0), metadata={"display_name": "Subtotal"})
+    txn_discount_total: Decimal = field(default=Decimal(0), metadata={"display_name": "Discount total"})
+    txn_tax_total: Decimal = field(default=Decimal(0), metadata={"display_name": "Tax total"})
+    txn_total: Decimal = field(default=Decimal(0), metadata={"importance": 1, "display_name": "Total"})
+    txn_notes: str = field(default="", metadata={"importance": 1, "display": "string_multiline", "display_name": "Notes"})
+    txn_tags: List[str] = field(default_factory=list, metadata={"display_name": "Tags"})
+    txn_details: dict = field(default_factory=dict, metadata={"display_name": "Details"})
+    txn_created_ts: float = field(default=0.0, metadata={"importance": 1, "display_name": "Created at"})
+    txn_modified_ts: float = field(default=0.0, metadata={"display_name": "Modified at"})
+    txn_completed_ts: float = field(default=0.0, metadata={"display_name": "Completed at"})
+    txn_cancelled_ts: float = field(default=0.0, metadata={"display_name": "Cancelled at"})
+    txn_archived_ts: float = field(default=0.0, metadata={"display_name": "Archived at"})
+
+    party: Optional[Party] = field(default=None, metadata={"fk_field": "txn_party_id", "description": "included via include=['party']"})
+    lines: Optional[List[TxnLine]] = field(
+        default=None,
+        metadata={"inbound_fk_table": "txn_line", "inbound_fk_col": "txnline_txn_id"},
+    )
+    payments: Optional[List[Payment]] = field(
+        default=None,
+        metadata={"inbound_fk_table": "payment", "inbound_fk_col": "payment_txn_id"},
+    )
+    crm_events: Optional[List[CrmEvent]] = field(
+        default=None,
+        metadata={"inbound_fk_table": "crm_event", "inbound_fk_col": "crmev_txn_id"},
+    )
+    inventory_movements: Optional[List[InventoryMovement]] = field(
+        default=None,
+        metadata={"inbound_fk_table": "inventory_movement", "inbound_fk_col": "imov_txn_id"},
+    )
+
+
+@dataclass
+class TxnLine:
+    ws_id: str
+    txnline_txn_id: str
+    txnline_item_kind: str = field(metadata={"importance": 1, "display_name": "Item kind", "enum": CATALOG_ITEM_KIND_ENUM})
+    txnline_name: str = field(metadata={"importance": 1, "extra_search": True, "display_name": "Name"})
+    txnline_id: str = field(default="", metadata={"pkey": True, "display_name": "Line ID"})
+    txnline_civar_id: Optional[str] = field(default=None, metadata={"display_name": "Catalog variant"})
+    txnline_quantity: Decimal = field(default=Decimal(1), metadata={"importance": 1, "display_name": "Quantity"})
+    txnline_unit: str = field(default="pcs", metadata={"display_name": "Unit"})
+    txnline_unit_price: Decimal = field(default=Decimal(0), metadata={"importance": 1, "display_name": "Unit price"})
+    txnline_discount_total: Decimal = field(default=Decimal(0), metadata={"display_name": "Discount"})
+    txnline_tax_total: Decimal = field(default=Decimal(0), metadata={"display_name": "Tax"})
+    txnline_total: Decimal = field(default=Decimal(0), metadata={"importance": 1, "display_name": "Line total"})
+    txnline_duration_min: int = field(default=0, metadata={"display_name": "Duration (min)"})
+    txnline_sort_order: int = field(default=0, metadata={"display_name": "Sort order"})
+    txnline_notes: str = field(default="", metadata={"display_name": "Notes"})
+    txnline_details: dict = field(default_factory=dict, metadata={"display_name": "Details"})
+    txnline_created_ts: float = field(default=0.0, metadata={"display_name": "Created at"})
+    txnline_modified_ts: float = field(default=0.0, metadata={"display_name": "Modified at"})
+
+    txn: Optional[Txn] = field(default=None, metadata={"fk_field": "txnline_txn_id", "description": "included via include=['txn']"})
+    variant: Optional[CatalogItemVariant] = field(default=None, metadata={"fk_field": "txnline_civar_id", "description": "included via include=['variant']"})
+    resource_bookings: Optional[List[TxnLineResourceBooking]] = field(
+        default=None,
+        metadata={"inbound_fk_table": "txn_line_resource_booking", "inbound_fk_col": "booking_txnline_id"},
+    )
+    inventory_movements: Optional[List[InventoryMovement]] = field(
+        default=None,
+        metadata={"inbound_fk_table": "inventory_movement", "inbound_fk_col": "imov_txnline_id"},
+    )
+
+
+@dataclass
+class TxnLineResourceBooking:
+    ws_id: str
+    booking_txnline_id: str
+    booking_resource_id: str
+    booking_slot: str = field(metadata={"importance": 1, "display_name": "Slot", "enum": RESOURCE_SLOT_ENUM})
+    booking_ts1: float
+    booking_ts2: float
+    booking_id: str = field(default="", metadata={"pkey": True, "display_name": "Booking ID"})
+    booking_created_ts: float = field(default=0.0, metadata={"display_name": "Created at"})
+    booking_modified_ts: float = field(default=0.0, metadata={"display_name": "Modified at"})
+    booking_cancelled_ts: float = field(default=0.0, metadata={"display_name": "Cancelled at"})
+
+    line: Optional[TxnLine] = field(default=None, metadata={"fk_field": "booking_txnline_id", "description": "included via include=['line']"})
+    resource: Optional[Resource] = field(default=None, metadata={"fk_field": "booking_resource_id", "description": "included via include=['resource']"})
+
+
+@dataclass
+class Payment:
+    ws_id: str
+    payment_txn_id: str
+    payment_amount: Decimal
+    payment_id: str = field(default="", metadata={"pkey": True, "display_name": "Payment ID"})
+    payment_currency: str = field(default="USD", metadata={"display_name": "Currency"})
+    payment_status: str = field(
+        default="PENDING",
+        metadata={"importance": 1, "display_name": "Status", "enum": PAYMENT_STATUS_ENUM},
+    )
+    payment_provider: str = field(default="", metadata={"display_name": "Provider"})
+    payment_external_id: str = field(default="", metadata={"display_name": "External ID"})
+    payment_details: dict = field(default_factory=dict, metadata={"display_name": "Details"})
+    payment_created_ts: float = field(default=0.0, metadata={"display_name": "Created at"})
+    payment_modified_ts: float = field(default=0.0, metadata={"display_name": "Modified at"})
+
+    txn: Optional[Txn] = field(default=None, metadata={"fk_field": "payment_txn_id", "description": "included via include=['txn']"})
+    refunds: Optional[List[Refund]] = field(
+        default=None,
+        metadata={"inbound_fk_table": "refund", "inbound_fk_col": "refund_payment_id"},
+    )
+
+
+@dataclass
+class Refund:
+    ws_id: str
+    refund_payment_id: str
+    refund_amount: Decimal
     refund_id: str = field(default="", metadata={"pkey": True, "display_name": "Refund ID"})
-    refund_external_id: str = field(default="", metadata={"display_name": "External ID", "editable": False})
-    refund_amount: Decimal = field(default=Decimal(0), metadata={"importance": 1, "display_name": "Amount"})
-    refund_currency: str = field(default="", metadata={"importance": 1, "display_name": "Currency"})
-    refund_reason: str = field(default="", metadata={"importance": 1, "display_name": "Reason"})
-    refund_status: str = field(default="PENDING", metadata={"importance": 1, "display_name": "Status", "enum": [
-        {"value": "PENDING", "label": "Pending"},
-        {"value": "COMPLETED", "label": "Completed"},
-        {"value": "FAILED", "label": "Failed"},
-    ]})
-    refund_line_items: list = field(default_factory=list, metadata={"display_name": "Line Items", "description": "Refunded line items with quantity snapshots.", "examples": '[{"line_item_id":"17453088604353","oitem_id":"abc123","name":"Ejector bed - Queen","quantity":1,"price":"1899.00","variant_id":49977563447489,"product_id":10911290884289}]'})
+    refund_reason: str = field(default="", metadata={"display_name": "Reason"})
     refund_details: dict = field(default_factory=dict, metadata={"display_name": "Details"})
     refund_created_ts: float = field(default=0.0, metadata={"display_name": "Created at"})
     refund_modified_ts: float = field(default=0.0, metadata={"display_name": "Modified at"})
 
-    order: Optional[ComOrder] = field(default=None, metadata={"fk_field": "refund_order_id", "description": "included via include=['order']"})
+    payment: Optional[Payment] = field(default=None, metadata={"fk_field": "refund_payment_id", "description": "included via include=['payment']"})
+
+
+@dataclass
+class InventoryLocation:
+    ws_id: str
+    iloc_name: str = field(metadata={"importance": 1, "extra_search": True, "display_name": "Name"})
+    iloc_id: str = field(default="", metadata={"pkey": True, "display_name": "Location ID"})
+    iloc_active: bool = field(default=True, metadata={"importance": 1, "display_name": "Active"})
+    iloc_details: dict = field(default_factory=dict, metadata={"display_name": "Details"})
+    iloc_created_ts: float = field(default=0.0, metadata={"display_name": "Created at"})
+    iloc_modified_ts: float = field(default=0.0, metadata={"display_name": "Modified at"})
+    iloc_archived_ts: float = field(default=0.0, metadata={"display_name": "Archived at"})
+
+    balances: Optional[List[InventoryBalance]] = field(
+        default=None,
+        metadata={"inbound_fk_table": "inventory_balance", "inbound_fk_col": "ibal_iloc_id"},
+    )
+    movements: Optional[List[InventoryMovement]] = field(
+        default=None,
+        metadata={"inbound_fk_table": "inventory_movement", "inbound_fk_col": "imov_iloc_id"},
+    )
+
+
+@dataclass
+class InventoryBalance:
+    ws_id: str
+    ibal_civar_id: str
+    ibal_iloc_id: str
+    ibal_id: str = field(default="", metadata={"pkey": True, "display_name": "Balance ID"})
+    ibal_quantity: Decimal = field(default=Decimal(0), metadata={"importance": 1, "display_name": "Quantity"})
+    ibal_low_stock_at: Decimal = field(default=Decimal(0), metadata={"display_name": "Low stock threshold"})
+    ibal_modified_ts: float = field(default=0.0, metadata={"display_name": "Modified at"})
+
+    variant: Optional[CatalogItemVariant] = field(default=None, metadata={"fk_field": "ibal_civar_id", "description": "included via include=['variant']"})
+    location: Optional[InventoryLocation] = field(default=None, metadata={"fk_field": "ibal_iloc_id", "description": "included via include=['location']"})
+
+
+@dataclass
+class InventoryMovement:
+    ws_id: str
+    imov_civar_id: str
+    imov_iloc_id: str
+    imov_kind: str = field(metadata={"importance": 1, "display_name": "Kind", "enum": INVENTORY_MOVEMENT_KIND_ENUM})
+    imov_quantity_delta: Decimal
+    imov_id: str = field(default="", metadata={"pkey": True, "display_name": "Movement ID"})
+    imov_txn_id: Optional[str] = field(default=None, metadata={"display_name": "Transaction"})
+    imov_txnline_id: Optional[str] = field(default=None, metadata={"display_name": "Line"})
+    imov_unit: str = field(default="pcs", metadata={"display_name": "Unit"})
+    imov_note: str = field(default="", metadata={"display_name": "Note"})
+    imov_created_ts: float = field(default=0.0, metadata={"display_name": "Created at"})
+
+    variant: Optional[CatalogItemVariant] = field(default=None, metadata={"fk_field": "imov_civar_id", "description": "included via include=['variant']"})
+    location: Optional[InventoryLocation] = field(default=None, metadata={"fk_field": "imov_iloc_id", "description": "included via include=['location']"})
+    txn: Optional[Txn] = field(default=None, metadata={"fk_field": "imov_txn_id", "description": "included via include=['txn']"})
+    line: Optional[TxnLine] = field(default=None, metadata={"fk_field": "imov_txnline_id", "description": "included via include=['line']"})
 
 
 ERP_TABLE_TO_SCHEMA: Dict[str, Type] = {
-    "crm_activity": CrmActivity,
-    "crm_contact": CrmContact,
-    "crm_deal": CrmDeal,
-    "crm_pipeline": CrmPipeline,
-    "crm_pipeline_stage": CrmPipelineStage,
-    "com_order": ComOrder,
-    "com_order_item": ComOrderItem,
-    "com_payment": ComPayment,
-    "com_product": ComProduct,
-    "com_product_variant": ComProductVariant,
-    "com_refund": ComRefund,
-    "com_shop": ComShop,
+    "party": Party,
+    "party_contact_point": PartyContactPoint,
+    "crm_event": CrmEvent,
+    "catalog_item": CatalogItem,
+    "catalog_item_variant": CatalogItemVariant,
+    "resource": Resource,
+    "resource_availability": ResourceAvailability,
+    "catalog_item_resource_requirement": CatalogItemResourceRequirement,
+    "catalog_item_supply_requirement": CatalogItemSupplyRequirement,
+    "txn": Txn,
+    "txn_line": TxnLine,
+    "txn_line_resource_booking": TxnLineResourceBooking,
+    "payment": Payment,
+    "refund": Refund,
+    "inventory_location": InventoryLocation,
+    "inventory_balance": InventoryBalance,
+    "inventory_movement": InventoryMovement,
 }
 
 ERP_TABLE_LABELS: Dict[str, str] = {
-    "crm_activity": "CRM Activity",
-    "crm_contact": "CRM Contact",
-    "crm_deal": "CRM Deal",
-    "crm_pipeline": "CRM Pipeline",
-    "crm_pipeline_stage": "CRM Pipeline Stage",
-    "com_order": "Order",
-    "com_order_item": "Order Item",
-    "com_payment": "Payment",
-    "com_product": "Product",
-    "com_product_variant": "Product Variant",
-    "com_refund": "Refund",
-    "com_shop": "Shop",
+    "party": "Party",
+    "party_contact_point": "Contact point",
+    "crm_event": "CRM event",
+    "catalog_item": "Catalog item",
+    "catalog_item_variant": "Catalog item variant",
+    "resource": "Resource",
+    "resource_availability": "Resource availability",
+    "catalog_item_resource_requirement": "Resource requirement",
+    "catalog_item_supply_requirement": "Supply requirement",
+    "txn": "Transaction",
+    "txn_line": "Transaction line",
+    "txn_line_resource_booking": "Resource booking",
+    "payment": "Payment",
+    "refund": "Refund",
+    "inventory_location": "Inventory location",
+    "inventory_balance": "Inventory balance",
+    "inventory_movement": "Inventory movement",
 }
 
 ERP_DISPLAY_NAME_CONFIGS: Dict[str, str] = {
-    "crm_activity": "{activity_title}",
-    "crm_contact": "{contact_first_name} {contact_last_name}",
-    "crm_deal": "{deal_name}",
-    "crm_pipeline": "{pipeline_name}",
-    "crm_pipeline_stage": "{stage_name}",
-    "com_order": "{order_number}",
-    "com_order_item": "{oitem_name}",
-    "com_payment": "{pay_id}",
-    "com_product": "{prod_name}",
-    "com_product_variant": "{pvar_name} {pvar_sku}",
-    "com_refund": "{refund_id}",
-    "com_shop": "{shop_name}",
+    "party": "{party_company_name} {party_first_name} {party_last_name}",
+    "party_contact_point": "{ctpoint_label} {ctpoint_value}",
+    "crm_event": "{crmev_title}",
+    "catalog_item": "{citem_name}",
+    "catalog_item_variant": "{civar_name}",
+    "resource": "{resource_name}",
+    "resource_availability": "{ravail_date}",
+    "catalog_item_resource_requirement": "{cireq_id}",
+    "catalog_item_supply_requirement": "{csreq_id}",
+    "txn": "{txn_id}",
+    "txn_line": "{txnline_name}",
+    "txn_line_resource_booking": "{booking_id}",
+    "payment": "{payment_id}",
+    "refund": "{refund_id}",
+    "inventory_location": "{iloc_name}",
+    "inventory_balance": "{ibal_id}",
+    "inventory_movement": "{imov_id}",
 }
 
 
