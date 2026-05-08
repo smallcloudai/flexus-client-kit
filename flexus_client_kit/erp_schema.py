@@ -111,18 +111,30 @@ class Party:
     party_id: str = field(default="", metadata={"pkey": True, "display_name": "Party ID"})
     party_kind: str = field(
         default="PERSON",
-        metadata={"importance": 1, "display_name": "Kind", "enum": PARTY_KIND_ENUM},
+        metadata={"importance": 1, "display_name": "Kind", "enum": PARTY_KIND_ENUM, "mutable": True},
     )
-    party_first_name: str = field(default="", metadata={"importance": 1, "display_name": "First name", "extra_search": True})
-    party_last_name: str = field(default="", metadata={"importance": 1, "display_name": "Last name", "extra_search": True})
-    party_company_name: str = field(default="", metadata={"importance": 1, "display_name": "Company", "extra_search": True})
+    party_first_name: str = field(
+        default="",
+        metadata={"importance": 1, "display_name": "First name", "extra_search": True, "mutable": True},
+    )
+    party_last_name: str = field(
+        default="",
+        metadata={"importance": 1, "display_name": "Last name", "extra_search": True, "mutable": True},
+    )
+    party_company_name: str = field(
+        default="",
+        metadata={"importance": 1, "display_name": "Company", "extra_search": True, "mutable": True},
+    )
     party_reminder_ctpoint_id: Optional[str] = field(default=None, metadata={"display_name": "Reminder contact point"})
-    party_notes: str = field(default="", metadata={"importance": 1, "display": "string_multiline", "display_name": "Notes"})
-    party_tags: List[str] = field(default_factory=list, metadata={"importance": 1, "display_name": "Tags"})
-    party_details: dict = field(default_factory=dict, metadata={"display_name": "Details"})
+    party_notes: str = field(
+        default="",
+        metadata={"importance": 1, "display": "string_multiline", "display_name": "Notes", "mutable": True},
+    )
+    party_tags: List[str] = field(default_factory=list, metadata={"importance": 1, "display_name": "Tags", "mutable": True})
+    party_details: dict = field(default_factory=dict, metadata={"display_name": "Details", "mutable": True})
     party_created_ts: float = field(default=0.0, metadata={"importance": 1, "display_name": "Created at"})
     party_modified_ts: float = field(default=0.0, metadata={"display_name": "Modified at"})
-    party_archived_ts: float = field(default=0.0, metadata={"display_name": "Archived at"})
+    party_archived_ts: float = field(default=0.0, metadata={"display_name": "Archived at", "mutable": True})
 
     contact_points: Optional[List[PartyContactPoint]] = field(
         default=None,
@@ -146,21 +158,28 @@ class Party:
 class PartyContactPoint:
     ws_id: str
     ctpoint_party_id: str
-    ctpoint_channel: str = field(metadata={"importance": 1, "display_name": "Channel", "enum": CONTACT_CHANNEL_ENUM})
+    ctpoint_channel: str = field(
+        metadata={"importance": 1, "display_name": "Channel", "enum": CONTACT_CHANNEL_ENUM, "mutable": True},
+    )
     ctpoint_address_kind: str = field(
-        metadata={"importance": 1, "display_name": "Address kind", "enum": CONTACT_ADDRESS_KIND_ENUM},
+        metadata={
+            "importance": 1,
+            "display_name": "Address kind",
+            "enum": CONTACT_ADDRESS_KIND_ENUM,
+            "mutable": True,
+        },
     )
     ctpoint_value: str = field(metadata={"importance": 1, "extra_search": True, "display_name": "Value"})
     ctpoint_id: str = field(default="", metadata={"pkey": True, "display_name": "Contact point ID"})
-    ctpoint_display_value: str = field(default="", metadata={"display_name": "Display value"})
-    ctpoint_label: str = field(default="", metadata={"importance": 1, "display_name": "Label"})
-    ctpoint_reminders_enabled: bool = field(default=True, metadata={"display_name": "Reminders enabled"})
-    ctpoint_active: bool = field(default=True, metadata={"importance": 1, "display_name": "Active"})
-    ctpoint_verified_ts: float = field(default=0.0, metadata={"display_name": "Verified at"})
-    ctpoint_details: dict = field(default_factory=dict, metadata={"display_name": "Details"})
+    ctpoint_display_value: str = field(default="", metadata={"display_name": "Display value", "mutable": True})
+    ctpoint_label: str = field(default="", metadata={"importance": 1, "display_name": "Label", "mutable": True})
+    ctpoint_reminders_enabled: bool = field(default=True, metadata={"display_name": "Reminders enabled", "mutable": True})
+    ctpoint_active: bool = field(default=True, metadata={"importance": 1, "display_name": "Active", "mutable": True})
+    ctpoint_verified_ts: float = field(default=0.0, metadata={"display_name": "Verified at", "mutable": True})
+    ctpoint_details: dict = field(default_factory=dict, metadata={"display_name": "Details", "mutable": True})
     ctpoint_created_ts: float = field(default=0.0, metadata={"display_name": "Created at"})
     ctpoint_modified_ts: float = field(default=0.0, metadata={"display_name": "Modified at"})
-    ctpoint_archived_ts: float = field(default=0.0, metadata={"display_name": "Archived at"})
+    ctpoint_archived_ts: float = field(default=0.0, metadata={"display_name": "Archived at", "mutable": True})
 
     party: Optional[Party] = field(default=None, metadata={"fk_field": "ctpoint_party_id", "description": "included via include=['party']"})
     reminder_for: Optional[List[Party]] = field(
@@ -660,6 +679,11 @@ def get_field_fk_scope(cls: Type, field_name: str) -> Optional[Dict[str, str]]:
 def get_field_editable(cls: Type, field_name: str) -> bool:
     f = cls.__dataclass_fields__.get(field_name)
     return f.metadata.get("editable", True) if f else True
+
+
+def get_mutable_fields(cls: Type) -> List[str]:
+    """Field names allowed for ERP ingest updates (`mutable` metadata), in dataclass declaration order."""
+    return [name for name, f in cls.__dataclass_fields__.items() if f.metadata.get("mutable")]
 
 
 def get_relation_to_fk_map(cls: Type) -> Dict[str, str]:
