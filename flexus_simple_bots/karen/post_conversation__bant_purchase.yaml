@@ -1,5 +1,7 @@
 judge_instructions: No additional instructions
 
+fake_connected_providers: []
+
 messages:
   - role: cd_instruction
     content: |-
