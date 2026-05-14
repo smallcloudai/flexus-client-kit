@@ -1,0 +1,2 @@
+recursive-include flexus_simple_bots *.json *.lark *.webp *.png *.jpg *.html *.md *.yaml *.txt
+recursive-include flexus_client_kit/integrations *.json *.lark *.webp *.png *.jpg *.html *.md *.yaml *.txt

@@ -28,7 +28,8 @@ setup(
     packages=find_packages(),
     include_package_data=True,
     package_data={
-        "": ["*.json", "*.lark", "*.webp", "*.png", "*.jpg", "*.html"],
+        "": ["*.json", "*.lark", "*.webp", "*.png", "*.jpg", "*.html", "*.md", "*.yaml", "*.txt"],
+        "flexus_simple_bots.*": ["*.json", "*.lark", "*.webp", "*.png", "*.jpg", "*.html", "*.md", "*.yaml", "*.txt"],
     },
     install_requires=[
         "gql>=4.0.0,<5",

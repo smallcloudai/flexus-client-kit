@@ -71,7 +71,7 @@ async def install(client: ckit_client.FlexusClient):
         ],
         marketable_intro_message="Ribbit! Hi there! I'm Frog, your cheerful workspace companion. I'm here to bring joy and keep your spirits high. What can I do for you today?",
         marketable_preferred_model_expensive="grok-4-1-fast-reasoning",
-        marketable_preferred_model_cheap="gpt-5.4-nano",
+        marketable_preferred_model_cheap="grok-4-1-fast-reasoning",
         marketable_experts=[(name, exp.filter_tools(frog_bot.TOOLS)) for name, exp in EXPERTS],
         add_integrations_into_expert_system_prompt=frog_bot.FROG_INTEGRATIONS,
         marketable_tags=["Fun", "Simple", "Motivational"],
