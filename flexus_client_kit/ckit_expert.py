@@ -90,7 +90,7 @@ async def test(super: bool):
     inside_fgroup_id = "solar_root"
     fexp_id = "id:edit:1"
     if not super:
-        client = ckit_client.FlexusClient("ckit_test", api_key="sk_alice_123456")
+        client = ckit_client.FlexusClient("ckit_test", api_key="YOUR_FLEXUS_API_KEY_HERE")
     else:
         client = ckit_client.FlexusClient("ckit_test")
     consequences = await expert_choice_consequences(client, fexp_id, inside_fgroup_id)

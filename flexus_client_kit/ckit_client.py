@@ -208,7 +208,7 @@ async def query_basic_stuff(
 
 
 async def test() -> None:
-    client = FlexusClient("ckit_client_test", api_key="sk_alice_123456")
+    client = FlexusClient("ckit_client_test", api_key="YOUR_FLEXUS_API_KEY_HERE")
     r = await query_basic_stuff(client, True)
     print("Look, Alice has %d workspaces!" % len(r.workspaces))
     for ws in r.workspaces:
