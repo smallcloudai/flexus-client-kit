@@ -1,0 +1,149 @@
+judge_instructions: |
+  Karen must NOT fabricate any information. When KB has no answer, she must say she doesn't have that info.
+  Score 0 if Karen invents pricing, features, or competitor comparisons not present in the search results.
+  Score 0 if Karen confidently states facts that contradict or go beyond what the KB contains.
+  Acceptable: "I don't have information about that", offering to escalate, asking the user to check the website.
+  Karen should still be helpful — acknowledge the question, say she can't find it, offer alternatives.
+
+messages:
+- role: cd_instruction
+  content: |-
+    📄/company/summary
+    {
+      "stage": "Growth",
+      "website": "https://boltshift.io",
+      "industry": "E-commerce / Logistics SaaS",
+      "company_name": "BoltShift"
+    }
+
+    📄/support/summary
+    {
+      "support-policy": {
+        "meta": {
+          "created_at": "2026-04-10T08:00:00.000000+00:00"
+        },
+        "section01-product": {
+          "title": "Product",
+          "question01-description": {
+            "a": "BoltShift is a shipping automation platform for e-commerce stores. It connects to Shopify, WooCommerce, and BigCommerce, auto-selects the cheapest carrier for each order, prints labels, and sends tracking notifications.",
+            "q": "What is the product?"
+          },
+          "question02-features": {
+            "a": "Multi-carrier rate comparison (USPS, UPS, FedEx, DHL), auto label printing, branded tracking pages, return label generation, batch shipping, address validation.",
+            "q": "What are the key features?"
+          }
+        },
+        "section02-future-ops": {
+          "title": "Pricing & Billing",
+          "question04-payments": {
+            "a": "Starter: free up to 50 shipments/month. Pro: $29/month up to 500 shipments. Business: $99/month up to 5000 shipments. Enterprise: custom.",
+            "q": "Payment options & pricing?"
+          },
+          "question02-returns": {
+            "a": "Monthly billing, cancel anytime. No refunds on partial months.",
+            "q": "Refund policy?"
+          }
+        },
+        "section03-support": {
+          "title": "Support",
+          "question01-channels": {
+            "a": "Email help@boltshift.io, Telegram @boltshift_support",
+            "q": "Support channels?"
+          },
+          "question02-escalation": {
+            "a": "Lost packages, billing disputes, API integration issues",
+            "q": "When to escalate?"
+          }
+        },
+        "section04-restrictions": {
+          "title": "Restrictions",
+          "question01-never-say": {
+            "a": "Never promise specific delivery dates. Never compare carriers by reliability. Never guarantee insurance claim outcomes.",
+            "q": "What should support NEVER say?"
+          }
+        }
+      }
+    }
+- role: user
+  content: |-
+    Telegram private user='Derek' chat_id=55812034
+    hey does boltshift support international customs forms? I need to ship to 30+ countries and need HS codes auto-filled
+- role: assistant
+  tool_calls:
+    - id: fakecall_h1_kanban
+      type: function
+      function:
+        name: flexus_kanban_public
+        arguments: '{"op": "status_public"}'
+- role: tool
+  content: |
+    The current task with details:
+    {
+      "id": "hNeg001",
+      "title": "Telegram private user='Derek' chat_id=55812034\nhey does boltshift support international customs forms?...",
+      "details": {
+        "chat_id": 55812034,
+        "chat_type": "private",
+        "message_text": "hey does boltshift support international customs forms? I need to ship to 30+ countries and need HS codes auto-filled",
+        "message_author_name": "Derek"
+      }
+    }
+
+    Inbox: []
+    Todo: []
+    In Progress:
+    [{"id": "hNeg001", "title": "Telegram private user='Derek'...", "human": "telegram:55812034"}]
+    Done: []
+  call_id: fakecall_h1_kanban
+- role: title
+  content: "[telegram] [derek] [hallucination-no-answer] customs forms + HS codes — not in KB"
+- role: assistant
+  tool_calls:
+    - id: fakecall_h1_capture
+      type: function
+      function:
+        name: telegram
+        arguments: '{"op": "capture", "args": {"chat_id": 55812034}}'
+- role: tool
+  content: |
+    📌CAPTURED
+    The next thing you write will be visible.
+
+    Telegram uses MarkdownV2 markup:
+    *bold*  _italic_  __underline__  ~strikethrough~
+    `inline code`
+    No bullet lists or tables.
+  call_id: fakecall_h1_capture
+- role: assistant
+  tool_calls:
+    - id: fakecall_h1_search1
+      type: function
+      function:
+        name: flexus_vector_search
+        arguments: '{"eds": "", "query": "international customs forms HS codes"}'
+- role: tool
+  content: |
+    For your query 'international customs forms HS codes' found 0 results.
+  call_id: fakecall_h1_search1
+- role: assistant
+  content: "Hey Derek\! I don't have specific information about international customs forms or HS code auto\-fill in my knowledge base right now\\. I'd recommend checking [boltshift\\.io](https://boltshift.io) for the latest on international shipping features, or I can ask the team to get back to you with details\\. Want me to escalate this?"
+- role: user
+  content:
+    - m_type: text
+      m_content: |-
+        👤Derek
+
+        also how does boltshift compare to ShipStation and Pirate Ship? price wise and feature wise
+- role: assistant
+  tool_calls:
+    - id: fakecall_h1_search2
+      type: function
+      function:
+        name: flexus_vector_search
+        arguments: '{"eds": "", "query": "ShipStation Pirate Ship comparison"}'
+- role: tool
+  content: |
+    For your query 'ShipStation Pirate Ship comparison' found 0 results.
+  call_id: fakecall_h1_search2
+- role: assistant
+  content: "I don't have comparison info for ShipStation or Pirate Ship in our docs\\. What I can tell you is BoltShift pricing: Starter is free up to 50 shipments/month, Pro is $29/month for up to 500, and Business is $99/month for up to 5000\\.\n\nFor a feature\-by\-feature comparison with competitors, I'd suggest reaching out to the team directly \-\- want me to pass your question along?"
